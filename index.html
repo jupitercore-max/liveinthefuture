@@ -124,5 +124,62 @@
       })
     })
   </script>
+
+
+    <!-- Color Picker -->
+    <label for="colorPicker">Choose a custom background color:</label>
+    <input type="color" id="colorPicker" onchange="changeBgColorCustom(this.value);">
+    <br><br>
+
+    <!-- Color Temperature Slider -->
+    <label for="tempSlider">Choose a background color by temperature:</label>
+    <input type="range" id="tempSlider" min="2000" max="6500" value="5000" onchange="changeBgColorTemp(this.value);">
+    <span id="tempValue">5000K</span>
+
+    <!-- Inline JavaScript -->
+    <script>
+        function changeBgColorCustom(color) {
+            document.body.style.backgroundColor = color;
+        }
+
+        function lerp(v0, v1, t) {
+            return v0 + t * (v1 - v0);
+        }
+
+        function getRGBForTemperature(temp) {
+            let startTemp, endTemp, t, startRGB, endRGB;
+
+            if (temp <= 3500) {
+                startTemp = 2000;
+                endTemp = 3500;
+                startRGB = [255, 56, 0];
+                endRGB = [255, 214, 170];
+            } else if (temp <= 5000) {
+                startTemp = 3500;
+                endTemp = 5000;
+                startRGB = [255, 214, 170];
+                endRGB = [255, 255, 244];
+            } else {
+                startTemp = 5000;
+                endTemp = 6500;
+                startRGB = [255, 255, 244];
+                endRGB = [202, 222, 255];
+            }
+
+            t = (temp - startTemp) / (endTemp - startTemp);
+
+            let r = Math.round(lerp(startRGB[0], endRGB[0], t));
+            let g = Math.round(lerp(startRGB[1], endRGB[1], t));
+            let b = Math.round(lerp(startRGB[2], endRGB[2], t));
+
+            return `rgb(${r},${g},${b})`;
+        }
+
+        function changeBgColorTemp(temp) {
+            let color = getRGBForTemperature(temp);
+            document.body.style.backgroundColor = color;
+            document.getElementById("tempValue").textContent = temp + "K";
+        }
+    </script>
 </body>
 </html>
