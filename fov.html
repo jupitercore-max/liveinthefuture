@@ -54,6 +54,26 @@
             <p>VFOV: <span id="vfov">0</span>&deg;</p>
             <p>PPD: <span id="ppd">0</span></p>
         </div>
+        <h1>Common FOVs</h1>
+        <table id="fovs">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Screen Size (in)</th>
+                    <th>Distance (in)</th>
+                    <th>Aspect Width</th>
+                    <th>Aspect Height</th>
+                    <th>Horizontal Resolution</th>
+                    <th>DFOV (°)</th>
+                    <th>HFOV (°)</th>
+                    <th>VFOV (°)</th>
+                    <th>PPD</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows will be added here -->
+            </tbody>
+        </table>
     </div>
 
     <script>
@@ -65,22 +85,27 @@
             const aspectWidth = parseFloat(aspectRatio[0]);
             const aspectHeight = parseFloat(aspectRatio[1]);
 
-            const distance = parseFloat(document.getElementById('distance').value) * 0.0254; // Convert inches to meters
-            document.getElementById('distanceInput').value = (distance / 0.0254).toFixed(2);
+            const distance = parseFloat(document.getElementById('distance').value);
+            document.getElementById('distanceInput').value = distance.toFixed(2);
 
             const horizontalResolution = parseFloat(document.getElementById('horizontalResolution').value);
             document.getElementById('horizontalResolutionInput').value = horizontalResolution;
 
-            const dfov = 2 * Math.atan((screenSize / Math.sqrt(aspectWidth ** 2 + aspectHeight ** 2)) / (2 * distance)) * (180 / Math.PI);
-            const hfov = 2 * Math.atan((aspectWidth / aspectHeight) * Math.tan(dfov * Math.PI / 360)) * (180 / Math.PI);
-            const vfov = 2 * Math.atan(Math.tan(dfov * Math.PI / 360) / (aspectWidth / aspectHeight)) * (180 / Math.PI);
+            const fovs = calcFOVs(screenSize, distance, aspectWidth, aspectHeight, horizontalResolution);
+            document.getElementById('dfov').textContent = fovs.dfov.toFixed(2);
+            document.getElementById('hfov').textContent = fovs.hfov.toFixed(2);
+            document.getElementById('vfov').textContent = fovs.vfov.toFixed(2);
+            document.getElementById('ppd').textContent = fovs.ppd.toFixed(2);
+        }
 
-            document.getElementById('dfov').textContent = dfov.toFixed(2);
-            document.getElementById('hfov').textContent = hfov.toFixed(2);
-            document.getElementById('vfov').textContent = vfov.toFixed(2);
-
+        function calcFOVs(screenSize, distance, aspectWidth, aspectHeight, horizontalResolution) {
+            const width = screenSize * aspectWidth / Math.sqrt((aspectWidth ** 2 + aspectHeight ** 2));
+            const height = screenSize * aspectHeight / Math.sqrt((aspectHeight ** 2 + aspectWidth ** 2));
+            const dfov = 2 * Math.atan(screenSize / (2 * distance)) * 180 / Math.PI;
+            const hfov = 2 * Math.atan(width / (2 * distance)) * 180 / Math.PI;
+            const vfov = 2 * Math.atan(height / (2 * distance)) * 180 / Math.PI;
             const ppd = horizontalResolution / hfov;
-            document.getElementById('ppd').textContent = ppd.toFixed(2);
+            return { 'dfov': dfov, 'hfov' : hfov, 'vfov': vfov, 'ppd': ppd };
         }
 
         function syncSlider(sliderId, value) {
@@ -88,8 +113,37 @@
             updateValues();
         }
 
+        function generateTable() {
+            const entries = [
+                { description: "Nintendo Switch, 12 inches", screenSize: 6.2, distance: 12, aspectWidth: 1280, aspectHeight: 720, horizontalResolution: 1280 },
+                { description: "iPhone 15 Max Pro, 12 inches", screenSize: 6.7, distance: 12, aspectWidth: 2796, aspectHeight: 1290, horizontalResolution: 2796 },
+                { description: "16 in MBP, 20 inches", screenSize: 16, distance: 20, aspectWidth: 3456, aspectHeight: 2234, horizontalResolution: 3546 },
+                { description: "55 1080P in TV, 10 ft", screenSize: 55, distance: 120, aspectWidth: 16, aspectHeight: 9, horizontalResolution: 1920 },
+                { description: "65 4K in TV, 10 ft", screenSize: 65, distance: 120, aspectWidth: 16, aspectHeight: 9, horizontalResolution: 3840 },
+            ];
+            const tableBody = document.getElementById('fovs').getElementsByTagName('tbody')[0];
+            entries.forEach(entry => {
+                const fovs = calcFOVs(entry.screenSize, entry.distance, entry.aspectWidth, entry.aspectHeight, entry.horizontalResolution);
+                console.log(fovs);
+                const row = tableBody.insertRow();
+                row.insertCell().textContent = entry.description;
+                row.insertCell().textContent = entry.screenSize;
+                row.insertCell().textContent = entry.distance;
+                row.insertCell().textContent = entry.aspectWidth;
+                row.insertCell().textContent = entry.aspectHeight;
+                row.insertCell().textContent = entry.horizontalResolution;
+                row.insertCell().textContent = fovs.dfov.toFixed(2);
+                row.insertCell().textContent = fovs.hfov.toFixed(2);
+                row.insertCell().textContent = fovs.vfov.toFixed(2);
+                row.insertCell().textContent = fovs.ppd.toFixed(2);
+            });
+        }
+
         // Initialize values
-        window.onload = updateValues;
+        window.onload = function() {
+            updateValues();
+            generateTable();
+        }
     </script>
 </body>
 </html>
