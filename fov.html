@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FOV Calculator</title>
+    <style>
+        .container {
+            margin: 20px;
+        }
+        .input-group {
+            margin-bottom: 10px;
+        }
+        .label {
+            margin-right: 10px;
+        }
+        .input-group {
+            text-align: right;
+            width: 480px;
+        }
+        .container {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="input-group">
+            <label class="label" for="screenSize">Screen Size (inches):</label>
+            <input type="range" id="screenSize" min="0.1" max="120" value="15.1" step=".1" oninput="updateValues()">
+            <input type="number" id="screenSizeInput" min="0.1" max="120" value="15.1" step=".1" oninput="syncSlider('screenSize', this.value)">
+        </div>
+        <div class="input-group">
+            <label class="label" for="aspectRatio">Aspect Ratio:</label>
+            <select id="aspectRatio" onchange="updateValues()">
+                <option value="16/9">16:9</option>
+                <option value="16/10">16:10</option>
+                <option value="4/3">4:3</option>
+                <option value="21/9">21:9</option>
+                <option value="1/1">1:1</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label class="label" for="distance">Distance (inches):</label>
+            <input type="range" id="distance" min="6" max="120" value="24" step="1" oninput="updateValues()">
+            <input type="number" id="distanceInput" min="6" max="120" value="24" step="1" oninput="syncSlider('distance', this.value)">
+        </div>
+        <div class="input-group">
+            <label class="label" for="horizontalResolution">Horizontal Resolution:</label>
+            <input type="range" id="horizontalResolution" min="120" max="3840" value="1920" step="1" oninput="updateValues()">
+            <input type="number" id="horizontalResolutionInput" min="120" max="3840" value="1920" step="1" oninput="syncSlider('horizontalResolution', this.value)">
+        </div>
+        <div class="input-group">
+            <p>DFOV: <span id="dfov">0</span>°</p>
+            <p>HFOV: <span id="hfov">0</span>°</p>
+            <p>VFOV: <span id="vfov">0</span>°</p>
+            <p>PPD: <span id="ppd">0</span></p>
+        </div>
+    </div>
+
+    <script>
+        function updateValues() {
+            const screenSize = parseFloat(document.getElementById('screenSize').value);
+            document.getElementById('screenSizeInput').value = screenSize;
+
+            const aspectRatio = document.getElementById('aspectRatio').value.split('/');
+            const aspectWidth = parseFloat(aspectRatio[0]);
+            const aspectHeight = parseFloat(aspectRatio[1]);
+
+            const distance = parseFloat(document.getElementById('distance').value) * 0.0254; // Convert inches to meters
+            document.getElementById('distanceInput').value = (distance / 0.0254).toFixed(2);
+
+            const horizontalResolution = parseFloat(document.getElementById('horizontalResolution').value);
+            document.getElementById('horizontalResolutionInput').value = horizontalResolution;
+
+            const dfov = 2 * Math.atan((screenSize / Math.sqrt(aspectWidth ** 2 + aspectHeight ** 2)) / (2 * distance)) * (180 / Math.PI);
+            const hfov = 2 * Math.atan((aspectWidth / aspectHeight) * Math.tan(dfov * Math.PI / 360)) * (180 / Math.PI);
+            const vfov = 2 * Math.atan(Math.tan(dfov * Math.PI / 360) / (aspectWidth / aspectHeight)) * (180 / Math.PI);
+
+            document.getElementById('dfov').textContent = dfov.toFixed(2);
+            document.getElementById('hfov').textContent = hfov.toFixed(2);
+            document.getElementById('vfov').textContent = vfov.toFixed(2);
+
+            const ppd = horizontalResolution / hfov;
+            document.getElementById('ppd').textContent = ppd.toFixed(2);
+        }
+
+        function syncSlider(sliderId, value) {
+            document.getElementById(sliderId).value = value;
+            updateValues();
+        }
+
+        // Initialize values
+        window.onload = updateValues;
+    </script>
+</body>
+</html>
