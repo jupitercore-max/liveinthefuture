@@ -4,137 +4,163 @@
     <title>FOV Calculator</title>
     <style>
         .container {
+            display: flex;
+            flex-direction: column;
+            max-width: 600px; /* Adjust based on your preference */
             margin: 20px;
         }
+
         .input-group {
-            margin-bottom: 10px;
-        }
-        .label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px; /* Space between input groups */
             margin-right: 10px;
         }
-        .input-group {
+
+        .input-group label {
+            flex-basis: 40%; /* Adjust label width */
             text-align: right;
-            width: 480px;
+            margin-right: 10px; /* Space between label and input */
         }
-        .container {
-            text-align: center;
+
+        .input-group input[type="range"],
+        .input-group input[type="number"],
+        .input-group select {
+            flex-basis: 75%; /* Adjust input/select width */
+        }
+
+        .input-group input[type="number"] {
+            /* Ensuring that number inputs are not too wide or too narrow */
+            max-width: 100px; /* Adjust based on your preference */
+        }
+        /* Styles for the output display */
+        .output-display {
+            margin: 5px 0; /* Adjust spacing between output lines */
+            display:flex;
+            flex-direction:column;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="input-group">
-            <label class="label" for="screenSize">Screen Size (inches):</label>
-            <input type="range" id="screenSize" min="0.1" max="120" value="15.1" step=".1" oninput="updateValues()">
-            <input type="number" id="screenSizeInput" min="0.1" max="120" value="15.1" step=".1" oninput="syncSlider('screenSize', this.value)">
+    <div style="display:flex; justify-content: space-between">
+        <div class="container" style="flex: 0 1 auto;">
+            <div class="input-group">
+                <label class="label" for="screenSize">Screen Size (inches):</label>
+                <input type="range" id="screenSize" min="0.1" max="120" value="15.1" step=".1" oninput="updateValues()">
+                <input type="number" id="screenSizeInput" min="0.1" max="120" value="15.1" step=".1" oninput="syncSlider('screenSize', this.value)">
+            </div>
+            <div class="input-group">
+                <label class="label" for="aspectRatio">Aspect Ratio:</label>
+                <select id="aspectRatio" onchange="updateValues()">
+                    <option value="16/9">16:9</option>
+                    <option value="16/10">16:10</option>
+                    <option value="4/3">4:3</option>
+                    <option value="21/9">21:9</option>
+                    <option value="1/1">1:1</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label class="label" for="distance">Distance (inches):</label>
+                <input type="range" id="distance" min="6" max="120" value="24" step="1" oninput="updateValues()">
+                <input type="number" id="distanceInput" min="6" max="120" value="24" step="1" oninput="syncSlider('distance', this.value)">
+            </div>
+            <div class="input-group">
+                <label class="label" for="horizontalResolution">Horizontal Resolution:</label>
+                <input type="range" id="horizontalResolution" min="120" max="3840" value="1920" step="1" oninput="updateValues()">
+                <input type="number" id="horizontalResolutionInput" min="120" max="3840" value="1920" step="1" oninput="syncSlider('horizontalResolution', this.value)">
+            </div>
+            <div class="input-group output-display">
+                <p>DFOV: <span id="dfov">0</span>&deg;</p>
+                <p>HFOV: <span id="hfov">0</span>&deg;</p>
+                <p>VFOV: <span id="vfov">0</span>&deg;</p>
+                <p>PPD: <span id="ppd">0</span></p>
+            </div>
         </div>
-        <div class="input-group">
-            <label class="label" for="aspectRatio">Aspect Ratio:</label>
-            <select id="aspectRatio" onchange="updateValues()">
-                <option value="16/9">16:9</option>
-                <option value="16/10">16:10</option>
-                <option value="4/3">4:3</option>
-                <option value="21/9">21:9</option>
-                <option value="1/1">1:1</option>
-            </select>
+        <div style="flex:1">
+            <canvas id="displayCanvas" width="600" height="600" style=" border:1px solid #000;"></canvas>
         </div>
-        <div class="input-group">
-            <label class="label" for="distance">Distance (inches):</label>
-            <input type="range" id="distance" min="6" max="120" value="24" step="1" oninput="updateValues()">
-            <input type="number" id="distanceInput" min="6" max="120" value="24" step="1" oninput="syncSlider('distance', this.value)">
-        </div>
-        <div class="input-group">
-            <label class="label" for="horizontalResolution">Horizontal Resolution:</label>
-            <input type="range" id="horizontalResolution" min="120" max="3840" value="1920" step="1" oninput="updateValues()">
-            <input type="number" id="horizontalResolutionInput" min="120" max="3840" value="1920" step="1" oninput="syncSlider('horizontalResolution', this.value)">
-        </div>
-        <div class="input-group">
-            <p>DFOV: <span id="dfov">0</span>&deg;</p>
-            <p>HFOV: <span id="hfov">0</span>&deg;</p>
-            <p>VFOV: <span id="vfov">0</span>&deg;</p>
-            <p>PPD: <span id="ppd">0</span></p>
-        </div>
-        <h1>Common FOVs</h1>
-        <table id="fovs">
-            <thead>
-                <tr>
-                    <th>Description</th>
-                    <th>Screen Size (in)</th>
-                    <th>Distance (in)</th>
-                    <th>Aspect Width</th>
-                    <th>Aspect Height</th>
-                    <th>Horizontal Resolution</th>
-                    <th>DFOV (&deg;)</th>
-                    <th>HFOV (&deg;)</th>
-                    <th>VFOV (&deg;)</th>
-                    <th>PPD</th>
-                </tr>
-                <tr>
-                    <td>Apple Vision Pro</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td>100</td>
-                    <td>90</td>
-                    <td>34</td>
-                </tr>
-                <tr>
-                    <td>Quest 3</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td>110</td>
-                    <td>96</td>
-                    <td>25</td>
-                </tr>
-                <tr>
-                    <td>Xreal Air Ultra</td>
-                    <td></td>
-                    <td></td>
-                    <td>16</td>
-                    <td>9</td>
-                    <td>1920</td>
-                    <td>52</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td>Rokid Max</td>
-                    <td></td>
-                    <td></td>
-                    <td>16</td>
-                    <td>9</td>
-                    <td>1920</td>
-                    <td>50</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td>Viture One</td>
-                    <td></td>
-                    <td></td>
-                    <td>16</td>
-                    <td>9</td>
-                    <td>1920</td>
-                    <td>43</td>
-                    <td>38.4</td>
-                    <td>23.4</td>
-                    <td>55</td>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Rows will be added here -->
-            </tbody>
-        </table>
     </div>
+    <h1>Common FOVs</h1>
+    <table id="fovs">
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th>Screen Size (in)</th>
+                <th>Distance (in)</th>
+                <th>Aspect Width</th>
+                <th>Aspect Height</th>
+                <th>Horizontal Resolution</th>
+                <th>DFOV (&deg;)</th>
+                <th>HFOV (&deg;)</th>
+                <th>VFOV (&deg;)</th>
+                <th>PPD</th>
+            </tr>
+            <tr>
+                <td>Apple Vision Pro</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>100</td>
+                <td>90</td>
+                <td>34</td>
+            </tr>
+            <tr>
+                <td>Quest 3</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>110</td>
+                <td>96</td>
+                <td>25</td>
+            </tr>
+            <tr>
+                <td>Xreal Air Ultra</td>
+                <td></td>
+                <td></td>
+                <td>16</td>
+                <td>9</td>
+                <td>1920</td>
+                <td>52</td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>Rokid Max</td>
+                <td></td>
+                <td></td>
+                <td>16</td>
+                <td>9</td>
+                <td>1920</td>
+                <td>50</td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>Viture One</td>
+                <td></td>
+                <td></td>
+                <td>16</td>
+                <td>9</td>
+                <td>1920</td>
+                <td>43</td>
+                <td>38.4</td>
+                <td>23.4</td>
+                <td>55</td>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Rows will be added here -->
+        </tbody>
+    </table>
 
     <script>
         function updateValues() {
@@ -156,6 +182,7 @@
             document.getElementById('hfov').textContent = fovs.hfov.toFixed(2);
             document.getElementById('vfov').textContent = fovs.vfov.toFixed(2);
             document.getElementById('ppd').textContent = fovs.ppd.toFixed(2);
+            drawVisualization(screenSize, distance, fovs.hfov, fovs.vfov)
         }
 
         function calcFOVs(screenSize, distance, aspectWidth, aspectHeight, horizontalResolution) {
@@ -198,6 +225,51 @@
                 row.insertCell().textContent = fovs.ppd.toFixed(2);
             });
         }
+
+
+        function drawVisualization(screenSize, distance, hfov, vfov) {
+            const canvas = document.getElementById('displayCanvas');
+            if (!canvas.getContext) return;
+
+            const ctx = canvas.getContext('2d');
+            const canvasCenterX = 25;
+            const canvasCenterY = canvas.height / 4; // Position for hFOV
+            const length = distance * 3;
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Function to draw FOV lines and arc
+            function drawFOV(centerY, fov, fovColor, label) {
+                const fovRad = fov * (Math.PI / 180);
+                const y = Math.tan(fovRad / 2) * length;
+
+                // FOV Lines
+                ctx.beginPath();
+                ctx.moveTo(canvasCenterX, centerY);
+                ctx.lineTo(canvasCenterX + length, centerY + y); // Line to the right and up
+                // ctx.lineTo(canvasCenterX + length, centerY);
+                // ctx.lineTo(canvasCenterX, centerY);
+                // ctx.lineTo(canvasCenterX + length, centerY);
+                ctx.lineTo(canvasCenterX + length, centerY - y); // Line to the right and down
+                ctx.closePath();
+                ctx.strokeStyle = fovColor;
+                ctx.stroke();
+
+                // FOV Label
+                ctx.font = "14px Arial";
+                ctx.fillStyle = "black";
+                ctx.fillText(`${label}: ${fov}°`, canvasCenterX + length + 5, centerY + 4);
+            }
+
+            // Draw Horizontal FOV
+            drawFOV(canvasCenterY, hfov, 'red', 'HFOV');
+
+            // Draw Vertical FOV below Horizontal FOV
+            drawFOV(canvas.height * 3 / 4, vfov, 'blue', 'VFOV');
+        }
+
+
+
 
         // Initialize values
         window.onload = function() {
