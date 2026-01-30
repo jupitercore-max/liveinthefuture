@@ -1,281 +1,646 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>FOV Calculator</title>
-    <style>
-        .container {
-            display: flex;
-            flex-direction: column;
-            max-width: 600px; /* Adjust based on your preference */
-            margin: 20px;
-        }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FOV Calculator</title>
 
-        .input-group {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 10px; /* Space between input groups */
-            margin-right: 10px;
-        }
+  <!-- Favicons -->
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" sizes="16x16 32x32 64x64" href="/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
 
-        .input-group label {
-            flex-basis: 40%; /* Adjust label width */
-            text-align: right;
-            margin-right: 10px; /* Space between label and input */
-        }
+  <style>
+    :root {
+      --accent: #1E90FF;
+      --accent-hover: #0066CC;
+      --bg: #fafafa;
+      --text: #1a1a1a;
+      --text-muted: #666;
+      --border: #ddd;
+      --card-bg: #fff;
+      --radius: 8px;
+      --font-mono: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+    }
 
-        .input-group input[type="range"],
-        .input-group input[type="number"],
-        .input-group select {
-            flex-basis: 75%; /* Adjust input/select width */
-        }
+    * {
+      box-sizing: border-box;
+    }
 
-        .input-group input[type="number"] {
-            /* Ensuring that number inputs are not too wide or too narrow */
-            max-width: 100px; /* Adjust based on your preference */
-        }
-        /* Styles for the output display */
-        .output-display {
-            margin: 5px 0; /* Adjust spacing between output lines */
-            display:flex;
-            flex-direction:column;
-        }
-    </style>
+    body {
+      font-family: var(--font-mono);
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    header {
+      margin-bottom: 30px;
+    }
+
+    header a {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin: 10px 0;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Calculator Layout */
+    .calculator-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 30px;
+    }
+
+    @media (max-width: 800px) {
+      .calculator-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Input Card */
+    .input-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    .input-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .input-group label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .input-row input[type="range"] {
+      flex: 1;
+      cursor: pointer;
+    }
+
+    .input-row input[type="number"] {
+      width: 90px;
+      padding: 8px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--text);
+      text-align: right;
+    }
+
+    .input-row input[type="number"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .input-row select {
+      flex: 1;
+      padding: 8px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .input-row select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .input-unit {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      min-width: 30px;
+    }
+
+    /* Results Display */
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    .result-item {
+      background: var(--bg);
+      padding: 16px;
+      border-radius: var(--radius);
+      text-align: center;
+    }
+
+    .result-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .result-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 6px;
+    }
+
+    .result-item.highlight {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .result-item.highlight .result-value {
+      color: #fff;
+    }
+
+    .result-item.highlight .result-label {
+      color: rgba(255,255,255,0.8);
+    }
+
+    /* Visualization */
+    .viz-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .viz-title {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+
+    #displayCanvas {
+      width: 100%;
+      height: auto;
+      border-radius: var(--radius);
+      background: #f5f5f5;
+    }
+
+    /* Reference Table */
+    .section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
+
+    .reference-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .reference-table th {
+      background: var(--bg);
+      padding: 12px 10px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .reference-table td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .reference-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .reference-table tr:hover td {
+      background: var(--bg);
+    }
+
+    .reference-table .device-name {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .reference-table .numeric {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .reference-table .highlight-cell {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .table-section {
+      margin-bottom: 30px;
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+    }
+
+    /* Clickable row */
+    .reference-table tr.clickable {
+      cursor: pointer;
+    }
+
+    .reference-table tr.clickable:hover td {
+      background: rgba(30, 144, 255, 0.05);
+    }
+  </style>
 </head>
+
 <body>
-    <div style="display:flex; justify-content: space-between">
-        <div class="container" style="flex: 0 1 auto;">
-            <div class="input-group">
-                <label class="label" for="screenSize">Screen Size (inches):</label>
-                <input type="range" id="screenSize" min="0.1" max="120" value="15.1" step=".1" oninput="updateValues()">
-                <input type="number" id="screenSizeInput" min="0.1" max="120" value="15.1" step=".1" oninput="syncSlider('screenSize', this.value)">
-            </div>
-            <div class="input-group">
-                <label class="label" for="aspectRatio">Aspect Ratio:</label>
-                <select id="aspectRatio" onchange="updateValues()">
-                    <option value="16/9">16:9</option>
-                    <option value="16/10">16:10</option>
-                    <option value="4/3">4:3</option>
-                    <option value="21/9">21:9</option>
-                    <option value="1/1">1:1</option>
-                </select>
-            </div>
-            <div class="input-group">
-                <label class="label" for="distance">Distance (inches):</label>
-                <input type="range" id="distance" min="6" max="120" value="24" step="1" oninput="updateValues()">
-                <input type="number" id="distanceInput" min="6" max="120" value="24" step="1" oninput="syncSlider('distance', this.value)">
-            </div>
-            <div class="input-group">
-                <label class="label" for="horizontalResolution">Horizontal Resolution:</label>
-                <input type="range" id="horizontalResolution" min="120" max="3840" value="1920" step="1" oninput="updateValues()">
-                <input type="number" id="horizontalResolutionInput" min="120" max="3840" value="1920" step="1" oninput="syncSlider('horizontalResolution', this.value)">
-            </div>
-            <div class="input-group output-display">
-                <p>DFOV: <span id="dfov">0</span>&deg;</p>
-                <p>HFOV: <span id="hfov">0</span>&deg;</p>
-                <p>VFOV: <span id="vfov">0</span>&deg;</p>
-                <p>PPD: <span id="ppd">0</span></p>
-            </div>
+  <div class="container">
+    <header>
+      <a href="/">&larr; rayhe.net</a>
+      <h1>FOV Calculator</h1>
+      <p class="subtitle">Calculate field of view and pixels per degree for displays</p>
+    </header>
+
+    <div class="calculator-layout">
+      <div class="input-card">
+        <div class="input-group">
+          <label>Screen Size</label>
+          <div class="input-row">
+            <input type="range" id="screenSize" min="1" max="120" value="15.6" step="0.1" oninput="updateValues()">
+            <input type="number" id="screenSizeInput" min="1" max="120" value="15.6" step="0.1" oninput="syncSlider('screenSize', this.value)">
+            <span class="input-unit">in</span>
+          </div>
         </div>
-        <div style="flex:1">
-            <canvas id="displayCanvas" width="600" height="600" style=" border:1px solid #000;"></canvas>
+
+        <div class="input-group">
+          <label>Aspect Ratio</label>
+          <div class="input-row">
+            <select id="aspectRatio" onchange="updateValues()">
+              <option value="16/9">16:9 (Widescreen)</option>
+              <option value="16/10">16:10 (MacBook)</option>
+              <option value="3/2">3:2 (Surface)</option>
+              <option value="4/3">4:3 (Classic)</option>
+              <option value="21/9">21:9 (Ultrawide)</option>
+              <option value="32/9">32:9 (Super Ultrawide)</option>
+              <option value="1/1">1:1 (Square)</option>
+            </select>
+          </div>
         </div>
+
+        <div class="input-group">
+          <label>Viewing Distance</label>
+          <div class="input-row">
+            <input type="range" id="distance" min="6" max="240" value="24" step="1" oninput="updateValues()">
+            <input type="number" id="distanceInput" min="6" max="240" value="24" step="1" oninput="syncSlider('distance', this.value)">
+            <span class="input-unit">in</span>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>Horizontal Resolution</label>
+          <div class="input-row">
+            <input type="range" id="horizontalResolution" min="320" max="7680" value="1920" step="1" oninput="updateValues()">
+            <input type="number" id="horizontalResolutionInput" min="320" max="7680" value="1920" step="1" oninput="syncSlider('horizontalResolution', this.value)">
+            <span class="input-unit">px</span>
+          </div>
+        </div>
+
+        <div class="results-grid">
+          <div class="result-item">
+            <div class="result-value" id="hfov">--</div>
+            <div class="result-label">H-FOV</div>
+          </div>
+          <div class="result-item">
+            <div class="result-value" id="vfov">--</div>
+            <div class="result-label">V-FOV</div>
+          </div>
+          <div class="result-item">
+            <div class="result-value" id="dfov">--</div>
+            <div class="result-label">D-FOV</div>
+          </div>
+          <div class="result-item highlight">
+            <div class="result-value" id="ppd">--</div>
+            <div class="result-label">PPD</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="viz-card">
+        <div class="viz-title">FOV Visualization</div>
+        <canvas id="displayCanvas" width="500" height="400"></canvas>
+      </div>
     </div>
-    <h1>Common FOVs</h1>
-    <table id="fovs">
-        <thead>
+
+    <div class="table-section">
+      <div class="section-title">XR Headsets</div>
+      <div class="table-scroll">
+        <table class="reference-table" id="xrTable">
+          <thead>
             <tr>
-                <th>Description</th>
-                <th>Screen Size (in)</th>
-                <th>Distance (in)</th>
-                <th>Aspect Width</th>
-                <th>Aspect Height</th>
-                <th>Horizontal Resolution</th>
-                <th>DFOV (&deg;)</th>
-                <th>HFOV (&deg;)</th>
-                <th>VFOV (&deg;)</th>
-                <th>PPD</th>
+              <th>Device</th>
+              <th class="numeric">H-FOV</th>
+              <th class="numeric">V-FOV</th>
+              <th class="numeric">D-FOV</th>
+              <th class="numeric">PPD</th>
             </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="table-section">
+      <div class="section-title">Common Displays (click to load)</div>
+      <div class="table-scroll">
+        <table class="reference-table" id="displaysTable">
+          <thead>
             <tr>
-                <td>Apple Vision Pro</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td>100</td>
-                <td>90</td>
-                <td>34</td>
+              <th>Device</th>
+              <th class="numeric">Size</th>
+              <th class="numeric">Distance</th>
+              <th class="numeric">Resolution</th>
+              <th class="numeric">H-FOV</th>
+              <th class="numeric">V-FOV</th>
+              <th class="numeric">D-FOV</th>
+              <th class="numeric">PPD</th>
             </tr>
-            <tr>
-                <td>Quest 3</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td>110</td>
-                <td>96</td>
-                <td>25</td>
-            </tr>
-            <tr>
-                <td>Xreal Air Ultra</td>
-                <td></td>
-                <td></td>
-                <td>16</td>
-                <td>9</td>
-                <td>1920</td>
-                <td>52</td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td>Rokid Max</td>
-                <td></td>
-                <td></td>
-                <td>16</td>
-                <td>9</td>
-                <td>1920</td>
-                <td>50</td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td>Viture One</td>
-                <td></td>
-                <td></td>
-                <td>16</td>
-                <td>9</td>
-                <td>1920</td>
-                <td>43</td>
-                <td>38.4</td>
-                <td>23.4</td>
-                <td>55</td>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Rows will be added here -->
-        </tbody>
-    </table>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-    <script>
-        function updateValues() {
-            const screenSize = parseFloat(document.getElementById('screenSize').value);
-            document.getElementById('screenSizeInput').value = screenSize;
+  <script>
+    function updateValues() {
+      const screenSize = parseFloat(document.getElementById('screenSize').value);
+      document.getElementById('screenSizeInput').value = screenSize;
 
-            const aspectRatio = document.getElementById('aspectRatio').value.split('/');
-            const aspectWidth = parseFloat(aspectRatio[0]);
-            const aspectHeight = parseFloat(aspectRatio[1]);
+      const aspectRatio = document.getElementById('aspectRatio').value.split('/');
+      const aspectWidth = parseFloat(aspectRatio[0]);
+      const aspectHeight = parseFloat(aspectRatio[1]);
 
-            const distance = parseFloat(document.getElementById('distance').value);
-            document.getElementById('distanceInput').value = distance.toFixed(2);
+      const distance = parseFloat(document.getElementById('distance').value);
+      document.getElementById('distanceInput').value = distance;
 
-            const horizontalResolution = parseFloat(document.getElementById('horizontalResolution').value);
-            document.getElementById('horizontalResolutionInput').value = horizontalResolution;
+      const horizontalResolution = parseFloat(document.getElementById('horizontalResolution').value);
+      document.getElementById('horizontalResolutionInput').value = horizontalResolution;
 
-            const fovs = calcFOVs(screenSize, distance, aspectWidth, aspectHeight, horizontalResolution);
-            document.getElementById('dfov').textContent = fovs.dfov.toFixed(2);
-            document.getElementById('hfov').textContent = fovs.hfov.toFixed(2);
-            document.getElementById('vfov').textContent = fovs.vfov.toFixed(2);
-            document.getElementById('ppd').textContent = fovs.ppd.toFixed(2);
-            drawVisualization(screenSize, distance, fovs.hfov, fovs.vfov)
+      const fovs = calcFOVs(screenSize, distance, aspectWidth, aspectHeight, horizontalResolution);
+      document.getElementById('dfov').textContent = fovs.dfov.toFixed(1) + '°';
+      document.getElementById('hfov').textContent = fovs.hfov.toFixed(1) + '°';
+      document.getElementById('vfov').textContent = fovs.vfov.toFixed(1) + '°';
+      document.getElementById('ppd').textContent = fovs.ppd.toFixed(1);
+
+      drawVisualization(screenSize, distance, fovs.hfov, fovs.vfov, aspectWidth, aspectHeight);
+    }
+
+    function calcFOVs(screenSize, distance, aspectWidth, aspectHeight, horizontalResolution) {
+      const diagonal = Math.sqrt(aspectWidth ** 2 + aspectHeight ** 2);
+      const width = screenSize * aspectWidth / diagonal;
+      const height = screenSize * aspectHeight / diagonal;
+      const dfov = 2 * Math.atan(screenSize / (2 * distance)) * 180 / Math.PI;
+      const hfov = 2 * Math.atan(width / (2 * distance)) * 180 / Math.PI;
+      const vfov = 2 * Math.atan(height / (2 * distance)) * 180 / Math.PI;
+      const ppd = horizontalResolution / hfov;
+      return { dfov, hfov, vfov, ppd };
+    }
+
+    function syncSlider(sliderId, value) {
+      document.getElementById(sliderId).value = value;
+      updateValues();
+    }
+
+    function loadPreset(screenSize, distance, aspectRatio, resolution) {
+      document.getElementById('screenSize').value = screenSize;
+      document.getElementById('screenSizeInput').value = screenSize;
+      document.getElementById('distance').value = distance;
+      document.getElementById('distanceInput').value = distance;
+      document.getElementById('horizontalResolution').value = resolution;
+      document.getElementById('horizontalResolutionInput').value = resolution;
+
+      // Find matching aspect ratio option
+      const select = document.getElementById('aspectRatio');
+      for (let option of select.options) {
+        const [w, h] = option.value.split('/').map(Number);
+        if (Math.abs(w/h - aspectRatio) < 0.01) {
+          select.value = option.value;
+          break;
         }
+      }
 
-        function calcFOVs(screenSize, distance, aspectWidth, aspectHeight, horizontalResolution) {
-            const width = screenSize * aspectWidth / Math.sqrt((aspectWidth ** 2 + aspectHeight ** 2));
-            const height = screenSize * aspectHeight / Math.sqrt((aspectHeight ** 2 + aspectWidth ** 2));
-            const dfov = 2 * Math.atan(screenSize / (2 * distance)) * 180 / Math.PI;
-            const hfov = 2 * Math.atan(width / (2 * distance)) * 180 / Math.PI;
-            const vfov = 2 * Math.atan(height / (2 * distance)) * 180 / Math.PI;
-            const ppd = horizontalResolution / hfov;
-            return { 'dfov': dfov, 'hfov' : hfov, 'vfov': vfov, 'ppd': ppd };
-        }
+      updateValues();
+    }
 
-        function syncSlider(sliderId, value) {
-            document.getElementById(sliderId).value = value;
-            updateValues();
-        }
+    function generateTables() {
+      // XR Headsets (fixed specs, no calculation needed)
+      const xrDevices = [
+        { name: 'Apple Vision Pro', hfov: 100, vfov: 90, dfov: 120, ppd: 34 },
+        { name: 'Meta Quest 3', hfov: 110, vfov: 96, dfov: 120, ppd: 25 },
+        { name: 'Meta Quest Pro', hfov: 106, vfov: 96, dfov: 117, ppd: 22 },
+        { name: 'PSVR 2', hfov: 110, vfov: 110, dfov: 110, ppd: 19 },
+        { name: 'Xreal Air Ultra', hfov: 52, vfov: 29, dfov: 57, ppd: 42 },
+        { name: 'Rokid Max 2', hfov: 50, vfov: 28, dfov: 55, ppd: 44 },
+        { name: 'Viture One', hfov: 38, vfov: 23, dfov: 43, ppd: 55 },
+      ];
 
-        function generateTable() {
-            const entries = [
-                { description: "Nintendo Switch, 12 inches", screenSize: 6.2, distance: 12, aspectWidth: 16, aspectHeight: 9, horizontalResolution: 1280 },
-                { description: "iPhone 15 Max Pro, 12 inches", screenSize: 6.7, distance: 12, aspectWidth: 2796, aspectHeight: 1290, horizontalResolution: 2796 },
-                { description: "16 in MBP, 20 inches", screenSize: 16, distance: 20, aspectWidth: 3456, aspectHeight: 2234, horizontalResolution: 3546 },
-                { description: "55 1080P in TV, 10 ft", screenSize: 55, distance: 120, aspectWidth: 16, aspectHeight: 9, horizontalResolution: 1920 },
-                { description: "65 4K in TV, 10 ft", screenSize: 65, distance: 120, aspectWidth: 16, aspectHeight: 9, horizontalResolution: 3840 },
-            ];
-            const tableBody = document.getElementById('fovs').getElementsByTagName('tbody')[0];
-            entries.forEach(entry => {
-                const fovs = calcFOVs(entry.screenSize, entry.distance, entry.aspectWidth, entry.aspectHeight, entry.horizontalResolution);
-                console.log(fovs);
-                const row = tableBody.insertRow();
-                row.insertCell().textContent = entry.description;
-                row.insertCell().textContent = entry.screenSize;
-                row.insertCell().textContent = entry.distance;
-                row.insertCell().textContent = entry.aspectWidth;
-                row.insertCell().textContent = entry.aspectHeight;
-                row.insertCell().textContent = entry.horizontalResolution;
-                row.insertCell().textContent = fovs.dfov.toFixed(2);
-                row.insertCell().textContent = fovs.hfov.toFixed(2);
-                row.insertCell().textContent = fovs.vfov.toFixed(2);
-                row.insertCell().textContent = fovs.ppd.toFixed(2);
-            });
-        }
+      const xrBody = document.querySelector('#xrTable tbody');
+      xrDevices.forEach(device => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="device-name">${device.name}</td>
+          <td class="numeric">${device.hfov}°</td>
+          <td class="numeric">${device.vfov}°</td>
+          <td class="numeric">${device.dfov}°</td>
+          <td class="numeric highlight-cell">${device.ppd}</td>
+        `;
+        xrBody.appendChild(row);
+      });
 
+      // Common displays
+      const displays = [
+        { name: 'iPhone 15 Pro Max @ 12"', size: 6.7, distance: 12, aspectW: 19.5, aspectH: 9, resolution: 2796 },
+        { name: 'iPad Pro 13" @ 18"', size: 13, distance: 18, aspectW: 4, aspectH: 3, resolution: 2752 },
+        { name: 'MacBook Pro 16" @ 20"', size: 16.2, distance: 20, aspectW: 16, aspectH: 10, resolution: 3456 },
+        { name: 'iMac 27" @ 24"', size: 27, distance: 24, aspectW: 16, aspectH: 9, resolution: 5120 },
+        { name: 'Nintendo Switch @ 12"', size: 6.2, distance: 12, aspectW: 16, aspectH: 9, resolution: 1280 },
+        { name: 'Steam Deck @ 14"', size: 7, distance: 14, aspectW: 16, aspectH: 10, resolution: 1280 },
+        { name: '55" 4K TV @ 8ft', size: 55, distance: 96, aspectW: 16, aspectH: 9, resolution: 3840 },
+        { name: '65" 4K TV @ 10ft', size: 65, distance: 120, aspectW: 16, aspectH: 9, resolution: 3840 },
+        { name: '77" 4K TV @ 10ft', size: 77, distance: 120, aspectW: 16, aspectH: 9, resolution: 3840 },
+        { name: 'Movie Theater (IMAX)', size: 720, distance: 1080, aspectW: 1.9, aspectH: 1, resolution: 4096 },
+      ];
 
-        function drawVisualization(screenSize, distance, hfov, vfov) {
-            const canvas = document.getElementById('displayCanvas');
-            if (!canvas.getContext) return;
+      const displaysBody = document.querySelector('#displaysTable tbody');
+      displays.forEach(display => {
+        const fovs = calcFOVs(display.size, display.distance, display.aspectW, display.aspectH, display.resolution);
+        const row = document.createElement('tr');
+        row.className = 'clickable';
+        row.onclick = () => loadPreset(display.size, display.distance, display.aspectW / display.aspectH, display.resolution);
+        row.innerHTML = `
+          <td class="device-name">${display.name}</td>
+          <td class="numeric">${display.size}"</td>
+          <td class="numeric">${display.distance}"</td>
+          <td class="numeric">${display.resolution}px</td>
+          <td class="numeric">${fovs.hfov.toFixed(1)}°</td>
+          <td class="numeric">${fovs.vfov.toFixed(1)}°</td>
+          <td class="numeric">${fovs.dfov.toFixed(1)}°</td>
+          <td class="numeric highlight-cell">${fovs.ppd.toFixed(1)}</td>
+        `;
+        displaysBody.appendChild(row);
+      });
+    }
 
-            const ctx = canvas.getContext('2d');
-            const canvasCenterX = 25;
-            const canvasCenterY = canvas.height / 4; // Position for hFOV
-            const length = distance * 3;
-            // Clear the canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+    function drawVisualization(screenSize, distance, hfov, vfov, aspectW, aspectH) {
+      const canvas = document.getElementById('displayCanvas');
+      if (!canvas.getContext) return;
 
-            // Function to draw FOV lines and arc
-            function drawFOV(centerY, fov, fovColor, label) {
-                const fovRad = fov * (Math.PI / 180);
-                const y = Math.tan(fovRad / 2) * length;
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width;
+      const height = canvas.height;
+      const padding = 30;
+      const sectionGap = 20;
 
-                // FOV Lines
-                ctx.beginPath();
-                ctx.moveTo(canvasCenterX, centerY);
-                ctx.lineTo(canvasCenterX + length, centerY + y); // Line to the right and up
-                // ctx.lineTo(canvasCenterX + length, centerY);
-                // ctx.lineTo(canvasCenterX, centerY);
-                // ctx.lineTo(canvasCenterX + length, centerY);
-                ctx.lineTo(canvasCenterX + length, centerY - y); // Line to the right and down
-                ctx.closePath();
-                ctx.strokeStyle = fovColor;
-                ctx.stroke();
+      // Clear canvas
+      ctx.fillStyle = '#f8f8f8';
+      ctx.fillRect(0, 0, width, height);
 
-                // FOV Label
-                ctx.font = "14px Arial";
-                ctx.fillStyle = "black";
-                ctx.fillText(`${label}: ${fov}°`, canvasCenterX + length + 5, centerY + 4);
-            }
+      // Each section gets exactly half the height minus gap
+      const sectionHeight = (height - sectionGap) / 2;
 
-            // Draw Horizontal FOV
-            drawFOV(canvasCenterY, hfov, 'red', 'HFOV');
+      // Draw function for FOV - each section is self-contained
+      function drawFOVSection(sectionTop, sectionH, fov, color, label) {
+        const centerY = sectionTop + sectionH / 2;
+        const eyeX = padding;
+        const fovRad = (fov / 2) * Math.PI / 180;
+        const tanFov = Math.tan(fovRad);
 
-            // Draw Vertical FOV below Horizontal FOV
-            drawFOV(canvas.height * 3 / 4, vfov, 'blue', 'VFOV');
-        }
+        // Calculate scale so cone fits within this section
+        const maxConeHeight = (sectionH / 2) - 15; // Leave room for label
+        const availableWidth = width - padding * 2 - 80; // Leave room for text label
 
+        // Scale based on whichever constraint is tighter
+        const scaleByHeight = maxConeHeight / tanFov;
+        const scaleByWidth = availableWidth;
+        const lineLength = Math.min(scaleByHeight, scaleByWidth);
 
+        const halfHeight = lineLength * tanFov;
 
+        // FOV cone (filled)
+        ctx.beginPath();
+        ctx.moveTo(eyeX, centerY);
+        ctx.lineTo(eyeX + lineLength, centerY - halfHeight);
+        ctx.lineTo(eyeX + lineLength, centerY + halfHeight);
+        ctx.closePath();
+        ctx.fillStyle = color + '20';
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
 
-        // Initialize values
-        window.onload = function() {
-            updateValues();
-            generateTable();
-        }
-    </script>
+        // Screen representation
+        const screenHeight = halfHeight * 2 * 0.9;
+        ctx.fillStyle = '#333';
+        ctx.fillRect(eyeX + lineLength - 3, centerY - screenHeight/2, 6, screenHeight);
+
+        // Eye
+        ctx.beginPath();
+        ctx.arc(eyeX, centerY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#333';
+        ctx.fill();
+
+        // Label to the right of cone
+        ctx.font = '600 12px system-ui, sans-serif';
+        ctx.fillStyle = color;
+        ctx.textAlign = 'left';
+        ctx.fillText(`${label}: ${fov.toFixed(1)}°`, eyeX + lineLength + 15, centerY + 4);
+
+        // Section title
+        ctx.font = '11px system-ui, sans-serif';
+        ctx.fillStyle = '#999';
+        ctx.textAlign = 'left';
+        ctx.fillText(label === 'H-FOV' ? 'Top View' : 'Side View', eyeX, sectionTop + 15);
+      }
+
+      // Draw H-FOV in top section
+      drawFOVSection(0, sectionHeight, hfov, '#E63946', 'H-FOV');
+
+      // Draw V-FOV in bottom section
+      drawFOVSection(sectionHeight + sectionGap, sectionHeight, vfov, '#457B9D', 'V-FOV');
+
+      // Divider line
+      ctx.strokeStyle = '#ddd';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padding, sectionHeight + sectionGap / 2);
+      ctx.lineTo(width - padding, sectionHeight + sectionGap / 2);
+      ctx.stroke();
+    }
+
+    // Initialize
+    window.onload = function() {
+      updateValues();
+      generateTables();
+    };
+  </script>
 </body>
 </html>
