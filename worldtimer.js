@@ -514,6 +514,7 @@
 
       const marker = document.createElement('div');
       marker.className = 'hour-marker';
+      marker.dataset.hour = h; // Store hour for dynamic rotation updates
 
       if (h >= 7 && h < 17) {
         marker.classList.add('day');
@@ -528,20 +529,38 @@
       const x = ringCenter + ringRadius * Math.cos(angleRad);
       const y = ringCenter + ringRadius * Math.sin(angleRad);
 
-      // Calculate tangential rotation for readable text
-      // Base tangent rotation (perpendicular to radius)
-      let rotation = -h * 15;
-
-      // For top half of dial (h <= 6 or h >= 18), flip 180° for readability
-      if (h <= 6 || h >= 18) {
-        rotation += 180;
-      }
-
       marker.style.left = x + 'px';
       marker.style.top = y + 'px';
-      marker.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
+      // Initial rotation will be set by updateHourMarkerRotations
       hourRing.appendChild(marker);
     }
+  }
+
+  // Update hour marker rotations based on current ring rotation
+  function updateHourMarkerRotations(ringRotation) {
+    const markers = hourRing.querySelectorAll('.hour-marker');
+    markers.forEach(marker => {
+      const h = parseInt(marker.dataset.hour);
+
+      // Marker's tangent angle on ring (fixed)
+      const markerAngleOnRing = -h * 15;
+
+      // Marker's actual screen position after ring rotation
+      const screenAngle = markerAngleOnRing + ringRotation;
+
+      // Normalize to 0-360
+      const normalizedScreenAngle = ((screenAngle % 360) + 360) % 360;
+
+      // Base rotation keeps text tangent to the circle
+      let textRotation = markerAngleOnRing;
+
+      // If marker is in bottom half of screen (90° to 270°), flip 180°
+      if (normalizedScreenAngle > 90 && normalizedScreenAngle < 270) {
+        textRotation += 180;
+      }
+
+      marker.style.transform = `translate(-50%, -50%) rotate(${textRotation}deg)`;
+    });
   }
 
   const faceCenter = 172;
@@ -695,6 +714,9 @@
     const hour24 = hours + minutes / 60 + seconds / 3600;
     const ringRotation = hour24 * 15;
     hourRing.style.transform = `rotate(${ringRotation}deg)`;
+
+    // Update hour marker rotations to keep them readable as ring rotates
+    updateHourMarkerRotations(ringRotation);
 
     const hourForGlow = hour24;
     const rawGlow = (Math.cos(hourForGlow * Math.PI / 12) + 1) / 2;
