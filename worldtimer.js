@@ -508,6 +508,7 @@
     const ringRadius = ringCenter - 14;
 
     for (let h = 0; h < 24; h++) {
+      // Position angle (counter-clockwise from top)
       const angleDeg = -h * 15 - 90;
       const angleRad = angleDeg * Math.PI / 180;
 
@@ -527,9 +528,18 @@
       const x = ringCenter + ringRadius * Math.cos(angleRad);
       const y = ringCenter + ringRadius * Math.sin(angleRad);
 
+      // Calculate tangential rotation for readable text
+      // Base tangent rotation (perpendicular to radius)
+      let rotation = -h * 15;
+
+      // For top half of dial (h <= 6 or h >= 18), flip 180° for readability
+      if (h <= 6 || h >= 18) {
+        rotation += 180;
+      }
+
       marker.style.left = x + 'px';
       marker.style.top = y + 'px';
-      marker.style.transform = `translate(-50%, -50%) rotate(${getCityLabelRotation(angleDeg)}deg)`;
+      marker.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
       hourRing.appendChild(marker);
     }
   }
