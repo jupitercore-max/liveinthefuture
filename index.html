@@ -329,8 +329,8 @@
 
     .clock-container {
       position: relative;
-      width: 320px;
-      height: 320px;
+      width: 420px;
+      height: 420px;
     }
 
     .clock-bezel {
@@ -345,10 +345,10 @@
     /* Outer city ring */
     .clock-cities-outer {
       position: absolute;
-      top: 6px;
-      left: 6px;
-      right: 6px;
-      bottom: 6px;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
       border-radius: 50%;
       background: #1a1a1a;
       overflow: visible;
@@ -358,10 +358,10 @@
     /* Inner city ring */
     .clock-cities-inner {
       position: absolute;
-      top: 22px;
-      left: 22px;
-      right: 22px;
-      bottom: 22px;
+      top: 30px;
+      left: 30px;
+      right: 30px;
+      bottom: 30px;
       border-radius: 50%;
       background: #222;
       border: 1px solid #333;
@@ -395,10 +395,10 @@
     /* 24-hour rotating ring */
     .hour-ring {
       position: absolute;
-      top: 38px;
-      left: 38px;
-      right: 38px;
-      bottom: 38px;
+      top: 52px;
+      left: 52px;
+      right: 52px;
+      bottom: 52px;
       border-radius: 50%;
       /* Day/night gradient - dynamically set by JS based on location */
       background: #1a1a1a;
@@ -409,7 +409,7 @@
 
     .hour-marker {
       position: absolute;
-      font-size: 8px;
+      font-size: 10px;
       font-weight: 700;
       text-shadow: 0 0 2px rgba(0,0,0,0.5);
       white-space: nowrap;
@@ -433,10 +433,10 @@
     /* Clock face */
     .clock-face {
       position: absolute;
-      top: 58px;
-      left: 58px;
-      right: 58px;
-      bottom: 58px;
+      top: 78px;
+      left: 78px;
+      right: 78px;
+      bottom: 78px;
       border-radius: 50%;
       background: linear-gradient(135deg, #f8f8f5 0%, #e8e8e5 100%);
       box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
@@ -448,8 +448,8 @@
       position: absolute;
       top: 50%;
       left: 50%;
-      width: 10px;
-      height: 10px;
+      width: 12px;
+      height: 12px;
       background: #1a1a1a;
       border-radius: 50%;
       transform: translate(-50%, -50%);
@@ -458,23 +458,23 @@
 
     .clock-tick {
       position: absolute;
-      top: 4px;
+      top: 5px;
       left: 50%;
       width: 1px;
-      height: 6px;
+      height: 8px;
       background: #999;
-      transform-origin: 50% 98px;
+      transform-origin: 50% 127px;
     }
 
     .clock-tick.major {
       width: 2px;
-      height: 10px;
+      height: 12px;
       background: #333;
     }
 
     .clock-hour-num {
       position: absolute;
-      font-size: 11px;
+      font-size: 14px;
       font-weight: 600;
       color: #333;
       transform: translate(-50%, -50%);
@@ -490,22 +490,22 @@
     }
 
     .clock-hand-hour {
-      width: 4px;
-      height: 50px;
+      width: 5px;
+      height: 65px;
       background: #1a1a1a;
       z-index: 50;
     }
 
     .clock-hand-minute {
-      width: 3px;
-      height: 70px;
+      width: 4px;
+      height: 90px;
       background: #333;
       z-index: 51;
     }
 
     .clock-hand-second {
-      width: 1px;
-      height: 80px;
+      width: 2px;
+      height: 105px;
       background: var(--accent);
       z-index: 52;
     }
@@ -513,25 +513,25 @@
     .clock-hand-second::before {
       content: '';
       position: absolute;
-      bottom: -18px;
+      bottom: -24px;
       left: 50%;
       transform: translateX(-50%);
-      width: 1px;
-      height: 18px;
+      width: 2px;
+      height: 24px;
       background: var(--accent);
     }
 
     /* Local time indicator triangle */
     .local-indicator {
       position: absolute;
-      top: 36px;
+      top: 49px;
       left: 50%;
       transform: translateX(-50%);
       width: 0;
       height: 0;
-      border-left: 5px solid transparent;
-      border-right: 5px solid transparent;
-      border-top: 8px solid var(--accent);
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 10px solid var(--accent);
       z-index: 200;
     }
 
@@ -1152,7 +1152,7 @@
           const defs = document.createElementNS(ns, 'defs');
           svg.appendChild(defs);
 
-          // Calculate positions and check for collisions
+          // Calculate positions
           const positions = cities.map(city => {
             const offset = getTimezoneOffset(city.tz);
             const relativeOffset = offset - localOffset;
@@ -1165,42 +1165,46 @@
             };
           });
 
-          // Sort by angle and detect close neighbors
+          // Check if any cities are too close - if so, reduce ALL font sizes
           const sorted = [...positions].sort((a, b) => a.angleDeg - b.angleDeg);
-          positions.forEach(pos => { pos.fontSize = baseFontSize; });
-
+          let minAngleDiff = 360;
           for (let i = 0; i < sorted.length; i++) {
             const curr = sorted[i];
             const next = sorted[(i + 1) % sorted.length];
             let angleDiff = Math.abs(next.angleDeg - curr.angleDeg);
             if (angleDiff > 180) angleDiff = 360 - angleDiff;
-            if (angleDiff < 20) {
-              const reduction = angleDiff < 10 ? 0.55 : 0.75;
-              curr.fontSize = Math.min(curr.fontSize, baseFontSize * reduction);
-              next.fontSize = Math.min(next.fontSize, baseFontSize * reduction);
-            }
+            minAngleDiff = Math.min(minAngleDiff, angleDiff);
+          }
+
+          // Reduce font size uniformly if cities are close
+          let fontSize = baseFontSize;
+          if (minAngleDiff < 25) {
+            fontSize = baseFontSize * (minAngleDiff / 25) * 0.9;
+            fontSize = Math.max(fontSize, baseFontSize * 0.5); // Don't go below 50%
           }
 
           positions.forEach((pos, idx) => {
-            const { city, angleDeg, isLocal, fontSize } = pos;
+            const { city, angleDeg, isLocal } = pos;
 
-            // Create a circular arc path for this text
-            // For text on bottom half, flip the arc so text reads correctly
-            const isBottomHalf = angleDeg > -90 && angleDeg < 90;
+            // Normalize angle to 0-360 range for consistent bottom-half detection
+            let normAngle = ((angleDeg % 360) + 360) % 360;
+
+            // Bottom half is 0-180 degrees (right side, bottom, left side going clockwise from top)
+            // Top half is 180-360 degrees (left side going back up to top)
+            // Text on bottom half needs reversed arc to read correctly
+            const isBottomHalf = normAngle > 0 && normAngle < 180;
 
             // Path ID unique to this label
             const pathId = `cityPath${isInner ? 'Inner' : 'Outer'}${idx}`;
 
-            // Calculate arc - we want a small arc segment centered on the city position
-            // Arc spans about 40 degrees centered on the city angle
-            const arcSpan = 30; // degrees on each side
+            // Arc spans about 30 degrees on each side of the city position
+            const arcSpan = 25;
             const startAngle = angleDeg - arcSpan;
             const endAngle = angleDeg + arcSpan;
 
-            // For bottom half, reverse the arc direction so text isn't upside down
             let arcPath;
             if (isBottomHalf) {
-              // Draw arc counter-clockwise (text will read correctly)
+              // Draw arc counter-clockwise so text reads correctly (not upside down)
               const startRad = (endAngle) * Math.PI / 180;
               const endRad = (startAngle) * Math.PI / 180;
               const x1 = center + radius * Math.cos(startRad);
@@ -1209,7 +1213,7 @@
               const y2 = center + radius * Math.sin(endRad);
               arcPath = `M ${x1} ${y1} A ${radius} ${radius} 0 0 0 ${x2} ${y2}`;
             } else {
-              // Draw arc clockwise
+              // Draw arc clockwise (top half - text naturally reads correctly)
               const startRad = (startAngle) * Math.PI / 180;
               const endRad = (endAngle) * Math.PI / 180;
               const x1 = center + radius * Math.cos(startRad);
@@ -1249,16 +1253,16 @@
         // Get container dimensions
         const outerRect = clockCitiesOuter.getBoundingClientRect();
         const outerSize = outerRect.width;
-        const outerRadius = outerSize / 2 - 10;
+        const outerRadius = outerSize / 2 - 12;
 
-        const outerSVG = createCurvedTextSVG(outerCities, outerSize, outerRadius, 6.5, false);
+        const outerSVG = createCurvedTextSVG(outerCities, outerSize, outerRadius, 9, false);
         clockCitiesOuter.appendChild(outerSVG);
 
         const innerRect = clockCitiesInner.getBoundingClientRect();
         const innerSize = innerRect.width;
-        const innerRadius = innerSize / 2 - 8;
+        const innerRadius = innerSize / 2 - 10;
 
-        const innerSVG = createCurvedTextSVG(innerCities, innerSize, innerRadius, 5.5, true);
+        const innerSVG = createCurvedTextSVG(innerCities, innerSize, innerRadius, 8, true);
         clockCitiesInner.appendChild(innerSVG);
       }
 
@@ -1300,8 +1304,8 @@
         }
       }
 
-      // Clock face is 204x204, center at 102,102
-      const faceCenter = 102;
+      // Clock face is 264x264 (420 - 78*2), center at 132,132
+      const faceCenter = 132;
 
       // Generate clock ticks
       for (let i = 0; i < 60; i++) {
@@ -1313,7 +1317,7 @@
       }
 
       // Generate hour numbers
-      const hourNumRadius = 70;
+      const hourNumRadius = 95;
       for (let i = 1; i <= 12; i++) {
         const angle = (i * 30 - 90) * Math.PI / 180;
         const num = document.createElement('div');
