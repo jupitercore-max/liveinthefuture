@@ -977,7 +977,8 @@
       }
 
       // Large pool of cities covering all offsets, with priority order
-      // Cities that don't observe DST are preferred (listed first for each offset)
+      // P0: Major world cities users want to see (listed first)
+      // P1: Backup cities to fill gaps during DST
       const cityPool = [
         // UTC-11
         { name: 'Midway', tz: 'Pacific/Midway' },
@@ -990,28 +991,32 @@
         { name: 'Gambier', tz: 'Pacific/Gambier' },
         // UTC-8
         { name: 'LA', tz: 'America/Los_Angeles' },
+        { name: 'San Francisco', tz: 'America/Los_Angeles' },
         { name: 'Vancouver', tz: 'America/Vancouver' },
         { name: 'Tijuana', tz: 'America/Tijuana' },
         // UTC-7
-        { name: 'Phoenix', tz: 'America/Phoenix' },  // No DST
         { name: 'Denver', tz: 'America/Denver' },
+        { name: 'Phoenix', tz: 'America/Phoenix' },  // No DST - backup
         { name: 'Calgary', tz: 'America/Edmonton' },
         // UTC-6
-        { name: 'Mexico City', tz: 'America/Mexico_City' },
         { name: 'Chicago', tz: 'America/Chicago' },
-        { name: 'Guatemala', tz: 'America/Guatemala' },
+        { name: 'Houston', tz: 'America/Chicago' },
+        { name: 'Mexico City', tz: 'America/Mexico_City' },
+        { name: 'Guatemala', tz: 'America/Guatemala' },  // No DST - backup
         // UTC-5
-        { name: 'Bogota', tz: 'America/Bogota' },  // No DST
         { name: 'New York', tz: 'America/New_York' },
-        { name: 'Lima', tz: 'America/Lima' },
+        { name: 'Miami', tz: 'America/New_York' },
         { name: 'Toronto', tz: 'America/Toronto' },
+        { name: 'Bogota', tz: 'America/Bogota' },  // No DST - backup
+        { name: 'Lima', tz: 'America/Lima' },  // No DST - backup
         // UTC-4
-        { name: 'Caracas', tz: 'America/Caracas' },  // No DST
         { name: 'Santiago', tz: 'America/Santiago' },
-        { name: 'La Paz', tz: 'America/La_Paz' },
+        { name: 'Caracas', tz: 'America/Caracas' },  // No DST - backup
+        { name: 'La Paz', tz: 'America/La_Paz' },  // No DST - backup
         // UTC-3
         { name: 'São Paulo', tz: 'America/Sao_Paulo' },
         { name: 'Buenos Aires', tz: 'America/Argentina/Buenos_Aires' },
+        { name: 'Rio', tz: 'America/Sao_Paulo' },
         // UTC-2
         { name: 'Fernando', tz: 'America/Noronha' },
         { name: 'S. Georgia', tz: 'Atlantic/South_Georgia' },
@@ -1019,52 +1024,60 @@
         { name: 'Azores', tz: 'Atlantic/Azores' },
         { name: 'Cape Verde', tz: 'Atlantic/Cape_Verde' },
         // UTC+0
-        { name: 'Reykjavik', tz: 'Atlantic/Reykjavik' },  // No DST
         { name: 'London', tz: 'Europe/London' },
+        { name: 'Dublin', tz: 'Europe/Dublin' },
         { name: 'Lisbon', tz: 'Europe/Lisbon' },
-        { name: 'Accra', tz: 'Africa/Accra' },
+        { name: 'Reykjavik', tz: 'Atlantic/Reykjavik' },  // No DST - backup
+        { name: 'Accra', tz: 'Africa/Accra' },  // No DST - backup
         // UTC+1
-        { name: 'Lagos', tz: 'Africa/Lagos' },  // No DST
         { name: 'Paris', tz: 'Europe/Paris' },
         { name: 'Berlin', tz: 'Europe/Berlin' },
+        { name: 'Madrid', tz: 'Europe/Madrid' },
+        { name: 'Rome', tz: 'Europe/Rome' },
+        { name: 'Lagos', tz: 'Africa/Lagos' },  // No DST - backup
         // UTC+2
         { name: 'Cairo', tz: 'Africa/Cairo' },
-        { name: 'Johannesburg', tz: 'Africa/Johannesburg' },  // No DST
         { name: 'Athens', tz: 'Europe/Athens' },
+        { name: 'Johannesburg', tz: 'Africa/Johannesburg' },  // No DST - backup
+        { name: 'Helsinki', tz: 'Europe/Helsinki' },
         // UTC+3
-        { name: 'Moscow', tz: 'Europe/Moscow' },  // No DST
+        { name: 'Moscow', tz: 'Europe/Moscow' },
         { name: 'Istanbul', tz: 'Europe/Istanbul' },
         { name: 'Nairobi', tz: 'Africa/Nairobi' },
         // UTC+4
-        { name: 'Dubai', tz: 'Asia/Dubai' },  // No DST
+        { name: 'Dubai', tz: 'Asia/Dubai' },
+        { name: 'Abu Dhabi', tz: 'Asia/Dubai' },
         { name: 'Baku', tz: 'Asia/Baku' },
         // UTC+5
-        { name: 'Karachi', tz: 'Asia/Karachi' },  // No DST
+        { name: 'Karachi', tz: 'Asia/Karachi' },
         { name: 'Tashkent', tz: 'Asia/Tashkent' },
         // UTC+6
-        { name: 'Dhaka', tz: 'Asia/Dhaka' },  // No DST
+        { name: 'Dhaka', tz: 'Asia/Dhaka' },
         { name: 'Almaty', tz: 'Asia/Almaty' },
         // UTC+7
-        { name: 'Bangkok', tz: 'Asia/Bangkok' },  // No DST
+        { name: 'Bangkok', tz: 'Asia/Bangkok' },
         { name: 'Jakarta', tz: 'Asia/Jakarta' },
         { name: 'Hanoi', tz: 'Asia/Ho_Chi_Minh' },
         // UTC+8
-        { name: 'Singapore', tz: 'Asia/Singapore' },  // No DST
+        { name: 'Singapore', tz: 'Asia/Singapore' },
         { name: 'Hong Kong', tz: 'Asia/Hong_Kong' },
+        { name: 'Shanghai', tz: 'Asia/Shanghai' },
         { name: 'Perth', tz: 'Australia/Perth' },
         // UTC+9
-        { name: 'Tokyo', tz: 'Asia/Tokyo' },  // No DST
+        { name: 'Tokyo', tz: 'Asia/Tokyo' },
         { name: 'Seoul', tz: 'Asia/Seoul' },
+        { name: 'Osaka', tz: 'Asia/Tokyo' },
         // UTC+10
-        { name: 'Brisbane', tz: 'Australia/Brisbane' },  // No DST
         { name: 'Sydney', tz: 'Australia/Sydney' },
-        { name: 'Guam', tz: 'Pacific/Guam' },
+        { name: 'Melbourne', tz: 'Australia/Melbourne' },
+        { name: 'Brisbane', tz: 'Australia/Brisbane' },  // No DST - backup
+        { name: 'Guam', tz: 'Pacific/Guam' },  // No DST - backup
         // UTC+11
-        { name: 'Noumea', tz: 'Pacific/Noumea' },  // No DST
+        { name: 'Noumea', tz: 'Pacific/Noumea' },
         { name: 'Solomon Is', tz: 'Pacific/Guadalcanal' },
         // UTC+12
-        { name: 'Fiji', tz: 'Pacific/Fiji' },
         { name: 'Auckland', tz: 'Pacific/Auckland' },
+        { name: 'Fiji', tz: 'Pacific/Fiji' },
         // UTC+13
         { name: 'Samoa', tz: 'Pacific/Apia' },
         { name: 'Tongatapu', tz: 'Pacific/Tongatapu' },
@@ -1340,12 +1353,16 @@
           const { city, offset, angleDeg, originalIdx } = pos;
           const isLocal = Math.abs(offset - localOffset) < 0.5;
 
-          // Alternate rings: even indices go outer, odd go inner
-          const radius = sortedIdx % 2 === 0 ? outerRadius : innerRadius;
-
           // Normalize angle for bottom-half detection
           let normAngle = ((angleDeg % 360) + 360) % 360;
           const isBottomHalf = normAngle > 0 && normAngle < 180;
+
+          // Alternate rings: even indices go outer, odd go inner
+          // Adjust radius slightly for bottom half to compensate for text baseline
+          let radius = sortedIdx % 2 === 0 ? outerRadius : innerRadius;
+          if (isBottomHalf) {
+            radius -= 3; // Nudge bottom-half text inward to match top-half visual position
+          }
 
           const pathId = `cityPath${originalIdx}`;
           const arcSpan = 18;
