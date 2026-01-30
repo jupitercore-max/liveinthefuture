@@ -751,6 +751,10 @@
       <!-- Unix Timestamp -->
       <div class="utility-card">
         <h3>Unix Timestamp</h3>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px;">
+          <input type="text" id="relativeTimeInput" placeholder="e.g. 2 hours ago, next tuesday, in 3 days" style="flex: 1; min-width: 200px;">
+          <button class="btn" onclick="parseRelativeTime()">Parse</button>
+        </div>
         <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
           <input type="number" id="timestampInput" placeholder="Unix timestamp (seconds)" style="flex: 1; min-width: 200px;">
           <button class="btn" onclick="insertNow()">Now</button>
@@ -908,6 +912,105 @@
     }
 
     // Timestamp
+    // Relative time parser
+    function parseRelativeTime() {
+      const input = document.getElementById('relativeTimeInput').value.toLowerCase().trim();
+      const result = document.getElementById('timestampResult');
+      const timestampInput = document.getElementById('timestampInput');
+
+      if (!input) {
+        result.textContent = 'Enter a relative time expression';
+        result.className = 'result error';
+        return;
+      }
+
+      const now = new Date();
+      let targetDate = null;
+
+      // Simple keywords
+      if (input === 'now') {
+        targetDate = now;
+      } else if (input === 'yesterday') {
+        targetDate = new Date(now);
+        targetDate.setDate(targetDate.getDate() - 1);
+      } else if (input === 'tomorrow') {
+        targetDate = new Date(now);
+        targetDate.setDate(targetDate.getDate() + 1);
+      }
+
+      // X units ago / in X units
+      if (!targetDate) {
+        const agoMatch = input.match(/^(\d+)\s*(second|sec|minute|min|hour|hr|day|week|month|year)s?\s*ago$/);
+        const inMatch = input.match(/^in\s*(\d+)\s*(second|sec|minute|min|hour|hr|day|week|month|year)s?$/);
+        const match = agoMatch || inMatch;
+        const direction = agoMatch ? -1 : 1;
+
+        if (match) {
+          const num = parseInt(match[1]);
+          const unit = match[2];
+          targetDate = new Date(now);
+
+          switch (unit) {
+            case 'second': case 'sec':
+              targetDate.setSeconds(targetDate.getSeconds() + num * direction);
+              break;
+            case 'minute': case 'min':
+              targetDate.setMinutes(targetDate.getMinutes() + num * direction);
+              break;
+            case 'hour': case 'hr':
+              targetDate.setHours(targetDate.getHours() + num * direction);
+              break;
+            case 'day':
+              targetDate.setDate(targetDate.getDate() + num * direction);
+              break;
+            case 'week':
+              targetDate.setDate(targetDate.getDate() + num * 7 * direction);
+              break;
+            case 'month':
+              targetDate.setMonth(targetDate.getMonth() + num * direction);
+              break;
+            case 'year':
+              targetDate.setFullYear(targetDate.getFullYear() + num * direction);
+              break;
+          }
+        }
+      }
+
+      // next/last weekday
+      if (!targetDate) {
+        const dayMatch = input.match(/^(next|last)\s*(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/);
+        if (dayMatch) {
+          const direction = dayMatch[1] === 'next' ? 1 : -1;
+          const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          const targetDay = dayNames.indexOf(dayMatch[2]);
+          targetDate = new Date(now);
+          const currentDay = targetDate.getDay();
+          let diff = targetDay - currentDay;
+          if (direction === 1 && diff <= 0) diff += 7;
+          if (direction === -1 && diff >= 0) diff -= 7;
+          targetDate.setDate(targetDate.getDate() + diff);
+        }
+      }
+
+      // Try native Date parsing as fallback
+      if (!targetDate) {
+        const parsed = new Date(input);
+        if (!isNaN(parsed.getTime())) {
+          targetDate = parsed;
+        }
+      }
+
+      if (targetDate) {
+        const ts = Math.floor(targetDate.getTime() / 1000);
+        timestampInput.value = ts;
+        result.textContent = targetDate.toISOString() + ' (Local: ' + targetDate.toLocaleString() + ')';
+        result.className = 'result success';
+      } else {
+        result.textContent = 'Could not parse: try "2 hours ago", "in 3 days", "next monday", etc.';
+        result.className = 'result error';
+      }
+    }
+
     function insertNow() {
       document.getElementById('timestampInput').value = Math.floor(Date.now() / 1000);
     }
