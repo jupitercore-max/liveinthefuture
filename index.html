@@ -1022,6 +1022,15 @@
       const digitalDate = document.getElementById('digitalDate');
       const timezoneInfo = document.getElementById('timezoneInfo');
 
+      // Home timezone state (null = use local)
+      let homeTimezone = null;
+      let homeCityName = null;
+
+      // Get the browser's local timezone
+      function getLocalTimezone() {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone;
+      }
+
       // Get current UTC offset for a timezone in hours
       function getTimezoneOffset(tz) {
         try {
@@ -1034,9 +1043,31 @@
         }
       }
 
-      // Get local timezone offset in hours
-      function getLocalOffset() {
+      // Get home timezone offset in hours
+      function getHomeOffset() {
+        if (homeTimezone) {
+          return getTimezoneOffset(homeTimezone);
+        }
         return -new Date().getTimezoneOffset() / 60;
+      }
+
+      // Get the effective home timezone
+      function getHomeTimezone() {
+        return homeTimezone || getLocalTimezone();
+      }
+
+      // Set home timezone
+      function setHomeTimezone(tz, cityName) {
+        homeTimezone = tz;
+        homeCityName = cityName;
+        positionCities(); // Reposition cities relative to new home
+      }
+
+      // Reset to local timezone
+      function resetToLocalTimezone() {
+        homeTimezone = null;
+        homeCityName = null;
+        positionCities();
       }
 
       // Check if a city is currently in daylight (roughly 6am to 6pm local time)
@@ -1382,7 +1413,7 @@
       // Uses SVG textPath for curved text along the circumference
       // Alternates between inner and outer rings to prevent collisions
       function positionCities() {
-        const localOffset = getLocalOffset();
+        const homeOffset = getHomeOffset();
 
         // Clear existing content
         clockCities.innerHTML = '';
@@ -1417,7 +1448,7 @@
           if (offset > 12) offset -= 24;
           if (offset < -11) offset += 24;
 
-          const relativeOffset = offset - localOffset;
+          const relativeOffset = offset - homeOffset;
           const angleDeg = relativeOffset * 15 - 90;
           const normAngle = ((angleDeg % 360) + 360) % 360;
           return { city, offset, angleDeg, normAngle, originalIdx };
@@ -1426,7 +1457,7 @@
         // Position each city, alternating between outer and inner rings
         cityPositions.forEach((pos, sortedIdx) => {
           const { city, offset, angleDeg, originalIdx } = pos;
-          const isLocal = Math.abs(offset - localOffset) < 0.5;
+          const isHome = Math.abs(offset - homeOffset) < 0.5;
 
           // Normalize angle for bottom-half detection
           let normAngle = ((angleDeg % 360) + 360) % 360;
@@ -1467,11 +1498,11 @@
 
           const text = document.createElementNS(ns, 'text');
           text.setAttribute('font-size', fontSize);
-          text.setAttribute('fill', isLocal ? '#1E90FF' : '#ccc');
+          text.setAttribute('fill', isHome ? '#1E90FF' : '#ccc');
           text.setAttribute('font-family', 'inherit');
           text.setAttribute('text-anchor', 'middle');
           text.setAttribute('dominant-baseline', 'central');
-          text.setAttribute('font-weight', isLocal ? '600' : 'normal');
+          text.setAttribute('font-weight', isHome ? '600' : 'normal');
           text.style.textTransform = 'uppercase';
           text.style.letterSpacing = '0.3px';
           text.style.cursor = 'pointer';
@@ -1493,6 +1524,13 @@
           // Add hover events
           text.addEventListener('mouseenter', (e) => showCityTooltip(e, city, offset));
           text.addEventListener('mouseleave', hideCityTooltip);
+
+          // Add click to set home timezone
+          text.addEventListener('click', (e) => {
+            e.stopPropagation(); // Don't trigger clock container click
+            hideCityTooltip();
+            setHomeTimezone(city.tz, city.name);
+          });
         });
 
         clockCities.appendChild(svg);
@@ -1653,16 +1691,47 @@
           // First click - start animation
           isAnimating = true;
           animationStartTime = performance.now();
-          const now = new Date();
-          animationStartOffset = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds() + now.getMilliseconds() / 1000;
+          // Get current time in home timezone
+          const homeTz = getHomeTimezone();
+          const homeTime = new Date(new Date().toLocaleString('en-US', { timeZone: homeTz }));
+          animationStartOffset = homeTime.getHours() * 3600 + homeTime.getMinutes() * 60 + homeTime.getSeconds() + homeTime.getMilliseconds() / 1000;
         }
       });
+
+      // Double-click on clock face to reset to local timezone
+      clockFace.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        resetToLocalTimezone();
+      });
+
+      // Helper to get time components in home timezone
+      function getHomeTime(date) {
+        const homeTz = getHomeTimezone();
+        const timeStr = date.toLocaleString('en-US', {
+          timeZone: homeTz,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+          fractionalSecondDigits: 3
+        });
+        // Parse "HH:MM:SS.mmm" format
+        const parts = timeStr.split(':');
+        const secParts = parts[2].split('.');
+        return {
+          hours: parseInt(parts[0]),
+          minutes: parseInt(parts[1]),
+          seconds: parseInt(secParts[0]),
+          millis: parseInt(secParts[1] || 0)
+        };
+      }
 
       // Update clock
       function updateClock() {
         const now = new Date();
         let hours, minutes, seconds, millis;
         let displayDate = now;
+        const homeTz = getHomeTimezone();
 
         if (isAnimating && animationStartTime !== null) {
           const elapsed = performance.now() - animationStartTime;
@@ -1672,10 +1741,11 @@
             // Animation complete - return to real time
             isAnimating = false;
             animationStartTime = null;
-            hours = now.getHours();
-            minutes = now.getMinutes();
-            seconds = now.getSeconds();
-            millis = now.getMilliseconds();
+            const homeTime = getHomeTime(now);
+            hours = homeTime.hours;
+            minutes = homeTime.minutes;
+            seconds = homeTime.seconds;
+            millis = homeTime.millis;
           } else {
             // Calculate simulated time (24 hours in 10 seconds)
             // Use easeInOutCubic for smooth start/end
@@ -1696,10 +1766,12 @@
             displayDate.setHours(hours, minutes, seconds, millis);
           }
         } else {
-          hours = now.getHours();
-          minutes = now.getMinutes();
-          seconds = now.getSeconds();
-          millis = now.getMilliseconds();
+          // Get time in home timezone
+          const homeTime = getHomeTime(now);
+          hours = homeTime.hours;
+          minutes = homeTime.minutes;
+          seconds = homeTime.seconds;
+          millis = homeTime.millis;
         }
 
         // Smooth hand movement
@@ -1724,22 +1796,27 @@
         digitalTime.textContent = timeStr;
 
         // Digital date
-        digitalDate.textContent = displayDate.toLocaleDateString('en-US', {
+        digitalDate.textContent = now.toLocaleDateString('en-US', {
+          timeZone: homeTz,
           weekday: 'long',
           year: 'numeric',
           month: 'long',
           day: 'numeric'
         });
 
-        // Timezone info (always show real timezone)
-        const tzName = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const offset = -now.getTimezoneOffset();
-        const offsetHours = Math.floor(Math.abs(offset) / 60);
-        const offsetMinutes = Math.abs(offset) % 60;
+        // Timezone info - show home timezone
+        const offset = getHomeOffset();
+        const offsetHours = Math.floor(Math.abs(offset));
+        const offsetMinutes = Math.round((Math.abs(offset) % 1) * 60);
         const offsetStr = (offset >= 0 ? '+' : '-') +
           String(offsetHours).padStart(2, '0') + ':' +
           String(offsetMinutes).padStart(2, '0');
-        timezoneInfo.textContent = `${tzName} (UTC${offsetStr})` + (isAnimating ? ' ⏩' : '');
+
+        let tzDisplay = homeCityName || homeTz;
+        if (homeTimezone && homeTimezone !== getLocalTimezone()) {
+          tzDisplay += ' 📍'; // Indicate non-local timezone
+        }
+        timezoneInfo.textContent = `${tzDisplay} (UTC${offsetStr})` + (isAnimating ? ' ⏩' : '');
 
         requestAnimationFrame(updateClock);
       }
