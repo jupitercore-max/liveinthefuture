@@ -660,34 +660,17 @@
     <section class="section">
       <div class="section-title">Quick Utilities</div>
 
-      <!-- Text Transform -->
+      <!-- JSON Formatter -->
       <div class="utility-card">
-        <h3>Text Transform</h3>
-        <textarea id="textInput" rows="3" placeholder="Enter text to transform..."></textarea>
+        <h3>JSON Format / Validate</h3>
+        <textarea id="jsonInput" rows="4" placeholder='{"key": "value"}'></textarea>
         <div class="btn-row">
-          <button class="btn" onclick="transformText('upper')">UPPERCASE</button>
-          <button class="btn" onclick="transformText('lower')">lowercase</button>
-          <button class="btn" onclick="transformText('title')">Title Case</button>
-          <button class="btn" onclick="transformText('reverse')">esreveR</button>
-          <button class="btn" onclick="copyResult('textInput')">Copy</button>
+          <button class="btn" onclick="formatJson(2)">Format (2 space)</button>
+          <button class="btn" onclick="formatJson(4)">Format (4 space)</button>
+          <button class="btn" onclick="minifyJson()">Minify</button>
+          <button class="btn" onclick="copyResult('jsonInput')">Copy</button>
         </div>
-        <div class="stats-row" style="margin-top: 10px;">
-          <div class="stat">chars: <span class="stat-value" id="charCount">0</span></div>
-          <div class="stat">words: <span class="stat-value" id="wordCount">0</span></div>
-          <div class="stat">lines: <span class="stat-value" id="lineCount">0</span></div>
-        </div>
-      </div>
-
-      <!-- Base64 -->
-      <div class="utility-card">
-        <h3>Base64 Encode/Decode</h3>
-        <textarea id="base64Input" rows="2" placeholder="Enter text or base64 string..."></textarea>
-        <div class="btn-row">
-          <button class="btn" onclick="base64Encode()">Encode</button>
-          <button class="btn" onclick="base64Decode()">Decode</button>
-          <button class="btn" onclick="copyResult('base64Result')">Copy</button>
-        </div>
-        <div class="result" id="base64Result"></div>
+        <div class="result" id="jsonResult"></div>
       </div>
 
       <!-- Unix Timestamp -->
@@ -704,17 +687,28 @@
         <div class="result" id="timestampResult"></div>
       </div>
 
-      <!-- JSON Formatter -->
+      <!-- UUID Generator -->
       <div class="utility-card">
-        <h3>JSON Format / Validate</h3>
-        <textarea id="jsonInput" rows="4" placeholder='{"key": "value"}'></textarea>
-        <div class="btn-row">
-          <button class="btn" onclick="formatJson(2)">Format (2 space)</button>
-          <button class="btn" onclick="formatJson(4)">Format (4 space)</button>
-          <button class="btn" onclick="minifyJson()">Minify</button>
-          <button class="btn" onclick="copyResult('jsonInput')">Copy</button>
+        <h3>UUID Generator</h3>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <input type="text" id="uuidOutput" readonly style="flex: 1; font-family: var(--font-mono);">
+          <button class="btn" onclick="generateUUID()">Generate</button>
+          <button class="btn" onclick="copyResult('uuidOutput')">Copy</button>
         </div>
-        <div class="result" id="jsonResult"></div>
+      </div>
+
+      <!-- Hash Generator -->
+      <div class="utility-card">
+        <h3>Hash Generator</h3>
+        <textarea id="hashInput" rows="2" placeholder="Enter text to hash..."></textarea>
+        <div class="btn-row">
+          <button class="btn" onclick="generateHash('SHA-1')">SHA-1</button>
+          <button class="btn" onclick="generateHash('SHA-256')">SHA-256</button>
+          <button class="btn" onclick="generateHash('SHA-384')">SHA-384</button>
+          <button class="btn" onclick="generateHash('SHA-512')">SHA-512</button>
+          <button class="btn" onclick="copyResult('hashResult')">Copy</button>
+        </div>
+        <div class="result" id="hashResult" style="word-break: break-all;"></div>
       </div>
 
       <!-- URL Encode/Decode -->
@@ -727,6 +721,36 @@
           <button class="btn" onclick="copyResult('urlResult')">Copy</button>
         </div>
         <div class="result" id="urlResult"></div>
+      </div>
+
+      <!-- Base64 -->
+      <div class="utility-card">
+        <h3>Base64 Encode/Decode</h3>
+        <textarea id="base64Input" rows="2" placeholder="Enter text or base64 string..."></textarea>
+        <div class="btn-row">
+          <button class="btn" onclick="base64Encode()">Encode</button>
+          <button class="btn" onclick="base64Decode()">Decode</button>
+          <button class="btn" onclick="copyResult('base64Result')">Copy</button>
+        </div>
+        <div class="result" id="base64Result"></div>
+      </div>
+
+      <!-- Text Transform -->
+      <div class="utility-card">
+        <h3>Text Transform</h3>
+        <textarea id="textInput" rows="3" placeholder="Enter text to transform..."></textarea>
+        <div class="btn-row">
+          <button class="btn" onclick="transformText('upper')">UPPERCASE</button>
+          <button class="btn" onclick="transformText('lower')">lowercase</button>
+          <button class="btn" onclick="transformText('title')">Title Case</button>
+          <button class="btn" onclick="transformText('reverse')">esreveR</button>
+          <button class="btn" onclick="copyResult('textInput')">Copy</button>
+        </div>
+        <div class="stats-row" style="margin-top: 10px;">
+          <div class="stat">chars: <span class="stat-value" id="charCount">0</span></div>
+          <div class="stat">words: <span class="stat-value" id="wordCount">0</span></div>
+          <div class="stat">lines: <span class="stat-value" id="lineCount">0</span></div>
+        </div>
       </div>
     </section>
 
@@ -880,6 +904,34 @@
         result.className = 'result error';
       }
     }
+
+    // UUID Generator
+    function generateUUID() {
+      const uuid = crypto.randomUUID();
+      document.getElementById('uuidOutput').value = uuid;
+    }
+
+    // Hash Generator (using Web Crypto API)
+    async function generateHash(algorithm) {
+      const input = document.getElementById('hashInput').value;
+      const result = document.getElementById('hashResult');
+
+      try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(input);
+        const hashBuffer = await crypto.subtle.digest(algorithm, data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        result.textContent = hashHex;
+        result.className = 'result';
+      } catch(e) {
+        result.textContent = 'Error: ' + e.message;
+        result.className = 'result error';
+      }
+    }
+
+    // Generate initial UUID on load
+    document.addEventListener('DOMContentLoaded', generateUUID);
 
     // Copy to clipboard
     function copyResult(elementId) {
