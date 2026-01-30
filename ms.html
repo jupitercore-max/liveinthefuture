@@ -1,25 +1,1051 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Stopwatch</title>
-  </head>
-  <body>
-    <div style="font-size: 100px" id="stopwatch"></div>
-    <script>
-      // Get the element where the stopwatch will be displayed
-      var stopwatch = document.getElementById("stopwatch");
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chronograph | rayhe.net</title>
+  <style>
+    :root {
+      --bg: #1a1a1a;
+      --watch-bg: #0d0d0d;
+      --bezel: linear-gradient(135deg, #404040 0%, #1a1a1a 50%, #404040 100%);
+      --dial: #f5f5f0;
+      --accent: #c41e3a;
+      --accent2: #1E90FF;
+      --text: #1a1a1a;
+      --subdial-bg: #e8e8e3;
+      --hand: #1a1a1a;
+      --hand-seconds: #c41e3a;
+      --font-mono: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+    }
 
-      // Set the initial time to 0
-      var time = 0;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-      // Update the stopwatch every millisecond
-      setInterval(function() {
-        // Increment the time by one millisecond
-        time++;
-        
-        // Display the updated time in the stopwatch element
-        stopwatch.innerHTML = time + " ms";
-      }, 1);
-    </script>
-  </body>
+    body {
+      font-family: var(--font-mono);
+      background: var(--bg);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 1.2rem;
+      font-weight: 400;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 30px;
+      color: #888;
+    }
+
+    .watches-container {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .watch-container {
+      position: relative;
+      width: 340px;
+      height: 340px;
+    }
+
+    .watch-label {
+      text-align: center;
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .bezel {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: var(--bezel);
+      box-shadow:
+        0 10px 30px rgba(0,0,0,0.5),
+        inset 0 2px 3px rgba(255,255,255,0.1),
+        inset 0 -2px 3px rgba(0,0,0,0.3);
+    }
+
+    .dial {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      border-radius: 50%;
+      background: var(--dial);
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+    }
+
+    .dial-60s {
+      background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+    }
+
+    .dial-60s .dial-number {
+      color: #fff;
+      font-size: 12px;
+    }
+
+    .dial-60s .tick {
+      background: #666;
+    }
+
+    .dial-60s .tick.major {
+      background: #fff;
+    }
+
+    /* Scale rings for 60s chronoscope */
+    .outer-ring {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: 50%;
+      border: 18px solid #2a2a2a;
+      box-sizing: border-box;
+    }
+
+    .middle-ring {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      border-radius: 50%;
+      border: 14px solid rgba(196, 30, 58, 0.15);
+      box-sizing: border-box;
+    }
+
+    .inner-ring {
+      position: absolute;
+      top: 32px;
+      left: 32px;
+      right: 32px;
+      bottom: 32px;
+      border-radius: 50%;
+      background: #0d0d0d;
+      border: 1px solid #333;
+    }
+
+    /* Main dial markings */
+    .dial::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 8px;
+      height: 8px;
+      background: var(--hand);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 100;
+    }
+
+    .tick {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      width: 2px;
+      height: 12px;
+      background: var(--text);
+      transform-origin: 50% 152px;
+    }
+
+    .tick.major {
+      width: 3px;
+      height: 18px;
+      transform-origin: 50% 152px;
+    }
+
+    .tick.half {
+      height: 8px;
+    }
+
+    .dial-number {
+      position: absolute;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      transform: translate(-50%, -50%);
+    }
+
+    /* Subdials */
+    .subdial {
+      position: absolute;
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: var(--subdial-bg);
+      border: 1px solid #ccc;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+      overflow: visible;
+    }
+
+    .subdial::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 5px;
+      height: 5px;
+      background: var(--hand);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+    }
+
+    .subdial-30m {
+      top: 65px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .subdial-12h {
+      bottom: 75px;
+      left: 55px;
+    }
+
+    .subdial-60s {
+      bottom: 75px;
+      right: 55px;
+    }
+
+    .subdial-label {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 7px;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+    }
+
+    .subdial-tick {
+      position: absolute;
+      top: 3px;
+      left: 50%;
+      width: 1px;
+      height: 5px;
+      background: #999;
+      transform-origin: 50% 32px;
+    }
+
+    .subdial-tick.major {
+      height: 7px;
+      background: #666;
+    }
+
+    /* Hands */
+    .hand {
+      position: absolute;
+      bottom: 50%;
+      left: 50%;
+      transform-origin: 50% 100%;
+      transform: translateX(-50%) rotate(0deg);
+      transition: transform 0.05s linear;
+      z-index: 50;
+    }
+
+    .hand-main {
+      width: 4px;
+      height: 120px;
+      background: var(--hand-seconds);
+      border-radius: 2px;
+    }
+
+    .hand-main::before {
+      content: '';
+      position: absolute;
+      bottom: -30px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px;
+      height: 30px;
+      background: var(--hand-seconds);
+      border-radius: 2px;
+    }
+
+    .hand-main::after {
+      content: '';
+      position: absolute;
+      bottom: -45px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 24px;
+      background-image: url('/favicon-32.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      border-radius: 50%;
+      animation: counter-spin 10s linear infinite;
+      animation-play-state: paused;
+    }
+
+    .hand-main.running::after {
+      animation-play-state: running;
+    }
+
+    @keyframes counter-spin {
+      from { transform: translateX(-50%) rotate(0deg); }
+      to { transform: translateX(-50%) rotate(-360deg); }
+    }
+
+    .hand-split {
+      width: 4px;
+      height: 120px;
+      background: var(--accent2);
+      border-radius: 2px;
+      opacity: 0;
+      transition: opacity 0.15s;
+      z-index: 45;
+    }
+
+    .hand-split.visible {
+      opacity: 1;
+    }
+
+    .hand-split::before {
+      content: '';
+      position: absolute;
+      bottom: -30px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px;
+      height: 30px;
+      background: var(--accent2);
+      border-radius: 2px;
+    }
+
+    .hand-sub {
+      position: absolute;
+      width: 2px;
+      height: 20px;
+      background: #c41e3a;
+      border-radius: 1px;
+      bottom: 50%;
+      left: 50%;
+      transform-origin: 50% 100%;
+      transform: translateX(-50%) rotate(0deg);
+      z-index: 5;
+    }
+
+    /* Digital display */
+    .digital-display {
+      background: #222;
+      color: #0f0;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      border: 1px solid #333;
+      font-variant-numeric: tabular-nums;
+      margin-top: 20px;
+    }
+
+    /* Split display */
+    .split-display {
+      position: absolute;
+      top: 105px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      color: var(--accent);
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .split-display.visible {
+      opacity: 1;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 15px;
+      margin-top: 30px;
+    }
+
+    .btn {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      border: 3px solid #444;
+      background: linear-gradient(135deg, #333 0%, #1a1a1a 100%);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.15s;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .btn-icon {
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .btn-key {
+      font-size: 8px;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    .btn:hover {
+      border-color: #666;
+      transform: translateY(-2px);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .btn.start {
+      border-color: #2a6e2a;
+      background: linear-gradient(135deg, #1a4a1a 0%, #0a2a0a 100%);
+    }
+
+    .btn.start:hover {
+      border-color: #3a8e3a;
+    }
+
+    .btn.stop {
+      border-color: #6e2a2a;
+      background: linear-gradient(135deg, #4a1a1a 0%, #2a0a0a 100%);
+    }
+
+    .btn.stop:hover {
+      border-color: #8e3a3a;
+    }
+
+    /* Lap times */
+    .laps {
+      margin-top: 30px;
+      width: 340px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .lap {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+
+    .lap:nth-child(1) {
+      background: rgba(196, 30, 58, 0.2);
+    }
+
+    .lap-num {
+      color: #666;
+    }
+
+    .lap-time {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .lap-delta {
+      color: #888;
+      font-size: 11px;
+    }
+
+    /* Back link */
+    .back-link {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      color: #666;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .back-link:hover {
+      color: #fff;
+    }
+
+    .tap-hint {
+      font-size: 11px;
+      color: #444;
+      margin-top: 20px;
+    }
+
+    /* Second dial - 60s chronoscope scales */
+    .scale-ring {
+      position: absolute;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .scale-tachymeter {
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      border: 2px solid #333;
+      background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+    }
+
+    .scale-pulsometer {
+      top: 25px;
+      left: 25px;
+      right: 25px;
+      bottom: 25px;
+      border: 1px solid #c41e3a;
+      background: transparent;
+    }
+
+    .scale-inner {
+      top: 40px;
+      left: 40px;
+      right: 40px;
+      bottom: 40px;
+      background: var(--dial);
+    }
+
+    .scale-label {
+      position: absolute;
+      font-size: 6px;
+      font-weight: 600;
+      transform: translate(-50%, -50%);
+    }
+
+    .scale-label.tachy {
+      color: #fff;
+    }
+
+    .scale-label.pulse {
+      color: #c41e3a;
+    }
+
+    .scale-tick {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 1px;
+      height: 8px;
+      background: #fff;
+      transform-origin: 50% 160px;
+    }
+
+    .scale-tick.tachy {
+      transform-origin: 50% 150px;
+      background: #888;
+    }
+
+    .scale-tick.pulse {
+      transform-origin: 50% 135px;
+      background: #c41e3a;
+      height: 6px;
+    }
+
+    .scale-title {
+      position: absolute;
+      font-size: 7px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .scale-title.tachy-title {
+      top: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #888;
+    }
+
+    .scale-title.pulse-title {
+      bottom: 55px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #c41e3a;
+    }
+
+    .hand-60s-main {
+      width: 3px;
+      height: 110px;
+      background: #fff;
+      border-radius: 2px;
+    }
+
+    .hand-60s-main::before {
+      content: '';
+      position: absolute;
+      bottom: -25px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 25px;
+      background: #fff;
+      border-radius: 2px;
+    }
+
+    @media (max-width: 400px) {
+      .watch-container {
+        width: 300px;
+        height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a href="/" class="back-link">← rayhe.net</a>
+  <h1>Chronograph</h1>
+
+  <div class="watches-container">
+    <!-- 10-second dial -->
+    <div>
+      <div class="watch-label">10s Precision</div>
+      <div class="watch-container">
+        <div class="bezel"></div>
+        <div class="dial" id="dial">
+          <!-- Ticks generated by JS -->
+
+          <!-- Subdials -->
+          <div class="subdial subdial-30m">
+            <div class="subdial-label">30 min</div>
+            <div class="hand hand-sub hand-30m" id="hand30m"></div>
+          </div>
+
+          <div class="subdial subdial-12h">
+            <div class="subdial-label">12 hour</div>
+            <div class="hand hand-sub hand-12h" id="hand12h"></div>
+          </div>
+
+          <div class="subdial subdial-60s">
+            <div class="subdial-label">60 sec</div>
+            <div class="hand hand-sub hand-60s" id="hand60s"></div>
+          </div>
+
+          <!-- Split time display -->
+          <div class="split-display" id="splitDisplay">SPLIT: 00:00.000</div>
+
+          <!-- Split hand (rattrapante) -->
+          <div class="hand hand-split" id="handSplit"></div>
+
+          <!-- Main hand -->
+          <div class="hand hand-main" id="handMain"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 60-second dial with scales -->
+    <div>
+      <div class="watch-label">60s Chronoscope</div>
+      <div class="watch-container" id="watch60s">
+        <div class="bezel"></div>
+        <div class="dial dial-60s" id="dial60s">
+          <!-- Scale rings -->
+          <div class="outer-ring"></div>
+          <div class="middle-ring"></div>
+          <div class="inner-ring"></div>
+
+          <!-- Tachymeter scale ring -->
+          <div class="scale-title tachy-title">Tachymeter</div>
+
+          <!-- Pulsometer scale title -->
+          <div class="scale-title pulse-title">Pulsations 30</div>
+
+          <!-- Center pin -->
+          <div style="position:absolute;top:50%;left:50%;width:10px;height:10px;background:#333;border:2px solid #fff;border-radius:50%;transform:translate(-50%,-50%);z-index:100;"></div>
+
+          <!-- Main 60s hand -->
+          <div class="hand hand-60s-main" id="hand60sMain"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="digital-display" id="digital">00:00.000</div>
+
+  <div class="controls">
+    <button class="btn" id="btnReset">
+      <span class="btn-icon">↺</span>
+      Reset
+      <span class="btn-key">[R]</span>
+    </button>
+    <button class="btn start" id="btnStart">
+      <span class="btn-icon" id="btnStartIcon">▶</span>
+      <span id="btnStartText">Start</span>
+      <span class="btn-key">[Space]</span>
+    </button>
+    <button class="btn" id="btnSplit">
+      <span class="btn-icon">◫</span>
+      Split
+      <span class="btn-key">[S]</span>
+    </button>
+    <button class="btn" id="btnFlyback">
+      <span class="btn-icon">⟲</span>
+      Flyback
+      <span class="btn-key">[F]</span>
+    </button>
+  </div>
+
+  <div class="laps" id="laps"></div>
+
+  <p class="tap-hint">tap anywhere to start/stop</p>
+
+  <script>
+    // Generate dial ticks (10-second dial with 100 subdivisions)
+    const dial = document.getElementById('dial');
+    for (let i = 0; i < 100; i++) {
+      const tick = document.createElement('div');
+      const isMajor = i % 10 === 0;
+      const isHalf = i % 5 === 0 && !isMajor;
+      tick.className = 'tick' + (isMajor ? ' major' : (isHalf ? ' half' : ''));
+      tick.style.transform = `translateX(-50%) rotate(${i * 3.6}deg)`;
+      dial.appendChild(tick);
+    }
+
+    // Dial numbers (10-second dial, showing 1-10)
+    const numbers = [10, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const radius = 115;
+    for (let i = 0; i < 10; i++) {
+      const angle = (i * 36 - 90) * Math.PI / 180;
+      const numEl = document.createElement('div');
+      numEl.className = 'dial-number';
+      numEl.textContent = numbers[i];
+      numEl.style.left = (160 + radius * Math.cos(angle)) + 'px';
+      numEl.style.top = (160 + radius * Math.sin(angle)) + 'px';
+      dial.appendChild(numEl);
+    }
+
+    // Generate subdial ticks
+    document.querySelectorAll('.subdial').forEach(subdial => {
+      const count = subdial.classList.contains('subdial-30m') ? 30 :
+                    subdial.classList.contains('subdial-12h') ? 12 : 60;
+      for (let i = 0; i < count; i++) {
+        const tick = document.createElement('div');
+        tick.className = 'subdial-tick' + (i % (count === 60 ? 5 : (count === 30 ? 5 : 1)) === 0 ? ' major' : '');
+        tick.style.transform = `translateX(-50%) rotate(${i * (360 / count)}deg)`;
+        subdial.appendChild(tick);
+      }
+    });
+
+    // Generate 60s chronoscope dial
+    const dial60s = document.getElementById('dial60s');
+
+    // 60 second ticks (on inner ring)
+    for (let i = 0; i < 60; i++) {
+      const tick = document.createElement('div');
+      const isMajor = i % 5 === 0;
+      tick.className = 'tick' + (isMajor ? ' major' : '');
+      tick.style.transform = `translateX(-50%) rotate(${i * 6}deg)`;
+      tick.style.top = '35px';
+      tick.style.transformOrigin = '50% 125px';
+      if (isMajor) {
+        tick.style.height = '12px';
+      } else {
+        tick.style.height = '6px';
+      }
+      dial60s.appendChild(tick);
+    }
+
+    // 60s dial numbers (inside inner ring)
+    for (let i = 0; i < 12; i++) {
+      const num = i === 0 ? 60 : i * 5;
+      const angle = (i * 30 - 90) * Math.PI / 180;
+      const numEl = document.createElement('div');
+      numEl.className = 'dial-number';
+      numEl.textContent = num;
+      numEl.style.left = (160 + 80 * Math.cos(angle)) + 'px';
+      numEl.style.top = (160 + 80 * Math.sin(angle)) + 'px';
+      dial60s.appendChild(numEl);
+    }
+
+    // Tachymeter scale (outer ring) - speed = 3600 / seconds
+    const tachyValues = [
+      {sec: 60, val: 60}, {sec: 55, val: 65}, {sec: 50, val: 72}, {sec: 45, val: 80},
+      {sec: 40, val: 90}, {sec: 35, val: 103}, {sec: 30, val: 120}, {sec: 25, val: 144},
+      {sec: 20, val: 180}, {sec: 15, val: 240}, {sec: 12, val: 300}, {sec: 10, val: 360},
+      {sec: 9, val: 400}, {sec: 8, val: 450}, {sec: 7.5, val: 480}
+    ];
+    tachyValues.forEach(t => {
+      const angle = ((t.sec / 60) * 360 - 90) * Math.PI / 180;
+      const label = document.createElement('div');
+      label.className = 'scale-label tachy';
+      label.textContent = t.val;
+      label.style.left = (160 + 150 * Math.cos(angle)) + 'px';
+      label.style.top = (160 + 150 * Math.sin(angle)) + 'px';
+      label.style.fontSize = '7px';
+      dial60s.appendChild(label);
+    });
+
+    // Pulsometer scale (middle ring) - BPM = 1800 / seconds (for 30 beats)
+    const pulseValues = [
+      {sec: 60, val: 30}, {sec: 50, val: 36}, {sec: 45, val: 40}, {sec: 40, val: 45},
+      {sec: 36, val: 50}, {sec: 30, val: 60}, {sec: 25, val: 72}, {sec: 22.5, val: 80},
+      {sec: 20, val: 90}, {sec: 18, val: 100}, {sec: 15, val: 120}, {sec: 12, val: 150}
+    ];
+    pulseValues.forEach(p => {
+      const angle = ((p.sec / 60) * 360 - 90) * Math.PI / 180;
+      const label = document.createElement('div');
+      label.className = 'scale-label pulse';
+      label.textContent = p.val;
+      label.style.left = (160 + 133 * Math.cos(angle)) + 'px';
+      label.style.top = (160 + 133 * Math.sin(angle)) + 'px';
+      label.style.fontSize = '7px';
+      dial60s.appendChild(label);
+    });
+
+    // Telemeter scale (distance in km, speed of sound = 343 m/s)
+    // Distance = seconds * 0.343 km
+    const telValues = [
+      {sec: 3, val: 1}, {sec: 6, val: 2}, {sec: 9, val: 3}, {sec: 12, val: 4},
+      {sec: 15, val: 5}, {sec: 17.5, val: 6}, {sec: 20, val: 7}, {sec: 23, val: 8},
+      {sec: 26, val: 9}, {sec: 29, val: 10}, {sec: 35, val: 12}, {sec: 44, val: 15},
+      {sec: 58, val: 20}
+    ];
+    telValues.forEach(t => {
+      const angle = ((t.sec / 60) * 360 - 90) * Math.PI / 180;
+      const label = document.createElement('div');
+      label.className = 'scale-label';
+      label.textContent = t.val;
+      label.style.left = (160 + 105 * Math.cos(angle)) + 'px';
+      label.style.top = (160 + 105 * Math.sin(angle)) + 'px';
+      label.style.fontSize = '6px';
+      label.style.color = '#4a9eff';
+      dial60s.appendChild(label);
+    });
+
+    // Add telemeter label
+    const telLabel = document.createElement('div');
+    telLabel.className = 'scale-title';
+    telLabel.textContent = 'Telemeter km';
+    telLabel.style.top = '50%';
+    telLabel.style.left = '50%';
+    telLabel.style.transform = 'translate(-50%, 30px)';
+    telLabel.style.color = '#4a9eff';
+    telLabel.style.fontSize = '6px';
+    dial60s.appendChild(telLabel);
+
+    // State
+    let running = false;
+    let startTime = 0;
+    let elapsed = 0;
+    let splitTime = null;
+    let laps = [];
+    let animationId = null;
+
+    // Elements
+    const btnStart = document.getElementById('btnStart');
+    const btnStartIcon = document.getElementById('btnStartIcon');
+    const btnStartText = document.getElementById('btnStartText');
+    const btnReset = document.getElementById('btnReset');
+    const btnSplit = document.getElementById('btnSplit');
+    const btnFlyback = document.getElementById('btnFlyback');
+    const digital = document.getElementById('digital');
+    const splitDisplay = document.getElementById('splitDisplay');
+    const handMain = document.getElementById('handMain');
+    const handSplit = document.getElementById('handSplit');
+    const hand30m = document.getElementById('hand30m');
+    const hand12h = document.getElementById('hand12h');
+    const hand60s = document.getElementById('hand60s');
+    const hand60sMain = document.getElementById('hand60sMain');
+    const lapsContainer = document.getElementById('laps');
+
+    function formatTime(ms) {
+      const totalMs = Math.floor(ms);
+      const totalSeconds = Math.floor(totalMs / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      const millis = totalMs % 1000;
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(millis).padStart(3, '0')}`;
+    }
+
+    function updateDisplay(ms) {
+      digital.textContent = formatTime(ms);
+
+      // Main hand - 10 seconds per rotation
+      const totalSeconds = ms / 1000;
+      const mainAngle = (totalSeconds % 10) * 36;
+      handMain.style.transform = `translateX(-50%) rotate(${mainAngle}deg)`;
+
+      // 60-second subdial - 60 seconds per rotation
+      const sec60Angle = (totalSeconds % 60) * 6;
+      hand60s.style.transform = `translateX(-50%) rotate(${sec60Angle}deg)`;
+
+      // 60s chronoscope main hand
+      hand60sMain.style.transform = `translateX(-50%) rotate(${sec60Angle}deg)`;
+
+      // 30-minute subdial
+      const minutes = totalSeconds / 60;
+      const min30Angle = (minutes % 30) * 12;
+      hand30m.style.transform = `translateX(-50%) rotate(${min30Angle}deg)`;
+
+      // 12-hour subdial
+      const hours = minutes / 60;
+      const hour12Angle = (hours % 12) * 30;
+      hand12h.style.transform = `translateX(-50%) rotate(${hour12Angle}deg)`;
+    }
+
+    function tick() {
+      if (running) {
+        elapsed = performance.now() - startTime;
+        updateDisplay(elapsed);
+        animationId = requestAnimationFrame(tick);
+      }
+    }
+
+    function start() {
+      if (!running) {
+        running = true;
+        startTime = performance.now() - elapsed;
+        btnStartText.textContent = 'Stop';
+        btnStartIcon.textContent = '⏸';
+        btnStart.classList.remove('start');
+        btnStart.classList.add('stop');
+        handMain.classList.add('running');
+        tick();
+      } else {
+        stop();
+      }
+    }
+
+    function stop() {
+      running = false;
+      if (animationId) cancelAnimationFrame(animationId);
+      btnStartText.textContent = 'Start';
+      btnStartIcon.textContent = '▶';
+      btnStart.classList.remove('stop');
+      btnStart.classList.add('start');
+      handMain.classList.remove('running');
+    }
+
+    function reset() {
+      stop();
+      elapsed = 0;
+      splitTime = null;
+      laps = [];
+      updateDisplay(0);
+      splitDisplay.classList.remove('visible');
+      handSplit.classList.remove('visible');
+      lapsContainer.innerHTML = '';
+    }
+
+    function split() {
+      if (elapsed === 0) return;
+
+      if (splitTime === null) {
+        // Show split
+        splitTime = elapsed;
+        splitDisplay.textContent = 'SPLIT: ' + formatTime(splitTime);
+        splitDisplay.classList.add('visible');
+
+        // Position and show split hand (10-second dial)
+        const totalSeconds = splitTime / 1000;
+        const splitAngle = (totalSeconds % 10) * 36;
+        handSplit.style.transform = `translateX(-50%) rotate(${splitAngle}deg)`;
+        handSplit.classList.add('visible');
+
+        // Record lap
+        const lapNum = laps.length + 1;
+        const lastLap = laps.length > 0 ? laps[laps.length - 1].total : 0;
+        const delta = splitTime - lastLap;
+        laps.push({ num: lapNum, total: splitTime, delta: delta });
+        renderLaps();
+      } else {
+        // Clear split display and hide split hand
+        splitTime = null;
+        splitDisplay.classList.remove('visible');
+        handSplit.classList.remove('visible');
+      }
+    }
+
+    function flyback() {
+      // Classic flyback: reset to zero and immediately restart
+      const wasRunning = running;
+
+      // Record lap if there's time
+      if (elapsed > 0 && laps.length < 100) {
+        const lapNum = laps.length + 1;
+        const lastLap = laps.length > 0 ? laps[laps.length - 1].total : 0;
+        const delta = elapsed - lastLap;
+        laps.push({ num: lapNum, total: elapsed, delta: delta });
+        renderLaps();
+      }
+
+      elapsed = 0;
+      splitTime = null;
+      splitDisplay.classList.remove('visible');
+      handSplit.classList.remove('visible');
+      updateDisplay(0);
+
+      if (wasRunning) {
+        startTime = performance.now();
+      }
+    }
+
+    function renderLaps() {
+      lapsContainer.innerHTML = laps.slice().reverse().map(lap => `
+        <div class="lap">
+          <span class="lap-num">Lap ${lap.num}</span>
+          <span class="lap-delta">+${formatTime(lap.delta)}</span>
+          <span class="lap-time">${formatTime(lap.total)}</span>
+        </div>
+      `).join('');
+    }
+
+    // Event listeners
+    btnStart.addEventListener('click', start);
+    btnReset.addEventListener('click', reset);
+    btnSplit.addEventListener('click', split);
+    btnFlyback.addEventListener('click', flyback);
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        start();
+      } else if (e.code === 'KeyR') {
+        reset();
+      } else if (e.code === 'KeyS' || e.code === 'KeyL') {
+        split();
+      } else if (e.code === 'KeyF') {
+        flyback();
+      }
+    });
+
+    // Click anywhere on screen to start/stop (except buttons)
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.btn') && !e.target.closest('.laps')) {
+        start();
+      }
+    });
+
+    // Initialize display
+    updateDisplay(0);
+  </script>
+</body>
 </html>
