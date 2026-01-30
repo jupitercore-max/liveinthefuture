@@ -504,6 +504,8 @@
       background: linear-gradient(90deg, #c0c0c0 0%, #ffffff 35%, #ffffff 65%, #a0a0a0 100%);
       z-index: 50;
       border-radius: 1px;
+      filter: blur(0);
+      transition: filter 0.3s ease;
     }
 
     /* Luminous center fill */
@@ -527,6 +529,8 @@
       background: linear-gradient(90deg, #c0c0c0 0%, #ffffff 35%, #ffffff 65%, #a0a0a0 100%);
       z-index: 51;
       border-radius: 1px;
+      filter: blur(0);
+      transition: filter 0.3s ease;
     }
 
     /* Luminous center fill */
@@ -549,7 +553,16 @@
       bottom: calc(50% - 34px);
       background: transparent;
       z-index: 52;
-      transition: opacity 0.3s ease;
+      filter: blur(0);
+      transition: filter 0.3s ease;
+    }
+
+    .clock-hand-second.animating {
+      filter: blur(2px);
+    }
+
+    .clock-hand-minute.animating {
+      filter: blur(0.5px);
     }
 
     /* Polished steel second hand */
@@ -1802,6 +1815,9 @@
           // Second click - reset immediately
           isAnimating = false;
           animationStartTime = null;
+          // Remove motion blur
+          document.getElementById('minuteHand').classList.remove('animating');
+          document.getElementById('secondHand').classList.remove('animating');
         } else {
           // First click - start animation
           isAnimating = true;
@@ -1813,6 +1829,9 @@
           const homeTz = getHomeTimezone();
           const homeTime = new Date(new Date().toLocaleString('en-US', { timeZone: homeTz }));
           animationStartOffset = homeTime.getHours() * 3600 + homeTime.getMinutes() * 60 + homeTime.getSeconds() + homeTime.getMilliseconds() / 1000;
+          // Add motion blur
+          document.getElementById('minuteHand').classList.add('animating');
+          document.getElementById('secondHand').classList.add('animating');
         }
       });
 
@@ -1859,6 +1878,9 @@
             // Animation complete - return to real time
             isAnimating = false;
             animationStartTime = null;
+            // Remove motion blur
+            document.getElementById('minuteHand').classList.remove('animating');
+            document.getElementById('secondHand').classList.remove('animating');
             const homeTime = getHomeTime(now);
             hours = homeTime.hours;
             minutes = homeTime.minutes;
