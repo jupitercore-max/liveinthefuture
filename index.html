@@ -906,23 +906,46 @@
       return v0 + t * (v1 - v0);
     }
 
-    function getRGBForTemperature(temp) {
-      let startTemp, endTemp, t, startRGB, endRGB;
-      if (temp <= 3500) {
-        startTemp = 2000; endTemp = 3500;
-        startRGB = [255, 56, 0]; endRGB = [255, 214, 170];
-      } else if (temp <= 5000) {
-        startTemp = 3500; endTemp = 5000;
-        startRGB = [255, 214, 170]; endRGB = [255, 255, 244];
+    function getRGBForTemperature(kelvin) {
+      // Attempt to show Kelvin color temperature more accurately
+      // Based on Tanner Helland's blackbody radiation algorithm
+      // http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code/
+
+      const temp = kelvin / 100;
+      let r, g, b;
+
+      // Calculate Red
+      if (temp <= 66) {
+        r = 255;
       } else {
-        startTemp = 5000; endTemp = 6500;
-        startRGB = [255, 255, 244]; endRGB = [202, 222, 255];
+        r = temp - 60;
+        r = 329.698727446 * Math.pow(r, -0.1332047592);
+        r = Math.max(0, Math.min(255, r));
       }
-      t = (temp - startTemp) / (endTemp - startTemp);
-      const r = Math.round(lerp(startRGB[0], endRGB[0], t));
-      const g = Math.round(lerp(startRGB[1], endRGB[1], t));
-      const b = Math.round(lerp(startRGB[2], endRGB[2], t));
-      return `rgb(${r},${g},${b})`;
+
+      // Calculate Green
+      if (temp <= 66) {
+        g = temp;
+        g = 99.4708025861 * Math.log(g) - 161.1195681661;
+        g = Math.max(0, Math.min(255, g));
+      } else {
+        g = temp - 60;
+        g = 288.1221695283 * Math.pow(g, -0.0755148492);
+        g = Math.max(0, Math.min(255, g));
+      }
+
+      // Calculate Blue
+      if (temp >= 66) {
+        b = 255;
+      } else if (temp <= 19) {
+        b = 0;
+      } else {
+        b = temp - 10;
+        b = 138.5177312231 * Math.log(b) - 305.0447927307;
+        b = Math.max(0, Math.min(255, b));
+      }
+
+      return `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
     }
 
     function changeBgColorTemp(temp) {

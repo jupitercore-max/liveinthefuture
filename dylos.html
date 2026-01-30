@@ -1,260 +1,574 @@
-<html prefix="og: http://ogp.me/ns#">
-
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>Dylos AQM PM2.5 Converter</title>
-    <meta property="og:image" content="https://rayhe.net/images/dylos.png" />
-    <script>
-        (function (i, s, o, g, r, a, m) {
-            i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
-                (i[r].q = i[r].q || []).push(arguments)
-            }, i[r].l = 1 * new Date(); a = s.createElement(o),
-                m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g; m.parentNode.insertBefore(a, m)
-        })(window, document, 'script', 'https://www.google-analytics.com/analytics.js', 'ga');
-        ga('create', 'UA-6367016-2', 'rayhe.net');
-        ga('send', 'pageview');
-    </script>
-    <!-- Facebook Pixel Code -->
-    <script>
-        !function (f, b, e, v, n, t, s) {
-            if (f.fbq) return; n = f.fbq = function () {
-                n.callMethod ?
-                    n.callMethod.apply(n, arguments) : n.queue.push(arguments)
-            };
-            if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0';
-            n.queue = []; t = b.createElement(e); t.async = !0;
-            t.src = v; s = b.getElementsByTagName(e)[0];
-            s.parentNode.insertBefore(t, s)
-        }(window, document, 'script',
-            'https://connect.facebook.net/en_US/fbevents.js');
-        fbq('init', '1930579043857231', {
-            em: 'hi',
-            fn: 'visit',
-            ln: 'yo',
-        });
-        fbq('track', 'PageView');
-    </script>
-    <noscript><img height="1" width="1" style="display:none"
-            src="https://www.facebook.com/tr?id=1930579043857231&ev=PageView&noscript=1" /></noscript>
-    <!-- End Facebook Pixel Code -->
-    <script src="https://code.jquery.com/jquery-3.5.1.js"
-        integrity="sha256-QWo7LDvxbWT2tbbQ97B53yJnYU3WhH/C8ycbRAkjPDc=" crossorigin="anonymous"></script>
-    <link rel="shortcut icon" href="/favicon.ico">
-    <link rel="icon" sizes="16x16 32x32 64x64" href="/favicon.ico">
-    <link rel="icon" type="image/png" sizes="196x196" href="/favicon-192.png">
-    <link rel="icon" type="image/png" sizes="160x160" href="/favicon-160.png">
-    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png">
-    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
-    <link rel="apple-touch-icon" href="/favicon-57.png">
-    <link rel="apple-touch-icon" sizes="114x114" href="/favicon-114.png">
-    <link rel="apple-touch-icon" sizes="72x72" href="/favicon-72.png">
-    <link rel="apple-touch-icon" sizes="144x144" href="/favicon-144.png">
-    <link rel="apple-touch-icon" sizes="60x60" href="/favicon-60.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="/favicon-120.png">
-    <link rel="apple-touch-icon" sizes="76x76" href="/favicon-76.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="/favicon-152.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
-    <meta name="msapplication-TileColor" content="#FFFFFF">
-    <meta name="msapplication-TileImage" content="/favicon-144.png">
-    <meta name="msapplication-config" content="/browserconfig.xml">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dylos PM2.5 Converter</title>
+  <meta property="og:image" content="https://rayhe.net/images/dylos.png">
 
-    <style>
-        body {
-            font-family: monospace;
-            margin: 20px;
-        }
+  <!-- Analytics -->
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-6367016-2', 'rayhe.net');
+    ga('send', 'pageview');
+  </script>
 
-        a {
-            color: #1E90FF;
-            text-decoration: none;
-        }
-    </style>
+  <!-- Favicons -->
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" sizes="16x16 32x32 64x64" href="/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
+
+  <style>
+    :root {
+      --accent: #1E90FF;
+      --bg: #fafafa;
+      --text: #1a1a1a;
+      --text-muted: #666;
+      --border: #ddd;
+      --card-bg: #fff;
+      --radius: 8px;
+      --font-mono: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+
+      /* AQI Colors */
+      --aqi-good: #00E400;
+      --aqi-moderate: #FFFF00;
+      --aqi-sensitive: #FF7E00;
+      --aqi-unhealthy: #FF0000;
+      --aqi-very-unhealthy: #8F3F97;
+      --aqi-hazardous: #7E0023;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-mono);
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    header {
+      margin-bottom: 30px;
+    }
+
+    header a {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin: 10px 0;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Converter Card */
+    .converter-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    .input-group label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .input-row input[type="number"] {
+      flex: 1;
+      padding: 12px 16px;
+      font-family: var(--font-mono);
+      font-size: 1.2rem;
+      font-weight: 600;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--text);
+      max-width: 200px;
+    }
+
+    .input-row input[type="number"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .input-row input[type="range"] {
+      flex: 1;
+      cursor: pointer;
+    }
+
+    /* Result Display */
+    .result-display {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 20px;
+      border-radius: var(--radius);
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .result-value {
+      font-size: 3rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .result-unit {
+      font-size: 1rem;
+      opacity: 0.8;
+    }
+
+    .result-info {
+      flex: 1;
+    }
+
+    .result-label {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .result-description {
+      font-size: 0.8rem;
+      opacity: 0.9;
+    }
+
+    /* AQI Scale Bar */
+    .aqi-scale {
+      margin-top: 20px;
+      position: relative;
+    }
+
+    .aqi-bar {
+      height: 12px;
+      border-radius: 6px;
+      background: linear-gradient(to right,
+        var(--aqi-good) 0%,
+        var(--aqi-good) 4%,
+        var(--aqi-moderate) 4%,
+        var(--aqi-moderate) 12%,
+        var(--aqi-sensitive) 12%,
+        var(--aqi-sensitive) 18%,
+        var(--aqi-unhealthy) 18%,
+        var(--aqi-unhealthy) 50%,
+        var(--aqi-very-unhealthy) 50%,
+        var(--aqi-very-unhealthy) 83%,
+        var(--aqi-hazardous) 83%
+      );
+    }
+
+    .aqi-marker {
+      position: absolute;
+      top: -4px;
+      width: 4px;
+      height: 20px;
+      background: var(--text);
+      border-radius: 2px;
+      transform: translateX(-50%);
+      transition: left 0.3s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .aqi-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    /* Reference Table */
+    .reference-section {
+      margin-top: 30px;
+    }
+
+    .section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
+
+    .aqi-table {
+      display: grid;
+      gap: 8px;
+    }
+
+    .aqi-row {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      border-radius: var(--radius);
+      overflow: hidden;
+      font-size: 0.85rem;
+    }
+
+    .aqi-row-level {
+      padding: 12px 16px;
+      font-weight: 600;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .aqi-row-level .range {
+      font-size: 0.75rem;
+      font-weight: 400;
+      opacity: 0.9;
+      margin-top: 2px;
+    }
+
+    .aqi-row-content {
+      padding: 12px 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-left: none;
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
+
+    .aqi-row-content strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .aqi-row-content p {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .aqi-good .aqi-row-level { background: var(--aqi-good); color: #000; }
+    .aqi-moderate .aqi-row-level { background: var(--aqi-moderate); color: #000; }
+    .aqi-sensitive .aqi-row-level { background: var(--aqi-sensitive); color: #000; }
+    .aqi-unhealthy .aqi-row-level { background: var(--aqi-unhealthy); color: #fff; }
+    .aqi-very-unhealthy .aqi-row-level { background: var(--aqi-very-unhealthy); color: #fff; }
+    .aqi-hazardous .aqi-row-level { background: var(--aqi-hazardous); color: #fff; }
+
+    /* Source link */
+    .source-link {
+      margin-top: 20px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 600px) {
+      .result-display {
+        flex-direction: column;
+        text-align: center;
+      }
+      .aqi-row {
+        grid-template-columns: 1fr;
+      }
+      .aqi-row-content {
+        border-left: 1px solid var(--border);
+        border-top: none;
+        border-radius: 0 0 var(--radius) var(--radius);
+      }
+      .aqi-row-level {
+        border-radius: var(--radius) var(--radius) 0 0;
+      }
+    }
+  </style>
 </head>
 
 <body>
-    <h1>Dylos AQM PM2.5 Converter</h1>
-    <p>This is based on this
-        <a href="http://www.myhealthbeijing.com/wp-content/uploads/2015/04/Dylos-AQI-Conversion-Spreadsheet.xlsx"
-            target="_blank">
-            spreadsheet
-            (http://www.myhealthbeijing.com/wp-content/uploads/2015/04/Dylos-AQI-Conversion-Spreadsheet.xlsx)
-        </a>
-    </p>
+  <div class="container">
+    <header>
+      <a href="/">&larr; rayhe.net</a>
+      <h1>Dylos PM2.5 Converter</h1>
+      <p class="subtitle">Convert Dylos particle count to PM2.5 concentration</p>
+    </header>
 
-    <script type="text/javascript">
-        const recalculate = function () {
-            var x = parseInt($('#dylos').val());
-            var a = Number('3.31E-22');
-            var b = Number('-1.04E-16');
-            var c = Number('1.19E-11');
-            var d = Number('-5.85E-07');
-            var e = Number('1.56E-02');
-            var f = Number('9.43E+00');
-            var pm25_value =
-                a * Math.pow(x, 5) + b * Math.pow(x, 4) + c * Math.pow(x, 3) + d * Math.pow(x, 2) + e * x + f;
-            if (pm25_value < 5000) { $('#pm25').val(Number(pm25_value).toPrecision(3)); } else {
-                $('#pm25').val('off the scale!');
-            }
-            var color = '#00CC00';
-            var font_color = '#000000';
-            if (isNaN(pm25_value)) { color = '#ffffff'; }
-            else if (pm25_value < 12) { color = '#00CC00'; }
-            else if (pm25_value < 35.5) { color = '#FFFF00'; }
-            else if (pm25_value < 55.5) { color = '#EB8A14'; }
-            else if (pm25_value < 150.5) {
-                color = '#FF0000';
-                font_color = '#ffffff';
-            } else if (pm25_value < 250.5) { color = '#A10649'; font_color = '#ffffff'; } else {
-                color = '#7E0023'; font_color = '#ffffff';
-            }
-            $('#pm25').css('background-color', color);
-            $('#pm25').css('color', font_color);
-        }
-        const update_url = function () {
-            const x = parseInt($('#dylos').val());
-            const queryString = window.location.search;
-            const urlParams = new URLSearchParams(queryString);
-            const count = urlParams.get('count');
-            if (x != count) {
-                urlParams.set('count', x);
-                if (window.location.protocol.toLowerCase() == 'file:') {
-                    window.location.search = urlParams;
-                } else {
-                    const newURL = window.location.protocol + "//" + window.location.host + window.location.pathname + "?" + urlParams
-                    window.history.pushState(null, null, newURL);
-                }
-            }
-        }
-
-        $(document).ready(function () {
-            $('#dylos').on('keyup', () => { update_url(); recalculate(); });
-            $('#dylos').on('change', () => { update_url(); recalculate(); });
-            const queryString = window.location.search;
-            const urlParams = new URLSearchParams(queryString);
-            if (urlParams.has('count')) {
-                const count = urlParams.get('count');
-                $('#dylos').val(count);
-            }
-            recalculate();
-        });
-
-    </script>
-    <div style="display:flex; flex-grow:1; flex-direction: column; max-width:400px">
-        <div style="flex-direction:row; display:flex; margin-bottom: 4px;">
-            <div style="flex-grow:1; margin-right:4px">
-                Dylos Count (Small particles)
-            </div>
-
-            <input type="text" name="dylos" id="dylos" style="flex-grow:0;" value="50" />
+    <div class="converter-card">
+      <div class="input-group">
+        <label>Dylos Count (Small Particles)</label>
+        <div class="input-row">
+          <input type="number" id="dylosInput" value="50" min="0" max="100000">
+          <input type="range" id="dylosSlider" value="50" min="0" max="5000" step="10">
         </div>
-        <div style="flex-direction:row; display:flex; margin-bottom: 4px;">
-            <div style="flex-grow:1; margin-right:4px">
-                PM2.5
-            </div>
-            <input type="text" name="pm25" id="pm25" style="flex-grow:0; font-weight:bold;" disabled=1 />
+      </div>
+
+      <div class="result-display" id="resultDisplay">
+        <div>
+          <div class="result-value" id="pm25Value">--</div>
+          <div class="result-unit">PM2.5 &mu;g/m&sup3;</div>
         </div>
-    </div>
-    <h2>What does this mean?</h2>
-    <p>This is a copy of the data from <a href="https://blissair.com/what-is-pm-2-5.htm"
-            target="_blank">https://blissair.com/what-is-pm-2-5.htm</a>, which seems like a pretty good
-        source.</p>
-    <div>
-        <table border="0" cellpadding="5" cellspacing="2" width="100%">
-            <tbody>
-                <tr bgcolor="#E4E4E4">
-                    <th>
-                        <div align="center">PM<sub>2.5</sub></div>
-                    </th>
-                    <th>
-                        <div align="center">Air Quality Index</div>
-                    </th>
-                    <th>
-                        <div align="center">PM<sub>2.5</sub> Health Effects</div>
-                    </th>
-                    <th>
-                        <div align="center">Precautionary Actions</div>
-                    </th>
-                </tr>
-                <tr bgcolor="#00CC00" class="cellblk">
-                    <td>
-                        <div align="center"><strong>0 to 12.0</strong></div>
-                    </td>
-                    <td>
-                        <div align="center"><strong>Good</strong><br><strong>0 to 50</strong></div>
-                    </td>
-                    <td>Little to no risk.</td>
-                    <td>None.</td>
-                </tr>
-                <tr bgcolor="#FFFF00" class="cellblk">
-                    <td>
-                        <div align="center"><strong>12.1 to 35.4</strong></div>
-                    </td>
-                    <td>
-                        <div align="center"><strong>Moderate</strong><br><strong>51 to 100</strong></div>
-                    </td>
-                    <td>Unusually sensitive individuals may experience respiratory symptoms.</td>
-                    <td>Unusually sensitive people should consider reducing prolonged or heavy exertion.
-                    </td>
-                </tr>
-                <tr bgcolor="#EB8A14" class="cellblk">
-                    <td>
-                        <div align="center"><strong>35.5 to 55.4</strong></div>
-                    </td>
-                    <td>
-                        <div align="center"><strong>Unhealthy for Sensitive Groups</strong><br><strong>101
-                                to 150</strong></div>
-                    </td>
-                    <td>Increasing likelihood of respiratory symptoms in sensitive individuals, aggravation
-                        of heart or lung disease and premature mortality in persons with cardiopulmonary
-                        disease and the elderly.</td>
-                    <td>People with respiratory or heart disease, the elderly and children should limit
-                        prolonged exertion.</td>
-                </tr>
-                <tr bgcolor="#FF0000" class="cellwht">
-                    <td>
-                        <div align="center"><strong>55.5 to 150.4</strong></div>
-                    </td>
-                    <td>
-                        <div align="center"><strong>Unhealthy</strong><br><strong>151 to 200</strong></div>
-                    </td>
-                    <td>Increased aggravation of heart or lung disease and premature mortality in persons
-                        with cardiopulmonary disease and the elderly; increased respiratory effects in
-                        general population.</td>
-                    <td>People with respiratory or heart disease, the elderly and children should avoid
-                        prolonged exertion; everyone else should limit prolonged exertion.</td>
-                </tr>
-                <tr bgcolor="#A10649" class="cellwht">
-                    <td>
-                        <div align="center"><strong>150.5 to 250.4</strong></div>
-                    </td>
-                    <td>
-                        <div align="center"><strong>Very Unhealthy</strong><br><strong>201 to 300</strong>
-                        </div>
-                    </td>
-                    <td>Significant aggravation of heart or lung disease and premature mortality in persons
-                        with cardiopulmonary disease and the elderly; significant increase in respiratory
-                        effects in general population.</td>
-                    <td>People with respiratory or heart disease, the elderly and children should avoid any
-                        outdoor activity; everyone else should avoid prolonged exertion.</td>
-                </tr>
-                <tr bgcolor="#7E0023" class="cellwht">
-                    <td>
-                        <div align="center"><strong>250.5 to 500.4</strong></div>
-                    </td>
-                    <td>
-                        <div align="center"><strong>Hazardous</strong><br><strong>301 to 500</strong></div>
-                    </td>
-                    <td>Serious aggravation of heart or lung disease and premature mortality in persons with
-                        cardiopulmonary disease and the elderly; serious risk of respiratory effects in
-                        general population.</td>
-                    <td>Everyone should avoid any outdoor exertion; people with respiratory or heart
-                        disease, the elderly and children should remain indoors.</td>
-                </tr>
-            </tbody>
-        </table>
+        <div class="result-info">
+          <div class="result-label" id="resultLabel">--</div>
+          <div class="result-description" id="resultDescription"></div>
+        </div>
+      </div>
+
+      <div class="aqi-scale">
+        <div class="aqi-bar"></div>
+        <div class="aqi-marker" id="aqiMarker"></div>
+        <div class="aqi-labels">
+          <span>0</span>
+          <span>50</span>
+          <span>100</span>
+          <span>150</span>
+          <span>200</span>
+          <span>300</span>
+          <span>500+</span>
+        </div>
+      </div>
     </div>
 
+    <div class="reference-section">
+      <div class="section-title">Air Quality Index Reference</div>
+      <div class="aqi-table">
+        <div class="aqi-row aqi-good">
+          <div class="aqi-row-level">
+            Good
+            <span class="range">0-12 &mu;g/m&sup3;</span>
+          </div>
+          <div class="aqi-row-content">
+            <strong>AQI 0-50</strong>
+            <p>Little to no health risk. Air quality is satisfactory.</p>
+          </div>
+        </div>
+
+        <div class="aqi-row aqi-moderate">
+          <div class="aqi-row-level">
+            Moderate
+            <span class="range">12-35 &mu;g/m&sup3;</span>
+          </div>
+          <div class="aqi-row-content">
+            <strong>AQI 51-100</strong>
+            <p>Unusually sensitive individuals may experience respiratory symptoms.</p>
+          </div>
+        </div>
+
+        <div class="aqi-row aqi-sensitive">
+          <div class="aqi-row-level">
+            Sensitive
+            <span class="range">35-55 &mu;g/m&sup3;</span>
+          </div>
+          <div class="aqi-row-content">
+            <strong>AQI 101-150</strong>
+            <p>People with respiratory or heart disease, elderly and children should limit prolonged exertion.</p>
+          </div>
+        </div>
+
+        <div class="aqi-row aqi-unhealthy">
+          <div class="aqi-row-level">
+            Unhealthy
+            <span class="range">55-150 &mu;g/m&sup3;</span>
+          </div>
+          <div class="aqi-row-content">
+            <strong>AQI 151-200</strong>
+            <p>Everyone may begin to experience health effects. Sensitive groups should avoid prolonged exertion.</p>
+          </div>
+        </div>
+
+        <div class="aqi-row aqi-very-unhealthy">
+          <div class="aqi-row-level">
+            Very Unhealthy
+            <span class="range">150-250 &mu;g/m&sup3;</span>
+          </div>
+          <div class="aqi-row-content">
+            <strong>AQI 201-300</strong>
+            <p>Health alert: everyone may experience serious health effects. Avoid outdoor activity.</p>
+          </div>
+        </div>
+
+        <div class="aqi-row aqi-hazardous">
+          <div class="aqi-row-level">
+            Hazardous
+            <span class="range">250+ &mu;g/m&sup3;</span>
+          </div>
+          <div class="aqi-row-content">
+            <strong>AQI 301-500</strong>
+            <p>Health emergency: everyone should avoid any outdoor exertion. Stay indoors.</p>
+          </div>
+        </div>
+      </div>
+
+      <p class="source-link">
+        Conversion based on polynomial regression from
+        <a href="http://www.myhealthbeijing.com" target="_blank">MyHealthBeijing</a>.
+        AQI reference from <a href="https://www.airnow.gov" target="_blank">AirNow.gov</a>.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const dylosInput = document.getElementById('dylosInput');
+    const dylosSlider = document.getElementById('dylosSlider');
+    const pm25Value = document.getElementById('pm25Value');
+    const resultDisplay = document.getElementById('resultDisplay');
+    const resultLabel = document.getElementById('resultLabel');
+    const resultDescription = document.getElementById('resultDescription');
+    const aqiMarker = document.getElementById('aqiMarker');
+
+    // Polynomial coefficients for Dylos to PM2.5 conversion
+    const coefficients = {
+      a: 3.31e-22,
+      b: -1.04e-16,
+      c: 1.19e-11,
+      d: -5.85e-07,
+      e: 1.56e-02,
+      f: 9.43
+    };
+
+    function dylosToPM25(count) {
+      const { a, b, c, d, e, f } = coefficients;
+      const x = count;
+      return a * Math.pow(x, 5) + b * Math.pow(x, 4) + c * Math.pow(x, 3) +
+             d * Math.pow(x, 2) + e * x + f;
+    }
+
+    function getAQICategory(pm25) {
+      if (pm25 < 12) return {
+        label: 'Good',
+        color: 'var(--aqi-good)',
+        textColor: '#000',
+        description: 'Air quality is satisfactory with little to no health risk.'
+      };
+      if (pm25 < 35.5) return {
+        label: 'Moderate',
+        color: 'var(--aqi-moderate)',
+        textColor: '#000',
+        description: 'Acceptable air quality. Sensitive individuals may experience minor symptoms.'
+      };
+      if (pm25 < 55.5) return {
+        label: 'Unhealthy for Sensitive Groups',
+        color: 'var(--aqi-sensitive)',
+        textColor: '#000',
+        description: 'Sensitive groups should limit prolonged outdoor exertion.'
+      };
+      if (pm25 < 150.5) return {
+        label: 'Unhealthy',
+        color: 'var(--aqi-unhealthy)',
+        textColor: '#fff',
+        description: 'Everyone may experience health effects. Limit outdoor activity.'
+      };
+      if (pm25 < 250.5) return {
+        label: 'Very Unhealthy',
+        color: 'var(--aqi-very-unhealthy)',
+        textColor: '#fff',
+        description: 'Health alert! Significant health effects for everyone.'
+      };
+      return {
+        label: 'Hazardous',
+        color: 'var(--aqi-hazardous)',
+        textColor: '#fff',
+        description: 'Health emergency! Avoid all outdoor activity.'
+      };
+    }
+
+    function pm25ToMarkerPosition(pm25) {
+      // Map PM2.5 to percentage position on the scale bar
+      // Scale: 0-12 (4%), 12-35 (8%), 35-55 (6%), 55-150 (32%), 150-250 (33%), 250-500 (17%)
+      if (pm25 <= 0) return 0;
+      if (pm25 <= 12) return (pm25 / 12) * 4;
+      if (pm25 <= 35) return 4 + ((pm25 - 12) / 23) * 8;
+      if (pm25 <= 55) return 12 + ((pm25 - 35) / 20) * 6;
+      if (pm25 <= 150) return 18 + ((pm25 - 55) / 95) * 32;
+      if (pm25 <= 250) return 50 + ((pm25 - 150) / 100) * 33;
+      if (pm25 <= 500) return 83 + ((pm25 - 250) / 250) * 17;
+      return 100;
+    }
+
+    function updateDisplay() {
+      const count = parseInt(dylosInput.value) || 0;
+      const pm25 = dylosToPM25(count);
+      const category = getAQICategory(pm25);
+
+      // Update PM2.5 value
+      if (pm25 > 500) {
+        pm25Value.textContent = '>500';
+      } else {
+        pm25Value.textContent = pm25.toFixed(1);
+      }
+
+      // Update result display styling
+      resultDisplay.style.backgroundColor = category.color;
+      resultDisplay.style.color = category.textColor;
+      resultLabel.textContent = category.label;
+      resultDescription.textContent = category.description;
+
+      // Update marker position
+      const position = pm25ToMarkerPosition(pm25);
+      aqiMarker.style.left = `${Math.min(100, position)}%`;
+
+      // Sync slider
+      if (document.activeElement !== dylosSlider) {
+        dylosSlider.value = Math.min(count, 5000);
+      }
+
+      // Update URL
+      updateURL(count);
+    }
+
+    function updateURL(count) {
+      const url = new URL(window.location);
+      if (count !== 50) {
+        url.searchParams.set('count', count);
+      } else {
+        url.searchParams.delete('count');
+      }
+      window.history.replaceState(null, '', url);
+    }
+
+    // Event listeners
+    dylosInput.addEventListener('input', updateDisplay);
+    dylosSlider.addEventListener('input', () => {
+      dylosInput.value = dylosSlider.value;
+      updateDisplay();
+    });
+
+    // Initialize from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('count')) {
+      dylosInput.value = urlParams.get('count');
+    }
+    updateDisplay();
+  </script>
 </body>
-
 </html>
