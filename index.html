@@ -447,8 +447,8 @@
       position: absolute;
       top: 50%;
       left: 50%;
-      width: 120px;
-      height: 120px;
+      width: 180px;
+      height: 180px;
       transform: translate(-50%, -50%);
       border-radius: 50%;
       overflow: hidden;
@@ -498,6 +498,8 @@
       height: 90px;
       background: #1a1a1a;
       z-index: 50;
+      border: 1.5px solid rgba(255,255,255,0.85);
+      border-radius: 3px;
     }
 
     .clock-hand-minute {
@@ -505,6 +507,8 @@
       height: 125px;
       background: #333;
       z-index: 51;
+      border: 1px solid rgba(255,255,255,0.85);
+      border-radius: 2px;
     }
 
     .clock-hand-second {
@@ -1471,7 +1475,8 @@
           if (offset < -11) offset += 24;
 
           const relativeOffset = offset - homeOffset;
-          const angleDeg = relativeOffset * 15 - 90;
+          // Flip direction to match polar globe (East = counterclockwise in this view)
+          const angleDeg = -relativeOffset * 15 - 90;
           const normAngle = ((angleDeg % 360) + 360) % 360;
           return { city, offset, angleDeg, normAngle, originalIdx };
         }).sort((a, b) => a.normAngle - b.normAngle);
@@ -1625,7 +1630,8 @@
 
         for (let h = 0; h < 24; h++) {
           // Create hour marker with tangential orientation
-          const angleDeg = h * 15 - 90;
+          // Flip direction to match polar globe (counter-clockwise)
+          const angleDeg = -h * 15 - 90;
           const angleRad = angleDeg * Math.PI / 180;
 
           const marker = document.createElement('div');
@@ -1806,9 +1812,9 @@
         document.getElementById('secondHand').style.transform = `translateX(-50%) rotate(${secondAngle}deg)`;
 
         // Rotate the 24-hour ring so current hour aligns with top (local indicator)
-        // Hour 0 starts at top, so we rotate by current hour * 15 degrees
+        // Use positive rotation to match counter-clockwise hour placement
         const hour24 = hours + minutes / 60 + seconds / 3600;
-        const ringRotation = -hour24 * 15;
+        const ringRotation = hour24 * 15;
         hourRing.style.transform = `rotate(${ringRotation}deg)`;
 
         // Digital time
@@ -1871,16 +1877,19 @@
         const homeOffset = getHomeOffset();
         const homeLongitude = homeOffset * 15;
 
-        // The SVG has 0° longitude (prime meridian/London) at top
+        // The PNG has ~180° (date line/Pacific) at top by default
         // Rotate so home longitude is at top
-        const mapRotation = -homeLongitude;
+        const imageDefaultLongitude = 180;
+        const mapRotation = homeLongitude - imageDefaultLongitude;
 
         // Calculate sun position for day/night shading
+        // Use the displayed time (which may be animated) to calculate UTC
+        const displayedHomeHours = hours + minutes / 60 + seconds / 3600;
+        const displayedUtcHours = (displayedHomeHours - homeOffset + 24) % 24;
+
         // Sun's longitude = 180° - (UTC hours * 15)
         // At UTC 12:00, sun is over 0° (prime meridian)
-        const now = new Date();
-        const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
-        const sunLongitude = (180 - utcHours * 15 + 360) % 360;
+        const sunLongitude = (180 - displayedUtcHours * 15 + 360) % 360;
 
         // Shading rotation: angle from home longitude to sun longitude
         // The lit side should be where the sun is
