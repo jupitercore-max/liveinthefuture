@@ -44,18 +44,100 @@
     return homeTimezone || getLocalTimezone();
   }
 
-  // Set home timezone
+  // Animation state for city ring transitions
+  let isAnimatingCities = false;
+  let polarEarthAnimationOffset = 0; // Degrees, decays to 0 during animation
+
+  // Set home timezone with animated transition
   function setHomeTimezone(tz, cityName) {
+    if (isAnimatingCities) return; // Ignore clicks during animation
+
+    const oldOffset = getHomeOffset();
     homeTimezone = tz;
     homeCityName = cityName;
-    positionCities(); // Reposition cities relative to new home
+    const newOffset = getHomeOffset();
+
+    // Calculate rotation needed (15° per hour of offset difference)
+    const rotationDelta = (newOffset - oldOffset) * 15;
+
+    if (Math.abs(rotationDelta) < 0.1) {
+      // No significant change, just rebuild
+      positionCities();
+      return;
+    }
+
+    // Animate the city ring rotation
+    animateCityRing(rotationDelta);
   }
 
-  // Reset to local timezone
+  // Reset to local timezone with animated transition
   function resetToLocalTimezone() {
+    if (isAnimatingCities) return;
+
+    const oldOffset = getHomeOffset();
     homeTimezone = null;
     homeCityName = null;
-    positionCities();
+    const newOffset = getHomeOffset();
+
+    const rotationDelta = (newOffset - oldOffset) * 15;
+
+    if (Math.abs(rotationDelta) < 0.1) {
+      positionCities();
+      return;
+    }
+
+    animateCityRing(rotationDelta);
+  }
+
+  // Animate the city ring rotation
+  function animateCityRing(rotationDelta) {
+    isAnimatingCities = true;
+
+    const svg = clockCities.querySelector('svg');
+    if (!svg) {
+      positionCities();
+      isAnimatingCities = false;
+      return;
+    }
+
+    // Get the center of the container for rotation
+    const containerRect = clockCities.getBoundingClientRect();
+    const centerX = containerRect.width / 2;
+    const centerY = containerRect.height / 2;
+
+    // Set up the transition for city labels
+    svg.style.transition = 'transform 1.5s cubic-bezier(0.4, 0, 0.2, 1)';
+    svg.style.transformOrigin = `${centerX}px ${centerY}px`;
+    svg.style.transform = `rotate(${rotationDelta}deg)`;
+
+    // Also animate the 24-hour ring - just set transition, updateClock will set new value
+    hourRing.style.transition = 'transform 1.5s cubic-bezier(0.4, 0, 0.2, 1)';
+
+    // Animate the polar earth by using an offset that decays over time
+    // The offset starts at -rotationDelta so the map appears to stay in place initially
+    polarEarthAnimationOffset = -rotationDelta;
+
+    // After animation completes, rebuild the positions
+    const onTransitionEnd = () => {
+      svg.removeEventListener('transitionend', onTransitionEnd);
+      svg.style.transition = '';
+      svg.style.transform = '';
+
+      hourRing.style.transition = '';
+      polarEarthAnimationOffset = 0;
+
+      positionCities();
+      isAnimatingCities = false;
+    };
+
+    svg.addEventListener('transitionend', onTransitionEnd);
+
+    // Fallback in case transitionend doesn't fire
+    setTimeout(() => {
+      if (isAnimatingCities) {
+        onTransitionEnd();
+      }
+    }, 1600);
   }
 
   // Check if a city is currently in daylight (roughly 6am to 6pm local time)
@@ -777,7 +859,15 @@
     const homeOffset = getHomeOffset();
     const homeLongitude = homeOffset * 15;
     const imageDefaultLongitude = 180;
-    const mapRotation = homeLongitude - imageDefaultLongitude;
+
+    // Apply animation offset and decay it smoothly
+    let mapRotation = homeLongitude - imageDefaultLongitude + polarEarthAnimationOffset;
+    if (Math.abs(polarEarthAnimationOffset) > 0.1) {
+      // Decay factor for smooth easing (about 1.5s to reach near-zero at 60fps)
+      polarEarthAnimationOffset *= 0.97;
+    } else if (polarEarthAnimationOffset !== 0) {
+      polarEarthAnimationOffset = 0;
+    }
 
     const displayedHomeHours = hours + minutes / 60 + seconds / 3600;
     const displayedUtcHours = (displayedHomeHours - homeOffset + 24) % 24;
