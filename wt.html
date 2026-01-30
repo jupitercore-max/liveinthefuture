@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>World Timer - rayhe.net</title>
+
+  <!-- Favicons -->
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" sizes="16x16 32x32 64x64" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="196x196" href="/favicon-192.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+  <link rel="apple-touch-icon" href="/favicon-57.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
+
+  <style>
+    :root {
+      --accent: #1E90FF;
+      --accent-hover: #0066CC;
+      --bg: #fafafa;
+      --text: #1a1a1a;
+      --text-muted: #666;
+      --border: #ddd;
+      --card-bg: #fff;
+      --radius: 6px;
+      --font-mono: 'SF Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-mono);
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    a:hover {
+      color: var(--accent-hover);
+    }
+
+    /* World Timer Clock */
+    .world-timer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .clock-container {
+      position: relative;
+      width: 520px;
+      height: 520px;
+    }
+
+    .clock-bezel {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 50%, #2a2a2a 100%);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.1);
+    }
+
+    /* City ring */
+    .clock-cities {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      border-radius: 50%;
+      background: #1a1a1a;
+      overflow: visible;
+      z-index: 2;
+    }
+
+    .city-label {
+      position: absolute;
+      font-size: 7px;
+      color: #ccc;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      transform-origin: center center;
+      text-shadow: 0 0 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.6);
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    .city-label.inner-city {
+      font-size: 6.5px;
+      color: #bbb;
+    }
+
+    .city-label.local {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* 24-hour rotating ring */
+    .hour-ring {
+      position: absolute;
+      top: 56px;
+      left: 56px;
+      right: 56px;
+      bottom: 56px;
+      border-radius: 50%;
+      /* Day/night gradient - dynamically set by JS based on location */
+      background: #1a1a1a;
+      border: 1px solid #444;
+      z-index: 4;
+      overflow: visible;
+    }
+
+    .hour-marker {
+      position: absolute;
+      font-size: 12px;
+      font-weight: 700;
+      text-shadow: 0 0 2px rgba(0,0,0,0.5);
+      white-space: nowrap;
+      transform-origin: center center;
+      z-index: 5;
+    }
+
+    .hour-marker.day {
+      color: #1a1a1a;
+    }
+
+    .hour-marker.night {
+      color: #fff;
+    }
+
+    .hour-marker.dawn, .hour-marker.dusk {
+      color: #fff;
+      text-shadow: 0 0 2px rgba(0,0,0,0.8);
+    }
+
+    /* Clock face */
+    .clock-face {
+      position: absolute;
+      top: 88px;
+      left: 88px;
+      right: 88px;
+      bottom: 88px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #4a90c2 0%, #2d6b9e 30%, #1e5a8a 60%, #0d3a5c 100%);
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.3);
+      z-index: 10;
+    }
+
+    .clock-face::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 100;
+      box-shadow: 0 0 3px rgba(0,0,0,0.3);
+    }
+
+    /* Polar Earth view */
+    .polar-earth {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 180px;
+      height: 180px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      overflow: hidden;
+      z-index: 5;
+    }
+
+    .polar-earth canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .clock-tick {
+      position: absolute;
+      top: 6px;
+      left: 50%;
+      width: 1px;
+      height: 10px;
+      background: rgba(255,255,255,0.6);
+      transform-origin: 50% 166px;
+    }
+
+    .clock-tick.major {
+      width: 4px;
+      height: 16px;
+      background: linear-gradient(180deg, #e8f4d8 0%, #c5d8a8 100%);
+      border: 1px solid rgba(255,255,255,0.8);
+      border-radius: 1px;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 4px) calc(var(--lume-glow, 0) * 2px) rgba(150, 200, 255, var(--lume-glow, 0));
+      transition: box-shadow 0.5s ease;
+    }
+
+    .clock-hour-num {
+      position: absolute;
+      font-size: 20px;
+      font-weight: 600;
+      color: #fff;
+      transform: translate(-50%, -50%);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+
+    .clock-hand {
+      position: absolute;
+      left: 50%;
+      transform-origin: 50% 80%;
+      transform: translateX(-50%) rotate(0deg);
+    }
+
+    .clock-hand-hour {
+      width: 6px;
+      height: 100px;
+      bottom: calc(50% - 20px);
+      background: linear-gradient(90deg, #c0c0c0 0%, #ffffff 35%, #ffffff 65%, #a0a0a0 100%);
+      z-index: 50;
+      border-radius: 1px;
+      filter: blur(0);
+      transition: filter 0.3s ease;
+    }
+
+    /* Luminous center fill */
+    .clock-hand-hour::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 1px;
+      right: 1px;
+      bottom: 22px;
+      background: linear-gradient(180deg, #e8f4d8 0%, #d4e8c0 50%, #c5d8a8 100%);
+      border-radius: 1px;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 4px) calc(var(--lume-glow, 0) * 2px) rgba(150, 200, 255, var(--lume-glow, 0));
+      transition: box-shadow 0.5s ease;
+    }
+
+    .clock-hand-minute {
+      width: 4px;
+      height: 140px;
+      bottom: calc(50% - 28px);
+      background: linear-gradient(90deg, #c0c0c0 0%, #ffffff 35%, #ffffff 65%, #a0a0a0 100%);
+      z-index: 51;
+      border-radius: 1px;
+      filter: blur(0);
+      transition: filter 0.3s ease;
+    }
+
+    /* Luminous center fill */
+    .clock-hand-minute::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 1px;
+      right: 1px;
+      bottom: 30px;
+      background: linear-gradient(180deg, #e8f4d8 0%, #d4e8c0 50%, #c5d8a8 100%);
+      border-radius: 1px;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 4px) calc(var(--lume-glow, 0) * 2px) rgba(150, 200, 255, var(--lume-glow, 0));
+      transition: box-shadow 0.5s ease;
+    }
+
+    .clock-hand-second {
+      width: 2px;
+      height: 170px;
+      bottom: calc(50% - 34px);
+      background: transparent;
+      z-index: 52;
+      filter: blur(0);
+      transition: filter 0.3s ease;
+    }
+
+    .clock-hand-second.animating {
+      filter: blur(2px);
+    }
+
+    .clock-hand-minute.animating {
+      filter: blur(0.5px);
+    }
+
+    /* Polished steel second hand */
+    .clock-hand-second::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(90deg, #d0d0d0 0%, #ffffff 50%, #c0c0c0 100%);
+      border-radius: 1px;
+    }
+
+    /* Lume pip near tip */
+    .clock-hand-second::after {
+      content: '';
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 6px;
+      height: 6px;
+      background: linear-gradient(180deg, #e8f4d8 0%, #c5d8a8 100%);
+      border-radius: 50%;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 4px) calc(var(--lume-glow, 0) * 2px) rgba(150, 200, 255, var(--lume-glow, 0));
+      transition: box-shadow 0.5s ease;
+    }
+
+    /* Local time indicator triangle */
+    .local-indicator {
+      position: absolute;
+      top: 52px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-top: 12px solid var(--accent);
+      z-index: 200;
+    }
+
+    .digital-time {
+      margin-top: 15px;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .digital-date {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .timezone-info {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* City tooltip */
+    .city-tooltip {
+      position: absolute;
+      background: rgba(26, 26, 26, 0.95);
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 11px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, 8px);
+      transition: opacity 0.15s, transform 0.15s;
+      z-index: 1000;
+      min-width: 120px;
+      max-width: 200px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .city-tooltip.visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    .city-tooltip-header {
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #444;
+    }
+
+    .city-tooltip-time {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .city-tooltip-offset {
+      color: #999;
+      margin-bottom: 8px;
+    }
+
+    .city-tooltip-others {
+      color: #bbb;
+      line-height: 1.5;
+    }
+
+    .city-tooltip-others span {
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    /* City label hover effect */
+    .clock-cities text {
+      transition: fill 0.15s, filter 0.15s;
+    }
+
+    .clock-cities text:hover {
+      fill: #fff !important;
+      filter: drop-shadow(0 0 3px rgba(30, 144, 255, 0.6));
+    }
+
+    .back-link {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+
+<body>
+  <a href="/" class="back-link">&larr; rayhe.net</a>
+
+  <!-- World Timer Clock -->
+  <div class="world-timer">
+    <div class="clock-container" id="clockContainer">
+      <div class="clock-bezel"></div>
+      <div class="clock-cities" id="clockCities">
+        <!-- Cities generated by JS -->
+      </div>
+      <div class="hour-ring" id="hourRing">
+        <!-- 24-hour markers generated by JS -->
+      </div>
+      <div class="local-indicator"></div>
+      <div class="clock-face" id="clockFace">
+        <!-- Polar Earth view -->
+        <div class="polar-earth">
+          <canvas id="polarEarthCanvas" width="240" height="240"></canvas>
+        </div>
+        <!-- Ticks and hands generated by JS -->
+      </div>
+      <div class="city-tooltip" id="cityTooltip"></div>
+    </div>
+    <div class="digital-time" id="digitalTime">00:00:00</div>
+    <div class="digital-date" id="digitalDate"></div>
+    <div class="timezone-info" id="timezoneInfo"></div>
+  </div>
+
+  <script src="worldtimer.js"></script>
+</body>
+</html>
