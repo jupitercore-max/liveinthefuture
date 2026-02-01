@@ -77,11 +77,17 @@
       grid-template-columns: 1fr 1fr;
       gap: 24px;
       margin-bottom: 30px;
+      position: sticky;
+      top: 10px;
+      z-index: 100;
+      background: var(--bg);
+      padding: 10px 0;
     }
 
     @media (max-width: 800px) {
       .calculator-layout {
         grid-template-columns: 1fr;
+        position: static;
       }
     }
 
@@ -391,7 +397,7 @@
     </div>
 
     <div class="table-section">
-      <div class="section-title">XR Headsets</div>
+      <div class="section-title">XR Headsets (click to load)</div>
       <div class="table-scroll">
         <table class="reference-table" id="xrTable">
           <thead>
@@ -491,21 +497,36 @@
       updateValues();
     }
 
+    function loadXRPreset(device) {
+      // For XR headsets, we directly set the FOV values since they don't have
+      // traditional screen size/distance parameters
+      document.getElementById('hfov').textContent = device.hfov + '°';
+      document.getElementById('vfov').textContent = device.vfov + '°';
+      document.getElementById('dfov').textContent = device.dfov + '°';
+      document.getElementById('ppd').textContent = device.ppd.toFixed(1);
+
+      // Draw visualization with XR FOV values
+      drawVisualization(0, 0, device.hfov, device.vfov, 16, 9);
+    }
+
     function generateTables() {
       // XR Headsets (fixed specs, no calculation needed)
       const xrDevices = [
         { name: 'Apple Vision Pro', hfov: 100, vfov: 90, dfov: 120, ppd: 34 },
+        { name: 'Meta Quest 3S', hfov: 96, vfov: 90, dfov: 110, ppd: 20 },
         { name: 'Meta Quest 3', hfov: 110, vfov: 96, dfov: 120, ppd: 25 },
         { name: 'Meta Quest Pro', hfov: 106, vfov: 96, dfov: 117, ppd: 22 },
         { name: 'PSVR 2', hfov: 110, vfov: 110, dfov: 110, ppd: 19 },
-        { name: 'Xreal Air Ultra', hfov: 52, vfov: 29, dfov: 57, ppd: 42 },
+        { name: 'Xreal Air 2 Ultra', hfov: 52, vfov: 29, dfov: 57, ppd: 42 },
         { name: 'Rokid Max 2', hfov: 50, vfov: 28, dfov: 55, ppd: 44 },
-        { name: 'Viture One', hfov: 38, vfov: 23, dfov: 43, ppd: 55 },
+        { name: 'Viture Pro XR', hfov: 43, vfov: 24, dfov: 48, ppd: 46 },
       ];
 
       const xrBody = document.querySelector('#xrTable tbody');
       xrDevices.forEach(device => {
         const row = document.createElement('tr');
+        row.className = 'clickable';
+        row.onclick = () => loadXRPreset(device);
         row.innerHTML = `
           <td class="device-name">${device.name}</td>
           <td class="numeric">${device.hfov}°</td>
@@ -518,15 +539,21 @@
 
       // Common displays
       const displays = [
-        { name: 'iPhone 15 Pro Max @ 12"', size: 6.7, distance: 12, aspectW: 19.5, aspectH: 9, resolution: 2796 },
-        { name: 'iPad Pro 13" @ 18"', size: 13, distance: 18, aspectW: 4, aspectH: 3, resolution: 2752 },
-        { name: 'MacBook Pro 16" @ 20"', size: 16.2, distance: 20, aspectW: 16, aspectH: 10, resolution: 3456 },
-        { name: 'iMac 27" @ 24"', size: 27, distance: 24, aspectW: 16, aspectH: 9, resolution: 5120 },
-        { name: 'Nintendo Switch @ 12"', size: 6.2, distance: 12, aspectW: 16, aspectH: 9, resolution: 1280 },
-        { name: 'Steam Deck @ 14"', size: 7, distance: 14, aspectW: 16, aspectH: 10, resolution: 1280 },
+        { name: 'iPhone 16 Pro Max @ 12"', size: 6.9, distance: 12, aspectW: 19.5, aspectH: 9, resolution: 2868 },
+        { name: 'Samsung Galaxy S24 Ultra @ 12"', size: 6.8, distance: 12, aspectW: 19.5, aspectH: 9, resolution: 3120 },
+        { name: 'iPad Pro 13" M4 @ 18"', size: 13, distance: 18, aspectW: 4, aspectH: 3, resolution: 2752 },
+        { name: 'MacBook Pro 16" M4 @ 20"', size: 16.2, distance: 20, aspectW: 16, aspectH: 10, resolution: 3456 },
+        { name: 'Studio Display 27" @ 24"', size: 27, distance: 24, aspectW: 16, aspectH: 9, resolution: 5120 },
+        { name: 'Pro Display XDR 32" @ 24"', size: 32, distance: 24, aspectW: 16, aspectH: 9, resolution: 6016 },
+        { name: 'Nintendo Switch OLED @ 12"', size: 7, distance: 12, aspectW: 16, aspectH: 9, resolution: 1280 },
+        { name: 'Steam Deck OLED @ 14"', size: 7.4, distance: 14, aspectW: 16, aspectH: 10, resolution: 1280 },
+        { name: 'PS Portal @ 12"', size: 8, distance: 12, aspectW: 16, aspectH: 9, resolution: 1920 },
         { name: '55" 4K TV @ 8ft', size: 55, distance: 96, aspectW: 16, aspectH: 9, resolution: 3840 },
-        { name: '65" 4K TV @ 10ft', size: 65, distance: 120, aspectW: 16, aspectH: 9, resolution: 3840 },
-        { name: '77" 4K TV @ 10ft', size: 77, distance: 120, aspectW: 16, aspectH: 9, resolution: 3840 },
+        { name: '65" 4K TV @ 8ft', size: 65, distance: 96, aspectW: 16, aspectH: 9, resolution: 3840 },
+        { name: '77" 4K OLED TV @ 8ft', size: 77, distance: 96, aspectW: 16, aspectH: 9, resolution: 3840 },
+        { name: '85" 4K TV @ 10ft', size: 85, distance: 120, aspectW: 16, aspectH: 9, resolution: 3840 },
+        { name: '98" 4K TV @ 10ft', size: 98, distance: 120, aspectW: 16, aspectH: 9, resolution: 3840 },
+        { name: 'TCL 115" 4K TV @ 12ft', size: 115, distance: 144, aspectW: 16, aspectH: 9, resolution: 3840 },
         { name: 'Movie Theater (IMAX)', size: 720, distance: 1080, aspectW: 1.9, aspectH: 1, resolution: 4096 },
       ];
 
