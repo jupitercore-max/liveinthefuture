@@ -392,7 +392,7 @@
 
       <div class="viz-card">
         <div class="viz-title">FOV Visualization</div>
-        <canvas id="displayCanvas" width="500" height="400"></canvas>
+        <canvas id="displayCanvas" width="500" height="550"></canvas>
       </div>
     </div>
 
@@ -513,6 +513,7 @@
       // XR Headsets (fixed specs, no calculation needed)
       const xrDevices = [
         { name: 'Apple Vision Pro', hfov: 100, vfov: 90, dfov: 120, ppd: 34 },
+        { name: 'Samsung Galaxy XR', hfov: 109, vfov: 100, dfov: 120, ppd: 35.5 },
         { name: 'Meta Quest 3S', hfov: 96, vfov: 90, dfov: 110, ppd: 20 },
         { name: 'Meta Quest 3', hfov: 110, vfov: 96, dfov: 120, ppd: 25 },
         { name: 'Meta Quest Pro', hfov: 106, vfov: 96, dfov: 117, ppd: 22 },
@@ -585,25 +586,28 @@
       const width = canvas.width;
       const height = canvas.height;
       const padding = 30;
-      const sectionGap = 20;
+      const sectionGap = 15;
 
       // Clear canvas
       ctx.fillStyle = '#f8f8f8';
       ctx.fillRect(0, 0, width, height);
 
-      // Each section gets exactly half the height minus gap
-      const sectionHeight = (height - sectionGap) / 2;
+      // Each section gets one third of the height minus gaps
+      const sectionHeight = (height - sectionGap * 2) / 3;
 
-      // Draw function for FOV - each section is self-contained
-      function drawFOVSection(sectionTop, sectionH, fov, color, label) {
+      // Calculate diagonal FOV
+      const dfov = Math.sqrt(hfov * hfov + vfov * vfov);
+
+      // Draw function for FOV cone - each section is self-contained
+      function drawFOVSection(sectionTop, sectionH, fov, color, label, viewLabel) {
         const centerY = sectionTop + sectionH / 2;
         const eyeX = padding;
         const fovRad = (fov / 2) * Math.PI / 180;
         const tanFov = Math.tan(fovRad);
 
         // Calculate scale so cone fits within this section
-        const maxConeHeight = (sectionH / 2) - 15; // Leave room for label
-        const availableWidth = width - padding * 2 - 80; // Leave room for text label
+        const maxConeHeight = (sectionH / 2) - 12;
+        const availableWidth = width - padding * 2 - 80;
 
         // Scale based on whichever constraint is tighter
         const scaleByHeight = maxConeHeight / tanFov;
@@ -636,23 +640,132 @@
         ctx.fill();
 
         // Label to the right of cone
-        ctx.font = '600 12px system-ui, sans-serif';
+        ctx.font = '600 11px system-ui, sans-serif';
         ctx.fillStyle = color;
         ctx.textAlign = 'left';
         ctx.fillText(`${label}: ${fov.toFixed(1)}°`, eyeX + lineLength + 15, centerY + 4);
 
         // Section title
-        ctx.font = '11px system-ui, sans-serif';
+        ctx.font = '10px system-ui, sans-serif';
         ctx.fillStyle = '#999';
         ctx.textAlign = 'left';
-        ctx.fillText(label === 'H-FOV' ? 'Top View' : 'Side View', eyeX, sectionTop + 15);
+        ctx.fillText(viewLabel, eyeX, sectionTop + 12);
+      }
+
+      // Draw function for front view of screen
+      function drawFrontView(sectionTop, sectionH) {
+        const centerX = width / 2;
+        const centerY = sectionTop + sectionH / 2;
+
+        // Calculate screen dimensions to fit in section
+        const maxWidth = width - padding * 2 - 60;
+        const maxHeight = sectionH - 30;
+
+        // Use aspect ratio to determine screen size
+        let screenW, screenH;
+        if (aspectW / aspectH > maxWidth / maxHeight) {
+          screenW = maxWidth;
+          screenH = maxWidth * (aspectH / aspectW);
+        } else {
+          screenH = maxHeight;
+          screenW = maxHeight * (aspectW / aspectH);
+        }
+
+        const left = centerX - screenW / 2;
+        const top = centerY - screenH / 2;
+
+        // Draw screen rectangle
+        ctx.fillStyle = '#e8e8e8';
+        ctx.fillRect(left, top, screenW, screenH);
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(left, top, screenW, screenH);
+
+        // Draw diagonal line
+        ctx.beginPath();
+        ctx.moveTo(left, top + screenH);
+        ctx.lineTo(left + screenW, top);
+        ctx.strokeStyle = '#2D9D4D';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // H-FOV label (bottom)
+        ctx.font = '600 10px system-ui, sans-serif';
+        ctx.fillStyle = '#E63946';
+        ctx.textAlign = 'center';
+        ctx.fillText(`H-FOV: ${hfov.toFixed(1)}°`, centerX, top + screenH + 14);
+
+        // Draw H-FOV arrows
+        ctx.strokeStyle = '#E63946';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(left + 5, top + screenH + 6);
+        ctx.lineTo(left + screenW - 5, top + screenH + 6);
+        ctx.stroke();
+        // Arrow heads
+        ctx.beginPath();
+        ctx.moveTo(left + 5, top + screenH + 6);
+        ctx.lineTo(left + 10, top + screenH + 3);
+        ctx.lineTo(left + 10, top + screenH + 9);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(left + screenW - 5, top + screenH + 6);
+        ctx.lineTo(left + screenW - 10, top + screenH + 3);
+        ctx.lineTo(left + screenW - 10, top + screenH + 9);
+        ctx.closePath();
+        ctx.fill();
+
+        // V-FOV label (right side)
+        ctx.fillStyle = '#457B9D';
+        ctx.save();
+        ctx.translate(left + screenW + 14, centerY);
+        ctx.rotate(Math.PI / 2);
+        ctx.textAlign = 'center';
+        ctx.fillText(`V-FOV: ${vfov.toFixed(1)}°`, 0, 0);
+        ctx.restore();
+
+        // Draw V-FOV arrows
+        ctx.strokeStyle = '#457B9D';
+        ctx.beginPath();
+        ctx.moveTo(left + screenW + 6, top + 5);
+        ctx.lineTo(left + screenW + 6, top + screenH - 5);
+        ctx.stroke();
+        // Arrow heads
+        ctx.beginPath();
+        ctx.moveTo(left + screenW + 6, top + 5);
+        ctx.lineTo(left + screenW + 3, top + 10);
+        ctx.lineTo(left + screenW + 9, top + 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(left + screenW + 6, top + screenH - 5);
+        ctx.lineTo(left + screenW + 3, top + screenH - 10);
+        ctx.lineTo(left + screenW + 9, top + screenH - 10);
+        ctx.closePath();
+        ctx.fill();
+
+        // D-FOV label (on diagonal)
+        ctx.fillStyle = '#2D9D4D';
+        ctx.save();
+        const angle = Math.atan2(-screenH, screenW);
+        ctx.translate(centerX, centerY);
+        ctx.rotate(angle);
+        ctx.textAlign = 'center';
+        ctx.fillText(`D-FOV: ${dfov.toFixed(1)}°`, 0, -8);
+        ctx.restore();
+
+        // Section title
+        ctx.font = '10px system-ui, sans-serif';
+        ctx.fillStyle = '#999';
+        ctx.textAlign = 'left';
+        ctx.fillText('Front View', padding, sectionTop + 12);
       }
 
       // Draw H-FOV in top section
-      drawFOVSection(0, sectionHeight, hfov, '#E63946', 'H-FOV');
-
-      // Draw V-FOV in bottom section
-      drawFOVSection(sectionHeight + sectionGap, sectionHeight, vfov, '#457B9D', 'V-FOV');
+      drawFOVSection(0, sectionHeight, hfov, '#E63946', 'H-FOV', 'Top View');
 
       // Divider line
       ctx.strokeStyle = '#ddd';
@@ -661,6 +774,18 @@
       ctx.moveTo(padding, sectionHeight + sectionGap / 2);
       ctx.lineTo(width - padding, sectionHeight + sectionGap / 2);
       ctx.stroke();
+
+      // Draw V-FOV in middle section
+      drawFOVSection(sectionHeight + sectionGap, sectionHeight, vfov, '#457B9D', 'V-FOV', 'Side View');
+
+      // Divider line
+      ctx.beginPath();
+      ctx.moveTo(padding, sectionHeight * 2 + sectionGap * 1.5);
+      ctx.lineTo(width - padding, sectionHeight * 2 + sectionGap * 1.5);
+      ctx.stroke();
+
+      // Draw front view in bottom section
+      drawFrontView(sectionHeight * 2 + sectionGap * 2, sectionHeight);
     }
 
     // Initialize
