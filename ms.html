@@ -186,24 +186,27 @@
     /* Hour markers for time display */
     .hour-marker {
       position: absolute;
-      font-size: 12px;
-      font-weight: 400;
-      color: #999;
+      font-size: 14px;
+      font-weight: 600;
+      color: #666;
       transform: translate(-50%, -50%);
     }
 
     .hour-marker.major {
-      font-size: 14px;
-      font-weight: 600;
+      font-size: 16px;
+      font-weight: 700;
       color: var(--text);
     }
 
     .dial-60s .hour-marker {
-      color: #666;
+      color: #888;
+      font-size: 11px;
+      font-weight: 600;
     }
 
     .dial-60s .hour-marker.major {
-      color: #999;
+      color: #bbb;
+      font-size: 12px;
     }
 
     /* Inner ring separator for 10s dial */
@@ -319,28 +322,28 @@
 
     .favicon-weight {
       position: absolute;
-      bottom: -45px;
-      left: -10px;
-      width: 24px;
-      height: 24px;
-      background-image: url('favicon-64.png');
-      background-size: contain;
-      background-repeat: no-repeat;
-      background-position: center;
-      transform-origin: center center;
-    }
-
-    .favicon-weight-60s {
-      position: absolute;
-      bottom: -35px;
-      left: -8px;
+      bottom: -50px;
+      left: 50%;
+      transform: translateX(-50%);
       width: 20px;
       height: 20px;
       background-image: url('favicon-64.png');
       background-size: contain;
       background-repeat: no-repeat;
       background-position: center;
-      transform-origin: center center;
+    }
+
+    .favicon-weight-60s {
+      position: absolute;
+      bottom: -40px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 16px;
+      height: 16px;
+      background-image: url('favicon-64.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
       filter: brightness(0) invert(1);
     }
 
@@ -617,17 +620,19 @@
     }
 
     .scale-title.tachy-title {
-      top: 8px;
+      top: 5px;
       left: 50%;
       transform: translateX(-50%);
       color: #888;
+      font-size: 6px;
     }
 
     .scale-title.pulse-title {
-      top: 24px;
+      top: 18px;
       left: 50%;
       transform: translateX(-50%);
       color: #c41e3a;
+      font-size: 6px;
     }
 
     .hand-60s-main {
@@ -817,29 +822,29 @@
       dial.appendChild(tick);
     }
 
-    // Dial numbers (10-second dial, showing 1-10 on BEZEL - Zenith style)
+    // Dial numbers (10-second dial, showing 1-10 as chronograph scale)
     const watchContainer = dial.parentElement;
     const numbers = [10, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-    const bezelRadius = 148; // On the inner edge of the bezel ring
+    const bezelRadius = 140; // Position inside the dial near the outer edge
     for (let i = 0; i < 10; i++) {
       const angle = (i * 36 - 90) * Math.PI / 180;
       const numEl = document.createElement('div');
       numEl.className = 'bezel-number';
       numEl.textContent = numbers[i];
       numEl.style.position = 'absolute';
-      numEl.style.left = (170 + bezelRadius * Math.cos(angle)) + 'px';
-      numEl.style.top = (170 + bezelRadius * Math.sin(angle)) + 'px';
-      numEl.style.fontSize = '11px';
+      numEl.style.left = (160 + bezelRadius * Math.cos(angle)) + 'px';
+      numEl.style.top = (160 + bezelRadius * Math.sin(angle)) + 'px';
+      numEl.style.fontSize = '12px';
       numEl.style.fontWeight = '700';
       numEl.style.color = '#c41e3a';
       numEl.style.transform = 'translate(-50%, -50%)';
       numEl.style.zIndex = '10';
-      watchContainer.appendChild(numEl);
+      dial.appendChild(numEl);
     }
 
     // 12-hour markers for time display (skip where subdials are)
-    const hourRadius = 105;
-    const skipHours = [12, 4, 5, 7, 8]; // Skip where subdials are located
+    const hourRadius = 110; // Position for hour markers
+    const skipHours = [4, 5, 7, 8]; // Skip where subdials are located (keep 12 visible)
     for (let i = 1; i <= 12; i++) {
       if (skipHours.includes(i)) continue;
       const angle = (i * 30 - 90) * Math.PI / 180;
@@ -1004,8 +1009,8 @@
     const handMinute60s = document.getElementById('handMinute60s');
     const lapsContainer = document.getElementById('laps');
 
-    // Base rotation to align manta ray with hand (ray pointing down along counterweight)
-    const FAVICON_OFFSET = 135;
+    // Base rotation to align manta ray with hand (ray pointing up when hand at 12)
+    const FAVICON_OFFSET = 180;
 
     // Update time hands to show current time
     function updateTimeHands() {
@@ -1047,7 +1052,7 @@
       handMain.style.transform = `translateX(-50%) rotate(${mainAngle}deg)`;
 
       // Counter-rotate favicon to keep it upright, with offset to align ray with hand
-      faviconWeight.style.transform = `rotate(${-mainAngle + FAVICON_OFFSET}deg)`;
+      faviconWeight.style.transform = `translateX(-50%) rotate(${-mainAngle + FAVICON_OFFSET}deg)`;
 
       // 60-second subdial - 60 seconds per rotation
       const sec60Angle = (totalSeconds % 60) * 6;
@@ -1055,7 +1060,7 @@
 
       // 60s chronoscope main hand
       hand60sMain.style.transform = `translateX(-50%) rotate(${sec60Angle}deg)`;
-      faviconWeight60s.style.transform = `rotate(${-sec60Angle + FAVICON_OFFSET}deg)`;
+      faviconWeight60s.style.transform = `translateX(-50%) rotate(${-sec60Angle + FAVICON_OFFSET}deg)`;
 
       // 30-minute subdial
       const minutes = totalSeconds / 60;
