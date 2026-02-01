@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice Trivia - rayhe.net</title>
+
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" sizes="16x16 32x32 64x64" href="/favicon.ico">
+
+  <style>
+    :root {
+      --accent: #1E90FF;
+      --accent-hover: #0066CC;
+      --bg: #fafafa;
+      --text: #1a1a1a;
+      --text-muted: #666;
+      --border: #ddd;
+      --card-bg: #fff;
+      --radius: 6px;
+      --font-mono: 'SF Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+      --success: #22c55e;
+      --error: #ef4444;
+      --warning: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-mono);
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    a:hover {
+      color: var(--accent-hover);
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin: 0 0 10px;
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 30px;
+    }
+
+    /* Game Container */
+    .game-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    /* Score Display */
+    .score-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .score {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .score-value {
+      color: var(--accent);
+    }
+
+    .streak {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .streak-value {
+      color: var(--warning);
+      font-weight: 600;
+    }
+
+    /* Category Badge */
+    .category-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    /* Question Display */
+    .question-number {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .question {
+      font-size: 1.4rem;
+      font-weight: 600;
+      line-height: 1.4;
+      margin-bottom: 24px;
+    }
+
+    /* Transcript Display */
+    .transcript-container {
+      background: #f5f5f5;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      min-height: 80px;
+      margin-bottom: 20px;
+      position: relative;
+      transition: border-color 0.2s;
+    }
+
+    .transcript-container.listening {
+      border-color: var(--accent);
+    }
+
+    .transcript-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .voice-hint {
+      margin-left: auto;
+      font-size: 0.7rem;
+      color: #999;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+
+    .listening-indicator {
+      width: 8px;
+      height: 8px;
+      background: var(--error);
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .listening-indicator.active {
+      background: var(--success);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.1); }
+    }
+
+    .transcript {
+      font-size: 1.1rem;
+      min-height: 30px;
+    }
+
+    .transcript-interim {
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .transcript-final {
+      color: var(--text);
+    }
+
+    /* Feedback */
+    .feedback {
+      text-align: center;
+      padding: 16px;
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      font-weight: 600;
+      font-size: 1.1rem;
+      display: none;
+    }
+
+    .feedback.correct {
+      display: block;
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+
+    .feedback.incorrect {
+      display: block;
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+
+    .correct-answer {
+      font-size: 0.9rem;
+      font-weight: 400;
+      margin-top: 8px;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 12px 20px;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s;
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      background: rgba(30, 144, 255, 0.05);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    .btn-success {
+      background: var(--success);
+      border-color: var(--success);
+      color: #fff;
+    }
+
+    .btn-success:hover {
+      background: #16a34a;
+      border-color: #16a34a;
+    }
+
+    .btn-danger {
+      background: var(--error);
+      border-color: var(--error);
+      color: #fff;
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+      border-color: #dc2626;
+    }
+
+    /* Settings */
+    .settings {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .settings-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .setting-row label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    select {
+      padding: 8px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* Error State */
+    .error-message {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      border-radius: var(--radius);
+      padding: 16px;
+      color: #991b1b;
+      margin-bottom: 20px;
+    }
+
+    /* Start Screen */
+    .start-screen {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .start-screen h2 {
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+    }
+
+    .start-screen p {
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .start-screen .btn {
+      font-size: 1.1rem;
+      padding: 16px 32px;
+    }
+
+    /* Game Over Screen */
+    .game-over {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .game-over h2 {
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+    }
+
+    .final-score {
+      font-size: 3rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .final-stats {
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    /* Hidden state */
+    .hidden {
+      display: none !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 1.5rem;
+      }
+      .question {
+        font-size: 1.2rem;
+      }
+      .controls {
+        flex-direction: column;
+      }
+      .btn {
+        min-width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <a href="/" class="back-link">&larr; rayhe.net</a>
+
+    <h1>Voice Trivia</h1>
+    <p class="subtitle">Answer trivia questions using your voice</p>
+
+    <!-- Error Message for unsupported browsers -->
+    <div id="errorMessage" class="error-message hidden">
+      <strong>Speech Recognition Not Supported</strong><br>
+      Your browser doesn't support the Web Speech API. Please use Chrome, Edge, or Safari.
+    </div>
+
+    <div class="game-container">
+      <!-- Start Screen -->
+      <div id="startScreen" class="start-screen">
+        <h2>Ready to Play?</h2>
+        <p>Answer trivia questions by speaking the answer. You'll need to allow microphone access.</p>
+        <button class="btn btn-primary" onclick="startGame()">Start Game</button>
+      </div>
+
+      <!-- Game Screen -->
+      <div id="gameScreen" class="hidden">
+        <!-- Score Bar -->
+        <div class="score-bar">
+          <div class="score">
+            Score: <span class="score-value" id="score">0</span>
+          </div>
+          <div class="streak">
+            Streak: <span class="streak-value" id="streak">0</span>
+          </div>
+        </div>
+
+        <!-- Question -->
+        <div class="category-badge" id="category">Geography</div>
+        <div class="question-number" id="questionNumber">Question 1</div>
+        <div class="question" id="question">Loading question...</div>
+
+        <!-- Transcript -->
+        <div class="transcript-container" id="transcriptContainer">
+          <div class="transcript-label">
+            <span class="listening-indicator" id="listeningIndicator"></span>
+            <span id="listeningLabel">Not listening</span>
+            <span class="voice-hint">Say "pass" to skip</span>
+          </div>
+          <div class="transcript" id="transcript">
+            <span class="transcript-interim">Say your answer...</span>
+          </div>
+        </div>
+
+        <!-- Feedback -->
+        <div class="feedback" id="feedback">
+          <div id="feedbackText"></div>
+          <div class="correct-answer" id="correctAnswer"></div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+          <button class="btn btn-success" id="listenBtn" onclick="toggleListening()">
+            Start Listening
+          </button>
+          <button class="btn" id="skipBtn" onclick="skipQuestion()">
+            Say "Pass"
+          </button>
+          <button class="btn btn-danger" id="endBtn" onclick="endGame()">
+            End Game
+          </button>
+        </div>
+      </div>
+
+      <!-- Game Over Screen -->
+      <div id="gameOverScreen" class="game-over hidden">
+        <h2>Game Over!</h2>
+        <div class="final-score" id="finalScore">0</div>
+        <div class="final-stats" id="finalStats">0 correct out of 0 questions</div>
+        <button class="btn btn-primary" onclick="startGame()">Play Again</button>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="settings">
+      <div class="settings-title">Settings</div>
+      <div class="setting-row">
+        <label for="categorySelect">Category:</label>
+        <select id="categorySelect" onchange="updateCategory()">
+          <option value="All">All Categories</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <script src="trivia-questions.js"></script>
+  <script>
+    // Game State
+    let currentQuestion = null;
+    let score = 0;
+    let streak = 0;
+    let questionCount = 0;
+    let correctCount = 0;
+    let isListening = false;
+    let recognition = null;
+    let selectedCategory = 'All';
+    let askedQuestions = new Set();
+    let feedbackTimeout = null;
+
+    // DOM Elements
+    const startScreen = document.getElementById('startScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const errorMessage = document.getElementById('errorMessage');
+    const scoreEl = document.getElementById('score');
+    const streakEl = document.getElementById('streak');
+    const categoryEl = document.getElementById('category');
+    const questionNumberEl = document.getElementById('questionNumber');
+    const questionEl = document.getElementById('question');
+    const transcriptContainer = document.getElementById('transcriptContainer');
+    const transcriptEl = document.getElementById('transcript');
+    const listeningIndicator = document.getElementById('listeningIndicator');
+    const listeningLabel = document.getElementById('listeningLabel');
+    const feedbackEl = document.getElementById('feedback');
+    const feedbackTextEl = document.getElementById('feedbackText');
+    const correctAnswerEl = document.getElementById('correctAnswer');
+    const listenBtn = document.getElementById('listenBtn');
+    const categorySelect = document.getElementById('categorySelect');
+
+    // Initialize Speech Recognition
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        errorMessage.classList.remove('hidden');
+        startScreen.querySelector('button').disabled = true;
+        return false;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+      recognition.maxAlternatives = 3;
+
+      recognition.onstart = () => {
+        isListening = true;
+        updateListeningUI();
+      };
+
+      recognition.onend = () => {
+        // Restart if we're supposed to be listening
+        if (isListening) {
+          try {
+            recognition.start();
+          } catch (e) {
+            // Ignore errors from rapid start/stop
+          }
+        } else {
+          updateListeningUI();
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error === 'not-allowed') {
+          errorMessage.textContent = 'Microphone access denied. Please allow microphone access and reload the page.';
+          errorMessage.classList.remove('hidden');
+        }
+      };
+
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        // Update transcript display
+        updateTranscript(finalTranscript, interimTranscript);
+
+        // Check for voice commands and answers with final transcript
+        if (finalTranscript) {
+          // Check for "pass" voice command
+          if (normalizeText(finalTranscript) === 'pass') {
+            skipQuestion();
+            return;
+          }
+          checkAnswer(finalTranscript);
+        }
+      };
+
+      return true;
+    }
+
+    // Update transcript display
+    function updateTranscript(final, interim) {
+      let html = '';
+      if (final) {
+        html += `<span class="transcript-final">${final}</span>`;
+      }
+      if (interim) {
+        html += `<span class="transcript-interim">${interim}</span>`;
+      }
+      if (!final && !interim) {
+        html = '<span class="transcript-interim">Say your answer...</span>';
+      }
+      transcriptEl.innerHTML = html;
+    }
+
+    // Update listening UI
+    function updateListeningUI() {
+      if (isListening) {
+        listeningIndicator.classList.add('active');
+        listeningLabel.textContent = 'Listening...';
+        transcriptContainer.classList.add('listening');
+        listenBtn.textContent = 'Stop Listening';
+        listenBtn.classList.remove('btn-success');
+        listenBtn.classList.add('btn-danger');
+      } else {
+        listeningIndicator.classList.remove('active');
+        listeningLabel.textContent = 'Not listening';
+        transcriptContainer.classList.remove('listening');
+        listenBtn.textContent = 'Start Listening';
+        listenBtn.classList.remove('btn-danger');
+        listenBtn.classList.add('btn-success');
+      }
+    }
+
+    // Toggle listening
+    function toggleListening() {
+      if (isListening) {
+        stopListening();
+      } else {
+        startListening();
+      }
+    }
+
+    // Start listening
+    function startListening() {
+      if (recognition) {
+        try {
+          recognition.start();
+          isListening = true;
+          updateListeningUI();
+        } catch (e) {
+          console.error('Failed to start recognition:', e);
+        }
+      }
+    }
+
+    // Stop listening
+    function stopListening() {
+      isListening = false;
+      if (recognition) {
+        try {
+          recognition.stop();
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+      updateListeningUI();
+    }
+
+    // Normalize text for comparison
+    function normalizeText(text) {
+      return text
+        .toLowerCase()
+        .trim()
+        // Remove articles
+        .replace(/^(the|a|an)\s+/gi, '')
+        // Remove punctuation
+        .replace(/[.,!?;:'"()-]/g, '')
+        // Normalize spaces
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    // Check if answer matches
+    function checkAnswer(spokenText) {
+      if (!currentQuestion) return;
+
+      const normalizedSpoken = normalizeText(spokenText);
+      const normalizedAnswer = normalizeText(currentQuestion.answer);
+
+      // Check for exact match
+      if (normalizedSpoken.includes(normalizedAnswer) || normalizedAnswer.includes(normalizedSpoken)) {
+        handleCorrectAnswer();
+        return;
+      }
+
+      // Check for partial match (at least 80% of words match)
+      const spokenWords = normalizedSpoken.split(' ');
+      const answerWords = normalizedAnswer.split(' ');
+
+      let matchCount = 0;
+      for (const word of answerWords) {
+        if (spokenWords.some(sw => sw.includes(word) || word.includes(sw))) {
+          matchCount++;
+        }
+      }
+
+      if (matchCount / answerWords.length >= 0.8) {
+        handleCorrectAnswer();
+      }
+    }
+
+    // Handle correct answer
+    function handleCorrectAnswer() {
+      stopListening();
+
+      score += 10 + (streak * 2); // Bonus for streak
+      streak++;
+      correctCount++;
+
+      updateScore();
+      showFeedback(true);
+
+      // Move to next question after delay
+      if (feedbackTimeout) clearTimeout(feedbackTimeout);
+      feedbackTimeout = setTimeout(() => {
+        nextQuestion();
+      }, 2000);
+    }
+
+    // Handle incorrect/skip
+    function handleIncorrectAnswer() {
+      streak = 0;
+      updateScore();
+      showFeedback(false);
+
+      // Move to next question after delay
+      if (feedbackTimeout) clearTimeout(feedbackTimeout);
+      feedbackTimeout = setTimeout(() => {
+        nextQuestion();
+      }, 3000);
+    }
+
+    // Show feedback
+    function showFeedback(correct) {
+      feedbackEl.className = 'feedback ' + (correct ? 'correct' : 'incorrect');
+      feedbackTextEl.textContent = correct ? 'Correct!' : 'Incorrect!';
+      correctAnswerEl.textContent = correct ? '' : `The answer was: ${currentQuestion.answer}`;
+    }
+
+    // Hide feedback
+    function hideFeedback() {
+      feedbackEl.className = 'feedback';
+    }
+
+    // Update score display
+    function updateScore() {
+      scoreEl.textContent = score;
+      streakEl.textContent = streak;
+    }
+
+    // Get next question
+    function getNextQuestion() {
+      const questions = getQuestionsByCategory(selectedCategory);
+      const availableQuestions = questions.filter(q => !askedQuestions.has(q.question));
+
+      if (availableQuestions.length === 0) {
+        // Reset if we've asked all questions
+        askedQuestions.clear();
+        return questions[Math.floor(Math.random() * questions.length)];
+      }
+
+      return availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
+    }
+
+    // Load next question
+    function nextQuestion() {
+      hideFeedback();
+      updateTranscript('', '');
+
+      currentQuestion = getNextQuestion();
+      askedQuestions.add(currentQuestion.question);
+      questionCount++;
+
+      categoryEl.textContent = currentQuestion.category;
+      questionNumberEl.textContent = `Question ${questionCount}`;
+      questionEl.textContent = currentQuestion.question;
+
+      // Auto-start listening
+      startListening();
+    }
+
+    // Skip question
+    function skipQuestion() {
+      stopListening();
+      handleIncorrectAnswer();
+    }
+
+    // Start game
+    function startGame() {
+      score = 0;
+      streak = 0;
+      questionCount = 0;
+      correctCount = 0;
+      askedQuestions.clear();
+
+      updateScore();
+
+      startScreen.classList.add('hidden');
+      gameOverScreen.classList.add('hidden');
+      gameScreen.classList.remove('hidden');
+
+      nextQuestion();
+    }
+
+    // End game
+    function endGame() {
+      stopListening();
+      if (feedbackTimeout) clearTimeout(feedbackTimeout);
+
+      gameScreen.classList.add('hidden');
+      gameOverScreen.classList.remove('hidden');
+
+      document.getElementById('finalScore').textContent = score;
+      document.getElementById('finalStats').textContent =
+        `${correctCount} correct out of ${questionCount} questions`;
+    }
+
+    // Update category selection
+    function updateCategory() {
+      selectedCategory = categorySelect.value;
+    }
+
+    // Populate category dropdown
+    function populateCategories() {
+      const categories = getCategories();
+      categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        categorySelect.appendChild(option);
+      });
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      populateCategories();
+      initSpeechRecognition();
+    });
+  </script>
+</body>
+</html>
