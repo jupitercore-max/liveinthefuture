@@ -229,6 +229,7 @@
       border: 1px solid #ccc;
       box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
       overflow: visible;
+      z-index: 5;
     }
 
     .subdial::before {
@@ -251,13 +252,13 @@
     }
 
     .subdial-12h {
-      bottom: 80px;
-      left: 60px;
+      bottom: 70px;
+      left: 70px;
     }
 
     .subdial-60s {
-      bottom: 80px;
-      right: 60px;
+      bottom: 70px;
+      right: 70px;
     }
 
     .subdial-label {
@@ -838,22 +839,59 @@
       numEl.style.fontWeight = '700';
       numEl.style.color = '#c41e3a';
       numEl.style.transform = 'translate(-50%, -50%)';
-      numEl.style.zIndex = '10';
+      numEl.style.zIndex = '20';
       dial.appendChild(numEl);
     }
 
-    // 12-hour markers for time display (skip where subdials are)
+    // 12-hour markers for time display (show all, subdials will be on top)
     const hourRadius = 110; // Position for hour markers
-    const skipHours = [4, 5, 7, 8]; // Skip where subdials are located (keep 12 visible)
     for (let i = 1; i <= 12; i++) {
-      if (skipHours.includes(i)) continue;
       const angle = (i * 30 - 90) * Math.PI / 180;
       const marker = document.createElement('div');
       marker.className = 'hour-marker' + (i % 3 === 0 ? ' major' : '');
       marker.textContent = i;
       marker.style.left = (160 + hourRadius * Math.cos(angle)) + 'px';
       marker.style.top = (160 + hourRadius * Math.sin(angle)) + 'px';
+      marker.style.zIndex = '1';
       dial.appendChild(marker);
+    }
+
+    // Hour tick marks (inner ring)
+    const hourTickRadius = 125; // Between hour markers and bezel numbers
+    for (let i = 0; i < 12; i++) {
+      const angle = (i * 30 - 90) * Math.PI / 180;
+      const tick = document.createElement('div');
+      tick.style.position = 'absolute';
+      tick.style.width = i % 3 === 0 ? '3px' : '2px';
+      tick.style.height = i % 3 === 0 ? '10px' : '6px';
+      tick.style.background = i % 3 === 0 ? '#333' : '#666';
+      tick.style.borderRadius = '1px';
+      const tickX = 160 + hourTickRadius * Math.cos(angle);
+      const tickY = 160 + hourTickRadius * Math.sin(angle);
+      tick.style.left = tickX + 'px';
+      tick.style.top = tickY + 'px';
+      tick.style.transform = `translate(-50%, -50%) rotate(${i * 30}deg)`;
+      tick.style.zIndex = '1';
+      dial.appendChild(tick);
+    }
+
+    // Minute indexes on inner ring (5-minute increments)
+    const minuteRadius = 85; // Inner ring for minute indexes
+    for (let i = 0; i < 12; i++) {
+      const minValue = i === 0 ? 60 : i * 5;
+      const angle = (i * 30 - 90) * Math.PI / 180;
+      const minMarker = document.createElement('div');
+      minMarker.className = 'minute-marker';
+      minMarker.textContent = minValue;
+      minMarker.style.position = 'absolute';
+      minMarker.style.left = (160 + minuteRadius * Math.cos(angle)) + 'px';
+      minMarker.style.top = (160 + minuteRadius * Math.sin(angle)) + 'px';
+      minMarker.style.fontSize = '9px';
+      minMarker.style.fontWeight = '500';
+      minMarker.style.color = '#999';
+      minMarker.style.transform = 'translate(-50%, -50%)';
+      minMarker.style.zIndex = '1';
+      dial.appendChild(minMarker);
     }
 
     // Generate subdial ticks
