@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice Mental Math - rayhe.net</title>
+
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" sizes="16x16 32x32 64x64" href="/favicon.ico">
+
+  <style>
+    :root {
+      --accent: #1E90FF;
+      --accent-hover: #0066CC;
+      --bg: #fafafa;
+      --text: #1a1a1a;
+      --text-muted: #666;
+      --border: #ddd;
+      --card-bg: #fff;
+      --radius: 6px;
+      --font-mono: 'SF Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+      --success: #22c55e;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --purple: #8b5cf6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-mono);
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    a:hover {
+      color: var(--accent-hover);
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin: 0 0 10px;
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 30px;
+    }
+
+    /* Game Container */
+    .game-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    /* Score Display */
+    .score-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .score {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .score-value {
+      color: var(--accent);
+    }
+
+    .streak {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .streak-value {
+      color: var(--warning);
+      font-weight: 600;
+    }
+
+    .timer {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .timer-value {
+      color: var(--purple);
+      font-weight: 600;
+    }
+
+    .timer-value.urgent {
+      color: var(--error);
+      animation: pulse 0.5s ease-in-out infinite;
+    }
+
+    /* Problem Display */
+    .problem-container {
+      text-align: center;
+      padding: 30px 20px;
+      margin-bottom: 20px;
+    }
+
+    .problem {
+      display: inline-block;
+      font-size: 2.5rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      margin-bottom: 10px;
+    }
+
+    .problem-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .problem-operator {
+      width: 1.2em;
+      text-align: center;
+    }
+
+    .problem-number {
+      min-width: 2em;
+    }
+
+    .problem-line {
+      border-bottom: 4px solid var(--text);
+      margin: 8px 0;
+    }
+
+    .problem-answer {
+      color: var(--accent);
+      min-height: 1.2em;
+    }
+
+    .problem-hint {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Transcript Display */
+    .transcript-container {
+      background: #f5f5f5;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      min-height: 80px;
+      margin-bottom: 20px;
+      position: relative;
+      transition: border-color 0.2s;
+    }
+
+    .transcript-container.listening {
+      border-color: var(--accent);
+    }
+
+    .transcript-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .listening-indicator {
+      width: 8px;
+      height: 8px;
+      background: var(--error);
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .listening-indicator.active {
+      background: var(--success);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.1); }
+    }
+
+    .transcript {
+      font-size: 1.5rem;
+      min-height: 40px;
+      text-align: center;
+    }
+
+    .transcript-interim {
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .transcript-final {
+      color: var(--text);
+    }
+
+    /* Feedback */
+    .feedback {
+      text-align: center;
+      padding: 16px;
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      font-weight: 600;
+      font-size: 1.1rem;
+      display: none;
+    }
+
+    .feedback.correct {
+      display: block;
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+
+    .feedback.incorrect {
+      display: block;
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+
+    .correct-answer {
+      font-size: 0.9rem;
+      font-weight: 400;
+      margin-top: 8px;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 12px 20px;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s;
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      background: rgba(30, 144, 255, 0.05);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    .btn-success {
+      background: var(--success);
+      border-color: var(--success);
+      color: #fff;
+    }
+
+    .btn-success:hover {
+      background: #16a34a;
+      border-color: #16a34a;
+    }
+
+    .btn-danger {
+      background: var(--error);
+      border-color: var(--error);
+      color: #fff;
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+      border-color: #dc2626;
+    }
+
+    /* Settings */
+    .settings {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .settings-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .setting-group {
+      margin-bottom: 16px;
+    }
+
+    .setting-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .setting-label {
+      font-size: 0.85rem;
+      color: var(--text);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Toggle Buttons */
+    .toggle-group {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .toggle-btn {
+      padding: 8px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .toggle-btn:hover {
+      border-color: var(--accent);
+    }
+
+    .toggle-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .toggle-btn.op {
+      font-size: 1.1rem;
+      min-width: 44px;
+    }
+
+    select {
+      padding: 8px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* Error State */
+    .error-message {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      border-radius: var(--radius);
+      padding: 16px;
+      color: #991b1b;
+      margin-bottom: 20px;
+    }
+
+    /* Start Screen */
+    .start-screen {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .start-screen h2 {
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+    }
+
+    .start-screen p {
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .start-screen .btn {
+      font-size: 1.1rem;
+      padding: 16px 32px;
+    }
+
+    /* Game Over Screen */
+    .game-over {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .game-over h2 {
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+    }
+
+    .final-score {
+      font-size: 3rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .final-stats {
+      color: var(--text-muted);
+      margin-bottom: 24px;
+      line-height: 1.8;
+    }
+
+    /* Hidden state */
+    .hidden {
+      display: none !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 1.5rem;
+      }
+      .problem {
+        font-size: 2.2rem;
+      }
+      .controls {
+        flex-direction: column;
+      }
+      .btn {
+        min-width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <a href="/" class="back-link">&larr; rayhe.net</a>
+
+    <h1>Voice Mental Math</h1>
+    <p class="subtitle">Practice arithmetic by speaking the answers</p>
+
+    <!-- Error Message for unsupported browsers -->
+    <div id="errorMessage" class="error-message hidden">
+      <strong>Speech Recognition Not Supported</strong><br>
+      Your browser doesn't support the Web Speech API. Please use Chrome, Edge, or Safari.
+    </div>
+
+    <div class="game-container">
+      <!-- Start Screen -->
+      <div id="startScreen" class="start-screen">
+        <h2>Ready to Practice?</h2>
+        <p>Solve math problems by speaking the answer. Configure the settings below, then start!</p>
+        <button class="btn btn-primary" onclick="startGame()">Start Game</button>
+      </div>
+
+      <!-- Game Screen -->
+      <div id="gameScreen" class="hidden">
+        <!-- Score Bar -->
+        <div class="score-bar">
+          <div class="score">
+            Score: <span class="score-value" id="score">0</span>
+          </div>
+          <div class="streak">
+            Streak: <span class="streak-value" id="streak">0</span>
+          </div>
+          <div class="timer" id="timerContainer">
+            Time: <span class="timer-value" id="timer">--</span>
+          </div>
+        </div>
+
+        <!-- Problem -->
+        <div class="problem-container">
+          <div class="problem" id="problem">
+            <div class="problem-row">
+              <span class="problem-operator"></span>
+              <span class="problem-number" id="problemNum1">12</span>
+            </div>
+            <div class="problem-row">
+              <span class="problem-operator" id="problemOp">+</span>
+              <span class="problem-number" id="problemNum2">5</span>
+            </div>
+            <div class="problem-line"></div>
+            <div class="problem-row">
+              <span class="problem-operator"></span>
+              <span class="problem-answer" id="problemAnswer">?</span>
+            </div>
+          </div>
+          <div class="problem-hint" id="problemHint">Problem 1</div>
+        </div>
+
+        <!-- Transcript -->
+        <div class="transcript-container" id="transcriptContainer">
+          <div class="transcript-label">
+            <span class="listening-indicator" id="listeningIndicator"></span>
+            <span id="listeningLabel">Not listening</span>
+          </div>
+          <div class="transcript" id="transcript">
+            <span class="transcript-interim">Say the answer...</span>
+          </div>
+        </div>
+
+        <!-- Feedback -->
+        <div class="feedback" id="feedback">
+          <div id="feedbackText"></div>
+          <div class="correct-answer" id="correctAnswer"></div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+          <button class="btn btn-success" id="listenBtn" onclick="toggleListening()">
+            Start Listening
+          </button>
+          <button class="btn" id="skipBtn" onclick="skipProblem()">
+            Say "Pass"
+          </button>
+          <button class="btn btn-danger" id="endBtn" onclick="endGame()">
+            End Game
+          </button>
+        </div>
+      </div>
+
+      <!-- Game Over Screen -->
+      <div id="gameOverScreen" class="game-over hidden">
+        <h2>Great Practice!</h2>
+        <div class="final-score" id="finalScore">0</div>
+        <div class="final-stats" id="finalStats">
+          0 correct out of 0 problems<br>
+          Best streak: 0
+        </div>
+        <button class="btn btn-primary" onclick="startGame()">Play Again</button>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="settings">
+      <div class="settings-title">Settings</div>
+
+      <!-- Operations -->
+      <div class="setting-group">
+        <div class="setting-label">Operations</div>
+        <div class="toggle-group" id="operationsGroup">
+          <button class="toggle-btn op active" data-op="+" onclick="toggleOperation(this)">+</button>
+          <button class="toggle-btn op active" data-op="-" onclick="toggleOperation(this)">−</button>
+          <button class="toggle-btn op" data-op="*" onclick="toggleOperation(this)">×</button>
+          <button class="toggle-btn op" data-op="/" onclick="toggleOperation(this)">÷</button>
+        </div>
+      </div>
+
+      <!-- Digits -->
+      <div class="setting-group">
+        <div class="setting-label">Number Size</div>
+        <div class="toggle-group" id="digitsGroup">
+          <button class="toggle-btn active" data-digits="1" onclick="toggleDigits(this)">1 digit</button>
+          <button class="toggle-btn" data-digits="2" onclick="toggleDigits(this)">2 digits</button>
+          <button class="toggle-btn" data-digits="3" onclick="toggleDigits(this)">3 digits</button>
+        </div>
+      </div>
+
+      <!-- Difficulty -->
+      <div class="setting-group">
+        <div class="setting-label">Difficulty</div>
+        <div class="toggle-group" id="difficultyGroup">
+          <button class="toggle-btn active" data-diff="easy" onclick="setDifficulty(this)">Easy</button>
+          <button class="toggle-btn" data-diff="medium" onclick="setDifficulty(this)">Medium</button>
+          <button class="toggle-btn" data-diff="hard" onclick="setDifficulty(this)">Hard</button>
+        </div>
+      </div>
+
+      <!-- Timer Toggle -->
+      <div class="setting-group">
+        <div class="setting-label">Timer</div>
+        <div class="toggle-group">
+          <button class="toggle-btn" id="timerToggle" onclick="toggleTimerSetting()">Off</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Game State
+    let currentAnswer = null;
+    let score = 0;
+    let streak = 0;
+    let bestStreak = 0;
+    let problemCount = 0;
+    let correctCount = 0;
+    let isListening = false;
+    let recognition = null;
+    let feedbackTimeout = null;
+    let timerInterval = null;
+    let timeLeft = 0;
+
+    // Settings
+    let selectedOperations = ['+', '-'];
+    let maxDigits = 1;
+    let difficulty = 'easy';
+    let timerEnabled = false;
+
+    // Difficulty settings
+    const difficultySettings = {
+      easy: { timePerProblem: 30, bonusMultiplier: 1 },
+      medium: { timePerProblem: 20, bonusMultiplier: 2 },
+      hard: { timePerProblem: 10, bonusMultiplier: 3 }
+    };
+
+    // DOM Elements
+    const startScreen = document.getElementById('startScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const errorMessage = document.getElementById('errorMessage');
+    const scoreEl = document.getElementById('score');
+    const streakEl = document.getElementById('streak');
+    const timerEl = document.getElementById('timer');
+    const timerContainer = document.getElementById('timerContainer');
+    const problemEl = document.getElementById('problem');
+    const problemNum1El = document.getElementById('problemNum1');
+    const problemNum2El = document.getElementById('problemNum2');
+    const problemOpEl = document.getElementById('problemOp');
+    const problemAnswerEl = document.getElementById('problemAnswer');
+    const problemHintEl = document.getElementById('problemHint');
+    const transcriptContainer = document.getElementById('transcriptContainer');
+    const transcriptEl = document.getElementById('transcript');
+    const listeningIndicator = document.getElementById('listeningIndicator');
+    const listeningLabel = document.getElementById('listeningLabel');
+    const feedbackEl = document.getElementById('feedback');
+    const feedbackTextEl = document.getElementById('feedbackText');
+    const correctAnswerEl = document.getElementById('correctAnswer');
+    const listenBtn = document.getElementById('listenBtn');
+
+    // Toggle operation selection
+    function toggleOperation(btn) {
+      btn.classList.toggle('active');
+      updateSelectedOperations();
+    }
+
+    function updateSelectedOperations() {
+      selectedOperations = [];
+      document.querySelectorAll('#operationsGroup .toggle-btn.active').forEach(btn => {
+        selectedOperations.push(btn.dataset.op);
+      });
+      // Ensure at least one operation is selected
+      if (selectedOperations.length === 0) {
+        document.querySelector('#operationsGroup .toggle-btn').classList.add('active');
+        selectedOperations = ['+'];
+      }
+    }
+
+    // Toggle digits selection
+    function toggleDigits(btn) {
+      document.querySelectorAll('#digitsGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      maxDigits = parseInt(btn.dataset.digits);
+    }
+
+    // Set difficulty
+    function setDifficulty(btn) {
+      document.querySelectorAll('#difficultyGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      difficulty = btn.dataset.diff;
+    }
+
+    // Toggle timer
+    function toggleTimerSetting() {
+      const btn = document.getElementById('timerToggle');
+      timerEnabled = !timerEnabled;
+      btn.textContent = timerEnabled ? 'On' : 'Off';
+      btn.classList.toggle('active', timerEnabled);
+    }
+
+    // Generate random number based on digit settings
+    function randomNumber(maxDig) {
+      const digits = maxDig || maxDigits;
+      const min = digits === 1 ? 1 : Math.pow(10, digits - 1);
+      const max = Math.pow(10, digits) - 1;
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // Generate a math problem
+    function generateProblem() {
+      const op = selectedOperations[Math.floor(Math.random() * selectedOperations.length)];
+      let a, b, answer;
+
+      switch (op) {
+        case '+':
+          a = randomNumber();
+          b = randomNumber();
+          answer = a + b;
+          break;
+        case '-':
+          // Ensure positive result for easier problems
+          a = randomNumber();
+          b = randomNumber();
+          if (difficulty === 'easy' && b > a) {
+            [a, b] = [b, a]; // Swap to ensure positive result
+          }
+          answer = a - b;
+          break;
+        case '*':
+          // Use smaller numbers for multiplication
+          const multDigits = Math.max(1, maxDigits - 1);
+          a = randomNumber(multDigits);
+          b = randomNumber(Math.min(multDigits, 1)); // Second number is simpler
+          if (difficulty === 'easy') {
+            b = Math.min(b, 10);
+          }
+          answer = a * b;
+          break;
+        case '/':
+          // Generate clean division problems
+          b = randomNumber(Math.max(1, maxDigits - 1));
+          if (difficulty === 'easy') {
+            b = Math.min(b, 10);
+          }
+          const quotient = randomNumber(Math.max(1, maxDigits - 1));
+          a = b * quotient; // Ensures clean division
+          answer = quotient;
+          break;
+      }
+
+      const opDisplay = { '+': '+', '-': '−', '*': '×', '/': '÷' }[op];
+      return {
+        num1: a,
+        num2: b,
+        operator: opDisplay,
+        answer: answer
+      };
+    }
+
+    // Initialize Speech Recognition
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        errorMessage.classList.remove('hidden');
+        startScreen.querySelector('button').disabled = true;
+        return false;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+      recognition.maxAlternatives = 3;
+
+      recognition.onstart = () => {
+        isListening = true;
+        updateListeningUI();
+      };
+
+      recognition.onend = () => {
+        if (isListening) {
+          try {
+            recognition.start();
+          } catch (e) {}
+        } else {
+          updateListeningUI();
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error === 'not-allowed') {
+          errorMessage.textContent = 'Microphone access denied. Please allow microphone access and reload the page.';
+          errorMessage.classList.remove('hidden');
+        }
+      };
+
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        updateTranscript(finalTranscript, interimTranscript);
+
+        if (finalTranscript) {
+          // Check for "pass" voice command
+          if (normalizeText(finalTranscript) === 'pass') {
+            skipProblem();
+            return;
+          }
+          checkAnswer(finalTranscript);
+        }
+      };
+
+      return true;
+    }
+
+    // Update transcript display
+    function updateTranscript(final, interim) {
+      let html = '';
+      if (final) {
+        html += `<span class="transcript-final">${final}</span>`;
+      }
+      if (interim) {
+        html += `<span class="transcript-interim">${interim}</span>`;
+      }
+      if (!final && !interim) {
+        html = '<span class="transcript-interim">Say the answer...</span>';
+      }
+      transcriptEl.innerHTML = html;
+    }
+
+    // Update listening UI
+    function updateListeningUI() {
+      if (isListening) {
+        listeningIndicator.classList.add('active');
+        listeningLabel.textContent = 'Listening...';
+        transcriptContainer.classList.add('listening');
+        listenBtn.textContent = 'Stop Listening';
+        listenBtn.classList.remove('btn-success');
+        listenBtn.classList.add('btn-danger');
+      } else {
+        listeningIndicator.classList.remove('active');
+        listeningLabel.textContent = 'Not listening';
+        transcriptContainer.classList.remove('listening');
+        listenBtn.textContent = 'Start Listening';
+        listenBtn.classList.remove('btn-danger');
+        listenBtn.classList.add('btn-success');
+      }
+    }
+
+    // Toggle listening
+    function toggleListening() {
+      if (isListening) {
+        stopListening();
+      } else {
+        startListening();
+      }
+    }
+
+    // Start listening
+    function startListening() {
+      if (recognition) {
+        try {
+          recognition.start();
+          isListening = true;
+          updateListeningUI();
+        } catch (e) {
+          console.error('Failed to start recognition:', e);
+        }
+      }
+    }
+
+    // Stop listening
+    function stopListening() {
+      isListening = false;
+      if (recognition) {
+        try {
+          recognition.stop();
+        } catch (e) {}
+      }
+      updateListeningUI();
+    }
+
+    // Normalize text for comparison
+    function normalizeText(text) {
+      return text
+        .toLowerCase()
+        .trim()
+        .replace(/[.,!?;:'"()-]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    // Extract number from spoken text
+    function extractNumber(text) {
+      const normalized = normalizeText(text);
+
+      // Word to number mapping
+      const wordNumbers = {
+        'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4,
+        'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9,
+        'ten': 10, 'eleven': 11, 'twelve': 12, 'thirteen': 13,
+        'fourteen': 14, 'fifteen': 15, 'sixteen': 16, 'seventeen': 17,
+        'eighteen': 18, 'nineteen': 19, 'twenty': 20, 'thirty': 30,
+        'forty': 40, 'fifty': 50, 'sixty': 60, 'seventy': 70,
+        'eighty': 80, 'ninety': 90, 'hundred': 100, 'thousand': 1000,
+        'negative': -1, 'minus': -1
+      };
+
+      // Try to find a direct number
+      const numMatch = normalized.match(/-?\d+/);
+      if (numMatch) {
+        return parseInt(numMatch[0]);
+      }
+
+      // Try word-based parsing for simple numbers
+      let isNegative = normalized.includes('negative') || normalized.includes('minus');
+
+      // Check for simple word numbers
+      for (const [word, num] of Object.entries(wordNumbers)) {
+        if (normalized === word || normalized.endsWith(word)) {
+          if (num >= 0) {
+            return isNegative ? -num : num;
+          }
+        }
+      }
+
+      // Parse compound numbers like "twenty one"
+      const words = normalized.split(' ').filter(w => w !== 'negative' && w !== 'minus');
+      let total = 0;
+      for (const word of words) {
+        if (wordNumbers[word] !== undefined && wordNumbers[word] >= 0) {
+          total += wordNumbers[word];
+        }
+      }
+      if (total > 0) {
+        return isNegative ? -total : total;
+      }
+
+      return null;
+    }
+
+    // Check if answer is correct
+    function checkAnswer(spokenText) {
+      if (currentAnswer === null) return;
+
+      const spokenNumber = extractNumber(spokenText);
+
+      if (spokenNumber !== null && spokenNumber === currentAnswer) {
+        handleCorrectAnswer();
+      }
+    }
+
+    // Handle correct answer
+    function handleCorrectAnswer() {
+      stopListening();
+      stopTimer();
+
+      const bonus = difficultySettings[difficulty].bonusMultiplier;
+      score += 10 * bonus + (streak * 2);
+      streak++;
+      if (streak > bestStreak) bestStreak = streak;
+      correctCount++;
+
+      updateScore();
+      showFeedback(true);
+
+      if (feedbackTimeout) clearTimeout(feedbackTimeout);
+      feedbackTimeout = setTimeout(() => {
+        nextProblem();
+      }, 1500);
+    }
+
+    // Handle incorrect/skip
+    function handleIncorrectAnswer() {
+      streak = 0;
+      updateScore();
+      showFeedback(false);
+
+      if (feedbackTimeout) clearTimeout(feedbackTimeout);
+      feedbackTimeout = setTimeout(() => {
+        nextProblem();
+      }, 2500);
+    }
+
+    // Show feedback
+    function showFeedback(correct) {
+      feedbackEl.className = 'feedback ' + (correct ? 'correct' : 'incorrect');
+      feedbackTextEl.textContent = correct ? 'Correct!' : 'Incorrect!';
+      correctAnswerEl.textContent = correct ? '' : `The answer was: ${currentAnswer}`;
+    }
+
+    // Hide feedback
+    function hideFeedback() {
+      feedbackEl.className = 'feedback';
+    }
+
+    // Update score display
+    function updateScore() {
+      scoreEl.textContent = score;
+      streakEl.textContent = streak;
+    }
+
+    // Timer functions
+    function startTimer() {
+      if (!timerEnabled) {
+        timerEl.textContent = '--';
+        return;
+      }
+
+      timeLeft = difficultySettings[difficulty].timePerProblem;
+      updateTimerDisplay();
+
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
+
+        if (timeLeft <= 0) {
+          stopTimer();
+          handleIncorrectAnswer();
+        }
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+
+    function updateTimerDisplay() {
+      timerEl.textContent = timeLeft + 's';
+      timerEl.classList.toggle('urgent', timeLeft <= 5);
+    }
+
+    // Load next problem
+    function nextProblem() {
+      hideFeedback();
+      updateTranscript('', '');
+      stopTimer();
+
+      const problem = generateProblem();
+      currentAnswer = problem.answer;
+      problemCount++;
+
+      problemNum1El.textContent = problem.num1;
+      problemNum2El.textContent = problem.num2;
+      problemOpEl.textContent = problem.operator;
+      problemAnswerEl.textContent = '?';
+      problemHintEl.textContent = `Problem ${problemCount}`;
+
+      startTimer();
+      startListening();
+    }
+
+    // Skip problem
+    function skipProblem() {
+      stopListening();
+      stopTimer();
+      handleIncorrectAnswer();
+    }
+
+    // Start game
+    function startGame() {
+      score = 0;
+      streak = 0;
+      bestStreak = 0;
+      problemCount = 0;
+      correctCount = 0;
+
+      updateSelectedOperations();
+      updateScore();
+
+      startScreen.classList.add('hidden');
+      gameOverScreen.classList.add('hidden');
+      gameScreen.classList.remove('hidden');
+
+      nextProblem();
+    }
+
+    // End game
+    function endGame() {
+      stopListening();
+      stopTimer();
+      if (feedbackTimeout) clearTimeout(feedbackTimeout);
+
+      gameScreen.classList.add('hidden');
+      gameOverScreen.classList.remove('hidden');
+
+      document.getElementById('finalScore').textContent = score;
+      document.getElementById('finalStats').innerHTML =
+        `${correctCount} correct out of ${problemCount} problems<br>Best streak: ${bestStreak}`;
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      initSpeechRecognition();
+    });
+  </script>
+</body>
+</html>
