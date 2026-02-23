@@ -329,6 +329,17 @@
     }
     .hand-split.visible { opacity: 1; }
 
+    .scale-label {
+      position: absolute;
+      font-size: 8px;
+      font-weight: 700;
+      transform: translate(-50%, -50%);
+      color: #777;
+      z-index: 15;
+    }
+    .scale-label.pulse { color: var(--hand-chrono); }
+    .scale-label.tele { color: #4a9eff; }
+
     /* Digital Displays */
     .digital-container {
       margin-top: 25px;
@@ -424,6 +435,11 @@
       <div class="clock-cities" id="clockCities"></div>
       <div class="hour-ring" id="hourRing"></div>
       <div class="clock-face" id="clockFace">
+        <!-- Chronograph Scales titles -->
+        <div style="position: absolute; top: 25px; left: 50%; transform: translateX(-50%); font-size: 7px; color: var(--hand-chrono); font-weight: 700; text-transform: uppercase; z-index: 20; letter-spacing: 1px;">Pulsations 30</div>
+        <div style="position: absolute; top: 40px; left: 50%; transform: translateX(-50%); font-size: 7px; color: #888; font-weight: 700; text-transform: uppercase; z-index: 20; letter-spacing: 1px;">Tachymeter</div>
+        <div style="position: absolute; top: 55px; left: 50%; transform: translateX(-50%); font-size: 7px; color: #4a9eff; font-weight: 700; text-transform: uppercase; z-index: 20; letter-spacing: 1px;">Telemeter km</div>
+
         <!-- Chronograph Subdials -->
         <div class="subdial subdial-30m">
           <div class="subdial-label">30M</div>
@@ -592,6 +608,49 @@
         t.style.transform = `translateX(-50%) rotate(${i * (360/count)}deg)`;
         s.appendChild(t);
       }
+    });
+
+    // Generate Scales
+    const faceCenter = 172; // Center of 344px face
+
+    // Tachymeter
+    const tachyValues = [60, 70, 80, 100, 120, 150, 200, 300, 400];
+    tachyValues.forEach(val => {
+      const sec = 3600 / val;
+      const angle = ((sec / 60) * 360 - 90) * Math.PI / 180;
+      const label = document.createElement('div');
+      label.className = 'scale-label';
+      label.textContent = val;
+      label.style.left = (faceCenter + 155 * Math.cos(angle)) + 'px';
+      label.style.top = (faceCenter + 155 * Math.sin(angle)) + 'px';
+      clockFace.appendChild(label);
+    });
+
+    // Pulsometer
+    const pulseValues = [40, 50, 60, 70, 80, 100, 120, 160, 200];
+    pulseValues.forEach(val => {
+      const sec = 1800 / val;
+      const angle = ((sec / 60) * 360 - 90) * Math.PI / 180;
+      const label = document.createElement('div');
+      label.className = 'scale-label pulse';
+      label.textContent = val;
+      label.style.left = (faceCenter + 140 * Math.cos(angle)) + 'px';
+      label.style.top = (faceCenter + 140 * Math.sin(angle)) + 'px';
+      clockFace.appendChild(label);
+    });
+
+    // Telemeter
+    const telValues = [1, 2, 3, 4, 5, 7, 10, 15, 20];
+    telValues.forEach(val => {
+      const sec = val / 0.343;
+      const angle = ((sec / 60) * 360 - 90) * Math.PI / 180;
+      const label = document.createElement('div');
+      label.className = 'scale-label tele';
+      label.textContent = val;
+      label.style.color = '#4a9eff';
+      label.style.left = (faceCenter + 125 * Math.cos(angle)) + 'px';
+      label.style.top = (faceCenter + 125 * Math.sin(angle)) + 'px';
+      clockFace.appendChild(label);
     });
 
     // Keyboard
