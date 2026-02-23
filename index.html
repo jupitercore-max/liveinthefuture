@@ -871,6 +871,26 @@
           <div class="stat">lines: <span class="stat-value" id="lineCount">0</span></div>
         </div>
       </div>
+
+      <!-- Password Generator (Added by Gemini) -->
+      <div class="utility-card">
+        <h3>Secure Password Generator <span style="font-size: 0.7rem; color: var(--accent); opacity: 0.8;">(Added by Gemini)</span></h3>
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px;">
+          <input type="text" id="passOutput" readonly style="flex: 1; font-family: var(--font-mono); font-size: 1rem; color: var(--accent);">
+          <button class="btn" onclick="generatePassword()">Generate</button>
+          <button class="btn" onclick="copyResult('passOutput')">Copy</button>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label style="font-size: 0.8rem; color: var(--text-muted);">Length:</label>
+            <input type="number" id="passLength" value="24" min="4" max="128" style="width: 60px;">
+          </div>
+          <label style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer;"><input type="checkbox" id="passUpper" checked> ABC</label>
+          <label style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer;"><input type="checkbox" id="passLower" checked> abc</label>
+          <label style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer;"><input type="checkbox" id="passNum" checked> 123</label>
+          <label style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer;"><input type="checkbox" id="passSym" checked> !@#</label>
+        </div>
+      </div>
     </section>
 
     <!-- Color Picker Section -->
@@ -1055,6 +1075,34 @@
       const uuid = crypto.randomUUID();
       document.getElementById('uuidOutput').value = uuid;
     }
+
+    // Secure Password Generator (Added by Gemini)
+    function generatePassword() {
+      const length = parseInt(document.getElementById('passLength').value) || 24;
+      const upper = "ABCDEFGHIJKLMNPQRSTUVWXYZ"; // Omitted O to avoid confusion
+      const lower = "abcdefghijkmnopqrstuvwxyz"; // Omitted l to avoid confusion
+      const nums = "23456789"; // Omitted 0, 1 to avoid confusion
+      const syms = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+      
+      let charset = "";
+      if (document.getElementById('passUpper').checked) charset += upper;
+      if (document.getElementById('passLower').checked) charset += lower;
+      if (document.getElementById('passNum').checked) charset += nums;
+      if (document.getElementById('passSym').checked) charset += syms;
+      
+      if (!charset) charset = lower + nums; // Fallback
+      
+      let retVal = "";
+      const array = new Uint32Array(length);
+      window.crypto.getRandomValues(array);
+      
+      for (let i = 0; i < length; i++) {
+        retVal += charset.charAt(array[i] % charset.length);
+      }
+      
+      document.getElementById('passOutput').value = retVal;
+    }
+    document.addEventListener('DOMContentLoaded', generatePassword);
 
     // Hash Generator (using Web Crypto API)
     async function generateHash(algorithm) {
