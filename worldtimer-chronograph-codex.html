@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Worldtimer Chronograph Codex</title>
+
+  <style>
+    :root {
+      --accent: #1E90FF;
+      --accent-2: #c41e3a;
+      --accent-3: #4a9eff;
+      --bg: #0a0d12;
+      --text: #e7ecf2;
+      --text-muted: #9aa4b2;
+      --border: rgba(255,255,255,0.15);
+      --card-bg: rgba(12, 15, 20, 0.92);
+      --radius: 8px;
+      --font-mono: 'SF Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-mono);
+      margin: 0;
+      padding: 24px 20px 60px;
+      background: radial-gradient(circle at top, #151a24 0%, #0a0d12 55%, #05070b 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    a:hover {
+      color: #6bb5ff;
+    }
+
+    h1 {
+      font-size: 1.1rem;
+      letter-spacing: 4px;
+      font-weight: 500;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin: 0 0 8px;
+      text-align: center;
+    }
+
+    .back-link {
+      align-self: flex-start;
+      font-size: 12px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .back-link:hover {
+      color: var(--accent);
+    }
+
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      text-align: center;
+      max-width: 620px;
+      line-height: 1.4;
+    }
+
+    /* World Timer Clock */
+    .world-timer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .clock-container {
+      position: relative;
+      width: 520px;
+      height: 520px;
+    }
+
+    .clock-bezel {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #242933 0%, #0b0f16 50%, #2b3340 100%);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.1);
+    }
+
+    /* City ring */
+    .clock-cities {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      border-radius: 50%;
+      background: #0b0f16;
+      overflow: visible;
+      z-index: 2;
+    }
+
+    .city-label {
+      position: absolute;
+      font-size: 7px;
+      color: #c9d2dd;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      transform-origin: center center;
+      text-shadow: 0 0 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.6);
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    .city-label.inner-city {
+      font-size: 6.5px;
+      color: #b2bdc9;
+    }
+
+    .city-label.local {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* 24-hour rotating ring */
+    .hour-ring {
+      position: absolute;
+      top: 56px;
+      left: 56px;
+      right: 56px;
+      bottom: 56px;
+      border-radius: 50%;
+      background: #0b0f16;
+      border: 1px solid #2a3543;
+      z-index: 4;
+      overflow: visible;
+    }
+
+    .hour-marker {
+      position: absolute;
+      font-size: 12px;
+      font-weight: 700;
+      text-shadow: 0 0 2px rgba(0,0,0,0.5);
+      white-space: nowrap;
+      transform-origin: center center;
+      z-index: 5;
+    }
+
+    .hour-marker.day {
+      color: #111827;
+    }
+
+    .hour-marker.night {
+      color: #f8fafc;
+    }
+
+    .hour-marker.dawn, .hour-marker.dusk {
+      color: #f8fafc;
+      text-shadow: 0 0 2px rgba(0,0,0,0.8);
+    }
+
+    /* Clock face */
+    .clock-face {
+      position: absolute;
+      top: 88px;
+      left: 88px;
+      right: 88px;
+      bottom: 88px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #386c9d 0%, #255881 45%, #103d5e 70%, #0a2a40 100%);
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.35);
+      z-index: 10;
+      overflow: hidden;
+    }
+
+    .clock-face::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 14px;
+      height: 14px;
+      background: #f8fafc;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 100;
+      box-shadow: 0 0 3px rgba(0,0,0,0.3);
+    }
+
+    /* Polar Earth view */
+    .polar-earth {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 180px;
+      height: 180px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      overflow: hidden;
+      z-index: 5;
+      opacity: 0.6;
+      mix-blend-mode: screen;
+    }
+
+    .polar-earth canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .clock-tick {
+      position: absolute;
+      top: 6px;
+      left: 50%;
+      width: 1px;
+      height: 10px;
+      background: rgba(255,255,255,0.6);
+      transform-origin: 50% 166px;
+    }
+
+    .clock-tick.major {
+      width: 4px;
+      height: 16px;
+      background: linear-gradient(180deg, #e8f4d8 0%, #c5d8a8 100%);
+      border: 1px solid rgba(255,255,255,0.7);
+      border-radius: 1px;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 4px) calc(var(--lume-glow, 0) * 2px) rgba(150, 200, 255, var(--lume-glow, 0));
+      transition: box-shadow 0.5s ease;
+    }
+
+    .clock-hour-num {
+      position: absolute;
+      font-size: 20px;
+      font-weight: 600;
+      color: #f8fafc;
+      transform: translate(-50%, -50%);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+
+    .clock-hand {
+      position: absolute;
+      left: 50%;
+      transform-origin: 50% 80%;
+      transform: translateX(-50%) rotate(0deg);
+    }
+
+    .clock-hand-hour {
+      width: 6px;
+      height: 100px;
+      bottom: calc(50% - 20px);
+      background: linear-gradient(90deg, #bfc7d2 0%, #f6f8fb 35%, #f6f8fb 65%, #a0a8b3 100%);
+      z-index: 50;
+      border-radius: 1px;
+      filter: blur(0);
+      transition: filter 0.3s ease;
+    }
+
+    .clock-hand-hour::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 1px;
+      right: 1px;
+      bottom: 22px;
+      background: linear-gradient(180deg, #e8f4d8 0%, #d4e8c0 50%, #c5d8a8 100%);
+      border-radius: 1px;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 4px) calc(var(--lume-glow, 0) * 2px) rgba(150, 200, 255, var(--lume-glow, 0));
+      transition: box-shadow 0.5s ease;
+    }
+
+    .clock-hand-minute {
+      width: 4px;
+      height: 140px;
+      bottom: calc(50% - 28px);
+      background: linear-gradient(90deg, #bfc7d2 0%, #f6f8fb 35%, #f6f8fb 65%, #a0a8b3 100%);
+      z-index: 51;
+      border-radius: 1px;
+      filter: blur(0);
+      transition: filter 0.3s ease;
+    }
+
+    .clock-hand-minute::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 1px;
+      right: 1px;
+      bottom: 30px;
+      background: linear-gradient(180deg, #e8f4d8 0%, #d4e8c0 50%, #c5d8a8 100%);
+      border-radius: 1px;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 4px) calc(var(--lume-glow, 0) * 2px) rgba(150, 200, 255, var(--lume-glow, 0));
+      transition: box-shadow 0.5s ease;
+    }
+
+    .clock-hand-second {
+      width: 2px;
+      height: 170px;
+      bottom: calc(50% - 34px);
+      background: transparent;
+      z-index: 52;
+      filter: blur(0);
+      transition: filter 0.3s ease;
+    }
+
+    .clock-hand-second.animating {
+      filter: blur(2px);
+    }
+
+    .clock-hand-minute.animating {
+      filter: blur(0.5px);
+    }
+
+    .clock-hand-second::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(90deg, #d0d0d0 0%, #ffffff 50%, #c0c0c0 100%);
+      border-radius: 1px;
+    }
+
+    .clock-hand-second::after {
+      content: '';
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 6px;
+      height: 6px;
+      background: linear-gradient(180deg, #e8f4d8 0%, #c5d8a8 100%);
+      border-radius: 50%;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 4px) calc(var(--lume-glow, 0) * 2px) rgba(150, 200, 255, var(--lume-glow, 0));
+      transition: box-shadow 0.5s ease;
+    }
+
+    .local-indicator {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-bottom: 12px solid var(--accent);
+      z-index: 20;
+      filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));
+    }
+
+    .digital-time {
+      font-size: 18px;
+      letter-spacing: 3px;
+      color: var(--accent);
+    }
+
+    .digital-date,
+    .timezone-info {
+      font-size: 12px;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+    }
+
+    .timezone-info {
+      text-align: center;
+      max-width: 520px;
+    }
+
+    .city-tooltip {
+      position: absolute;
+      padding: 6px 8px;
+      background: rgba(10, 15, 20, 0.92);
+      color: #fff;
+      font-size: 11px;
+      border-radius: 4px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      z-index: 100;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .city-tooltip.visible {
+      opacity: 1;
+    }
+
+    /* Chronograph overlay */
+    .chrono-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      pointer-events: none;
+    }
+
+    .chapter-ring {
+      position: absolute;
+      inset: 12px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.18);
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.4);
+    }
+
+    .scale-title {
+      position: absolute;
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.5);
+      z-index: 25;
+    }
+
+    .scale-title.tachy {
+      top: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--accent-2);
+    }
+
+    .scale-title.pulse {
+      top: 52px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--accent);
+    }
+
+    .scale-title.tele {
+      top: 72px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--accent-3);
+    }
+
+    .scale-label {
+      position: absolute;
+      font-size: 7px;
+      letter-spacing: 0.5px;
+      color: rgba(255,255,255,0.6);
+      z-index: 22;
+    }
+
+    .scale-label.tachy {
+      color: var(--accent-2);
+    }
+
+    .scale-label.pulse {
+      color: var(--accent);
+    }
+
+    .scale-label.tele {
+      color: var(--accent-3);
+    }
+
+    .subdial {
+      position: absolute;
+      width: 86px;
+      height: 86px;
+      border-radius: 50%;
+      background: rgba(8, 12, 18, 0.75);
+      border: 1px solid rgba(255,255,255,0.18);
+      box-shadow: inset 0 0 8px rgba(0,0,0,0.4);
+      z-index: 35;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .subdial::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 6px;
+      height: 6px;
+      background: #f8fafc;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+    }
+
+    .subdial-label {
+      position: absolute;
+      bottom: 8px;
+      font-size: 8px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+      letter-spacing: 1px;
+    }
+
+    .subdial-tick {
+      position: absolute;
+      top: 6px;
+      left: 50%;
+      width: 1px;
+      height: 6px;
+      background: rgba(255,255,255,0.6);
+      transform-origin: 50% 37px;
+    }
+
+    .subdial-tick.major {
+      height: 9px;
+      background: rgba(255,255,255,0.9);
+    }
+
+    .subdial-60s {
+      top: 46px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .subdial-30m {
+      top: 50%;
+      left: 46px;
+      transform: translateY(-50%);
+    }
+
+    .subdial-12h {
+      top: 50%;
+      right: 46px;
+      transform: translateY(-50%);
+    }
+
+    .chrono-hand {
+      position: absolute;
+      left: 50%;
+      transform-origin: 50% 85%;
+      transform: translateX(-50%) rotate(0deg);
+      border-radius: 2px;
+      z-index: 60;
+    }
+
+    .chrono-hand-main {
+      width: 2px;
+      height: 150px;
+      bottom: calc(50% - 32px);
+      background: linear-gradient(180deg, var(--accent-2) 0%, #ff98a8 50%, var(--accent-2) 100%);
+      box-shadow: 0 0 8px rgba(196,30,58,0.45);
+      z-index: 65;
+    }
+
+    .chrono-hand-split {
+      width: 2px;
+      height: 142px;
+      bottom: calc(50% - 28px);
+      background: rgba(255,255,255,0.75);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      z-index: 64;
+    }
+
+    .chrono-hand-split.visible {
+      opacity: 1;
+    }
+
+    .chrono-hand-sub {
+      width: 2px;
+      height: 40px;
+      bottom: 50%;
+      background: #f8fafc;
+      z-index: 40;
+    }
+
+    .chrono-pin {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 10px;
+      height: 10px;
+      background: #f8fafc;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 90;
+      box-shadow: 0 0 6px rgba(0,0,0,0.4);
+    }
+
+    .split-display {
+      position: absolute;
+      top: 60%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: #f8fafc;
+      background: rgba(8, 12, 18, 0.7);
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.12);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      z-index: 70;
+    }
+
+    .split-display.visible {
+      opacity: 1;
+    }
+
+    .chrono-digital {
+      margin-top: 16px;
+      font-size: 24px;
+      letter-spacing: 4px;
+      color: var(--accent-2);
+    }
+
+    .controls {
+      margin-top: 12px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn {
+      border: 1px solid var(--border);
+      background: rgba(10, 15, 20, 0.65);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+      border-color: rgba(255,255,255,0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn.start {
+      border-color: rgba(196,30,58,0.6);
+      color: #ffd3da;
+    }
+
+    .btn.stop {
+      border-color: rgba(30,144,255,0.6);
+      color: #cfe8ff;
+    }
+
+    .btn-icon {
+      font-size: 13px;
+    }
+
+    .btn-key {
+      font-size: 10px;
+      opacity: 0.6;
+    }
+
+    .laps {
+      margin-top: 18px;
+      width: min(520px, 90vw);
+      background: rgba(10, 15, 20, 0.7);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .lap {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--text-muted);
+    }
+
+    .lap-num {
+      color: #f8fafc;
+    }
+
+    .lap-delta {
+      color: var(--accent);
+    }
+
+    .lap-time {
+      color: var(--accent-2);
+    }
+
+    @media (max-width: 600px) {
+      .split-display {
+        font-size: 9px;
+      }
+
+      .digital-time {
+        font-size: 16px;
+      }
+
+      .chrono-digital {
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a href="/" class="back-link">← rayhe.net</a>
+
+  <div class="hero">
+    <h1>Worldtimer Chronograph Codex</h1>
+    <div class="subtitle">World timer ring with live timezone offsets fused to a multi-complication chronograph: 10s sweep, 60s, 30m, and 12h subdials with split and flyback.</div>
+  </div>
+
+  <div class="world-timer">
+    <div class="clock-container" id="clockContainer">
+      <div class="clock-bezel"></div>
+      <div class="clock-cities" id="clockCities"></div>
+      <div class="hour-ring" id="hourRing"></div>
+      <div class="local-indicator"></div>
+      <div class="clock-face" id="clockFace">
+        <div class="polar-earth">
+          <canvas id="polarEarthCanvas" width="240" height="240"></canvas>
+        </div>
+
+        <div class="chrono-layer" id="chronoLayer">
+          <div class="chapter-ring"></div>
+          <div class="scale-title tachy">Tachymeter</div>
+          <div class="scale-title pulse">Pulsometer 30</div>
+          <div class="scale-title tele">Telemeter km</div>
+
+          <div class="subdial subdial-60s">
+            <div class="subdial-label">60 sec</div>
+            <div class="chrono-hand chrono-hand-sub" id="chrono60s"></div>
+          </div>
+          <div class="subdial subdial-30m">
+            <div class="subdial-label">30 min</div>
+            <div class="chrono-hand chrono-hand-sub" id="chrono30m"></div>
+          </div>
+          <div class="subdial subdial-12h">
+            <div class="subdial-label">12 hour</div>
+            <div class="chrono-hand chrono-hand-sub" id="chrono12h"></div>
+          </div>
+
+          <div class="split-display" id="splitDisplay">SPLIT: 00:00.000</div>
+          <div class="chrono-hand chrono-hand-split" id="chronoSplit"></div>
+          <div class="chrono-hand chrono-hand-main" id="chronoMain"></div>
+          <div class="chrono-pin"></div>
+        </div>
+      </div>
+      <div class="city-tooltip" id="cityTooltip"></div>
+    </div>
+
+    <div class="digital-time" id="digitalTime">00:00:00</div>
+    <div class="digital-date" id="digitalDate"></div>
+    <div class="timezone-info" id="timezoneInfo"></div>
+  </div>
+
+  <div class="chrono-digital" id="chronoDigital">00:00.000</div>
+
+  <div class="controls">
+    <button class="btn" id="btnReset">
+      <span class="btn-icon">↺</span>
+      Reset
+      <span class="btn-key">[R]</span>
+    </button>
+    <button class="btn start" id="btnStart">
+      <span class="btn-icon" id="btnStartIcon">▶</span>
+      <span id="btnStartText">Start</span>
+      <span class="btn-key">[Space]</span>
+    </button>
+    <button class="btn" id="btnSplit">
+      <span class="btn-icon">◫</span>
+      Split
+      <span class="btn-key">[S]</span>
+    </button>
+    <button class="btn" id="btnFlyback">
+      <span class="btn-icon">⟲</span>
+      Flyback
+      <span class="btn-key">[F]</span>
+    </button>
+  </div>
+
+  <div class="laps" id="laps"></div>
+
+  <script src="worldtimer.js"></script>
+  <script>
+    // Chronograph complications
+    const scaleLayer = document.getElementById('chronoLayer');
+    const clockFace = document.getElementById('clockFace');
+
+    // Generate subdial ticks
+    document.querySelectorAll('.subdial').forEach(subdial => {
+      const count = subdial.classList.contains('subdial-30m') ? 30 :
+                    subdial.classList.contains('subdial-12h') ? 12 : 60;
+      for (let i = 0; i < count; i++) {
+        const tick = document.createElement('div');
+        tick.className = 'subdial-tick' + (i % (count === 60 ? 5 : (count === 30 ? 5 : 1)) === 0 ? ' major' : '');
+        tick.style.transform = `translateX(-50%) rotate(${i * (360 / count)}deg)`;
+        subdial.appendChild(tick);
+      }
+    });
+
+    function renderScales() {
+      scaleLayer.querySelectorAll('.scale-label').forEach(label => label.remove());
+
+      const faceSize = clockFace.getBoundingClientRect().width;
+      const faceCenter = faceSize / 2;
+      const tachyRadius = faceSize * 0.44;
+      const pulseRadius = faceSize * 0.39;
+      const teleRadius = faceSize * 0.33;
+
+      const tachyValues = [
+        {sec: 60, val: 60}, {sec: 55, val: 65}, {sec: 50, val: 72}, {sec: 45, val: 80},
+        {sec: 40, val: 90}, {sec: 35, val: 103}, {sec: 30, val: 120}, {sec: 25, val: 144},
+        {sec: 20, val: 180}, {sec: 15, val: 240}, {sec: 12, val: 300}, {sec: 10, val: 360}
+      ];
+      tachyValues.forEach(t => {
+        const angle = ((t.sec / 60) * 360 - 90) * Math.PI / 180;
+        const label = document.createElement('div');
+        label.className = 'scale-label tachy';
+        label.textContent = t.val;
+        label.style.left = (faceCenter + tachyRadius * Math.cos(angle)) + 'px';
+        label.style.top = (faceCenter + tachyRadius * Math.sin(angle)) + 'px';
+        scaleLayer.appendChild(label);
+      });
+
+      const pulseValues = [
+        {sec: 60, val: 30}, {sec: 50, val: 36}, {sec: 45, val: 40}, {sec: 40, val: 45},
+        {sec: 36, val: 50}, {sec: 30, val: 60}, {sec: 25, val: 72}, {sec: 22.5, val: 80},
+        {sec: 20, val: 90}, {sec: 18, val: 100}, {sec: 15, val: 120}, {sec: 12, val: 150}
+      ];
+      pulseValues.forEach(p => {
+        const angle = ((p.sec / 60) * 360 - 90) * Math.PI / 180;
+        const label = document.createElement('div');
+        label.className = 'scale-label pulse';
+        label.textContent = p.val;
+        label.style.left = (faceCenter + pulseRadius * Math.cos(angle)) + 'px';
+        label.style.top = (faceCenter + pulseRadius * Math.sin(angle)) + 'px';
+        scaleLayer.appendChild(label);
+      });
+
+      const telValues = [
+        {sec: 3, val: 1}, {sec: 6, val: 2}, {sec: 9, val: 3}, {sec: 12, val: 4},
+        {sec: 15, val: 5}, {sec: 17.5, val: 6}, {sec: 20, val: 7}, {sec: 23, val: 8},
+        {sec: 26, val: 9}, {sec: 29, val: 10}, {sec: 35, val: 12}, {sec: 44, val: 15}
+      ];
+      telValues.forEach(t => {
+        const angle = ((t.sec / 60) * 360 - 90) * Math.PI / 180;
+        const label = document.createElement('div');
+        label.className = 'scale-label tele';
+        label.textContent = t.val;
+        label.style.left = (faceCenter + teleRadius * Math.cos(angle)) + 'px';
+        label.style.top = (faceCenter + teleRadius * Math.sin(angle)) + 'px';
+        scaleLayer.appendChild(label);
+      });
+    }
+
+    renderScales();
+    window.addEventListener('resize', renderScales);
+
+    // Chronograph state
+    let running = false;
+    let startTime = 0;
+    let elapsed = 0;
+    let splitTime = null;
+    let laps = [];
+    let animationId = null;
+
+    // Elements
+    const btnStart = document.getElementById('btnStart');
+    const btnStartIcon = document.getElementById('btnStartIcon');
+    const btnStartText = document.getElementById('btnStartText');
+    const btnReset = document.getElementById('btnReset');
+    const btnSplit = document.getElementById('btnSplit');
+    const btnFlyback = document.getElementById('btnFlyback');
+    const digital = document.getElementById('chronoDigital');
+    const splitDisplay = document.getElementById('splitDisplay');
+    const chronoMain = document.getElementById('chronoMain');
+    const chronoSplit = document.getElementById('chronoSplit');
+    const chrono30m = document.getElementById('chrono30m');
+    const chrono12h = document.getElementById('chrono12h');
+    const chrono60s = document.getElementById('chrono60s');
+    const lapsContainer = document.getElementById('laps');
+
+    function formatTime(ms) {
+      const totalMs = Math.floor(ms);
+      const totalSeconds = Math.floor(totalMs / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      const millis = totalMs % 1000;
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(millis).padStart(3, '0')}`;
+    }
+
+    function updateDisplay(ms) {
+      digital.textContent = formatTime(ms);
+
+      const totalSeconds = ms / 1000;
+      const mainAngle = (totalSeconds % 10) * 36;
+      chronoMain.style.transform = `translateX(-50%) rotate(${mainAngle}deg)`;
+
+      const sec60Angle = (totalSeconds % 60) * 6;
+      chrono60s.style.transform = `translateX(-50%) rotate(${sec60Angle}deg)`;
+
+      const minutes = totalSeconds / 60;
+      const min30Angle = (minutes % 30) * 12;
+      chrono30m.style.transform = `translateX(-50%) rotate(${min30Angle}deg)`;
+
+      const hours = minutes / 60;
+      const hour12Angle = (hours % 12) * 30;
+      chrono12h.style.transform = `translateX(-50%) rotate(${hour12Angle}deg)`;
+    }
+
+    function tick() {
+      if (running) {
+        elapsed = performance.now() - startTime;
+        updateDisplay(elapsed);
+        animationId = requestAnimationFrame(tick);
+      }
+    }
+
+    function start() {
+      if (!running) {
+        running = true;
+        startTime = performance.now() - elapsed;
+        btnStartText.textContent = 'Stop';
+        btnStartIcon.textContent = '⏸';
+        btnStart.classList.remove('start');
+        btnStart.classList.add('stop');
+        tick();
+      } else {
+        stop();
+      }
+    }
+
+    function stop() {
+      running = false;
+      if (animationId) cancelAnimationFrame(animationId);
+      btnStartText.textContent = 'Start';
+      btnStartIcon.textContent = '▶';
+      btnStart.classList.remove('stop');
+      btnStart.classList.add('start');
+    }
+
+    function reset() {
+      stop();
+      elapsed = 0;
+      splitTime = null;
+      laps = [];
+      updateDisplay(0);
+      splitDisplay.classList.remove('visible');
+      chronoSplit.classList.remove('visible');
+      lapsContainer.innerHTML = '';
+    }
+
+    function split() {
+      if (elapsed === 0) return;
+
+      if (splitTime === null) {
+        splitTime = elapsed;
+        splitDisplay.textContent = 'SPLIT: ' + formatTime(splitTime);
+        splitDisplay.classList.add('visible');
+
+        const totalSeconds = splitTime / 1000;
+        const splitAngle = (totalSeconds % 10) * 36;
+        chronoSplit.style.transform = `translateX(-50%) rotate(${splitAngle}deg)`;
+        chronoSplit.classList.add('visible');
+
+        const lapNum = laps.length + 1;
+        const lastLap = laps.length > 0 ? laps[laps.length - 1].total : 0;
+        const delta = splitTime - lastLap;
+        laps.push({ num: lapNum, total: splitTime, delta: delta });
+        renderLaps();
+      } else {
+        splitTime = null;
+        splitDisplay.classList.remove('visible');
+        chronoSplit.classList.remove('visible');
+      }
+    }
+
+    function flyback() {
+      const wasRunning = running;
+
+      if (elapsed > 0 && laps.length < 100) {
+        const lapNum = laps.length + 1;
+        const lastLap = laps.length > 0 ? laps[laps.length - 1].total : 0;
+        const delta = elapsed - lastLap;
+        laps.push({ num: lapNum, total: elapsed, delta: delta });
+        renderLaps();
+      }
+
+      elapsed = 0;
+      splitTime = null;
+      splitDisplay.classList.remove('visible');
+      chronoSplit.classList.remove('visible');
+      updateDisplay(0);
+
+      if (wasRunning) {
+        startTime = performance.now();
+      }
+    }
+
+    function renderLaps() {
+      lapsContainer.innerHTML = laps.slice().reverse().map(lap => `
+        <div class="lap">
+          <span class="lap-num">Lap ${lap.num}</span>
+          <span class="lap-delta">+${formatTime(lap.delta)}</span>
+          <span class="lap-time">${formatTime(lap.total)}</span>
+        </div>
+      `).join('');
+    }
+
+    btnStart.addEventListener('click', start);
+    btnReset.addEventListener('click', reset);
+    btnSplit.addEventListener('click', split);
+    btnFlyback.addEventListener('click', flyback);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        start();
+      } else if (e.code === 'KeyR') {
+        reset();
+      } else if (e.code === 'KeyS' || e.code === 'KeyL') {
+        split();
+      } else if (e.code === 'KeyF') {
+        flyback();
+      }
+    });
+
+    updateDisplay(0);
+  </script>
+</body>
+</html>
