@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Worldtimer Chronograph Gemini | rayhe.net</title>
+
+  <!-- Favicons -->
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" sizes="16x16 32x32 64x64" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="196x196" href="/favicon-192.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+  <link rel="apple-touch-icon" href="/favicon-57.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
+
+  <style>
+    :root {
+      --accent: #1E90FF;
+      --accent-hover: #0066CC;
+      --bg: #0f0f0f;
+      --text: #e0e0e0;
+      --text-muted: #666;
+      --border: #333;
+      --card-bg: #1a1a1a;
+      --radius: 6px;
+      --font-mono: 'SF Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+      --hand-chrono: #c41e3a;
+      --hand-split: #1E90FF;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-mono);
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      font-size: 1.1rem;
+      font-weight: 400;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      margin-bottom: 30px;
+      color: #777;
+    }
+
+    .back-link {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+    .back-link:hover { color: var(--accent); }
+
+    /* Main Clock Structure */
+    .world-timer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .clock-container {
+      position: relative;
+      width: 520px;
+      height: 520px;
+    }
+
+    .clock-bezel {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 50%, #2a2a2a 100%);
+      box-shadow: 0 15px 50px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.1);
+    }
+
+    .clock-cities {
+      position: absolute;
+      top: 10px; left: 10px; right: 10px; bottom: 10px;
+      border-radius: 50%;
+      background: #0a0a0a;
+      z-index: 2;
+    }
+
+    .hour-ring {
+      position: absolute;
+      top: 56px; left: 56px; right: 56px; bottom: 56px;
+      border-radius: 50%;
+      background: #111;
+      border: 1px solid #333;
+      z-index: 4;
+    }
+
+    .hour-marker {
+      position: absolute;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      transform-origin: center center;
+      z-index: 5;
+    }
+    .hour-marker.day { color: #1a1a1a; }
+    .hour-marker.night { color: #fff; }
+    .hour-marker.dawn, .hour-marker.dusk { color: #fff; text-shadow: 0 0 3px #000; }
+
+    .clock-face {
+      position: absolute;
+      top: 88px; left: 88px; right: 88px; bottom: 88px;
+      border-radius: 50%;
+      background: #111;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+      z-index: 10;
+      border: 1px solid #222;
+    }
+
+    /* Polar Earth */
+    .polar-earth {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 180px; height: 180px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      overflow: hidden;
+      z-index: 5;
+      opacity: 0.5;
+    }
+    .polar-earth canvas { width: 100%; height: 100%; }
+
+    /* Chronograph Subdials */
+    .subdial {
+      position: absolute;
+      width: 76px; height: 76px;
+      border-radius: 50%;
+      background: rgba(13, 13, 13, 0.8);
+      border: 1px solid #333;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+      z-index: 15;
+    }
+    .subdial-30m { top: 5px; left: 50%; transform: translateX(-50%); }
+    .subdial-12h { bottom: 5px; left: 50%; transform: translateX(-50%); }
+    .subdial-running-sec { top: 50%; left: 5px; transform: translateY(-50%); }
+
+    .subdial-label {
+      position: absolute;
+      bottom: 12px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 7px;
+      font-weight: 600;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .subdial::after {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 4px; height: 4px;
+      background: #888;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 20;
+    }
+    .subdial-hand {
+      position: absolute;
+      bottom: 50%; left: 50%;
+      width: 1.5px; height: 28px;
+      background: #aaa;
+      transform-origin: 50% 100%;
+      z-index: 18;
+    }
+    .subdial-hand.chrono { background: var(--hand-chrono); }
+
+    .subdial-tick {
+      position: absolute;
+      top: 3px; left: 50%;
+      width: 1px; height: 4px;
+      background: #333;
+      transform-origin: 50% 35px;
+    }
+    .subdial-tick.major { background: #555; height: 6px; }
+
+    .clock-tick {
+      position: absolute;
+      top: 6px;
+      left: 50%;
+      width: 1px;
+      height: 10px;
+      background: rgba(255,255,255,0.6);
+      transform-origin: 50% 166px;
+    }
+
+    .clock-tick.major {
+      width: 4px;
+      height: 16px;
+      background: linear-gradient(180deg, #e8f4d8 0%, #c5d8a8 100%);
+      border: 1px solid rgba(255,255,255,0.8);
+      border-radius: 1px;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 4px) calc(var(--lume-glow, 0) * 2px) rgba(150, 200, 255, var(--lume-glow, 0));
+      transition: box-shadow 0.5s ease;
+    }
+
+    .clock-hour-num {
+      position: absolute;
+      font-size: 20px;
+      font-weight: 600;
+      color: #fff;
+      transform: translate(-50%, -50%);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      z-index: 12;
+    }
+
+    .clock-hand {
+      position: absolute;
+      left: 50%;
+      transform-origin: 50% 80%;
+      transform: translateX(-50%) rotate(0deg);
+      z-index: 100;
+    }
+
+    .clock-hand-hour {
+      width: 6px;
+      height: 100px;
+      bottom: calc(50% - 20px);
+      background: linear-gradient(90deg, #c0c0c0 0%, #ffffff 35%, #ffffff 65%, #a0a0a0 100%);
+      z-index: 110;
+      border-radius: 1px;
+    }
+
+    .clock-hand-hour::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 1px;
+      right: 1px;
+      bottom: 22px;
+      background: linear-gradient(180deg, #e8f4d8 0%, #d4e8c0 50%, #c5d8a8 100%);
+      border-radius: 1px;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 4px) calc(var(--lume-glow, 0) * 2px) rgba(150, 200, 255, var(--lume-glow, 0));
+    }
+
+    .clock-hand-minute {
+      width: 4px;
+      height: 140px;
+      bottom: calc(50% - 28px);
+      background: linear-gradient(90deg, #c0c0c0 0%, #ffffff 35%, #ffffff 65%, #a0a0a0 100%);
+      z-index: 111;
+      border-radius: 1px;
+    }
+
+    .clock-hand-minute::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 1px;
+      right: 1px;
+      bottom: 30px;
+      background: linear-gradient(180deg, #e8f4d8 0%, #d4e8c0 50%, #c5d8a8 100%);
+      border-radius: 1px;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 4px) calc(var(--lume-glow, 0) * 2px) rgba(150, 200, 255, var(--lume-glow, 0));
+    }
+
+    .clock-hand-second {
+      width: 2px;
+      height: 170px;
+      bottom: calc(50% - 34px);
+      background: linear-gradient(90deg, #d0d0d0 0%, #ffffff 50%, #c0c0c0 100%);
+      z-index: 112;
+      border-radius: 1px;
+    }
+
+    .clock-hand-second::after {
+      content: '';
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 6px;
+      height: 6px;
+      background: linear-gradient(180deg, #e8f4d8 0%, #c5d8a8 100%);
+      border-radius: 50%;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 4px) calc(var(--lume-glow, 0) * 2px) rgba(150, 200, 255, var(--lume-glow, 0));
+    }
+
+    /* Chronograph Hands */
+    .hand-chrono {
+      position: absolute;
+      left: 50%;
+      bottom: calc(50% - 35px);
+      width: 2px;
+      height: 175px;
+      background: var(--hand-chrono);
+      transform-origin: 50% calc(100% - 35px);
+      z-index: 150;
+      border-radius: 1px;
+    }
+    .hand-chrono::after {
+      content: '';
+      position: absolute;
+      bottom: -40px; left: 50%;
+      transform: translateX(-50%);
+      width: 4px; height: 40px;
+      background: var(--hand-chrono);
+      border-radius: 1px;
+    }
+
+    .hand-split {
+      position: absolute;
+      left: 50%;
+      bottom: calc(50% - 30px);
+      width: 2px;
+      height: 165px;
+      background: var(--hand-split);
+      transform-origin: 50% calc(100% - 30px);
+      z-index: 140;
+      border-radius: 1px;
+      opacity: 0;
+    }
+    .hand-split.visible { opacity: 1; }
+
+    /* Digital Displays */
+    .digital-container {
+      margin-top: 25px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+    .chrono-digital {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--hand-chrono);
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 15px rgba(196, 30, 58, 0.2);
+    }
+    .digital-time {
+      font-size: 1.2rem;
+      color: #aaa;
+      font-variant-numeric: tabular-nums;
+    }
+    .digital-date { font-size: 0.85rem; color: #666; }
+    .timezone-info { font-size: 0.75rem; color: #444; margin-top: 5px; }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 15px;
+      margin-top: 30px;
+    }
+    .btn {
+      width: 70px; height: 70px;
+      border-radius: 50%;
+      border: 2px solid #333;
+      background: #111;
+      color: #fff;
+      font-family: inherit;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s;
+    }
+    .btn:hover { border-color: #555; background: #1a1a1a; }
+    .btn:active { transform: scale(0.95); }
+    .btn.start { border-color: #2a6e2a; color: #4CAF50; }
+    .btn.stop { border-color: #6e2a2a; color: #F44336; }
+
+    .laps {
+      margin-top: 30px;
+      width: 320px;
+      max-height: 120px;
+      overflow-y: auto;
+      border-top: 1px solid #222;
+    }
+    .lap {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #111;
+      font-size: 11px;
+    }
+    .lap-num { color: #444; }
+    .lap-delta { color: #666; }
+    .lap-time { font-weight: 600; }
+
+    /* Tooltip from worldtimer.js */
+    .city-tooltip {
+      position: absolute;
+      background: rgba(0,0,0,0.9);
+      border: 1px solid #333;
+      padding: 10px;
+      border-radius: 4px;
+      z-index: 1000;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .city-tooltip.visible { opacity: 1; }
+    .city-tooltip-header { color: var(--accent); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <a href="/" class="back-link">&larr; rayhe.net</a>
+  <h1>Gemini Worldtimer Chronograph</h1>
+
+  <div class="world-timer">
+    <div class="clock-container" id="clockContainer">
+      <div class="clock-bezel"></div>
+      <div class="clock-cities" id="clockCities"></div>
+      <div class="hour-ring" id="hourRing"></div>
+      <div class="clock-face" id="clockFace">
+        <!-- Chronograph Subdials -->
+        <div class="subdial subdial-30m">
+          <div class="subdial-label">30M</div>
+          <div class="subdial-hand chrono" id="hand30m"></div>
+        </div>
+        <div class="subdial subdial-12h">
+          <div class="subdial-label">12H</div>
+          <div class="subdial-hand chrono" id="hand12h"></div>
+        </div>
+        <div class="subdial subdial-running-sec">
+          <div class="subdial-label">SEC</div>
+          <div class="subdial-hand" id="handRunningSec"></div>
+        </div>
+
+        <!-- Polar Earth (Managed by worldtimer.js) -->
+        <div class="polar-earth">
+          <canvas id="polarEarthCanvas" width="240" height="240"></canvas>
+        </div>
+
+        <!-- Chronograph Hands -->
+        <div class="hand-chrono" id="handChrono"></div>
+        <div class="hand-split" id="handSplit"></div>
+
+        <!-- Time Hands will be injected by worldtimer.js -->
+      </div>
+      <div class="city-tooltip" id="cityTooltip"></div>
+    </div>
+
+    <div class="digital-container">
+      <div class="chrono-digital" id="chronoDigital">00:00.000</div>
+      <div class="digital-time" id="digitalTime">00:00:00</div>
+      <div class="digital-date" id="digitalDate"></div>
+      <div class="timezone-info" id="timezoneInfo"></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="btnReset">Reset</button>
+      <button class="btn start" id="btnStart">Start</button>
+      <button class="btn" id="btnSplit">Split</button>
+      <button class="btn" id="btnFlyback">Flyback</button>
+    </div>
+
+    <div class="laps" id="laps"></div>
+  </div>
+
+  <script src="worldtimer.js"></script>
+  <script>
+    // --- Chronograph Logic ---
+    let running = false;
+    let startTime = 0;
+    let elapsed = 0;
+    let splitTime = null;
+    let laps = [];
+    let animationId = null;
+
+    const btnStart = document.getElementById('btnStart');
+    const btnReset = document.getElementById('btnReset');
+    const btnSplit = document.getElementById('btnSplit');
+    const btnFlyback = document.getElementById('btnFlyback');
+    const chronoDigital = document.getElementById('chronoDigital');
+    const handChrono = document.getElementById('handChrono');
+    const handSplit = document.getElementById('handSplit');
+    const hand30m = document.getElementById('hand30m');
+    const hand12h = document.getElementById('hand12h');
+    const handRunningSec = document.getElementById('handRunningSec');
+    const lapsContainer = document.getElementById('laps');
+
+    function formatTime(ms) {
+      const totalMs = Math.floor(ms);
+      const m = Math.floor(totalMs / 60000);
+      const s = Math.floor((totalMs % 60000) / 1000);
+      const mm = totalMs % 1000;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(mm).padStart(3, '0')}`;
+    }
+
+    function updateChronoDisplay(ms) {
+      chronoDigital.textContent = formatTime(ms);
+      const totalSec = ms / 1000;
+      
+      // Central Chrono: 60s per rotation
+      handChrono.style.transform = `translateX(-50%) rotate(${totalSec * 6}deg)`;
+      
+      // Subdials
+      hand30m.style.transform = `translateX(-50%) rotate(${(totalSec / 60) * 12}deg)`;
+      hand12h.style.transform = `translateX(-50%) rotate(${(totalSec / 3600) * 30}deg)`;
+    }
+
+    function tick() {
+      if (running) {
+        elapsed = performance.now() - startTime;
+        updateChronoDisplay(elapsed);
+        animationId = requestAnimationFrame(tick);
+      }
+    }
+
+    btnStart.onclick = () => {
+      if (!running) {
+        running = true;
+        startTime = performance.now() - elapsed;
+        btnStart.textContent = 'Stop';
+        btnStart.classList.replace('start', 'stop');
+        tick();
+      } else {
+        running = false;
+        cancelAnimationFrame(animationId);
+        btnStart.textContent = 'Start';
+        btnStart.classList.replace('stop', 'start');
+      }
+    };
+
+    btnReset.onclick = () => {
+      running = false;
+      cancelAnimationFrame(animationId);
+      elapsed = 0;
+      splitTime = null;
+      laps = [];
+      updateChronoDisplay(0);
+      btnStart.textContent = 'Start';
+      btnStart.classList.add('start');
+      handSplit.classList.remove('visible');
+      lapsContainer.innerHTML = '';
+    };
+
+    btnSplit.onclick = () => {
+      if (elapsed === 0) return;
+      if (splitTime === null) {
+        splitTime = elapsed;
+        handSplit.style.transform = `translateX(-50%) rotate(${(splitTime / 1000) * 6}deg)`;
+        handSplit.classList.add('visible');
+        laps.push({ num: laps.length + 1, total: splitTime, delta: splitTime - (laps.length > 0 ? laps[laps.length-1].total : 0) });
+        lapsContainer.innerHTML = laps.slice().reverse().map(l => `
+          <div class="lap">
+            <span class="lap-num">Lap ${l.num}</span>
+            <span class="lap-delta">+${formatTime(l.delta)}</span>
+            <span class="lap-time">${formatTime(l.total)}</span>
+          </div>
+        `).join('') + lapsContainer.innerHTML;
+      } else {
+        splitTime = null;
+        handSplit.classList.remove('visible');
+      }
+    };
+
+    btnFlyback.onclick = () => {
+      const wasRunning = running;
+      btnReset.onclick();
+      if (wasRunning) btnStart.onclick();
+    };
+
+    // Running seconds
+    function updateRunningSec() {
+      const now = new Date();
+      const angle = (now.getSeconds() + now.getMilliseconds() / 1000) * 6;
+      handRunningSec.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+      requestAnimationFrame(updateRunningSec);
+    }
+    updateRunningSec();
+
+    // Generate Subdial Ticks
+    document.querySelectorAll('.subdial').forEach(s => {
+      const count = s.classList.contains('subdial-12h') ? 12 : (s.classList.contains('subdial-30m') ? 30 : 60);
+      for(let i=0; i<count; i++) {
+        const t = document.createElement('div');
+        t.className = 'subdial-tick' + (i % (count/6 === 0 ? 1 : count/6) === 0 ? ' major' : '');
+        if (count === 12) t.className = 'subdial-tick major';
+        t.style.transform = `translateX(-50%) rotate(${i * (360/count)}deg)`;
+        s.appendChild(t);
+      }
+    });
+
+    // Keyboard
+    document.onkeydown = (e) => {
+      if (e.code === 'Space') { e.preventDefault(); btnStart.click(); }
+      if (e.code === 'KeyR') btnReset.click();
+      if (e.code === 'KeyS') btnSplit.click();
+      if (e.code === 'KeyF') btnFlyback.click();
+    };
+  </script>
+</body>
+</html>
