@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vehicle Safety Ratings — rayhe.net</title>
+
+  <!-- Analytics -->
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-6367016-2', 'rayhe.net');
+    ga('send', 'pageview');
+  </script>
+
+  <!-- Favicons -->
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" sizes="16x16 32x32 64x64" href="/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
+
+  <style>
+    :root {
+      --accent: #1E90FF;
+      --accent-hover: #0066CC;
+      --bg: #fafafa;
+      --text: #1a1a1a;
+      --text-muted: #666;
+      --border: #ddd;
+      --card-bg: #fff;
+      --radius: 6px;
+      --font-mono: 'SF Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+      --tier-very-low: #2e7d32;
+      --tier-low: #66bb6a;
+      --tier-avg: #fbc02d;
+      --tier-elevated: #f57c00;
+      --tier-high: #d32f2f;
+      --tier-very-high: #8b0000;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-mono);
+      margin: 0; padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+    a:hover { color: var(--accent-hover); }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 20px; }
+
+    header { margin-bottom: 30px; }
+    header .back { font-size: 0.8rem; color: var(--text-muted); }
+    h1 { font-size: 1.8rem; margin: 10px 0 6px; font-weight: 700; letter-spacing: -0.5px; }
+    .subtitle { font-size: 0.85rem; color: var(--text-muted); margin: 0; }
+
+    /* Summary Cards */
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .summary-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .summary-card .label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .summary-card .value {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+    .summary-card .detail {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Section titles */
+    .section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
+
+    .section { margin-bottom: 32px; }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+    .controls input[type="text"],
+    .controls select {
+      padding: 8px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      color: var(--text);
+    }
+    .controls input[type="text"] { flex: 1; min-width: 160px; }
+    .controls select { min-width: 120px; }
+    .controls input:focus, .controls select:focus {
+      outline: none; border-color: var(--accent);
+    }
+
+    .toggle-group {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .toggle-btn {
+      padding: 7px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      border: none;
+      background: var(--card-bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .toggle-btn + .toggle-btn { border-left: 1px solid var(--border); }
+    .toggle-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Chart */
+    .chart-wrap {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      overflow-x: auto;
+    }
+    canvas { display: block; }
+
+    /* Data Table */
+    .table-wrap {
+      overflow-x: auto;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      background: var(--card-bg);
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    th:hover { color: var(--accent); }
+    th .sort-arrow { font-size: 0.65rem; margin-left: 4px; opacity: 0.4; }
+    th.sorted .sort-arrow { opacity: 1; color: var(--accent); }
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tr:hover td { background: rgba(30,144,255,0.03); }
+    .no-results td {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 24px;
+      font-style: italic;
+    }
+
+    /* Tier badges */
+    .tier-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #fff;
+    }
+    .tier-very-low  { background: var(--tier-very-low); }
+    .tier-low       { background: var(--tier-low); color: #1a1a1a; }
+    .tier-avg       { background: var(--tier-avg); color: #1a1a1a; }
+    .tier-elevated  { background: var(--tier-elevated); }
+    .tier-high      { background: var(--tier-high); }
+    .tier-very-high { background: var(--tier-very-high); }
+
+    /* Class averages */
+    .class-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+    }
+    .class-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .class-card .class-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .class-card .class-rate {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+    .class-bar {
+      height: 4px;
+      border-radius: 2px;
+      margin-top: 6px;
+    }
+
+    /* Methodology */
+    .methodology {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      font-size: 0.8rem;
+      line-height: 1.7;
+    }
+    .methodology h3 {
+      margin: 0 0 10px;
+      font-size: 0.9rem;
+    }
+    .methodology p { margin: 8px 0; }
+    .methodology ul {
+      margin: 8px 0;
+      padding-left: 20px;
+    }
+    .methodology li { margin: 4px 0; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+      font-size: 0.72rem;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 2px;
+    }
+
+    .count-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 1.4rem; }
+      .summary-cards { grid-template-columns: 1fr 1fr; }
+      .controls { flex-direction: column; }
+      .controls input[type="text"] { min-width: 100%; }
+      .controls select { min-width: 100%; }
+      .toggle-btn { padding: 7px 10px; font-size: 0.7rem; }
+      td, th { padding: 6px 8px; font-size: 0.72rem; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <a href="index.html" class="back">&larr; rayhe.net</a>
+      <h1>Vehicle Safety Ratings</h1>
+      <p class="subtitle">Driver death rates per million registered vehicle years &mdash; IIHS 2023 data (2020 model year, 2018&ndash;2021 fatalities)</p>
+    </header>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards" id="summaryCards">
+      <div class="summary-card">
+        <div class="label">Overall Average</div>
+        <div class="value" id="summAvg">38</div>
+        <div class="detail">deaths / million reg. vehicle yrs</div>
+      </div>
+      <div class="summary-card">
+        <div class="label" id="summSafestLabel">Safest Vehicle</div>
+        <div class="value" style="font-size:1rem;" id="summSafest">BMW X3 4WD</div>
+        <div class="detail" id="summSafestRate">Rate: 0</div>
+      </div>
+      <div class="summary-card">
+        <div class="label" id="summDangerLabel">Most Dangerous</div>
+        <div class="value" style="font-size:1rem;" id="summDanger">Mitsubishi Mirage G4</div>
+        <div class="detail" id="summDangerRate">Rate: 205</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Vehicles Tracked</div>
+        <div class="value" id="summCount">85</div>
+        <div class="detail">unique make/models</div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <section class="section">
+      <div class="section-title">Interactive Chart</div>
+      <div class="controls">
+        <input type="text" id="searchInput" placeholder="Search make or model..." oninput="applyFilters()">
+        <select id="classFilter" onchange="applyFilters()">
+          <option value="">All Classes</option>
+        </select>
+        <select id="makeFilter" onchange="applyFilters()">
+          <option value="">All Makes</option>
+        </select>
+        <select id="sortSelect" onchange="applyFilters()">
+          <option value="rate-asc">Rate (low to high)</option>
+          <option value="rate-desc" selected>Rate (high to low)</option>
+          <option value="make">Make (A-Z)</option>
+          <option value="class">Class</option>
+        </select>
+        <div class="toggle-group">
+          <button class="toggle-btn active" onclick="setMetric('driver')" id="btnDriver">Driver Deaths</button>
+          <button class="toggle-btn" onclick="setMetric('other')" id="btnOther">Danger to Others</button>
+        </div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--tier-very-low)"></div> 0-10 Very Low</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--tier-low)"></div> 11-25 Low</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--tier-avg)"></div> 26-50 Average</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--tier-elevated)"></div> 51-100 Elevated</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--tier-high)"></div> 101-150 High</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--tier-very-high)"></div> 151+ Very High</div>
+      </div>
+
+      <div class="count-label" id="chartCount"></div>
+      <div class="chart-wrap">
+        <canvas id="barChart"></canvas>
+      </div>
+    </section>
+
+    <!-- Data Table -->
+    <section class="section">
+      <div class="section-title">All Vehicles</div>
+      <div class="count-label" id="tableCount"></div>
+      <div class="table-wrap">
+        <table id="dataTable">
+          <thead>
+            <tr>
+              <th data-col="rank"># <span class="sort-arrow">&#9650;</span></th>
+              <th data-col="vehicle">Vehicle <span class="sort-arrow">&#9650;</span></th>
+              <th data-col="class">Class <span class="sort-arrow">&#9650;</span></th>
+              <th data-col="rate" class="sorted">Rate <span class="sort-arrow">&#9660;</span></th>
+              <th data-col="tier">Tier <span class="sort-arrow">&#9650;</span></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Class Averages -->
+    <section class="section">
+      <div class="section-title" id="classAvgTitle">Average Driver Death Rate by Vehicle Class</div>
+      <div class="class-grid" id="classGrid"></div>
+    </section>
+
+    <!-- Methodology -->
+    <section class="section">
+      <div class="section-title">Methodology &amp; Sources</div>
+      <div class="methodology">
+        <h3>What does this data show?</h3>
+        <p><strong>Driver death rate</strong> = number of driver deaths per million registered vehicle years. This is the gold-standard metric used by safety researchers because it normalizes for how many of each vehicle are on the road &mdash; unlike raw fatality counts, which would simply reflect sales volume.</p>
+
+        <h3>What is a "registered vehicle year"?</h3>
+        <p>One vehicle registered for one year = 1 registered vehicle year. If 500,000 Toyota Camrys were registered across the study period, that's 500,000 vehicle years. This normalization means a bestselling car isn't penalized just because millions exist.</p>
+
+        <h3>Why not normalize by miles driven?</h3>
+        <p>The ideal metric would be deaths per mile driven (VMT &mdash; vehicle miles traveled), which would control for the fact that some vehicles are driven more than others. However, <strong>per-model VMT data does not exist publicly.</strong> The FHWA publishes aggregate VMT by broad vehicle class (cars vs. trucks), but not by specific make/model. IIHS "deaths per million registered vehicle years" is the best available normalized metric at the individual model level.</p>
+
+        <h3>"Danger to Others" metric</h3>
+        <p>The <strong>other-driver death rate</strong> counts deaths of drivers in <em>other</em> vehicles struck by the subject vehicle, per million registered vehicle years of the subject vehicle. This reveals how dangerous a vehicle is to people <em>outside</em> it. Very large pickups (Ram 3500: 189) cause dramatically more deaths to other drivers than small cars (Buick Encore: 6).</p>
+
+        <h3>Data details</h3>
+        <ul>
+          <li><strong>Source:</strong> Insurance Institute for Highway Safety (IIHS), July 2023</li>
+          <li><strong>Model year:</strong> 2020 (and equivalent models up to 3 years earlier if not substantially redesigned)</li>
+          <li><strong>Fatality period:</strong> Calendar years 2018&ndash;2021</li>
+          <li><strong>Adjustment:</strong> Rates are adjusted for driver age and gender</li>
+          <li><strong>Minimum threshold:</strong> 100,000+ registered vehicle years OR 20+ deaths in the study period</li>
+          <li><strong>Overall average (driver):</strong> 38 deaths/million &mdash; up from 36 (2017 models) and 28 (2011 models)</li>
+          <li><strong>Overall average (other-driver):</strong> 53 deaths/million</li>
+          <li><strong>Coverage:</strong> This page shows the highest and lowest rated vehicles from the IIHS publication. The full IIHS dataset includes additional vehicles with mid-range rates.</li>
+        </ul>
+
+        <h3>Limitations</h3>
+        <ul>
+          <li>Does not control for miles driven per vehicle (VMT). Vehicles driven more miles/year will accumulate more exposure.</li>
+          <li>Does not separate highway vs. urban driving patterns, which differ by vehicle type.</li>
+          <li>Specific drivetrain configurations (2WD vs 4WD) are listed where IIHS reported them separately &mdash; rates can differ significantly.</li>
+          <li>Small sample sizes for rare vehicles can produce volatile rates (a single death can swing the rate dramatically).</li>
+        </ul>
+
+        <p style="margin-top:14px;"><a href="https://www.iihs.org/ratings/driver-death-rates-by-make-and-model" target="_blank">Full IIHS dataset &rarr;</a> &nbsp;|&nbsp; <a href="https://www.iihs.org/news/detail/latest-driver-death-rates-highlight-dangers-of-muscle-cars" target="_blank">IIHS press release &rarr;</a></p>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ================================================================
+    // IIHS 2023 Vehicle Safety Data
+    // Source: IIHS press release, July 2023
+    // Model year: 2020 equivalent, fatality years 2018-2021
+    // Metric: deaths per million registered vehicle years
+    // ================================================================
+
+    const DATA = [
+      // --- Highest driver death rates ---
+      { make:"Mitsubishi", model:"Mirage G4",            cls:"Minicar",            driverRate:205, otherRate:null },
+      { make:"Mitsubishi", model:"Mirage hatchback",     cls:"Minicar",            driverRate:183, otherRate:null },
+      { make:"Dodge",      model:"Challenger",           cls:"Large car",          driverRate:154, otherRate:91  },
+      { make:"Hyundai",    model:"Accent",               cls:"Minicar",            driverRate:152, otherRate:null },
+      { make:"Chevrolet",  model:"Spark",                cls:"Minicar",            driverRate:151, otherRate:null },
+      { make:"Kia",        model:"Rio sedan",            cls:"Minicar",            driverRate:122, otherRate:133 },
+      { make:"Dodge",      model:"Charger HEMI",         cls:"Large car",          driverRate:118, otherRate:164 },
+      { make:"Chevrolet",  model:"Camaro convertible",   cls:"Large sports car",   driverRate:113, otherRate:null },
+      { make:"Nissan",     model:"Altima",               cls:"Midsize car",        driverRate:113, otherRate:94  },
+      { make:"Kia",        model:"Forte",                cls:"Small car",          driverRate:111, otherRate:96  },
+      { make:"Chevrolet",  model:"Camaro coupe",         cls:"Large sports car",   driverRate:110, otherRate:null },
+      { make:"Chevrolet",  model:"Sonic",                cls:"Small car",          driverRate:107, otherRate:null },
+      { make:"Hyundai",    model:"Elantra sedan",        cls:"Small car",          driverRate:103, otherRate:null },
+      { make:"Chrysler",   model:"300",                  cls:"Large car",          driverRate:100, otherRate:null },
+      { make:"Ford",       model:"Mustang convertible",  cls:"Midsize sports car", driverRate:97,  otherRate:null },
+      { make:"Chevrolet",  model:"Malibu",               cls:"Midsize car",        driverRate:91,  otherRate:null },
+      { make:"Dodge",      model:"Charger",              cls:"Large car",          driverRate:91,  otherRate:105 },
+      { make:"Chevrolet",  model:"Trax 2WD",             cls:"Small SUV",          driverRate:89,  otherRate:null },
+      { make:"Ford",       model:"EcoSport",             cls:"Small SUV",          driverRate:84,  otherRate:null },
+      { make:"Chevrolet",  model:"Impala",               cls:"Large car",          driverRate:80,  otherRate:null },
+      { make:"Kia",        model:"Optima",               cls:"Midsize car",        driverRate:80,  otherRate:134 },
+
+      // --- Lowest driver death rates ---
+      { make:"BMW",           model:"X3 4WD",                       cls:"Midsize luxury SUV",  driverRate:0,  otherRate:null },
+      { make:"Lexus",         model:"ES 350",                       cls:"Midsize luxury car",  driverRate:0,  otherRate:null },
+      { make:"Mercedes-Benz", model:"E-Class sedan 4WD",            cls:"Large luxury car",    driverRate:0,  otherRate:10  },
+      { make:"Nissan",        model:"Pathfinder 2WD",               cls:"Midsize SUV",         driverRate:0,  otherRate:null },
+      { make:"Audi",          model:"Q5 4WD",                       cls:"Midsize luxury SUV",  driverRate:2,  otherRate:21  },
+      { make:"Toyota",        model:"C-HR",                         cls:"Small SUV",           driverRate:2,  otherRate:19  },
+      { make:"Nissan",        model:"Murano 2WD",                   cls:"Midsize SUV",         driverRate:4,  otherRate:null },
+      { make:"Volvo",         model:"XC90 4WD",                     cls:"Midsize luxury SUV",  driverRate:4,  otherRate:null },
+      { make:"GMC",           model:"Canyon Crew Cab 4WD",          cls:"Small pickup",        driverRate:5,  otherRate:null },
+      { make:"Lexus",         model:"RX 350 4WD",                   cls:"Midsize luxury SUV",  driverRate:5,  otherRate:20  },
+      { make:"Subaru",        model:"Outback",                      cls:"Midsize wagon",       driverRate:5,  otherRate:null },
+      { make:"Toyota",        model:"Sienna 2WD",                   cls:"Very large minivan",  driverRate:5,  otherRate:null },
+      { make:"Volvo",         model:"XC60 4WD",                     cls:"Midsize luxury SUV",  driverRate:5,  otherRate:16  },
+      { make:"Acura",         model:"MDX 4WD",                      cls:"Midsize luxury SUV",  driverRate:6,  otherRate:14  },
+      { make:"Acura",         model:"RDX 4WD",                      cls:"Midsize luxury SUV",  driverRate:6,  otherRate:null },
+      { make:"BMW",           model:"X5 4WD",                       cls:"Midsize luxury SUV",  driverRate:6,  otherRate:null },
+      { make:"Chevrolet",     model:"Traverse 4WD",                 cls:"Midsize SUV",         driverRate:6,  otherRate:21  },
+      { make:"Ford",          model:"Edge 4WD",                     cls:"Midsize SUV",         driverRate:6,  otherRate:null },
+      { make:"Honda",         model:"Odyssey",                      cls:"Very large minivan",  driverRate:6,  otherRate:null },
+      { make:"Lexus",         model:"NX 300 2WD",                   cls:"Midsize luxury SUV",  driverRate:6,  otherRate:null },
+      { make:"Lexus",         model:"NX 300 4WD",                   cls:"Midsize luxury SUV",  driverRate:null, otherRate:19 },
+      { make:"Porsche",       model:"Macan",                        cls:"Midsize luxury SUV",  driverRate:6,  otherRate:18  },
+      { make:"Subaru",        model:"Ascent",                       cls:"Midsize SUV",         driverRate:6,  otherRate:16  },
+      { make:"Toyota",        model:"Tacoma Double Cab long bed",   cls:"Small pickup",        driverRate:6,  otherRate:null },
+
+      // --- Highest other-driver death rates (vehicles not already listed above) ---
+      { make:"Ram",       model:"3500 Crew Cab long bed 4WD",  cls:"Very large pickup", driverRate:null, otherRate:189 },
+      { make:"Ford",      model:"F-350 Crew Cab 4WD",          cls:"Very large pickup", driverRate:null, otherRate:147 },
+      { make:"Ram",       model:"2500 Mega Cab 4WD",           cls:"Very large pickup", driverRate:null, otherRate:145 },
+      { make:"Ram",       model:"2500 Crew Cab short bed 4WD", cls:"Very large pickup", driverRate:null, otherRate:122 },
+      { make:"Ford",      model:"F-250 Crew Cab 4WD",          cls:"Very large pickup", driverRate:null, otherRate:120 },
+      { make:"Ram",       model:"1500 Crew Cab short bed 2WD", cls:"Large pickup",      driverRate:null, otherRate:104 },
+      { make:"Jeep",      model:"Grand Cherokee 2WD",          cls:"Midsize SUV",       driverRate:null, otherRate:103 },
+      { make:"Ford",      model:"F-250 SuperCab 4WD",          cls:"Very large pickup", driverRate:null, otherRate:95  },
+      { make:"Chevrolet", model:"Blazer 2WD",                  cls:"Midsize SUV",       driverRate:null, otherRate:93  },
+      { make:"Jeep",      model:"Gladiator 4WD",               cls:"Small pickup",      driverRate:null, otherRate:93  },
+      { make:"Dodge",     model:"Journey 2WD",                 cls:"Midsize SUV",       driverRate:null, otherRate:90  },
+      { make:"Jeep",      model:"Renegade 2WD",                cls:"Small SUV",         driverRate:null, otherRate:90  },
+      { make:"Jeep",      model:"Wrangler 2-door 4WD",         cls:"Midsize SUV",       driverRate:null, otherRate:89  },
+
+      // --- Lowest other-driver death rates (vehicles not already listed above) ---
+      { make:"Buick",      model:"Encore 4WD",          cls:"Small luxury SUV",   driverRate:null, otherRate:6   },
+      { make:"Toyota",     model:"RAV4 hybrid 4WD",     cls:"Small SUV",          driverRate:null, otherRate:16  },
+      { make:"Chevrolet",  model:"Bolt",                cls:"Small car",          driverRate:null, otherRate:19  },
+      { make:"Chevrolet",  model:"Trax 4WD",            cls:"Small SUV",          driverRate:null, otherRate:19  },
+      { make:"Honda",      model:"HR-V 4WD",            cls:"Small SUV",          driverRate:null, otherRate:19  },
+      { make:"Volkswagen", model:"Atlas 4WD",           cls:"Midsize SUV",        driverRate:null, otherRate:19  },
+      { make:"Honda",      model:"Civic hatchback",     cls:"Small car",          driverRate:null, otherRate:20  },
+      { make:"Honda",      model:"Pilot 4WD",           cls:"Midsize SUV",        driverRate:null, otherRate:20  },
+      { make:"Audi",       model:"A4 4WD",              cls:"Midsize luxury car", driverRate:null, otherRate:21  },
+      { make:"Subaru",     model:"Forester",            cls:"Small SUV",          driverRate:null, otherRate:21  },
+      { make:"Tesla",      model:"Model 3 2WD",         cls:"Midsize luxury car", driverRate:null, otherRate:21  }
+    ];
+
+    const OVERALL_AVG = { driver: 38, other: 53 };
+
+    // ================================================================
+    // State
+    // ================================================================
+    let currentMetric = 'driver'; // 'driver' or 'other'
+    let filteredData = [];
+
+    // ================================================================
+    // Tier helpers
+    // ================================================================
+    function getTier(rate) {
+      if (rate === null || rate === undefined) return null;
+      if (rate <= 10)  return { label:'Very Low',  cls:'tier-very-low',  color:'#2e7d32' };
+      if (rate <= 25)  return { label:'Low',       cls:'tier-low',       color:'#66bb6a' };
+      if (rate <= 50)  return { label:'Average',   cls:'tier-avg',       color:'#fbc02d' };
+      if (rate <= 100) return { label:'Elevated',  cls:'tier-elevated',  color:'#f57c00' };
+      if (rate <= 150) return { label:'High',      cls:'tier-high',      color:'#d32f2f' };
+      return             { label:'Very High', cls:'tier-very-high', color:'#8b0000' };
+    }
+
+    function getRate(d) {
+      return currentMetric === 'driver' ? d.driverRate : d.otherRate;
+    }
+
+    function vehicleName(d) {
+      return d.make + ' ' + d.model;
+    }
+
+    // ================================================================
+    // Populate filters
+    // ================================================================
+    function initFilters() {
+      const classes = [...new Set(DATA.map(d => d.cls))].sort();
+      const makes = [...new Set(DATA.map(d => d.make))].sort();
+
+      const classSelect = document.getElementById('classFilter');
+      classes.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c;
+        classSelect.appendChild(opt);
+      });
+
+      const makeSelect = document.getElementById('makeFilter');
+      makes.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m; opt.textContent = m;
+        makeSelect.appendChild(opt);
+      });
+    }
+
+    // ================================================================
+    // Apply filters + sort
+    // ================================================================
+    function applyFilters() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const clsFilter = document.getElementById('classFilter').value;
+      const makeFilter = document.getElementById('makeFilter').value;
+      const sortMode = document.getElementById('sortSelect').value;
+
+      // Filter to vehicles that have data for current metric
+      filteredData = DATA.filter(d => {
+        const rate = getRate(d);
+        if (rate === null || rate === undefined) return false;
+        if (search && !vehicleName(d).toLowerCase().includes(search) && !d.cls.toLowerCase().includes(search)) return false;
+        if (clsFilter && d.cls !== clsFilter) return false;
+        if (makeFilter && d.make !== makeFilter) return false;
+        return true;
+      });
+
+      // Sort
+      switch (sortMode) {
+        case 'rate-asc':
+          filteredData.sort((a, b) => getRate(a) - getRate(b));
+          break;
+        case 'rate-desc':
+          filteredData.sort((a, b) => getRate(b) - getRate(a));
+          break;
+        case 'make':
+          filteredData.sort((a, b) => vehicleName(a).localeCompare(vehicleName(b)));
+          break;
+        case 'class':
+          filteredData.sort((a, b) => a.cls.localeCompare(b.cls) || getRate(a) - getRate(b));
+          break;
+      }
+
+      renderChart();
+      renderTable();
+      updateSummary();
+    }
+
+    // ================================================================
+    // Metric toggle
+    // ================================================================
+    function setMetric(m) {
+      currentMetric = m;
+      document.getElementById('btnDriver').classList.toggle('active', m === 'driver');
+      document.getElementById('btnOther').classList.toggle('active', m === 'other');
+
+      // Update summary labels
+      document.getElementById('summAvg').textContent = m === 'driver' ? '38' : '53';
+      document.getElementById('summSafestLabel').textContent = m === 'driver' ? 'Safest Vehicle' : 'Least Dangerous to Others';
+      document.getElementById('summDangerLabel').textContent = m === 'driver' ? 'Most Dangerous' : 'Most Dangerous to Others';
+      document.getElementById('classAvgTitle').textContent =
+        m === 'driver' ? 'Average Driver Death Rate by Vehicle Class' : 'Average Other-Driver Death Rate by Vehicle Class';
+
+      applyFilters();
+      renderClassAverages();
+    }
+
+    // ================================================================
+    // Summary cards
+    // ================================================================
+    function updateSummary() {
+      if (filteredData.length === 0) {
+        document.getElementById('summSafest').textContent = '—';
+        document.getElementById('summSafestRate').textContent = '';
+        document.getElementById('summDanger').textContent = '—';
+        document.getElementById('summDangerRate').textContent = '';
+        document.getElementById('summCount').textContent = '0';
+        return;
+      }
+      const sorted = [...filteredData].sort((a, b) => getRate(a) - getRate(b));
+      const safest = sorted[0];
+      const danger = sorted[sorted.length - 1];
+      document.getElementById('summSafest').textContent = vehicleName(safest);
+      document.getElementById('summSafestRate').textContent = 'Rate: ' + getRate(safest);
+      document.getElementById('summDanger').textContent = vehicleName(danger);
+      document.getElementById('summDangerRate').textContent = 'Rate: ' + getRate(danger);
+      document.getElementById('summCount').textContent = filteredData.length;
+    }
+
+    // ================================================================
+    // Canvas Bar Chart
+    // ================================================================
+    function renderChart() {
+      const canvas = document.getElementById('barChart');
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+
+      const barHeight = 26;
+      const barGap = 4;
+      const labelWidth = 200;
+      const rateWidth = 50;
+      const rightPad = 16;
+      const topPad = 10;
+
+      const isMobile = window.innerWidth < 600;
+      const effectiveLabelWidth = isMobile ? 120 : labelWidth;
+
+      const totalItems = filteredData.length;
+      const chartHeight = topPad + totalItems * (barHeight + barGap) + 20;
+      const chartWidth = canvas.parentElement.clientWidth - 32;
+
+      canvas.style.width = chartWidth + 'px';
+      canvas.style.height = chartHeight + 'px';
+      canvas.width = chartWidth * dpr;
+      canvas.height = chartHeight * dpr;
+      ctx.scale(dpr, dpr);
+
+      ctx.clearRect(0, 0, chartWidth, chartHeight);
+
+      if (totalItems === 0) {
+        ctx.fillStyle = '#666';
+        ctx.font = '13px ' + getComputedStyle(document.body).fontFamily;
+        ctx.textAlign = 'center';
+        ctx.fillText('No vehicles match current filters', chartWidth / 2, chartHeight / 2);
+        document.getElementById('chartCount').textContent = '0 vehicles shown';
+        return;
+      }
+
+      document.getElementById('chartCount').textContent = totalItems + ' vehicle' + (totalItems !== 1 ? 's' : '') + ' shown';
+
+      const maxRate = Math.max(...filteredData.map(d => getRate(d)), 1);
+      const barAreaWidth = chartWidth - effectiveLabelWidth - rateWidth - rightPad;
+      const avg = currentMetric === 'driver' ? OVERALL_AVG.driver : OVERALL_AVG.other;
+
+      // Draw bars
+      filteredData.forEach((d, i) => {
+        const y = topPad + i * (barHeight + barGap);
+        const rate = getRate(d);
+        const tier = getTier(rate);
+        const barW = Math.max(1, (rate / maxRate) * barAreaWidth);
+
+        // Label
+        ctx.fillStyle = '#1a1a1a';
+        ctx.font = (isMobile ? '10' : '11') + 'px ' + getComputedStyle(document.body).fontFamily;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        let label = vehicleName(d);
+        if (isMobile && label.length > 18) label = label.substring(0, 17) + '…';
+        ctx.fillText(label, effectiveLabelWidth - 8, y + barHeight / 2);
+
+        // Bar
+        ctx.fillStyle = tier ? tier.color : '#ccc';
+        ctx.beginPath();
+        ctx.roundRect(effectiveLabelWidth, y, barW, barHeight, 3);
+        ctx.fill();
+
+        // Rate number
+        ctx.fillStyle = '#1a1a1a';
+        ctx.textAlign = 'left';
+        ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+        ctx.fillText(rate, effectiveLabelWidth + barW + 6, y + barHeight / 2);
+      });
+
+      // Average reference line
+      const avgX = effectiveLabelWidth + (avg / maxRate) * barAreaWidth;
+      ctx.save();
+      ctx.strokeStyle = '#1E90FF';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 3]);
+      ctx.beginPath();
+      ctx.moveTo(avgX, topPad - 4);
+      ctx.lineTo(avgX, topPad + totalItems * (barHeight + barGap));
+      ctx.stroke();
+      ctx.restore();
+
+      // Average label
+      ctx.fillStyle = '#1E90FF';
+      ctx.font = '10px ' + getComputedStyle(document.body).fontFamily;
+      ctx.textAlign = 'center';
+      ctx.fillText('avg: ' + avg, avgX, topPad - 8 > 0 ? topPad - 2 : topPad + totalItems * (barHeight + barGap) + 14);
+    }
+
+    // ================================================================
+    // Data Table
+    // ================================================================
+    function renderTable() {
+      const tbody = document.getElementById('tableBody');
+      document.getElementById('tableCount').textContent = filteredData.length + ' vehicle' + (filteredData.length !== 1 ? 's' : '');
+
+      if (filteredData.length === 0) {
+        tbody.innerHTML = '<tr class="no-results"><td colspan="5">No vehicles match current filters</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filteredData.map((d, i) => {
+        const rate = getRate(d);
+        const tier = getTier(rate);
+        return `<tr>
+          <td>${i + 1}</td>
+          <td>${vehicleName(d)}</td>
+          <td>${d.cls}</td>
+          <td><strong>${rate}</strong></td>
+          <td>${tier ? `<span class="tier-badge ${tier.cls}">${tier.label}</span>` : '—'}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // ================================================================
+    // Table column sorting via header click
+    // ================================================================
+    document.querySelectorAll('#dataTable th').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.col;
+        // Toggle direction
+        const wasAsc = th.classList.contains('sorted-asc');
+        document.querySelectorAll('#dataTable th').forEach(h => {
+          h.classList.remove('sorted', 'sorted-asc', 'sorted-desc');
+        });
+
+        const asc = !wasAsc;
+        th.classList.add('sorted', asc ? 'sorted-asc' : 'sorted-desc');
+        th.querySelector('.sort-arrow').textContent = asc ? '\u25B2' : '\u25BC';
+
+        switch (col) {
+          case 'rank':
+          case 'rate':
+            filteredData.sort((a, b) => asc ? getRate(a) - getRate(b) : getRate(b) - getRate(a));
+            break;
+          case 'vehicle':
+            filteredData.sort((a, b) => asc ? vehicleName(a).localeCompare(vehicleName(b)) : vehicleName(b).localeCompare(vehicleName(a)));
+            break;
+          case 'class':
+            filteredData.sort((a, b) => asc ? a.cls.localeCompare(b.cls) : b.cls.localeCompare(a.cls));
+            break;
+          case 'tier':
+            filteredData.sort((a, b) => asc ? getRate(a) - getRate(b) : getRate(b) - getRate(a));
+            break;
+        }
+
+        renderTable();
+        renderChart();
+      });
+    });
+
+    // ================================================================
+    // Class Averages
+    // ================================================================
+    function renderClassAverages() {
+      const grid = document.getElementById('classGrid');
+
+      // Group by class, compute average
+      const classMap = {};
+      DATA.forEach(d => {
+        const rate = getRate(d);
+        if (rate === null || rate === undefined) return;
+        if (!classMap[d.cls]) classMap[d.cls] = { sum: 0, count: 0 };
+        classMap[d.cls].sum += rate;
+        classMap[d.cls].count++;
+      });
+
+      const classArr = Object.entries(classMap).map(([cls, v]) => ({
+        cls,
+        avg: Math.round(v.sum / v.count),
+        count: v.count
+      })).sort((a, b) => a.avg - b.avg);
+
+      const maxAvg = Math.max(...classArr.map(c => c.avg), 1);
+
+      grid.innerHTML = classArr.map(c => {
+        const tier = getTier(c.avg);
+        const barPct = Math.max(2, (c.avg / maxAvg) * 100);
+        return `<div class="class-card">
+          <div>
+            <div class="class-name">${c.cls}</div>
+            <div style="font-size:0.7rem;color:var(--text-muted)">${c.count} vehicle${c.count !== 1 ? 's' : ''}</div>
+            <div class="class-bar" style="width:${barPct}%;background:${tier ? tier.color : '#ccc'}"></div>
+          </div>
+          <div class="class-rate" style="color:${tier ? tier.color : '#666'}">${c.avg}</div>
+        </div>`;
+      }).join('');
+    }
+
+    // ================================================================
+    // Resize handler
+    // ================================================================
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => renderChart(), 150);
+    });
+
+    // ================================================================
+    // Initialize
+    // ================================================================
+    initFilters();
+    applyFilters();
+    renderClassAverages();
+  </script>
+</body>
+</html>
