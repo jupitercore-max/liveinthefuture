@@ -1154,6 +1154,55 @@
       document.getElementById('uuidOutput').value = uuid;
     }
 
+    // Regex Tester (Added by Claude)
+    document.getElementById('regexPattern').addEventListener('input', testRegex);
+    document.getElementById('regexFlags').addEventListener('input', testRegex);
+
+    function testRegex() {
+      const pattern = document.getElementById('regexPattern').value;
+      const flags = document.getElementById('regexFlags').value;
+      const input = document.getElementById('regexInput').value;
+      const result = document.getElementById('regexResult');
+      const matchCount = document.getElementById('regexMatchCount');
+      const groupCount = document.getElementById('regexGroupCount');
+
+      if (!pattern) {
+        result.textContent = '';
+        result.className = 'result';
+        matchCount.textContent = '0';
+        groupCount.textContent = '0';
+        return;
+      }
+
+      try {
+        const re = new RegExp(pattern, flags);
+        const matches = [...input.matchAll(new RegExp(pattern, flags.includes('g') ? flags : flags + 'g'))];
+        matchCount.textContent = matches.length;
+        groupCount.textContent = matches.length > 0 ? Math.max(0, matches[0].length - 1) : '0';
+
+        if (matches.length === 0) {
+          result.textContent = 'No matches';
+          result.className = 'result error';
+        } else {
+          const lines = matches.map((m, i) => {
+            let line = `[${i}] "${m[0]}" @ index ${m.index}`;
+            for (let g = 1; g < m.length; g++) {
+              line += `\n     group ${g}: "${m[g] ?? ''}"`;
+            }
+            return line;
+          });
+          result.textContent = lines.join('\n');
+          result.className = 'result success';
+          result.style.whiteSpace = 'pre-wrap';
+        }
+      } catch (e) {
+        result.textContent = e.message;
+        result.className = 'result error';
+        matchCount.textContent = '0';
+        groupCount.textContent = '0';
+      }
+    }
+
     // Secure Password Generator (Added by Gemini)
     function generatePassword() {
       const length = parseInt(document.getElementById('passLength').value) || 24;
