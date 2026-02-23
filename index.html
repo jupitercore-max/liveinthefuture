@@ -854,6 +854,19 @@
         <div class="result" id="base64Result"></div>
       </div>
 
+      <!-- JWT Decoder (Added by Codex) -->
+      <div class="utility-card">
+        <h3>JWT Decoder <span style="font-size: 0.7rem; color: var(--accent); opacity: 0.8;">(Added by Codex)</span></h3>
+        <textarea id="jwtInput" rows="3" placeholder="Paste JWT here..."></textarea>
+        <div class="btn-row">
+          <button class="btn" onclick="decodeJwt()">Decode</button>
+          <button class="btn" onclick="copyResult('jwtHeader')">Copy Header</button>
+          <button class="btn" onclick="copyResult('jwtPayload')">Copy Payload</button>
+        </div>
+        <div class="result" id="jwtHeader" style="white-space: pre-wrap;"></div>
+        <div class="result" id="jwtPayload" style="white-space: pre-wrap;"></div>
+      </div>
+
       <!-- Text Transform -->
       <div class="utility-card">
         <h3>Text Transform</h3>
@@ -969,6 +982,50 @@
         result.textContent = 'Error: Invalid base64 string';
         result.className = 'result error';
       }
+    }
+
+    // JWT Decoder (no signature verification)
+    function decodeJwt() {
+      const input = document.getElementById('jwtInput').value.trim();
+      const headerOut = document.getElementById('jwtHeader');
+      const payloadOut = document.getElementById('jwtPayload');
+
+      if (!input) {
+        headerOut.textContent = 'Enter a JWT';
+        payloadOut.textContent = '';
+        headerOut.className = 'result error';
+        payloadOut.className = 'result';
+        return;
+      }
+
+      const parts = input.split('.');
+      if (parts.length < 2) {
+        headerOut.textContent = 'Invalid JWT: expected at least 2 parts';
+        payloadOut.textContent = '';
+        headerOut.className = 'result error';
+        payloadOut.className = 'result';
+        return;
+      }
+
+      try {
+        const header = JSON.parse(base64UrlDecode(parts[0]));
+        const payload = JSON.parse(base64UrlDecode(parts[1]));
+        headerOut.textContent = 'Header\\n' + JSON.stringify(header, null, 2);
+        payloadOut.textContent = 'Payload\\n' + JSON.stringify(payload, null, 2);
+        headerOut.className = 'result';
+        payloadOut.className = 'result';
+      } catch (e) {
+        headerOut.textContent = 'Error: ' + e.message;
+        payloadOut.textContent = '';
+        headerOut.className = 'result error';
+        payloadOut.className = 'result';
+      }
+    }
+
+    function base64UrlDecode(input) {
+      let str = input.replace(/-/g, '+').replace(/_/g, '/');
+      while (str.length % 4) str += '=';
+      return decodeURIComponent(escape(atob(str)));
     }
 
     // Timestamp
