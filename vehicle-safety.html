@@ -39,6 +39,21 @@
       --tier-very-high: #8b0000;
     }
 
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --accent: #4da6ff;
+        --accent-hover: #80bfff;
+        --bg: #1a1a1a;
+        --text: #e0e0e0;
+        --text-muted: #999;
+        --border: #333;
+        --card-bg: #252525;
+      }
+      .tier-low, .tier-avg {
+        color: #1a1a1a;
+      }
+    }
+
     * { box-sizing: border-box; }
 
     body {
@@ -685,9 +700,13 @@
       ctx.scale(dpr, dpr);
 
       ctx.clearRect(0, 0, chartWidth, chartHeight);
+      const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const textColor = isDark ? '#e0e0e0' : '#1a1a1a';
+      const mutedColor = isDark ? '#999' : '#666';
+      const accentColor = isDark ? '#4da6ff' : '#1E90FF';
 
       if (totalItems === 0) {
-        ctx.fillStyle = '#666';
+        ctx.fillStyle = mutedColor;
         ctx.font = '13px ' + getComputedStyle(document.body).fontFamily;
         ctx.textAlign = 'center';
         ctx.fillText('No vehicles match current filters', chartWidth / 2, chartHeight / 2);
@@ -709,7 +728,7 @@
         const barW = Math.max(1, (rate / maxRate) * barAreaWidth);
 
         // Label
-        ctx.fillStyle = '#1a1a1a';
+        ctx.fillStyle = textColor;
         ctx.font = (isMobile ? '10' : '11') + 'px ' + getComputedStyle(document.body).fontFamily;
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
@@ -724,7 +743,7 @@
         ctx.fill();
 
         // Rate number
-        ctx.fillStyle = '#1a1a1a';
+        ctx.fillStyle = textColor;
         ctx.textAlign = 'left';
         ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
         ctx.fillText(rate, effectiveLabelWidth + barW + 6, y + barHeight / 2);
@@ -733,7 +752,7 @@
       // Average reference line
       const avgX = effectiveLabelWidth + (avg / maxRate) * barAreaWidth;
       ctx.save();
-      ctx.strokeStyle = '#1E90FF';
+      ctx.strokeStyle = accentColor;
       ctx.lineWidth = 1.5;
       ctx.setLineDash([5, 3]);
       ctx.beginPath();
@@ -743,7 +762,7 @@
       ctx.restore();
 
       // Average label
-      ctx.fillStyle = '#1E90FF';
+      ctx.fillStyle = accentColor;
       ctx.font = '10px ' + getComputedStyle(document.body).fontFamily;
       ctx.textAlign = 'center';
       ctx.fillText('avg: ' + avg, avgX, topPad - 8 > 0 ? topPad - 2 : topPad + totalItems * (barHeight + barGap) + 14);
