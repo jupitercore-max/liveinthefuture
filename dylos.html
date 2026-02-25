@@ -21,6 +21,12 @@
   <link rel="icon" sizes="16x16 32x32 64x64" href="/favicon.ico">
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
 
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+
   <style>
     :root {
       --accent: #1E90FF;
@@ -41,16 +47,32 @@
       --aqi-hazardous: #7E0023;
     }
 
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --accent: #4da6ff;
-        --bg: #1a1a1a;
-        --text: #e0e0e0;
-        --text-muted: #999;
-        --border: #333;
-        --card-bg: #252525;
-      }
+    html.dark {
+      --accent: #4da6ff;
+      --bg: #1a1a1a;
+      --text: #e0e0e0;
+      --text-muted: #999;
+      --border: #333;
+      --card-bg: #252525;
     }
+
+    .theme-toggle {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      padding: 6px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      background: var(--card-bg);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      z-index: 9999;
+      opacity: 0.5;
+      transition: opacity 0.15s;
+    }
+    .theme-toggle:hover { opacity: 1; }
 
     * {
       box-sizing: border-box;
@@ -580,6 +602,26 @@
       dylosInput.value = urlParams.get('count');
     }
     updateDisplay();
+  </script>
+  <script>
+    (function() {
+      var btn = document.createElement('button');
+      btn.className = 'theme-toggle';
+      function label() {
+        var t = localStorage.getItem('theme');
+        btn.textContent = t === 'dark' ? 'dark' : t === 'light' ? 'light' : 'auto';
+      }
+      btn.addEventListener('click', function() {
+        var t = localStorage.getItem('theme');
+        var next = !t ? 'dark' : t === 'dark' ? 'light' : null;
+        if (next) localStorage.setItem('theme', next); else localStorage.removeItem('theme');
+        var isDark = next === 'dark' || (!next && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', isDark);
+        label();
+      });
+      label();
+      document.body.appendChild(btn);
+    })();
   </script>
 </body>
 </html>
