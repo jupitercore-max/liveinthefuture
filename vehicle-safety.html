@@ -43,6 +43,15 @@
       --tier-elevated: #f57c00;
       --tier-high: #d32f2f;
       --tier-very-high: #8b0000;
+      --fars-passenger: #4285F4;
+      --fars-light-truck: #34A853;
+      --fars-motorcycle: #EA4335;
+      --fars-pedestrian: #FBBC04;
+      --fars-pedalcyclist: #9C27B0;
+      --fars-overall: #607D8B;
+      --fars-bar: #4285F4;
+      --fars-line: #EA4335;
+      --fars-estimate: rgba(66,133,244,0.45);
     }
 
     html.dark {
@@ -53,6 +62,15 @@
       --text-muted: #999;
       --border: #333;
       --card-bg: #252525;
+      --fars-passenger: #6ea8f7;
+      --fars-light-truck: #5ec76e;
+      --fars-motorcycle: #f06858;
+      --fars-pedestrian: #fdd663;
+      --fars-pedalcyclist: #ba68c8;
+      --fars-overall: #90a4ae;
+      --fars-bar: #6ea8f7;
+      --fars-line: #f06858;
+      --fars-estimate: rgba(110,168,247,0.40);
     }
     html.dark .tier-low, html.dark .tier-avg { color: #1a1a1a; }
 
@@ -323,6 +341,37 @@
       margin-bottom: 8px;
     }
 
+    .callout-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      text-align: center;
+    }
+    .callout-card .label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .callout-card .value {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+    .callout-card .detail {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .fars-note {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+      font-style: italic;
+    }
+
     @media (max-width: 600px) {
       h1 { font-size: 1.4rem; }
       .summary-cards { grid-template-columns: 1fr 1fr; }
@@ -340,7 +389,7 @@
     <header>
       <a href="index.html" class="back">&larr; rayhe.net</a>
       <h1>Vehicle Safety Ratings</h1>
-      <p class="subtitle">Driver death rates per million registered vehicle years &mdash; IIHS 2023 data (2020 model year, 2018&ndash;2021 fatalities)</p>
+      <p class="subtitle">IIHS driver death rates by make/model &amp; NHTSA FARS national fatality trends</p>
     </header>
 
     <!-- Summary Cards -->
@@ -431,6 +480,83 @@
       <div class="class-grid" id="classGrid"></div>
     </section>
 
+    <!-- NHTSA Section A: National Fatality Trends -->
+    <section class="section">
+      <div class="section-title">National Traffic Fatality Trends (NHTSA FARS, 2020&ndash;2024)</div>
+      <div class="summary-cards" id="farsSummaryCards">
+        <div class="summary-card">
+          <div class="label">2024 Fatalities (est.)</div>
+          <div class="value" id="farsLatestFatalities">39,345</div>
+          <div class="detail">down from 40,901 in 2023</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">2024 Rate (est.)</div>
+          <div class="value" id="farsLatestRate">1.20</div>
+          <div class="detail">per 100M vehicle miles traveled</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">5-Year Trend</div>
+          <div class="value" id="farsTrend">Improving</div>
+          <div class="detail">peaked at 1.37 in 2021</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="nationalChart"></canvas>
+      </div>
+      <p class="fars-note">2024 data is an early NHTSA estimate subject to revision. Bars show total fatalities (left axis); line shows rate per 100M VMT (right axis).</p>
+    </section>
+
+    <!-- NHTSA Section B: Fatalities by Road User Type -->
+    <section class="section">
+      <div class="section-title">Fatalities by Road User Type (NHTSA FARS, 2020&ndash;2023)</div>
+      <div class="summary-cards" id="userTypeSummaryCards">
+        <div class="summary-card">
+          <div class="label">Passenger Car Occ.</div>
+          <div class="value" id="utPassengerPct">—</div>
+          <div class="detail">of 2023 fatalities</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Light Truck Occ.</div>
+          <div class="value" id="utTruckPct">—</div>
+          <div class="detail">of 2023 fatalities</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Motorcyclists</div>
+          <div class="value" id="utMotoPct">—</div>
+          <div class="detail">of 2023 fatalities</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Pedestrians + Cyclists</div>
+          <div class="value" id="utVulnerablePct">—</div>
+          <div class="detail">of 2023 fatalities</div>
+        </div>
+      </div>
+      <div class="legend" id="userTypeLegend"></div>
+      <div class="chart-wrap">
+        <canvas id="userTypeChart"></canvas>
+      </div>
+    </section>
+
+    <!-- NHTSA Section C: Fatality Rate by Vehicle Class -->
+    <section class="section">
+      <div class="section-title">Occupant Fatality Rate by Vehicle Class (per 100M VMT)</div>
+      <div class="controls">
+        <div class="toggle-group" id="classRateYearToggle"></div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+        <div class="chart-wrap" style="flex:1;min-width:260px;">
+          <canvas id="classRateChart"></canvas>
+        </div>
+        <div class="callout-card" style="min-width:180px;max-width:220px;display:flex;flex-direction:column;justify-content:center;">
+          <div class="label">Motorcycle Rate</div>
+          <div class="value" id="motoCalloutRate" style="color:var(--fars-motorcycle);">31.39</div>
+          <div class="detail" id="motoCalloutDetail">per 100M VMT (2023)</div>
+          <div class="detail" style="margin-top:6px;">~29x the passenger car rate</div>
+        </div>
+      </div>
+      <p class="fars-note">Rates calculated from NHTSA FARS fatality counts and FHWA VM-1 vehicle miles traveled. Per-model VMT is not publicly available; these rates apply at the broad vehicle-class level only.</p>
+    </section>
+
     <!-- Methodology -->
     <section class="section">
       <div class="section-title">Methodology &amp; Sources</div>
@@ -442,7 +568,7 @@
         <p>One vehicle registered for one year = 1 registered vehicle year. If 500,000 Toyota Camrys were registered across the study period, that's 500,000 vehicle years. This normalization means a bestselling car isn't penalized just because millions exist.</p>
 
         <h3>Why not normalize by miles driven?</h3>
-        <p>The ideal metric would be deaths per mile driven (VMT &mdash; vehicle miles traveled), which would control for the fact that some vehicles are driven more than others. However, <strong>per-model VMT data does not exist publicly.</strong> The FHWA publishes aggregate VMT by broad vehicle class (cars vs. trucks), but not by specific make/model. IIHS "deaths per million registered vehicle years" is the best available normalized metric at the individual model level.</p>
+        <p>The ideal metric would be deaths per mile driven (VMT &mdash; vehicle miles traveled), which would control for the fact that some vehicles are driven more than others. However, <strong>per-model VMT data does not exist publicly.</strong> The FHWA publishes aggregate VMT by broad vehicle class (cars vs. trucks), but not by specific make/model. IIHS "deaths per million registered vehicle years" is the best available normalized metric at the individual model level. See the <a href="#" onclick="document.getElementById('classRateChart').scrollIntoView({behavior:'smooth'});return false;">NHTSA class-level fatality rates</a> above for VMT-normalized rates at the vehicle-class level.</p>
 
         <h3>"Danger to Others" metric</h3>
         <p>The <strong>other-driver death rate</strong> counts deaths of drivers in <em>other</em> vehicles struck by the subject vehicle, per million registered vehicle years of the subject vehicle. This reveals how dangerous a vehicle is to people <em>outside</em> it. Very large pickups (Ram 3500: 189) cause dramatically more deaths to other drivers than small cars (Buick Encore: 6).</p>
@@ -459,15 +585,33 @@
           <li><strong>Coverage:</strong> This page shows the highest and lowest rated vehicles from the IIHS publication. The full IIHS dataset includes additional vehicles with mid-range rates.</li>
         </ul>
 
+        <h3>NHTSA FARS national data</h3>
+        <p>The <strong>Fatality Analysis Reporting System (FARS)</strong> is a census of all fatal motor vehicle crashes in the United States, maintained by NHTSA. Unlike the IIHS per-model data above, FARS covers all crashes nationally and can be normalized by <strong>vehicle miles traveled (VMT)</strong> &mdash; but only at the broad vehicle-class level (passenger cars, light trucks, motorcycles), not per make/model.</p>
+        <p>VMT data comes from the <strong>FHWA Highway Statistics Table VM-1</strong>, which estimates total miles driven annually by vehicle type. Dividing FARS fatalities by VMT yields the "fatality rate per 100 million VMT" &mdash; the standard metric used in NHTSA Traffic Safety Facts publications.</p>
+        <ul>
+          <li><strong>2024 data is an early estimate</strong> based on NHTSA's preliminary projections and is subject to revision.</li>
+          <li>Fatalities by road user type (2020&ndash;2023) are final FARS counts.</li>
+          <li>Per-class VMT rates use FHWA VM-1 data matched to FARS occupant fatality counts for the corresponding vehicle type.</li>
+        </ul>
+
         <h3>Limitations</h3>
         <ul>
-          <li>Does not control for miles driven per vehicle (VMT). Vehicles driven more miles/year will accumulate more exposure.</li>
+          <li><strong>IIHS data:</strong> Does not control for miles driven per vehicle (VMT). Vehicles driven more miles/year will accumulate more exposure.</li>
           <li>Does not separate highway vs. urban driving patterns, which differ by vehicle type.</li>
           <li>Specific drivetrain configurations (2WD vs 4WD) are listed where IIHS reported them separately &mdash; rates can differ significantly.</li>
           <li>Small sample sizes for rare vehicles can produce volatile rates (a single death can swing the rate dramatically).</li>
+          <li><strong>NHTSA/FARS data:</strong> VMT normalization is only available at the vehicle-class level, not per make/model. Class-level rates mask variation within each category.</li>
+          <li>FHWA VMT estimates are modeled from traffic counts and may not perfectly reflect actual travel.</li>
         </ul>
 
-        <p style="margin-top:14px;"><a href="https://www.iihs.org/ratings/driver-death-rates-by-make-and-model" target="_blank">Full IIHS dataset &rarr;</a> &nbsp;|&nbsp; <a href="https://www.iihs.org/news/detail/latest-driver-death-rates-highlight-dangers-of-muscle-cars" target="_blank">IIHS press release &rarr;</a></p>
+        <h3>Sources</h3>
+        <p style="margin-top:8px;">
+          <a href="https://www.iihs.org/ratings/driver-death-rates-by-make-and-model" target="_blank">IIHS driver death rates &rarr;</a> &nbsp;|&nbsp;
+          <a href="https://www.iihs.org/news/detail/latest-driver-death-rates-highlight-dangers-of-muscle-cars" target="_blank">IIHS press release &rarr;</a><br>
+          <a href="https://www.nhtsa.gov/data/fatality-analysis-reporting-system-fars" target="_blank">NHTSA FARS database &rarr;</a> &nbsp;|&nbsp;
+          <a href="https://crashstats.nhtsa.dot.gov/Api/Public/ViewPublication/813597" target="_blank">NHTSA Traffic Safety Facts &rarr;</a><br>
+          <a href="https://www.fhwa.dot.gov/policyinformation/statistics/2022/vm1.cfm" target="_blank">FHWA Table VM-1 &rarr;</a>
+        </p>
       </div>
     </section>
   </div>
@@ -560,6 +704,35 @@
     ];
 
     const OVERALL_AVG = { driver: 38, other: 53 };
+
+    // ================================================================
+    // NHTSA FARS National Data
+    // Sources: NHTSA FARS, FHWA VM-1, NHTSA Traffic Safety Facts
+    // ================================================================
+
+    const FARS_NATIONAL = [
+      { year: 2020, fatalities: 39007, vmt: 2.83, rate: 1.34 },
+      { year: 2021, fatalities: 42939, vmt: 3.13, rate: 1.37 },
+      { year: 2022, fatalities: 42721, vmt: 3.19, rate: 1.34 },
+      { year: 2023, fatalities: 40901, vmt: 3.25, rate: 1.26 },
+      { year: 2024, fatalities: 39345, vmt: 3.28, rate: 1.20, estimate: true }
+    ];
+
+    // Fatalities by road user type (final FARS counts, 2020-2023)
+    const FARS_BY_TYPE = [
+      { year: 2020, passengerCar: 10230, lightTruck: 11399, motorcycle: 5579, pedestrian: 6516, pedalcyclist: 938 },
+      { year: 2021, passengerCar: 10897, lightTruck: 12818, motorcycle: 5932, pedestrian: 7485, pedalcyclist: 966 },
+      { year: 2022, passengerCar: 10710, lightTruck: 12808, motorcycle: 6218, pedestrian: 7502, pedalcyclist: 1048 },
+      { year: 2023, passengerCar: 10096, lightTruck: 12314, motorcycle: 6108, pedestrian: 7318, pedalcyclist: 1075 }
+    ];
+
+    // Occupant fatality rates per 100M VMT by vehicle class
+    const FARS_CLASS_RATES = [
+      { year: 2020, passengerCar: 1.20, lightTruck: 0.73, motorcycle: 30.05, overall: 1.34 },
+      { year: 2021, passengerCar: 1.25, lightTruck: 0.79, motorcycle: 31.64, overall: 1.37 },
+      { year: 2022, passengerCar: 1.19, lightTruck: 0.76, motorcycle: 32.47, overall: 1.34 },
+      { year: 2023, passengerCar: 1.08, lightTruck: 0.65, motorcycle: 31.39, overall: 1.26 }
+    ];
 
     // ================================================================
     // State
@@ -889,12 +1062,348 @@
     }
 
     // ================================================================
+    // NHTSA Chart A: National Fatality Trends (dual-axis bar+line)
+    // ================================================================
+    function renderNationalChart() {
+      const canvas = document.getElementById('nationalChart');
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const isDark = document.documentElement.classList.contains('dark');
+      const textColor = isDark ? '#e0e0e0' : '#1a1a1a';
+      const mutedColor = isDark ? '#999' : '#666';
+      const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+      const font = getComputedStyle(document.body).fontFamily;
+
+      const wrap = canvas.parentElement;
+      const W = wrap.clientWidth - 32;
+      const H = Math.min(300, Math.max(220, W * 0.45));
+
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, W, H);
+
+      const padL = 60, padR = 55, padT = 20, padB = 40;
+      const plotW = W - padL - padR;
+      const plotH = H - padT - padB;
+      const n = FARS_NATIONAL.length;
+      const barW = Math.min(50, plotW / n * 0.55);
+      const gap = plotW / n;
+
+      // Scales
+      const maxFat = Math.max(...FARS_NATIONAL.map(d => d.fatalities)) * 1.12;
+      const minRate = Math.min(...FARS_NATIONAL.map(d => d.rate)) - 0.05;
+      const maxRate = Math.max(...FARS_NATIONAL.map(d => d.rate)) + 0.05;
+
+      function yFat(v) { return padT + plotH - (v / maxFat) * plotH; }
+      function yRate(v) { return padT + plotH - ((v - minRate) / (maxRate - minRate)) * plotH; }
+      function xCenter(i) { return padL + gap * i + gap / 2; }
+
+      // Grid lines (fatalities axis)
+      ctx.strokeStyle = gridColor;
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const v = (maxFat / 4) * i;
+        const y = yFat(v);
+        ctx.beginPath();
+        ctx.moveTo(padL, y);
+        ctx.lineTo(W - padR, y);
+        ctx.stroke();
+      }
+
+      // Bars
+      FARS_NATIONAL.forEach((d, i) => {
+        const x = xCenter(i) - barW / 2;
+        const y = yFat(d.fatalities);
+        const h = yFat(0) - y;
+        ctx.fillStyle = d.estimate
+          ? getComputedStyle(document.documentElement).getPropertyValue('--fars-estimate').trim()
+          : getComputedStyle(document.documentElement).getPropertyValue('--fars-bar').trim();
+        ctx.beginPath();
+        ctx.roundRect(x, y, barW, h, [3, 3, 0, 0]);
+        ctx.fill();
+
+        // Year label
+        ctx.fillStyle = mutedColor;
+        ctx.font = '10px ' + font;
+        ctx.textAlign = 'center';
+        ctx.fillText(d.year + (d.estimate ? '*' : ''), xCenter(i), H - padB + 16);
+
+        // Fatality count on bar
+        ctx.fillStyle = textColor;
+        ctx.font = '10px ' + font;
+        ctx.fillText((d.fatalities / 1000).toFixed(1) + 'k', xCenter(i), y - 6);
+      });
+
+      // Line (rate)
+      const lineColor = getComputedStyle(document.documentElement).getPropertyValue('--fars-line').trim();
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      FARS_NATIONAL.forEach((d, i) => {
+        const x = xCenter(i);
+        const y = yRate(d.rate);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Dots + rate labels
+      FARS_NATIONAL.forEach((d, i) => {
+        const x = xCenter(i);
+        const y = yRate(d.rate);
+        ctx.fillStyle = lineColor;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = isDark ? '#fff' : lineColor;
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = lineColor;
+        ctx.font = 'bold 10px ' + font;
+        ctx.textAlign = 'center';
+        ctx.fillText(d.rate.toFixed(2), x, y - 10);
+      });
+
+      // Left axis label
+      ctx.save();
+      ctx.fillStyle = mutedColor;
+      ctx.font = '9px ' + font;
+      ctx.translate(12, padT + plotH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.fillText('Total Fatalities', 0, 0);
+      ctx.restore();
+
+      // Right axis label
+      ctx.save();
+      ctx.fillStyle = lineColor;
+      ctx.font = '9px ' + font;
+      ctx.translate(W - 8, padT + plotH / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.fillText('Rate / 100M VMT', 0, 0);
+      ctx.restore();
+
+      // Left axis ticks
+      ctx.fillStyle = mutedColor;
+      ctx.font = '9px ' + font;
+      ctx.textAlign = 'right';
+      for (let i = 0; i <= 4; i++) {
+        const v = (maxFat / 4) * i;
+        ctx.fillText(Math.round(v / 1000) + 'k', padL - 6, yFat(v) + 3);
+      }
+
+      // Right axis ticks
+      ctx.fillStyle = lineColor;
+      ctx.textAlign = 'left';
+      const rSteps = 4;
+      for (let i = 0; i <= rSteps; i++) {
+        const v = minRate + ((maxRate - minRate) / rSteps) * i;
+        ctx.fillText(v.toFixed(2), W - padR + 6, yRate(v) + 3);
+      }
+    }
+
+    // ================================================================
+    // NHTSA Chart B: Fatalities by Road User Type (stacked bars)
+    // ================================================================
+    function renderUserTypeChart() {
+      const canvas = document.getElementById('userTypeChart');
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const isDark = document.documentElement.classList.contains('dark');
+      const textColor = isDark ? '#e0e0e0' : '#1a1a1a';
+      const mutedColor = isDark ? '#999' : '#666';
+      const font = getComputedStyle(document.body).fontFamily;
+      const cs = getComputedStyle(document.documentElement);
+
+      const categories = [
+        { key: 'passengerCar', label: 'Passenger Car', color: cs.getPropertyValue('--fars-passenger').trim() },
+        { key: 'lightTruck',   label: 'Light Truck',   color: cs.getPropertyValue('--fars-light-truck').trim() },
+        { key: 'motorcycle',   label: 'Motorcycle',    color: cs.getPropertyValue('--fars-motorcycle').trim() },
+        { key: 'pedestrian',   label: 'Pedestrian',    color: cs.getPropertyValue('--fars-pedestrian').trim() },
+        { key: 'pedalcyclist', label: 'Pedalcyclist',   color: cs.getPropertyValue('--fars-pedalcyclist').trim() }
+      ];
+
+      // Populate legend
+      const legendEl = document.getElementById('userTypeLegend');
+      legendEl.innerHTML = categories.map(c =>
+        `<div class="legend-item"><div class="legend-swatch" style="background:${c.color}"></div> ${c.label}</div>`
+      ).join('');
+
+      const wrap = canvas.parentElement;
+      const W = wrap.clientWidth - 32;
+      const H = Math.min(280, Math.max(200, W * 0.42));
+
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, W, H);
+
+      const padL = 55, padR = 20, padT = 15, padB = 35;
+      const plotW = W - padL - padR;
+      const plotH = H - padT - padB;
+      const n = FARS_BY_TYPE.length;
+      const barW = Math.min(55, plotW / n * 0.55);
+      const gap = plotW / n;
+
+      const maxTotal = Math.max(...FARS_BY_TYPE.map(d =>
+        categories.reduce((s, c) => s + d[c.key], 0)
+      )) * 1.08;
+
+      function yVal(v) { return padT + plotH - (v / maxTotal) * plotH; }
+      function xCenter(i) { return padL + gap * i + gap / 2; }
+
+      // Stacked bars
+      FARS_BY_TYPE.forEach((d, i) => {
+        let cumulative = 0;
+        categories.forEach(cat => {
+          const val = d[cat.key];
+          const yTop = yVal(cumulative + val);
+          const yBot = yVal(cumulative);
+          ctx.fillStyle = cat.color;
+          ctx.fillRect(xCenter(i) - barW / 2, yTop, barW, yBot - yTop);
+          cumulative += val;
+        });
+
+        // Year label
+        ctx.fillStyle = mutedColor;
+        ctx.font = '10px ' + font;
+        ctx.textAlign = 'center';
+        ctx.fillText(d.year, xCenter(i), H - padB + 16);
+
+        // Total label
+        const total = categories.reduce((s, c) => s + d[c.key], 0);
+        ctx.fillStyle = textColor;
+        ctx.font = '10px ' + font;
+        ctx.fillText((total / 1000).toFixed(1) + 'k', xCenter(i), yVal(total) - 6);
+      });
+
+      // Y axis ticks
+      ctx.fillStyle = mutedColor;
+      ctx.font = '9px ' + font;
+      ctx.textAlign = 'right';
+      for (let i = 0; i <= 4; i++) {
+        const v = (maxTotal / 4) * i;
+        ctx.fillText(Math.round(v / 1000) + 'k', padL - 6, yVal(v) + 3);
+      }
+
+      // Populate summary cards for 2023
+      const latest = FARS_BY_TYPE[FARS_BY_TYPE.length - 1];
+      const total2023 = categories.reduce((s, c) => s + latest[c.key], 0);
+      document.getElementById('utPassengerPct').textContent = Math.round(latest.passengerCar / total2023 * 100) + '%';
+      document.getElementById('utTruckPct').textContent = Math.round(latest.lightTruck / total2023 * 100) + '%';
+      document.getElementById('utMotoPct').textContent = Math.round(latest.motorcycle / total2023 * 100) + '%';
+      document.getElementById('utVulnerablePct').textContent = Math.round((latest.pedestrian + latest.pedalcyclist) / total2023 * 100) + '%';
+    }
+
+    // ================================================================
+    // NHTSA Chart C: Fatality Rate by Vehicle Class (horizontal bars)
+    // ================================================================
+    let classRateYear = 2023;
+
+    function initClassRateToggle() {
+      const toggle = document.getElementById('classRateYearToggle');
+      FARS_CLASS_RATES.forEach(d => {
+        const btn = document.createElement('button');
+        btn.className = 'toggle-btn' + (d.year === classRateYear ? ' active' : '');
+        btn.textContent = d.year;
+        btn.addEventListener('click', () => {
+          classRateYear = d.year;
+          toggle.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          renderClassRateChart(d.year);
+        });
+        toggle.appendChild(btn);
+      });
+    }
+
+    function renderClassRateChart(year) {
+      year = year || classRateYear;
+      const data = FARS_CLASS_RATES.find(d => d.year === year);
+      if (!data) return;
+
+      const canvas = document.getElementById('classRateChart');
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const isDark = document.documentElement.classList.contains('dark');
+      const textColor = isDark ? '#e0e0e0' : '#1a1a1a';
+      const mutedColor = isDark ? '#999' : '#666';
+      const font = getComputedStyle(document.body).fontFamily;
+      const cs = getComputedStyle(document.documentElement);
+
+      const bars = [
+        { label: 'Passenger Car', value: data.passengerCar, color: cs.getPropertyValue('--fars-passenger').trim() },
+        { label: 'Light Truck',   value: data.lightTruck,   color: cs.getPropertyValue('--fars-light-truck').trim() },
+        { label: 'Overall',       value: data.overall,      color: cs.getPropertyValue('--fars-overall').trim() }
+      ];
+
+      const wrap = canvas.parentElement;
+      const W = wrap.clientWidth - 32;
+      const barH = 34;
+      const barGap = 14;
+      const H = 20 + bars.length * (barH + barGap) + 10;
+
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, W, H);
+
+      const labelW = 110;
+      const rateW = 50;
+      const padR = 10;
+      const barAreaW = W - labelW - rateW - padR;
+      const maxVal = Math.max(...bars.map(b => b.value)) * 1.15;
+
+      bars.forEach((b, i) => {
+        const y = 20 + i * (barH + barGap);
+        const bw = Math.max(2, (b.value / maxVal) * barAreaW);
+
+        // Label
+        ctx.fillStyle = textColor;
+        ctx.font = '11px ' + font;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(b.label, labelW - 8, y + barH / 2);
+
+        // Bar
+        ctx.fillStyle = b.color;
+        ctx.beginPath();
+        ctx.roundRect(labelW, y, bw, barH, 3);
+        ctx.fill();
+
+        // Value
+        ctx.fillStyle = textColor;
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 11px ' + font;
+        ctx.fillText(b.value.toFixed(2), labelW + bw + 6, y + barH / 2);
+      });
+
+      // Update motorcycle callout
+      document.getElementById('motoCalloutRate').textContent = data.motorcycle.toFixed(2);
+      document.getElementById('motoCalloutDetail').textContent = 'per 100M VMT (' + year + ')';
+    }
+
+    // ================================================================
     // Resize handler
     // ================================================================
     let resizeTimer;
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => renderChart(), 150);
+      resizeTimer = setTimeout(() => {
+        renderChart();
+        renderNationalChart();
+        renderUserTypeChart();
+        renderClassRateChart();
+      }, 150);
     });
 
     // ================================================================
@@ -903,6 +1412,10 @@
     initFilters();
     applyFilters();
     renderClassAverages();
+    renderNationalChart();
+    renderUserTypeChart();
+    initClassRateToggle();
+    renderClassRateChart();
   </script>
   <script>
     (function() {
@@ -919,6 +1432,11 @@
         var isDark = next === 'dark' || (!next && window.matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.classList.toggle('dark', isDark);
         label();
+        // Re-render all canvas charts with updated theme colors
+        if (typeof renderChart === 'function') renderChart();
+        if (typeof renderNationalChart === 'function') renderNationalChart();
+        if (typeof renderUserTypeChart === 'function') renderUserTypeChart();
+        if (typeof renderClassRateChart === 'function') renderClassRateChart();
       });
       label();
       document.body.appendChild(btn);
