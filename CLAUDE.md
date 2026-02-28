@@ -35,6 +35,32 @@ Personal static website hosted at rayhe.net. Collection of interactive tools and
 - **FARS per-model**: 142 models with 50+ occupant deaths (2019–2023), parsed from FARS bulk CSV ZIPs via `fars_process.py`. Estimated VMT rates use sales-based fleet estimates × NHTS class-average annual miles
 - `fars_process.py` — Python script that downloads/caches FARS ZIPs from static.nhtsa.gov, parses vehicle.csv, aggregates deaths by make/model, estimates fleet and VMT, outputs JS array. Cached ZIPs stored in `.fars_cache/`
 
+### Annual FARS Per-Model Update Procedure
+
+NHTSA typically releases final FARS data for the prior year in late fall (e.g., 2024 data available ~Oct 2025). To update:
+
+1. **Update `fars_process.py`**:
+   - Change `FARS_YEARS` list — add the new year, optionally drop the oldest to keep a 5-year window (e.g., `[2020, 2021, 2022, 2023, 2024]`)
+   - Add any new popular models to `SALES_DATA` dict (check if new top-sellers are missing)
+   - Add body class mappings in `BODY_CLASS_MAP` for any new models
+   - Add model name collapse rules in `MODEL_COLLAPSE` if FARS reports new trim variants
+2. **Delete cached ZIP for re-download** (if re-running same year with updated data): `rm .fars_cache/FARS{YEAR}.zip`
+3. **Run the script**: `python3 fars_process.py 2>fars_process.log 1>fars_output.js`
+   - Review stderr log for warnings (missing columns, unmatched models)
+   - Review stdout output — filter to clean entries (no numeric model codes, no "Unknown" class, no "/" in make names)
+4. **Replace `FARS_BY_MODEL` array** in `vehicle-safety.html` with the cleaned output
+5. **Update year ranges** in the HTML:
+   - Section title: "FARS Fatalities by Vehicle Model (2019–2023)" → update years
+   - `fars-note` paragraph below the chart
+   - Methodology section text referencing "2019–2023"
+6. **Also update other FARS sections** if new national/class-level data is available:
+   - `FARS_NATIONAL` array — add new year's fatalities/VMT/rate
+   - `FARS_BY_TYPE` array — add new year's breakdown by road user type
+   - `FARS_CLASS_RATES` array — add new year's per-class rates
+   - Update summary card text (e.g., "2024 Fatalities (est.)" → "2025 Fatalities (est.)")
+7. **Verify**: check in browser (light/dark mode, mobile, all charts render, search/sort/filter work)
+8. **Commit and push**
+
 ## Style Conventions
 
 - Monospace font stack: `'SF Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace`
