@@ -382,6 +382,49 @@
       font-style: italic;
     }
 
+    /* Model compare: tabs + panels */
+    .model-tabs {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .model-tab {
+      flex: 1;
+      padding: 10px 16px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 600;
+      border: none;
+      background: var(--card-bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .model-tab + .model-tab { border-left: 1px solid var(--border); }
+    .model-tab.active { background: var(--accent); color: #fff; }
+    .model-panel { display: none; }
+    .model-panel.active { display: block; }
+    .panel-label {
+      display: none;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
+
+    @media (min-width: 1401px) {
+      .container { max-width: 1860px; }
+      .model-tabs { display: none; }
+      .model-panels { display: flex; gap: 24px; }
+      .model-panel { display: block !important; flex: 1; min-width: 0; }
+      .panel-label { display: block; }
+    }
+
     @media (max-width: 600px) {
       h1 { font-size: 1.4rem; }
       .summary-cards { grid-template-columns: 1fr 1fr; }
@@ -401,6 +444,16 @@
       <h1>Vehicle Safety Ratings</h1>
       <p class="subtitle">IIHS driver death rates, NHTSA FARS national trends &amp; per-model fatality data</p>
     </header>
+
+    <!-- Model Compare: IIHS vs FARS Per-Model -->
+    <div class="model-compare">
+      <div class="model-tabs">
+        <button class="model-tab active" data-panel="iihs">IIHS Per-Model</button>
+        <button class="model-tab" data-panel="fars">FARS Per-Model</button>
+      </div>
+      <div class="model-panels">
+        <div class="model-panel active" id="panelIihs">
+          <div class="panel-label">IIHS Per-Model &mdash; Driver Death Rates</div>
 
     <!-- Summary Cards -->
     <div class="summary-cards" id="summaryCards">
@@ -490,6 +543,99 @@
       <div class="class-grid" id="classGrid"></div>
     </section>
 
+        </div><!-- /panelIihs -->
+
+        <div class="model-panel" id="panelFars">
+          <div class="panel-label">FARS Per-Model &mdash; All Occupant Fatalities (2019&ndash;2023)</div>
+
+    <!-- FARS Per-Model Fatalities -->
+    <section class="section">
+      <div class="summary-cards" id="farsModelSummary">
+        <div class="summary-card">
+          <div class="label">Models Tracked</div>
+          <div class="value" id="fmCount">&mdash;</div>
+          <div class="detail">with 50+ occupant deaths</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Highest Raw Count</div>
+          <div class="value" style="font-size:1rem;" id="fmHighCount">&mdash;</div>
+          <div class="detail" id="fmHighCountDetail"></div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Highest Est. Rate</div>
+          <div class="value" style="font-size:1rem;" id="fmHighRate">&mdash;</div>
+          <div class="detail" id="fmHighRateDetail">per 100M est. VMT</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Lowest Est. Rate</div>
+          <div class="value" style="font-size:1rem;" id="fmLowRate">&mdash;</div>
+          <div class="detail" id="fmLowRateDetail">per 100M est. VMT</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <input type="text" id="fmSearch" placeholder="Search make or model..." oninput="applyFarsFilters()">
+        <select id="fmClassFilter" onchange="applyFarsFilters()">
+          <option value="">All Classes</option>
+          <option value="Sedan">Sedan</option>
+          <option value="SUV">SUV</option>
+          <option value="Pickup">Pickup</option>
+          <option value="Van">Van</option>
+          <option value="Sports Car">Sports Car</option>
+        </select>
+        <select id="fmSort" onchange="applyFarsFilters()">
+          <option value="deaths-desc" selected>Deaths (high to low)</option>
+          <option value="rate-desc">Est. Rate (high to low)</option>
+          <option value="rate-asc">Est. Rate (low to high)</option>
+          <option value="make">Make (A-Z)</option>
+        </select>
+        <div class="toggle-group">
+          <button class="toggle-btn active" onclick="setFarsMetric('deaths')" id="fmBtnDeaths">Raw Deaths</button>
+          <button class="toggle-btn" onclick="setFarsMetric('rate')" id="fmBtnRate">Est. Rate / 100M VMT</button>
+        </div>
+      </div>
+
+      <div class="legend" id="fmLegend">
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--cls-sedan)"></div> Sedan</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--cls-suv)"></div> SUV</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--cls-pickup)"></div> Pickup</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--cls-van)"></div> Van</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--cls-sports)"></div> Sports Car</div>
+      </div>
+
+      <div class="count-label" id="fmChartCount"></div>
+      <div class="chart-wrap">
+        <canvas id="farsModelChart"></canvas>
+      </div>
+
+      <p class="fars-note">Data from NHTSA FARS 2019&ndash;2023 bulk CSV. Covers ALL occupant fatalities in vehicles involved in fatal crashes, all model years on the road. Estimated rates use sales-based fleet estimates &times; NHTS class-average annual miles&mdash;see Methodology for caveats.</p>
+    </section>
+
+    <!-- FARS Per-Model Data Table -->
+    <section class="section">
+      <div class="count-label" id="fmTableCount"></div>
+      <div class="table-wrap" style="max-height:500px;overflow-y:auto;">
+        <table id="fmTable">
+          <thead>
+            <tr>
+              <th data-fmcol="rank"># <span class="sort-arrow">&#9650;</span></th>
+              <th data-fmcol="vehicle">Vehicle <span class="sort-arrow">&#9650;</span></th>
+              <th data-fmcol="class">Class <span class="sort-arrow">&#9650;</span></th>
+              <th data-fmcol="deaths" class="sorted">5yr Deaths <span class="sort-arrow">&#9660;</span></th>
+              <th data-fmcol="annual">Annual Avg <span class="sort-arrow">&#9650;</span></th>
+              <th data-fmcol="fleet">Est. Fleet <span class="sort-arrow">&#9650;</span></th>
+              <th data-fmcol="rate">Est. Rate <span class="sort-arrow">&#9650;</span></th>
+            </tr>
+          </thead>
+          <tbody id="fmTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+        </div><!-- /panelFars -->
+      </div><!-- /model-panels -->
+    </div><!-- /model-compare -->
+
     <!-- NHTSA Section A: National Fatality Trends -->
     <section class="section">
       <div class="section-title">National Traffic Fatality Trends (NHTSA FARS, 2020&ndash;2024)</div>
@@ -565,92 +711,6 @@
         </div>
       </div>
       <p class="fars-note">Rates calculated from NHTSA FARS fatality counts and FHWA VM-1 vehicle miles traveled. Per-model VMT is not publicly available; these rates apply at the broad vehicle-class level only.</p>
-    </section>
-
-    <!-- FARS Per-Model Fatalities -->
-    <section class="section">
-      <div class="section-title">FARS Fatalities by Vehicle Model (2019&ndash;2023)</div>
-      <div class="summary-cards" id="farsModelSummary">
-        <div class="summary-card">
-          <div class="label">Models Tracked</div>
-          <div class="value" id="fmCount">—</div>
-          <div class="detail">with 50+ occupant deaths</div>
-        </div>
-        <div class="summary-card">
-          <div class="label">Highest Raw Count</div>
-          <div class="value" style="font-size:1rem;" id="fmHighCount">—</div>
-          <div class="detail" id="fmHighCountDetail"></div>
-        </div>
-        <div class="summary-card">
-          <div class="label">Highest Est. Rate</div>
-          <div class="value" style="font-size:1rem;" id="fmHighRate">—</div>
-          <div class="detail" id="fmHighRateDetail">per 100M est. VMT</div>
-        </div>
-        <div class="summary-card">
-          <div class="label">Lowest Est. Rate</div>
-          <div class="value" style="font-size:1rem;" id="fmLowRate">—</div>
-          <div class="detail" id="fmLowRateDetail">per 100M est. VMT</div>
-        </div>
-      </div>
-
-      <div class="controls">
-        <input type="text" id="fmSearch" placeholder="Search make or model..." oninput="applyFarsFilters()">
-        <select id="fmClassFilter" onchange="applyFarsFilters()">
-          <option value="">All Classes</option>
-          <option value="Sedan">Sedan</option>
-          <option value="SUV">SUV</option>
-          <option value="Pickup">Pickup</option>
-          <option value="Van">Van</option>
-          <option value="Sports Car">Sports Car</option>
-        </select>
-        <select id="fmSort" onchange="applyFarsFilters()">
-          <option value="deaths-desc" selected>Deaths (high to low)</option>
-          <option value="rate-desc">Est. Rate (high to low)</option>
-          <option value="rate-asc">Est. Rate (low to high)</option>
-          <option value="make">Make (A-Z)</option>
-        </select>
-        <div class="toggle-group">
-          <button class="toggle-btn active" onclick="setFarsMetric('deaths')" id="fmBtnDeaths">Raw Deaths</button>
-          <button class="toggle-btn" onclick="setFarsMetric('rate')" id="fmBtnRate">Est. Rate / 100M VMT</button>
-        </div>
-      </div>
-
-      <div class="legend" id="fmLegend">
-        <div class="legend-item"><div class="legend-swatch" style="background:var(--cls-sedan)"></div> Sedan</div>
-        <div class="legend-item"><div class="legend-swatch" style="background:var(--cls-suv)"></div> SUV</div>
-        <div class="legend-item"><div class="legend-swatch" style="background:var(--cls-pickup)"></div> Pickup</div>
-        <div class="legend-item"><div class="legend-swatch" style="background:var(--cls-van)"></div> Van</div>
-        <div class="legend-item"><div class="legend-swatch" style="background:var(--cls-sports)"></div> Sports Car</div>
-      </div>
-
-      <div class="count-label" id="fmChartCount"></div>
-      <div class="chart-wrap">
-        <canvas id="farsModelChart"></canvas>
-      </div>
-
-      <p class="fars-note">Data from NHTSA FARS 2019&ndash;2023 bulk CSV. Covers ALL occupant fatalities in vehicles involved in fatal crashes, all model years on the road. Estimated rates use sales-based fleet estimates &times; NHTS class-average annual miles&mdash;see Methodology for caveats.</p>
-    </section>
-
-    <!-- FARS Per-Model Data Table -->
-    <section class="section">
-      <div class="section-title">FARS Per-Model Data Table</div>
-      <div class="count-label" id="fmTableCount"></div>
-      <div class="table-wrap" style="max-height:500px;overflow-y:auto;">
-        <table id="fmTable">
-          <thead>
-            <tr>
-              <th data-fmcol="rank"># <span class="sort-arrow">&#9650;</span></th>
-              <th data-fmcol="vehicle">Vehicle <span class="sort-arrow">&#9650;</span></th>
-              <th data-fmcol="class">Class <span class="sort-arrow">&#9650;</span></th>
-              <th data-fmcol="deaths" class="sorted">5yr Deaths <span class="sort-arrow">&#9660;</span></th>
-              <th data-fmcol="annual">Annual Avg <span class="sort-arrow">&#9650;</span></th>
-              <th data-fmcol="fleet">Est. Fleet <span class="sort-arrow">&#9650;</span></th>
-              <th data-fmcol="rate">Est. Rate <span class="sort-arrow">&#9650;</span></th>
-            </tr>
-          </thead>
-          <tbody id="fmTableBody"></tbody>
-        </table>
-      </div>
     </section>
 
     <!-- Methodology -->
@@ -1887,6 +1947,22 @@
 
         renderFarsModelTable();
         renderFarsModelChart();
+      });
+    });
+
+    // ================================================================
+    // Model Compare: tab switching
+    // ================================================================
+    document.querySelectorAll('.model-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.model-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.model-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        const panelId = tab.dataset.panel === 'iihs' ? 'panelIihs' : 'panelFars';
+        document.getElementById(panelId).classList.add('active');
+        // Re-render chart in newly visible panel (canvas needs visible parent for sizing)
+        if (tab.dataset.panel === 'iihs') { renderChart(); }
+        else { renderFarsModelChart(); }
       });
     });
 
