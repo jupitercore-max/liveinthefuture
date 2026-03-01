@@ -88,6 +88,7 @@ MODEL_COLLAPSE = {
     '2500 TRADESMAN': '2500', '2500 LARAMIE': '2500', '2500 BIG HORN': '2500',
     '2500 LIMITED': '2500', '2500 POWER WAGON': '2500',
     '3500 TRADESMAN': '3500', '3500 LARAMIE': '3500', '3500 LIMITED': '3500',
+    '300C': '300', '300S': '300', '300 TOURING': '300', '300 LIMITED': '300',
     'CHARGER SXT': 'CHARGER', 'CHARGER R/T': 'CHARGER', 'CHARGER GT': 'CHARGER',
     'CHALLENGER SXT': 'CHALLENGER', 'CHALLENGER R/T': 'CHALLENGER', 'CHALLENGER GT': 'CHALLENGER',
     'GRAND CHEROKEE LAREDO': 'GRAND CHEROKEE', 'GRAND CHEROKEE LIMITED': 'GRAND CHEROKEE',
@@ -103,6 +104,20 @@ MODEL_COLLAPSE = {
     'OUTBACK PREMIUM': 'OUTBACK', 'OUTBACK LIMITED': 'OUTBACK', 'OUTBACK TOURING': 'OUTBACK',
     'FORESTER PREMIUM': 'FORESTER', 'FORESTER LIMITED': 'FORESTER', 'FORESTER SPORT': 'FORESTER',
     'CROSSTREK PREMIUM': 'CROSSTREK', 'CROSSTREK LIMITED': 'CROSSTREK', 'CROSSTREK SPORT': 'CROSSTREK',
+    # Scion models reported under Toyota in FARS
+    'SCION TC': 'TC', 'SCION XB': 'XB', 'SCION XD': 'XD', 'SCION XA': 'XA',
+    'SCION FR-S': 'FR-S',
+    # Nissan variants
+    'VERSA NOTE': 'VERSA',
+    # GMC variants
+    'YUKON XL': 'YUKON', 'JIMMY UTILITY': 'JIMMY',
+    # Chevrolet variants
+    'SILVERADO 1500 LD': 'SILVERADO 1500',
+    # Saturn series consolidation
+    'SL2': 'S SERIES', 'SL1': 'S SERIES', 'SL': 'S SERIES', 'SC2': 'S SERIES', 'SC1': 'S SERIES', 'SW2': 'S SERIES',
+    'LW200': 'L SERIES', 'LW300': 'L SERIES', 'L200': 'L SERIES', 'L300': 'L SERIES',
+    # Mitsubishi
+    'OUTLANDER SPORT': 'OUTLANDER',
     # Jeep
     'WRANGLER SPORT': 'WRANGLER', 'WRANGLER SAHARA': 'WRANGLER', 'WRANGLER RUBICON': 'WRANGLER',
     'CHEROKEE LATITUDE': 'CHEROKEE', 'CHEROKEE LIMITED': 'CHEROKEE', 'CHEROKEE TRAILHAWK': 'CHEROKEE',
@@ -110,13 +125,50 @@ MODEL_COLLAPSE = {
     # VW
     'JETTA S': 'JETTA', 'JETTA SE': 'JETTA', 'JETTA SEL': 'JETTA',
     'TIGUAN S': 'TIGUAN', 'TIGUAN SE': 'TIGUAN', 'TIGUAN SEL': 'TIGUAN',
-    # BMW
+    # BMW — collapse specific models to series names
     '3 SERIES 330I': '3 SERIES', '3 SERIES 330I XDRIVE': '3 SERIES',
+    '328I': '3 SERIES', '325I': '3 SERIES', '335I': '3 SERIES', '330I': '3 SERIES',
+    '320I': '3 SERIES', '325CI': '3 SERIES', '325XI': '3 SERIES', '328XI': '3 SERIES',
+    '330CI': '3 SERIES', '330XI': '3 SERIES', '335XI': '3 SERIES', '340I': '3 SERIES',
+    '528I': '5 SERIES', '535I': '5 SERIES', '525I': '5 SERIES', '530I': '5 SERIES',
+    '550I': '5 SERIES', '540I': '5 SERIES', '535XI': '5 SERIES', '528XI': '5 SERIES',
+    '745LI': '7 SERIES', '750LI': '7 SERIES', '740I': '7 SERIES', '750I': '7 SERIES',
+    '760LI': '7 SERIES', '745I': '7 SERIES',
     'X3 SDRIVE30I': 'X3', 'X3 XDRIVE30I': 'X3', 'X5 XDRIVE40I': 'X5',
+    'X5 XDRIVE35I': 'X5', 'X5 4.4I': 'X5', 'X5 3.0I': 'X5',
+    'X3 3.0I': 'X3', 'X3 XDRIVE28I': 'X3',
+    'Z3 2.5I': 'Z3', 'Z3 3.0I': 'Z3', 'Z4 3.0I': 'Z4', 'Z4 SDRIVE30I': 'Z4',
+    'M5': 'M5', 'M6': 'M6',
     # Mercedes
     'C-CLASS C300': 'C-CLASS', 'C-CLASS C 300': 'C-CLASS',
+    'C300': 'C-CLASS', 'C230': 'C-CLASS', 'C240': 'C-CLASS', 'C280': 'C-CLASS', 'C320': 'C-CLASS', 'C350': 'C-CLASS',
     'E-CLASS E350': 'E-CLASS', 'E-CLASS E 350': 'E-CLASS',
+    'E350': 'E-CLASS', 'E320': 'E-CLASS', 'E500': 'E-CLASS', 'E550': 'E-CLASS', 'E300': 'E-CLASS',
+    'S500': 'S-CLASS', 'S550': 'S-CLASS', 'S430': 'S-CLASS', 'S600': 'S-CLASS',
+    'CLA250': 'CLA-CLASS', 'CLA 250': 'CLA-CLASS',
+    'GLE350': 'GLE-CLASS', 'GLE 350': 'GLE-CLASS',
     'GLE-CLASS GLE 350': 'GLE-CLASS',
+    'GLC300': 'GLC-CLASS', 'GLC 300': 'GLC-CLASS',
+    'GLK350': 'GLK-CLASS', 'GLK 350': 'GLK-CLASS',
+    'GL450': 'GL-CLASS', 'GL 450': 'GL-CLASS', 'GL550': 'GL-CLASS',
+    'ML350': 'ML-CLASS', 'ML 350': 'ML-CLASS', 'ML320': 'ML-CLASS', 'ML500': 'ML-CLASS',
+    # Audi
+    'A4 2.0T': 'A4', 'A4 QUATTRO': 'A4',
+    'A6 3.0T': 'A6', 'A6 QUATTRO': 'A6',
+    'Q5 2.0T': 'Q5', 'Q5 QUATTRO': 'Q5',
+    'Q7 3.0T': 'Q7', 'Q7 QUATTRO': 'Q7',
+    # Lexus
+    'ES 350': 'ES', 'ES350': 'ES', 'ES 300': 'ES', 'ES300': 'ES',
+    'IS 250': 'IS', 'IS250': 'IS', 'IS 350': 'IS', 'IS350': 'IS', 'IS 300': 'IS',
+    'RX 350': 'RX', 'RX350': 'RX', 'RX 300': 'RX', 'RX330': 'RX', 'RX 330': 'RX',
+    'GS 350': 'GS', 'GS350': 'GS', 'GS 300': 'GS', 'GS300': 'GS',
+    'LS 430': 'LS', 'LS430': 'LS', 'LS 460': 'LS', 'LS460': 'LS',
+    'GX 470': 'GX', 'GX470': 'GX', 'GX 460': 'GX', 'GX460': 'GX',
+    'LX 470': 'LX', 'LX470': 'LX', 'LX 570': 'LX', 'LX570': 'LX',
+    'NX 200T': 'NX', 'NX200T': 'NX', 'NX 300': 'NX', 'NX300': 'NX',
+    # Infiniti
+    'G35 COUPE': 'G35', 'G35 SEDAN': 'G35', 'G37 COUPE': 'G37', 'G37 SEDAN': 'G37',
+    'FX35 AWD': 'FX35',
 }
 
 # Make name normalization
@@ -133,6 +185,9 @@ MAKE_NORMALIZE = {
     'PONTIAC': 'Pontiac', 'SATURN': 'Saturn', 'MERCURY': 'Mercury',
     'SCION': 'Scion', 'FIAT': 'Fiat', 'MINI': 'Mini',
     'LAND ROVER': 'Land Rover', 'JAGUAR': 'Jaguar', 'PORSCHE': 'Porsche',
+    'OLDSMOBILE': 'Oldsmobile', 'ISUZU': 'Isuzu', 'SUZUKI': 'Suzuki',
+    'GEO': 'Geo', 'PLYMOUTH': 'Plymouth', 'HUMMER': 'Hummer',
+    'DAEWOO': 'Daewoo', 'SAAB': 'Saab',
 }
 
 # Vehicle class assignment based on make+model
@@ -165,12 +220,113 @@ BODY_CLASS_MAP = {
     ('BMW', '3 SERIES'): 'Sedan', ('BMW', '5 SERIES'): 'Sedan',
     ('Mercedes-Benz', 'C-CLASS'): 'Sedan', ('Mercedes-Benz', 'E-CLASS'): 'Sedan',
     ('Lexus', 'ES'): 'Sedan', ('Lexus', 'IS'): 'Sedan',
-    ('Acura', 'TLX'): 'Sedan', ('Acura', 'ILX'): 'Sedan',
+    ('Acura', 'TLX'): 'Sedan', ('Acura', 'ILX'): 'Sedan', ('Acura', 'CL'): 'Sedan',
     ('Infiniti', 'Q50'): 'Sedan',
     ('Audi', 'A4'): 'Sedan', ('Audi', 'A6'): 'Sedan',
     ('Cadillac', 'CTS'): 'Sedan', ('Cadillac', 'ATS'): 'Sedan',
     ('Volvo', 'S60'): 'Sedan', ('Tesla', 'MODEL 3'): 'Sedan', ('Tesla', 'MODEL S'): 'Sedan',
     ('Lincoln', 'MKZ'): 'Sedan', ('Pontiac', 'G6'): 'Sedan',
+    ('Mercury', 'GRAND MARQUIS'): 'Sedan', ('Ford', 'CROWN VICTORIA'): 'Sedan',
+    ('Buick', 'LESABRE'): 'Sedan', ('Buick', 'CENTURY'): 'Sedan',
+    ('Buick', 'LUCERNE'): 'Sedan', ('Buick', 'PARK AVENUE'): 'Sedan',
+    ('Pontiac', 'GRAND AM'): 'Sedan', ('Pontiac', 'GRAND PRIX'): 'Sedan',
+    ('Pontiac', 'BONNEVILLE'): 'Sedan', ('Pontiac', 'SUNFIRE'): 'Sedan',
+    ('Saturn', 'ION'): 'Sedan', ('Saturn', 'L SERIES'): 'Sedan',
+    ('Saturn', 'S SERIES'): 'Sedan', ('Saturn', 'AURA'): 'Sedan',
+    ('Oldsmobile', 'ALERO'): 'Sedan', ('Oldsmobile', 'INTRIGUE'): 'Sedan',
+    ('Mercury', 'SABLE'): 'Sedan', ('Mercury', 'MILAN'): 'Sedan',
+    ('Mercury', 'MOUNTAINEER'): 'SUV', ('Mercury', 'MARINER'): 'SUV',
+    ('Chrysler', 'SEBRING'): 'Sedan', ('Chrysler', 'PT CRUISER'): 'Sedan',
+    ('Chrysler', '200'): 'Sedan', ('Chrysler', 'CONCORDE'): 'Sedan',
+    ('Dodge', 'STRATUS'): 'Sedan', ('Dodge', 'NEON'): 'Sedan',
+    ('Dodge', 'AVENGER'): 'Sedan', ('Dodge', 'DART'): 'Sedan',
+    ('Dodge', 'INTREPID'): 'Sedan', ('Dodge', 'MAGNUM'): 'Sedan',
+    ('Dodge', 'CALIBER'): 'Sedan',
+    ('Ford', 'FIVE HUNDRED'): 'Sedan', ('Ford', 'CONTOUR'): 'Sedan',
+    ('Chevrolet', 'CAVALIER'): 'Sedan', ('Chevrolet', 'MONTE CARLO'): 'Sedan',
+    ('Chevrolet', 'AVEO'): 'Sedan', ('Chevrolet', 'LUMINA'): 'Sedan',
+    ('Chevrolet', 'PRIZM'): 'Sedan', ('Chevrolet', 'HHR'): 'Sedan',
+    ('Toyota', 'TERCEL'): 'Sedan', ('Toyota', 'ECHO'): 'Sedan',
+    ('Toyota', 'MATRIX'): 'Sedan', ('Toyota', 'SOLARA'): 'Sedan',
+    ('Toyota', 'CELICA'): 'Sports Car', ('Toyota', 'SUPRA'): 'Sports Car',
+    ('Toyota', 'PICK-UP'): 'Pickup',
+    ('Honda', 'DEL SOL'): 'Sedan',
+    ('Nissan', 'XTERRA'): 'SUV', ('Nissan', 'QUEST'): 'Van', ('Nissan', '350Z'): 'Sports Car',
+    ('Nissan', 'CUBE'): 'Sedan', ('Nissan', 'JUKE'): 'SUV',
+    ('Hyundai', 'TIBURON'): 'Sports Car', ('Hyundai', 'VELOSTER'): 'Sports Car',
+    ('Hyundai', 'XG350'): 'Sedan', ('Hyundai', 'GENESIS'): 'Sedan',
+    ('Kia', 'SPECTRA'): 'Sedan', ('Kia', 'AMANTI'): 'Sedan',
+    ('Mitsubishi', 'GALANT'): 'Sedan', ('Mitsubishi', 'ECLIPSE'): 'Sports Car',
+    ('Mitsubishi', 'ENDEAVOR'): 'SUV', ('Mitsubishi', 'MONTERO'): 'SUV',
+    ('Subaru', 'TRIBECA'): 'SUV', ('Subaru', 'BAJA'): 'Pickup',
+    ('Mazda', 'MX-5'): 'Sports Car', ('Mazda', 'TRIBUTE'): 'SUV',
+    ('Mazda', 'MPV'): 'Van', ('Mazda', 'PROTEGE'): 'Sedan', ('Mazda', 'MAZDA5'): 'Van',
+    ('Mazda', 'B-SERIES'): 'Pickup',
+    ('Mazda', 'CX-30'): 'SUV',
+    ('Volkswagen', 'GOLF'): 'Sedan', ('Volkswagen', 'BEETLE'): 'Sedan',
+    ('Volkswagen', 'CC'): 'Sedan', ('Volkswagen', 'TOUAREG'): 'SUV',
+    ('Scion', 'TC'): 'Sports Car', ('Scion', 'XB'): 'Sedan',
+    ('Scion', 'XD'): 'Sedan',
+    ('Toyota', 'TC'): 'Sports Car', ('Toyota', 'XB'): 'Sedan',
+    ('Toyota', 'XD'): 'Sedan', ('Toyota', 'XA'): 'Sedan',
+    ('Lincoln', 'TOWN CAR'): 'Sedan', ('Lincoln', 'CONTINENTAL'): 'Sedan',
+    ('Lincoln', 'MKX'): 'SUV', ('Lincoln', 'LS'): 'Sedan',
+    ('Cadillac', 'DEVILLE'): 'Sedan', ('Cadillac', 'SRX'): 'SUV',
+    ('Cadillac', 'STS'): 'Sedan', ('Cadillac', 'SEVILLE'): 'Sedan', ('Cadillac', 'DTS'): 'Sedan',
+    ('Cadillac', 'ELDORADO'): 'Sedan', ('Cadillac', 'XTS'): 'Sedan',
+    ('Acura', 'TL'): 'Sedan', ('Acura', 'TSX'): 'Sedan',
+    ('Acura', 'RSX'): 'Sports Car', ('Acura', 'INTEGRA'): 'Sedan',
+    ('Infiniti', 'G35'): 'Sedan', ('Infiniti', 'G37'): 'Sedan',
+    ('Infiniti', 'FX35'): 'SUV', ('Infiniti', 'FX45'): 'SUV',
+    ('Infiniti', 'QX56'): 'SUV',
+    ('Audi', 'A3'): 'Sedan', ('Audi', 'Q3'): 'SUV',
+    ('BMW', '5 SERIES'): 'Sedan', ('BMW', '7 SERIES'): 'Sedan',
+    ('BMW', 'X1'): 'SUV', ('BMW', 'X6'): 'SUV',
+    ('Volvo', 'S40'): 'Sedan', ('Volvo', 'S80'): 'Sedan',
+    ('Volvo', 'XC70'): 'SUV', ('Volvo', 'V70'): 'Sedan',
+    ('Land Rover', 'RANGE ROVER SPORT'): 'SUV', ('Land Rover', 'LR3'): 'SUV',
+    ('Porsche', '911'): 'Sports Car', ('Porsche', 'BOXSTER'): 'Sports Car',
+    ('Jaguar', 'X-TYPE'): 'Sedan', ('Jaguar', 'S-TYPE'): 'Sedan',
+    ('Jaguar', 'XF'): 'Sedan',
+    ('Isuzu', 'RODEO'): 'SUV', ('Isuzu', 'TROOPER'): 'SUV',
+    ('Suzuki', 'GRAND VITARA'): 'SUV', ('Suzuki', 'VITARA'): 'SUV',
+    ('Suzuki', 'FORENZA'): 'Sedan', ('Suzuki', 'SX4'): 'Sedan',
+    ('Fiat', '500'): 'Sedan',
+    ('Mini', 'COOPER'): 'Sedan',
+    ('Geo', 'METRO'): 'Sedan', ('Geo', 'PRIZM'): 'Sedan',
+    ('Chrysler', 'TOWN AND COUNTRY'): 'Van',
+    ('Dodge', 'DAKOTA'): 'Pickup', ('Dodge', 'NITRO'): 'SUV',
+    ('Chevrolet', 'TRAILBLAZER'): 'SUV', ('Chevrolet', 'S-10 PICKUP'): 'Pickup',
+    ('Chevrolet', 'UPLANDER'): 'Van', ('Chevrolet', 'VENTURE'): 'Van',
+    ('Chevrolet', 'AVALANCHE'): 'Pickup', ('Chevrolet', 'ASTRO VAN'): 'Van',
+    ('Chevrolet', 'GMT-400'): 'Pickup', ('Chevrolet', 'C/K PICKUP'): 'Pickup',
+    ('Chevrolet', 'TRACKER'): 'SUV',
+    ('Ford', 'WINDSTAR'): 'Van', ('Ford', 'FREESTAR'): 'Van',
+    ('Ford', 'EXCURSION'): 'SUV', ('Ford', 'FREESTYLE'): 'SUV',
+    ('Ford', 'FLEX'): 'SUV', ('Ford', 'ESCORT'): 'Sedan',
+    ('Ford', 'TRANSIT CONNECT'): 'Van',
+    ('Ford', 'E-150'): 'Van', ('Ford', 'E-250'): 'Van', ('Ford', 'E-350'): 'Van',
+    ('GMC', 'ENVOY'): 'SUV', ('GMC', 'JIMMY'): 'SUV',
+    ('GMC', 'SONOMA'): 'Pickup',
+    ('Jeep', 'LIBERTY'): 'SUV', ('Jeep', 'PATRIOT'): 'SUV',
+    ('Jeep', 'COMMANDER'): 'SUV',
+    ('Pontiac', 'VIBE'): 'Sedan', ('Pontiac', 'AZTEK'): 'SUV',
+    ('Pontiac', 'MONTANA'): 'Van', ('Pontiac', 'TORRENT'): 'SUV',
+    ('Saturn', 'VUE'): 'SUV', ('Saturn', 'OUTLOOK'): 'SUV',
+    ('Saturn', 'RELAY'): 'Van',
+    ('Oldsmobile', 'SILHOUETTE'): 'Van', ('Oldsmobile', 'BRAVADA'): 'SUV',
+    ('Toyota', 'LAND CRUISER'): 'SUV', ('Toyota', 'FJ CRUISER'): 'SUV',
+    ('Honda', 'ELEMENT'): 'SUV', ('Honda', 'RIDGELINE'): 'Pickup',
+    ('Nissan', 'NV200'): 'Van', ('Nissan', 'PICKUP'): 'Pickup',
+    ('Hyundai', 'SANTA FE SPORT'): 'SUV', ('Hyundai', 'ENTOURAGE'): 'Van',
+    ('Kia', 'BORREGO'): 'SUV',
+    ('Ram', 'PROMASTER CITY'): 'Van',
+    ('Dodge', 'CARAVAN'): 'Van',
+    ('Mercedes-Benz', 'S-CLASS'): 'Sedan', ('Mercedes-Benz', 'CLA-CLASS'): 'Sedan',
+    ('Mercedes-Benz', 'GL-CLASS'): 'SUV', ('Mercedes-Benz', 'ML-CLASS'): 'SUV',
+    ('Mercedes-Benz', 'GLK-CLASS'): 'SUV', ('Mercedes-Benz', 'M-CLASS'): 'SUV',
+    ('Lexus', 'GS'): 'Sedan', ('Lexus', 'LS'): 'Sedan',
+    ('Lexus', 'GX'): 'SUV', ('Lexus', 'LX'): 'SUV',
 
     # Sports cars
     ('Chevrolet', 'CAMARO'): 'Sports Car', ('Ford', 'MUSTANG'): 'Sports Car',
@@ -368,8 +524,8 @@ SALES_DATA = {
     ('Ford', 'ECOSPORT'): 55000,
     ('Ford', 'BRONCO'): 50000,
     ('Mitsubishi', 'MIRAGE'): 20000,
-    ('Pontiac', 'G6'): 0,  # discontinued
-    ('Saturn', 'VUE'): 0,  # discontinued
+    ('Pontiac', 'G6'): 55000,  # discontinued 2010
+    ('Saturn', 'VUE'): 40000,  # discontinued 2010
 
     # Generic model names (FARS sometimes reports without trim/variant)
     ('Chevrolet', 'SILVERADO'): 650000,  # sum of 1500/2500/3500, mostly 1500
@@ -407,6 +563,227 @@ SALES_DATA = {
     ('Audi', 'A6'): 20000,
     ('Nissan', 'MAXIMA'): 30000,  # already present but ensuring match
     ('Cadillac', 'CTS'): 20000,
+
+    # Discontinued models with significant on-road fleet
+    ('Mercury', 'GRAND MARQUIS'): 50000,  # discontinued 2011
+    ('Ford', 'CROWN VICTORIA'): 60000,  # discontinued 2011, huge fleet (police + taxi)
+    ('Buick', 'LESABRE'): 50000,  # discontinued 2005
+    ('Buick', 'CENTURY'): 35000,  # discontinued 2005
+    ('Buick', 'LUCERNE'): 25000,  # discontinued 2011
+    ('Buick', 'PARK AVENUE'): 20000,  # discontinued 2005
+    ('Pontiac', 'GRAND AM'): 60000,  # discontinued 2005
+    ('Pontiac', 'GRAND PRIX'): 45000,  # discontinued 2008
+    ('Pontiac', 'BONNEVILLE'): 25000,  # discontinued 2005
+    ('Pontiac', 'SUNFIRE'): 30000,  # discontinued 2005
+    ('Saturn', 'ION'): 30000,  # discontinued 2007
+    ('Saturn', 'L SERIES'): 15000,  # discontinued 2004
+    ('Saturn', 'S SERIES'): 20000,  # discontinued 2002
+    ('Oldsmobile', 'ALERO'): 30000,  # discontinued 2004
+    ('Mercury', 'SABLE'): 30000,  # discontinued 2009
+    ('Mercury', 'MOUNTAINEER'): 20000,  # discontinued 2010
+    ('Chrysler', 'SEBRING'): 40000,  # discontinued 2010
+    ('Chrysler', 'PT CRUISER'): 50000,  # discontinued 2010
+    ('Chrysler', '200'): 65000,  # discontinued 2017
+    ('Chrysler', 'TOWN AND COUNTRY'): 100000,  # discontinued 2016
+    ('Dodge', 'STRATUS'): 40000,  # discontinued 2006
+    ('Dodge', 'NEON'): 40000,  # discontinued 2005
+    ('Dodge', 'AVENGER'): 50000,  # discontinued 2014
+    ('Dodge', 'DART'): 50000,  # discontinued 2016
+    ('Dodge', 'INTREPID'): 30000,  # discontinued 2004
+    ('Dodge', 'MAGNUM'): 20000,  # discontinued 2008
+    ('Dodge', 'CALIBER'): 40000,  # discontinued 2012
+    ('Dodge', 'DAKOTA'): 40000,  # discontinued 2011
+    ('Dodge', 'NITRO'): 20000,  # discontinued 2011
+    ('Ford', 'FIVE HUNDRED'): 15000,  # 2005-2007 only
+    ('Chevrolet', 'CAVALIER'): 50000,  # discontinued 2005
+    ('Chevrolet', 'MONTE CARLO'): 25000,  # discontinued 2007
+    ('Chevrolet', 'AVEO'): 20000,  # discontinued 2011
+    ('Chevrolet', 'HHR'): 25000,  # discontinued 2011
+    ('Chevrolet', 'TRAILBLAZER'): 80000,  # discontinued 2009 (old), revived 2021
+    ('Chevrolet', 'S-10 PICKUP'): 25000,  # discontinued 2004
+    ('Chevrolet', 'VENTURE'): 15000,  # discontinued 2005
+    ('Ford', 'WINDSTAR'): 25000,  # discontinued 2003
+    ('Ford', 'EXCURSION'): 10000,  # discontinued 2005
+    ('Ford', 'FLEX'): 20000,  # discontinued 2019
+    ('GMC', 'ENVOY'): 40000,  # discontinued 2009
+    ('Jeep', 'LIBERTY'): 60000,  # discontinued 2012
+    ('Jeep', 'PATRIOT'): 40000,  # discontinued 2017
+    ('Jeep', 'COMMANDER'): 15000,  # discontinued 2010
+    ('Pontiac', 'VIBE'): 25000,  # discontinued 2010
+    ('Toyota', 'MATRIX'): 25000,  # discontinued 2013
+    ('Toyota', 'SOLARA'): 15000,  # discontinued 2008
+    ('Toyota', 'FJ CRUISER'): 20000,  # discontinued 2014
+    ('Honda', 'ELEMENT'): 20000,  # discontinued 2011
+    ('Honda', 'RIDGELINE'): 30000,
+    ('Nissan', 'XTERRA'): 30000,  # discontinued 2015
+    ('Nissan', 'QUEST'): 15000,  # discontinued 2017
+    ('Mazda', 'MX-5'): 8000,
+    ('Mazda', 'TRIBUTE'): 20000,  # discontinued 2011
+    ('Volkswagen', 'GOLF'): 30000,
+    ('Volkswagen', 'BEETLE'): 15000,  # discontinued 2019
+    ('Scion', 'TC'): 15000,  # discontinued 2016
+    ('Scion', 'XB'): 10000,  # discontinued 2015
+    ('Lincoln', 'TOWN CAR'): 30000,  # discontinued 2011
+    ('Lincoln', 'MKX'): 25000,  # discontinued 2018 (now Nautilus)
+    ('Cadillac', 'DEVILLE'): 30000,  # discontinued 2005
+    ('Cadillac', 'SRX'): 30000,  # discontinued 2016 (now XT5)
+    ('Cadillac', 'XTS'): 20000,  # discontinued 2019
+    ('Acura', 'TL'): 30000,  # discontinued 2014
+    ('Infiniti', 'G35'): 25000,  # discontinued 2008
+    ('Infiniti', 'G37'): 25000,  # discontinued 2013
+    ('Infiniti', 'QX56'): 15000,  # now QX80
+    ('Mercury', 'MARINER'): 20000,  # discontinued 2011
+    ('Mercury', 'MILAN'): 20000,  # discontinued 2011
+    ('Mitsubishi', 'GALANT'): 15000,  # discontinued 2012
+    ('Mitsubishi', 'ECLIPSE'): 15000,  # discontinued 2012 (car; Eclipse Cross is different)
+    ('Hyundai', 'TIBURON'): 10000,  # discontinued 2008
+    ('Saturn', 'AURA'): 15000,  # discontinued 2009
+    ('Saturn', 'OUTLOOK'): 15000,  # discontinued 2010
+    ('Kia', 'SPECTRA'): 15000,  # discontinued 2009
+    ('Dodge', 'CARAVAN'): 50000,  # some FARS entries without "GRAND"
+    ('Isuzu', 'RODEO'): 15000,  # discontinued 2004
+    ('Suzuki', 'GRAND VITARA'): 10000,  # discontinued 2013
+    ('Oldsmobile', 'INTRIGUE'): 15000,  # discontinued 2002
+    ('Acura', 'TSX'): 20000,  # discontinued 2014
+    ('Hyundai', 'SANTA FE SPORT'): 80000,  # now just Santa Fe
+    ('Volvo', 'XC70'): 10000,  # discontinued 2016
+    ('BMW', '5 SERIES'): 40000,
+    ('Cadillac', 'STS'): 10000,  # discontinued 2011
+    ('Fiat', '500'): 15000,  # discontinued 2019
+    ('Mini', 'COOPER'): 20000,
+    ('Mazda', 'CX-30'): 40000,
+    ('Volkswagen', 'CC'): 10000,  # discontinued 2017
+    ('Volkswagen', 'TOUAREG'): 10000,  # discontinued 2017 in US
+    ('Acura', 'TLX'): 30000,
+    ('Acura', 'ILX'): 15000,
+    ('Hyundai', 'PALISADE'): 60000,
+    ('Kia', 'TELLURIDE'): 70000,
+    ('Lexus', 'NX'): 50000,
+    ('Lexus', 'GS'): 15000,  # discontinued 2020
+    ('Lexus', 'LS'): 8000,
+    ('Lexus', 'GX'): 30000,
+    ('Lexus', 'LX'): 5000,
+    ('Mercedes-Benz', 'S-CLASS'): 15000, ('Mercedes-Benz', 'M-CLASS'): 35000,
+    ('Mercedes-Benz', 'CLA-CLASS'): 20000,
+    ('Mercedes-Benz', 'GL-CLASS'): 30000,  # now GLS
+    ('Mercedes-Benz', 'ML-CLASS'): 35000,  # now GLE
+    ('Mercedes-Benz', 'GLK-CLASS'): 20000,  # now GLC
+    ('BMW', '7 SERIES'): 10000,
+    ('BMW', 'Z3'): 5000,  # discontinued 2002
+    ('BMW', 'Z4'): 5000,
+    ('BMW', 'M5'): 5000,
+    ('BMW', 'X1'): 30000,
+    ('Infiniti', 'FX35'): 20000,  # now QX70
+    ('Audi', 'Q5'): 40000,
+    ('Audi', 'Q7'): 25000,
+    ('Audi', 'A3'): 15000,
+    ('Ford', 'BRONCO'): 50000,
+    ('Chevrolet', 'BLAZER'): 60000,
+    ('Kia', 'K5'): 30000,
+    ('Hyundai', 'VENUE'): 20000,
+    ('Chevrolet', 'MONTE CARLO'): 25000,  # discontinued 2007
+    ('Ford', 'FREESTAR'): 15000,  # discontinued 2007
+    ('Pontiac', 'AZTEK'): 10000,  # discontinued 2005
+    ('Pontiac', 'TORRENT'): 15000,  # discontinued 2009
+    ('Pontiac', 'MONTANA'): 15000,  # discontinued 2006 (US)
+    ('Oldsmobile', 'BRAVADA'): 15000,  # discontinued 2004
+    ('Saturn', 'RELAY'): 10000,  # discontinued 2007
+    ('Chevrolet', 'UPLANDER'): 15000,  # discontinued 2008
+    ('GMC', 'SONOMA'): 15000,  # discontinued 2004
+    ('GMC', 'JIMMY'): 15000,  # discontinued 2005
+    ('Jeep', 'COMMANDER'): 15000,  # discontinued 2010
+    ('Buick', 'RENDEZVOUS'): 20000,  # discontinued 2007
+    ('Toyota', 'LAND CRUISER'): 5000,
+    ('Honda', 'ELEMENT'): 20000,  # discontinued 2011
+    ('Nissan', 'JUKE'): 15000,  # discontinued 2017
+    ('Nissan', 'NV'): 15000,
+    ('Nissan', 'NV200'): 10000,
+    ('Dodge', 'MAGNUM'): 20000,  # discontinued 2008
+    ('Ford', 'FLEX'): 20000,  # discontinued 2019
+    ('Ford', 'EXCURSION'): 10000,  # discontinued 2005
+    ('Ford', 'FREESTYLE'): 10000,  # discontinued 2007
+    ('Ford', 'WINDSTAR'): 25000,  # discontinued 2003
+    ('Mazda', 'TRIBUTE'): 20000,  # discontinued 2011
+    ('Mazda', 'PROTEGE'): 15000,  # discontinued 2003
+    ('Mazda', 'MPV'): 10000,  # discontinued 2006
+    ('Scion', 'XD'): 8000,  # discontinued 2014
+    ('Volvo', 'S60'): 15000,
+    ('Volvo', 'S40'): 10000,  # discontinued 2011
+    ('Volvo', 'S80'): 8000,  # discontinued 2016
+    ('Volvo', 'V70'): 8000,  # discontinued 2010
+    ('Jaguar', 'X-TYPE'): 8000,  # discontinued 2009
+    ('Jaguar', 'S-TYPE'): 8000,  # discontinued 2008
+    ('Jaguar', 'XF'): 10000,
+    ('Land Rover', 'RANGE ROVER SPORT'): 15000,
+    ('Land Rover', 'LR3'): 10000,  # now Discovery
+    ('Porsche', '911'): 10000,
+    ('Porsche', 'BOXSTER'): 3000,
+    ('Porsche', 'CAYENNE'): 15000,
+    ('Porsche', 'MACAN'): 20000,
+    ('Lincoln', 'CONTINENTAL'): 5000,  # discontinued 2020
+    ('Lincoln', 'LS'): 10000,  # discontinued 2006
+    ('Lincoln', 'AVIATOR'): 15000,
+    ('Cadillac', 'ATS'): 15000,  # discontinued 2019
+    ('Cadillac', 'XT5'): 30000,
+    ('Isuzu', 'RODEO'): 15000,  # discontinued 2004
+    ('Suzuki', 'GRAND VITARA'): 10000,  # discontinued 2013
+    ('Mitsubishi', 'ENDEAVOR'): 10000,  # discontinued 2011
+    ('Mitsubishi', 'MONTERO'): 8000,  # discontinued 2006
+    ('Chrysler', 'CONCORDE'): 15000,  # discontinued 2004
+    ('Dodge', 'AVENGER'): 50000,  # discontinued 2014
+    ('Dodge', 'DART'): 50000,  # discontinued 2016
+    ('Saturn', 'S SERIES'): 20000,  # discontinued 2002
+    ('Saturn', 'L SERIES'): 15000,  # discontinued 2004
+    ('Subaru', 'TRIBECA'): 10000,  # discontinued 2014
+    ('Hyundai', 'GENESIS'): 10000,
+    ('Hyundai', 'XG350'): 5000,  # discontinued 2005
+    ('Kia', 'AMANTI'): 5000,  # discontinued 2009
+    ('Buick', 'LACROSSE'): 40000,  # discontinued 2019
+    ('Buick', 'REGAL'): 15000,  # discontinued 2020
+    ('Buick', 'VERANO'): 15000,  # discontinued 2017
+    ('Buick', 'ENVISION'): 25000,
+    ('Chevrolet', 'AVALANCHE'): 35000,  # discontinued 2013
+    ('Nissan', '350Z'): 10000,  # discontinued 2009
+    ('Nissan', '370Z'): 5000,  # discontinued 2020
+    ('Cadillac', 'DTS'): 20000,  # discontinued 2011
+    ('Acura', 'INTEGRA'): 20000,  # discontinued 2001, revived 2023
+    ('Acura', 'RSX'): 15000,  # discontinued 2006
+    ('Hyundai', 'VELOSTER'): 10000,  # discontinued 2021
+    ('Chevrolet', 'ASTRO VAN'): 15000,  # discontinued 2005
+    ('Chevrolet', 'AVALANCHE'): 35000,  # discontinued 2013
+    ('Chevrolet', 'GMT-400'): 30000,  # FARS platform code for C/K pickups
+    ('Chevrolet', 'C/K PICKUP'): 30000,  # older FARS name
+    ('Chevrolet', 'TRACKER'): 10000,  # discontinued 2004
+    ('Mazda', 'MAZDA5'): 10000,  # discontinued 2015
+    ('Mitsubishi', 'OUTLANDER SPORT'): 30000,  # now just Outlander
+    ('Honda', 'PASSPORT'): 30000,
+    ('Honda', 'INSIGHT'): 10000,
+    ('Toyota', 'VENZA'): 20000,
+    ('Toyota', 'C-HR'): 25000,
+    ('Toyota', 'TERCEL'): 10000,  # discontinued 1999
+    ('Toyota', 'ECHO'): 10000,  # discontinued 2005
+    ('Toyota', 'PICK-UP'): 15000,  # old FARS name for pre-Tacoma pickups
+    ('Toyota', 'TC'): 15000,  # Scion tC reported under Toyota in FARS
+    ('Toyota', 'XB'): 10000,  # Scion xB reported under Toyota
+    ('Toyota', 'XD'): 8000,  # Scion xD reported under Toyota
+    ('Toyota', 'XA'): 8000,  # Scion xA reported under Toyota
+    ('Toyota', 'CELICA'): 15000,  # discontinued 2005
+    ('Ford', 'CONTOUR'): 15000,  # discontinued 2000
+    ('Ford', 'ESCORT'): 30000,  # discontinued 2003
+    ('Ford', 'TRANSIT CONNECT'): 25000,
+    ('Ford', 'E-150'): 20000,  # discontinued 2014
+    ('Ford', 'E-250'): 25000,  # discontinued 2014
+    ('Ford', 'E-350'): 30000,  # discontinued 2014
+    ('Ford', 'FIVE HUNDRED'): 15000,  # 2005-2007
+    ('Chevrolet', 'LUMINA'): 15000,  # discontinued 2001
+    ('Chevrolet', 'PRIZM'): 10000,  # discontinued 2002
+    ('Dodge', 'INTREPID'): 30000,  # discontinued 2004
+    ('Chrysler', 'TOWN AND COUNTRY'): 100000,
+    ('Nissan', 'QUEST'): 15000,  # discontinued 2017
+    ('Nissan', 'PICKUP'): 15000,  # old FARS name for pre-Frontier pickups
+    ('Mazda', 'B-SERIES'): 10000,  # discontinued 2009
+    ('Mini', 'COOPER'): 20000,
+    ('Fiat', '500'): 15000,  # discontinued 2019
 }
 
 # Average annual miles by vehicle class (NHTS data)
@@ -570,8 +947,99 @@ def estimate_vmt(make, model, body_class):
 
 
 def get_body_class(make, model):
-    """Get body class for a make/model from our map."""
-    return BODY_CLASS_MAP.get((make, model), None)
+    """Get body class for a make/model. Uses explicit map first, then keyword heuristics."""
+    # 1. Explicit map lookup
+    cls = BODY_CLASS_MAP.get((make, model))
+    if cls:
+        return cls
+
+    m = model.upper()
+
+    # 2. Pickup keywords
+    pickup_kw = ['PICKUP', 'F-150', 'F-250', 'F-350', 'F-450', 'F-550',
+                  'SILVERADO', 'SIERRA', 'TACOMA', 'TUNDRA', 'RANGER',
+                  'COLORADO', 'CANYON', 'FRONTIER', 'TITAN', 'DAKOTA',
+                  'S-10', 'S10', 'SONOMA', 'RIDGELINE', 'BAJA',
+                  'D-150', 'D-250', 'COMANCHE', 'LUV', 'DATSUN']
+    if any(kw in m for kw in pickup_kw):
+        return 'Pickup'
+
+    # 3. Van/minivan keywords
+    van_kw = ['VAN', 'CARAVAN', 'ODYSSEY', 'SIENNA', 'PACIFICA',
+              'TOWN AND COUNTRY', 'TOWN & COUNTRY', 'WINDSTAR', 'FREESTAR',
+              'VILLAGER', 'QUEST', 'SEDONA', 'CARNIVAL', 'VENTURE',
+              'UPLANDER', 'MONTANA', 'SILHOUETTE', 'RELAY', 'TERRAZA',
+              'TRANSIT', 'EXPRESS', 'SAVANA', 'PROMASTER', 'SPRINTER',
+              'ENTOURAGE', 'MPV', 'PREVIA', 'ESTEEM']
+    if any(kw in m for kw in van_kw):
+        return 'Van'
+
+    # 4. Sports car keywords and specific models
+    sports_kw = ['MUSTANG', 'CAMARO', 'CORVETTE', 'CHALLENGER', 'VIPER',
+                 'MX-5', 'MIATA', '370Z', '350Z', '300ZX', 'Z4', 'Z3',
+                 'BOXSTER', 'CAYMAN', '911', 'GT-R', 'GTR',
+                 'S2000', 'DEL SOL', 'RSX', 'CELICA', 'SUPRA', 'MR2',
+                 'ECLIPSE', 'STEALTH', 'TC', 'TIBURON', 'GENESIS COUPE',
+                 'VELOSTER', 'GTO', 'FIREBIRD', 'TRANS AM', 'SOLSTICE',
+                 'SKY', 'CROSSFIRE', 'PROWLER', 'SPIDER', 'SPYDER',
+                 'ROADSTER', 'ELISE', 'EXIGE', 'EVORA']
+    # Scion tC specifically — avoid matching "tC" substring in other models
+    if any(kw in m for kw in sports_kw):
+        return 'Sports Car'
+
+    # 5. SUV/crossover keywords
+    suv_kw = ['SUV', 'EXPLORER', 'EXPEDITION', 'ESCAPE', 'EDGE', 'BRONCO',
+              'EXCURSION', 'FLEX', 'FREESTYLE', 'ECOSPORT',
+              'EQUINOX', 'TRAVERSE', 'TAHOE', 'SUBURBAN', 'TRAX', 'BLAZER',
+              'TRAILBLAZER',
+              'RAV4', 'HIGHLANDER', '4RUNNER', '4-RUNNER', 'SEQUOIA',
+              'LAND CRUISER', 'FJ CRUISER', 'VENZA', 'C-HR',
+              'CR-V', 'PILOT', 'HR-V', 'PASSPORT', 'ELEMENT',
+              'ROGUE', 'PATHFINDER', 'MURANO', 'ARMADA', 'XTERRA',
+              'KICKS', 'JUKE',
+              'TUCSON', 'SANTA FE', 'KONA', 'PALISADE', 'VENUE',
+              'SORENTO', 'SPORTAGE', 'SELTOS', 'TELLURIDE', 'BORREGO',
+              'DURANGO', 'JOURNEY', 'NITRO', 'CALIBER',
+              'GRAND CHEROKEE', 'CHEROKEE', 'WRANGLER', 'COMPASS',
+              'RENEGADE', 'LIBERTY', 'PATRIOT', 'COMMANDER', 'GLADIATOR',
+              'TERRAIN', 'ACADIA', 'YUKON', 'ENVOY', 'JIMMY',
+              'OUTBACK', 'FORESTER', 'CROSSTREK', 'ASCENT', 'TRIBECA',
+              'TIGUAN', 'ATLAS', 'TOUAREG',
+              'CX-5', 'CX-9', 'CX-3', 'CX-30', 'CX-50', 'TRIBUTE',
+              'OUTLANDER', 'ECLIPSE CROSS', 'ENDEAVOR', 'MONTERO',
+              'ENCORE', 'ENCLAVE', 'ENVISION', 'RENDEZVOUS', 'RAINIER',
+              'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7',
+              'GLE', 'GLC', 'GLK', 'GL-CLASS', 'ML-CLASS', 'GLA', 'GLB',
+              'RX', 'NX', 'UX', 'GX', 'LX',
+              'RDX', 'MDX', 'ZDX',
+              'QX50', 'QX56', 'QX60', 'QX70', 'QX80', 'FX35', 'FX45',
+              'Q5', 'Q7', 'Q3', 'Q8',
+              'ESCALADE', 'XT4', 'XT5', 'XT6', 'SRX',
+              'XC40', 'XC60', 'XC70', 'XC90',
+              'RANGE ROVER', 'DISCOVERY', 'DEFENDER', 'FREELANDER', 'LR',
+              'MODEL X', 'MODEL Y',
+              'NAVIGATOR', 'AVIATOR', 'MKC', 'MKX', 'CORSAIR', 'NAUTILUS',
+              'CAYENNE', 'MACAN',
+              'MOUNTAINEER', 'MARINER',
+              'AZTEK', 'TORRENT',
+              'VUE', 'OUTLOOK',
+              'BRAVADA',
+              'RODEO', 'TROOPER', 'ASCENDER',
+              'GRAND VITARA', 'VITARA', 'XL-7',
+              'TRACKER', 'CAPTIVA', 'EQUATOR',
+              'HUMMER', 'H2', 'H3',
+              'PILOT', 'PASSPORT', 'ELEMENT']
+    if any(kw in m for kw in suv_kw):
+        return 'SUV'
+
+    # 6. Make-based defaults for luxury/sports makes
+    sports_makes = {'Porsche', 'Ferrari', 'Lamborghini', 'Maserati',
+                    'Lotus', 'McLaren', 'Aston Martin'}
+    if make in sports_makes:
+        return 'Sports Car'
+
+    # 7. Default: Sedan (most remaining passenger vehicles are sedans/coupes/hatchbacks)
+    return 'Sedan'
 
 
 def main():
@@ -595,25 +1063,28 @@ def main():
     # Aggregate
     deaths_by_model, vehicle_count = aggregate_deaths(all_records)
 
-    # Filter to models with MIN_DEATHS+ deaths
-    qualifying = {k: v for k, v in deaths_by_model.items() if v >= MIN_DEATHS}
-    print(f'Models with {MIN_DEATHS}+ deaths: {len(qualifying)}', file=sys.stderr)
+    # Filter: include if MIN_DEATHS+ deaths OR if known sales > 1000/year
+    qualifying = {k: v for k, v in deaths_by_model.items()
+                  if v >= MIN_DEATHS or SALES_DATA.get(k, 0) > 1000}
+    print(f'Qualifying models: {len(qualifying)} ({MIN_DEATHS}+ deaths or >1k annual sales)', file=sys.stderr)
 
-    # Build output
+    # Build output — skip junk entries (numeric-only model codes, "/" in make)
     results = []
+    skipped_junk = 0
     for (make, model), total_deaths in sorted(qualifying.items(), key=lambda x: -x[1]):
+        # Skip FARS numeric model codes. Legitimate numeric models are short:
+        # Ram 1500/2500/3500, Chrysler 200/300, Fiat 500, BMW 3/5/7 series variants
+        # FARS junk codes are typically 4-5 digits (12481, 20037, 6441)
+        if re.match(r'^\d+$', model):
+            known_numeric = SALES_DATA.get((make, model), 0) > 0
+            if not known_numeric:
+                skipped_junk += 1
+                continue
+        # Skip entries with "/" in make (e.g. "Nissan/Datsun")
+        if '/' in make:
+            skipped_junk += 1
+            continue
         body_class = get_body_class(make, model)
-        if not body_class:
-            # Try to infer from model name
-            model_upper = model.upper()
-            if any(x in model_upper for x in ['F-150', 'F-250', 'F-350', 'SILVERADO', 'SIERRA', 'RAM', 'TACOMA', 'TUNDRA', 'RANGER', 'COLORADO', 'CANYON', 'FRONTIER', 'TITAN']):
-                body_class = 'Pickup'
-            elif any(x in model_upper for x in ['ODYSSEY', 'SIENNA', 'PACIFICA', 'CARAVAN', 'TRANSIT', 'EXPRESS', 'SAVANA']):
-                body_class = 'Van'
-            elif any(x in model_upper for x in ['CAMARO', 'MUSTANG', 'CHALLENGER', 'CORVETTE', '370Z']):
-                body_class = 'Sports Car'
-            else:
-                body_class = 'Unknown'
 
         annual_deaths = round(total_deaths / len(FARS_YEARS), 1)
         est_registered, est_annual_vmt, est_5yr_vmt = estimate_vmt(make, model, body_class)
@@ -642,11 +1113,12 @@ def main():
 
     # Sort by total deaths descending
     results.sort(key=lambda x: -x['totalDeaths'])
+    print(f'  Skipped {skipped_junk} junk entries (numeric codes, slashed makes)', file=sys.stderr)
 
     # Output as JS array
     print('\n// FARS Per-Model Fatality Data (2019-2023)')
     print('// Generated by fars_process.py')
-    print(f'// {len(results)} models with {MIN_DEATHS}+ occupant deaths over 5 years')
+    print(f'// {len(results)} models with {MIN_DEATHS}+ deaths or >1k annual sales')
     print('// Sources: NHTSA FARS bulk CSV, US vehicle sales (public industry data), NHTS annual miles')
     print('const FARS_BY_MODEL = [')
     for r in results:
