@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 FARS Per-Model Fatality Data Processor
-Downloads FARS 2019-2023 bulk CSV ZIPs from NHTSA, parses vehicle.csv,
+Downloads FARS bulk CSV ZIPs from NHTSA, parses vehicle.csv,
 aggregates occupant deaths by make/model, estimates VMT, and outputs
 a JS-ready FARS_BY_MODEL array.
 """
@@ -16,9 +16,9 @@ import urllib.request
 import zipfile
 from collections import defaultdict
 
-FARS_YEARS = [2019, 2020, 2021, 2022, 2023]
+FARS_YEARS = [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023]
 CACHE_DIR = os.path.join(os.path.dirname(__file__), '.fars_cache')
-MIN_DEATHS = 50  # minimum total deaths across 5 years to include
+MIN_DEATHS = 50  # minimum total deaths across all years to include
 
 # BODY_TYP codes to EXCLUDE (non-passenger vehicles)
 # 50-59: Buses
@@ -625,6 +625,7 @@ SALES_DATA = {
     ('Scion', 'XB'): 10000,  # discontinued 2015
     ('Lincoln', 'TOWN CAR'): 30000,  # discontinued 2011
     ('Lincoln', 'MKX'): 25000,  # discontinued 2018 (now Nautilus)
+    ('Lincoln', 'MKC'): 20000,  # discontinued 2019 (now Corsair)
     ('Cadillac', 'DEVILLE'): 30000,  # discontinued 2005
     ('Cadillac', 'SRX'): 30000,  # discontinued 2016 (now XT5)
     ('Cadillac', 'XTS'): 20000,  # discontinued 2019
@@ -644,11 +645,13 @@ SALES_DATA = {
     ('Isuzu', 'RODEO'): 15000,  # discontinued 2004
     ('Suzuki', 'GRAND VITARA'): 10000,  # discontinued 2013
     ('Oldsmobile', 'INTRIGUE'): 15000,  # discontinued 2002
+    ('Oldsmobile', 'SILHOUETTE'): 10000,  # discontinued 2004
     ('Acura', 'TSX'): 20000,  # discontinued 2014
     ('Hyundai', 'SANTA FE SPORT'): 80000,  # now just Santa Fe
     ('Volvo', 'XC70'): 10000,  # discontinued 2016
     ('BMW', '5 SERIES'): 40000,
     ('Cadillac', 'STS'): 10000,  # discontinued 2011
+    ('Cadillac', 'SEVILLE'): 10000,  # discontinued 2004
     ('Fiat', '500'): 15000,  # discontinued 2019
     ('Mini', 'COOPER'): 20000,
     ('Mazda', 'CX-30'): 40000,
@@ -842,6 +845,390 @@ def normalize_make(make_str):
     return MAKE_NORMALIZE.get(make, make.title())
 
 
+# MAK_MOD code to (make, model) mapping for pre-2019 FARS data
+# These codes use FARS-specific model numbers; we map them to VPIC-style names
+MAK_MOD_MAP = {
+    # Ford
+    '12481': ('Ford', 'F-150'),  # F-Series pickup — mostly F-150
+    '12401': ('Ford', 'EXPLORER'),  # Bronco/Explorer
+    '12003': ('Ford', 'MUSTANG'),
+    '12037': ('Ford', 'FOCUS'),
+    '12017': ('Ford', 'TAURUS'),
+    '12016': ('Ford', 'CROWN VICTORIA'),
+    '12422': ('Ford', 'EXPEDITION'),
+    '12402': ('Ford', 'ESCAPE'),
+    '12023': ('Ford', 'FUSION'),
+    '12471': ('Ford', 'RANGER'),
+    '12461': ('Ford', 'E-350'),  # E-Series Van
+    '12024': ('Ford', 'FIESTA'),
+    '12021': ('Ford', 'EDGE'),
+    '12036': ('Ford', 'FLEX'),
+    '12025': ('Ford', 'TRANSIT'),
+    '12404': ('Ford', 'ECOSPORT'),
+    '12034': ('Ford', 'FIVE HUNDRED'),
+    '12035': ('Ford', 'FREESTYLE'),
+    '12018': ('Ford', 'CONTOUR'),
+    '12019': ('Ford', 'ESCORT'),
+    '12445': ('Ford', 'WINDSTAR'),
+    '12446': ('Ford', 'FREESTAR'),
+    '12423': ('Ford', 'EXCURSION'),
+    # Chevrolet
+    '20481': ('Chevrolet', 'SILVERADO'),  # C/K/Silverado
+    '20002': ('Chevrolet', 'IMPALA'),
+    '20037': ('Chevrolet', 'MALIBU'),
+    '20421': ('Chevrolet', 'TAHOE'),  # Blazer/Tahoe
+    '20016': ('Chevrolet', 'CAVALIER'),
+    '20471': ('Chevrolet', 'S-10 PICKUP'),
+    '20022': ('Chevrolet', 'COBALT'),
+    '20401': ('Chevrolet', 'TRAILBLAZER'),  # S-10 Blazer/TrailBlazer 2002
+    '20403': ('Chevrolet', 'TRAILBLAZER'),  # TrailBlazer 2003+
+    '20009': ('Chevrolet', 'CAMARO'),
+    '20034': ('Chevrolet', 'EQUINOX'),
+    '20038': ('Chevrolet', 'CRUZE'),
+    '20039': ('Chevrolet', 'SONIC'),
+    '20020': ('Chevrolet', 'HHR'),
+    '20033': ('Chevrolet', 'TRAVERSE'),
+    '20007': ('Chevrolet', 'MONTE CARLO'),
+    '20472': ('Chevrolet', 'COLORADO'),
+    '20417': ('Chevrolet', 'SUBURBAN'),
+    '20005': ('Chevrolet', 'CORVETTE'),
+    '20018': ('Chevrolet', 'AVEO'),
+    '20036': ('Chevrolet', 'SPARK'),
+    '20035': ('Chevrolet', 'TRAX'),
+    '20441': ('Chevrolet', 'EXPRESS'),
+    '20021': ('Chevrolet', 'IMPALA'),  # SS variant
+    '20003': ('Chevrolet', 'LUMINA'),
+    '20015': ('Chevrolet', 'PRIZM'),
+    '20443': ('Chevrolet', 'VENTURE'),
+    '20444': ('Chevrolet', 'UPLANDER'),
+    '20442': ('Chevrolet', 'ASTRO VAN'),
+    '20423': ('Chevrolet', 'AVALANCHE'),
+    '20404': ('Chevrolet', 'TRACKER'),
+    '20040': ('Chevrolet', 'BLAZER'),
+    # Toyota
+    '49040': ('Toyota', 'CAMRY'),
+    '49032': ('Toyota', 'COROLLA'),
+    '49472': ('Toyota', 'TACOMA'),
+    '49401': ('Toyota', '4-RUNNER'),
+    '49482': ('Toyota', 'TUNDRA'),
+    '49402': ('Toyota', 'HIGHLANDER'),
+    '49034': ('Toyota', 'RAV4'),
+    '49033': ('Toyota', 'PRIUS'),
+    '49042': ('Toyota', 'AVALON'),
+    '49036': ('Toyota', 'YARIS'),
+    '49035': ('Toyota', 'MATRIX'),
+    '49441': ('Toyota', 'SIENNA'),
+    '49043': ('Toyota', 'SOLARA'),
+    '49417': ('Toyota', 'SEQUOIA'),
+    '49038': ('Toyota', 'C-HR'),
+    '49039': ('Toyota', 'VENZA'),
+    '49481': ('Toyota', 'PICK-UP'),
+    '49404': ('Toyota', 'FJ CRUISER'),
+    '49403': ('Toyota', 'LAND CRUISER'),
+    '49031': ('Toyota', 'TERCEL'),
+    '49030': ('Toyota', 'ECHO'),
+    '49037': ('Toyota', 'COROLLA'),  # Corolla iM
+    '49005': ('Toyota', 'CELICA'),
+    '49007': ('Toyota', 'TC'),  # Scion tC
+    '49009': ('Toyota', 'XB'),  # Scion xB
+    '49008': ('Toyota', 'XD'),  # Scion xD
+    '49006': ('Toyota', 'XA'),  # Scion xA
+    # Honda
+    '37032': ('Honda', 'ACCORD'),
+    '37031': ('Honda', 'CIVIC'),
+    '37402': ('Honda', 'CR-V'),
+    '37033': ('Honda', 'FIT'),
+    '37403': ('Honda', 'PILOT'),
+    '37441': ('Honda', 'ODYSSEY'),
+    '37404': ('Honda', 'ELEMENT'),
+    '37034': ('Honda', 'HR-V'),
+    '37035': ('Honda', 'INSIGHT'),
+    '37472': ('Honda', 'RIDGELINE'),
+    '37405': ('Honda', 'PASSPORT'),
+    # Nissan / Datsun
+    '35047': ('Nissan', 'ALTIMA'),
+    '35043': ('Nissan', 'SENTRA'),
+    '35039': ('Nissan', 'MAXIMA'),
+    '35034': ('Nissan', 'ROGUE'),
+    '35045': ('Nissan', 'VERSA'),
+    '35401': ('Nissan', 'PATHFINDER'),
+    '35402': ('Nissan', 'XTERRA'),
+    '35035': ('Nissan', 'MURANO'),
+    '35403': ('Nissan', 'ARMADA'),
+    '35472': ('Nissan', 'FRONTIER'),
+    '35482': ('Nissan', 'TITAN'),
+    '35048': ('Nissan', 'KICKS'),
+    '35033': ('Nissan', 'JUKE'),
+    '35441': ('Nissan', 'QUEST'),
+    '35046': ('Nissan', 'CUBE'),
+    '35015': ('Nissan', '350Z'),
+    '35016': ('Nissan', '370Z'),
+    '35481': ('Nissan', 'PICKUP'),
+    # Dodge
+    '7482': ('Dodge', 'RAM'),
+    '7442': ('Dodge', 'GRAND CARAVAN'),
+    '7472': ('Dodge', 'DAKOTA'),
+    '7020': ('Dodge', 'NEON'),
+    '7405': ('Dodge', 'DURANGO'),
+    '7019': ('Dodge', 'STRATUS'),
+    '7404': ('Dodge', 'JOURNEY'),
+    '7012': ('Dodge', 'CHARGER'),
+    '7009': ('Dodge', 'CHALLENGER'),
+    '7014': ('Dodge', 'AVENGER'),
+    '7025': ('Dodge', 'DART'),
+    '7021': ('Dodge', 'CALIBER'),
+    '7015': ('Dodge', 'MAGNUM'),
+    '7003': ('Dodge', 'INTREPID'),
+    '7406': ('Dodge', 'NITRO'),
+    '7443': ('Dodge', 'CARAVAN'),
+    # Ram
+    '65482': ('Ram', '1500'),
+    '65483': ('Ram', '2500'),
+    '65484': ('Ram', '3500'),
+    '65441': ('Ram', 'PROMASTER'),
+    # Jeep
+    '2404': ('Jeep', 'CHEROKEE'),
+    '2403': ('Jeep', 'WRANGLER'),
+    '2422': ('Jeep', 'GRAND CHEROKEE'),
+    '2405': ('Jeep', 'LIBERTY'),
+    '2407': ('Jeep', 'COMPASS'),
+    '2406': ('Jeep', 'PATRIOT'),
+    '2408': ('Jeep', 'RENEGADE'),
+    '2423': ('Jeep', 'COMMANDER'),
+    # Chrysler
+    '6441': ('Chrysler', 'TOWN AND COUNTRY'),
+    '6018': ('Chrysler', '300'),
+    '6051': ('Chrysler', 'SEBRING'),
+    '6043': ('Chrysler', 'PT CRUISER'),
+    '6052': ('Chrysler', '200'),
+    '6053': ('Chrysler', 'PACIFICA'),
+    '6003': ('Chrysler', 'CONCORDE'),
+    # GMC
+    '23481': ('GMC', 'SIERRA'),
+    '23401': ('GMC', 'ENVOY'),  # Jimmy/Envoy
+    '23421': ('GMC', 'YUKON'),
+    '23034': ('GMC', 'TERRAIN'),
+    '23033': ('GMC', 'ACADIA'),
+    '23471': ('GMC', 'SONOMA'),
+    '23472': ('GMC', 'CANYON'),
+    '23441': ('GMC', 'SAVANA'),
+    # Hyundai
+    '55035': ('Hyundai', 'ELANTRA'),
+    '55033': ('Hyundai', 'SONATA'),
+    '55401': ('Hyundai', 'TUCSON'),
+    '55402': ('Hyundai', 'SANTA FE'),
+    '55034': ('Hyundai', 'ACCENT'),
+    '55036': ('Hyundai', 'VELOSTER'),
+    '55403': ('Hyundai', 'KONA'),
+    '55404': ('Hyundai', 'PALISADE'),
+    '55037': ('Hyundai', 'GENESIS'),
+    # Kia
+    '56031': ('Kia', 'OPTIMA'),
+    '56032': ('Kia', 'FORTE'),
+    '56401': ('Kia', 'SORENTO'),
+    '56402': ('Kia', 'SPORTAGE'),
+    '56033': ('Kia', 'SOUL'),
+    '56034': ('Kia', 'RIO'),
+    '56441': ('Kia', 'SEDONA'),
+    '56030': ('Kia', 'SPECTRA'),
+    '56403': ('Kia', 'SELTOS'),
+    '56404': ('Kia', 'TELLURIDE'),
+    # Subaru
+    '48034': ('Subaru', 'OUTBACK'),
+    '48033': ('Subaru', 'FORESTER'),
+    '48031': ('Subaru', 'IMPREZA'),
+    '48035': ('Subaru', 'CROSSTREK'),
+    '48032': ('Subaru', 'LEGACY'),
+    '48036': ('Subaru', 'WRX'),
+    '48401': ('Subaru', 'ASCENT'),
+    '48402': ('Subaru', 'TRIBECA'),
+    # Volkswagen
+    '30040': ('Volkswagen', 'JETTA'),
+    '30041': ('Volkswagen', 'PASSAT'),
+    '30037': ('Volkswagen', 'TIGUAN'),
+    '30038': ('Volkswagen', 'ATLAS'),
+    '30031': ('Volkswagen', 'GOLF'),
+    '30034': ('Volkswagen', 'BEETLE'),
+    '30042': ('Volkswagen', 'CC'),
+    '30402': ('Volkswagen', 'TOUAREG'),
+    # Mazda
+    '36035': ('Mazda', 'CX-5'),
+    '36033': ('Mazda', 'MAZDA3'),
+    '36034': ('Mazda', 'MAZDA6'),
+    '36005': ('Mazda', 'MX-5'),
+    '36036': ('Mazda', 'CX-9'),
+    '36037': ('Mazda', 'CX-3'),
+    '36471': ('Mazda', 'B-SERIES'),
+    '36032': ('Mazda', 'PROTEGE'),
+    '36401': ('Mazda', 'TRIBUTE'),
+    '36441': ('Mazda', 'MPV'),
+    '36038': ('Mazda', 'CX-30'),
+    '36442': ('Mazda', 'MAZDA5'),
+    # Mitsubishi
+    '38032': ('Mitsubishi', 'LANCER'),
+    '38034': ('Mitsubishi', 'OUTLANDER'),
+    '38031': ('Mitsubishi', 'GALANT'),
+    '38009': ('Mitsubishi', 'ECLIPSE'),
+    '38033': ('Mitsubishi', 'MIRAGE'),
+    '38401': ('Mitsubishi', 'ENDEAVOR'),
+    '38402': ('Mitsubishi', 'MONTERO'),
+    # Pontiac
+    '22020': ('Pontiac', 'GRAND PRIX'),
+    '22018': ('Pontiac', 'GRAND AM'),
+    '22022': ('Pontiac', 'G6'),
+    '22003': ('Pontiac', 'BONNEVILLE'),
+    '22005': ('Pontiac', 'SUNFIRE'),
+    '22025': ('Pontiac', 'VIBE'),
+    '22405': ('Pontiac', 'AZTEK'),
+    '22402': ('Pontiac', 'TORRENT'),
+    '22441': ('Pontiac', 'MONTANA'),
+    # Buick
+    '18002': ('Buick', 'LESABRE'),
+    '18007': ('Buick', 'CENTURY'),
+    '18008': ('Buick', 'LACROSSE'),
+    '18009': ('Buick', 'LUCERNE'),
+    '18010': ('Buick', 'REGAL'),
+    '18006': ('Buick', 'PARK AVENUE'),
+    '18401': ('Buick', 'ENCORE'),
+    '18402': ('Buick', 'ENCLAVE'),
+    '18011': ('Buick', 'VERANO'),
+    '18403': ('Buick', 'ENVISION'),
+    '18404': ('Buick', 'RENDEZVOUS'),
+    # Saturn
+    '46031': ('Saturn', 'ION'),
+    '46401': ('Saturn', 'VUE'),
+    '46033': ('Saturn', 'AURA'),
+    '46402': ('Saturn', 'OUTLOOK'),
+    '46030': ('Saturn', 'S SERIES'),
+    '46032': ('Saturn', 'L SERIES'),
+    '46441': ('Saturn', 'RELAY'),
+    # Oldsmobile
+    '21031': ('Oldsmobile', 'ALERO'),
+    '21030': ('Oldsmobile', 'INTRIGUE'),
+    '21441': ('Oldsmobile', 'SILHOUETTE'),
+    '21401': ('Oldsmobile', 'BRAVADA'),
+    # Mercury
+    '14006': ('Mercury', 'GRAND MARQUIS'),
+    '14012': ('Mercury', 'SABLE'),
+    '14013': ('Mercury', 'MILAN'),
+    '14401': ('Mercury', 'MOUNTAINEER'),
+    '14402': ('Mercury', 'MARINER'),
+    # Lincoln
+    '13003': ('Lincoln', 'TOWN CAR'),
+    '13421': ('Lincoln', 'NAVIGATOR'),
+    '13010': ('Lincoln', 'MKZ'),
+    '13011': ('Lincoln', 'MKX'),
+    '13009': ('Lincoln', 'LS'),
+    '13012': ('Lincoln', 'MKC'),
+    '13013': ('Lincoln', 'AVIATOR'),
+    '13004': ('Lincoln', 'CONTINENTAL'),
+    # Cadillac
+    '19002': ('Cadillac', 'DEVILLE'),
+    '19007': ('Cadillac', 'CTS'),
+    '19008': ('Cadillac', 'SRX'),
+    '19009': ('Cadillac', 'ESCALADE'),
+    '19006': ('Cadillac', 'STS'),
+    '19010': ('Cadillac', 'ATS'),
+    '19003': ('Cadillac', 'SEVILLE'),
+    '19011': ('Cadillac', 'XT5'),
+    '19012': ('Cadillac', 'XTS'),
+    '19013': ('Cadillac', 'DTS'),
+    # BMW
+    '34034': ('BMW', '3 SERIES'),
+    '34035': ('BMW', '5 SERIES'),
+    '34036': ('BMW', '7 SERIES'),
+    '34401': ('BMW', 'X5'),
+    '34402': ('BMW', 'X3'),
+    '34403': ('BMW', 'X1'),
+    '34006': ('BMW', 'M3'),
+    '34005': ('BMW', 'Z3'),
+    '34007': ('BMW', 'Z4'),
+    '34008': ('BMW', 'M5'),
+    # Mercedes-Benz
+    '32032': ('Mercedes-Benz', 'C-CLASS'),
+    '32031': ('Mercedes-Benz', 'E-CLASS'),
+    '32030': ('Mercedes-Benz', 'S-CLASS'),
+    '32401': ('Mercedes-Benz', 'ML-CLASS'),
+    '32402': ('Mercedes-Benz', 'GL-CLASS'),
+    '32403': ('Mercedes-Benz', 'GLK-CLASS'),
+    '32033': ('Mercedes-Benz', 'CLA-CLASS'),
+    '32034': ('Mercedes-Benz', 'GLE-CLASS'),
+    '32035': ('Mercedes-Benz', 'GLC-CLASS'),
+    '32441': ('Mercedes-Benz', 'SPRINTER'),
+    # Lexus
+    '51033': ('Lexus', 'ES'),
+    '51034': ('Lexus', 'IS'),
+    '51401': ('Lexus', 'RX'),
+    '51032': ('Lexus', 'GS'),
+    '51031': ('Lexus', 'LS'),
+    '51402': ('Lexus', 'GX'),
+    '51403': ('Lexus', 'LX'),
+    '51035': ('Lexus', 'NX'),
+    # Acura
+    '37501': ('Acura', 'TL'),
+    '37503': ('Acura', 'MDX'),
+    '37504': ('Acura', 'RDX'),
+    '37502': ('Acura', 'TSX'),
+    '37505': ('Acura', 'TLX'),
+    '37506': ('Acura', 'ILX'),
+    '37500': ('Acura', 'INTEGRA'),
+    '37507': ('Acura', 'RSX'),
+    # Infiniti
+    '35501': ('Infiniti', 'G35'),
+    '35502': ('Infiniti', 'G37'),
+    '35503': ('Infiniti', 'Q50'),
+    '35504': ('Infiniti', 'FX35'),
+    '35505': ('Infiniti', 'QX56'),
+    '35506': ('Infiniti', 'QX60'),
+    # Audi
+    '33031': ('Audi', 'A4'),
+    '33032': ('Audi', 'A6'),
+    '33033': ('Audi', 'A3'),
+    '33401': ('Audi', 'Q5'),
+    '33402': ('Audi', 'Q7'),
+    # Volvo
+    '43031': ('Volvo', 'S60'),
+    '43032': ('Volvo', 'S40'),
+    '43033': ('Volvo', 'S80'),
+    '43401': ('Volvo', 'XC90'),
+    '43402': ('Volvo', 'XC60'),
+    '43403': ('Volvo', 'XC70'),
+    '43034': ('Volvo', 'V70'),
+    # Tesla
+    '45031': ('Tesla', 'MODEL S'),
+    '45032': ('Tesla', 'MODEL 3'),
+    '45401': ('Tesla', 'MODEL X'),
+    '45402': ('Tesla', 'MODEL Y'),
+    # Scion (separate make code)
+    '52005': ('Toyota', 'TC'),
+    '52006': ('Toyota', 'XB'),
+    '52007': ('Toyota', 'XD'),
+    '52008': ('Toyota', 'XA'),
+    # Isuzu
+    '39401': ('Isuzu', 'RODEO'),
+    # Suzuki
+    '47401': ('Suzuki', 'GRAND VITARA'),
+    # Fiat
+    '57031': ('Fiat', '500'),
+    # Mini
+    '69054': ('Mini', 'COOPER'),  # coded as "Other Import"
+    # Land Rover
+    '10401': ('Land Rover', 'RANGE ROVER'),
+    '10402': ('Land Rover', 'DISCOVERY'),
+    '10404': ('Land Rover', 'RANGE ROVER SPORT'),
+    '10403': ('Land Rover', 'LR3'),
+    # Porsche
+    '44005': ('Porsche', '911'),
+    '44006': ('Porsche', 'BOXSTER'),
+    '44401': ('Porsche', 'CAYENNE'),
+    '44402': ('Porsche', 'MACAN'),
+    # Jaguar
+    '42031': ('Jaguar', 'X-TYPE'),
+    '42032': ('Jaguar', 'S-TYPE'),
+    '42033': ('Jaguar', 'XF'),
+}
+
+
 def parse_vehicle_csv(zip_path, year):
     """Parse vehicle.csv from a FARS ZIP, return list of (make, model, body_typ, deaths)."""
     results = []
@@ -856,31 +1243,40 @@ def parse_vehicle_csv(zip_path, year):
         print(f'  Parsing {vehicle_file} from {year}...', file=sys.stderr)
 
         with zf.open(vehicle_file) as f:
-            reader = csv.DictReader(io.TextIOWrapper(f, encoding='utf-8-sig'))
+            # Read raw bytes and decode — older FARS files use latin-1
+            raw = f.read()
+            try:
+                text = raw.decode('utf-8-sig')
+            except UnicodeDecodeError:
+                text = raw.decode('latin-1')
+            reader = csv.DictReader(io.StringIO(text))
             fields = reader.fieldnames
             print(f'    Fields: {fields[:10]}...', file=sys.stderr)
 
-            # Determine which columns to use
-            make_col = None
-            model_col = None
-            for candidate in ['VPICMAKENAME', 'MAKENAME', 'MAK_MOD']:
-                if candidate in fields:
-                    make_col = candidate
-                    break
-            for candidate in ['VPICMODELNAME', 'MODELNAME', 'MAK_MOD']:
-                if candidate in fields:
-                    model_col = candidate
-                    break
+            # Determine data format
+            has_vpic = 'VPICMAKENAME' in fields
+            has_makename = 'MAKENAME' in fields
+            has_mak_mod = 'MAK_MOD' in fields
 
             body_col = 'BODY_TYP' if 'BODY_TYP' in fields else None
             deaths_col = 'DEATHS' if 'DEATHS' in fields else 'FATALS' if 'FATALS' in fields else None
 
-            if not make_col or not model_col:
-                print(f'    WARNING: Could not find make/model columns. Available: {fields}', file=sys.stderr)
+            if has_vpic:
+                mode = 'vpic'
+                print(f'    Mode: VPIC (specific model names)', file=sys.stderr)
+            elif has_makename:
+                mode = 'makename'
+                print(f'    Mode: MAKENAME + MAK_MOD lookup', file=sys.stderr)
+            elif has_mak_mod:
+                mode = 'mak_mod'
+                print(f'    Mode: MAK_MOD code lookup only', file=sys.stderr)
+            else:
+                print(f'    WARNING: No usable make/model columns. Available: {fields}', file=sys.stderr)
                 return results
 
             count = 0
             skipped_body = 0
+            mak_mod_misses = 0
             for row in reader:
                 try:
                     body_typ = int(row.get(body_col, 0)) if body_col else 0
@@ -896,14 +1292,41 @@ def parse_vehicle_csv(zip_path, year):
                 except (ValueError, TypeError):
                     deaths = 0
 
-                make = row.get(make_col, '').strip()
-                model = row.get(model_col, '').strip()
+                make = None
+                model = None
+
+                if mode == 'vpic':
+                    make = row.get('VPICMAKENAME', '').strip()
+                    model = row.get('VPICMODELNAME', '').strip()
+                elif mode == 'makename':
+                    # Try VPICMODELNAME first (some 2018 files have it)
+                    vpic_model = row.get('VPICMODELNAME', '').strip()
+                    if vpic_model and not vpic_model.isdigit():
+                        make = row.get('VPICMAKENAME', row.get('MAKENAME', '')).strip()
+                        model = vpic_model
+                    else:
+                        # Fall back to MAK_MOD code lookup
+                        mak_mod = row.get('MAK_MOD', '').strip()
+                        if mak_mod in MAK_MOD_MAP:
+                            make, model = MAK_MOD_MAP[mak_mod]
+                        else:
+                            mak_mod_misses += 1
+                            continue
+                elif mode == 'mak_mod':
+                    mak_mod = row.get('MAK_MOD', '').strip()
+                    if mak_mod in MAK_MOD_MAP:
+                        make, model = MAK_MOD_MAP[mak_mod]
+                    else:
+                        mak_mod_misses += 1
+                        continue
 
                 if make and model:
                     results.append((make, model, body_typ, deaths))
                     count += 1
 
             print(f'    Parsed {count} vehicle records, skipped {skipped_body} non-passenger', file=sys.stderr)
+            if mak_mod_misses > 0:
+                print(f'    Skipped {mak_mod_misses} records with unmapped MAK_MOD codes', file=sys.stderr)
 
     return results
 
@@ -939,11 +1362,12 @@ def estimate_vmt(make, model, body_class):
     # Annual miles based on body class
     annual_miles = CLASS_ANNUAL_MILES.get(body_class, 11500)
 
-    # Total VMT over 5 years (in millions of miles)
+    # Total VMT over N years
+    num_years = len(FARS_YEARS)
     est_annual_vmt = est_registered * annual_miles  # miles/year
-    est_5yr_vmt = est_annual_vmt * 5  # miles over 5 years
+    est_total_vmt = est_annual_vmt * num_years  # miles over all years
 
-    return est_registered, est_annual_vmt, est_5yr_vmt
+    return est_registered, est_annual_vmt, est_total_vmt
 
 
 def get_body_class(make, model):
@@ -1087,7 +1511,7 @@ def main():
         body_class = get_body_class(make, model)
 
         annual_deaths = round(total_deaths / len(FARS_YEARS), 1)
-        est_registered, est_annual_vmt, est_5yr_vmt = estimate_vmt(make, model, body_class)
+        est_registered, est_annual_vmt, est_total_vmt = estimate_vmt(make, model, body_class)
 
         entry = {
             'make': make,
@@ -1098,9 +1522,9 @@ def main():
             'crashes': vehicle_count.get((make, model), 0),
         }
 
-        if est_5yr_vmt and est_5yr_vmt > 0:
-            # Rate per 100M VMT over the 5-year period
-            rate = round(total_deaths / (est_5yr_vmt / 100_000_000), 2)
+        if est_total_vmt and est_total_vmt > 0:
+            # Rate per 100M VMT over the full period
+            rate = round(total_deaths / (est_total_vmt / 100_000_000), 2)
             entry['estRegistered'] = est_registered
             entry['estAnnualVMT'] = round(est_annual_vmt / 1_000_000, 0)  # in millions
             entry['estRate'] = rate
@@ -1116,7 +1540,8 @@ def main():
     print(f'  Skipped {skipped_junk} junk entries (numeric codes, slashed makes)', file=sys.stderr)
 
     # Output as JS array
-    print('\n// FARS Per-Model Fatality Data (2019-2023)')
+    yr_start, yr_end = FARS_YEARS[0], FARS_YEARS[-1]
+    print(f'\n// FARS Per-Model Fatality Data ({yr_start}-{yr_end})')
     print('// Generated by fars_process.py')
     print(f'// {len(results)} models with {MIN_DEATHS}+ deaths or >1k annual sales')
     print('// Sources: NHTSA FARS bulk CSV, US vehicle sales (public industry data), NHTS annual miles')
