@@ -38,8 +38,8 @@
 - **Table**: `#fmTable` — sortable columns
 
 ### National FARS Sections (not tabbed)
-- `FARS_NATIONAL` — total fatalities + rate per 100M VMT (2020–2024)
-- `FARS_BY_TYPE` — fatalities by road user type, stacked bar (2020–2023)
+- `FARS_NATIONAL` — total fatalities + rate per 100M VMT (2014–2024)
+- `FARS_BY_TYPE` — fatalities by road user type, stacked bar (2014–2023)
 - `FARS_CLASS_RATES` — occupant fatality rate per 100M VMT by vehicle class
 
 ## fars_process.py Architecture

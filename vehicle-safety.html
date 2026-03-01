@@ -191,6 +191,7 @@
 
     .toggle-group {
       display: flex;
+      flex-wrap: wrap;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       overflow: hidden;
@@ -638,7 +639,7 @@
 
     <!-- NHTSA Section A: National Fatality Trends -->
     <section class="section">
-      <div class="section-title">National Traffic Fatality Trends (NHTSA FARS, 2020&ndash;2024)</div>
+      <div class="section-title">National Traffic Fatality Trends (NHTSA FARS, 2014&ndash;2024)</div>
       <div class="summary-cards" id="farsSummaryCards">
         <div class="summary-card">
           <div class="label">2024 Fatalities (est.)</div>
@@ -651,9 +652,9 @@
           <div class="detail">per 100M vehicle miles traveled</div>
         </div>
         <div class="summary-card">
-          <div class="label">5-Year Trend</div>
-          <div class="value" id="farsTrend">Improving</div>
-          <div class="detail">peaked at 1.37 in 2021</div>
+          <div class="label">10-Year Trend</div>
+          <div class="value" id="farsTrend">Elevated</div>
+          <div class="detail">peaked at 1.37 in 2021; was 1.08 in 2014</div>
         </div>
       </div>
       <div class="chart-wrap">
@@ -664,7 +665,7 @@
 
     <!-- NHTSA Section B: Fatalities by Road User Type -->
     <section class="section">
-      <div class="section-title">Fatalities by Road User Type (NHTSA FARS, 2020&ndash;2023)</div>
+      <div class="section-title">Fatalities by Road User Type (NHTSA FARS, 2014&ndash;2023)</div>
       <div class="summary-cards" id="userTypeSummaryCards">
         <div class="summary-card">
           <div class="label">Passenger Car Occ.</div>
@@ -746,7 +747,7 @@
         <p>VMT data comes from the <strong>FHWA Highway Statistics Table VM-1</strong>, which estimates total miles driven annually by vehicle type. Dividing FARS fatalities by VMT yields the "fatality rate per 100 million VMT" &mdash; the standard metric used in NHTSA Traffic Safety Facts publications.</p>
         <ul>
           <li><strong>2024 data is an early estimate</strong> based on NHTSA's preliminary projections and is subject to revision.</li>
-          <li>Fatalities by road user type (2020&ndash;2023) are final FARS counts.</li>
+          <li>Fatalities by road user type (2014&ndash;2023) are final FARS counts.</li>
           <li>Per-class VMT rates use FHWA VM-1 data matched to FARS occupant fatality counts for the corresponding vehicle type.</li>
         </ul>
 
@@ -892,6 +893,12 @@
     // ================================================================
 
     const FARS_NATIONAL = [
+      { year: 2014, fatalities: 32744, vmt: 3.03, rate: 1.08 },
+      { year: 2015, fatalities: 35485, vmt: 3.10, rate: 1.15 },
+      { year: 2016, fatalities: 37806, vmt: 3.17, rate: 1.19 },
+      { year: 2017, fatalities: 37473, vmt: 3.21, rate: 1.17 },
+      { year: 2018, fatalities: 36835, vmt: 3.24, rate: 1.14 },
+      { year: 2019, fatalities: 36355, vmt: 3.26, rate: 1.11 },
       { year: 2020, fatalities: 39007, vmt: 2.83, rate: 1.34 },
       { year: 2021, fatalities: 42939, vmt: 3.13, rate: 1.37 },
       { year: 2022, fatalities: 42721, vmt: 3.19, rate: 1.34 },
@@ -899,8 +906,14 @@
       { year: 2024, fatalities: 39345, vmt: 3.28, rate: 1.20, estimate: true }
     ];
 
-    // Fatalities by road user type (final FARS counts, 2020-2023)
+    // Fatalities by road user type (FARS final counts)
     const FARS_BY_TYPE = [
+      { year: 2014, passengerCar: 12543, lightTruck: 8326, motorcycle: 4594, pedestrian: 4910, pedalcyclist: 723 },
+      { year: 2015, passengerCar: 13320, lightTruck: 9067, motorcycle: 5026, pedestrian: 5495, pedalcyclist: 828 },
+      { year: 2016, passengerCar: 14057, lightTruck: 9533, motorcycle: 5337, pedestrian: 6080, pedalcyclist: 848 },
+      { year: 2017, passengerCar: 13902, lightTruck: 9620, motorcycle: 5229, pedestrian: 6075, pedalcyclist: 800 },
+      { year: 2018, passengerCar: 13260, lightTruck: 9439, motorcycle: 5038, pedestrian: 6374, pedalcyclist: 868 },
+      { year: 2019, passengerCar: 12535, lightTruck: 9649, motorcycle: 5044, pedestrian: 6272, pedalcyclist: 856 },
       { year: 2020, passengerCar: 10230, lightTruck: 11399, motorcycle: 5579, pedestrian: 6516, pedalcyclist: 938 },
       { year: 2021, passengerCar: 10897, lightTruck: 12818, motorcycle: 5932, pedestrian: 7485, pedalcyclist: 966 },
       { year: 2022, passengerCar: 10710, lightTruck: 12808, motorcycle: 6218, pedestrian: 7502, pedalcyclist: 1048 },
@@ -909,6 +922,12 @@
 
     // Occupant fatality rates per 100M VMT by vehicle class
     const FARS_CLASS_RATES = [
+      { year: 2014, passengerCar: 0.86, lightTruck: 0.69, motorcycle: 23.00, overall: 1.08 },
+      { year: 2015, passengerCar: 0.90, lightTruck: 0.73, motorcycle: 25.63, overall: 1.15 },
+      { year: 2016, passengerCar: 0.94, lightTruck: 0.73, motorcycle: 26.10, overall: 1.19 },
+      { year: 2017, passengerCar: 0.95, lightTruck: 0.70, motorcycle: 25.95, overall: 1.17 },
+      { year: 2018, passengerCar: 0.92, lightTruck: 0.67, motorcycle: 25.09, overall: 1.14 },
+      { year: 2019, passengerCar: 0.87, lightTruck: 0.63, motorcycle: 25.60, overall: 1.11 },
       { year: 2020, passengerCar: 1.20, lightTruck: 0.73, motorcycle: 30.05, overall: 1.34 },
       { year: 2021, passengerCar: 1.25, lightTruck: 0.79, motorcycle: 31.64, overall: 1.37 },
       { year: 2022, passengerCar: 1.19, lightTruck: 0.76, motorcycle: 32.47, overall: 1.34 },
