@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=600, height=600, initial-scale=1.0, user-scalable=no">
+  <title>Exam Snap</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- HOME SCREEN -->
+    <div id="home" class="screen">
+      <header class="header">
+        <h1>Exam Snap</h1>
+        <span class="header-meta" id="question-count"></span>
+      </header>
+      <div class="content">
+        <div class="section-label">Select Exam</div>
+        <div class="exam-selector" id="exam-selector">
+          <!-- populated by JS -->
+        </div>
+        <div class="divider"></div>
+        <button class="action-btn primary focusable" data-action="open-camera">
+          <span class="action-icon">&#128247;</span>
+          Scan Question
+        </button>
+        <button class="action-btn focusable" data-action="open-search">
+          <span class="action-icon">&#128269;</span>
+          Search by Text
+        </button>
+      </div>
+      <nav class="nav-bar">
+        <span class="nav-hint">D-pad: navigate &middot; Enter: select</span>
+      </nav>
+    </div>
+
+    <!-- CAMERA SCREEN -->
+    <div id="camera" class="screen hidden">
+      <header class="header">
+        <button class="back-btn focusable" data-action="back">&#8592;</button>
+        <h1>Scan</h1>
+        <span class="header-meta" id="camera-bank-label">All</span>
+      </header>
+      <div class="camera-container">
+        <video id="camera-preview" autoplay playsinline muted></video>
+        <canvas id="capture-canvas" class="hidden"></canvas>
+        <div id="camera-overlay" class="camera-overlay">
+          <div class="scan-frame"></div>
+          <div class="scan-hint">Point at exam question</div>
+        </div>
+      </div>
+      <nav class="nav-bar">
+        <button class="nav-item primary focusable" data-action="capture">Capture</button>
+      </nav>
+    </div>
+
+    <!-- PROCESSING SCREEN -->
+    <div id="processing" class="screen hidden">
+      <header class="header">
+        <h1>Processing</h1>
+      </header>
+      <div class="content" style="justify-content: center; align-items: center;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="ocr-status">Initializing OCR...</div>
+        <div class="progress-bar" style="max-width: 300px;">
+          <div class="progress-fill" id="ocr-progress" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEARCH SCREEN -->
+    <div id="search" class="screen hidden">
+      <header class="header">
+        <button class="back-btn focusable" data-action="back">&#8592;</button>
+        <h1>Search</h1>
+      </header>
+      <div class="content">
+        <input type="text" class="text-input focusable" id="search-input"
+               placeholder="Type keywords from the question..."
+               data-submit-action="do-search">
+        <div class="list-container" id="search-results">
+          <div class="empty-state">Type keywords to search the question bank</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULTS SCREEN -->
+    <div id="results" class="screen hidden">
+      <header class="header">
+        <button class="back-btn focusable" data-action="back">&#8592;</button>
+        <h1>Matches</h1>
+        <span class="header-meta" id="result-count"></span>
+      </header>
+      <div class="content">
+        <div id="ocr-text-preview" class="ocr-preview hidden">
+          <div class="section-label">OCR Text</div>
+          <div class="ocr-text" id="ocr-text"></div>
+        </div>
+        <div class="list-container" id="results-list">
+          <!-- populated by JS -->
+        </div>
+      </div>
+      <nav class="nav-bar">
+        <button class="nav-item focusable" data-action="open-camera">Scan Again</button>
+        <button class="nav-item focusable" data-action="open-search">Search</button>
+      </nav>
+    </div>
+
+    <!-- DETAIL SCREEN -->
+    <div id="detail" class="screen hidden">
+      <header class="header">
+        <button class="back-btn focusable" data-action="back">&#8592;</button>
+        <h1 id="detail-bank">Question</h1>
+      </header>
+      <div class="content">
+        <div class="detail-card">
+          <div class="detail-id" id="detail-id"></div>
+          <div class="detail-question" id="detail-question"></div>
+        </div>
+        <div class="detail-answer-section">
+          <div class="section-label">Answer</div>
+          <div class="detail-answer" id="detail-answer"></div>
+        </div>
+        <div id="detail-choices" class="detail-choices">
+          <!-- populated for multiple-choice questions -->
+        </div>
+      </div>
+      <nav class="nav-bar">
+        <button class="nav-item focusable" data-action="open-camera">Scan Again</button>
+        <button class="nav-item focusable" data-action="go-home">Home</button>
+      </nav>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <script src="questions.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
