@@ -541,6 +541,8 @@
     <h1>Voice Mental Math</h1>
     <p class="subtitle">Practice arithmetic by speaking the answers</p>
 
+    <div id="firebasePresence" class="firebase-presence" style="margin-bottom: 16px;"></div>
+
     <!-- Error Message for unsupported browsers -->
     <div id="errorMessage" class="error-message hidden">
       <strong>Speech Recognition Not Supported</strong><br>
@@ -630,6 +632,7 @@
           Best streak: 0
         </div>
         <button class="btn btn-primary" onclick="startGame()">Play Again</button>
+        <div id="firebaseLeaderboard" class="firebase-leaderboard"></div>
       </div>
     </div>
 
@@ -678,6 +681,7 @@
     </div>
   </div>
 
+  <script src="firebase-shared.js"></script>
   <script>
     // Game State
     let currentAnswer = null;
@@ -1172,11 +1176,24 @@
       document.getElementById('finalScore').textContent = score;
       document.getElementById('finalStats').innerHTML =
         `${correctCount} correct out of ${problemCount} problems<br>Best streak: ${bestStreak}`;
+
+      // Submit score to Firebase leaderboard
+      if (problemCount > 0) {
+        const opLabels = { '+': 'add', '-': 'sub', '*': 'mul', '/': 'div' };
+        FirebaseShared.submitScore('math', {
+          score: score,
+          correct: correctCount,
+          total: problemCount,
+          difficulty: difficulty,
+          operations: selectedOperations.map(o => opLabels[o] || o).join(',')
+        });
+      }
     }
 
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
       initSpeechRecognition();
+      FirebaseShared.init('math', { leaderboard: true });
     });
   </script>
   <script>

@@ -457,6 +457,8 @@
     <h1>Voice Trivia</h1>
     <p class="subtitle">Answer trivia questions using your voice</p>
 
+    <div id="firebasePresence" class="firebase-presence" style="margin-bottom: 16px;"></div>
+
     <!-- Error Message for unsupported browsers -->
     <div id="errorMessage" class="error-message hidden">
       <strong>Speech Recognition Not Supported</strong><br>
@@ -525,6 +527,7 @@
         <div class="final-score" id="finalScore">0</div>
         <div class="final-stats" id="finalStats">0 correct out of 0 questions</div>
         <button class="btn btn-primary" onclick="startGame()">Play Again</button>
+        <div id="firebaseLeaderboard" class="firebase-leaderboard"></div>
       </div>
     </div>
 
@@ -541,6 +544,7 @@
   </div>
 
   <script src="trivia-questions.js"></script>
+  <script src="firebase-shared.js"></script>
   <script>
     // Game State
     let currentQuestion = null;
@@ -872,6 +876,16 @@
       document.getElementById('finalScore').textContent = score;
       document.getElementById('finalStats').textContent =
         `${correctCount} correct out of ${questionCount} questions`;
+
+      // Submit score to Firebase leaderboard
+      if (questionCount > 0) {
+        FirebaseShared.submitScore('trivia', {
+          score: score,
+          correct: correctCount,
+          total: questionCount,
+          category: selectedCategory
+        });
+      }
     }
 
     // Update category selection
@@ -894,6 +908,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       populateCategories();
       initSpeechRecognition();
+      FirebaseShared.init('trivia', { leaderboard: true });
     });
   </script>
   <script>
