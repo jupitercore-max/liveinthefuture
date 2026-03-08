@@ -1278,6 +1278,18 @@
       // Client-side visual projectile generation (all clients)
       const dt = now - lastVisualTick;
       lastVisualTick = now;
+
+      // Non-leader: locally simulate enemy movement between snapshots
+      if (!isLeader && waveState === 'active' && dt > 0 && dt < 200) {
+        const dtSec = dt / 1000;
+        for (const e of enemies) {
+          if (e.hp <= 0) continue;
+          let speed = e.speed;
+          if (e.slowTimer > 0) speed *= 0.5;
+          e.y += speed * dtSec * TICK_RATE;
+        }
+      }
+
       if (waveState === 'active' && enemies.length > 0) {
         for (const [cid, c] of Object.entries(cannons)) {
           if (!c.x || !c.y) continue;
