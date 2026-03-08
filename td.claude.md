@@ -18,6 +18,7 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 | Tank | 5+ | 4x | Slow | Hexagon |
 | Speedster | 10+ | 0.8x | Very fast | Diamond |
 | Shielded | 15+ | 3x | Medium | Shielded circle |
+| Flyer | 12+ | 1.2x | Fast | Triangle (ignores path) |
 | Boss | Every 10th | 15x | Very slow | Octagon |
 
 ## Cannon Upgrade Paths
@@ -262,6 +263,22 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **Sound effect** — Achievement sound plays when purchasing an upgrade
 - **Prestige button** — Shows current star count in the toolbar, updates dynamically
 - **Design philosophy** — Stars are earned slowly enough to feel meaningful (need wave 6+ to earn 2 stars) but fast enough that every run feels rewarding (always at least 1 star). Total cost to max everything is 78 stars, providing a long-term goal.
+
+### 2025-07-06: Flying Enemy Type
+- **New enemy type: Flyer** — A purple triangle-shaped enemy that appears from wave 12+. Unlike all other enemies, flyers **ignore the path** and fly in a straight line from a random spawn point at the top to a random target at the base. This adds genuine strategic depth: players need to position cannons to cover both the zigzag path AND the direct flight routes.
+- **Stats** — 1.2× HP multiplier, speed 2.2 (between scout and speedster). Moderate threat: not tanky but dangerous because they bypass the path, terrain hazards, and swamp slowdowns.
+- **Distinct visuals:**
+  - Downward-pointing purple triangle body with inner highlight
+  - Animated flapping wings (semi-transparent, sinusoidal wing motion)
+  - Ground shadow beneath the flyer for depth perception
+  - ✈ indicator above the enemy
+- **Path-ignoring movement** — Flying enemies have their own coordinate system (`flyStartX`, `flyEndX`, `flyY`) and move in a straight line from top to base. They completely bypass terrain hazard zones (swamp, lava, lightning), making them a different tactical challenge.
+- **Staggered spawning** — Flyers spawn with vertical stagger (35px apart) so they arrive in waves rather than all at once.
+- **Wave preview integration** — Flyers shown in the wave preview panel with "✈ flyer" name and triangle icon. When flyers are present, an extra purple warning line reads "✈ Flyers ignore the path!" to alert players.
+- **Weighted selection** — Flyers become increasingly common at higher waves via the weighted enemy selection system (weight increases by 0.12 per wave from wave 12).
+- **New achievement** — ✈️ **Fly Swatter**: Kill 10 flying enemies in one game. Tracked via `flyerKills` counter that resets on game restart.
+- **Multiplayer sync** — All flying properties (`flying`, `flyStartX`, `flyEndX`, `flyY`) serialize automatically via JSON in Firebase snapshots. Non-leader clients handle flyer interpolation separately from path-following enemies.
+- **No existing mechanics broken** — Flyers interact normally with cannon targeting/damage, slow effects from frost cannons, boss phases (if a boss somehow were flying — it isn't), and all other systems. They simply move differently.
 
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)

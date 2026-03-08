@@ -1151,6 +1151,7 @@
       max_level:      { icon: '👑', name: 'Maxed Out',        desc: 'Reach level 10' },
       prestige_buy:   { icon: '⭐', name: 'Investor',         desc: 'Buy a prestige upgrade' },
       prestige_max:   { icon: '💎', name: 'Fully Upgraded',   desc: 'Max out a prestige upgrade' },
+      fly_swatter:    { icon: '✈️', name: 'Fly Swatter',      desc: 'Kill 10 flying enemies in one game' },
     };
 
     const achieveToastContainer = document.getElementById('achieveToastContainer');
@@ -1939,6 +1940,7 @@
       { type: 'tank',     wave: 5,  hpMult: 4.0, speed: 0.8, color: '#9b59b6', shape: 'hexagon',  radius: 12 },
       { type: 'speedster',wave: 10, hpMult: 0.8, speed: 3.5, color: '#2ecc71', shape: 'diamond',  radius: 7  },
       { type: 'shielded', wave: 15, hpMult: 3.0, speed: 1.2, color: '#3498db', shape: 'shielded', radius: 10 },
+      { type: 'flyer',    wave: 12, hpMult: 1.2, speed: 2.2, color: '#e056fd', shape: 'triangle', radius: 8, flying: true },
       { type: 'boss',     wave: 10, hpMult: 15,  speed: 0.5, color: '#8b0000', shape: 'octagon',  radius: 16 }
     ];
 
@@ -2088,6 +2090,7 @@
           if (e.type === 'tank') w += Math.min(3, (waveNum - 5) * 0.15);
           if (e.type === 'shielded') w += Math.min(3, (waveNum - 15) * 0.15);
           if (e.type === 'speedster') w += Math.min(2, (waveNum - 10) * 0.1);
+          if (e.type === 'flyer') w += Math.min(2, (waveNum - 12) * 0.12);
           if (e.type === 'scout' && waveNum > 20) w *= 0.4; // scouts become rarer
           if (e.type === 'grunt' && waveNum > 25) w *= 0.6; // grunts become rarer
           return Math.max(0.1, w);
@@ -2113,7 +2116,7 @@
         const eliteHpMult = isElite ? 2.5 : 1;
         const eliteSpeedMult = isElite ? 1.1 : 1;
         const eliteRadiusMult = isElite ? 1.25 : 1;
-        enemies.push({
+        const enemyObj = {
           id: `w${waveNum}_e${i}`,
           type: et.type,
           x: pos.x,
@@ -2127,7 +2130,17 @@
           radius: Math.round(et.radius * eliteRadiusMult),
           slowTimer: 0,
           elite: isElite
-        });
+        };
+        // Flying enemies move straight down, ignoring path
+        if (et.flying) {
+          enemyObj.flying = true;
+          enemyObj.flyStartX = 30 + rng() * (CANVAS_W - 60);
+          enemyObj.flyEndX = 30 + rng() * (CANVAS_W - 60);
+          enemyObj.flyY = -20 - i * 35; // stagger vertically
+          enemyObj.x = enemyObj.flyStartX;
+          enemyObj.y = enemyObj.flyY;
+        }
+        enemies.push(enemyObj);
       }
       // Add boss
       if (isBossWave) {
@@ -2178,6 +2191,7 @@
     let waveState = 'waiting'; // waiting, active, countdown, failed, gameover
     let baseHp = BASE_MAX_HP;
     let totalKills = 0;
+    let flyerKills = 0; // track flying enemy kills for achievement
     let damageFlashTimer = 0; // frames remaining for red flash
     let enemies = [];
     let cannons = {}; // id -> cannon data
@@ -2717,7 +2731,22 @@
           speed *= 0.5;
           e.slowTimer--;
         }
-        // ── Terrain Hazard Effects ──
+
+        // ── Flying enemies: straight-line movement, ignore terrain ──
+        if (e.flying) {
+          // Flying enemies move from flyY toward BASE_Y in a straight line
+          const totalDist = BASE_Y + 20; // total vertical distance to cover
+          const pixelsPerTick = speed * 2.5; // convert speed to pixels/tick
+          e.flyY = (e.flyY || -20) + pixelsPerTick;
+          const t = Math.max(0, Math.min(1, (e.flyY + 20) / totalDist));
+          e.x = e.flyStartX + (e.flyEndX - e.flyStartX) * t;
+          e.y = e.flyY;
+          // Set pathProgress equivalent for base-reach detection
+          e.pathProgress = t;
+          continue;
+        }
+
+        // ── Terrain Hazard Effects (ground enemies only) ──
         e.inHazard = null; // track for visual feedback
         for (const hz of terrainHazards) {
           const dist = Math.hypot(e.x - hz.x, e.y - hz.y);
@@ -2978,6 +3007,7 @@
           if (totalKills >= 100) unlockAchievement('sharpshooter');
           if (totalKills >= 500) unlockAchievement('mass_murderer');
           if (e.type === 'boss') unlockAchievement('boss_slayer');
+          if (e.flying) { flyerKills++; if (flyerKills >= 10) unlockAchievement('fly_swatter'); }
           // Combo tracking
           comboCount++;
           comboTimer = COMBO_WINDOW;
@@ -3224,6 +3254,7 @@
       waveNumber = 1;
       baseHp = getEffectiveMaxHp();
       totalKills = 0;
+      flyerKills = 0;
       enemies = [];
       waveState = 'waiting';
       damageFlashTimer = 0;
@@ -4066,6 +4097,7 @@
           if (totalKills >= 100) unlockAchievement('sharpshooter');
           if (totalKills >= 500) unlockAchievement('mass_murderer');
           if (e.type === 'boss') unlockAchievement('boss_slayer');
+          if (e.flying) { flyerKills++; if (flyerKills >= 10) unlockAchievement('fly_swatter'); }
           comboCount++;
           comboTimer = COMBO_WINDOW;
           const comboMult = comboCount >= COMBO_MIN ? Math.min(comboCount, 10) : 1;
@@ -4162,6 +4194,17 @@
           if (e.hp <= 0) continue;
           let speed = e.speed;
           if (e.slowTimer > 0) speed *= 0.5;
+          // Flying enemies: straight-line interpolation
+          if (e.flying) {
+            const totalDist = BASE_Y + 20;
+            const pixelsPerSec = speed * 2.5 * TICK_RATE;
+            e.flyY = (e.flyY || e.y) + pixelsPerSec * dtSec;
+            const t = Math.max(0, Math.min(1, (e.flyY + 20) / totalDist));
+            e.x = (e.flyStartX || e.x) + ((e.flyEndX || e.x) - (e.flyStartX || e.x)) * t;
+            e.y = e.flyY;
+            e.pathProgress = t;
+            continue;
+          }
           // Apply terrain hazard slow for visual consistency
           for (const hz of terrainHazards) {
             if (hz.type === 'swamp' && Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius) {
@@ -5059,6 +5102,61 @@
         case 'diamond':
           drawPolygon(x, y, e.radius, 4);
           break;
+        case 'triangle': {
+          // Flying enemy: downward-pointing triangle with wings
+          ctx.save();
+          ctx.translate(x, y);
+          // Shadow on ground (subtle)
+          ctx.globalAlpha = 0.15;
+          ctx.fillStyle = '#000';
+          ctx.beginPath();
+          ctx.ellipse(0, e.radius + 6, e.radius * 0.8, 3, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          // Wing flap animation
+          const wingFlap = Math.sin(t * 0.012) * 0.3;
+          // Left wing
+          ctx.fillStyle = e.color;
+          ctx.globalAlpha = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(-2, -2);
+          ctx.lineTo(-e.radius * 1.6, -e.radius * 0.3 + wingFlap * e.radius);
+          ctx.lineTo(-e.radius * 0.5, e.radius * 0.3);
+          ctx.closePath();
+          ctx.fill();
+          // Right wing
+          ctx.beginPath();
+          ctx.moveTo(2, -2);
+          ctx.lineTo(e.radius * 1.6, -e.radius * 0.3 + wingFlap * e.radius);
+          ctx.lineTo(e.radius * 0.5, e.radius * 0.3);
+          ctx.closePath();
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          // Body: downward-pointing triangle
+          ctx.fillStyle = e.color;
+          ctx.beginPath();
+          ctx.moveTo(0, e.radius);          // bottom point
+          ctx.lineTo(-e.radius * 0.7, -e.radius * 0.6);  // top-left
+          ctx.lineTo(e.radius * 0.7, -e.radius * 0.6);   // top-right
+          ctx.closePath();
+          ctx.fill();
+          // Inner highlight
+          ctx.fillStyle = 'rgba(255,255,255,0.25)';
+          ctx.beginPath();
+          ctx.moveTo(0, e.radius * 0.4);
+          ctx.lineTo(-e.radius * 0.3, -e.radius * 0.3);
+          ctx.lineTo(e.radius * 0.3, -e.radius * 0.3);
+          ctx.closePath();
+          ctx.fill();
+          // "FLY" indicator
+          ctx.fillStyle = 'rgba(224,86,253,0.7)';
+          ctx.font = 'bold 6px ' + getComputedStyle(document.body).fontFamily;
+          ctx.textAlign = 'center';
+          ctx.fillText('✈', 0, -e.radius - 3);
+          ctx.textAlign = 'start';
+          ctx.restore();
+          break;
+        }
         case 'shielded':
           ctx.beginPath();
           ctx.arc(x, y, e.radius, 0, Math.PI * 2);
@@ -5238,6 +5336,7 @@
           if (e.type === 'tank') w += Math.min(3, (waveNum - 5) * 0.15);
           if (e.type === 'shielded') w += Math.min(3, (waveNum - 15) * 0.15);
           if (e.type === 'speedster') w += Math.min(2, (waveNum - 10) * 0.1);
+          if (e.type === 'flyer') w += Math.min(2, (waveNum - 12) * 0.12);
           if (e.type === 'scout' && waveNum > 20) w *= 0.4;
           if (e.type === 'grunt' && waveNum > 25) w *= 0.6;
           return Math.max(0.1, w);
@@ -5286,6 +5385,30 @@
           break;
         case 'diamond':
           drawMiniPolygon(cx, x, y, r, 4);
+          break;
+        case 'triangle':
+          // Downward-pointing triangle for flyer icon
+          cx.beginPath();
+          cx.moveTo(x, y + r);
+          cx.lineTo(x - r * 0.7, y - r * 0.6);
+          cx.lineTo(x + r * 0.7, y - r * 0.6);
+          cx.closePath();
+          cx.fill();
+          // Small wings
+          cx.globalAlpha = 0.5;
+          cx.beginPath();
+          cx.moveTo(x - r * 0.5, y - r * 0.2);
+          cx.lineTo(x - r * 1.3, y - r * 0.4);
+          cx.lineTo(x - r * 0.3, y + r * 0.2);
+          cx.closePath();
+          cx.fill();
+          cx.beginPath();
+          cx.moveTo(x + r * 0.5, y - r * 0.2);
+          cx.lineTo(x + r * 1.3, y - r * 0.4);
+          cx.lineTo(x + r * 0.3, y + r * 0.2);
+          cx.closePath();
+          cx.fill();
+          cx.globalAlpha = 1;
           break;
         case 'shielded':
           cx.beginPath();
@@ -5341,7 +5464,7 @@
         drawEnemyIcon(miniCanvas, type);
         const nameSpan = document.createElement('span');
         nameSpan.className = 'wpe-name';
-        nameSpan.textContent = type;
+        nameSpan.textContent = type === 'flyer' ? '✈ flyer' : type;
         nameSpan.style.color = et.color;
         const countSpan = document.createElement('span');
         countSpan.className = 'wpe-count';
@@ -5365,6 +5488,21 @@
         elLabel.textContent = `★ ${breakdown['_elites']} Elite${breakdown['_elites'] > 1 ? 's' : ''} (3× XP)`;
         elDiv.appendChild(elLabel);
         wavePreview.appendChild(elDiv);
+      }
+      // Show flyer warning if wave has flyers
+      if (breakdown['flyer']) {
+        const flyDiv = document.createElement('div');
+        flyDiv.className = 'wave-preview-enemy';
+        flyDiv.style.borderTop = '1px solid rgba(224,86,253,0.2)';
+        flyDiv.style.paddingTop = '4px';
+        flyDiv.style.marginTop = '2px';
+        const flyLabel = document.createElement('span');
+        flyLabel.className = 'wpe-name';
+        flyLabel.style.color = '#e056fd';
+        flyLabel.style.fontSize = '0.65rem';
+        flyLabel.textContent = '✈ Flyers ignore the path!';
+        flyDiv.appendChild(flyLabel);
+        wavePreview.appendChild(flyDiv);
       }
       wavePreview.classList.add('active');
 
