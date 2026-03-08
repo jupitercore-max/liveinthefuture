@@ -619,6 +619,70 @@
     }
 
     // ═══════════════════════════════════════════════════
+    //  Single-Player / Offline Mode
+    // ═══════════════════════════════════════════════════
+    let offlineMode = false;
+    let showPlacementHint = true; // show hint until first cannon placed
+
+    function startOfflineMode() {
+      offlineMode = true;
+      isLeader = true; // always leader in offline mode
+      playerId = playerId || 'local_' + Math.random().toString(36).slice(2);
+      playerName = playerName || 'Player';
+      console.log('[TD] Running in offline/single-player mode');
+
+      // Register canvas events
+      canvas.addEventListener('click', onCanvasClick);
+      canvas.addEventListener('touchend', onCanvasTouchEnd);
+
+      // Start render + sim loops
+      lastVisualTick = performance.now();
+      requestAnimationFrame(renderLoop);
+      if (!simTimer) {
+        simTimer = setInterval(simTick, TICK_MS);
+      }
+    }
+
+    function offlinePlaceCannon(x, y) {
+      const existing = cannons[playerId];
+      cannons[playerId] = {
+        x: Math.round(x),
+        y: Math.round(y),
+        level: existing?.level || 1,
+        xp: existing?.xp || 0,
+        kills: existing?.kills || 0,
+        path: existing?.path || null,
+        spec: existing?.spec || null,
+        name: playerName,
+        avatar: playerAvatar || null,
+        emoji: playerEmoji,
+        lastSeen: Date.now()
+      };
+      showPlacementHint = false;
+      updateCannonUI();
+      // Start wave if waiting
+      if (waveState === 'waiting' || waveState === 'paused') {
+        startWaveCountdown();
+      }
+    }
+
+    function offlineAwardXP() {
+      const c = cannons[playerId];
+      if (!c || !c.x) return;
+      const newXp = (c.xp || 0) + 1;
+      const level = c.level || 1;
+      const needed = XP_PER_LEVEL(level);
+      if (newXp >= needed) {
+        c.xp = newXp - needed;
+        c.level = level + 1;
+      } else {
+        c.xp = newXp;
+      }
+      c.kills = (c.kills || 0) + 1;
+      updateCannonUI();
+    }
+
+    // ═══════════════════════════════════════════════════
     //  Firebase Init
     // ═══════════════════════════════════════════════════
     async function initFirebase() {
@@ -628,12 +692,20 @@
         localStorage.setItem('rayhe_visitor_name', autoName);
       }
 
-      await FirebaseShared.init('td', { presenceId: '_norender' });
-      playerId = FirebaseShared.getVisitorId();
-      playerName = FirebaseShared.getVisitorName() || 'Player';
+      try {
+        await FirebaseShared.init('td', { presenceId: '_norender' });
+        playerId = FirebaseShared.getVisitorId();
+        playerName = FirebaseShared.getVisitorName() || 'Player';
+      } catch (err) {
+        console.warn('[TD] FirebaseShared.init failed, going offline:', err);
+        startOfflineMode();
+        return;
+      }
 
       // Wait for firebase global
       if (typeof firebase === 'undefined' || !firebase.database) {
+        console.warn('[TD] Firebase SDK not available, going offline');
+        startOfflineMode();
         return;
       }
       db = firebase.database();
@@ -843,7 +915,7 @@
         if (countdownTimer <= 0) {
           waveState = 'active';
           enemies = generateWave(waveNumber);
-          metaRef.update({ waveState: 'active' });
+          if (!offlineMode) metaRef.update({ waveState: 'active' });
         }
         writeSnapshot();
         return;
@@ -962,7 +1034,7 @@
       const reached = enemies.some(e => e.y >= BASE_Y);
       if (reached) {
         waveState = 'failed';
-        metaRef.update({ waveState: 'failed', totalKills });
+        if (!offlineMode) metaRef.update({ waveState: 'failed', totalKills });
         // Restart wave after brief pause
         setTimeout(() => {
           if (isLeader) {
@@ -977,7 +1049,7 @@
       // Check wave clear
       if (enemies.length === 0 && waveState === 'active') {
         waveNumber++;
-        metaRef.update({ waveNumber, waveState: 'waiting', totalKills });
+        if (!offlineMode) metaRef.update({ waveNumber, waveState: 'waiting', totalKills });
         waveState = 'waiting';
         startWaveCountdown();
       }
@@ -994,6 +1066,7 @@
     function writeSnapshot() {
       if (!isLeader) return;
       if (tickCount % SNAPSHOT_INTERVAL !== 0) return;
+      if (offlineMode) return; // no Firebase writes in offline mode
       stateRef.set({
         enemies: JSON.stringify(enemies),
         tick: tickCount,
@@ -1011,7 +1084,7 @@
       waveState = 'countdown';
       countdownTimer = TICK_RATE * 3; // 3 seconds
       countdownStartedAt = Date.now();
-      metaRef.update({ waveState: 'countdown' });
+      if (!offlineMode) metaRef.update({ waveState: 'countdown' });
       // Show announcement
       showWaveAnnouncement(waveNumber);
     }
@@ -1024,6 +1097,11 @@
     }
 
     function awardXP(cannonList) {
+      // Offline mode — award locally
+      if (offlineMode) {
+        offlineAwardXP();
+        return;
+      }
       // Award 1 XP to every cannon (idle game — everyone benefits)
       for (const [cid, c] of cannonList) {
         if (!c.x || !c.y) continue;
@@ -1093,6 +1171,13 @@
       }
 
       lastRelocateTime = Date.now();
+      showPlacementHint = false;
+
+      // Offline mode — update local state directly
+      if (offlineMode) {
+        offlinePlaceCannon(x, y);
+        return;
+      }
 
       // Write to Firebase
       const existing = cannons[playerId];
@@ -1140,8 +1225,13 @@
           card.className = 'upgrade-card';
           card.innerHTML = `<div class="uc-name" style="color:${p.color}">${p.name}</div><div class="uc-desc">${p.desc}</div>`;
           card.addEventListener('click', () => {
-            cannonsRef.child(playerId).update({ path: key });
+            if (offlineMode) {
+              cannons[playerId].path = key;
+            } else {
+              cannonsRef.child(playerId).update({ path: key });
+            }
             upgradeModal.classList.remove('active');
+            updateCannonUI();
           });
           upgradeCards.appendChild(card);
         }
@@ -1154,8 +1244,13 @@
           card.className = 'upgrade-card';
           card.innerHTML = `<div class="uc-name" style="color:${s.color}">${s.name}</div><div class="uc-desc">${s.desc}</div>`;
           card.addEventListener('click', () => {
-            cannonsRef.child(playerId).update({ spec: key });
+            if (offlineMode) {
+              cannons[playerId].spec = key;
+            } else {
+              cannonsRef.child(playerId).update({ spec: key });
+            }
             upgradeModal.classList.remove('active');
+            updateCannonUI();
           });
           upgradeCards.appendChild(card);
         }
@@ -1354,6 +1449,20 @@
       ctx.fillStyle = 'rgba(30,144,255,0.03)';
       ctx.fillRect(0, PLACEMENT_MIN_Y, CANVAS_W, BASE_Y - PLACEMENT_MIN_Y);
 
+      // Placement instruction hint for new players
+      if (showPlacementHint && !cannons[playerId]) {
+        ctx.fillStyle = 'rgba(30,144,255,0.08)';
+        ctx.fillRect(0, PLACEMENT_MIN_Y, CANVAS_W, BASE_Y - PLACEMENT_MIN_Y);
+        ctx.fillStyle = 'rgba(30,144,255,0.7)';
+        ctx.font = '16px ' + getComputedStyle(document.body).fontFamily;
+        ctx.textAlign = 'center';
+        ctx.fillText('⬇ Click here to place your cannon ⬇', CANVAS_W / 2, PLACEMENT_MIN_Y + (BASE_Y - PLACEMENT_MIN_Y) / 2);
+        ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+        ctx.fillStyle = 'rgba(30,144,255,0.5)';
+        ctx.fillText('Defend the blue line from incoming enemies', CANVAS_W / 2, PLACEMENT_MIN_Y + (BASE_Y - PLACEMENT_MIN_Y) / 2 + 22);
+        ctx.textAlign = 'start';
+      }
+
       // Draw cannons
       for (const [cid, c] of Object.entries(cannons)) {
         if (!c.x || !c.y) continue;
@@ -1431,6 +1540,21 @@
     }
 
     function drawGrid() {
+      // Sky gradient (subtle)
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, PLACEMENT_MIN_Y);
+      skyGrad.addColorStop(0, 'rgba(10,10,30,0.3)');
+      skyGrad.addColorStop(1, 'rgba(15,25,50,0.1)');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, CANVAS_W, PLACEMENT_MIN_Y);
+
+      // Ground gradient
+      const groundGrad = ctx.createLinearGradient(0, PLACEMENT_MIN_Y, 0, CANVAS_H);
+      groundGrad.addColorStop(0, 'rgba(20,40,30,0.2)');
+      groundGrad.addColorStop(1, 'rgba(15,30,25,0.4)');
+      ctx.fillStyle = groundGrad;
+      ctx.fillRect(0, PLACEMENT_MIN_Y, CANVAS_W, CANVAS_H - PLACEMENT_MIN_Y);
+
+      // Grid lines
       ctx.strokeStyle = 'rgba(255,255,255,0.04)';
       ctx.lineWidth = 1;
       const spacing = 40;
