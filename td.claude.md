@@ -67,6 +67,26 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **Reset on game over** — Speed resets to 1× when the game restarts for a clean experience.
 - **Button styling** — Compact pill-style button group that matches the existing dark theme. Active speed is highlighted with the accent blue.
 
+### 2025-06-06: Active Abilities System
+- **Per-cannon active abilities** — Each cannon gets a unique clickable ability based on its upgrade path. Abilities have cooldowns and add strategic depth beyond idle auto-fire.
+- **Ability types:**
+  - **Basic** (no path): Power Shot — 5× damage single target, 8s cooldown
+  - **Rapid**: Rapid Burst — 10 instant shots at enemies in range, 10s cooldown
+  - **Power**: Bombardment — massive AoE blast at target, 12s cooldown
+  - **Tech**: EMP Pulse — freeze all enemies for 3s, 15s cooldown
+  - **Gatling**: Bullet Storm — 20 rapid shots, 10s cooldown
+  - **Sniper**: Headshot — instant kill (non-boss) or 20× dmg (boss), 15s cooldown
+  - **Cannon**: Napalm — AoE + persistent burn zone, 14s cooldown
+  - **Railgun**: Orbital Strike — piercing beam across map, 16s cooldown
+  - **Tesla**: Chain Overload — lightning hits all enemies, 14s cooldown
+  - **Frost**: Blizzard — 80% slow on all enemies for 5s, 12s cooldown
+- **Targeting system**: Some abilities require clicking a target location (targeted), others activate immediately (non-targeted). "🎯 Click to target" indicator shown on canvas during targeting mode. Escape key cancels targeting.
+- **Keyboard shortcut**: Press Q to activate ability.
+- **Visual effects**: Ability zones rendered on canvas (explosions, beams, napalm burn zones, blizzard snowflakes, pulse rings). Projectile trails for direct attacks.
+- **Cooldown UI**: Ability button in controls bar shows cooldown timer, progress bar, and pulsing animation when in targeting mode. Button text updates to show current ability name based on cannon spec.
+- **Screen shake**: Abilities trigger screen shake effects (light for small abilities, heavy for bombardment/railgun/napalm).
+- **Proper state reset**: Ability state (cooldown, targeting, zones) properly reset on game over/restart.
+
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
 - [ ] No sound effects
@@ -78,7 +98,7 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - [x] ~~Wave preview showing what's coming next~~ → Enemy type breakdown shown during countdown
 - [ ] Better visual differentiation between cannon types
 - [x] ~~Combo system for rapid kills~~ → Kill combo system with multiplied XP rewards
-- [ ] Active abilities (click to fire special shot)
+- [x] ~~Active abilities (click to fire special shot)~~ → Per-cannon active abilities with targeting, cooldowns, and visual effects
 - [ ] Environmental features (obstacles, terrain that slows enemies)
 - [ ] Mini-boss mechanics (special attacks, phases)
 - [ ] Better balancing at higher waves

@@ -459,6 +459,62 @@
       color: #fff;
     }
 
+    /* ─── Ability Button ─────────────────────────────── */
+    .ability-btn {
+      background: linear-gradient(135deg, var(--card-bg), #1a1a3e);
+      color: var(--text);
+      border: 1px solid var(--accent);
+      padding: 6px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    .ability-btn:hover:not(:disabled) {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+    .ability-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+      border-color: var(--border);
+    }
+    .ability-btn.targeting {
+      background: var(--accent);
+      color: #fff;
+      animation: abilityPulse 0.8s ease-in-out infinite;
+    }
+    .ability-btn .ab-cooldown {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      background: var(--accent);
+      transition: width 0.1s linear;
+    }
+    .ability-btn .ab-key {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      margin-left: 4px;
+      opacity: 0.6;
+    }
+    @keyframes abilityPulse {
+      0%, 100% { box-shadow: 0 0 4px var(--accent-glow); }
+      50% { box-shadow: 0 0 16px var(--accent-glow); }
+    }
+
+    /* ─── Ability targeting crosshair ────────────────── */
+    .canvas-targeting {
+      cursor: crosshair !important;
+    }
+
+    /* ─── Ability zone indicators (on canvas) ────────── */
+
     /* ─── Speed Indicator (on canvas) ────────────────── */
     .speed-indicator {
       position: absolute;
@@ -561,11 +617,13 @@
         <div class="xp-bar-text" id="xpBarText">0 / 50 XP</div>
       </div>
       <button class="ctrl-btn" id="upgradeBtn" disabled>Upgrade</button>
+      <button class="ability-btn" id="abilityBtn" disabled>⚡ Power Shot<span class="ab-key">[Q]</span><div class="ab-cooldown" id="abCooldownBar"></div></button>
       <div class="speed-controls" id="speedControls">
         <button class="speed-btn active" data-speed="1">1×</button>
         <button class="speed-btn" data-speed="2">2×</button>
         <button class="speed-btn" data-speed="3">3×</button>
       </div>
+      <button class="ctrl-btn send-next-btn" id="sendNextBtn" disabled>⏩ Send Next</button>
       <button class="ctrl-btn" id="relocateBtn">Relocate</button>
       <button class="ctrl-btn" id="playersBtn">Players</button>
     </div>
@@ -855,6 +913,9 @@
     let comboTimer = 0; // ticks remaining before combo resets
     let comboXpBonus = 0; // total bonus XP from current combo
     let gameSpeed = 1; // 1, 2, or 3
+    let abilityCooldownLeft = 0; // seconds remaining on ability cooldown
+    let abilityTargeting = false; // waiting for canvas click to target
+    let abilityZones = []; // visual effect zones on canvas
     const COMBO_WINDOW = TICK_RATE * 1.5; // 1.5s to chain kills
     const COMBO_MIN = 2; // minimum kills to show combo
 
@@ -1627,6 +1688,10 @@
       comboXpBonus = 0;
       gameSpeed = 1;
       scorePopups = [];
+      abilityZones = [];
+      abilityCooldownLeft = 0;
+      abilityTargeting = false;
+      canvas.classList.remove('canvas-targeting');
       hideWavePreview();
       updateComboDisplay();
       updateBaseHpHUD();
@@ -1685,6 +1750,10 @@
 
     function onCanvasClick(e) {
       const pos = canvasCoords(e);
+      if (abilityTargeting) {
+        fireAbility(pos.x, pos.y);
+        return;
+      }
       placeCannon(pos.x, pos.y);
     }
 
@@ -1693,6 +1762,10 @@
       if (e.changedTouches.length === 0) return;
       const touch = e.changedTouches[0];
       const pos = canvasCoords(touch);
+      if (abilityTargeting) {
+        fireAbility(pos.x, pos.y);
+        return;
+      }
       placeCannon(pos.x, pos.y);
     }
 
@@ -1828,6 +1901,7 @@
         xpBarFill.style.width = '0%';
         xpBarText.textContent = 'No cannon';
         upgradeBtn.disabled = true;
+        if (typeof updateAbilityBtn === 'function') updateAbilityBtn();
         return;
       }
       const level = c.level || 1;
@@ -1851,6 +1925,7 @@
         upgradeBtn.style.borderColor = '';
         upgradeBtn.style.color = '';
       }
+      if (typeof updateAbilityBtn === 'function') updateAbilityBtn();
     }
 
     // ═══════════════════════════════════════════════════
@@ -1919,6 +1994,321 @@
         const speedTickMs = TICK_MS / gameSpeed;
         simTimer = setInterval(simTick, speedTickMs);
       }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Active Abilities
+    // ═══════════════════════════════════════════════════
+    const ABILITIES = {
+      // Default (no path/spec)
+      basic:   { name: 'Power Shot',     emoji: '⚡', cooldown: 8,  targeted: true,  desc: '5× damage single target' },
+      // Path-level abilities
+      rapid:   { name: 'Rapid Burst',    emoji: '🔥', cooldown: 10, targeted: false, desc: '10 instant shots' },
+      power:   { name: 'Bombardment',    emoji: '💥', cooldown: 12, targeted: true,  desc: 'Massive AoE blast' },
+      tech:    { name: 'EMP Pulse',      emoji: '⚡', cooldown: 15, targeted: false, desc: 'Freeze all enemies 3s' },
+      // Spec-level abilities
+      gatling: { name: 'Bullet Storm',   emoji: '🌪️', cooldown: 10, targeted: false, desc: '20 rapid shots everywhere' },
+      sniper:  { name: 'Headshot',       emoji: '🎯', cooldown: 15, targeted: true,  desc: 'Instant kill / huge boss dmg' },
+      cannon:  { name: 'Napalm',         emoji: '🔥', cooldown: 14, targeted: true,  desc: 'AoE + burn zone' },
+      railgun: { name: 'Orbital Strike', emoji: '⚡', cooldown: 16, targeted: true,  desc: 'Piercing line across map' },
+      tesla:   { name: 'Chain Overload', emoji: '⚡', cooldown: 14, targeted: false, desc: 'Lightning hits all enemies' },
+      frost:   { name: 'Blizzard',       emoji: '❄️', cooldown: 12, targeted: false, desc: 'Slow all enemies 80% for 5s' }
+    };
+
+    const abilityBtn = $('abilityBtn');
+
+    function getPlayerAbility() {
+      const c = cannons[playerId];
+      if (!c) return ABILITIES.basic;
+      if (c.spec && ABILITIES[c.spec]) return ABILITIES[c.spec];
+      if (c.path && ABILITIES[c.path]) return ABILITIES[c.path];
+      return ABILITIES.basic;
+    }
+
+    function getPlayerAbilityKey() {
+      const c = cannons[playerId];
+      if (!c) return 'basic';
+      if (c.spec && ABILITIES[c.spec]) return c.spec;
+      if (c.path && ABILITIES[c.path]) return c.path;
+      return 'basic';
+    }
+
+    function updateAbilityBtn() {
+      const c = cannons[playerId];
+      if (!c || !c.x) {
+        abilityBtn.disabled = true;
+        abilityBtn.innerHTML = '⚡ Power Shot<span class="ab-key">[Q]</span><div class="ab-cooldown" id="abCooldownBar"></div>';
+        return;
+      }
+      const ab = getPlayerAbility();
+      const onCooldown = abilityCooldownLeft > 0;
+      abilityBtn.disabled = onCooldown || waveState === 'gameover';
+      const cdText = onCooldown ? ` (${Math.ceil(abilityCooldownLeft)}s)` : '';
+      abilityBtn.innerHTML = `${ab.emoji} ${ab.name}${cdText}<span class="ab-key">[Q]</span><div class="ab-cooldown" id="abCooldownBar" style="width:${onCooldown ? ((1 - abilityCooldownLeft / ab.cooldown) * 100) : 100}%"></div>`;
+      if (abilityTargeting) {
+        abilityBtn.classList.add('targeting');
+      } else {
+        abilityBtn.classList.remove('targeting');
+      }
+    }
+
+    // Cooldown timer (runs every 100ms for smooth display)
+    setInterval(() => {
+      if (abilityCooldownLeft > 0) {
+        abilityCooldownLeft = Math.max(0, abilityCooldownLeft - 0.1);
+        updateAbilityBtn();
+      }
+    }, 100);
+
+    abilityBtn.addEventListener('click', () => {
+      if (abilityCooldownLeft > 0) return;
+      const c = cannons[playerId];
+      if (!c || !c.x) return;
+      if (waveState !== 'active' && waveState !== 'countdown') return;
+
+      const ab = getPlayerAbility();
+      if (ab.targeted) {
+        // Enter targeting mode — next canvas click fires ability
+        abilityTargeting = true;
+        canvas.classList.add('canvas-targeting');
+        updateAbilityBtn();
+      } else {
+        // Immediate activation (no targeting needed)
+        fireAbility(null, null);
+      }
+    });
+
+    // Keyboard shortcut Q
+    document.addEventListener('keydown', e => {
+      if (e.key === 'q' || e.key === 'Q') {
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+        if (!abilityBtn.disabled) abilityBtn.click();
+      }
+      // Escape cancels targeting
+      if (e.key === 'Escape' && abilityTargeting) {
+        cancelTargeting();
+      }
+    });
+
+    function cancelTargeting() {
+      abilityTargeting = false;
+      canvas.classList.remove('canvas-targeting');
+      updateAbilityBtn();
+    }
+
+    function fireAbility(targetX, targetY) {
+      const c = cannons[playerId];
+      if (!c || !c.x) return;
+      const abKey = getPlayerAbilityKey();
+      const ab = getPlayerAbility();
+
+      // Start cooldown
+      abilityCooldownLeft = ab.cooldown;
+      abilityTargeting = false;
+      canvas.classList.remove('canvas-targeting');
+      updateAbilityBtn();
+
+      const stats = getCannonStats(c.level || 1, c.path || null, c.spec || null);
+
+      switch (abKey) {
+        case 'basic': {
+          // Power Shot — 5× damage to nearest enemy to target point
+          const target = findNearestEnemy(targetX, targetY, 80);
+          if (target) {
+            target.hp -= stats.dmg * 5;
+            spawnAbilityProjectile(c.x, c.y, target.x, target.y, '#1E90FF');
+            abilityZones.push({ x: target.x, y: target.y, radius: 20, color: '30,144,255', life: 15, maxLife: 15, type: 'burst' });
+            triggerScreenShake(false);
+          }
+          break;
+        }
+        case 'rapid': {
+          // Rapid Burst — 10 instant shots at enemies in range
+          let fired = 0;
+          for (const e of enemies) {
+            if (e.hp <= 0 || fired >= 10) continue;
+            const dist = Math.hypot(e.x - c.x, e.y - c.y);
+            if (dist <= stats.range * 1.2) {
+              e.hp -= stats.dmg * 1.5;
+              spawnAbilityProjectile(c.x, c.y, e.x, e.y, '#ff6b35');
+              fired++;
+            }
+          }
+          break;
+        }
+        case 'power': {
+          // Bombardment — massive AoE at target
+          abilityZones.push({ x: targetX, y: targetY, radius: 80, color: '231,76,60', life: 20, maxLife: 20, type: 'explosion' });
+          for (const e of enemies) {
+            if (e.hp <= 0) continue;
+            const dist = Math.hypot(e.x - targetX, e.y - targetY);
+            if (dist <= 80) {
+              e.hp -= stats.dmg * 4;
+            } else if (dist <= 120) {
+              e.hp -= stats.dmg * 2;
+            }
+          }
+          triggerScreenShake(true);
+          break;
+        }
+        case 'tech': {
+          // EMP — freeze all enemies for 3s
+          for (const e of enemies) {
+            if (e.hp <= 0) continue;
+            e.slowTimer = Math.max(e.slowTimer, TICK_RATE * 3);
+            e.hp -= stats.dmg * 0.5;
+          }
+          abilityZones.push({ x: CANVAS_W / 2, y: CANVAS_H / 2, radius: 400, color: '155,89,182', life: 20, maxLife: 20, type: 'pulse' });
+          triggerScreenShake(false);
+          break;
+        }
+        case 'gatling': {
+          // Bullet Storm — 20 rapid shots
+          let fired = 0;
+          const shuffled = [...enemies].filter(e => e.hp > 0).sort(() => Math.random() - 0.5);
+          for (const e of shuffled) {
+            if (fired >= 20) break;
+            const dist = Math.hypot(e.x - c.x, e.y - c.y);
+            if (dist <= stats.range * 1.5) {
+              e.hp -= stats.dmg * 1.2;
+              setTimeout(() => spawnAbilityProjectile(c.x, c.y, e.x, e.y, '#ff8c42'), fired * 40);
+              fired++;
+            }
+          }
+          break;
+        }
+        case 'sniper': {
+          // Headshot — instant kill non-boss, 20× dmg to boss
+          const target = findNearestEnemy(targetX, targetY, 60);
+          if (target) {
+            if (target.type === 'boss') {
+              target.hp -= stats.dmg * 20;
+            } else {
+              target.hp = 0; // instant kill
+            }
+            spawnAbilityProjectile(c.x, c.y, target.x, target.y, '#ff4500');
+            abilityZones.push({ x: target.x, y: target.y, radius: 15, color: '255,69,0', life: 12, maxLife: 12, type: 'burst' });
+            triggerScreenShake(false);
+          }
+          break;
+        }
+        case 'cannon': {
+          // Napalm — AoE + burn zone
+          abilityZones.push({ x: targetX, y: targetY, radius: 60, color: '255,107,53', life: 60, maxLife: 60, type: 'napalm' });
+          for (const e of enemies) {
+            if (e.hp <= 0) continue;
+            const dist = Math.hypot(e.x - targetX, e.y - targetY);
+            if (dist <= 60) {
+              e.hp -= stats.dmg * 3;
+            }
+          }
+          triggerScreenShake(true);
+          break;
+        }
+        case 'railgun': {
+          // Orbital Strike — line from cannon through target across map
+          const dx = targetX - c.x;
+          const dy = targetY - c.y;
+          const len = Math.hypot(dx, dy) || 1;
+          const nx = dx / len, ny = dy / len;
+          // Extend line across entire canvas
+          const farX = c.x + nx * 1000;
+          const farY = c.y + ny * 1000;
+          abilityZones.push({ x1: c.x, y1: c.y, x2: farX, y2: farY, color: '231,76,60', life: 15, maxLife: 15, type: 'beam' });
+          for (const e of enemies) {
+            if (e.hp <= 0) continue;
+            // Distance from point to line
+            const t = Math.max(0, ((e.x - c.x) * nx + (e.y - c.y) * ny));
+            const closestX = c.x + nx * t;
+            const closestY = c.y + ny * t;
+            const dist = Math.hypot(e.x - closestX, e.y - closestY);
+            if (dist <= 30) {
+              e.hp -= stats.dmg * 6;
+            }
+          }
+          triggerScreenShake(true);
+          break;
+        }
+        case 'tesla': {
+          // Chain Overload — hit all enemies with lightning
+          for (const e of enemies) {
+            if (e.hp <= 0) continue;
+            e.hp -= stats.dmg * 2;
+            spawnAbilityProjectile(c.x, c.y, e.x, e.y, '#8e44ad');
+          }
+          abilityZones.push({ x: c.x, y: c.y, radius: 300, color: '142,68,173', life: 15, maxLife: 15, type: 'pulse' });
+          triggerScreenShake(false);
+          break;
+        }
+        case 'frost': {
+          // Blizzard — slow all enemies 80% for 5s
+          for (const e of enemies) {
+            if (e.hp <= 0) continue;
+            e.slowTimer = Math.max(e.slowTimer, TICK_RATE * 5);
+          }
+          abilityZones.push({ x: CANVAS_W / 2, y: CANVAS_H / 2, radius: 400, color: '93,173,226', life: 25, maxLife: 25, type: 'blizzard' });
+          break;
+        }
+      }
+
+      // Check kills after ability fire
+      checkAbilityKills();
+    }
+
+    function findNearestEnemy(x, y, maxDist) {
+      let nearest = null, nearestDist = maxDist;
+      for (const e of enemies) {
+        if (e.hp <= 0) continue;
+        const dist = Math.hypot(e.x - x, e.y - y);
+        if (dist < nearestDist) {
+          nearest = e;
+          nearestDist = dist;
+        }
+      }
+      return nearest;
+    }
+
+    function spawnAbilityProjectile(x1, y1, x2, y2, color) {
+      projectiles.push({ x1, y1, x2, y2, color, life: 8 });
+    }
+
+    function checkAbilityKills() {
+      for (const e of enemies) {
+        if (e.hp <= 0 && !e.dead) {
+          e.dead = true;
+          totalKills++;
+          comboCount++;
+          comboTimer = COMBO_WINDOW;
+          const comboMult = comboCount >= COMBO_MIN ? Math.min(comboCount, 10) : 1;
+          if (offlineMode) {
+            offlineAwardXP(comboMult);
+          } else {
+            awardXP(Object.entries(cannons), comboMult);
+          }
+          scorePopups.push({
+            x: e.x + (Math.random() - 0.5) * 16,
+            y: e.y,
+            text: `+${comboMult} XP`,
+            color: comboCount >= 8 ? '#ff4444' : comboCount >= 5 ? '#ff8800' : comboCount >= COMBO_MIN ? '#ffd700' : '#ffffff',
+            life: 40, maxLife: 40,
+            size: comboCount >= 5 ? 16 : comboCount >= COMBO_MIN ? 13 : 11,
+            vy: -1.5
+          });
+          for (let i = 0; i < 8; i++) {
+            particles.push({
+              x: e.x, y: e.y,
+              vx: (Math.random() - 0.5) * 5,
+              vy: (Math.random() - 0.5) * 5,
+              color: e.color,
+              life: 15 + Math.random() * 10
+            });
+          }
+        }
+      }
+      enemies = enemies.filter(e => !e.dead);
+      updateComboDisplay();
+      hudKills.textContent = totalKills;
+      hudEnemies.textContent = enemies.filter(e => e.hp > 0).length;
     }
 
     // ═══════════════════════════════════════════════════
@@ -2108,6 +2498,87 @@
         p.y += p.vy;
         p.life--;
         if (p.life <= 0) particles.splice(i, 1);
+      }
+
+      // Draw ability zones
+      for (let i = abilityZones.length - 1; i >= 0; i--) {
+        const az = abilityZones[i];
+        const alpha = az.life / az.maxLife;
+        if (az.type === 'beam') {
+          ctx.globalAlpha = alpha * 0.8;
+          ctx.strokeStyle = `rgba(${az.color},${alpha})`;
+          ctx.lineWidth = 12 * alpha;
+          ctx.beginPath();
+          ctx.moveTo(az.x1, az.y1);
+          ctx.lineTo(az.x2, az.y2);
+          ctx.stroke();
+          // Bright core
+          ctx.strokeStyle = `rgba(255,255,255,${alpha * 0.6})`;
+          ctx.lineWidth = 4 * alpha;
+          ctx.beginPath();
+          ctx.moveTo(az.x1, az.y1);
+          ctx.lineTo(az.x2, az.y2);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        } else if (az.type === 'napalm') {
+          // Persistent burn zone
+          const flicker = 0.5 + Math.random() * 0.3;
+          ctx.globalAlpha = alpha * 0.4 * flicker;
+          ctx.fillStyle = `rgba(${az.color},1)`;
+          ctx.beginPath();
+          ctx.arc(az.x, az.y, az.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          // Napalm damages enemies each frame while active (leader only)
+          if (az.life % 4 === 0 && (isLeader || offlineMode)) {
+            for (const e of enemies) {
+              if (e.hp <= 0) continue;
+              const dist = Math.hypot(e.x - az.x, e.y - az.y);
+              if (dist <= az.radius) {
+                e.hp -= 0.3;
+              }
+            }
+          }
+        } else if (az.type === 'blizzard') {
+          ctx.globalAlpha = alpha * 0.15;
+          ctx.fillStyle = `rgba(${az.color},1)`;
+          ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+          // Snowflake particles
+          ctx.globalAlpha = alpha * 0.5;
+          ctx.fillStyle = '#fff';
+          for (let s = 0; s < 8; s++) {
+            const sx = Math.random() * CANVAS_W;
+            const sy = Math.random() * CANVAS_H;
+            ctx.fillRect(sx, sy, 2, 2);
+          }
+          ctx.globalAlpha = 1;
+        } else {
+          // burst / explosion / pulse
+          const expand = az.type === 'pulse' ? 1 : (1 - alpha) * 0.3 + 0.7;
+          const r = az.radius * expand;
+          ctx.globalAlpha = alpha * 0.5;
+          ctx.fillStyle = `rgba(${az.color},${alpha * 0.3})`;
+          ctx.beginPath();
+          ctx.arc(az.x, az.y, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = `rgba(${az.color},${alpha * 0.8})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        az.life--;
+        if (az.life <= 0) abilityZones.splice(i, 1);
+      }
+
+      // Draw ability targeting indicator
+      if (abilityTargeting) {
+        const rect = canvas.getBoundingClientRect();
+        // We draw a pulsing crosshair hint at center
+        ctx.fillStyle = 'rgba(30,144,255,0.4)';
+        ctx.font = '14px ' + getComputedStyle(document.body).fontFamily;
+        ctx.textAlign = 'center';
+        ctx.fillText('🎯 Click to target ability', CANVAS_W / 2, 30);
+        ctx.textAlign = 'start';
       }
 
       // Draw score popups
