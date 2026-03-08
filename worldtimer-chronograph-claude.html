@@ -20,7 +20,7 @@
       --text-muted: #888;
       --chrono-red: #c41e3a;
       --chrono-blue: #1E90FF;
-      --font-mono: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+      --font-mono: 'SF Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -37,6 +37,15 @@
     a:hover { color: var(--accent-hover); }
 
     .back-link { position: fixed; top: 20px; left: 20px; font-size: 0.85rem; }
+
+    h1 {
+      font-size: 1.1rem;
+      font-weight: 400;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      color: #777;
+    }
 
     /* === WATCH CONTAINER === */
     .world-timer { display: flex; flex-direction: column; align-items: center; }
@@ -89,48 +98,31 @@
     .hour-marker.night { color: #fff; }
     .hour-marker.dawn, .hour-marker.dusk { color: #fff; text-shadow: 0 0 2px rgba(0,0,0,0.8); }
 
-    /* === TACHYMETER CHAPTER RING === */
-    .chapter-ring {
+    /* === SCALE LABELS (on clock face) === */
+    .scale-label {
       position: absolute;
-      top: 90px; left: 90px; right: 90px; bottom: 90px;
-      border-radius: 50%;
-      background: #2a2a2a;
-      border: 1px solid #444;
-      z-index: 8;
+      font-size: 8px;
+      font-weight: 700;
+      transform: translate(-50%, -50%);
+      color: #ddd;
+      z-index: 15;
     }
-    .tachy-label {
+    .scale-label.pulse { color: var(--chrono-red); }
+    .scale-label.tele { color: var(--chrono-blue); }
+    .scale-title {
       position: absolute;
       font-size: 7px;
-      font-weight: 600;
-      color: #ccc;
-      transform: translate(-50%, -50%);
-      z-index: 9;
-    }
-    .tachy-title {
-      position: absolute;
-      top: 6px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 6px;
-      color: var(--chrono-red);
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1px;
-      z-index: 9;
-    }
-    .tachy-tick {
-      position: absolute;
-      top: 2px;
-      left: 50%;
-      width: 1px;
-      height: 6px;
-      background: #666;
-      z-index: 9;
+      transform: translateX(-50%);
+      z-index: 20;
     }
 
     /* === CLOCK FACE === */
     .clock-face {
       position: absolute;
-      top: 112px; left: 112px; right: 112px; bottom: 112px;
+      top: 90px; left: 90px; right: 90px; bottom: 90px;
       border-radius: 50%;
       background: linear-gradient(180deg, #4a90c2 0%, #2d6b9e 30%, #1e5a8a 60%, #0d3a5c 100%);
       box-shadow: inset 0 0 15px rgba(0,0,0,0.3);
@@ -152,7 +144,7 @@
     .polar-earth {
       position: absolute;
       top: 50%; left: 50%;
-      width: 120px; height: 120px;
+      width: 180px; height: 180px;
       transform: translate(-50%, -50%);
       border-radius: 50%;
       overflow: hidden;
@@ -166,7 +158,7 @@
       top: 4px; left: 50%;
       width: 1px; height: 8px;
       background: rgba(255,255,255,0.5);
-      transform-origin: 50% 164px;
+      transform-origin: 50% 186px;
     }
     .clock-tick.major {
       width: 3px; height: 14px;
@@ -204,9 +196,9 @@
       transform: translate(-50%, -50%);
       z-index: 20;
     }
-    .subdial-30m { width: 62px; height: 62px; top: 30px; left: 50%; transform: translateX(-50%); }
-    .subdial-12h { width: 62px; height: 62px; bottom: 52px; left: 38px; }
-    .subdial-60s { width: 62px; height: 62px; bottom: 52px; right: 38px; }
+    .subdial-30m { width: 80px; height: 80px; top: 22px; left: 50%; transform: translateX(-50%); }
+    .subdial-12h { width: 80px; height: 80px; bottom: 22px; left: 50%; transform: translateX(-50%); }
+    .subdial-running-sec { width: 80px; height: 80px; top: 50%; left: 10px; transform: translateY(-50%); }
     .subdial-label {
       position: absolute;
       bottom: 10px; left: 50%;
@@ -221,7 +213,7 @@
       top: 2px; left: 50%;
       width: 1px; height: 4px;
       background: rgba(255,255,255,0.3);
-      transform-origin: 50% 29px;
+      transform-origin: 50% 38px;
     }
     .subdial-tick.major { height: 6px; background: rgba(255,255,255,0.6); }
     .subdial-num {
@@ -355,7 +347,7 @@
     /* Subdial hands */
     .hand-sub {
       position: absolute;
-      width: 1.5px; height: 22px;
+      width: 1.5px; height: 30px;
       background: var(--chrono-red);
       border-radius: 1px;
       bottom: 50%; left: 50%;
@@ -520,18 +512,17 @@
 <body>
   <a href="/" class="back-link">&larr; rayhe.net</a>
 
+  <h1>Claude Worldtimer Chronograph</h1>
+
   <div class="world-timer">
     <div class="clock-container" id="clockContainer">
       <div class="clock-bezel"></div>
       <div class="clock-cities" id="clockCities"></div>
       <div class="hour-ring" id="hourRing"></div>
-      <div class="chapter-ring" id="chapterRing">
-        <div class="tachy-title">Tachymetre</div>
-      </div>
       <div class="local-indicator"></div>
       <div class="clock-face" id="clockFace">
         <div class="polar-earth">
-          <canvas id="polarEarthCanvas" width="200" height="200"></canvas>
+          <canvas id="polarEarthCanvas" width="280" height="280"></canvas>
         </div>
         <!-- Subdials -->
         <div class="subdial subdial-30m" id="subdial30m">
@@ -542,9 +533,9 @@
           <div class="subdial-label">12 hour</div>
           <div class="hand-sub" id="hand12h"></div>
         </div>
-        <div class="subdial subdial-60s" id="subdial60s">
-          <div class="subdial-label">60 sec</div>
-          <div class="hand-sub" id="hand60s"></div>
+        <div class="subdial subdial-running-sec" id="subdialRunningSec">
+          <div class="subdial-label">seconds</div>
+          <div class="hand-sub" id="handRunningSec"></div>
         </div>
         <div class="split-display" id="splitDisplay">SPLIT: 00:00.000</div>
         <div class="date-window" id="dateWindow">22</div>
@@ -596,7 +587,6 @@
   const clockFace = document.getElementById('clockFace');
   const clockCities = document.getElementById('clockCities');
   const hourRing = document.getElementById('hourRing');
-  const chapterRing = document.getElementById('chapterRing');
   const digitalTime = document.getElementById('digitalTime');
   const digitalDate = document.getElementById('digitalDate');
   const timezoneInfo = document.getElementById('timezoneInfo');
@@ -930,41 +920,66 @@
     });
   }
 
-  // ── Tachymeter chapter ring ──
-  function generateTachymeter() {
-    const ring = chapterRing;
-    const rect = ring.getBoundingClientRect();
-    const rc = rect.width / 2;
-    const tachyValues = [
-      {sec: 60, val: 60}, {sec: 55, val: 65}, {sec: 50, val: 72}, {sec: 45, val: 80},
-      {sec: 40, val: 90}, {sec: 35, val: 103}, {sec: 30, val: 120}, {sec: 25, val: 144},
-      {sec: 20, val: 180}, {sec: 15, val: 240}, {sec: 12, val: 300}, {sec: 10, val: 360},
-      {sec: 9, val: 400}, {sec: 8, val: 450}, {sec: 7.5, val: 480}
+  // ── Chronograph scales on the clock face ──
+  function generateScales() {
+    // Scale title labels near top of face
+    const titles = [
+      { text: 'Tachymeter', top: 28, color: '#ddd' },
+      { text: 'Pulsations 30', top: 42, color: 'var(--chrono-red)' },
+      { text: 'Telemeter km', top: 56, color: 'var(--chrono-blue)' }
     ];
-    const labelR = rc - 10;
-    tachyValues.forEach(t => {
-      const angle = ((t.sec / 60) * 360 - 90) * Math.PI / 180;
+    titles.forEach(t => {
       const el = document.createElement('div');
-      el.className = 'tachy-label';
-      el.textContent = t.val;
-      el.style.left = (rc + labelR * Math.cos(angle)) + 'px';
-      el.style.top = (rc + labelR * Math.sin(angle)) + 'px';
-      ring.appendChild(el);
+      el.className = 'scale-title';
+      el.textContent = t.text;
+      el.style.top = t.top + 'px';
+      el.style.left = '50%';
+      el.style.color = t.color;
+      clockFace.appendChild(el);
     });
-    // Tick marks
-    for (let i = 0; i < 60; i++) {
-      const tick = document.createElement('div');
-      tick.className = 'tachy-tick';
-      const transformR = rc - 2;
-      tick.style.transformOrigin = `50% ${transformR}px`;
-      tick.style.transform = `translateX(-50%) rotate(${i * 6}deg)`;
-      if (i % 5 === 0) { tick.style.height = '8px'; tick.style.background = '#999'; }
-      ring.appendChild(tick);
-    }
+
+    // Tachymeter scale (outermost): speed = 3600 / seconds
+    const tachyValues = [60, 70, 80, 100, 120, 150, 200, 300, 400];
+    tachyValues.forEach(val => {
+      const sec = 3600 / val;
+      const angle = ((sec / 60) * 360 - 90) * Math.PI / 180;
+      const label = document.createElement('div');
+      label.className = 'scale-label';
+      label.textContent = val;
+      label.style.left = (faceCenter + 175 * Math.cos(angle)) + 'px';
+      label.style.top = (faceCenter + 175 * Math.sin(angle)) + 'px';
+      clockFace.appendChild(label);
+    });
+
+    // Pulsometer scale (middle): BPM for 30 pulsations = 1800 / seconds
+    const pulseValues = [40, 50, 60, 70, 80, 100, 120, 160, 200];
+    pulseValues.forEach(val => {
+      const sec = 1800 / val;
+      const angle = ((sec / 60) * 360 - 90) * Math.PI / 180;
+      const label = document.createElement('div');
+      label.className = 'scale-label pulse';
+      label.textContent = val;
+      label.style.left = (faceCenter + 160 * Math.cos(angle)) + 'px';
+      label.style.top = (faceCenter + 160 * Math.sin(angle)) + 'px';
+      clockFace.appendChild(label);
+    });
+
+    // Telemeter scale (innermost): distance = seconds * 0.343 km
+    const telValues = [1, 2, 3, 4, 5, 7, 10, 15, 20];
+    telValues.forEach(val => {
+      const sec = val / 0.343;
+      const angle = ((sec / 60) * 360 - 90) * Math.PI / 180;
+      const label = document.createElement('div');
+      label.className = 'scale-label tele';
+      label.textContent = val;
+      label.style.left = (faceCenter + 145 * Math.cos(angle)) + 'px';
+      label.style.top = (faceCenter + 145 * Math.sin(angle)) + 'px';
+      clockFace.appendChild(label);
+    });
   }
 
   // ── Clock face setup ──
-  const faceCenter = 168; // (560 - 112*2) / 2 = 168
+  const faceCenter = 190; // (560 - 90*2) / 2 = 190
 
   // Tick marks
   for (let i = 0; i < 60; i++) {
@@ -975,7 +990,7 @@
   }
 
   // Hour numbers
-  const hourR = 128;
+  const hourR = 155;
   for (let i = 1; i <= 12; i++) {
     const angle = (i * 30 - 90) * Math.PI / 180;
     const num = document.createElement('div');
@@ -1012,14 +1027,14 @@
       el.appendChild(tick);
     }
     if (nums) {
-      const r = 20;
+      const r = 26;
       nums.forEach(n => {
         const angle = (n.pos * (360 / (count || 1)) - 90) * Math.PI / 180;
         const num = document.createElement('div');
         num.className = 'subdial-num';
         num.textContent = n.label;
-        num.style.left = (31 + r * Math.cos(angle)) + 'px';
-        num.style.top = (31 + r * Math.sin(angle)) + 'px';
+        num.style.left = (40 + r * Math.cos(angle)) + 'px';
+        num.style.top = (40 + r * Math.sin(angle)) + 'px';
         el.appendChild(num);
       });
     }
@@ -1029,7 +1044,7 @@
     [{pos:0, label:'30'}, {pos:5, label:'5'}, {pos:10, label:'10'}, {pos:15, label:'15'}, {pos:20, label:'20'}, {pos:25, label:'25'}]);
   setupSubdial(document.getElementById('subdial12h'), 12,
     [{pos:0, label:'12'}, {pos:3, label:'3'}, {pos:6, label:'6'}, {pos:9, label:'9'}]);
-  setupSubdial(document.getElementById('subdial60s'), 60,
+  setupSubdial(document.getElementById('subdialRunningSec'), 60,
     [{pos:0, label:'60'}, {pos:15, label:'15'}, {pos:30, label:'30'}, {pos:45, label:'45'}]);
 
   // ── Time-lapse animation ──
@@ -1065,7 +1080,7 @@
   // ── Polar Earth ──
   const polarCanvas = document.getElementById('polarEarthCanvas');
   const polarCtx = polarCanvas.getContext('2d');
-  const polarSize = 200;
+  const polarSize = 280;
   const polarCenter = polarSize / 2;
   const polarRadius = polarSize / 2 - 4;
   const polarImg = new Image();
@@ -1133,7 +1148,7 @@
   const handSplit = document.getElementById('handSplit');
   const hand30m = document.getElementById('hand30m');
   const hand12h = document.getElementById('hand12h');
-  const hand60s = document.getElementById('hand60s');
+  const handRunningSec = document.getElementById('handRunningSec');
   const splitDisplay = document.getElementById('splitDisplay');
   const lapsContainer = document.getElementById('laps');
 
@@ -1152,9 +1167,6 @@
     const chronoAngle = (totalSec % 60) * 6;
     handChrono.style.transform = `translateX(-50%) rotate(${chronoAngle}deg)`;
     chronoPip.style.transform = `translateX(-50%) rotate(${-chronoAngle + 180}deg)`;
-    // 60-second subdial
-    const sec60Angle = (totalSec % 60) * 6;
-    hand60s.style.transform = `translateX(-50%) rotate(${sec60Angle}deg)`;
     // 30-minute subdial
     const min30Angle = ((totalSec / 60) % 30) * 12;
     hand30m.style.transform = `translateX(-50%) rotate(${min30Angle}deg)`;
@@ -1306,11 +1318,16 @@
     const offM = Math.round((Math.abs(offset) % 1) * 60);
     const offStr = (offset >= 0 ? '+' : '-') + String(offH).padStart(2, '0') + ':' + String(offM).padStart(2, '0');
     let tzDisp = homeCityName || homeTz;
-    if (homeTimezone && homeTimezone !== getLocalTimezone()) tzDisp += ' \u{1F4CD}';
+    if (homeTimezone && homeTimezone !== getLocalTimezone()) tzDisp += ' [remote]';
     timezoneInfo.textContent = `${tzDisp} (UTC${offStr})` + (isTimeLapse ? ' \u23E9' : '');
 
     // Polar earth
     drawPolarEarth(hours, minutes, seconds);
+
+    // Running seconds subdial (wall-clock, independent of chrono)
+    const wallNow = new Date();
+    const runSecAngle = (wallNow.getSeconds() + wallNow.getMilliseconds() / 1000) * 6;
+    handRunningSec.style.transform = `translateX(-50%) rotate(${runSecAngle}deg)`;
 
     // Chronograph update
     if (chronoRunning) {
@@ -1325,7 +1342,7 @@
   initSunTimes();
   positionCities();
   generateHourRing();
-  generateTachymeter();
+  generateScales();
   updateChronoDisplay(0);
   updateClock();
 
