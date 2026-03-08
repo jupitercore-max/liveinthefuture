@@ -51,22 +51,33 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **XP multiplier** — awardXP() and offlineAwardXP() now accept an xpAmount parameter, so combo kills grant proportionally more XP to all players' cannons.
 - **State cleanup** — Combo state properly resets on game over / play again.
 
+### 2025-06-06: Wave Preview & Screen Shake
+- **Wave preview during countdown** — When a wave countdown begins, a panel appears at the bottom of the canvas showing all enemy types that will spawn, with mini-canvas icons drawn in their actual shape/color, type names, and counts (e.g., "scout ×5, tank ×3, boss ×1"). Uses the same deterministic RNG as wave generation to predict the composition. Helps players prepare strategy.
+- **Screen shake system** — CSS-based camera shake with two intensities:
+  - Light shake: when base takes normal damage, or combo hits 5 kills
+  - Heavy shake: when boss damages the base, combo hits 10 kills, or game over
+  - Uses CSS animations with `transform: translate()` for smooth performance
+- **Non-leader sync** — Wave preview and screen shake properly handled for non-leader clients via Firebase state transitions
+- **Boss wave indicator** — Boss waves now show "⚠ BOSS WAVE!" instead of just "BOSS WAVE!"
+
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
 - [ ] No sound effects
 - [x] ~~No base HP system — single enemy reaching base = wave failed, feels harsh~~ → Base HP system added (20 HP, regen, game over)
 - [x] ~~Score popup text when enemies die~~ → Floating XP popups with color and size scaling
-- [ ] Screen shake on boss or wave fail
-- [ ] Enemy path variety (currently just straight down)
+- [x] ~~Screen shake on boss or wave fail~~ → Screen shake with light/heavy intensities
 - [ ] Better onboarding/tutorial flow
 - [ ] Achievement system
-- [ ] Wave preview showing what's coming next
+- [x] ~~Wave preview showing what's coming next~~ → Enemy type breakdown shown during countdown
 - [ ] Better visual differentiation between cannon types
 - [x] ~~Combo system for rapid kills~~ → Kill combo system with multiplied XP rewards
 - [ ] Active abilities (click to fire special shot)
 - [ ] Environmental features (obstacles, terrain that slows enemies)
 - [ ] Mini-boss mechanics (special attacks, phases)
 - [ ] Better balancing at higher waves
+- [ ] Speed controls (1x, 2x, 3x game speed)
+- [ ] Sell/reset cannon option
+- [ ] Wave skip / early send for bonus XP
 
 ## Hourly Improvement Cycle
 Hatch runs a cron job every hour that:
