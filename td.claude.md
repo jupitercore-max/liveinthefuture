@@ -34,10 +34,20 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 4. **Wave start logic** — Ensured first cannon placement triggers wave start even for solo players
 5. **Ground/terrain visuals** — Added terrain gradient and better visual hierarchy
 
+### 2026-03-09: Base HP System
+- **Replaced instant wave-fail with Base HP** — Previously a single enemy reaching the base = wave failed (felt harsh and unfair). Now the base has 20 HP. Each enemy that leaks through deals 1 damage (bosses deal 3). Game over only when HP hits 0.
+- **Visual HP bar** at the base line with color-coded fill (green > yellow > red)
+- **HUD heart indicator** with color change and pulse animation on damage
+- **Red damage flash** on the canvas when enemies break through
+- **HP regeneration** — +1 HP recovered per wave cleared (capped at max 20)
+- **Game Over screen** with wave/kill stats and "Play Again" button
+- **Full multiplayer sync** — baseHp synced through Firebase meta for all players
+- **Smart reset** — new leader inheriting a game-over state auto-resets the game
+
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
 - [ ] No sound effects
-- [ ] No base HP system — single enemy reaching base = wave failed, feels harsh
+- [x] ~~No base HP system — single enemy reaching base = wave failed, feels harsh~~ → Base HP system added (20 HP, regen, game over)
 - [ ] Score popup text when enemies die
 - [ ] Screen shake on boss or wave fail
 - [ ] Enemy path variety (currently just straight down)

@@ -283,6 +283,63 @@
       100% { transform: scale(1); opacity: 1; }
     }
 
+    /* ─── Base HP ────────────────────────────────────── */
+    .hud-hp { transition: color 0.2s; }
+    .hud-hp.damaged {
+      color: var(--danger);
+      animation: hpPulse 0.4s ease-out;
+    }
+    @keyframes hpPulse {
+      0% { transform: scale(1.4); }
+      100% { transform: scale(1); }
+    }
+    .damage-flash {
+      position: absolute;
+      inset: 0;
+      background: rgba(231,76,60,0.25);
+      pointer-events: none;
+      z-index: 9;
+      animation: damageFlash 0.4s ease-out forwards;
+    }
+    @keyframes damageFlash {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .game-over-overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      background: rgba(0,0,0,0.75);
+      z-index: 20;
+    }
+    .game-over-overlay.active { display: flex; }
+    .game-over-overlay .go-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--danger);
+      margin-bottom: 8px;
+    }
+    .game-over-overlay .go-stats {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+    .game-over-overlay .go-restart {
+      background: var(--danger);
+      color: #fff;
+      border: none;
+      padding: 10px 28px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .game-over-overlay .go-restart:hover { background: #c0392b; }
+
     /* ─── Responsive ─────────────────────────────────── */
     @media (max-width: 600px) {
       .header h1 { font-size: 0.95rem; }
@@ -303,6 +360,7 @@
   <!-- ─── Game Screen ──────────────────────────────── -->
   <div id="gameScreen">
     <div class="hud">
+      <div class="hud-item">❤️ <span class="hud-val hud-hp" id="hudBaseHp">20</span></div>
       <div class="hud-item">Wave <span class="hud-val" id="hudWave">1</span></div>
       <div class="hud-item">Enemies <span class="hud-val" id="hudEnemies">0</span></div>
       <div class="hud-item">Kills <span class="hud-val" id="hudKills">0</span></div>
@@ -314,6 +372,11 @@
       <div class="wave-announce" id="waveAnnounce">
         <div class="wa-text" id="waText"></div>
         <div class="wa-sub" id="waSub"></div>
+      </div>
+      <div class="game-over-overlay" id="gameOverOverlay">
+        <div class="go-title">GAME OVER</div>
+        <div class="go-stats" id="goStats">Wave 1 · 0 kills</div>
+        <button class="go-restart" id="goRestart">Play Again</button>
       </div>
     </div>
 
@@ -365,6 +428,9 @@
     const LEADER_STALE_MS = 6000;
     const STALE_CANNON_DAYS = 30;
     const XP_PER_LEVEL = lvl => lvl * 50;
+    const BASE_MAX_HP = 20;
+    const BOSS_DAMAGE = 3;
+    const HP_REGEN_PER_WAVE = 1;
 
     // ═══════════════════════════════════════════════════
     //  Seeded PRNG (mulberry32)
@@ -590,8 +656,10 @@
 
     // Game data
     let waveNumber = 1;
-    let waveState = 'waiting'; // waiting, active, countdown, failed
+    let waveState = 'waiting'; // waiting, active, countdown, failed, gameover
+    let baseHp = BASE_MAX_HP;
     let totalKills = 0;
+    let damageFlashTimer = 0; // frames remaining for red flash
     let enemies = [];
     let cannons = {}; // id -> cannon data
     let projectiles = []; // client-side visual only
@@ -619,6 +687,7 @@
     const hudEnemies = $('hudEnemies');
     const hudKills = $('hudKills');
     const hudOnline = $('hudOnline');
+    const hudBaseHp = $('hudBaseHp');
     const cannonInfo = $('cannonInfo');
     const xpBarFill = $('xpBarFill');
     const xpBarText = $('xpBarText');
@@ -634,6 +703,9 @@
     const waveAnnounce = $('waveAnnounce');
     const waText = $('waText');
     const waSub = $('waSub');
+    const gameOverOverlay = $('gameOverOverlay');
+    const goStats = $('goStats');
+    const goRestart = $('goRestart');
     const avatarBtn = $('avatarBtn');
     const avatarInput = $('avatarInput');
     const gameScreen = $('gameScreen');
@@ -847,10 +919,16 @@
             const prevState = waveState;
             waveState = meta.waveState || 'waiting';
             totalKills = meta.totalKills || 0;
+            baseHp = meta.baseHp != null ? meta.baseHp : BASE_MAX_HP;
+            updateBaseHpHUD();
             // Trigger wave announcement for non-leaders
             if (waveState === 'countdown' && prevState !== 'countdown') {
               showWaveAnnouncement(waveNumber);
               countdownStartedAt = Date.now();
+            }
+            // Show game over for non-leaders
+            if (waveState === 'gameover' && prevState !== 'gameover') {
+              showGameOver();
             }
           }
           hudWave.textContent = waveNumber;
@@ -894,6 +972,9 @@
           waveNumber = meta.waveNumber || 1;
           totalKills = meta.totalKills || 0;
           waveState = meta.waveState || 'waiting';
+          baseHp = meta.baseHp != null ? meta.baseHp : BASE_MAX_HP;
+          updateBaseHpHUD();
+          if (waveState === 'gameover') showGameOver();
         }
       });
     }
@@ -938,6 +1019,19 @@
             currentPath = JSON.parse(data.path);
             currentPathLength = getPathLength(currentPath);
           } catch(e) {}
+        }
+      });
+
+      // Load baseHp from meta
+      metaRef.once('value', snap => {
+        const meta = snap.val();
+        if (meta) {
+          baseHp = meta.baseHp != null ? meta.baseHp : BASE_MAX_HP;
+          updateBaseHpHUD();
+          if (meta.waveState === 'gameover') {
+            // Reset if leader takes over a game-over state
+            resetGame();
+          }
         }
       });
 
@@ -1001,6 +1095,7 @@
     // ═══════════════════════════════════════════════════
     function simTick() {
       if (!isLeader) return;
+      if (waveState === 'gameover') return;
 
       tickCount++;
 
@@ -1129,27 +1224,38 @@
       }
       enemies = enemies.filter(e => !e.dead);
 
-      // Check if enemy reached base (end of path)
-      const reached = enemies.some(e => (e.pathProgress || 0) >= 1.0);
-      if (reached) {
-        waveState = 'failed';
-        if (!offlineMode) metaRef.update({ waveState: 'failed', totalKills });
-        // Restart wave after brief pause
-        setTimeout(() => {
-          if (isLeader) {
-            enemies = [];
-            startWaveCountdown();
-          }
-        }, 2000);
-        writeSnapshot();
-        return;
+      // Check if enemy reached base (end of path) — deal damage instead of instant fail
+      let damageTaken = 0;
+      enemies = enemies.filter(e => {
+        if ((e.pathProgress || 0) >= 1.0) {
+          damageTaken += e.type === 'boss' ? BOSS_DAMAGE : 1;
+          return false; // remove enemy
+        }
+        return true;
+      });
+      if (damageTaken > 0) {
+        baseHp = Math.max(0, baseHp - damageTaken);
+        damageFlashTimer = 8; // ~0.4s at 20fps
+        if (!offlineMode) metaRef.update({ baseHp, totalKills });
+        updateBaseHpHUD();
+
+        if (baseHp <= 0) {
+          waveState = 'gameover';
+          if (!offlineMode) metaRef.update({ waveState: 'gameover', totalKills });
+          showGameOver();
+          writeSnapshot();
+          return;
+        }
       }
 
       // Check wave clear
       if (enemies.length === 0 && waveState === 'active') {
         waveNumber++;
-        if (!offlineMode) metaRef.update({ waveNumber, waveState: 'waiting', totalKills });
+        // Heal 1 HP per wave cleared (capped at max)
+        baseHp = Math.min(BASE_MAX_HP, baseHp + HP_REGEN_PER_WAVE);
+        if (!offlineMode) metaRef.update({ waveNumber, waveState: 'waiting', totalKills, baseHp });
         waveState = 'waiting';
+        updateBaseHpHUD();
         startWaveCountdown();
       }
 
@@ -1176,6 +1282,7 @@
         waveNumber,
         waveState,
         totalKills,
+        baseHp,
         lastActivity: firebase.database.ServerValue.TIMESTAMP
       });
     }
@@ -1223,6 +1330,73 @@
     }
 
     // ═══════════════════════════════════════════════════
+    //  Base HP System
+    // ═══════════════════════════════════════════════════
+    function updateBaseHpHUD() {
+      hudBaseHp.textContent = baseHp;
+      // Color coding based on HP percentage
+      const pct = baseHp / BASE_MAX_HP;
+      if (pct <= 0.25) {
+        hudBaseHp.style.color = '#e74c3c';
+      } else if (pct <= 0.5) {
+        hudBaseHp.style.color = '#f39c12';
+      } else {
+        hudBaseHp.style.color = '';
+      }
+      // Pulse animation on damage
+      if (damageFlashTimer > 0) {
+        hudBaseHp.classList.add('damaged');
+        setTimeout(() => hudBaseHp.classList.remove('damaged'), 400);
+      }
+    }
+
+    function showGameOver() {
+      goStats.textContent = `Wave ${waveNumber} · ${totalKills} kills`;
+      gameOverOverlay.classList.add('active');
+    }
+
+    function resetGame() {
+      gameOverOverlay.classList.remove('active');
+      waveNumber = 1;
+      baseHp = BASE_MAX_HP;
+      totalKills = 0;
+      enemies = [];
+      waveState = 'waiting';
+      damageFlashTimer = 0;
+      updateBaseHpHUD();
+      hudWave.textContent = waveNumber;
+      hudKills.textContent = totalKills;
+      hudEnemies.textContent = 0;
+
+      if (!offlineMode && isLeader) {
+        metaRef.update({
+          waveNumber: 1,
+          waveState: 'waiting',
+          totalKills: 0,
+          baseHp: BASE_MAX_HP
+        });
+        stateRef.set({ enemies: '[]', path: '[]', tick: 0 });
+      }
+
+      // Reset cannon levels for offline mode
+      if (offlineMode && cannons[playerId]) {
+        cannons[playerId].level = 1;
+        cannons[playerId].xp = 0;
+        cannons[playerId].kills = 0;
+        cannons[playerId].path = null;
+        cannons[playerId].spec = null;
+        updateCannonUI();
+      }
+
+      // Start first wave after brief pause
+      setTimeout(() => {
+        if (isLeader) startWaveCountdown();
+      }, 500);
+    }
+
+    goRestart.addEventListener('click', resetGame);
+
+    // ═══════════════════════════════════════════════════
     //  Canvas Interaction
     // ═══════════════════════════════════════════════════
     function canvasCoords(e) {
@@ -1249,6 +1423,8 @@
     }
 
     function placeCannon(x, y) {
+      // Can't place during game over
+      if (waveState === 'gameover') return;
       // Must be in bottom area
       if (y < PLACEMENT_MIN_Y) return;
       if (y > BASE_Y) return;
@@ -1621,18 +1797,48 @@
         if (p.life <= 0) particles.splice(i, 1);
       }
 
-      // Wave failed overlay
-      if (waveState === 'failed') {
-        ctx.fillStyle = 'rgba(231,76,60,0.15)';
-        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        ctx.fillStyle = '#e74c3c';
-        ctx.font = 'bold 28px ' + getComputedStyle(document.body).fontFamily;
+      // Draw base HP bar along the base line
+      {
+        const barW = 200;
+        const barH = 8;
+        const barX = CANVAS_W / 2 - barW / 2;
+        const barY = BASE_Y + 8;
+        const pct = Math.max(0, baseHp / BASE_MAX_HP);
+
+        // Background
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+
+        // Fill
+        const hpColor = pct > 0.5 ? '#22c55e' : pct > 0.25 ? '#f39c12' : '#e74c3c';
+        ctx.fillStyle = hpColor;
+        ctx.fillRect(barX, barY, barW * pct, barH);
+
+        // Border
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(barX - 1, barY - 1, barW + 2, barH + 2);
+
+        // Label
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.font = '9px ' + getComputedStyle(document.body).fontFamily;
         ctx.textAlign = 'center';
-        ctx.fillText('WAVE FAILED', CANVAS_W / 2, CANVAS_H / 2 - 10);
-        ctx.font = '14px ' + getComputedStyle(document.body).fontFamily;
-        ctx.fillStyle = '#e0e0e0';
-        ctx.fillText('Restarting...', CANVAS_W / 2, CANVAS_H / 2 + 16);
+        ctx.fillText(`❤ ${baseHp}/${BASE_MAX_HP}`, CANVAS_W / 2, barY + barH + 12);
         ctx.textAlign = 'start';
+      }
+
+      // Damage flash overlay
+      if (damageFlashTimer > 0) {
+        const flashAlpha = (damageFlashTimer / 8) * 0.25;
+        ctx.fillStyle = `rgba(231,76,60,${flashAlpha})`;
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        damageFlashTimer--;
+      }
+
+      // Game over overlay handled by DOM
+      if (waveState === 'gameover') {
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
       }
 
       // Countdown overlay
