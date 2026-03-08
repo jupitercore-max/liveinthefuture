@@ -443,9 +443,85 @@
     ];
 
     // ═══════════════════════════════════════════════════
+    //  Path System
+    // ═══════════════════════════════════════════════════
+    let currentPath = null;
+    let currentPathLength = 0;
+
+    function generatePath(waveNum) {
+      const rng = mulberry32(waveNum * 4219);
+      const numPoints = 4 + Math.floor(rng() * 3); // 4-6 waypoints
+      const path = [];
+      // Start off-screen
+      path.push({ x: 60 + rng() * (CANVAS_W - 120), y: -20 });
+      // Intermediate waypoints — zigzag
+      for (let i = 1; i < numPoints - 1; i++) {
+        const yFrac = i / (numPoints - 1);
+        const y = yFrac * (BASE_Y + 20) - 20;
+        // Alternate sides for zigzag
+        let x;
+        if (i % 2 === 1) {
+          x = 60 + rng() * (CANVAS_W / 2 - 80); // left side
+        } else {
+          x = CANVAS_W / 2 + 20 + rng() * (CANVAS_W / 2 - 80); // right side
+        }
+        path.push({ x, y });
+      }
+      // End at base
+      path.push({ x: 60 + rng() * (CANVAS_W - 120), y: BASE_Y });
+      return path;
+    }
+
+    function getPathLength(path) {
+      let len = 0;
+      for (let i = 1; i < path.length; i++) {
+        len += Math.hypot(path[i].x - path[i-1].x, path[i].y - path[i-1].y);
+      }
+      return len;
+    }
+
+    function getPathPosition(path, progress) {
+      if (!path || path.length < 2) return { x: CANVAS_W / 2, y: -20 };
+      const totalLen = currentPathLength || getPathLength(path);
+      const targetDist = progress * totalLen;
+
+      if (progress <= 0) {
+        // Extrapolate backward from first segment
+        const dx = path[1].x - path[0].x;
+        const dy = path[1].y - path[0].y;
+        const segLen = Math.hypot(dx, dy) || 1;
+        return {
+          x: path[0].x - (dx / segLen) * (-targetDist),
+          y: path[0].y - (dy / segLen) * (-targetDist)
+        };
+      }
+
+      let traveled = 0;
+      for (let i = 1; i < path.length; i++) {
+        const dx = path[i].x - path[i-1].x;
+        const dy = path[i].y - path[i-1].y;
+        const segLen = Math.hypot(dx, dy);
+        if (traveled + segLen >= targetDist) {
+          const t = (targetDist - traveled) / (segLen || 1);
+          return {
+            x: path[i-1].x + dx * t,
+            y: path[i-1].y + dy * t
+          };
+        }
+        traveled += segLen;
+      }
+      // Past end
+      return { x: path[path.length - 1].x, y: path[path.length - 1].y };
+    }
+
+    // ═══════════════════════════════════════════════════
     //  Wave Generation (deterministic)
     // ═══════════════════════════════════════════════════
     function generateWave(waveNum) {
+      // Generate path for this wave
+      currentPath = generatePath(waveNum);
+      currentPathLength = getPathLength(currentPath);
+
       const rng = mulberry32(waveNum * 7919);
       const count = 8 + waveNum * 3;
       const baseHp = 1 + waveNum * 0.15;
@@ -456,13 +532,17 @@
       });
 
       const enemies = [];
+      const spacing = 0.04; // progress spacing between enemies
       for (let i = 0; i < count; i++) {
         const et = available[Math.floor(rng() * available.length)];
+        const startProgress = -(i * spacing) - (rng() * spacing * 0.5);
+        const pos = getPathPosition(currentPath, startProgress);
         enemies.push({
           id: `w${waveNum}_e${i}`,
           type: et.type,
-          x: 40 + rng() * (CANVAS_W - 80),
-          y: -20 - (rng() * 200) - i * 30,
+          x: pos.x,
+          y: pos.y,
+          pathProgress: startProgress,
           hp: baseHp * et.hpMult,
           maxHp: baseHp * et.hpMult,
           speed: et.speed,
@@ -475,11 +555,14 @@
       // Add boss
       if (isBossWave) {
         const boss = ENEMY_TYPES.find(e => e.type === 'boss');
+        const bossProgress = -(count * spacing) - 0.15;
+        const pos = getPathPosition(currentPath, bossProgress);
         enemies.push({
           id: `w${waveNum}_boss`,
           type: 'boss',
-          x: CANVAS_W / 2,
-          y: -300,
+          x: pos.x,
+          y: pos.y,
+          pathProgress: bossProgress,
           hp: baseHp * boss.hpMult,
           maxHp: baseHp * boss.hpMult,
           speed: boss.speed,
@@ -781,8 +864,13 @@
         const data = snap.val();
         if (data && data.enemies) {
           try {
-            const parsed = JSON.parse(data.enemies);
-            enemies = parsed;
+            enemies = JSON.parse(data.enemies);
+          } catch(e) {}
+        }
+        if (data && data.path) {
+          try {
+            currentPath = JSON.parse(data.path);
+            currentPathLength = getPathLength(currentPath);
           } catch(e) {}
         }
       });
@@ -844,6 +932,12 @@
         const data = snap.val();
         if (data && data.enemies) {
           try { enemies = JSON.parse(data.enemies); } catch(e) {}
+        }
+        if (data && data.path) {
+          try {
+            currentPath = JSON.parse(data.path);
+            currentPathLength = getPathLength(currentPath);
+          } catch(e) {}
         }
       });
 
@@ -923,14 +1017,19 @@
 
       if (waveState !== 'active') return;
 
-      // Move enemies
+      // Move enemies along path
       for (const e of enemies) {
         let speed = e.speed;
         if (e.slowTimer > 0) {
           speed *= 0.5;
           e.slowTimer--;
         }
-        e.y += speed;
+        // Advance path progress
+        const progressPerTick = speed / (currentPathLength || 1000);
+        e.pathProgress = (e.pathProgress || 0) + progressPerTick;
+        const pos = getPathPosition(currentPath, e.pathProgress);
+        e.x = pos.x;
+        e.y = pos.y;
       }
 
       // Cannon firing
@@ -1030,8 +1129,8 @@
       }
       enemies = enemies.filter(e => !e.dead);
 
-      // Check if enemy reached base
-      const reached = enemies.some(e => e.y >= BASE_Y);
+      // Check if enemy reached base (end of path)
+      const reached = enemies.some(e => (e.pathProgress || 0) >= 1.0);
       if (reached) {
         waveState = 'failed';
         if (!offlineMode) metaRef.update({ waveState: 'failed', totalKills });
@@ -1069,6 +1168,7 @@
       if (offlineMode) return; // no Firebase writes in offline mode
       stateRef.set({
         enemies: JSON.stringify(enemies),
+        path: JSON.stringify(currentPath),
         tick: tickCount,
         updatedAt: firebase.database.ServerValue.TIMESTAMP
       });
@@ -1375,13 +1475,17 @@
       lastVisualTick = now;
 
       // Non-leader: locally simulate enemy movement between snapshots
-      if (!isLeader && waveState === 'active' && dt > 0 && dt < 200) {
+      if (!isLeader && waveState === 'active' && dt > 0 && dt < 200 && currentPath) {
         const dtSec = dt / 1000;
         for (const e of enemies) {
           if (e.hp <= 0) continue;
           let speed = e.speed;
           if (e.slowTimer > 0) speed *= 0.5;
-          e.y += speed * dtSec * TICK_RATE;
+          const progressPerSec = speed * TICK_RATE / (currentPathLength || 1000);
+          e.pathProgress = (e.pathProgress || 0) + progressPerSec * dtSec;
+          const pos = getPathPosition(currentPath, e.pathProgress);
+          e.x = pos.x;
+          e.y = pos.y;
         }
       }
 
@@ -1461,6 +1565,20 @@
         ctx.fillStyle = 'rgba(30,144,255,0.5)';
         ctx.fillText('Defend the blue line from incoming enemies', CANVAS_W / 2, PLACEMENT_MIN_Y + (BASE_Y - PLACEMENT_MIN_Y) / 2 + 22);
         ctx.textAlign = 'start';
+      }
+
+      // Draw enemy path
+      if (currentPath && currentPath.length >= 2) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        ctx.moveTo(currentPath[0].x, currentPath[0].y);
+        for (let i = 1; i < currentPath.length; i++) {
+          ctx.lineTo(currentPath[i].x, currentPath[i].y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
 
       // Draw cannons
