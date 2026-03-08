@@ -695,6 +695,7 @@
       <button class="ctrl-btn" id="relocateBtn">Relocate</button>
       <button class="ctrl-btn sell-btn" id="sellBtn" disabled>🗑 Sell</button>
       <button class="ctrl-btn" id="playersBtn">Players</button>
+      <button class="ctrl-btn" id="muteBtn" title="Toggle sound">🔊</button>
     </div>
 
     <div class="player-panel" id="playerPanel">
@@ -735,6 +736,440 @@
     const BASE_MAX_HP = 20;
     const BOSS_DAMAGE = 3;
     const HP_REGEN_PER_WAVE = 1;
+
+    // ═══════════════════════════════════════════════════
+    //  Sound Effects System (Web Audio API)
+    // ═══════════════════════════════════════════════════
+    let audioCtx = null;
+    let soundMuted = localStorage.getItem('td_sound_muted') === 'true';
+    let soundVolume = 0.3; // master volume
+
+    function ensureAudioCtx() {
+      if (!audioCtx) {
+        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+        catch(e) { return null; }
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    function playSound(fn) {
+      if (soundMuted) return;
+      const ctx = ensureAudioCtx();
+      if (!ctx) return;
+      try { fn(ctx); } catch(e) { /* silent fail */ }
+    }
+
+    // Helper: create gain node with volume
+    function makeGain(ctx, vol) {
+      const g = ctx.createGain();
+      g.gain.value = vol * soundVolume;
+      g.connect(ctx.destination);
+      return g;
+    }
+
+    // ── Individual Sound Effects ──────────────────────
+    function sfxShoot(path, spec) {
+      playSound(ctx => {
+        const g = makeGain(ctx, 0.15);
+        const osc = ctx.createOscillator();
+        const now = ctx.currentTime;
+        // Different sounds per cannon type
+        if (spec === 'gatling' || path === 'rapid') {
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(800 + Math.random() * 200, now);
+          osc.frequency.exponentialRampToValueAtTime(200, now + 0.04);
+          g.gain.setValueAtTime(0.08 * soundVolume, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+          osc.connect(g); osc.start(now); osc.stop(now + 0.04);
+        } else if (spec === 'sniper') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(1200, now);
+          osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+          g.gain.setValueAtTime(0.2 * soundVolume, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          osc.connect(g); osc.start(now); osc.stop(now + 0.15);
+        } else if (spec === 'cannon' || spec === 'railgun' || path === 'power') {
+          // Deep boom
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(150, now);
+          osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+          g.gain.setValueAtTime(0.25 * soundVolume, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+          osc.connect(g); osc.start(now); osc.stop(now + 0.2);
+          // Add noise burst for impact
+          const buf = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+          const d = buf.getChannelData(0);
+          for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i/d.length);
+          const ns = ctx.createBufferSource(); ns.buffer = buf;
+          const ng = makeGain(ctx, 0.1);
+          ns.connect(ng); ns.start(now); ns.stop(now + 0.05);
+        } else if (spec === 'tesla' || path === 'tech') {
+          // Electric zap
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(2000 + Math.random() * 500, now);
+          osc.frequency.setValueAtTime(400 + Math.random() * 200, now + 0.02);
+          osc.frequency.setValueAtTime(1500 + Math.random() * 500, now + 0.04);
+          osc.frequency.exponentialRampToValueAtTime(200, now + 0.08);
+          g.gain.setValueAtTime(0.1 * soundVolume, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          osc.connect(g); osc.start(now); osc.stop(now + 0.08);
+        } else if (spec === 'frost') {
+          // Icy whoosh
+          const buf = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
+          const d = buf.getChannelData(0);
+          for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(i/d.length * Math.PI);
+          const ns = ctx.createBufferSource(); ns.buffer = buf;
+          const filt = ctx.createBiquadFilter();
+          filt.type = 'bandpass'; filt.frequency.value = 3000; filt.Q.value = 2;
+          ns.connect(filt); filt.connect(g);
+          g.gain.setValueAtTime(0.12 * soundVolume, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+          ns.start(now); ns.stop(now + 0.1);
+          return; // skip osc
+        } else {
+          // Default pew
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(600, now);
+          osc.frequency.exponentialRampToValueAtTime(150, now + 0.08);
+          g.gain.setValueAtTime(0.12 * soundVolume, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          osc.connect(g); osc.start(now); osc.stop(now + 0.08);
+        }
+      });
+    }
+
+    function sfxEnemyDeath(isBoss) {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        if (isBoss) {
+          // Epic explosion for boss
+          const g = makeGain(ctx, 0.35);
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(200, now);
+          osc.frequency.exponentialRampToValueAtTime(20, now + 0.5);
+          g.gain.setValueAtTime(0.35 * soundVolume, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+          osc.connect(g); osc.start(now); osc.stop(now + 0.5);
+          // Noise burst
+          const buf = ctx.createBuffer(1, ctx.sampleRate * 0.3, ctx.sampleRate);
+          const d = buf.getChannelData(0);
+          for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i/d.length);
+          const ns = ctx.createBufferSource(); ns.buffer = buf;
+          const ng = makeGain(ctx, 0.2);
+          ns.connect(ng); ns.start(now); ns.stop(now + 0.3);
+        } else {
+          // Small pop
+          const g = makeGain(ctx, 0.15);
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(400 + Math.random() * 200, now);
+          osc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
+          g.gain.setValueAtTime(0.15 * soundVolume, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+          osc.connect(g); osc.start(now); osc.stop(now + 0.1);
+        }
+      });
+    }
+
+    function sfxWaveStart(isBossWave) {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        const g = makeGain(ctx, 0.2);
+        if (isBossWave) {
+          // Ominous low horn
+          const osc = ctx.createOscillator();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(80, now);
+          osc.frequency.setValueAtTime(100, now + 0.2);
+          osc.frequency.setValueAtTime(80, now + 0.4);
+          g.gain.setValueAtTime(0.2 * soundVolume, now);
+          g.gain.linearRampToValueAtTime(0.25 * soundVolume, now + 0.2);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+          osc.connect(g); osc.start(now); osc.stop(now + 0.8);
+          // Second ominous tone
+          const osc2 = ctx.createOscillator();
+          osc2.type = 'sawtooth';
+          osc2.frequency.setValueAtTime(60, now + 0.1);
+          const g2 = makeGain(ctx, 0.15);
+          g2.gain.setValueAtTime(0.001, now);
+          g2.gain.linearRampToValueAtTime(0.15 * soundVolume, now + 0.3);
+          g2.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+          osc2.connect(g2); osc2.start(now + 0.1); osc2.stop(now + 0.8);
+        } else {
+          // Rising chime — three ascending notes
+          [440, 554, 659].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const ng = makeGain(ctx, 0.15);
+            ng.gain.setValueAtTime(0.001, now + i * 0.1);
+            ng.gain.linearRampToValueAtTime(0.15 * soundVolume, now + i * 0.1 + 0.03);
+            ng.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.2);
+            osc.connect(ng); osc.start(now + i * 0.1); osc.stop(now + i * 0.1 + 0.2);
+          });
+        }
+      });
+    }
+
+    function sfxBaseDamage(isBossDmg) {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        const vol = isBossDmg ? 0.35 : 0.25;
+        const g = makeGain(ctx, vol);
+        // Impact thud
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(isBossDmg ? 60 : 100, now);
+        osc.frequency.exponentialRampToValueAtTime(20, now + 0.3);
+        g.gain.setValueAtTime(vol * soundVolume, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc.connect(g); osc.start(now); osc.stop(now + 0.3);
+        // Crunch noise
+        const buf = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i/d.length) * 0.8;
+        const ns = ctx.createBufferSource(); ns.buffer = buf;
+        const ng = makeGain(ctx, vol * 0.6);
+        ns.connect(ng); ns.start(now); ns.stop(now + 0.1);
+      });
+    }
+
+    function sfxGameOver() {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        // Descending tones
+        [440, 350, 260, 180].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          osc.type = 'sawtooth';
+          const g = makeGain(ctx, 0.2);
+          osc.frequency.value = freq;
+          g.gain.setValueAtTime(0.001, now + i * 0.15);
+          g.gain.linearRampToValueAtTime(0.2 * soundVolume, now + i * 0.15 + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.3);
+          osc.connect(g); osc.start(now + i * 0.15); osc.stop(now + i * 0.15 + 0.3);
+        });
+        // Final low rumble
+        const osc = ctx.createOscillator();
+        osc.type = 'sine'; osc.frequency.value = 50;
+        const g = makeGain(ctx, 0.25);
+        g.gain.setValueAtTime(0.001, now + 0.5);
+        g.gain.linearRampToValueAtTime(0.25 * soundVolume, now + 0.6);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+        osc.connect(g); osc.start(now + 0.5); osc.stop(now + 1.5);
+      });
+    }
+
+    function sfxLevelUp() {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        // Triumphant ascending arpeggio
+        [523, 659, 784, 1047].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const g = makeGain(ctx, 0.18);
+          g.gain.setValueAtTime(0.001, now + i * 0.08);
+          g.gain.linearRampToValueAtTime(0.18 * soundVolume, now + i * 0.08 + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.25);
+          osc.connect(g); osc.start(now + i * 0.08); osc.stop(now + i * 0.08 + 0.25);
+        });
+      });
+    }
+
+    function sfxPlaceCannon() {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        const g = makeGain(ctx, 0.2);
+        // Mechanical clunk + rising tone
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+        g.gain.setValueAtTime(0.2 * soundVolume, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        osc.connect(g); osc.start(now); osc.stop(now + 0.2);
+        // Confirmation ding
+        const osc2 = ctx.createOscillator();
+        osc2.type = 'sine'; osc2.frequency.value = 880;
+        const g2 = makeGain(ctx, 0.15);
+        g2.gain.setValueAtTime(0.001, now + 0.1);
+        g2.gain.linearRampToValueAtTime(0.15 * soundVolume, now + 0.12);
+        g2.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        osc2.connect(g2); osc2.start(now + 0.1); osc2.stop(now + 0.35);
+      });
+    }
+
+    function sfxBossPhase(phase) {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        if (phase === 1) {
+          // Shield up — crystalline shimmer
+          [600, 800, 1000, 1200].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            osc.type = 'sine'; osc.frequency.value = freq;
+            const g = makeGain(ctx, 0.12);
+            g.gain.setValueAtTime(0.001, now + i * 0.05);
+            g.gain.linearRampToValueAtTime(0.12 * soundVolume, now + i * 0.05 + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.05 + 0.2);
+            osc.connect(g); osc.start(now + i * 0.05); osc.stop(now + i * 0.05 + 0.2);
+          });
+        } else if (phase === 2) {
+          // Summon — ominous rumble + stinger
+          const osc = ctx.createOscillator();
+          osc.type = 'sawtooth'; osc.frequency.value = 55;
+          const g = makeGain(ctx, 0.3);
+          g.gain.setValueAtTime(0.3 * soundVolume, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+          osc.connect(g); osc.start(now); osc.stop(now + 0.5);
+          const osc2 = ctx.createOscillator();
+          osc2.type = 'square'; osc2.frequency.value = 220;
+          const g2 = makeGain(ctx, 0.15);
+          g2.gain.setValueAtTime(0.001, now + 0.1);
+          g2.gain.linearRampToValueAtTime(0.15 * soundVolume, now + 0.15);
+          g2.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+          osc2.connect(g2); osc2.start(now + 0.1); osc2.stop(now + 0.4);
+        } else if (phase === 3) {
+          // Enrage — aggressive rising screech
+          const osc = ctx.createOscillator();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(100, now);
+          osc.frequency.exponentialRampToValueAtTime(800, now + 0.3);
+          const g = makeGain(ctx, 0.25);
+          g.gain.setValueAtTime(0.25 * soundVolume, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+          osc.connect(g); osc.start(now); osc.stop(now + 0.4);
+        }
+      });
+    }
+
+    function sfxAbility(abilityType) {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        if (abilityType === 'emp' || abilityType === 'chain_overload') {
+          // Electric discharge
+          const buf = ctx.createBuffer(1, ctx.sampleRate * 0.2, ctx.sampleRate);
+          const d = buf.getChannelData(0);
+          for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(i/d.length * Math.PI) * 0.7;
+          const ns = ctx.createBufferSource(); ns.buffer = buf;
+          const filt = ctx.createBiquadFilter(); filt.type = 'bandpass'; filt.frequency.value = 2000; filt.Q.value = 3;
+          const g = makeGain(ctx, 0.25);
+          ns.connect(filt); filt.connect(g); ns.start(now); ns.stop(now + 0.2);
+        } else if (abilityType === 'bombardment' || abilityType === 'napalm' || abilityType === 'orbital') {
+          // Big explosion
+          const osc = ctx.createOscillator();
+          osc.type = 'sine'; osc.frequency.setValueAtTime(120, now);
+          osc.frequency.exponentialRampToValueAtTime(20, now + 0.4);
+          const g = makeGain(ctx, 0.3);
+          g.gain.setValueAtTime(0.3 * soundVolume, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+          osc.connect(g); osc.start(now); osc.stop(now + 0.4);
+          const buf = ctx.createBuffer(1, ctx.sampleRate * 0.2, ctx.sampleRate);
+          const d = buf.getChannelData(0);
+          for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i/d.length);
+          const ns = ctx.createBufferSource(); ns.buffer = buf;
+          const ng = makeGain(ctx, 0.2);
+          ns.connect(ng); ns.start(now); ns.stop(now + 0.2);
+        } else if (abilityType === 'blizzard') {
+          // Whooshing wind
+          const buf = ctx.createBuffer(1, ctx.sampleRate * 0.4, ctx.sampleRate);
+          const d = buf.getChannelData(0);
+          for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(i/d.length * Math.PI);
+          const ns = ctx.createBufferSource(); ns.buffer = buf;
+          const filt = ctx.createBiquadFilter(); filt.type = 'bandpass'; filt.frequency.value = 1500; filt.Q.value = 1;
+          const g = makeGain(ctx, 0.2);
+          g.gain.setValueAtTime(0.001, now);
+          g.gain.linearRampToValueAtTime(0.2 * soundVolume, now + 0.1);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+          ns.connect(filt); filt.connect(g); ns.start(now); ns.stop(now + 0.4);
+        } else {
+          // Generic power-up for other abilities
+          const osc = ctx.createOscillator();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(300, now);
+          osc.frequency.exponentialRampToValueAtTime(900, now + 0.12);
+          const g = makeGain(ctx, 0.2);
+          g.gain.setValueAtTime(0.2 * soundVolume, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          osc.connect(g); osc.start(now); osc.stop(now + 0.15);
+        }
+      });
+    }
+
+    function sfxComboMilestone(count) {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        // Higher pitch for bigger combos
+        const baseFreq = 600 + Math.min(count, 10) * 80;
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(baseFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, now + 0.08);
+        const g = makeGain(ctx, 0.15);
+        g.gain.setValueAtTime(0.15 * soundVolume, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc.connect(g); osc.start(now); osc.stop(now + 0.12);
+      });
+    }
+
+    function sfxWaveClear() {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        // Victory jingle — major chord
+        [523, 659, 784].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          osc.type = 'sine'; osc.frequency.value = freq;
+          const g = makeGain(ctx, 0.15);
+          g.gain.setValueAtTime(0.15 * soundVolume, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+          osc.connect(g); osc.start(now); osc.stop(now + 0.4);
+        });
+      });
+    }
+
+    function sfxSellCannon() {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        // Coins clink sound — descending pings
+        [1200, 900, 700].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          osc.type = 'sine'; osc.frequency.value = freq;
+          const g = makeGain(ctx, 0.12);
+          g.gain.setValueAtTime(0.001, now + i * 0.07);
+          g.gain.linearRampToValueAtTime(0.12 * soundVolume, now + i * 0.07 + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.15);
+          osc.connect(g); osc.start(now + i * 0.07); osc.stop(now + i * 0.07 + 0.15);
+        });
+      });
+    }
+
+    function sfxEarlySend() {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        // Urgent whoosh + ding
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1);
+        const g = makeGain(ctx, 0.15);
+        g.gain.setValueAtTime(0.15 * soundVolume, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc.connect(g); osc.start(now); osc.stop(now + 0.12);
+        // Ding
+        const osc2 = ctx.createOscillator();
+        osc2.type = 'sine'; osc2.frequency.value = 1047;
+        const g2 = makeGain(ctx, 0.12);
+        g2.gain.setValueAtTime(0.001, now + 0.08);
+        g2.gain.linearRampToValueAtTime(0.12 * soundVolume, now + 0.1);
+        g2.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc2.connect(g2); osc2.start(now + 0.08); osc2.stop(now + 0.3);
+      });
+    }
+
+    // Sound throttle for rapid-fire cannons (limit sounds per frame)
+    let shootSoundBudget = 0;
+    const MAX_SHOOT_SOUNDS_PER_TICK = 3;
 
     // ═══════════════════════════════════════════════════
     //  Seeded PRNG (mulberry32)
@@ -1061,6 +1496,7 @@
     const upgradeBtn = $('upgradeBtn');
     const relocateBtn = $('relocateBtn');
     const playersBtn = $('playersBtn');
+    const muteBtn = $('muteBtn');
     const playerPanel = $('playerPanel');
     const playerList = $('playerList');
     const upgradeModal = $('upgradeModal');
@@ -1210,6 +1646,7 @@
       if (newXp >= needed) {
         c.xp = newXp - needed;
         c.level = level + 1;
+        sfxLevelUp();
       } else {
         c.xp = newXp;
       }
@@ -1518,6 +1955,7 @@
       if (waveState === 'gameover') return;
 
       tickCount++;
+      shootSoundBudget = 0; // reset per-tick sound throttle
 
       if (waveState === 'countdown') {
         countdownTimer--;
@@ -1610,6 +2048,7 @@
           e.shieldMaxHp = e.maxHp * 0.3;
           e.phaseFlashTimer = 20;
           triggerScreenShake(false);
+          sfxBossPhase(1);
           // Phase transition particles
           for (let i = 0; i < 16; i++) {
             particles.push({
@@ -1636,6 +2075,7 @@
           e.summonDone = true;
           e.phaseFlashTimer = 20;
           triggerScreenShake(true);
+          sfxBossPhase(2);
           // Spawn 4 scout minions around the boss
           const minionType = ENEMY_TYPES.find(et => et.type === 'scout');
           for (let m = 0; m < 4; m++) {
@@ -1682,6 +2122,7 @@
           e.speed = (e.baseSpeed || 0.5) * 2.0;
           e.phaseFlashTimer = 30;
           triggerScreenShake(true);
+          sfxBossPhase(3);
           // Enrage particles
           for (let i = 0; i < 24; i++) {
             particles.push({
@@ -1726,6 +2167,12 @@
         if (!nearest) continue;
 
         myCannonFireTimers[cid] = 0;
+
+        // Shoot sound (throttled to avoid audio overload)
+        if (shootSoundBudget < MAX_SHOOT_SOUNDS_PER_TICK) {
+          shootSoundBudget++;
+          sfxShoot(c.path || null, c.spec || null);
+        }
 
         // Apply damage (shield-aware)
         applyDamage(nearest, stats.dmg);
@@ -1786,12 +2233,14 @@
           e.dead = true;
           totalKills++;
           killsThisTick++;
+          sfxEnemyDeath(e.type === 'boss');
           // Combo tracking
           comboCount++;
           comboTimer = COMBO_WINDOW;
           // Screen shake on big combos
           if (comboCount === 5 || comboCount === 10) {
             triggerScreenShake(comboCount >= 10);
+            sfxComboMilestone(comboCount);
           }
           // Calculate XP: base 1 + combo bonus + early send bonus
           const comboMult = comboCount >= COMBO_MIN ? Math.min(comboCount, 10) : 1;
@@ -1855,12 +2304,14 @@
         baseHp = Math.max(0, baseHp - damageTaken);
         damageFlashTimer = 8; // ~0.4s at 20fps
         triggerScreenShake(damageTaken >= BOSS_DAMAGE); // heavy shake for boss damage
+        sfxBaseDamage(damageTaken >= BOSS_DAMAGE);
         if (!offlineMode) metaRef.update({ baseHp, totalKills });
         updateBaseHpHUD();
 
         if (baseHp <= 0) {
           waveState = 'gameover';
           triggerScreenShake(true); // heavy shake on game over
+          sfxGameOver();
           hideWavePreview();
           if (!offlineMode) metaRef.update({ waveState: 'gameover', totalKills });
           showGameOver();
@@ -1872,6 +2323,7 @@
 
       // Check wave clear
       if (enemies.length === 0 && waveState === 'active') {
+        sfxWaveClear();
         waveNumber++;
         // Reset early send bonus/streak on natural wave clear
         earlySendBonusPct = 0;
@@ -1927,9 +2379,11 @@
 
     function showWaveAnnouncement(num) {
       waText.textContent = `WAVE ${num}`;
-      waSub.textContent = num % 10 === 0 && num > 0 ? '⚠ BOSS WAVE!' : 'incoming';
+      const isBossWave = num % 10 === 0 && num > 0;
+      waSub.textContent = isBossWave ? '⚠ BOSS WAVE!' : 'incoming';
       waveAnnounce.classList.add('active');
       setTimeout(() => waveAnnounce.classList.remove('active'), 2500);
+      sfxWaveStart(isBossWave);
       // Show wave preview with enemy breakdown
       showWavePreview(num);
     }
@@ -1949,6 +2403,7 @@
         const needed = XP_PER_LEVEL(level);
         if (newXp >= needed) {
           // Level up
+          if (cid === playerId) sfxLevelUp();
           cannonsRef.child(cid).update({
             xp: newXp - needed,
             level: level + 1,
@@ -2083,6 +2538,7 @@
     }
 
     function onCanvasClick(e) {
+      ensureAudioCtx(); // init audio on first user gesture
       const pos = canvasCoords(e);
       if (abilityTargeting) {
         fireAbility(pos.x, pos.y);
@@ -2092,6 +2548,7 @@
     }
 
     function onCanvasTouchEnd(e) {
+      ensureAudioCtx(); // init audio on first user gesture
       e.preventDefault();
       if (e.changedTouches.length === 0) return;
       const touch = e.changedTouches[0];
@@ -2129,6 +2586,7 @@
 
       lastRelocateTime = Date.now();
       showPlacementHint = false;
+      sfxPlaceCannon();
 
       // Offline mode — update local state directly
       if (offlineMode) {
@@ -2361,6 +2819,7 @@
         const existing = parseInt(localStorage.getItem('td_sell_refund') || '0', 10);
         localStorage.setItem('td_sell_refund', existing + refund);
       }
+      sfxSellCannon();
 
       // Show refund popup
       if (refund > 0) {
@@ -2450,6 +2909,7 @@
 
       // Show bonus popup
       showSendBonusPopup(earlySendBonusPct);
+      sfxEarlySend();
 
       // Advance wave number and spawn next wave's enemies on top of current ones
       waveNumber++;
@@ -2655,6 +3115,14 @@
 
       const stats = getCannonStats(c.level || 1, c.path || null, c.spec || null);
 
+      // Play ability sound based on type
+      const abilitySoundMap = {
+        'tech': 'emp', 'tesla': 'chain_overload',
+        'power': 'bombardment', 'cannon': 'napalm', 'railgun': 'orbital',
+        'frost': 'blizzard'
+      };
+      sfxAbility(abilitySoundMap[abKey] || 'generic');
+
       switch (abKey) {
         case 'basic': {
           // Power Shot — 5× damage to nearest enemy to target point
@@ -2822,6 +3290,7 @@
         if (e.hp <= 0 && !e.dead) {
           e.dead = true;
           totalKills++;
+          sfxEnemyDeath(e.type === 'boss');
           comboCount++;
           comboTimer = COMBO_WINDOW;
           const comboMult = comboCount >= COMBO_MIN ? Math.min(comboCount, 10) : 1;
@@ -2863,6 +3332,16 @@
     // ═══════════════════════════════════════════════════
     playersBtn.addEventListener('click', () => {
       playerPanel.classList.toggle('active');
+    });
+
+    // ── Sound Mute Toggle ──────────────────────────────
+    muteBtn.textContent = soundMuted ? '🔇' : '🔊';
+    muteBtn.addEventListener('click', () => {
+      soundMuted = !soundMuted;
+      localStorage.setItem('td_sound_muted', soundMuted);
+      muteBtn.textContent = soundMuted ? '🔇' : '🔊';
+      // Initialize audio context on first unmute (needs user gesture)
+      if (!soundMuted) ensureAudioCtx();
     });
 
     function updatePlayerPanel() {

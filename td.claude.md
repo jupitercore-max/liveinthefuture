@@ -152,9 +152,30 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **Non-leader sync** — Hazards generated deterministically from wave number + path, so non-leader clients regenerate matching hazard zones when receiving path updates. Swamp slow also applied in non-leader interpolation loop.
 - **State management** — `terrainHazards` array cleared on game reset. Only one hazard affects an enemy at a time (first matching zone wins).
 
+### 2025-06-07: Procedural Sound Effects System
+- **Complete Web Audio API sound system** — All sounds are procedurally generated using oscillators and noise buffers. Zero external audio files needed, keeping the game a single self-contained HTML file.
+- **Sound effects for all major game events:**
+  - **Cannon fire** — Different sound per upgrade path/spec: basic (square wave pew), rapid/gatling (short high-pitched burst), sniper (long sawtooth sweep), power/cannon/railgun (deep boom + noise burst), tech/tesla (electric zap), frost (filtered noise whoosh)
+  - **Enemy death** — Small pop for regular enemies, epic low explosion + noise burst for bosses
+  - **Wave start** — Ascending 3-note chime for regular waves, ominous low dual-sawtooth horn for boss waves
+  - **Wave clear** — Major chord (C-E-G) played simultaneously as a victory jingle
+  - **Base damage** — Impact thud (sine sweep down) + crunch noise, heavier for boss damage
+  - **Game over** — 4 descending sawtooth notes followed by a low rumble fade-out
+  - **Level up** — Triumphant ascending C major arpeggio (C5-E5-G5-C6)
+  - **Cannon placement** — Mechanical clunk (rising triangle wave) + confirmation ding
+  - **Boss phases** — Shield: crystalline shimmer (ascending sine cascade), Summon: ominous rumble + stinger, Enrage: aggressive rising sawtooth screech
+  - **Abilities** — Type-specific sounds: EMP/tesla (electric discharge noise), bombardment/napalm/orbital (big explosion), blizzard (wind whoosh), generic (rising triangle)
+  - **Combo milestones** — Pitch increases with combo count for satisfying escalation
+  - **Sell cannon** — Descending coin-clink pings
+  - **Early send** — Urgent rising whoosh + high ding
+- **Mute toggle button** — 🔊/🔇 button in the controls bar. Mute state persists in localStorage across sessions.
+- **Sound throttling** — Shoot sounds limited to 3 per simulation tick to prevent audio overload during rapid-fire (gatling) combat.
+- **Browser autoplay compliance** — AudioContext initialized on first user interaction (click/touch on canvas or unmute button) to comply with browser autoplay policies.
+- **Master volume control** — All sounds go through a `soundVolume` multiplier (0.3) for pleasant default levels.
+
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
-- [ ] No sound effects
+- [x] ~~No sound effects~~ → Full procedural sound effects system using Web Audio API
 - [x] ~~No base HP system — single enemy reaching base = wave failed, feels harsh~~ → Base HP system added (20 HP, regen, game over)
 - [x] ~~Score popup text when enemies die~~ → Floating XP popups with color and size scaling
 - [x] ~~Screen shake on boss or wave fail~~ → Screen shake with light/heavy intensities
