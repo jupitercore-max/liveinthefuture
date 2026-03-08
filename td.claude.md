@@ -104,6 +104,22 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **State cleanup** — Selling resets ability cooldown, targeting mode, and relocate timer. Shows placement hint again. Banked XP is cleared on game reset (Play Again) since the cannon is reset anyway.
 - **Sell button styling** — Danger-colored (red border/text) that matches the existing design language. Disabled when no cannon exists or during game over.
 
+### 2025-06-07: Unique Cannon Visuals per Path/Specialization
+- **Distinct cannon body shapes** — Each upgrade path and specialization now has a unique visual appearance so players can immediately tell cannon types apart:
+  - **Basic** (no path): Simple circle body + standard barrel (unchanged, baseline reference)
+  - **Rapid** (path): Circle with speed-lines trailing behind the barrel
+  - **Power** (path): Pentagon-shaped body + thick barrel
+  - **Tech** (path): Circle with rotating orbital ring segments
+  - **Gatling** (spec): Square body with rounded corners + triple barrel + spinning hub
+  - **Sniper** (spec): Slim diamond body + extra-long barrel with orange scope lens at tip
+  - **Cannon** (spec): Large hexagonal body + wide trapezoidal barrel
+  - **Railgun** (spec): Angular wedge body + dual parallel rail barrel with pulsing energy glow between rails
+  - **Tesla** (spec): Circle with animated lightning arcs orbiting the coil + central ring
+  - **Frost** (spec): Circle with 6 crystal/snowflake spikes + perpendicular ticks + pulsing frost mist aura
+- **Animated effects** — Several specs have subtle animations: Gatling has a spinning barrel hub, Tesla has orbiting lightning arcs, Frost has pulsing mist, Railgun has pulsing energy between rails, Tech has rotating orbital rings. Animations use `Date.now()` for smooth 60fps movement.
+- **Glow auras** — All upgraded cannons (path or spec selected) get a subtle pulsing glow aura in their path color, making them visually pop against the dark background.
+- **Helper functions** — Added `drawCtxPolygon()` for drawing polygons on the main canvas context (separate from the existing `drawPolygon()` which is used for enemies) and `roundRect()` for rounded rectangle shapes.
+
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
 - [ ] No sound effects
@@ -113,7 +129,7 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - [ ] Better onboarding/tutorial flow
 - [ ] Achievement system
 - [x] ~~Wave preview showing what's coming next~~ → Enemy type breakdown shown during countdown
-- [ ] Better visual differentiation between cannon types
+- [x] ~~Better visual differentiation between cannon types~~ → Unique shapes, barrels, and animated effects per path/spec
 - [x] ~~Combo system for rapid kills~~ → Kill combo system with multiplied XP rewards
 - [x] ~~Active abilities (click to fire special shot)~~ → Per-cannon active abilities with targeting, cooldowns, and visual effects
 - [ ] Environmental features (obstacles, terrain that slows enemies)

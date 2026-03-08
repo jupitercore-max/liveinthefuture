@@ -3025,6 +3025,9 @@
       const level = c.level || 1;
       const stats = getCannonStats(level, c.path, c.spec);
       const isMe = cid === playerId;
+      const spec = c.spec || null;
+      const path = c.path || null;
+      const baseR = 12;
 
       // Range circle (only for own cannon)
       if (isMe) {
@@ -3034,19 +3037,6 @@
         ctx.arc(x, y, stats.range, 0, Math.PI * 2);
         ctx.stroke();
       }
-
-      // Cannon body
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(x, y, 12, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Inner ring
-      ctx.strokeStyle = isMe ? '#fff' : 'rgba(255,255,255,0.4)';
-      ctx.lineWidth = isMe ? 2 : 1;
-      ctx.beginPath();
-      ctx.arc(x, y, 12, 0, Math.PI * 2);
-      ctx.stroke();
 
       // Barrel — point toward nearest enemy or up
       let barrelAngle = -Math.PI / 2;
@@ -3059,12 +3049,267 @@
           barrelAngle = Math.atan2(e.y - y, e.x - x);
         }
       }
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 4;
+
+      // Spec/path-specific glow aura
+      if (spec || path) {
+        ctx.save();
+        const glowR = baseR + 6;
+        const glowAlpha = 0.12 + Math.sin(Date.now() / 400) * 0.05;
+        ctx.globalAlpha = glowAlpha;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, glowR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Draw cannon body based on spec/path
+      ctx.save();
+      if (spec === 'gatling') {
+        // Gatling: square body with rounded corners + triple barrel
+        const s = baseR;
+        ctx.fillStyle = color;
+        roundRect(ctx, x - s, y - s, s * 2, s * 2, 4);
+        ctx.fill();
+        // Triple barrel
+        for (let i = -1; i <= 1; i++) {
+          const offsetAngle = barrelAngle + i * 0.15;
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(x + Math.cos(offsetAngle) * 6, y + Math.sin(offsetAngle) * 6);
+          ctx.lineTo(x + Math.cos(offsetAngle) * 20, y + Math.sin(offsetAngle) * 20);
+          ctx.stroke();
+        }
+        // Spinning barrel hub
+        const spin = (Date.now() / 100) % (Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, spin, spin + Math.PI);
+        ctx.stroke();
+      } else if (spec === 'sniper') {
+        // Sniper: slim diamond body + long thin barrel
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(x, y - baseR);
+        ctx.lineTo(x + baseR * 0.7, y);
+        ctx.lineTo(x, y + baseR);
+        ctx.lineTo(x - baseR * 0.7, y);
+        ctx.closePath();
+        ctx.fill();
+        // Long barrel with scope
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(barrelAngle) * 26, y + Math.sin(barrelAngle) * 26);
+        ctx.stroke();
+        // Scope lens at tip
+        ctx.fillStyle = '#ff6600';
+        ctx.beginPath();
+        ctx.arc(x + Math.cos(barrelAngle) * 26, y + Math.sin(barrelAngle) * 26, 3, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (spec === 'cannon') {
+        // Cannon: large hexagonal body + wide barrel
+        ctx.fillStyle = color;
+        drawCtxPolygon(ctx, x, y, baseR + 2, 6);
+        ctx.fill();
+        // Wide barrel
+        const bx = Math.cos(barrelAngle), by = Math.sin(barrelAngle);
+        const perpX = -by, perpY = bx;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(x + perpX * 5, y + perpY * 5);
+        ctx.lineTo(x + bx * 20 + perpX * 6, y + by * 20 + perpY * 6);
+        ctx.lineTo(x + bx * 20 - perpX * 6, y + by * 20 - perpY * 6);
+        ctx.lineTo(x - perpX * 5, y - perpY * 5);
+        ctx.closePath();
+        ctx.fill();
+      } else if (spec === 'railgun') {
+        // Railgun: angular/wedge body + energy rail barrel
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(x + Math.cos(barrelAngle) * baseR, y + Math.sin(barrelAngle) * baseR);
+        ctx.lineTo(x + Math.cos(barrelAngle + 2.3) * baseR, y + Math.sin(barrelAngle + 2.3) * baseR);
+        ctx.lineTo(x + Math.cos(barrelAngle + Math.PI) * baseR * 0.8, y + Math.sin(barrelAngle + Math.PI) * baseR * 0.8);
+        ctx.lineTo(x + Math.cos(barrelAngle - 2.3) * baseR, y + Math.sin(barrelAngle - 2.3) * baseR);
+        ctx.closePath();
+        ctx.fill();
+        // Energy rail barrel (two parallel lines with glow)
+        const bx = Math.cos(barrelAngle), by = Math.sin(barrelAngle);
+        const perpX = -by, perpY = bx;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + perpX * 4, y + perpY * 4);
+        ctx.lineTo(x + bx * 24 + perpX * 3, y + by * 24 + perpY * 3);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - perpX * 4, y - perpY * 4);
+        ctx.lineTo(x + bx * 24 - perpX * 3, y + by * 24 - perpY * 3);
+        ctx.stroke();
+        // Energy glow between rails
+        const pulse = 0.4 + Math.sin(Date.now() / 150) * 0.3;
+        ctx.globalAlpha = pulse;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + bx * 8, y + by * 8);
+        ctx.lineTo(x + bx * 22, y + by * 22);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      } else if (spec === 'tesla') {
+        // Tesla: circle with electricity arcs
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, baseR, 0, Math.PI * 2);
+        ctx.fill();
+        // Lightning arcs around the coil
+        ctx.strokeStyle = '#d1a0ff';
+        ctx.lineWidth = 1.5;
+        const arcCount = 3;
+        for (let a = 0; a < arcCount; a++) {
+          const angle = (Date.now() / 300 + a * Math.PI * 2 / arcCount) % (Math.PI * 2);
+          const arcR = baseR + 4 + Math.random() * 3;
+          ctx.beginPath();
+          ctx.arc(x, y, arcR, angle, angle + 0.8);
+          ctx.stroke();
+        }
+        // Central coil
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.stroke();
+        // Short barrel
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(barrelAngle) * 15, y + Math.sin(barrelAngle) * 15);
+        ctx.stroke();
+      } else if (spec === 'frost') {
+        // Frost: snowflake/crystal shape
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, baseR, 0, Math.PI * 2);
+        ctx.fill();
+        // Crystal spikes
+        ctx.strokeStyle = '#aae4ff';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI * 2 / 6) * i - Math.PI / 2;
+          ctx.beginPath();
+          ctx.moveTo(x + Math.cos(angle) * (baseR - 2), y + Math.sin(angle) * (baseR - 2));
+          ctx.lineTo(x + Math.cos(angle) * (baseR + 6), y + Math.sin(angle) * (baseR + 6));
+          ctx.stroke();
+          // Small perpendicular ticks on each spoke
+          const tipX = x + Math.cos(angle) * (baseR + 3);
+          const tipY = y + Math.sin(angle) * (baseR + 3);
+          const perpAngle = angle + Math.PI / 2;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(tipX + Math.cos(perpAngle) * 3, tipY + Math.sin(perpAngle) * 3);
+          ctx.lineTo(tipX - Math.cos(perpAngle) * 3, tipY - Math.sin(perpAngle) * 3);
+          ctx.stroke();
+          ctx.lineWidth = 2;
+        }
+        // Frost mist
+        const mist = 0.08 + Math.sin(Date.now() / 600) * 0.04;
+        ctx.globalAlpha = mist;
+        ctx.fillStyle = '#aae4ff';
+        ctx.beginPath();
+        ctx.arc(x, y, baseR + 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        // Short barrel
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(barrelAngle) * 16, y + Math.sin(barrelAngle) * 16);
+        ctx.stroke();
+      } else if (path === 'rapid') {
+        // Rapid (pre-spec): circle with speed lines
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, baseR, 0, Math.PI * 2);
+        ctx.fill();
+        // Speed lines behind the barrel
+        ctx.strokeStyle = 'rgba(255,107,53,0.3)';
+        ctx.lineWidth = 1;
+        const backAngle = barrelAngle + Math.PI;
+        for (let i = -1; i <= 1; i++) {
+          const a = backAngle + i * 0.3;
+          ctx.beginPath();
+          ctx.moveTo(x + Math.cos(a) * (baseR + 2), y + Math.sin(a) * (baseR + 2));
+          ctx.lineTo(x + Math.cos(a) * (baseR + 10), y + Math.sin(a) * (baseR + 10));
+          ctx.stroke();
+        }
+        // Standard barrel
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(barrelAngle) * 18, y + Math.sin(barrelAngle) * 18);
+        ctx.stroke();
+      } else if (path === 'power') {
+        // Power (pre-spec): pentagon body + thick barrel
+        ctx.fillStyle = color;
+        drawCtxPolygon(ctx, x, y, baseR, 5);
+        ctx.fill();
+        // Thick barrel
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(barrelAngle) * 18, y + Math.sin(barrelAngle) * 18);
+        ctx.stroke();
+      } else if (path === 'tech') {
+        // Tech (pre-spec): circle with ring
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, baseR, 0, Math.PI * 2);
+        ctx.fill();
+        // Rotating outer ring
+        const spin = (Date.now() / 800) % (Math.PI * 2);
+        ctx.strokeStyle = 'rgba(155,89,182,0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(x, y, baseR + 4, spin, spin + Math.PI * 1.2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, y, baseR + 4, spin + Math.PI, spin + Math.PI * 2.2);
+        ctx.stroke();
+        // Standard barrel
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(barrelAngle) * 18, y + Math.sin(barrelAngle) * 18);
+        ctx.stroke();
+      } else {
+        // Basic (no path): simple circle + barrel
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, baseR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(barrelAngle) * 18, y + Math.sin(barrelAngle) * 18);
+        ctx.stroke();
+      }
+
+      // Inner ring (player indicator)
+      ctx.strokeStyle = isMe ? '#fff' : 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = isMe ? 2 : 1;
       ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + Math.cos(barrelAngle) * 18, y + Math.sin(barrelAngle) * 18);
+      ctx.arc(x, y, baseR, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
 
       // Level badge
       ctx.fillStyle = '#000';
@@ -3100,12 +3345,40 @@
         ctx.textAlign = 'start';
       }
 
-      // Name below
+      // Name below (with spec/path indicator)
       ctx.fillStyle = isMe ? '#fff' : 'rgba(255,255,255,0.5)';
       ctx.font = '9px ' + getComputedStyle(document.body).fontFamily;
       ctx.textAlign = 'center';
       ctx.fillText(c.name || '???', x, y + 24);
       ctx.textAlign = 'start';
+    }
+
+    // Helper: draw a polygon on main canvas context
+    function drawCtxPolygon(ctx, cx, cy, r, sides) {
+      ctx.beginPath();
+      for (let i = 0; i < sides; i++) {
+        const angle = (Math.PI * 2 / sides) * i - Math.PI / 2;
+        const px = cx + r * Math.cos(angle);
+        const py = cy + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    }
+
+    // Helper: rounded rectangle
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
     }
 
     function drawEnemy(e) {
