@@ -340,6 +340,40 @@
     }
     .game-over-overlay .go-restart:hover { background: #c0392b; }
 
+    /* ─── Combo Counter ──────────────────────────────── */
+    .combo-display {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #ffd700;
+      text-shadow: 0 0 12px rgba(255,215,0,0.6), 0 0 24px rgba(255,215,0,0.3);
+      pointer-events: none;
+      z-index: 11;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .combo-display.active {
+      opacity: 1;
+      animation: comboShake 0.15s ease-out;
+    }
+    .combo-display .combo-num {
+      font-size: 1.8rem;
+      display: inline-block;
+    }
+    .combo-display .combo-label {
+      font-size: 0.7rem;
+      color: #ffaa00;
+      display: block;
+      text-align: center;
+    }
+    @keyframes comboShake {
+      0% { transform: scale(1.3); }
+      50% { transform: scale(0.95); }
+      100% { transform: scale(1); }
+    }
+
     /* ─── Responsive ─────────────────────────────────── */
     @media (max-width: 600px) {
       .header h1 { font-size: 0.95rem; }
@@ -372,6 +406,10 @@
       <div class="wave-announce" id="waveAnnounce">
         <div class="wa-text" id="waText"></div>
         <div class="wa-sub" id="waSub"></div>
+      </div>
+      <div class="combo-display" id="comboDisplay">
+        <span class="combo-num" id="comboNum">2</span><span>× COMBO</span>
+        <span class="combo-label" id="comboLabel">+2 XP</span>
       </div>
       <div class="game-over-overlay" id="gameOverOverlay">
         <div class="go-title">GAME OVER</div>
@@ -673,6 +711,12 @@
     let visualFireTimers = {}; // cannonId -> ms since last visual fire
     let lastVisualTick = 0; // for visual fire timing
     let myCannonFireTimers = {}; // cannonId -> ticks since last fire
+    let scorePopups = []; // floating score text
+    let comboCount = 0; // current combo count
+    let comboTimer = 0; // ticks remaining before combo resets
+    let comboXpBonus = 0; // total bonus XP from current combo
+    const COMBO_WINDOW = TICK_RATE * 1.5; // 1.5s to chain kills
+    const COMBO_MIN = 2; // minimum kills to show combo
 
     // Firebase refs
     let metaRef, leaderRef, stateRef, cannonsRef, playersRef;
@@ -709,6 +753,9 @@
     const avatarBtn = $('avatarBtn');
     const avatarInput = $('avatarInput');
     const gameScreen = $('gameScreen');
+    const comboDisplay = $('comboDisplay');
+    const comboNum = $('comboNum');
+    const comboLabel = $('comboLabel');
 
     // ═══════════════════════════════════════════════════
     //  Default Emoji Avatars
@@ -821,10 +868,10 @@
       }
     }
 
-    function offlineAwardXP() {
+    function offlineAwardXP(xpAmount = 1) {
       const c = cannons[playerId];
       if (!c || !c.x) return;
-      const newXp = (c.xp || 0) + 1;
+      const newXp = (c.xp || 0) + xpAmount;
       const level = c.level || 1;
       const needed = XP_PER_LEVEL(level);
       if (newXp >= needed) {
@@ -1204,24 +1251,61 @@
 
       // Check kills
       const beforeCount = enemies.length;
+      let killsThisTick = 0;
       for (const e of enemies) {
         if (e.hp <= 0 && !e.dead) {
           e.dead = true;
           totalKills++;
+          killsThisTick++;
+          // Combo tracking
+          comboCount++;
+          comboTimer = COMBO_WINDOW;
+          // Calculate XP: base 1 + combo bonus
+          const comboMult = comboCount >= COMBO_MIN ? Math.min(comboCount, 10) : 1;
+          const xpAmount = comboMult;
           // Award XP to cannon that would have killed (simplified: split among all)
-          awardXP(cannonList);
+          awardXP(cannonList, xpAmount);
+          // Score popup
+          const popupText = comboCount >= COMBO_MIN
+            ? `+${xpAmount} XP`
+            : '+1 XP';
+          const popupColor = comboCount >= 8 ? '#ff4444'
+            : comboCount >= 5 ? '#ff8800'
+            : comboCount >= COMBO_MIN ? '#ffd700'
+            : '#ffffff';
+          scorePopups.push({
+            x: e.x + (Math.random() - 0.5) * 16,
+            y: e.y,
+            text: popupText,
+            color: popupColor,
+            life: 40,
+            maxLife: 40,
+            size: comboCount >= 5 ? 16 : comboCount >= COMBO_MIN ? 13 : 11,
+            vy: -1.5
+          });
           // Death particles
-          for (let i = 0; i < 6; i++) {
+          const numParticles = comboCount >= COMBO_MIN ? 10 : 6;
+          for (let i = 0; i < numParticles; i++) {
             particles.push({
               x: e.x, y: e.y,
-              vx: (Math.random() - 0.5) * 4,
-              vy: (Math.random() - 0.5) * 4,
-              color: e.color,
+              vx: (Math.random() - 0.5) * (comboCount >= 5 ? 6 : 4),
+              vy: (Math.random() - 0.5) * (comboCount >= 5 ? 6 : 4),
+              color: comboCount >= COMBO_MIN ? popupColor : e.color,
               life: 15 + Math.random() * 10
             });
           }
         }
       }
+      // Combo timer decay
+      if (comboTimer > 0) {
+        comboTimer--;
+        if (comboTimer <= 0) {
+          comboCount = 0;
+          comboXpBonus = 0;
+        }
+      }
+      // Update combo display
+      updateComboDisplay();
       enemies = enemies.filter(e => !e.dead);
 
       // Check if enemy reached base (end of path) — deal damage instead of instant fail
@@ -1303,16 +1387,16 @@
       setTimeout(() => waveAnnounce.classList.remove('active'), 2500);
     }
 
-    function awardXP(cannonList) {
+    function awardXP(cannonList, xpAmount = 1) {
       // Offline mode — award locally
       if (offlineMode) {
-        offlineAwardXP();
+        offlineAwardXP(xpAmount);
         return;
       }
-      // Award 1 XP to every cannon (idle game — everyone benefits)
+      // Award XP to every cannon (idle game — everyone benefits)
       for (const [cid, c] of cannonList) {
         if (!c.x || !c.y) continue;
-        const newXp = (c.xp || 0) + 1;
+        const newXp = (c.xp || 0) + xpAmount;
         const newKills = (c.kills || 0) + (cid === playerId ? 0 : 0);
         const level = c.level || 1;
         const needed = XP_PER_LEVEL(level);
@@ -1355,6 +1439,21 @@
       gameOverOverlay.classList.add('active');
     }
 
+    function updateComboDisplay() {
+      if (comboCount >= COMBO_MIN && comboTimer > 0) {
+        comboNum.textContent = comboCount;
+        const bonusXp = Math.min(comboCount, 10);
+        comboLabel.textContent = `+${bonusXp} XP per kill`;
+        comboDisplay.classList.add('active');
+        // Re-trigger animation on each new kill
+        comboDisplay.style.animation = 'none';
+        comboDisplay.offsetHeight;
+        comboDisplay.style.animation = '';
+      } else {
+        comboDisplay.classList.remove('active');
+      }
+    }
+
     function resetGame() {
       gameOverOverlay.classList.remove('active');
       waveNumber = 1;
@@ -1363,6 +1462,11 @@
       enemies = [];
       waveState = 'waiting';
       damageFlashTimer = 0;
+      comboCount = 0;
+      comboTimer = 0;
+      comboXpBonus = 0;
+      scorePopups = [];
+      updateComboDisplay();
       updateBaseHpHUD();
       hudWave.textContent = waveNumber;
       hudKills.textContent = totalKills;
@@ -1795,6 +1899,22 @@
         p.y += p.vy;
         p.life--;
         if (p.life <= 0) particles.splice(i, 1);
+      }
+
+      // Draw score popups
+      for (let i = scorePopups.length - 1; i >= 0; i--) {
+        const sp = scorePopups[i];
+        const alpha = sp.life / sp.maxLife;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = sp.color;
+        ctx.font = 'bold ' + sp.size + 'px ' + getComputedStyle(document.body).fontFamily;
+        ctx.textAlign = 'center';
+        ctx.fillText(sp.text, sp.x, sp.y);
+        ctx.textAlign = 'start';
+        ctx.globalAlpha = 1;
+        sp.y += sp.vy;
+        sp.life--;
+        if (sp.life <= 0) scorePopups.splice(i, 1);
       }
 
       // Draw base HP bar along the base line

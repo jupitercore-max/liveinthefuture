@@ -44,18 +44,25 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **Full multiplayer sync** — baseHp synced through Firebase meta for all players
 - **Smart reset** — new leader inheriting a game-over state auto-resets the game
 
+### 2025-06-06: Score Popups & Combo System
+- **Floating score popups** — When enemies die, "+XP" text floats upward and fades out at the kill location. Provides immediate visual feedback for every kill.
+- **Combo system** — Killing enemies within 1.5s of each other builds a combo chain. At 2+ kills, a combo counter appears (top-right overlay with gold styling). Combo multiplier (capped at 10×) determines XP awarded per kill, incentivizing AoE/rapid-fire builds.
+- **Visual escalation** — Combo kills get larger/more colorful popups: white (normal) → gold (2+) → orange (5+) → red (8+). More death particles spawn during combos too.
+- **XP multiplier** — awardXP() and offlineAwardXP() now accept an xpAmount parameter, so combo kills grant proportionally more XP to all players' cannons.
+- **State cleanup** — Combo state properly resets on game over / play again.
+
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
 - [ ] No sound effects
 - [x] ~~No base HP system — single enemy reaching base = wave failed, feels harsh~~ → Base HP system added (20 HP, regen, game over)
-- [ ] Score popup text when enemies die
+- [x] ~~Score popup text when enemies die~~ → Floating XP popups with color and size scaling
 - [ ] Screen shake on boss or wave fail
 - [ ] Enemy path variety (currently just straight down)
 - [ ] Better onboarding/tutorial flow
 - [ ] Achievement system
 - [ ] Wave preview showing what's coming next
 - [ ] Better visual differentiation between cannon types
-- [ ] Combo system for rapid kills
+- [x] ~~Combo system for rapid kills~~ → Kill combo system with multiplied XP rewards
 - [ ] Active abilities (click to fire special shot)
 - [ ] Environmental features (obstacles, terrain that slows enemies)
 - [ ] Mini-boss mechanics (special attacks, phases)
