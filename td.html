@@ -627,6 +627,113 @@
       100% { transform: translate(0, 0); }
     }
 
+    /* ─── Achievement Toast ─────────────────────────── */
+    .achievement-toast-container {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .achievement-toast {
+      background: linear-gradient(135deg, #2a1f00, #3d2e00);
+      border: 2px solid #ffd700;
+      border-radius: 8px;
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 0 20px rgba(255,215,0,0.4), 0 4px 12px rgba(0,0,0,0.6);
+      animation: achieveSlideIn 0.5s ease-out, achieveFadeOut 0.5s ease-in 3s forwards;
+      min-width: 220px;
+      max-width: 360px;
+    }
+    .achievement-toast .at-icon { font-size: 1.6rem; flex-shrink: 0; }
+    .achievement-toast .at-body { display: flex; flex-direction: column; gap: 2px; }
+    .achievement-toast .at-label { font-size: 0.6rem; color: #ffd700; text-transform: uppercase; letter-spacing: 1px; }
+    .achievement-toast .at-name { font-size: 0.85rem; font-weight: 700; color: #fff; }
+    .achievement-toast .at-desc { font-size: 0.65rem; color: #ccc; }
+    @keyframes achieveSlideIn {
+      from { transform: translateY(-30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes achieveFadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; transform: translateY(-10px); }
+    }
+
+    /* ─── Achievement Panel ──────────────────────────── */
+    .achieve-panel {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 1000;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    .achieve-panel.active { display: flex; }
+    .achieve-inner {
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    .achieve-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .achieve-header h2 { font-size: 1.1rem; color: #ffd700; margin: 0; }
+    .achieve-header .achieve-count { font-size: 0.75rem; color: var(--text-muted); }
+    .achieve-close {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      padding: 4px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-family: var(--font-mono);
+    }
+    .achieve-close:hover { color: var(--text); border-color: var(--text-muted); }
+    .achieve-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .achieve-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      transition: border-color 0.2s;
+    }
+    .achieve-card.unlocked {
+      border-color: rgba(255,215,0,0.4);
+      background: linear-gradient(135deg, var(--bg), #1a1a00);
+    }
+    .achieve-card.locked { opacity: 0.45; }
+    .achieve-card .ac-icon { font-size: 1.5rem; flex-shrink: 0; line-height: 1; }
+    .achieve-card .ac-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .achieve-card .ac-name { font-size: 0.75rem; font-weight: 700; color: #fff; }
+    .achieve-card.locked .ac-name { color: var(--text-muted); }
+    .achieve-card .ac-desc { font-size: 0.6rem; color: var(--text-muted); line-height: 1.3; }
+    .achieve-card .ac-date { font-size: 0.55rem; color: #ffd700; margin-top: 2px; }
+
     /* ─── Responsive ─────────────────────────────────── */
     @media (max-width: 600px) {
       .header h1 { font-size: 0.95rem; }
@@ -634,6 +741,8 @@
       .hud { font-size: 0.65rem; }
       .controls { font-size: 0.65rem; }
       .wave-announce .wa-text { font-size: 1.2rem; }
+      .achieve-grid { grid-template-columns: 1fr; }
+      .achieve-inner { padding: 14px; }
     }
   </style>
 </head>
@@ -695,6 +804,7 @@
       <button class="ctrl-btn" id="relocateBtn">Relocate</button>
       <button class="ctrl-btn sell-btn" id="sellBtn" disabled>🗑 Sell</button>
       <button class="ctrl-btn" id="playersBtn">Players</button>
+      <button class="ctrl-btn" id="achieveBtn" title="Achievements">🏆</button>
       <button class="ctrl-btn" id="muteBtn" title="Toggle sound">🔊</button>
     </div>
 
@@ -710,6 +820,20 @@
       <h2 id="upgradeTitle">Choose Upgrade Path</h2>
       <div class="upgrade-cards" id="upgradeCards"></div>
       <button class="modal-close" id="upgradeClose">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ─── Achievement Toast Container ─────────────── -->
+  <div class="achievement-toast-container" id="achieveToastContainer"></div>
+
+  <!-- ─── Achievement Panel ───────────────────────── -->
+  <div class="achieve-panel" id="achievePanel">
+    <div class="achieve-inner">
+      <div class="achieve-header">
+        <h2>🏆 Achievements <span class="achieve-count" id="achieveCount">0/0</span></h2>
+        <button class="achieve-close" id="achieveClose">Close</button>
+      </div>
+      <div class="achieve-grid" id="achieveGrid"></div>
     </div>
   </div>
 
@@ -736,6 +860,146 @@
     const BASE_MAX_HP = 20;
     const BOSS_DAMAGE = 3;
     const HP_REGEN_PER_WAVE = 1;
+
+    // ═══════════════════════════════════════════════════
+    //  Achievement System
+    // ═══════════════════════════════════════════════════
+    const ACHIEVEMENTS = {
+      first_blood:    { icon: '🩸', name: 'First Blood',      desc: 'Kill your first enemy' },
+      wave_5:         { icon: '🌊', name: 'Wave Runner',      desc: 'Reach wave 5' },
+      wave_10:        { icon: '🌊', name: 'Wave Master',      desc: 'Reach wave 10' },
+      wave_20:        { icon: '🌊', name: 'Tidal Force',      desc: 'Reach wave 20' },
+      wave_50:        { icon: '🌊', name: 'Unstoppable',      desc: 'Reach wave 50' },
+      boss_slayer:    { icon: '💀', name: 'Boss Slayer',      desc: 'Kill a boss' },
+      combo_5:        { icon: '🔥', name: 'Hot Streak',       desc: 'Reach a 5× combo' },
+      combo_10:       { icon: '💥', name: 'Combo King',       desc: 'Reach a 10× combo' },
+      speed_demon:    { icon: '⚡', name: 'Speed Demon',      desc: 'Use 3× speed' },
+      path_chosen:    { icon: '🔀', name: 'Path Chosen',      desc: 'Choose an upgrade path' },
+      specialist:     { icon: '⭐', name: 'Specialist',       desc: 'Choose a specialization' },
+      sharpshooter:   { icon: '🎯', name: 'Sharpshooter',     desc: 'Get 100 kills in one game' },
+      mass_murderer:  { icon: '☠️', name: 'Mass Destruction', desc: 'Get 500 kills in one game' },
+      early_bird:     { icon: '🐦', name: 'Early Bird',       desc: 'Use early send' },
+      ability_user:   { icon: '✨', name: 'Special Forces',   desc: 'Use an active ability' },
+      untouchable:    { icon: '🛡️', name: 'Untouchable',     desc: 'Clear wave 5 with full HP' },
+      sell_cannon:    { icon: '💰', name: 'Trade-In',         desc: 'Sell a cannon' },
+      max_level:      { icon: '👑', name: 'Maxed Out',        desc: 'Reach level 10' },
+    };
+
+    const achieveToastContainer = document.getElementById('achieveToastContainer');
+    const achievePanel = document.getElementById('achievePanel');
+    const achieveGrid = document.getElementById('achieveGrid');
+    const achieveCount = document.getElementById('achieveCount');
+    const achieveBtn = document.getElementById('achieveBtn');
+    const achieveClose = document.getElementById('achieveClose');
+
+    // Load from localStorage
+    let unlockedAchievements = {};
+    try {
+      unlockedAchievements = JSON.parse(localStorage.getItem('td_achievements') || '{}');
+    } catch(e) { unlockedAchievements = {}; }
+    // Lifetime stats
+    let lifetimeStats = {};
+    try {
+      lifetimeStats = JSON.parse(localStorage.getItem('td_lifetime_stats') || '{}');
+    } catch(e) { lifetimeStats = {}; }
+
+    function saveAchievements() {
+      localStorage.setItem('td_achievements', JSON.stringify(unlockedAchievements));
+    }
+    function saveLifetimeStats() {
+      localStorage.setItem('td_lifetime_stats', JSON.stringify(lifetimeStats));
+    }
+
+    function unlockAchievement(id) {
+      if (unlockedAchievements[id]) return; // already unlocked
+      if (!ACHIEVEMENTS[id]) return;
+      unlockedAchievements[id] = Date.now();
+      saveAchievements();
+      showAchievementToast(id);
+      sfxAchievement();
+    }
+
+    function showAchievementToast(id) {
+      const a = ACHIEVEMENTS[id];
+      const toast = document.createElement('div');
+      toast.className = 'achievement-toast';
+      toast.innerHTML = `
+        <span class="at-icon">${a.icon}</span>
+        <div class="at-body">
+          <span class="at-label">Achievement Unlocked</span>
+          <span class="at-name">${a.name}</span>
+          <span class="at-desc">${a.desc}</span>
+        </div>
+      `;
+      achieveToastContainer.appendChild(toast);
+      setTimeout(() => toast.remove(), 3600);
+    }
+
+    function sfxAchievement() {
+      if (!audioCtx || soundMuted) return;
+      const now = audioCtx.currentTime;
+      // Triumphant ascending arpeggio: C5 → E5 → G5 → C6 with shimmering reverb feel
+      const notes = [523, 659, 784, 1047];
+      notes.forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + i * 0.1);
+        g.gain.setValueAtTime(soundVolume * 0.25, now + i * 0.1);
+        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.4);
+        osc.connect(g).connect(audioCtx.destination);
+        osc.start(now + i * 0.1);
+        osc.stop(now + i * 0.1 + 0.4);
+      });
+      // Final shimmer
+      const osc2 = audioCtx.createOscillator();
+      const g2 = audioCtx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(1047, now + 0.4);
+      osc2.frequency.exponentialRampToValueAtTime(1568, now + 0.8);
+      g2.gain.setValueAtTime(soundVolume * 0.15, now + 0.4);
+      g2.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+      osc2.connect(g2).connect(audioCtx.destination);
+      osc2.start(now + 0.4);
+      osc2.stop(now + 0.9);
+    }
+
+    function renderAchievePanel() {
+      achieveGrid.innerHTML = '';
+      const keys = Object.keys(ACHIEVEMENTS);
+      const unlocked = keys.filter(k => unlockedAchievements[k]);
+      achieveCount.textContent = `${unlocked.length}/${keys.length}`;
+
+      for (const id of keys) {
+        const a = ACHIEVEMENTS[id];
+        const isUnlocked = !!unlockedAchievements[id];
+        const card = document.createElement('div');
+        card.className = `achieve-card ${isUnlocked ? 'unlocked' : 'locked'}`;
+        let dateStr = '';
+        if (isUnlocked) {
+          const d = new Date(unlockedAchievements[id]);
+          dateStr = `<div class="ac-date">${d.toLocaleDateString()}</div>`;
+        }
+        card.innerHTML = `
+          <span class="ac-icon">${isUnlocked ? a.icon : '🔒'}</span>
+          <div class="ac-info">
+            <div class="ac-name">${a.name}</div>
+            <div class="ac-desc">${a.desc}</div>
+            ${dateStr}
+          </div>
+        `;
+        achieveGrid.appendChild(card);
+      }
+    }
+
+    achieveBtn.addEventListener('click', () => {
+      renderAchievePanel();
+      achievePanel.classList.add('active');
+    });
+    achieveClose.addEventListener('click', () => achievePanel.classList.remove('active'));
+    achievePanel.addEventListener('click', e => {
+      if (e.target === achievePanel) achievePanel.classList.remove('active');
+    });
 
     // ═══════════════════════════════════════════════════
     //  Sound Effects System (Web Audio API)
@@ -1647,6 +1911,7 @@
         c.xp = newXp - needed;
         c.level = level + 1;
         sfxLevelUp();
+        if (c.level >= 10) unlockAchievement('max_level');
       } else {
         c.xp = newXp;
       }
@@ -2234,6 +2499,11 @@
           totalKills++;
           killsThisTick++;
           sfxEnemyDeath(e.type === 'boss');
+          // Achievement tracking
+          if (totalKills === 1) unlockAchievement('first_blood');
+          if (totalKills >= 100) unlockAchievement('sharpshooter');
+          if (totalKills >= 500) unlockAchievement('mass_murderer');
+          if (e.type === 'boss') unlockAchievement('boss_slayer');
           // Combo tracking
           comboCount++;
           comboTimer = COMBO_WINDOW;
@@ -2242,6 +2512,9 @@
             triggerScreenShake(comboCount >= 10);
             sfxComboMilestone(comboCount);
           }
+          // Combo achievements
+          if (comboCount >= 5) unlockAchievement('combo_5');
+          if (comboCount >= 10) unlockAchievement('combo_10');
           // Calculate XP: base 1 + combo bonus + early send bonus
           const comboMult = comboCount >= COMBO_MIN ? Math.min(comboCount, 10) : 1;
           const earlyBonus = earlySendBonusPct > 0 ? Math.ceil(comboMult * earlySendBonusPct / 100) : 0;
@@ -2325,6 +2598,13 @@
       if (enemies.length === 0 && waveState === 'active') {
         sfxWaveClear();
         waveNumber++;
+        // Wave achievements
+        if (waveNumber > 5) unlockAchievement('wave_5');
+        if (waveNumber > 10) unlockAchievement('wave_10');
+        if (waveNumber > 20) unlockAchievement('wave_20');
+        if (waveNumber > 50) unlockAchievement('wave_50');
+        // Untouchable: clear wave 5 with full HP
+        if (waveNumber === 6 && baseHp === BASE_MAX_HP) unlockAchievement('untouchable');
         // Reset early send bonus/streak on natural wave clear
         earlySendBonusPct = 0;
         earlySendCount = 0;
@@ -2404,6 +2684,7 @@
         if (newXp >= needed) {
           // Level up
           if (cid === playerId) sfxLevelUp();
+          if (cid === playerId && level + 1 >= 10) unlockAchievement('max_level');
           cannonsRef.child(cid).update({
             xp: newXp - needed,
             level: level + 1,
@@ -2652,6 +2933,7 @@
             } else {
               cannonsRef.child(playerId).update({ path: key });
             }
+            unlockAchievement('path_chosen');
             upgradeModal.classList.remove('active');
             updateCannonUI();
           });
@@ -2671,6 +2953,7 @@
             } else {
               cannonsRef.child(playerId).update({ spec: key });
             }
+            unlockAchievement('specialist');
             upgradeModal.classList.remove('active');
             updateCannonUI();
           });
@@ -2820,6 +3103,7 @@
         localStorage.setItem('td_sell_refund', existing + refund);
       }
       sfxSellCannon();
+      unlockAchievement('sell_cannon');
 
       // Show refund popup
       if (refund > 0) {
@@ -2904,6 +3188,7 @@
       if (totalEnemies === 0) return;
 
       earlySendCount++;
+      unlockAchievement('early_bird');
       // Bonus: 25% base + 10% per consecutive early send (capped at 100%)
       earlySendBonusPct = Math.min(100, 25 + (earlySendCount - 1) * 10);
 
@@ -2968,6 +3253,7 @@
       const newSpeed = parseInt(btn.dataset.speed, 10);
       if (newSpeed === gameSpeed) return;
       gameSpeed = newSpeed;
+      if (gameSpeed === 3) unlockAchievement('speed_demon');
       // Update button states
       speedControls.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -3112,6 +3398,7 @@
       abilityTargeting = false;
       canvas.classList.remove('canvas-targeting');
       updateAbilityBtn();
+      unlockAchievement('ability_user');
 
       const stats = getCannonStats(c.level || 1, c.path || null, c.spec || null);
 
@@ -3291,6 +3578,11 @@
           e.dead = true;
           totalKills++;
           sfxEnemyDeath(e.type === 'boss');
+          // Achievement tracking
+          if (totalKills === 1) unlockAchievement('first_blood');
+          if (totalKills >= 100) unlockAchievement('sharpshooter');
+          if (totalKills >= 500) unlockAchievement('mass_murderer');
+          if (e.type === 'boss') unlockAchievement('boss_slayer');
           comboCount++;
           comboTimer = COMBO_WINDOW;
           const comboMult = comboCount >= COMBO_MIN ? Math.min(comboCount, 10) : 1;

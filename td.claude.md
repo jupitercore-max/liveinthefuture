@@ -173,6 +173,33 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **Browser autoplay compliance** — AudioContext initialized on first user interaction (click/touch on canvas or unmute button) to comply with browser autoplay policies.
 - **Master volume control** — All sounds go through a `soundVolume` multiplier (0.3) for pleasant default levels.
 
+### 2025-06-07: Achievement System
+- **18 achievements** — A complete achievement system that tracks player milestones and provides long-term goals for replayability:
+  - **🩸 First Blood** — Kill your first enemy
+  - **🌊 Wave Runner** — Reach wave 5
+  - **🌊 Wave Master** — Reach wave 10
+  - **🌊 Tidal Force** — Reach wave 20
+  - **🌊 Unstoppable** — Reach wave 50
+  - **💀 Boss Slayer** — Kill a boss
+  - **🔥 Hot Streak** — Reach a 5× combo
+  - **💥 Combo King** — Reach a 10× combo
+  - **⚡ Speed Demon** — Use 3× speed
+  - **🔀 Path Chosen** — Choose an upgrade path
+  - **⭐ Specialist** — Choose a specialization
+  - **🎯 Sharpshooter** — Get 100 kills in one game
+  - **☠️ Mass Destruction** — Get 500 kills in one game
+  - **🐦 Early Bird** — Use early send
+  - **✨ Special Forces** — Use an active ability
+  - **🛡️ Untouchable** — Clear wave 5 with full HP
+  - **💰 Trade-In** — Sell a cannon
+  - **👑 Maxed Out** — Reach level 10
+- **Toast notifications** — Gold-bordered slide-in toast at top of screen when an achievement unlocks. Shows icon, name, and description with fade-out animation. Multiple toasts stack vertically.
+- **Achievement panel** — 🏆 button in controls bar opens a full-screen overlay panel showing all 18 achievements in a 2-column grid. Unlocked achievements show gold border and unlock date; locked ones are dimmed with 🔒 icon.
+- **Sound effect** — Custom triumphant ascending arpeggio (C5→E5→G5→C6) with triangle waves and a shimmering sine finish plays on unlock.
+- **Persistent storage** — All unlocked achievements stored in `localStorage` (`td_achievements`) with timestamps. Achievements persist across sessions and page refreshes.
+- **Hook points** — Achievement triggers placed at all relevant game events: enemy kills, boss kills, wave clears, combo milestones, speed changes, upgrade path/spec selection, early send, ability use, cannon sell, and level ups. Both offline and Firebase modes are covered.
+- **Responsive** — Panel switches to single-column layout on mobile (≤600px).
+
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
 - [x] ~~No sound effects~~ → Full procedural sound effects system using Web Audio API
@@ -180,7 +207,7 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - [x] ~~Score popup text when enemies die~~ → Floating XP popups with color and size scaling
 - [x] ~~Screen shake on boss or wave fail~~ → Screen shake with light/heavy intensities
 - [ ] Better onboarding/tutorial flow
-- [ ] Achievement system
+- [x] ~~Achievement system~~ → Full achievement system with 18 achievements, toast notifications, and persistent localStorage tracking
 - [x] ~~Wave preview showing what's coming next~~ → Enemy type breakdown shown during countdown
 - [x] ~~Better visual differentiation between cannon types~~ → Unique shapes, barrels, and animated effects per path/spec
 - [x] ~~Combo system for rapid kills~~ → Kill combo system with multiplied XP rewards
