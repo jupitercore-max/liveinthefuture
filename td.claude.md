@@ -217,6 +217,29 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **Mobile responsive** — Tutorial tooltip shrinks and adjusts on screens ≤600px.
 - **No gameplay interference** — Tutorial runs as a pure UI overlay; doesn't pause or affect the game simulation.
 
+### 2025-06-07: Wave Difficulty Scaling & Elite Enemies
+- **Quadratic HP scaling** — Enemy base HP now scales as `(1 + wave * 0.15) * (1 + wave * 0.04)` instead of the old linear `1 + wave * 0.15`. This keeps early waves (1-10) nearly identical in feel, but waves 20+ become significantly harder. Example values:
+  - Wave 1: 1.19 (was 1.15) — barely changed
+  - Wave 10: 3.5 (was 2.5) — moderate increase
+  - Wave 20: 7.2 (was 4.0) — notably harder
+  - Wave 30: 12.1 (was 5.5) — challenging
+  - Wave 50: 25.5 (was 8.5) — very hard, requires maxed cannon
+- **Enemy speed scaling** — After wave 10, all enemies get 1.5% faster per wave, capped at +50% at wave ~43. Makes late-game positioning and slow effects (Frost/Swamp) more valuable. Bosses are exempt (they're already slow and have phase mechanics).
+- **Elite enemies** — From wave 15+, regular enemies have a 15-30% chance (scaling with wave) to spawn as "elite" variants:
+  - 2.5× HP, 1.1× speed, 1.25× visual size
+  - Gold pulsing aura, gold border ring, and ★ star indicator above
+  - Award 3× XP on kill (multiplicative with combo/early send bonuses)
+  - Gold "★" suffix on XP popups for elite kills
+  - Elite count shown in wave preview panel ("★ 4 Elites (3× XP)")
+  - Deterministic via seeded RNG — all multiplayer clients see the same elites
+- **Weighted enemy type selection** — From wave 10+, enemy composition shifts toward harder types instead of uniform random:
+  - Tanks and shielded enemies become increasingly common
+  - Speedsters appear more frequently
+  - Scouts become rarer after wave 20, grunts after wave 25
+  - Creates more strategic wave compositions that require diverse cannon builds
+- **Wave preview accuracy** — `getWaveEnemyBreakdown()` updated to use the same weighted selection logic and elite chance, so the preview panel accurately reflects what will spawn.
+- **No early-game impact** — All changes are designed to leave waves 1-10 feeling identical. The difficulty ramp is smooth and progressive, rewarding players who upgrade wisely.
+
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
 - [x] ~~No sound effects~~ → Full procedural sound effects system using Web Audio API
@@ -231,7 +254,7 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - [x] ~~Active abilities (click to fire special shot)~~ → Per-cannon active abilities with targeting, cooldowns, and visual effects
 - [x] ~~Environmental features (obstacles, terrain that slows enemies)~~ → Terrain hazard zones (swamp, lava, lightning storm)
 - [x] ~~Mini-boss mechanics (special attacks, phases)~~ → 3-phase boss system with shield, summon minions, and enrage
-- [ ] Better balancing at higher waves
+- [x] ~~Better balancing at higher waves~~ → Quadratic HP scaling, speed scaling, elite enemies, weighted type selection
 - [x] ~~Speed controls (1x, 2x, 3x game speed)~~ → Speed toggle buttons with sim timer adjustment
 - [x] ~~Wave skip / early send for bonus XP~~ → "Send Next" button overlaps waves for bonus XP
 - [x] ~~Sell/reset cannon option~~ → Sell button with 50% XP refund banked for next cannon

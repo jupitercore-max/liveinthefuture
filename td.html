@@ -1788,32 +1788,68 @@
 
       const rng = mulberry32(waveNum * 7919);
       const count = 8 + waveNum * 3;
-      const baseHp = 1 + waveNum * 0.15;
+      // Quadratic HP scaling: gentle early, steep late
+      // Wave 1: 1.19, Wave 10: 2.5*1.4=3.5, Wave 20: 4*1.8=7.2, Wave 30: 5.5*2.2=12.1, Wave 50: 8.5*3=25.5
+      const baseHp = (1 + waveNum * 0.15) * (1 + waveNum * 0.04);
       const isBossWave = waveNum % 10 === 0 && waveNum > 0;
+      // Speed scaling: enemies get faster after wave 10, capped at +50%
+      const waveSpeedMult = waveNum > 10 ? Math.min(1.5, 1 + (waveNum - 10) * 0.015) : 1;
       const available = ENEMY_TYPES.filter(e => {
         if (e.type === 'boss') return isBossWave;
         return e.wave <= waveNum;
       });
 
+      // Weighted enemy selection: harder types become more common at higher waves
+      function pickWeightedEnemy() {
+        if (waveNum < 10) {
+          // Early waves: uniform random
+          return available[Math.floor(rng() * available.length)];
+        }
+        // Build weights: harder enemies (higher hpMult) get bonus weight at higher waves
+        const weights = available.map(e => {
+          let w = 1;
+          if (e.type === 'tank') w += Math.min(3, (waveNum - 5) * 0.15);
+          if (e.type === 'shielded') w += Math.min(3, (waveNum - 15) * 0.15);
+          if (e.type === 'speedster') w += Math.min(2, (waveNum - 10) * 0.1);
+          if (e.type === 'scout' && waveNum > 20) w *= 0.4; // scouts become rarer
+          if (e.type === 'grunt' && waveNum > 25) w *= 0.6; // grunts become rarer
+          return Math.max(0.1, w);
+        });
+        const total = weights.reduce((s, w) => s + w, 0);
+        let r = rng() * total;
+        for (let j = 0; j < available.length; j++) {
+          r -= weights[j];
+          if (r <= 0) return available[j];
+        }
+        return available[available.length - 1];
+      }
+
       const enemies = [];
       const spacing = 0.04; // progress spacing between enemies
+      // Elite chance: 15% from wave 15+, capped at 30% at wave 40+
+      const eliteChance = waveNum >= 15 ? Math.min(0.30, 0.15 + (waveNum - 15) * 0.006) : 0;
       for (let i = 0; i < count; i++) {
-        const et = available[Math.floor(rng() * available.length)];
+        const et = pickWeightedEnemy();
         const startProgress = -(i * spacing) - (rng() * spacing * 0.5);
         const pos = getPathPosition(currentPath, startProgress);
+        const isElite = rng() < eliteChance;
+        const eliteHpMult = isElite ? 2.5 : 1;
+        const eliteSpeedMult = isElite ? 1.1 : 1;
+        const eliteRadiusMult = isElite ? 1.25 : 1;
         enemies.push({
           id: `w${waveNum}_e${i}`,
           type: et.type,
           x: pos.x,
           y: pos.y,
           pathProgress: startProgress,
-          hp: baseHp * et.hpMult,
-          maxHp: baseHp * et.hpMult,
-          speed: et.speed,
+          hp: baseHp * et.hpMult * eliteHpMult,
+          maxHp: baseHp * et.hpMult * eliteHpMult,
+          speed: et.speed * waveSpeedMult * eliteSpeedMult,
           color: et.color,
           shape: et.shape,
-          radius: et.radius,
-          slowTimer: 0
+          radius: Math.round(et.radius * eliteRadiusMult),
+          slowTimer: 0,
+          elite: isElite
         });
       }
       // Add boss
@@ -2669,17 +2705,21 @@
           // Combo achievements
           if (comboCount >= 5) unlockAchievement('combo_5');
           if (comboCount >= 10) unlockAchievement('combo_10');
-          // Calculate XP: base 1 + combo bonus + early send bonus
+          // Calculate XP: base 1 + combo bonus + early send bonus + elite bonus
           const comboMult = comboCount >= COMBO_MIN ? Math.min(comboCount, 10) : 1;
           const earlyBonus = earlySendBonusPct > 0 ? Math.ceil(comboMult * earlySendBonusPct / 100) : 0;
-          const xpAmount = comboMult + earlyBonus;
+          const eliteMult = e.elite ? 3 : 1;
+          const xpAmount = (comboMult + earlyBonus) * eliteMult;
           // Award XP to cannon that would have killed (simplified: split among all)
           awardXP(cannonList, xpAmount);
           // Score popup
-          const popupText = comboCount >= COMBO_MIN
+          const popupText = e.elite
+            ? `+${xpAmount} XP ★`
+            : comboCount >= COMBO_MIN
             ? `+${xpAmount} XP`
             : '+1 XP';
-          const popupColor = comboCount >= 8 ? '#ff4444'
+          const popupColor = e.elite ? '#ffd700'
+            : comboCount >= 8 ? '#ff4444'
             : comboCount >= 5 ? '#ff8800'
             : comboCount >= COMBO_MIN ? '#ffd700'
             : '#ffffff';
@@ -3741,7 +3781,8 @@
           comboTimer = COMBO_WINDOW;
           const comboMult = comboCount >= COMBO_MIN ? Math.min(comboCount, 10) : 1;
           const earlyBonus = earlySendBonusPct > 0 ? Math.ceil(comboMult * earlySendBonusPct / 100) : 0;
-          const xpAmount = comboMult + earlyBonus;
+          const eliteMult = e.elite ? 3 : 1;
+          const xpAmount = (comboMult + earlyBonus) * eliteMult;
           if (offlineMode) {
             offlineAwardXP(xpAmount);
           } else {
@@ -3750,10 +3791,10 @@
           scorePopups.push({
             x: e.x + (Math.random() - 0.5) * 16,
             y: e.y,
-            text: `+${xpAmount} XP`,
-            color: comboCount >= 8 ? '#ff4444' : comboCount >= 5 ? '#ff8800' : comboCount >= COMBO_MIN ? '#ffd700' : '#ffffff',
+            text: e.elite ? `+${xpAmount} XP ★` : `+${xpAmount} XP`,
+            color: e.elite ? '#ffd700' : comboCount >= 8 ? '#ff4444' : comboCount >= 5 ? '#ff8800' : comboCount >= COMBO_MIN ? '#ffd700' : '#ffffff',
             life: 40, maxLife: 40,
-            size: comboCount >= 5 ? 16 : comboCount >= COMBO_MIN ? 13 : 11,
+            size: e.elite ? 16 : comboCount >= 5 ? 16 : comboCount >= COMBO_MIN ? 13 : 11,
             vy: -1.5
           });
           for (let i = 0; i < 8; i++) {
@@ -4779,6 +4820,30 @@
           ctx.fill();
       }
 
+      // ── Elite enemy visual ──
+      if (e.elite && !isBoss) {
+        // Pulsing gold aura
+        const elitePulse = 0.2 + Math.sin(t * 0.006) * 0.1;
+        ctx.globalAlpha = elitePulse;
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath();
+        ctx.arc(x, y, e.radius + 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        // Gold border ring
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(x, y, e.radius + 2, 0, Math.PI * 2);
+        ctx.stroke();
+        // Star above enemy
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 8px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('★', x, y - e.radius - 3);
+        ctx.textAlign = 'start';
+      }
+
       // ── Boss: Shield visual ──
       if (isBoss && e.shieldHp > 0) {
         const shieldPct = e.shieldHp / (e.shieldMaxHp || 1);
@@ -4874,14 +4939,40 @@
         if (e.type === 'boss') return isBossWave;
         return e.wave <= waveNum;
       });
+      // Weighted selection matching generateWave logic
+      function pickWeighted() {
+        if (waveNum < 10) {
+          return available[Math.floor(rng() * available.length)];
+        }
+        const weights = available.map(e => {
+          let w = 1;
+          if (e.type === 'tank') w += Math.min(3, (waveNum - 5) * 0.15);
+          if (e.type === 'shielded') w += Math.min(3, (waveNum - 15) * 0.15);
+          if (e.type === 'speedster') w += Math.min(2, (waveNum - 10) * 0.1);
+          if (e.type === 'scout' && waveNum > 20) w *= 0.4;
+          if (e.type === 'grunt' && waveNum > 25) w *= 0.6;
+          return Math.max(0.1, w);
+        });
+        const total = weights.reduce((s, w) => s + w, 0);
+        let r = rng() * total;
+        for (let j = 0; j < available.length; j++) {
+          r -= weights[j];
+          if (r <= 0) return available[j];
+        }
+        return available[available.length - 1];
+      }
       const breakdown = {};
+      let eliteCount = 0;
+      const eliteChance = waveNum >= 15 ? Math.min(0.30, 0.15 + (waveNum - 15) * 0.006) : 0;
       for (let i = 0; i < count; i++) {
-        const et = available[Math.floor(rng() * available.length)];
+        const et = pickWeighted();
         breakdown[et.type] = (breakdown[et.type] || 0) + 1;
+        if (rng() < eliteChance) eliteCount++;
       }
       if (isBossWave) {
         breakdown['boss'] = (breakdown['boss'] || 0) + 1;
       }
+      if (eliteCount > 0) breakdown['_elites'] = eliteCount;
       return breakdown;
     }
 
@@ -4946,8 +5037,8 @@
       while (wavePreview.children.length > 1) {
         wavePreview.removeChild(wavePreview.lastChild);
       }
-      // Sort: boss first, then by count descending
-      const sorted = Object.entries(breakdown).sort((a, b) => {
+      // Sort: boss first, then by count descending; exclude meta keys
+      const sorted = Object.entries(breakdown).filter(([k]) => !k.startsWith('_')).sort((a, b) => {
         if (a[0] === 'boss') return -1;
         if (b[0] === 'boss') return 1;
         return b[1] - a[1];
@@ -4970,6 +5061,21 @@
         div.appendChild(nameSpan);
         div.appendChild(countSpan);
         wavePreview.appendChild(div);
+      }
+      // Show elite count if any
+      if (breakdown['_elites']) {
+        const elDiv = document.createElement('div');
+        elDiv.className = 'wave-preview-enemy';
+        elDiv.style.borderTop = '1px solid rgba(255,215,0,0.2)';
+        elDiv.style.paddingTop = '4px';
+        elDiv.style.marginTop = '2px';
+        const elLabel = document.createElement('span');
+        elLabel.className = 'wpe-name';
+        elLabel.style.color = '#ffd700';
+        elLabel.style.fontSize = '0.65rem';
+        elLabel.textContent = `★ ${breakdown['_elites']} Elite${breakdown['_elites'] > 1 ? 's' : ''} (3× XP)`;
+        elDiv.appendChild(elLabel);
+        wavePreview.appendChild(elDiv);
       }
       wavePreview.classList.add('active');
 
