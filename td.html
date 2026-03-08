@@ -548,6 +548,33 @@
       50% { box-shadow: 0 0 16px var(--accent-glow); }
     }
 
+    /* ─── Sell Button ─────────────────────────────────── */
+    .sell-btn:not(:disabled) {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+    .sell-btn:not(:disabled):hover {
+      background: var(--danger);
+      color: #fff;
+      border-color: var(--danger);
+    }
+    .sell-confirm-card {
+      border-color: var(--danger) !important;
+    }
+    .sell-confirm-card:hover {
+      background: rgba(231,76,60,0.15) !important;
+      border-color: var(--danger) !important;
+    }
+    .sell-refund {
+      color: var(--success);
+      font-weight: 600;
+    }
+    .sell-warning {
+      color: var(--danger);
+      font-size: 0.7rem;
+      margin-top: 4px;
+    }
+
     /* ─── Ability targeting crosshair ────────────────── */
     .canvas-targeting {
       cursor: crosshair !important;
@@ -666,6 +693,7 @@
       </div>
       <button class="ctrl-btn send-next-btn" id="sendNextBtn" disabled>⏩ Send Next <span class="ab-key">[E]</span></button>
       <button class="ctrl-btn" id="relocateBtn">Relocate</button>
+      <button class="ctrl-btn sell-btn" id="sellBtn" disabled>🗑 Sell</button>
       <button class="ctrl-btn" id="playersBtn">Players</button>
     </div>
 
@@ -1007,6 +1035,7 @@
     const speedIndicator = $('speedIndicator');
     const sendNextBtn = $('sendNextBtn');
     const sendBonusPopup = $('sendBonusPopup');
+    const sellBtn = $('sellBtn');
 
     // ═══════════════════════════════════════════════════
     //  Default Emoji Avatars
@@ -1098,6 +1127,7 @@
 
     function offlinePlaceCannon(x, y) {
       const existing = cannons[playerId];
+      const isNewPlacement = !existing || !existing.x;
       cannons[playerId] = {
         x: Math.round(x),
         y: Math.round(y),
@@ -1112,6 +1142,8 @@
         lastSeen: Date.now()
       };
       showPlacementHint = false;
+      // Apply any banked sell refund XP to new cannons
+      if (isNewPlacement) applySellRefund();
       updateCannonUI();
       // Start wave if waiting
       if (waveState === 'waiting' || waveState === 'paused') {
@@ -1593,6 +1625,7 @@
           hideWavePreview();
           if (!offlineMode) metaRef.update({ waveState: 'gameover', totalKills });
           showGameOver();
+          updateCannonUI();
           writeSnapshot();
           return;
         }
@@ -1748,6 +1781,8 @@
       earlySendBonusPct = 0;
       earlySendCount = 0;
       bonusPopupTimer = 0;
+      // Clear any banked sell refund on game reset
+      localStorage.removeItem('td_sell_refund');
       sendBonusPopup.classList.remove('active');
       canvas.classList.remove('canvas-targeting');
       hideWavePreview();
@@ -1863,6 +1898,7 @@
 
       // Write to Firebase
       const existing = cannons[playerId];
+      const isNewPlacement = !existing || !existing.x;
       cannonsRef.child(playerId).set({
         x: Math.round(x),
         y: Math.round(y),
@@ -1876,6 +1912,12 @@
         emoji: playerEmoji,
         lastSeen: firebase.database.ServerValue.TIMESTAMP
       });
+
+      // Apply banked sell refund XP to new cannons
+      if (isNewPlacement) {
+        // Wait a tick for Firebase local cache to update, then apply refund
+        setTimeout(() => applySellRefund(), 100);
+      }
 
       // Start wave if waiting and leader
       if (isLeader && (waveState === 'waiting' || waveState === 'paused')) {
@@ -1960,6 +2002,7 @@
         xpBarFill.style.width = '0%';
         xpBarText.textContent = 'No cannon';
         upgradeBtn.disabled = true;
+        sellBtn.disabled = true;
         if (typeof updateAbilityBtn === 'function') updateAbilityBtn();
         return;
       }
@@ -1971,6 +2014,9 @@
       cannonInfo.textContent = getCannonLabel(level, c.path, c.spec);
       xpBarFill.style.width = pct + '%';
       xpBarText.textContent = `${xp} / ${needed} XP`;
+
+      // Enable sell button when cannon exists
+      sellBtn.disabled = (waveState === 'gameover');
 
       // Enable upgrade button if path/spec selection available
       const canUpgrade = (level >= 3 && !c.path) || (level >= 6 && c.path && !c.spec);
@@ -2015,6 +2061,136 @@
         relocateBtn.disabled = false;
       }
     }, 1000);
+
+    // ═══════════════════════════════════════════════════
+    //  Sell Cannon
+    // ═══════════════════════════════════════════════════
+    sellBtn.addEventListener('click', openSellModal);
+
+    function calcSellRefund() {
+      const c = cannons[playerId];
+      if (!c || !c.x) return 0;
+      const level = c.level || 1;
+      // Total XP invested = sum of XP thresholds for levels 1..(level-1) + current xp
+      let totalXp = c.xp || 0;
+      for (let i = 1; i < level; i++) totalXp += XP_PER_LEVEL(i);
+      // 50% refund
+      return Math.floor(totalXp * 0.5);
+    }
+
+    function openSellModal() {
+      const c = cannons[playerId];
+      if (!c || !c.x) return;
+      const level = c.level || 1;
+      const label = getCannonLabel(level, c.path, c.spec);
+      const refund = calcSellRefund();
+
+      upgradeCards.innerHTML = '';
+      upgradeTitle.textContent = '🗑 Sell Cannon?';
+
+      // Info card
+      const infoCard = document.createElement('div');
+      infoCard.className = 'upgrade-card';
+      infoCard.style.cursor = 'default';
+      infoCard.innerHTML = `<div class="uc-name">${label}</div>` +
+        `<div class="uc-desc">Kills: ${c.kills || 0}</div>` +
+        (refund > 0 ? `<div class="uc-desc sell-refund" style="margin-top:6px">Refund: +${refund} XP to next cannon</div>` : '') +
+        `<div class="sell-warning">⚠ All upgrades and progress will be lost</div>`;
+      upgradeCards.appendChild(infoCard);
+
+      // Confirm sell card
+      const confirmCard = document.createElement('div');
+      confirmCard.className = 'upgrade-card sell-confirm-card';
+      confirmCard.innerHTML = `<div class="uc-name" style="color:var(--danger)">Confirm Sell</div>` +
+        `<div class="uc-desc">Remove cannon and start fresh</div>`;
+      confirmCard.addEventListener('click', () => {
+        executeSellCannon(refund);
+        upgradeModal.classList.remove('active');
+      });
+      upgradeCards.appendChild(confirmCard);
+
+      upgradeModal.classList.add('active');
+    }
+
+    function executeSellCannon(refund) {
+      const c = cannons[playerId];
+      if (!c || !c.x) return;
+
+      // Store refund in localStorage so next cannon starts with bonus XP
+      if (refund > 0) {
+        const existing = parseInt(localStorage.getItem('td_sell_refund') || '0', 10);
+        localStorage.setItem('td_sell_refund', existing + refund);
+      }
+
+      // Show refund popup
+      if (refund > 0) {
+        scorePopups.push({
+          x: c.x, y: c.y,
+          text: `+${refund} XP banked`,
+          color: '#22c55e',
+          life: 90, maxLife: 90, size: 1.2
+        });
+      }
+
+      // Remove cannon
+      if (offlineMode) {
+        delete cannons[playerId];
+      } else {
+        cannonsRef.child(playerId).remove();
+        // Also remove from local state immediately
+        delete cannons[playerId];
+      }
+
+      // Reset ability state
+      abilityCooldownLeft = 0;
+      abilityTargeting = false;
+      canvas.classList.remove('canvas-targeting');
+
+      // Reset relocate cooldown so next placement is instant
+      lastRelocateTime = 0;
+
+      // Show placement hint again
+      showPlacementHint = true;
+
+      updateCannonUI();
+    }
+
+    // Apply banked sell refund XP when placing a new cannon
+    function applySellRefund() {
+      const refund = parseInt(localStorage.getItem('td_sell_refund') || '0', 10);
+      if (refund <= 0) return;
+      localStorage.removeItem('td_sell_refund');
+
+      const c = cannons[playerId];
+      if (!c) return;
+
+      // Apply XP and auto-level-up
+      let xp = (c.xp || 0) + refund;
+      let level = c.level || 1;
+      let needed = XP_PER_LEVEL(level);
+      while (xp >= needed) {
+        xp -= needed;
+        level++;
+        needed = XP_PER_LEVEL(level);
+      }
+      c.xp = xp;
+      c.level = level;
+
+      // Sync to Firebase
+      if (!offlineMode) {
+        cannonsRef.child(playerId).update({ xp: c.xp, level: c.level });
+      }
+
+      // Show XP applied popup
+      scorePopups.push({
+        x: c.x, y: c.y,
+        text: `+${refund} XP applied!`,
+        color: '#22c55e',
+        life: 90, maxLife: 90, size: 1.2
+      });
+
+      updateCannonUI();
+    }
 
     // ═══════════════════════════════════════════════════
     //  Early Send / Wave Skip
@@ -2574,6 +2750,13 @@
         ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
         ctx.fillStyle = 'rgba(30,144,255,0.5)';
         ctx.fillText('Defend the blue line from incoming enemies', CANVAS_W / 2, PLACEMENT_MIN_Y + (BASE_Y - PLACEMENT_MIN_Y) / 2 + 22);
+        // Show banked XP from sell refund
+        const bankedXP = parseInt(localStorage.getItem('td_sell_refund') || '0', 10);
+        if (bankedXP > 0) {
+          ctx.fillStyle = 'rgba(34,197,94,0.8)';
+          ctx.font = '13px ' + getComputedStyle(document.body).fontFamily;
+          ctx.fillText(`💰 ${bankedXP} XP banked — place to apply!`, CANVAS_W / 2, PLACEMENT_MIN_Y + (BASE_Y - PLACEMENT_MIN_Y) / 2 + 42);
+        }
         ctx.textAlign = 'start';
       }
 

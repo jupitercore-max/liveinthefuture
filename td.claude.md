@@ -95,6 +95,15 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **Screen shake**: Abilities trigger screen shake effects (light for small abilities, heavy for bombardment/railgun/napalm).
 - **Proper state reset**: Ability state (cooldown, targeting, zones) properly reset on game over/restart.
 
+### 2025-06-06: Sell Cannon System
+- **Sell button** — A new `🗑 Sell` button in the controls bar lets players sell their cannon and start fresh. Opens a confirmation modal (reuses the upgrade modal) showing cannon stats, kill count, and XP refund amount before confirming.
+- **50% XP refund** — When selling, players get back 50% of their total accumulated XP (all leveling thresholds + current XP). The refund is "banked" in localStorage and automatically applied when the next cannon is placed, auto-leveling it up.
+- **Confirmation modal** — Red-themed confirmation card prevents accidental sells. Shows cannon name/level, kill count, refund amount in green, and a warning that all upgrades will be lost.
+- **Banked XP indicator** — When a cannon is sold and the player hasn't placed a new one yet, the placement hint shows "💰 X XP banked — place to apply!" in green text, so players know their refund is waiting.
+- **Works in both modes** — Offline mode deletes cannon from local state; Firebase mode removes via `cannonsRef.child(playerId).remove()`. Refund XP is stored in localStorage so it persists across page refreshes.
+- **State cleanup** — Selling resets ability cooldown, targeting mode, and relocate timer. Shows placement hint again. Banked XP is cleared on game reset (Play Again) since the cannon is reset anyway.
+- **Sell button styling** — Danger-colored (red border/text) that matches the existing design language. Disabled when no cannon exists or during game over.
+
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
 - [ ] No sound effects
@@ -112,7 +121,7 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - [ ] Better balancing at higher waves
 - [x] ~~Speed controls (1x, 2x, 3x game speed)~~ → Speed toggle buttons with sim timer adjustment
 - [x] ~~Wave skip / early send for bonus XP~~ → "Send Next" button overlaps waves for bonus XP
-- [ ] Sell/reset cannon option
+- [x] ~~Sell/reset cannon option~~ → Sell button with 50% XP refund banked for next cannon
 
 ## Hourly Improvement Cycle
 Hatch runs a cron job every hour that:
