@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tower Defense — rayhe.net</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --bg-light: #16213e;
+      --card-bg: #0f3460;
+      --text: #e0e0e0;
+      --text-muted: #8888aa;
+      --accent: #1E90FF;
+      --accent-glow: rgba(30,144,255,0.3);
+      --danger: #e74c3c;
+      --success: #22c55e;
+      --border: #2a2a4a;
+      --radius: 6px;
+      --font-mono: 'SF Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-mono);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ─── Header ─────────────────────────────────────── */
+    .header {
+      width: 100%;
+      max-width: 740px;
+      padding: 16px 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header .back { font-size: 0.8rem; color: var(--text-muted); }
+    .header h1 { font-size: 1.1rem; font-weight: 600; }
+
+    /* ─── Start Screen ───────────────────────────────── */
+    #startScreen {
+      max-width: 420px;
+      width: 100%;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    .start-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+    .start-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 30px;
+    }
+    .avatar-area {
+      margin: 0 auto 24px;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 2px dashed var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      overflow: hidden;
+      transition: border-color 0.2s;
+      position: relative;
+    }
+    .avatar-area:hover { border-color: var(--accent); }
+    .avatar-area img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .avatar-area .placeholder {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.3;
+    }
+    .avatar-input { display: none; }
+    .player-name-display {
+      font-size: 1rem;
+      margin-bottom: 20px;
+      color: var(--text);
+    }
+    .game-preview {
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .join-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 14px 40px;
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .join-btn:hover { background: #3aa0ff; }
+    .join-btn:active { transform: scale(0.97); }
+
+    /* ─── Game Screen ────────────────────────────────── */
+    #gameScreen { display: none; width: 100%; max-width: 740px; padding: 0 10px 20px; }
+
+    .hud {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .hud-item { display: flex; align-items: center; gap: 4px; }
+    .hud-val { color: var(--text); font-weight: 600; }
+
+    .canvas-wrap {
+      width: 100%;
+      position: relative;
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      cursor: crosshair;
+    }
+
+    /* ─── Control Bar ────────────────────────────────── */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      flex-wrap: wrap;
+    }
+    .ctrl-btn {
+      background: var(--card-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .ctrl-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .ctrl-btn:disabled { opacity: 0.4; cursor: default; }
+    .ctrl-btn:disabled:hover { background: var(--card-bg); color: var(--text); border-color: var(--border); }
+    .xp-bar-wrap {
+      flex: 1;
+      min-width: 100px;
+      height: 14px;
+      background: var(--bg);
+      border-radius: 7px;
+      overflow: hidden;
+      position: relative;
+    }
+    .xp-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      transition: width 0.3s;
+      border-radius: 7px;
+    }
+    .xp-bar-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      color: #fff;
+      text-shadow: 0 0 3px rgba(0,0,0,0.8);
+    }
+    .cannon-info {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    /* ─── Upgrade Modal ──────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 480px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal h2 {
+      font-size: 1rem;
+      margin-bottom: 16px;
+      text-align: center;
+      color: var(--accent);
+    }
+    .upgrade-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .upgrade-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .upgrade-card:hover {
+      border-color: var(--accent);
+      background: var(--card-bg);
+    }
+    .upgrade-card .uc-name {
+      font-weight: 600;
+      margin-bottom: 4px;
+      font-size: 0.9rem;
+    }
+    .upgrade-card .uc-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .modal-close {
+      display: block;
+      margin: 16px auto 0;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 20px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+    }
+    .modal-close:hover { border-color: var(--text-muted); }
+
+    /* ─── Player List Panel ──────────────────────────── */
+    .player-panel {
+      display: none;
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-top: 8px;
+    }
+    .player-panel.active { display: block; }
+    .player-panel h3 {
+      font-size: 0.8rem;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    .player-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      font-size: 0.75rem;
+    }
+    .player-row .p-avatar {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--card-bg);
+    }
+    .player-row .p-name { flex: 1; }
+    .player-row .p-level { color: var(--accent); }
+    .player-row .p-kills { color: var(--text-muted); }
+    .player-online { color: var(--success); }
+    .player-offline { color: var(--text-muted); opacity: 0.5; }
+
+    /* ─── Wave Announcement ──────────────────────────── */
+    .wave-announce {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .wave-announce.active { display: flex; }
+    .wave-announce .wa-text {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-shadow: 0 0 20px var(--accent-glow);
+      animation: wavePulse 0.8s ease-in-out;
+    }
+    .wave-announce .wa-sub {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    @keyframes wavePulse {
+      0% { transform: scale(0.5); opacity: 0; }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ─── Responsive ─────────────────────────────────── */
+    @media (max-width: 600px) {
+      .header h1 { font-size: 0.95rem; }
+      .start-title { font-size: 1.4rem; }
+      .hud { font-size: 0.65rem; }
+      .controls { font-size: 0.65rem; }
+      .wave-announce .wa-text { font-size: 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <a href="index.html" class="back">&larr; home</a>
+    <h1>Tower Defense</h1>
+  </div>
+
+  <!-- ─── Start Screen ─────────────────────────────── -->
+  <div id="startScreen">
+    <div class="start-title">Tower Defense</div>
+    <div class="start-subtitle">Cooperative idle defense — place your cannon and hold the line</div>
+
+    <div class="avatar-area" id="avatarArea" title="Upload avatar">
+      <span class="placeholder" id="avatarPlaceholder">click to<br>upload</span>
+      <img id="avatarPreview" style="display:none" alt="avatar">
+    </div>
+    <input type="file" accept="image/*" class="avatar-input" id="avatarInput">
+
+    <div class="player-name-display" id="playerNameDisplay">Loading...</div>
+    <div class="game-preview" id="gamePreview">Connecting...</div>
+    <button class="join-btn" id="joinBtn">Join Game</button>
+  </div>
+
+  <!-- ─── Game Screen ──────────────────────────────── -->
+  <div id="gameScreen">
+    <div class="hud">
+      <div class="hud-item">Wave <span class="hud-val" id="hudWave">1</span></div>
+      <div class="hud-item">Enemies <span class="hud-val" id="hudEnemies">0</span></div>
+      <div class="hud-item">Kills <span class="hud-val" id="hudKills">0</span></div>
+      <div class="hud-item">Online <span class="hud-val" id="hudOnline">1</span></div>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="gameCanvas" width="700" height="500"></canvas>
+      <div class="wave-announce" id="waveAnnounce">
+        <div class="wa-text" id="waText"></div>
+        <div class="wa-sub" id="waSub"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <span class="cannon-info" id="cannonInfo">Lv1 Basic</span>
+      <div class="xp-bar-wrap">
+        <div class="xp-bar-fill" id="xpBarFill" style="width:0%"></div>
+        <div class="xp-bar-text" id="xpBarText">0 / 50 XP</div>
+      </div>
+      <button class="ctrl-btn" id="upgradeBtn" disabled>Upgrade</button>
+      <button class="ctrl-btn" id="relocateBtn">Relocate</button>
+      <button class="ctrl-btn" id="playersBtn">Players</button>
+    </div>
+
+    <div class="player-panel" id="playerPanel">
+      <h3>Players</h3>
+      <div id="playerList"></div>
+    </div>
+  </div>
+
+  <!-- ─── Upgrade Modal ────────────────────────────── -->
+  <div class="modal-overlay" id="upgradeModal">
+    <div class="modal">
+      <h2 id="upgradeTitle">Choose Upgrade Path</h2>
+      <div class="upgrade-cards" id="upgradeCards"></div>
+      <button class="modal-close" id="upgradeClose">Cancel</button>
+    </div>
+  </div>
+
+  <script src="firebase-shared.js"></script>
+  <script>
+  (() => {
+    'use strict';
+
+    // ═══════════════════════════════════════════════════
+    //  Constants & Config
+    // ═══════════════════════════════════════════════════
+    const CANVAS_W = 700, CANVAS_H = 500;
+    const BASE_Y = CANVAS_H - 30;
+    const PLACEMENT_MIN_Y = 300;
+    const MIN_CANNON_SPACING = 40;
+    const RELOCATE_COOLDOWN = 30000;
+    const TICK_RATE = 20; // ticks per second
+    const TICK_MS = 1000 / TICK_RATE;
+    const SNAPSHOT_INTERVAL = 40; // ticks between snapshots (2s)
+    const LEADER_HEARTBEAT_MS = 2000;
+    const LEADER_STALE_MS = 6000;
+    const STALE_CANNON_DAYS = 30;
+    const XP_PER_LEVEL = lvl => lvl * 50;
+
+    // ═══════════════════════════════════════════════════
+    //  Seeded PRNG (mulberry32)
+    // ═══════════════════════════════════════════════════
+    function mulberry32(seed) {
+      return function() {
+        seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Upgrade Tree Definitions
+    // ═══════════════════════════════════════════════════
+    const PATHS = {
+      rapid: { name: 'Rapid', color: '#ff6b35', desc: 'Fast fire rate' },
+      power: { name: 'Power', color: '#e74c3c', desc: 'High damage' },
+      tech:  { name: 'Tech',  color: '#9b59b6', desc: 'Utility & slow' }
+    };
+    const SPECS = {
+      gatling:  { path: 'rapid', name: 'Gatling',  color: '#ff8c42', desc: 'Extreme fire rate' },
+      sniper:   { path: 'rapid', name: 'Sniper',   color: '#ff4500', desc: 'Long range, high single-target' },
+      cannon:   { path: 'power', name: 'Cannon',   color: '#c0392b', desc: 'Area-of-effect damage' },
+      railgun:  { path: 'power', name: 'Railgun',  color: '#e74c3c', desc: 'Piercing shots' },
+      tesla:    { path: 'tech',  name: 'Tesla',    color: '#8e44ad', desc: 'Chain lightning' },
+      frost:    { path: 'tech',  name: 'Frost',    color: '#5dade2', desc: 'Slow field' }
+    };
+
+    function getCannonStats(level, path, spec) {
+      let dmg = 1, fireRate = 1, range = 120, aoeSplash = 0, pierce = 0, chain = 0, slowPct = 0;
+      // Per-level scaling
+      const lvlMult = 1 + (level - 1) * 0.10;
+      const rangeMult = 1 + (level - 1) * 0.05;
+      dmg *= lvlMult;
+      range *= rangeMult;
+
+      if (path === 'rapid') { fireRate = 1.8; dmg *= 0.7; }
+      if (path === 'power') { fireRate = 0.6; dmg *= 1.8; }
+      if (path === 'tech')  { fireRate = 0.8; dmg *= 0.9; slowPct = 0.3; }
+
+      if (spec === 'gatling')  { fireRate = 3.0; dmg *= 0.5; }
+      if (spec === 'sniper')   { fireRate = 0.4; dmg *= 3.0; range *= 1.6; }
+      if (spec === 'cannon')   { aoeSplash = 50; dmg *= 1.2; }
+      if (spec === 'railgun')  { pierce = 3; dmg *= 1.1; }
+      if (spec === 'tesla')    { chain = 3; dmg *= 0.8; }
+      if (spec === 'frost')    { slowPct = 0.6; range *= 1.2; }
+
+      return { dmg, fireRate, range, aoeSplash, pierce, chain, slowPct };
+    }
+
+    function getCannonColor(path, spec) {
+      if (spec && SPECS[spec]) return SPECS[spec].color;
+      if (path && PATHS[path]) return PATHS[path].color;
+      return '#1E90FF';
+    }
+
+    function getCannonLabel(level, path, spec) {
+      let name = 'Basic';
+      if (spec && SPECS[spec]) name = SPECS[spec].name;
+      else if (path && PATHS[path]) name = PATHS[path].name;
+      return `Lv${level} ${name}`;
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Enemy Type Definitions
+    // ═══════════════════════════════════════════════════
+    const ENEMY_TYPES = [
+      { type: 'scout',    wave: 1,  hpMult: 1.0, speed: 2.0, color: '#e74c3c', shape: 'circle',   radius: 6  },
+      { type: 'grunt',    wave: 1,  hpMult: 1.5, speed: 1.5, color: '#f39c12', shape: 'circle',   radius: 8  },
+      { type: 'tank',     wave: 5,  hpMult: 4.0, speed: 0.8, color: '#9b59b6', shape: 'hexagon',  radius: 12 },
+      { type: 'speedster',wave: 10, hpMult: 0.8, speed: 3.5, color: '#2ecc71', shape: 'diamond',  radius: 7  },
+      { type: 'shielded', wave: 15, hpMult: 3.0, speed: 1.2, color: '#3498db', shape: 'shielded', radius: 10 },
+      { type: 'boss',     wave: 10, hpMult: 15,  speed: 0.5, color: '#8b0000', shape: 'octagon',  radius: 16 }
+    ];
+
+    // ═══════════════════════════════════════════════════
+    //  Wave Generation (deterministic)
+    // ═══════════════════════════════════════════════════
+    function generateWave(waveNum) {
+      const rng = mulberry32(waveNum * 7919);
+      const count = 8 + waveNum * 3;
+      const baseHp = 1 + waveNum * 0.15;
+      const isBossWave = waveNum % 10 === 0 && waveNum > 0;
+      const available = ENEMY_TYPES.filter(e => {
+        if (e.type === 'boss') return isBossWave;
+        return e.wave <= waveNum;
+      });
+
+      const enemies = [];
+      for (let i = 0; i < count; i++) {
+        const et = available[Math.floor(rng() * available.length)];
+        enemies.push({
+          id: `w${waveNum}_e${i}`,
+          type: et.type,
+          x: 40 + rng() * (CANVAS_W - 80),
+          y: -20 - (rng() * 200) - i * 30,
+          hp: baseHp * et.hpMult,
+          maxHp: baseHp * et.hpMult,
+          speed: et.speed,
+          color: et.color,
+          shape: et.shape,
+          radius: et.radius,
+          slowTimer: 0
+        });
+      }
+      // Add boss
+      if (isBossWave) {
+        const boss = ENEMY_TYPES.find(e => e.type === 'boss');
+        enemies.push({
+          id: `w${waveNum}_boss`,
+          type: 'boss',
+          x: CANVAS_W / 2,
+          y: -300,
+          hp: baseHp * boss.hpMult,
+          maxHp: baseHp * boss.hpMult,
+          speed: boss.speed,
+          color: boss.color,
+          shape: boss.shape,
+          radius: boss.radius,
+          slowTimer: 0
+        });
+      }
+      return enemies;
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Game State
+    // ═══════════════════════════════════════════════════
+    let playerId = null;
+    let playerName = '';
+    let playerAvatar = null; // data URL
+    let db = null;
+    let isLeader = false;
+    let leaderCheckTimer = null;
+    let heartbeatTimer = null;
+    let simTimer = null;
+    let tickCount = 0;
+
+    // Game data
+    let waveNumber = 1;
+    let waveState = 'waiting'; // waiting, active, countdown, failed
+    let totalKills = 0;
+    let enemies = [];
+    let cannons = {}; // id -> cannon data
+    let projectiles = []; // client-side visual only
+    let particles = []; // death particles
+    let onlinePlayers = {};
+    let lastRelocateTime = 0;
+    let countdownTimer = 0;
+    let countdownStartedAt = 0; // timestamp for non-leader countdown display
+    let waveAnnounceTimer = 0;
+    let lastWaveState = 'waiting'; // track waveState changes for non-leader announcements
+    let visualFireTimers = {}; // cannonId -> ms since last visual fire
+    let lastVisualTick = 0; // for visual fire timing
+    let myCannonFireTimers = {}; // cannonId -> ticks since last fire
+
+    // Firebase refs
+    let metaRef, leaderRef, stateRef, cannonsRef, playersRef;
+
+    // ═══════════════════════════════════════════════════
+    //  DOM Elements
+    // ═══════════════════════════════════════════════════
+    const $ = id => document.getElementById(id);
+    const startScreen = $('startScreen');
+    const gameScreen = $('gameScreen');
+    const canvas = $('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const hudWave = $('hudWave');
+    const hudEnemies = $('hudEnemies');
+    const hudKills = $('hudKills');
+    const hudOnline = $('hudOnline');
+    const cannonInfo = $('cannonInfo');
+    const xpBarFill = $('xpBarFill');
+    const xpBarText = $('xpBarText');
+    const upgradeBtn = $('upgradeBtn');
+    const relocateBtn = $('relocateBtn');
+    const playersBtn = $('playersBtn');
+    const playerPanel = $('playerPanel');
+    const playerList = $('playerList');
+    const upgradeModal = $('upgradeModal');
+    const upgradeTitle = $('upgradeTitle');
+    const upgradeCards = $('upgradeCards');
+    const upgradeClose = $('upgradeClose');
+    const waveAnnounce = $('waveAnnounce');
+    const waText = $('waText');
+    const waSub = $('waSub');
+    const avatarArea = $('avatarArea');
+    const avatarInput = $('avatarInput');
+    const avatarPreview = $('avatarPreview');
+    const avatarPlaceholder = $('avatarPlaceholder');
+    const gamePreview = $('gamePreview');
+    const playerNameDisplay = $('playerNameDisplay');
+    const joinBtn = $('joinBtn');
+
+    // ═══════════════════════════════════════════════════
+    //  Avatar Upload
+    // ═══════════════════════════════════════════════════
+    avatarArea.addEventListener('click', () => avatarInput.click());
+    avatarInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          const c = document.createElement('canvas');
+          c.width = 64; c.height = 64;
+          const cx = c.getContext('2d');
+          // Center crop
+          const size = Math.min(img.width, img.height);
+          const sx = (img.width - size) / 2;
+          const sy = (img.height - size) / 2;
+          cx.drawImage(img, sx, sy, size, size, 0, 0, 64, 64);
+          let dataUrl = c.toDataURL('image/png');
+          // If too large, compress as JPEG
+          if (dataUrl.length > 10000) {
+            dataUrl = c.toDataURL('image/jpeg', 0.5);
+          }
+          playerAvatar = dataUrl;
+          localStorage.setItem('td_avatar', dataUrl);
+          showAvatar(dataUrl);
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function showAvatar(url) {
+      if (url) {
+        avatarPreview.src = url;
+        avatarPreview.style.display = 'block';
+        avatarPlaceholder.style.display = 'none';
+      }
+    }
+
+    // Load saved avatar
+    const savedAvatar = localStorage.getItem('td_avatar');
+    if (savedAvatar) {
+      playerAvatar = savedAvatar;
+      showAvatar(savedAvatar);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Firebase Init
+    // ═══════════════════════════════════════════════════
+    async function initFirebase() {
+      await FirebaseShared.init('td', { presenceId: '_norender' });
+      playerId = FirebaseShared.getVisitorId();
+      playerName = FirebaseShared.getVisitorName() || 'Player';
+      playerNameDisplay.textContent = playerName;
+
+      // Wait for firebase global
+      if (typeof firebase === 'undefined' || !firebase.database) {
+        gamePreview.textContent = 'Firebase not available';
+        return;
+      }
+      db = firebase.database();
+      metaRef = db.ref('td/meta');
+      leaderRef = db.ref('td/leader');
+      stateRef = db.ref('td/state');
+      cannonsRef = db.ref('td/cannons');
+      playersRef = db.ref('td/players');
+
+      // Load game preview
+      metaRef.once('value', snap => {
+        const meta = snap.val();
+        if (meta) {
+          gamePreview.textContent = `Wave ${meta.waveNumber || 1} — ${meta.totalKills || 0} total kills`;
+        } else {
+          gamePreview.textContent = 'New game — be the first defender!';
+        }
+      });
+
+      // Count cannons for preview
+      cannonsRef.once('value', snap => {
+        const data = snap.val();
+        const count = data ? Object.keys(data).length : 0;
+        if (count > 0) {
+          metaRef.once('value', ms => {
+            const m = ms.val() || {};
+            gamePreview.textContent = `Wave ${m.waveNumber || 1} — ${count} cannon${count > 1 ? 's' : ''} — ${m.totalKills || 0} kills`;
+          });
+        }
+      });
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Join Game
+    // ═══════════════════════════════════════════════════
+    joinBtn.addEventListener('click', joinGame);
+
+    function joinGame() {
+      if (!db) { alert('Firebase not connected. Please refresh.'); return; }
+      startScreen.style.display = 'none';
+      gameScreen.style.display = 'block';
+
+      // Register player presence
+      const myPlayerRef = playersRef.child(playerId);
+      myPlayerRef.set({
+        name: playerName,
+        online: true,
+        lastSeen: firebase.database.ServerValue.TIMESTAMP
+      });
+      myPlayerRef.onDisconnect().update({ online: false, lastSeen: firebase.database.ServerValue.TIMESTAMP });
+
+      // Listen for all cannons
+      cannonsRef.on('value', snap => {
+        const data = snap.val() || {};
+        cannons = {};
+        for (const [id, c] of Object.entries(data)) {
+          cannons[id] = c;
+          // Init fire timer if not present
+          if (!(id in myCannonFireTimers)) myCannonFireTimers[id] = 0;
+        }
+        updatePlayerPanel();
+        updateCannonUI();
+      });
+
+      // Listen for players
+      playersRef.on('value', snap => {
+        onlinePlayers = snap.val() || {};
+        const onlineCount = Object.values(onlinePlayers).filter(p => p.online).length;
+        hudOnline.textContent = onlineCount;
+        updatePlayerPanel();
+      });
+
+      // Listen for meta
+      metaRef.on('value', snap => {
+        const meta = snap.val();
+        if (meta) {
+          waveNumber = meta.waveNumber || 1;
+          if (!isLeader) {
+            const prevState = waveState;
+            waveState = meta.waveState || 'waiting';
+            totalKills = meta.totalKills || 0;
+            // Trigger wave announcement for non-leaders
+            if (waveState === 'countdown' && prevState !== 'countdown') {
+              showWaveAnnouncement(waveNumber);
+              countdownStartedAt = Date.now();
+            }
+          }
+          hudWave.textContent = waveNumber;
+          hudKills.textContent = totalKills;
+        }
+      });
+
+      // Listen for state (non-leaders)
+      stateRef.on('value', snap => {
+        if (isLeader) return;
+        const data = snap.val();
+        if (data && data.enemies) {
+          try {
+            const parsed = JSON.parse(data.enemies);
+            enemies = parsed;
+          } catch(e) {}
+        }
+      });
+
+      // Start leader election
+      tryClaimLeadership();
+      leaderCheckTimer = setInterval(checkLeadership, 3000);
+
+      // Canvas events
+      canvas.addEventListener('click', onCanvasClick);
+      canvas.addEventListener('touchend', onCanvasTouchEnd);
+
+      // Start render loop
+      lastVisualTick = performance.now();
+      requestAnimationFrame(renderLoop);
+
+      // Load meta to init wave
+      metaRef.once('value', snap => {
+        const meta = snap.val();
+        if (meta) {
+          waveNumber = meta.waveNumber || 1;
+          totalKills = meta.totalKills || 0;
+          waveState = meta.waveState || 'waiting';
+        }
+      });
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Leader Election
+    // ═══════════════════════════════════════════════════
+    function tryClaimLeadership() {
+      leaderRef.transaction(current => {
+        if (!current || Date.now() - (current.heartbeat || 0) > LEADER_STALE_MS) {
+          return { id: playerId, heartbeat: Date.now(), claimedAt: Date.now() };
+        }
+        return; // abort — someone else is leader
+      }, (err, committed) => {
+        if (committed) {
+          becomeLeader();
+        }
+      });
+    }
+
+    function becomeLeader() {
+      if (isLeader) return;
+      isLeader = true;
+      console.log('[TD] Became leader');
+
+      // Set onDisconnect to remove leader
+      leaderRef.onDisconnect().remove();
+
+      // Heartbeat
+      heartbeatTimer = setInterval(() => {
+        leaderRef.update({ heartbeat: Date.now() });
+      }, LEADER_HEARTBEAT_MS);
+
+      // Load current state
+      stateRef.once('value', snap => {
+        const data = snap.val();
+        if (data && data.enemies) {
+          try { enemies = JSON.parse(data.enemies); } catch(e) {}
+        }
+      });
+
+      // Start sim
+      if (!simTimer) {
+        simTimer = setInterval(simTick, TICK_MS);
+      }
+
+      // If waiting, start countdown for next wave
+      if (waveState === 'waiting' || waveState === 'paused') {
+        startWaveCountdown();
+      }
+
+      // Clean up stale cannons (> 30 days inactive)
+      cannonsRef.once('value', snap => {
+        const data = snap.val();
+        if (!data) return;
+        const cutoff = Date.now() - STALE_CANNON_DAYS * 24 * 60 * 60 * 1000;
+        for (const [cid, c] of Object.entries(data)) {
+          if (c.lastSeen && c.lastSeen < cutoff) {
+            cannonsRef.child(cid).remove();
+          }
+        }
+      });
+    }
+
+    function yieldLeadership() {
+      if (!isLeader) return;
+      isLeader = false;
+      console.log('[TD] Yielded leadership');
+      if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+      if (simTimer) { clearInterval(simTimer); simTimer = null; }
+      leaderRef.transaction(current => {
+        if (current && current.id === playerId) return null;
+        return current;
+      });
+    }
+
+    function checkLeadership() {
+      if (isLeader) return;
+      leaderRef.once('value', snap => {
+        const data = snap.val();
+        if (!data || Date.now() - (data.heartbeat || 0) > LEADER_STALE_MS) {
+          // Random jitter to reduce contention
+          setTimeout(tryClaimLeadership, Math.random() * 1000);
+        }
+      });
+    }
+
+    // Yield leadership when tab hidden
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' && isLeader) {
+        yieldLeadership();
+      } else if (document.visibilityState === 'visible' && !isLeader && db) {
+        setTimeout(checkLeadership, 500);
+      }
+    });
+
+    // ═══════════════════════════════════════════════════
+    //  Simulation (Leader Only)
+    // ═══════════════════════════════════════════════════
+    function simTick() {
+      if (!isLeader) return;
+
+      tickCount++;
+
+      if (waveState === 'countdown') {
+        countdownTimer--;
+        if (countdownTimer <= 0) {
+          waveState = 'active';
+          enemies = generateWave(waveNumber);
+          metaRef.update({ waveState: 'active' });
+        }
+        writeSnapshot();
+        return;
+      }
+
+      if (waveState !== 'active') return;
+
+      // Move enemies
+      for (const e of enemies) {
+        let speed = e.speed;
+        if (e.slowTimer > 0) {
+          speed *= 0.5;
+          e.slowTimer--;
+        }
+        e.y += speed;
+      }
+
+      // Cannon firing
+      const cannonList = Object.entries(cannons);
+      for (const [cid, c] of cannonList) {
+        if (!c.x || !c.y) continue;
+        const stats = getCannonStats(c.level || 1, c.path || null, c.spec || null);
+        if (!(cid in myCannonFireTimers)) myCannonFireTimers[cid] = 0;
+        myCannonFireTimers[cid]++;
+        const fireInterval = TICK_RATE / stats.fireRate;
+        if (myCannonFireTimers[cid] < fireInterval) continue;
+
+        // Find nearest enemy in range
+        let nearest = null, nearestDist = Infinity;
+        for (const e of enemies) {
+          if (e.hp <= 0) continue;
+          const dist = Math.hypot(e.x - c.x, e.y - c.y);
+          if (dist <= stats.range && dist < nearestDist) {
+            nearest = e;
+            nearestDist = dist;
+          }
+        }
+        if (!nearest) continue;
+
+        myCannonFireTimers[cid] = 0;
+
+        // Apply damage
+        nearest.hp -= stats.dmg;
+
+        // Slow
+        if (stats.slowPct > 0) {
+          nearest.slowTimer = Math.max(nearest.slowTimer, TICK_RATE * 2);
+        }
+
+        // AoE splash
+        if (stats.aoeSplash > 0) {
+          for (const e of enemies) {
+            if (e === nearest || e.hp <= 0) continue;
+            const d = Math.hypot(e.x - nearest.x, e.y - nearest.y);
+            if (d <= stats.aoeSplash) {
+              e.hp -= stats.dmg * 0.5;
+            }
+          }
+        }
+
+        // Pierce
+        if (stats.pierce > 0) {
+          let pierced = 0;
+          for (const e of enemies) {
+            if (e === nearest || e.hp <= 0 || pierced >= stats.pierce) continue;
+            const d = Math.hypot(e.x - nearest.x, e.y - nearest.y);
+            if (d <= 60) {
+              e.hp -= stats.dmg * 0.7;
+              pierced++;
+            }
+          }
+        }
+
+        // Chain
+        if (stats.chain > 0) {
+          let chainTarget = nearest;
+          for (let ch = 0; ch < stats.chain; ch++) {
+            let best = null, bestD = 100;
+            for (const e of enemies) {
+              if (e === chainTarget || e.hp <= 0) continue;
+              const d = Math.hypot(e.x - chainTarget.x, e.y - chainTarget.y);
+              if (d < bestD) { best = e; bestD = d; }
+            }
+            if (best) {
+              best.hp -= stats.dmg * 0.6;
+              if (stats.slowPct > 0) best.slowTimer = Math.max(best.slowTimer, TICK_RATE);
+              chainTarget = best;
+            }
+          }
+        }
+      }
+
+      // Check kills
+      const beforeCount = enemies.length;
+      for (const e of enemies) {
+        if (e.hp <= 0 && !e.dead) {
+          e.dead = true;
+          totalKills++;
+          // Award XP to cannon that would have killed (simplified: split among all)
+          awardXP(cannonList);
+          // Death particles
+          for (let i = 0; i < 6; i++) {
+            particles.push({
+              x: e.x, y: e.y,
+              vx: (Math.random() - 0.5) * 4,
+              vy: (Math.random() - 0.5) * 4,
+              color: e.color,
+              life: 15 + Math.random() * 10
+            });
+          }
+        }
+      }
+      enemies = enemies.filter(e => !e.dead);
+
+      // Check if enemy reached base
+      const reached = enemies.some(e => e.y >= BASE_Y);
+      if (reached) {
+        waveState = 'failed';
+        metaRef.update({ waveState: 'failed', totalKills });
+        // Restart wave after brief pause
+        setTimeout(() => {
+          if (isLeader) {
+            enemies = [];
+            startWaveCountdown();
+          }
+        }, 2000);
+        writeSnapshot();
+        return;
+      }
+
+      // Check wave clear
+      if (enemies.length === 0 && waveState === 'active') {
+        waveNumber++;
+        metaRef.update({ waveNumber, waveState: 'waiting', totalKills });
+        waveState = 'waiting';
+        startWaveCountdown();
+      }
+
+      // Update HUD
+      hudKills.textContent = totalKills;
+      hudEnemies.textContent = enemies.length;
+      hudWave.textContent = waveNumber;
+
+      // Write snapshot periodically
+      writeSnapshot();
+    }
+
+    function writeSnapshot() {
+      if (!isLeader) return;
+      if (tickCount % SNAPSHOT_INTERVAL !== 0) return;
+      stateRef.set({
+        enemies: JSON.stringify(enemies),
+        tick: tickCount,
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+      metaRef.update({
+        waveNumber,
+        waveState,
+        totalKills,
+        lastActivity: firebase.database.ServerValue.TIMESTAMP
+      });
+    }
+
+    function startWaveCountdown() {
+      waveState = 'countdown';
+      countdownTimer = TICK_RATE * 3; // 3 seconds
+      countdownStartedAt = Date.now();
+      metaRef.update({ waveState: 'countdown' });
+      // Show announcement
+      showWaveAnnouncement(waveNumber);
+    }
+
+    function showWaveAnnouncement(num) {
+      waText.textContent = `WAVE ${num}`;
+      waSub.textContent = num % 10 === 0 && num > 0 ? 'BOSS WAVE!' : 'incoming';
+      waveAnnounce.classList.add('active');
+      setTimeout(() => waveAnnounce.classList.remove('active'), 2500);
+    }
+
+    function awardXP(cannonList) {
+      // Award 1 XP to every cannon (idle game — everyone benefits)
+      for (const [cid, c] of cannonList) {
+        if (!c.x || !c.y) continue;
+        const newXp = (c.xp || 0) + 1;
+        const newKills = (c.kills || 0) + (cid === playerId ? 0 : 0);
+        const level = c.level || 1;
+        const needed = XP_PER_LEVEL(level);
+        if (newXp >= needed) {
+          // Level up
+          cannonsRef.child(cid).update({
+            xp: newXp - needed,
+            level: level + 1,
+            kills: (c.kills || 0) + 1
+          });
+        } else {
+          cannonsRef.child(cid).update({ xp: newXp, kills: (c.kills || 0) + 1 });
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Canvas Interaction
+    // ═══════════════════════════════════════════════════
+    function canvasCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = CANVAS_W / rect.width;
+      const scaleY = CANVAS_H / rect.height;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      };
+    }
+
+    function onCanvasClick(e) {
+      const pos = canvasCoords(e);
+      placeCannon(pos.x, pos.y);
+    }
+
+    function onCanvasTouchEnd(e) {
+      e.preventDefault();
+      if (e.changedTouches.length === 0) return;
+      const touch = e.changedTouches[0];
+      const pos = canvasCoords(touch);
+      placeCannon(pos.x, pos.y);
+    }
+
+    function placeCannon(x, y) {
+      // Must be in bottom area
+      if (y < PLACEMENT_MIN_Y) return;
+      if (y > BASE_Y) return;
+
+      // Check cooldown for relocate
+      const myCannon = cannons[playerId];
+      if (myCannon && myCannon.x) {
+        const elapsed = Date.now() - lastRelocateTime;
+        if (elapsed < RELOCATE_COOLDOWN) {
+          const remaining = Math.ceil((RELOCATE_COOLDOWN - elapsed) / 1000);
+          return; // silently reject during cooldown
+        }
+      }
+
+      // Check spacing from other cannons
+      for (const [cid, c] of Object.entries(cannons)) {
+        if (cid === playerId || !c.x) continue;
+        const dist = Math.hypot(c.x - x, c.y - y);
+        if (dist < MIN_CANNON_SPACING) return;
+      }
+
+      lastRelocateTime = Date.now();
+
+      // Write to Firebase
+      const existing = cannons[playerId];
+      cannonsRef.child(playerId).set({
+        x: Math.round(x),
+        y: Math.round(y),
+        level: existing?.level || 1,
+        xp: existing?.xp || 0,
+        kills: existing?.kills || 0,
+        path: existing?.path || null,
+        spec: existing?.spec || null,
+        name: playerName,
+        avatar: playerAvatar || null,
+        lastSeen: firebase.database.ServerValue.TIMESTAMP
+      });
+
+      // Start wave if waiting and leader
+      if (isLeader && (waveState === 'waiting' || waveState === 'paused')) {
+        startWaveCountdown();
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Upgrade System
+    // ═══════════════════════════════════════════════════
+    upgradeBtn.addEventListener('click', openUpgradeModal);
+    upgradeClose.addEventListener('click', () => upgradeModal.classList.remove('active'));
+    upgradeModal.addEventListener('click', e => {
+      if (e.target === upgradeModal) upgradeModal.classList.remove('active');
+    });
+
+    function openUpgradeModal() {
+      const c = cannons[playerId];
+      if (!c) return;
+      const level = c.level || 1;
+
+      upgradeCards.innerHTML = '';
+
+      if (level >= 3 && !c.path) {
+        // Choose path
+        upgradeTitle.textContent = 'Choose Your Path (Level 3)';
+        for (const [key, p] of Object.entries(PATHS)) {
+          const card = document.createElement('div');
+          card.className = 'upgrade-card';
+          card.innerHTML = `<div class="uc-name" style="color:${p.color}">${p.name}</div><div class="uc-desc">${p.desc}</div>`;
+          card.addEventListener('click', () => {
+            cannonsRef.child(playerId).update({ path: key });
+            upgradeModal.classList.remove('active');
+          });
+          upgradeCards.appendChild(card);
+        }
+      } else if (level >= 6 && c.path && !c.spec) {
+        // Choose spec
+        upgradeTitle.textContent = 'Choose Specialization (Level 6)';
+        const available = Object.entries(SPECS).filter(([, s]) => s.path === c.path);
+        for (const [key, s] of available) {
+          const card = document.createElement('div');
+          card.className = 'upgrade-card';
+          card.innerHTML = `<div class="uc-name" style="color:${s.color}">${s.name}</div><div class="uc-desc">${s.desc}</div>`;
+          card.addEventListener('click', () => {
+            cannonsRef.child(playerId).update({ spec: key });
+            upgradeModal.classList.remove('active');
+          });
+          upgradeCards.appendChild(card);
+        }
+      } else {
+        upgradeTitle.textContent = 'No Upgrades Available';
+        const info = document.createElement('div');
+        info.className = 'upgrade-card';
+        if (level < 3) {
+          info.innerHTML = `<div class="uc-desc">Reach Level 3 to choose a path</div>`;
+        } else if (level < 6) {
+          info.innerHTML = `<div class="uc-desc">Reach Level 6 to choose a specialization</div>`;
+        } else {
+          info.innerHTML = `<div class="uc-desc">All upgrades selected! Stats increase each level.</div>`;
+        }
+        upgradeCards.appendChild(info);
+      }
+
+      upgradeModal.classList.add('active');
+    }
+
+    function updateCannonUI() {
+      const c = cannons[playerId];
+      if (!c) {
+        cannonInfo.textContent = 'Click canvas to place cannon';
+        xpBarFill.style.width = '0%';
+        xpBarText.textContent = 'No cannon';
+        upgradeBtn.disabled = true;
+        return;
+      }
+      const level = c.level || 1;
+      const xp = c.xp || 0;
+      const needed = XP_PER_LEVEL(level);
+      const pct = Math.min(100, (xp / needed) * 100);
+
+      cannonInfo.textContent = getCannonLabel(level, c.path, c.spec);
+      xpBarFill.style.width = pct + '%';
+      xpBarText.textContent = `${xp} / ${needed} XP`;
+
+      // Enable upgrade button if path/spec selection available
+      const canUpgrade = (level >= 3 && !c.path) || (level >= 6 && c.path && !c.spec);
+      upgradeBtn.disabled = !canUpgrade;
+      if (canUpgrade) {
+        upgradeBtn.style.animation = 'none';
+        upgradeBtn.offsetHeight; // reflow
+        upgradeBtn.style.borderColor = 'var(--accent)';
+        upgradeBtn.style.color = 'var(--accent)';
+      } else {
+        upgradeBtn.style.borderColor = '';
+        upgradeBtn.style.color = '';
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Relocate Button
+    // ═══════════════════════════════════════════════════
+    relocateBtn.addEventListener('click', () => {
+      const myCannon = cannons[playerId];
+      if (!myCannon || !myCannon.x) return;
+      const elapsed = Date.now() - lastRelocateTime;
+      if (elapsed < RELOCATE_COOLDOWN) {
+        const remaining = Math.ceil((RELOCATE_COOLDOWN - elapsed) / 1000);
+        relocateBtn.textContent = `Wait ${remaining}s`;
+        return;
+      }
+      relocateBtn.textContent = 'Click map...';
+      // Next canvas click will relocate
+    });
+
+    // Update relocate cooldown display
+    setInterval(() => {
+      const elapsed = Date.now() - lastRelocateTime;
+      if (elapsed < RELOCATE_COOLDOWN) {
+        const remaining = Math.ceil((RELOCATE_COOLDOWN - elapsed) / 1000);
+        relocateBtn.textContent = `Relocate (${remaining}s)`;
+        relocateBtn.disabled = true;
+      } else {
+        relocateBtn.textContent = 'Relocate';
+        relocateBtn.disabled = false;
+      }
+    }, 1000);
+
+    // ═══════════════════════════════════════════════════
+    //  Player Panel
+    // ═══════════════════════════════════════════════════
+    playersBtn.addEventListener('click', () => {
+      playerPanel.classList.toggle('active');
+    });
+
+    function updatePlayerPanel() {
+      let html = '';
+      for (const [cid, c] of Object.entries(cannons)) {
+        if (!c.name) continue;
+        const isOnline = onlinePlayers[cid]?.online;
+        const statusClass = isOnline ? 'player-online' : 'player-offline';
+        const avatarStyle = c.avatar
+          ? `background-image:url(${c.avatar});background-size:cover;`
+          : '';
+        html += `<div class="player-row ${statusClass}">
+          <div class="p-avatar" style="${avatarStyle}"></div>
+          <span class="p-name">${escapeHtml(c.name)}${cid === playerId ? ' (you)' : ''}</span>
+          <span class="p-level">Lv${c.level || 1}</span>
+          <span class="p-kills">${c.kills || 0}k</span>
+        </div>`;
+      }
+      playerList.innerHTML = html || '<div style="color:var(--text-muted);font-size:0.75rem;">No players yet</div>';
+    }
+
+    function escapeHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Canvas Rendering (60fps)
+    // ═══════════════════════════════════════════════════
+    const avatarImages = {}; // cache loaded avatar images
+
+    function renderLoop(now) {
+      // Client-side visual projectile generation (all clients)
+      const dt = now - lastVisualTick;
+      lastVisualTick = now;
+      if (waveState === 'active' && enemies.length > 0) {
+        for (const [cid, c] of Object.entries(cannons)) {
+          if (!c.x || !c.y) continue;
+          const stats = getCannonStats(c.level || 1, c.path || null, c.spec || null);
+          if (!(cid in visualFireTimers)) visualFireTimers[cid] = 0;
+          visualFireTimers[cid] += dt;
+          const fireMs = 1000 / stats.fireRate;
+          if (visualFireTimers[cid] >= fireMs) {
+            visualFireTimers[cid] -= fireMs;
+            // Find nearest enemy in range
+            let nearest = null, nearestDist = Infinity;
+            for (const e of enemies) {
+              if (e.hp <= 0) continue;
+              const dist = Math.hypot(e.x - c.x, e.y - c.y);
+              if (dist <= stats.range && dist < nearestDist) {
+                nearest = e; nearestDist = dist;
+              }
+            }
+            if (nearest) {
+              projectiles.push({
+                x1: c.x, y1: c.y,
+                x2: nearest.x, y2: nearest.y,
+                color: getCannonColor(c.path, c.spec),
+                life: 5
+              });
+            }
+          }
+        }
+      }
+
+      // Update HUD from current state (for non-leaders)
+      hudEnemies.textContent = enemies.filter(e => e.hp > 0).length;
+
+      // Non-leader countdown display
+      if (!isLeader && waveState === 'countdown' && countdownStartedAt > 0) {
+        const elapsed = Date.now() - countdownStartedAt;
+        const remaining = Math.max(0, 3000 - elapsed);
+        countdownTimer = Math.ceil(remaining / TICK_MS * (TICK_RATE / TICK_RATE));
+      }
+
+      drawFrame();
+      requestAnimationFrame(renderLoop);
+    }
+
+    function drawFrame() {
+      ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // Background grid
+      drawGrid();
+
+      // Base line
+      ctx.strokeStyle = '#1E90FF';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, BASE_Y);
+      ctx.lineTo(CANVAS_W, BASE_Y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Placement zone hint (subtle)
+      ctx.fillStyle = 'rgba(30,144,255,0.03)';
+      ctx.fillRect(0, PLACEMENT_MIN_Y, CANVAS_W, BASE_Y - PLACEMENT_MIN_Y);
+
+      // Draw cannons
+      for (const [cid, c] of Object.entries(cannons)) {
+        if (!c.x || !c.y) continue;
+        drawCannon(cid, c);
+      }
+
+      // Draw enemies
+      for (const e of enemies) {
+        if (e.hp <= 0) continue;
+        drawEnemy(e);
+      }
+
+      // Draw projectiles
+      for (let i = projectiles.length - 1; i >= 0; i--) {
+        const p = projectiles[i];
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = p.life / 5;
+        ctx.beginPath();
+        ctx.moveTo(p.x1, p.y1);
+        ctx.lineTo(p.x2, p.y2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        p.life--;
+        if (p.life <= 0) projectiles.splice(i, 1);
+      }
+
+      // Draw particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        ctx.globalAlpha = p.life / 25;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+        ctx.globalAlpha = 1;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+
+      // Wave failed overlay
+      if (waveState === 'failed') {
+        ctx.fillStyle = 'rgba(231,76,60,0.15)';
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#e74c3c';
+        ctx.font = 'bold 28px ' + getComputedStyle(document.body).fontFamily;
+        ctx.textAlign = 'center';
+        ctx.fillText('WAVE FAILED', CANVAS_W / 2, CANVAS_H / 2 - 10);
+        ctx.font = '14px ' + getComputedStyle(document.body).fontFamily;
+        ctx.fillStyle = '#e0e0e0';
+        ctx.fillText('Restarting...', CANVAS_W / 2, CANVAS_H / 2 + 16);
+        ctx.textAlign = 'start';
+      }
+
+      // Countdown overlay
+      if (waveState === 'countdown') {
+        let secs;
+        if (isLeader) {
+          secs = Math.ceil(countdownTimer / TICK_RATE);
+        } else if (countdownStartedAt > 0) {
+          secs = Math.max(1, Math.ceil((3000 - (Date.now() - countdownStartedAt)) / 1000));
+        } else {
+          secs = 3;
+        }
+        if (secs > 0) {
+          ctx.fillStyle = 'rgba(0,0,0,0.3)';
+          ctx.fillRect(CANVAS_W / 2 - 40, CANVAS_H / 2 - 30, 80, 50);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 32px ' + getComputedStyle(document.body).fontFamily;
+          ctx.textAlign = 'center';
+          ctx.fillText(secs, CANVAS_W / 2, CANVAS_H / 2 + 8);
+          ctx.textAlign = 'start';
+        }
+      }
+    }
+
+    function drawGrid() {
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.lineWidth = 1;
+      const spacing = 40;
+      for (let x = 0; x <= CANVAS_W; x += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, CANVAS_H);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= CANVAS_H; y += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(CANVAS_W, y);
+        ctx.stroke();
+      }
+    }
+
+    function drawCannon(cid, c) {
+      const x = c.x, y = c.y;
+      const color = getCannonColor(c.path, c.spec);
+      const level = c.level || 1;
+      const stats = getCannonStats(level, c.path, c.spec);
+      const isMe = cid === playerId;
+
+      // Range circle (only for own cannon)
+      if (isMe) {
+        ctx.strokeStyle = 'rgba(30,144,255,0.12)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(x, y, stats.range, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Cannon body
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Inner ring
+      ctx.strokeStyle = isMe ? '#fff' : 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = isMe ? 2 : 1;
+      ctx.beginPath();
+      ctx.arc(x, y, 12, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Barrel — point toward nearest enemy or up
+      let barrelAngle = -Math.PI / 2;
+      let nearestDist = Infinity;
+      for (const e of enemies) {
+        if (e.hp <= 0) continue;
+        const dist = Math.hypot(e.x - x, e.y - y);
+        if (dist <= stats.range && dist < nearestDist) {
+          nearestDist = dist;
+          barrelAngle = Math.atan2(e.y - y, e.x - x);
+        }
+      }
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + Math.cos(barrelAngle) * 18, y + Math.sin(barrelAngle) * 18);
+      ctx.stroke();
+
+      // Level badge
+      ctx.fillStyle = '#000';
+      ctx.globalAlpha = 0.6;
+      ctx.fillRect(x + 8, y - 20, 16, 12);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 9px ' + getComputedStyle(document.body).fontFamily;
+      ctx.textAlign = 'center';
+      ctx.fillText(level, x + 16, y - 11);
+      ctx.textAlign = 'start';
+
+      // Avatar
+      if (c.avatar) {
+        if (!avatarImages[cid]) {
+          const img = new Image();
+          img.src = c.avatar;
+          avatarImages[cid] = img;
+        }
+        const img = avatarImages[cid];
+        if (img.complete && img.naturalWidth > 0) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(x, y - 28, 12, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(img, x - 12, y - 40, 24, 24);
+          ctx.restore();
+        }
+      }
+
+      // Name below
+      ctx.fillStyle = isMe ? '#fff' : 'rgba(255,255,255,0.5)';
+      ctx.font = '9px ' + getComputedStyle(document.body).fontFamily;
+      ctx.textAlign = 'center';
+      ctx.fillText(c.name || '???', x, y + 24);
+      ctx.textAlign = 'start';
+    }
+
+    function drawEnemy(e) {
+      const x = e.x, y = e.y;
+      ctx.fillStyle = e.color;
+
+      switch (e.shape) {
+        case 'circle':
+          ctx.beginPath();
+          ctx.arc(x, y, e.radius, 0, Math.PI * 2);
+          ctx.fill();
+          break;
+        case 'hexagon':
+          drawPolygon(x, y, e.radius, 6);
+          break;
+        case 'diamond':
+          drawPolygon(x, y, e.radius, 4);
+          break;
+        case 'shielded':
+          ctx.beginPath();
+          ctx.arc(x, y, e.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#5dade2';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(x, y, e.radius + 3, 0, Math.PI * 2);
+          ctx.stroke();
+          break;
+        case 'octagon':
+          drawPolygon(x, y, e.radius, 8);
+          break;
+        default:
+          ctx.beginPath();
+          ctx.arc(x, y, e.radius, 0, Math.PI * 2);
+          ctx.fill();
+      }
+
+      // HP bar
+      if (e.hp < e.maxHp) {
+        const barW = e.radius * 2 + 4;
+        const barH = 3;
+        const barX = x - barW / 2;
+        const barY = y - e.radius - 6;
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(barX, barY, barW, barH);
+        const pct = Math.max(0, e.hp / e.maxHp);
+        ctx.fillStyle = pct > 0.5 ? '#2ecc71' : pct > 0.25 ? '#f39c12' : '#e74c3c';
+        ctx.fillRect(barX, barY, barW * pct, barH);
+      }
+    }
+
+    function drawPolygon(cx, cy, r, sides) {
+      ctx.beginPath();
+      for (let i = 0; i < sides; i++) {
+        const angle = (Math.PI * 2 / sides) * i - Math.PI / 2;
+        const px = cx + r * Math.cos(angle);
+        const py = cy + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Init
+    // ═══════════════════════════════════════════════════
+    initFirebase();
+
+  })();
+  </script>
+</body>
+</html>
