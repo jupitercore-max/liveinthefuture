@@ -734,6 +734,95 @@
     .achieve-card .ac-desc { font-size: 0.6rem; color: var(--text-muted); line-height: 1.3; }
     .achieve-card .ac-date { font-size: 0.55rem; color: #ffd700; margin-top: 2px; }
 
+    /* ─── Prestige Panel ─────────────────────────────── */
+    .prestige-panel {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 1000;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    .prestige-panel.active { display: flex; }
+    .prestige-inner {
+      background: var(--bg-light);
+      border: 1px solid rgba(160,120,255,0.4);
+      border-radius: 10px;
+      width: 90%;
+      max-width: 460px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    .prestige-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .prestige-header h2 { font-size: 1.1rem; color: #c084fc; margin: 0; }
+    .prestige-stars { font-size: 0.85rem; color: #fbbf24; font-weight: 700; margin-bottom: 14px; }
+    .prestige-close {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      padding: 4px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-family: var(--font-mono);
+    }
+    .prestige-close:hover { color: var(--text); border-color: var(--text-muted); }
+    .prestige-desc {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+      line-height: 1.4;
+    }
+    .prestige-upgrade {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      transition: border-color 0.2s;
+    }
+    .prestige-upgrade.maxed {
+      border-color: rgba(160,120,255,0.3);
+      background: linear-gradient(135deg, var(--bg), #1a0a2e);
+    }
+    .prestige-upgrade .pu-icon { font-size: 1.5rem; flex-shrink: 0; }
+    .prestige-upgrade .pu-info { flex: 1; min-width: 0; }
+    .prestige-upgrade .pu-name { font-size: 0.75rem; font-weight: 700; color: #e2e8f0; }
+    .prestige-upgrade .pu-desc { font-size: 0.6rem; color: var(--text-muted); line-height: 1.3; margin-top: 2px; }
+    .prestige-upgrade .pu-level { font-size: 0.6rem; color: #c084fc; margin-top: 3px; }
+    .prestige-upgrade .pu-buy {
+      background: transparent;
+      border: 1px solid #c084fc;
+      color: #c084fc;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 5px 10px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .prestige-upgrade .pu-buy:hover:not(:disabled) { background: #c084fc; color: #fff; }
+    .prestige-upgrade .pu-buy:disabled { opacity: 0.35; cursor: default; }
+    .prestige-upgrade .pu-buy.maxed-label {
+      border-color: rgba(160,120,255,0.3);
+      color: rgba(160,120,255,0.5);
+    }
+    @media (max-width: 600px) {
+      .prestige-inner { padding: 14px; max-width: 95%; }
+    }
+
     /* ─── Tutorial Overlay ───────────────────────────── */
     .tutorial-overlay {
       display: none;
@@ -943,6 +1032,7 @@
       <button class="ctrl-btn sell-btn" id="sellBtn" disabled>🗑 Sell</button>
       <button class="ctrl-btn" id="playersBtn">Players</button>
       <button class="ctrl-btn" id="achieveBtn" title="Achievements">🏆</button>
+      <button class="ctrl-btn" id="prestigeBtn" title="Prestige Upgrades" style="color:#c084fc;border-color:rgba(160,120,255,0.4)">⭐</button>
       <button class="ctrl-btn" id="muteBtn" title="Toggle sound">🔊</button>
       <button class="ctrl-btn" id="helpBtn" title="Tutorial">❓</button>
     </div>
@@ -991,6 +1081,19 @@
     </div>
   </div>
 
+  <!-- ─── Prestige Panel ──────────────────────────── -->
+  <div class="prestige-panel" id="prestigePanel">
+    <div class="prestige-inner">
+      <div class="prestige-header">
+        <h2>⭐ Prestige Upgrades</h2>
+        <button class="prestige-close" id="prestigeClose">Close</button>
+      </div>
+      <div class="prestige-stars" id="prestigeStars">⭐ 0 Stars</div>
+      <div class="prestige-desc">Earn stars by surviving waves. Spend them on permanent upgrades that persist across all runs.</div>
+      <div id="prestigeList"></div>
+    </div>
+  </div>
+
   <script src="firebase-shared.js"></script>
   <script>
   (() => {
@@ -1015,6 +1118,15 @@
     const BOSS_DAMAGE = 3;
     const HP_REGEN_PER_WAVE = 1;
 
+    // Effective max HP (base + prestige bonus)
+    function getEffectiveMaxHp() {
+      return BASE_MAX_HP + (typeof getPrestigeMaxHpBonus === 'function' ? getPrestigeMaxHpBonus() : 0);
+    }
+    // Effective HP regen per wave (base + prestige bonus)
+    function getEffectiveRegen() {
+      return HP_REGEN_PER_WAVE + (typeof getPrestigeRegenBonus === 'function' ? getPrestigeRegenBonus() : 0);
+    }
+
     // ═══════════════════════════════════════════════════
     //  Achievement System
     // ═══════════════════════════════════════════════════
@@ -1037,6 +1149,8 @@
       untouchable:    { icon: '🛡️', name: 'Untouchable',     desc: 'Clear wave 5 with full HP' },
       sell_cannon:    { icon: '💰', name: 'Trade-In',         desc: 'Sell a cannon' },
       max_level:      { icon: '👑', name: 'Maxed Out',        desc: 'Reach level 10' },
+      prestige_buy:   { icon: '⭐', name: 'Investor',         desc: 'Buy a prestige upgrade' },
+      prestige_max:   { icon: '💎', name: 'Fully Upgraded',   desc: 'Max out a prestige upgrade' },
     };
 
     const achieveToastContainer = document.getElementById('achieveToastContainer');
@@ -1153,6 +1267,169 @@
     achieveClose.addEventListener('click', () => achievePanel.classList.remove('active'));
     achievePanel.addEventListener('click', e => {
       if (e.target === achievePanel) achievePanel.classList.remove('active');
+    });
+
+    // ═══════════════════════════════════════════════════
+    //  Prestige System (persistent meta-progression)
+    // ═══════════════════════════════════════════════════
+    const PRESTIGE_UPGRADES = [
+      {
+        id: 'tough_base', icon: '🛡️', name: 'Tough Base',
+        desc: '+3 max HP per level',
+        maxLevel: 5, costs: [1, 2, 3, 5, 7],
+        effect: lvl => `+${lvl * 3} max HP (${BASE_MAX_HP + lvl * 3} total)`
+      },
+      {
+        id: 'quick_learner', icon: '📚', name: 'Quick Learner',
+        desc: '+15% XP gain per level',
+        maxLevel: 3, costs: [2, 4, 7],
+        effect: lvl => `+${lvl * 15}% XP gain`
+      },
+      {
+        id: 'fortify', icon: '💚', name: 'Fortify',
+        desc: '+1 HP regen per wave per level',
+        maxLevel: 3, costs: [2, 5, 8],
+        effect: lvl => `+${lvl} HP regen per wave (${HP_REGEN_PER_WAVE + lvl} total)`
+      },
+      {
+        id: 'arsenal', icon: '⚡', name: 'Arsenal',
+        desc: 'Reduce ability cooldowns',
+        maxLevel: 3, costs: [3, 5, 8],
+        effect: lvl => `-${lvl * 12}% ability cooldown`
+      },
+      {
+        id: 'cannon_mastery', icon: '🔥', name: 'Cannon Mastery',
+        desc: '+10% cannon damage per level',
+        maxLevel: 3, costs: [3, 6, 10],
+        effect: lvl => `+${lvl * 10}% damage`
+      }
+    ];
+
+    // Load prestige data from localStorage
+    let prestigeStars = 0;
+    let prestigeLevels = {};
+    try {
+      const saved = JSON.parse(localStorage.getItem('td_prestige') || '{}');
+      prestigeStars = saved.stars || 0;
+      prestigeLevels = saved.levels || {};
+    } catch(e) { prestigeStars = 0; prestigeLevels = {}; }
+
+    function savePrestige() {
+      localStorage.setItem('td_prestige', JSON.stringify({
+        stars: prestigeStars,
+        levels: prestigeLevels
+      }));
+    }
+
+    function getPrestigeLevel(id) {
+      return prestigeLevels[id] || 0;
+    }
+
+    function getPrestigeMaxHpBonus() {
+      return getPrestigeLevel('tough_base') * 3;
+    }
+
+    function getPrestigeXpMultiplier() {
+      return 1 + getPrestigeLevel('quick_learner') * 0.15;
+    }
+
+    function getPrestigeRegenBonus() {
+      return getPrestigeLevel('fortify');
+    }
+
+    function getPrestigeCooldownReduction() {
+      return getPrestigeLevel('arsenal') * 0.12;
+    }
+
+    function getPrestigeDamageMultiplier() {
+      return 1 + getPrestigeLevel('cannon_mastery') * 0.10;
+    }
+
+    function earnPrestigeStars(waveReached, kills) {
+      // Stars earned based on wave reached: 1 star per 3 waves + bonus for kills
+      const waveStars = Math.floor(waveReached / 3);
+      const killStars = Math.floor(kills / 50);
+      const earned = Math.max(1, waveStars + killStars); // minimum 1 star per game
+      prestigeStars += earned;
+      savePrestige();
+      updatePrestigeBtn();
+      return earned;
+    }
+
+    function buyPrestigeUpgrade(id) {
+      const upg = PRESTIGE_UPGRADES.find(u => u.id === id);
+      if (!upg) return false;
+      const currentLevel = getPrestigeLevel(id);
+      if (currentLevel >= upg.maxLevel) return false;
+      const cost = upg.costs[currentLevel];
+      if (prestigeStars < cost) return false;
+      prestigeStars -= cost;
+      prestigeLevels[id] = currentLevel + 1;
+      savePrestige();
+      updatePrestigeBtn();
+      // Prestige achievements
+      unlockAchievement('prestige_buy');
+      if (currentLevel + 1 >= upg.maxLevel) unlockAchievement('prestige_max');
+      return true;
+    }
+
+    function renderPrestigePanel() {
+      const prestigeStarsEl = document.getElementById('prestigeStars');
+      const prestigeList = document.getElementById('prestigeList');
+      prestigeStarsEl.textContent = `⭐ ${prestigeStars} Star${prestigeStars !== 1 ? 's' : ''}`;
+      let html = '';
+      for (const upg of PRESTIGE_UPGRADES) {
+        const lvl = getPrestigeLevel(upg.id);
+        const isMaxed = lvl >= upg.maxLevel;
+        const cost = isMaxed ? 0 : upg.costs[lvl];
+        const canBuy = !isMaxed && prestigeStars >= cost;
+        // Level pips
+        let pips = '';
+        for (let i = 0; i < upg.maxLevel; i++) {
+          pips += i < lvl ? '●' : '○';
+        }
+        html += `<div class="prestige-upgrade ${isMaxed ? 'maxed' : ''}">
+          <div class="pu-icon">${upg.icon}</div>
+          <div class="pu-info">
+            <div class="pu-name">${upg.name}</div>
+            <div class="pu-desc">${upg.desc}</div>
+            <div class="pu-level">${pips} Lv${lvl}/${upg.maxLevel}${lvl > 0 ? ' — ' + upg.effect(lvl) : ''}</div>
+          </div>
+          ${isMaxed
+            ? '<button class="pu-buy maxed-label" disabled>MAX</button>'
+            : `<button class="pu-buy" data-upg="${upg.id}" ${canBuy ? '' : 'disabled'}>⭐ ${cost}</button>`
+          }
+        </div>`;
+      }
+      prestigeList.innerHTML = html;
+      // Bind buy buttons
+      prestigeList.querySelectorAll('.pu-buy[data-upg]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (buyPrestigeUpgrade(btn.dataset.upg)) {
+            renderPrestigePanel();
+            // Play a subtle sound
+            if (typeof sfxAchievement === 'function') sfxAchievement();
+          }
+        });
+      });
+    }
+
+    const prestigeBtn = document.getElementById('prestigeBtn');
+    const prestigePanel = document.getElementById('prestigePanel');
+    const prestigeClose = document.getElementById('prestigeClose');
+
+    function updatePrestigeBtn() {
+      prestigeBtn.textContent = `⭐${prestigeStars > 0 ? ' ' + prestigeStars : ''}`;
+    }
+    updatePrestigeBtn();
+
+    prestigeBtn.addEventListener('click', () => {
+      renderPrestigePanel();
+      prestigePanel.classList.add('active');
+    });
+    prestigeClose.addEventListener('click', () => prestigePanel.classList.remove('active'));
+    prestigePanel.addEventListener('click', e => {
+      if (e.target === prestigePanel) prestigePanel.classList.remove('active');
     });
 
     // ═══════════════════════════════════════════════════
@@ -2053,6 +2330,9 @@
       playerName = playerName || 'Player';
       console.log('[TD] Running in offline/single-player mode');
 
+      // Apply prestige max HP bonus at start
+      baseHp = getEffectiveMaxHp();
+
       // Register canvas events
       canvas.addEventListener('click', onCanvasClick);
       canvas.addEventListener('touchend', onCanvasTouchEnd);
@@ -2094,7 +2374,9 @@
     function offlineAwardXP(xpAmount = 1) {
       const c = cannons[playerId];
       if (!c || !c.x) return;
-      const newXp = (c.xp || 0) + xpAmount;
+      // Apply prestige XP multiplier
+      const prestigeXp = Math.round(xpAmount * getPrestigeXpMultiplier());
+      const newXp = (c.xp || 0) + prestigeXp;
       const level = c.level || 1;
       const needed = XP_PER_LEVEL(level);
       if (newXp >= needed) {
@@ -2191,7 +2473,7 @@
             const prevState = waveState;
             waveState = meta.waveState || 'waiting';
             totalKills = meta.totalKills || 0;
-            baseHp = meta.baseHp != null ? meta.baseHp : BASE_MAX_HP;
+            baseHp = meta.baseHp != null ? meta.baseHp : getEffectiveMaxHp();
             updateBaseHpHUD();
             // Trigger wave announcement for non-leaders
             if (waveState === 'countdown' && prevState !== 'countdown') {
@@ -2252,7 +2534,7 @@
           waveNumber = meta.waveNumber || 1;
           totalKills = meta.totalKills || 0;
           waveState = meta.waveState || 'waiting';
-          baseHp = meta.baseHp != null ? meta.baseHp : BASE_MAX_HP;
+          baseHp = meta.baseHp != null ? meta.baseHp : getEffectiveMaxHp();
           updateBaseHpHUD();
           if (waveState === 'gameover') showGameOver();
         }
@@ -2307,7 +2589,7 @@
       metaRef.once('value', snap => {
         const meta = snap.val();
         if (meta) {
-          baseHp = meta.baseHp != null ? meta.baseHp : BASE_MAX_HP;
+          baseHp = meta.baseHp != null ? meta.baseHp : getEffectiveMaxHp();
           updateBaseHpHUD();
           if (meta.waveState === 'gameover') {
             // Reset if leader takes over a game-over state
@@ -2378,6 +2660,8 @@
     //  Boss Shield Damage Helper
     // ═══════════════════════════════════════════════════
     function applyDamage(enemy, dmg) {
+      // Apply prestige damage multiplier
+      dmg *= getPrestigeDamageMultiplier();
       if (enemy.shieldHp > 0) {
         const absorbed = Math.min(enemy.shieldHp, dmg);
         enemy.shieldHp -= absorbed;
@@ -2798,12 +3082,12 @@
         if (waveNumber > 20) unlockAchievement('wave_20');
         if (waveNumber > 50) unlockAchievement('wave_50');
         // Untouchable: clear wave 5 with full HP
-        if (waveNumber === 6 && baseHp === BASE_MAX_HP) unlockAchievement('untouchable');
+        if (waveNumber === 6 && baseHp === getEffectiveMaxHp()) unlockAchievement('untouchable');
         // Reset early send bonus/streak on natural wave clear
         earlySendBonusPct = 0;
         earlySendCount = 0;
-        // Heal 1 HP per wave cleared (capped at max)
-        baseHp = Math.min(BASE_MAX_HP, baseHp + HP_REGEN_PER_WAVE);
+        // Heal HP per wave cleared (capped at max) — includes prestige regen bonus
+        baseHp = Math.min(getEffectiveMaxHp(), baseHp + getEffectiveRegen());
         if (!offlineMode) metaRef.update({ waveNumber, waveState: 'waiting', totalKills, baseHp });
         waveState = 'waiting';
         updateBaseHpHUD();
@@ -2868,10 +3152,12 @@
         offlineAwardXP(xpAmount);
         return;
       }
+      // Apply prestige XP multiplier
+      const prestigeXp = Math.round(xpAmount * getPrestigeXpMultiplier());
       // Award XP to every cannon (idle game — everyone benefits)
       for (const [cid, c] of cannonList) {
         if (!c.x || !c.y) continue;
-        const newXp = (c.xp || 0) + xpAmount;
+        const newXp = (c.xp || 0) + prestigeXp;
         const newKills = (c.kills || 0) + (cid === playerId ? 0 : 0);
         const level = c.level || 1;
         const needed = XP_PER_LEVEL(level);
@@ -2896,7 +3182,7 @@
     function updateBaseHpHUD() {
       hudBaseHp.textContent = baseHp;
       // Color coding based on HP percentage
-      const pct = baseHp / BASE_MAX_HP;
+      const pct = baseHp / getEffectiveMaxHp();
       if (pct <= 0.25) {
         hudBaseHp.style.color = '#e74c3c';
       } else if (pct <= 0.5) {
@@ -2912,7 +3198,9 @@
     }
 
     function showGameOver() {
-      goStats.textContent = `Wave ${waveNumber} · ${totalKills} kills`;
+      // Earn prestige stars
+      const earned = earnPrestigeStars(waveNumber, totalKills);
+      goStats.innerHTML = `Wave ${waveNumber} · ${totalKills} kills<br><span style="color:#fbbf24;font-size:0.9rem">⭐ +${earned} Star${earned !== 1 ? 's' : ''} earned!</span><br><span style="color:#c084fc;font-size:0.7rem">${prestigeStars} total — spend in ⭐ Prestige</span>`;
       gameOverOverlay.classList.add('active');
     }
 
@@ -2934,7 +3222,7 @@
     function resetGame() {
       gameOverOverlay.classList.remove('active');
       waveNumber = 1;
-      baseHp = BASE_MAX_HP;
+      baseHp = getEffectiveMaxHp();
       totalKills = 0;
       enemies = [];
       waveState = 'waiting';
@@ -2973,7 +3261,7 @@
           waveNumber: 1,
           waveState: 'waiting',
           totalKills: 0,
-          baseHp: BASE_MAX_HP
+          baseHp: getEffectiveMaxHp()
         });
         stateRef.set({ enemies: '[]', path: '[]', tick: 0 });
       }
@@ -3395,8 +3683,8 @@
       const newEnemies = generateWave(waveNumber);
       enemies = enemies.concat(newEnemies);
 
-      // Heal a bit less than normal clear (half regen)
-      baseHp = Math.min(BASE_MAX_HP, baseHp + Math.ceil(HP_REGEN_PER_WAVE * 0.5));
+      // Heal a bit less than normal clear (half regen) — includes prestige bonus
+      baseHp = Math.min(getEffectiveMaxHp(), baseHp + Math.ceil(getEffectiveRegen() * 0.5));
 
       // Update state
       if (!offlineMode) {
@@ -3526,7 +3814,8 @@
       const onCooldown = abilityCooldownLeft > 0;
       abilityBtn.disabled = onCooldown || waveState === 'gameover';
       const cdText = onCooldown ? ` (${Math.ceil(abilityCooldownLeft)}s)` : '';
-      abilityBtn.innerHTML = `${ab.emoji} ${ab.name}${cdText}<span class="ab-key">[Q]</span><div class="ab-cooldown" id="abCooldownBar" style="width:${onCooldown ? ((1 - abilityCooldownLeft / ab.cooldown) * 100) : 100}%"></div>`;
+      const effectiveCd = ab.cooldown * (1 - getPrestigeCooldownReduction());
+      abilityBtn.innerHTML = `${ab.emoji} ${ab.name}${cdText}<span class="ab-key">[Q]</span><div class="ab-cooldown" id="abCooldownBar" style="width:${onCooldown ? ((1 - abilityCooldownLeft / effectiveCd) * 100) : 100}%"></div>`;
       if (abilityTargeting) {
         abilityBtn.classList.add('targeting');
       } else {
@@ -3588,7 +3877,7 @@
       const ab = getPlayerAbility();
 
       // Start cooldown
-      abilityCooldownLeft = ab.cooldown;
+      abilityCooldownLeft = ab.cooldown * (1 - getPrestigeCooldownReduction());
       abilityTargeting = false;
       canvas.classList.remove('canvas-targeting');
       updateAbilityBtn();
@@ -4244,7 +4533,7 @@
         const barH = 8;
         const barX = CANVAS_W / 2 - barW / 2;
         const barY = BASE_Y + 8;
-        const pct = Math.max(0, baseHp / BASE_MAX_HP);
+        const pct = Math.max(0, baseHp / getEffectiveMaxHp());
 
         // Background
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -4264,7 +4553,7 @@
         ctx.fillStyle = 'rgba(255,255,255,0.6)';
         ctx.font = '9px ' + getComputedStyle(document.body).fontFamily;
         ctx.textAlign = 'center';
-        ctx.fillText(`❤ ${baseHp}/${BASE_MAX_HP}`, CANVAS_W / 2, barY + barH + 12);
+        ctx.fillText(`❤ ${baseHp}/${getEffectiveMaxHp()}`, CANVAS_W / 2, barY + barH + 12);
         ctx.textAlign = 'start';
       }
 

@@ -240,6 +240,29 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **Wave preview accuracy** — `getWaveEnemyBreakdown()` updated to use the same weighted selection logic and elite chance, so the preview panel accurately reflects what will spawn.
 - **No early-game impact** — All changes are designed to leave waves 1-10 feeling identical. The difficulty ramp is smooth and progressive, rewarding players who upgrade wisely.
 
+### 2025-07-06: Prestige System (Persistent Meta-Progression)
+- **Star currency** — Players earn stars at game over based on wave reached and kills. Formula: `floor(wave/3) + floor(kills/50)` with a minimum of 1 star per run. Stars persist in localStorage across all games.
+- **5 prestige upgrades** with multiple levels each, purchasable with stars:
+  - **🛡️ Tough Base** (5 levels, costs 1/2/3/5/7 ⭐): +3 max HP per level (up to +15, for 35 total HP)
+  - **📚 Quick Learner** (3 levels, costs 2/4/7 ⭐): +15% XP gain per level (up to +45%)
+  - **💚 Fortify** (3 levels, costs 2/5/8 ⭐): +1 HP regen per wave per level (up to +3, for 4 total regen)
+  - **⚡ Arsenal** (3 levels, costs 3/5/8 ⭐): -12% ability cooldown per level (up to -36%)
+  - **🔥 Cannon Mastery** (3 levels, costs 3/6/10 ⭐): +10% cannon damage per level (up to +30%)
+- **Prestige panel** — ⭐ button (purple-themed) in the controls bar opens a full-screen overlay showing all upgrades with level pips (●○○), current effects, and buy buttons. Star balance shown at top.
+- **Game over integration** — Stars earned shown on the game over screen with gold text, plus total balance and hint to visit prestige panel.
+- **Gameplay effects deeply integrated:**
+  - Tough Base: `getEffectiveMaxHp()` replaces all `BASE_MAX_HP` usage in HP logic, rendering, HUD, and reset
+  - Quick Learner: XP multiplier applied in both `awardXP()` and `offlineAwardXP()` before XP is granted
+  - Fortify: `getEffectiveRegen()` replaces `HP_REGEN_PER_WAVE` in wave clear and early send healing
+  - Arsenal: Cooldown reduction applied when abilities fire and in cooldown bar display
+  - Cannon Mastery: Damage multiplier applied in `applyDamage()` function, affecting all damage sources
+- **2 new achievements:**
+  - ⭐ **Investor** — Buy a prestige upgrade
+  - 💎 **Fully Upgraded** — Max out a prestige upgrade
+- **Sound effect** — Achievement sound plays when purchasing an upgrade
+- **Prestige button** — Shows current star count in the toolbar, updates dynamically
+- **Design philosophy** — Stars are earned slowly enough to feel meaningful (need wave 6+ to earn 2 stars) but fast enough that every run feels rewarding (always at least 1 star). Total cost to max everything is 78 stars, providing a long-term goal.
+
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
 - [x] ~~No sound effects~~ → Full procedural sound effects system using Web Audio API
@@ -258,6 +281,7 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - [x] ~~Speed controls (1x, 2x, 3x game speed)~~ → Speed toggle buttons with sim timer adjustment
 - [x] ~~Wave skip / early send for bonus XP~~ → "Send Next" button overlaps waves for bonus XP
 - [x] ~~Sell/reset cannon option~~ → Sell button with 50% XP refund banked for next cannon
+- [x] ~~Persistent meta-progression / prestige system~~ → Stars earned at game over, 5 permanent upgrades with multiple levels
 
 ## Hourly Improvement Cycle
 Hatch runs a cron job every hour that:
