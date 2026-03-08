@@ -200,13 +200,30 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **Hook points** — Achievement triggers placed at all relevant game events: enemy kills, boss kills, wave clears, combo milestones, speed changes, upgrade path/spec selection, early send, ability use, cannon sell, and level ups. Both offline and Firebase modes are covered.
 - **Responsive** — Panel switches to single-column layout on mobile (≤600px).
 
+### 2025-06-07: Interactive Tutorial / Onboarding System
+- **6-step interactive tutorial** — A guided walkthrough that teaches new players the core gameplay mechanics through step-by-step tooltips with animated highlight spotlights:
+  1. **Welcome** — Overview of the game concept (defend base, place cannons, survive waves)
+  2. **Place Your Cannon** — Highlights the placement zone and explains click-to-place, auto-fire, and relocate
+  3. **Defend Your Base** — Highlights the HP indicator and explains the 20 HP system, boss damage, and wave regen
+  4. **XP & Leveling** — Highlights the XP bar and explains the level-up system, path choices at Lv3, specializations at Lv6
+  5. **Abilities & Combos** — Highlights the ability button and explains active abilities (Q key) and combo multipliers
+  6. **Pro Tips** — Highlights speed controls + send next button, explains speed toggle, early send bonus, and terrain hazards
+- **Spotlight highlighting** — Each step spotlights a specific UI element using a CSS box-shadow trick (3000px spread creates the dark overlay with a cut-out). The highlight pulses with a smooth accent-blue glow animation.
+- **Smart tooltip positioning** — Tooltips auto-position above or below the highlighted element based on available viewport space. Arrow indicators point toward the target. Repositions on window resize.
+- **Progress dots** — Navigation dots at the bottom of the tooltip show current step, completed steps, and remaining steps.
+- **First-time auto-show** — Tutorial automatically appears 800ms after first page load (tracked via `localStorage` key `td_tutorial_complete`). Doesn't interrupt returning players.
+- **Skip & dismiss** — Players can skip with "Skip tutorial" button, click outside the tooltip, or press Escape to close at any time.
+- **Help button (❓)** — New button in the controls bar lets players replay the tutorial at any time.
+- **Mobile responsive** — Tutorial tooltip shrinks and adjusts on screens ≤600px.
+- **No gameplay interference** — Tutorial runs as a pure UI overlay; doesn't pause or affect the game simulation.
+
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
 - [x] ~~No sound effects~~ → Full procedural sound effects system using Web Audio API
 - [x] ~~No base HP system — single enemy reaching base = wave failed, feels harsh~~ → Base HP system added (20 HP, regen, game over)
 - [x] ~~Score popup text when enemies die~~ → Floating XP popups with color and size scaling
 - [x] ~~Screen shake on boss or wave fail~~ → Screen shake with light/heavy intensities
-- [ ] Better onboarding/tutorial flow
+- [x] ~~Better onboarding/tutorial flow~~ → Interactive 6-step tutorial with spotlight highlights, auto-show for first-timers, and ❓ help button to replay
 - [x] ~~Achievement system~~ → Full achievement system with 18 achievements, toast notifications, and persistent localStorage tracking
 - [x] ~~Wave preview showing what's coming next~~ → Enemy type breakdown shown during countdown
 - [x] ~~Better visual differentiation between cannon types~~ → Unique shapes, barrels, and animated effects per path/spec

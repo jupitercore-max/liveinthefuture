@@ -734,6 +734,141 @@
     .achieve-card .ac-desc { font-size: 0.6rem; color: var(--text-muted); line-height: 1.3; }
     .achieve-card .ac-date { font-size: 0.55rem; color: #ffd700; margin-top: 2px; }
 
+    /* ─── Tutorial Overlay ───────────────────────────── */
+    .tutorial-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 2000;
+      transition: opacity 0.3s;
+    }
+    .tutorial-overlay.active { display: block; }
+    .tutorial-highlight {
+      position: absolute;
+      border: 2px solid var(--accent);
+      border-radius: 8px;
+      box-shadow: 0 0 0 3000px rgba(0,0,0,0.6), 0 0 20px var(--accent), inset 0 0 20px rgba(30,144,255,0.1);
+      z-index: 2001;
+      pointer-events: none;
+      transition: all 0.4s ease;
+      animation: tutorialPulse 2s ease-in-out infinite;
+    }
+    @keyframes tutorialPulse {
+      0%, 100% { box-shadow: 0 0 0 3000px rgba(0,0,0,0.6), 0 0 20px var(--accent), inset 0 0 20px rgba(30,144,255,0.1); }
+      50% { box-shadow: 0 0 0 3000px rgba(0,0,0,0.6), 0 0 30px var(--accent), 0 0 50px rgba(30,144,255,0.3), inset 0 0 20px rgba(30,144,255,0.15); }
+    }
+    .tutorial-tooltip {
+      position: absolute;
+      z-index: 2002;
+      background: var(--bg-light);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 18px 22px;
+      max-width: 340px;
+      width: 90vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(30,144,255,0.15);
+      animation: tooltipFadeIn 0.3s ease;
+    }
+    @keyframes tooltipFadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .tutorial-tooltip::before {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: var(--bg-light);
+      border-left: 1px solid var(--accent);
+      border-top: 1px solid var(--accent);
+      z-index: -1;
+    }
+    .tutorial-tooltip.arrow-top::before {
+      top: -7px;
+      left: 50%;
+      transform: translateX(-50%) rotate(45deg);
+    }
+    .tutorial-tooltip.arrow-bottom::before {
+      bottom: -7px;
+      left: 50%;
+      transform: translateX(-50%) rotate(225deg);
+    }
+    .tutorial-tooltip.arrow-left::before {
+      left: -7px;
+      top: 50%;
+      transform: translateY(-50%) rotate(-45deg);
+    }
+    .tutorial-step-num {
+      font-size: 0.6rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 6px;
+    }
+    .tutorial-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .tutorial-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+    .tutorial-desc kbd {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 0.7rem;
+      color: var(--text);
+    }
+    .tutorial-btns {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .tutorial-skip {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+    .tutorial-skip:hover { color: var(--text); }
+    .tutorial-next {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 8px 18px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .tutorial-next:hover { background: #1a7ad4; }
+    .tutorial-dots {
+      display: flex;
+      gap: 5px;
+    }
+    .tutorial-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background 0.3s;
+    }
+    .tutorial-dot.active { background: var(--accent); }
+    .tutorial-dot.done { background: rgba(30,144,255,0.4); }
+
     /* ─── Responsive ─────────────────────────────────── */
     @media (max-width: 600px) {
       .header h1 { font-size: 0.95rem; }
@@ -743,6 +878,9 @@
       .wave-announce .wa-text { font-size: 1.2rem; }
       .achieve-grid { grid-template-columns: 1fr; }
       .achieve-inner { padding: 14px; }
+      .tutorial-tooltip { max-width: 280px; padding: 14px 16px; }
+      .tutorial-title { font-size: 0.85rem; }
+      .tutorial-desc { font-size: 0.7rem; }
     }
   </style>
 </head>
@@ -806,11 +944,27 @@
       <button class="ctrl-btn" id="playersBtn">Players</button>
       <button class="ctrl-btn" id="achieveBtn" title="Achievements">🏆</button>
       <button class="ctrl-btn" id="muteBtn" title="Toggle sound">🔊</button>
+      <button class="ctrl-btn" id="helpBtn" title="Tutorial">❓</button>
     </div>
 
     <div class="player-panel" id="playerPanel">
       <h3>Players</h3>
       <div id="playerList"></div>
+    </div>
+  </div>
+
+  <!-- ─── Tutorial Overlay ──────────────────────────── -->
+  <div class="tutorial-overlay" id="tutorialOverlay">
+    <div class="tutorial-highlight" id="tutorialHighlight"></div>
+    <div class="tutorial-tooltip" id="tutorialTooltip">
+      <div class="tutorial-step-num" id="tutorialStepNum">Step 1 of 6</div>
+      <div class="tutorial-title" id="tutorialTitle">Welcome!</div>
+      <div class="tutorial-desc" id="tutorialDesc">Description</div>
+      <div class="tutorial-btns">
+        <button class="tutorial-skip" id="tutorialSkip">Skip tutorial</button>
+        <div class="tutorial-dots" id="tutorialDots"></div>
+        <button class="tutorial-next" id="tutorialNext">Next →</button>
+      </div>
     </div>
   </div>
 
@@ -4861,9 +5015,258 @@
     }
 
     // ═══════════════════════════════════════════════════
+    //  Interactive Tutorial System
+    // ═══════════════════════════════════════════════════
+    const tutorialOverlay = $('tutorialOverlay');
+    const tutorialHighlight = $('tutorialHighlight');
+    const tutorialTooltip = $('tutorialTooltip');
+    const tutorialStepNum = $('tutorialStepNum');
+    const tutorialTitle = $('tutorialTitle');
+    const tutorialDesc = $('tutorialDesc');
+    const tutorialNext = $('tutorialNext');
+    const tutorialSkip = $('tutorialSkip');
+    const tutorialDots = $('tutorialDots');
+    const helpBtn = $('helpBtn');
+
+    const TUTORIAL_STEPS = [
+      {
+        title: '🏰 Welcome to Tower Defense!',
+        desc: 'Defend your base from waves of enemies by placing and upgrading cannons. Enemies march down a path — if they reach the blue base line, you lose HP. Survive as long as you can!',
+        target: 'canvas',
+        arrow: 'bottom',
+        nextLabel: "Let's go! →"
+      },
+      {
+        title: '🎯 Place Your Cannon',
+        desc: 'Click anywhere in the <strong>lower zone</strong> (below the dashed blue line) to place your cannon. It will auto-fire at enemies in range. You can click again to relocate it.',
+        target: 'placement-zone',
+        arrow: 'bottom',
+        nextLabel: 'Next →'
+      },
+      {
+        title: '❤️ Defend Your Base',
+        desc: 'Your base has <strong>20 HP</strong>. Each enemy that reaches the bottom deals damage. Bosses deal 3 damage! The HP bar is shown below the blue base line. You regenerate +1 HP each wave you clear.',
+        target: 'hud-hp',
+        arrow: 'top',
+        nextLabel: 'Next →'
+      },
+      {
+        title: '⭐ XP & Leveling',
+        desc: 'Killing enemies earns <strong>XP</strong> for your cannon. Level up to get stronger! At <strong>Level 3</strong>, choose an upgrade path (Rapid/Power/Tech). At <strong>Level 6</strong>, pick a specialization.',
+        target: 'xp-bar',
+        arrow: 'top',
+        nextLabel: 'Next →'
+      },
+      {
+        title: '⚡ Abilities & Combos',
+        desc: 'Your cannon has an <strong>active ability</strong> — press <kbd>Q</kbd> or click the ability button to fire it. Kill enemies quickly for <strong>combo multipliers</strong> up to 10× XP!',
+        target: 'ability-btn',
+        arrow: 'top',
+        nextLabel: 'Next →'
+      },
+      {
+        title: '🎮 Pro Tips',
+        desc: 'Use <strong>speed controls</strong> (1×/2×/3×) to fast-forward easy waves. Hit <strong>Send Next</strong> <kbd>E</kbd> for bonus XP from overlapping waves. Watch out for <strong>terrain hazards</strong> — swamps, lava, and storms affect enemies!',
+        target: 'speed-controls',
+        arrow: 'top',
+        nextLabel: 'Start playing! 🚀'
+      }
+    ];
+
+    let tutorialStep = 0;
+    let tutorialActive = false;
+
+    function buildTutorialDots() {
+      tutorialDots.innerHTML = '';
+      for (let i = 0; i < TUTORIAL_STEPS.length; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'tutorial-dot' + (i === tutorialStep ? ' active' : i < tutorialStep ? ' done' : '');
+        tutorialDots.appendChild(dot);
+      }
+    }
+
+    function getTargetRect(targetId) {
+      const gameScreen = $('gameScreen');
+      switch (targetId) {
+        case 'canvas': {
+          const r = canvas.getBoundingClientRect();
+          return { top: r.top, left: r.left, width: r.width, height: r.height };
+        }
+        case 'placement-zone': {
+          const r = canvas.getBoundingClientRect();
+          // Placement zone is the bottom portion of canvas (PLACEMENT_MIN_Y to BASE_Y)
+          const scaleY = r.height / CANVAS_H;
+          const zoneTop = r.top + PLACEMENT_MIN_Y * scaleY;
+          const zoneH = (BASE_Y - PLACEMENT_MIN_Y) * scaleY;
+          return { top: zoneTop, left: r.left, width: r.width, height: zoneH };
+        }
+        case 'hud-hp': {
+          const el = $('hudBaseHp');
+          if (!el) return null;
+          const r = el.closest('.hud-item').getBoundingClientRect();
+          return { top: r.top - 4, left: r.left - 4, width: r.width + 8, height: r.height + 8 };
+        }
+        case 'xp-bar': {
+          const el = document.querySelector('.xp-bar-wrap');
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return { top: r.top - 4, left: r.left - 4, width: r.width + 8, height: r.height + 8 };
+        }
+        case 'ability-btn': {
+          const el = $('abilityBtn');
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return { top: r.top - 4, left: r.left - 4, width: r.width + 8, height: r.height + 8 };
+        }
+        case 'speed-controls': {
+          const el = $('speedControls');
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          // Expand to include nearby Send Next button
+          const sendBtn = $('sendNextBtn');
+          if (sendBtn) {
+            const sr = sendBtn.getBoundingClientRect();
+            const left = Math.min(r.left, sr.left) - 4;
+            const top = Math.min(r.top, sr.top) - 4;
+            const right = Math.max(r.right, sr.right) + 4;
+            const bottom = Math.max(r.bottom, sr.bottom) + 4;
+            return { top, left, width: right - left, height: bottom - top };
+          }
+          return { top: r.top - 4, left: r.left - 4, width: r.width + 8, height: r.height + 8 };
+        }
+        default: return null;
+      }
+    }
+
+    function positionTooltip(targetRect, arrow) {
+      const pad = 12;
+      const tt = tutorialTooltip;
+      // Reset positioning
+      tt.style.top = '';
+      tt.style.left = '';
+      tt.style.right = '';
+      tt.style.bottom = '';
+      tt.className = 'tutorial-tooltip';
+
+      // Get viewport dims
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      if (!targetRect) {
+        // Center in viewport
+        tt.style.top = '50%';
+        tt.style.left = '50%';
+        tt.style.transform = 'translate(-50%, -50%)';
+        return;
+      }
+      tt.style.transform = '';
+
+      // Prefer placing below the target, but flip if not enough room
+      const ttMaxH = 200; // estimate
+      const spaceBelow = vh - (targetRect.top + targetRect.height + pad);
+      const spaceAbove = targetRect.top - pad;
+
+      if (arrow === 'top' || (arrow !== 'bottom' && spaceBelow < ttMaxH && spaceAbove > spaceBelow)) {
+        // Place above target
+        tt.classList.add('arrow-bottom');
+        tt.style.bottom = (vh - targetRect.top + pad) + 'px';
+        // Center horizontally
+        const centerX = targetRect.left + targetRect.width / 2;
+        let leftPos = centerX - 170; // half of max-width
+        leftPos = Math.max(10, Math.min(leftPos, vw - 350));
+        tt.style.left = leftPos + 'px';
+      } else {
+        // Place below target
+        tt.classList.add('arrow-top');
+        tt.style.top = (targetRect.top + targetRect.height + pad) + 'px';
+        const centerX = targetRect.left + targetRect.width / 2;
+        let leftPos = centerX - 170;
+        leftPos = Math.max(10, Math.min(leftPos, vw - 350));
+        tt.style.left = leftPos + 'px';
+      }
+    }
+
+    function showTutorialStep() {
+      const step = TUTORIAL_STEPS[tutorialStep];
+      tutorialStepNum.textContent = `Step ${tutorialStep + 1} of ${TUTORIAL_STEPS.length}`;
+      tutorialTitle.textContent = step.title;
+      tutorialDesc.innerHTML = step.desc;
+      tutorialNext.textContent = step.nextLabel || 'Next →';
+      buildTutorialDots();
+
+      // Position highlight
+      const rect = getTargetRect(step.target);
+      if (rect) {
+        tutorialHighlight.style.display = 'block';
+        tutorialHighlight.style.top = rect.top + 'px';
+        tutorialHighlight.style.left = rect.left + 'px';
+        tutorialHighlight.style.width = rect.width + 'px';
+        tutorialHighlight.style.height = rect.height + 'px';
+      } else {
+        tutorialHighlight.style.display = 'none';
+      }
+
+      // Position tooltip
+      positionTooltip(rect, step.arrow);
+    }
+
+    function startTutorial() {
+      tutorialStep = 0;
+      tutorialActive = true;
+      tutorialOverlay.classList.add('active');
+      showTutorialStep();
+    }
+
+    function endTutorial() {
+      tutorialActive = false;
+      tutorialOverlay.classList.remove('active');
+      localStorage.setItem('td_tutorial_complete', '1');
+    }
+
+    tutorialNext.addEventListener('click', () => {
+      tutorialStep++;
+      if (tutorialStep >= TUTORIAL_STEPS.length) {
+        endTutorial();
+      } else {
+        showTutorialStep();
+      }
+    });
+
+    tutorialSkip.addEventListener('click', endTutorial);
+
+    // Close on overlay click (outside tooltip and highlight)
+    tutorialOverlay.addEventListener('click', (e) => {
+      if (e.target === tutorialOverlay) endTutorial();
+    });
+
+    // Escape closes tutorial
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && tutorialActive) endTutorial();
+    });
+
+    // Help button replays tutorial
+    helpBtn.addEventListener('click', () => {
+      startTutorial();
+    });
+
+    // Auto-show tutorial for first-time players
+    function maybeShowTutorial() {
+      if (!localStorage.getItem('td_tutorial_complete')) {
+        // Short delay to let the game UI render first
+        setTimeout(startTutorial, 800);
+      }
+    }
+
+    // Handle window resize during tutorial
+    window.addEventListener('resize', () => {
+      if (tutorialActive) showTutorialStep();
+    });
+
+    // ═══════════════════════════════════════════════════
     //  Init
     // ═══════════════════════════════════════════════════
     initFirebase();
+    maybeShowTutorial();
 
   })();
   </script>
