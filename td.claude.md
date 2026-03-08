@@ -139,6 +139,19 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **Phase transition effects** — Each phase triggers screen shake (light for shield, heavy for summon/enrage), colored particle bursts, and floating text popups
 - **Multiplayer sync** — Boss phase properties (`bossPhase`, `shieldHp`, `shieldMaxHp`, `enraged`, `baseSpeed`, `phaseFlashTimer`) are serialized in enemy state and synced via Firebase snapshots automatically
 
+### 2025-06-07: Environmental Terrain Hazard Zones
+- **Three hazard types** — Each wave deterministically generates 1-3 terrain hazard zones along the enemy path using a seeded PRNG (`waveNum * 3571`), ensuring consistent placement across multiplayer clients:
+  - **🌿 Swamp** (green): Slows enemies to 40% speed while inside. Animated bubbling effect with murky green radial gradient.
+  - **🔥 Lava** (orange-red): Deals damage-over-time every 0.2s. Damage scales with wave number (`0.15 * (1 + wave * 0.05)`). Glowing lava pool with animated bright veins and rising heat shimmer.
+  - **⚡ Storm** (purple, wave 8+): Randomly zaps enemies for burst damage (`0.5 + wave * 0.08`). 30% chance per second while inside. Crackling lightning arcs with purple glow.
+- **Scaling** — Number of hazards increases with waves: 1 hazard (waves 1-4), 2 hazards (waves 5-9), 3 hazards (waves 10+). Storm zones only appear from wave 8+.
+- **Placement** — Zones placed between 15%-85% of the path to avoid spawn/base areas. Each has slight size variation (radius 38-60px).
+- **Visual effects** — Each zone type has distinct animated rendering: radial gradients with pulsing alpha, bubbling particles (swamp), lava crack veins (lava), crackling lightning arcs (storm). Labels shown below each zone.
+- **Damage particles** — Lava creates rising orange/red fire particles. Lightning creates purple zap particles with ⚡ score popups.
+- **Wave preview integration** — Upcoming wave's hazards shown in the wave preview panel during countdown ("⚠ Hazards: 🌿 Swamp 🔥 Lava").
+- **Non-leader sync** — Hazards generated deterministically from wave number + path, so non-leader clients regenerate matching hazard zones when receiving path updates. Swamp slow also applied in non-leader interpolation loop.
+- **State management** — `terrainHazards` array cleared on game reset. Only one hazard affects an enemy at a time (first matching zone wins).
+
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
 - [ ] No sound effects
@@ -151,7 +164,7 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - [x] ~~Better visual differentiation between cannon types~~ → Unique shapes, barrels, and animated effects per path/spec
 - [x] ~~Combo system for rapid kills~~ → Kill combo system with multiplied XP rewards
 - [x] ~~Active abilities (click to fire special shot)~~ → Per-cannon active abilities with targeting, cooldowns, and visual effects
-- [ ] Environmental features (obstacles, terrain that slows enemies)
+- [x] ~~Environmental features (obstacles, terrain that slows enemies)~~ → Terrain hazard zones (swamp, lava, lightning storm)
 - [x] ~~Mini-boss mechanics (special attacks, phases)~~ → 3-phase boss system with shield, summon minions, and enrage
 - [ ] Better balancing at higher waves
 - [x] ~~Speed controls (1x, 2x, 3x game speed)~~ → Speed toggle buttons with sim timer adjustment

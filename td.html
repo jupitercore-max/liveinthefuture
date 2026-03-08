@@ -885,12 +885,53 @@
     }
 
     // ═══════════════════════════════════════════════════
+    //  Terrain Hazard Generation (deterministic per wave)
+    // ═══════════════════════════════════════════════════
+    const HAZARD_TYPES = [
+      { type: 'swamp',     color: '#2d5a27', glowColor: '45,90,39',   label: '🌿 Swamp',    radius: 45, slowMult: 0.4 },
+      { type: 'lava',      color: '#8b2500', glowColor: '200,60,20',  label: '🔥 Lava',     radius: 40, dps: 0.15 },
+      { type: 'lightning',  color: '#4a2d8b', glowColor: '120,80,200', label: '⚡ Storm',    radius: 38, minWave: 8 }
+    ];
+
+    function generateHazards(waveNum, path, pathLength) {
+      const rng = mulberry32(waveNum * 3571);
+      const hazards = [];
+      // Number of hazards scales with wave: 1 at wave 1-4, 2 at 5-9, 3 at 10+
+      const numHazards = waveNum < 5 ? 1 : waveNum < 10 ? 2 : 3;
+      const available = HAZARD_TYPES.filter(h => !h.minWave || waveNum >= h.minWave);
+
+      for (let i = 0; i < numHazards; i++) {
+        const ht = available[Math.floor(rng() * available.length)];
+        // Place hazard between 15% and 85% of the path to avoid spawn/base areas
+        const progress = 0.15 + rng() * 0.70;
+        const pos = getPathPosition(path, progress);
+        hazards.push({
+          type: ht.type,
+          x: pos.x,
+          y: pos.y,
+          radius: ht.radius + rng() * 15, // slight size variation
+          progress: progress,
+          color: ht.color,
+          glowColor: ht.glowColor,
+          label: ht.label,
+          slowMult: ht.slowMult || 1,
+          dps: ht.dps || 0,
+          animOffset: rng() * Math.PI * 2 // for animation phase offset
+        });
+      }
+      return hazards;
+    }
+
+    // ═══════════════════════════════════════════════════
     //  Wave Generation (deterministic)
     // ═══════════════════════════════════════════════════
     function generateWave(waveNum) {
       // Generate path for this wave
       currentPath = generatePath(waveNum);
       currentPathLength = getPathLength(currentPath);
+
+      // Generate terrain hazards for this wave
+      terrainHazards = generateHazards(waveNum, currentPath, currentPathLength);
 
       const rng = mulberry32(waveNum * 7919);
       const count = 8 + waveNum * 3;
@@ -993,6 +1034,7 @@
     let abilityCooldownLeft = 0; // seconds remaining on ability cooldown
     let abilityTargeting = false; // waiting for canvas click to target
     let abilityZones = []; // visual effect zones on canvas
+    let terrainHazards = []; // environmental hazard zones on the path
     let earlySendBonusPct = 0; // current bonus XP percentage from early sends
     let earlySendCount = 0; // how many consecutive early sends
     let bonusPopupTimer = 0; // ticks to show bonus popup
@@ -1293,6 +1335,8 @@
           try {
             currentPath = JSON.parse(data.path);
             currentPathLength = getPathLength(currentPath);
+            // Regenerate terrain hazards deterministically for this wave
+            terrainHazards = generateHazards(waveNumber, currentPath, currentPathLength);
           } catch(e) {}
         }
       });
@@ -1362,6 +1406,7 @@
           try {
             currentPath = JSON.parse(data.path);
             currentPathLength = getPathLength(currentPath);
+            terrainHazards = generateHazards(waveNumber, currentPath, currentPathLength);
           } catch(e) {}
         }
       });
@@ -1488,12 +1533,59 @@
 
       if (waveState !== 'active') return;
 
-      // Move enemies along path
+      // Move enemies along path + apply terrain hazard effects
       for (const e of enemies) {
         let speed = e.speed;
         if (e.slowTimer > 0) {
           speed *= 0.5;
           e.slowTimer--;
+        }
+        // ── Terrain Hazard Effects ──
+        e.inHazard = null; // track for visual feedback
+        for (const hz of terrainHazards) {
+          const dist = Math.hypot(e.x - hz.x, e.y - hz.y);
+          if (dist <= hz.radius) {
+            e.inHazard = hz.type;
+            if (hz.type === 'swamp') {
+              speed *= hz.slowMult; // slow to 40%
+            } else if (hz.type === 'lava') {
+              // DOT damage every 4 ticks (~0.2s)
+              if (tickCount % 4 === 0) {
+                applyDamage(e, hz.dps * (1 + waveNumber * 0.05));
+                // Lava damage particle
+                particles.push({
+                  x: e.x + (Math.random() - 0.5) * 10,
+                  y: e.y + (Math.random() - 0.5) * 10,
+                  vx: (Math.random() - 0.5) * 2,
+                  vy: -1 - Math.random() * 2,
+                  color: Math.random() > 0.5 ? '#ff4500' : '#ff8c00',
+                  life: 10 + Math.random() * 8
+                });
+              }
+            } else if (hz.type === 'lightning') {
+              // Random zap every ~20 ticks (~1s), 30% chance per tick check
+              if (tickCount % 20 === 0 && Math.random() < 0.3) {
+                const zapDmg = 0.5 + waveNumber * 0.08;
+                applyDamage(e, zapDmg);
+                // Lightning zap visual
+                particles.push({
+                  x: e.x, y: e.y - 15,
+                  vx: (Math.random() - 0.5) * 3,
+                  vy: -3 - Math.random() * 2,
+                  color: '#bb86fc',
+                  life: 8 + Math.random() * 5
+                });
+                scorePopups.push({
+                  x: e.x, y: e.y - 20,
+                  text: '⚡',
+                  color: '#bb86fc',
+                  life: 15, maxLife: 15,
+                  size: 10, vy: -2
+                });
+              }
+            }
+            break; // only one hazard affects at a time
+          }
         }
         // Advance path progress
         const progressPerTick = speed / (currentPathLength || 1000);
@@ -1923,6 +2015,7 @@
       gameSpeed = 1;
       scorePopups = [];
       abilityZones = [];
+      terrainHazards = [];
       abilityCooldownLeft = 0;
       abilityTargeting = false;
       earlySendBonusPct = 0;
@@ -2814,6 +2907,13 @@
           if (e.hp <= 0) continue;
           let speed = e.speed;
           if (e.slowTimer > 0) speed *= 0.5;
+          // Apply terrain hazard slow for visual consistency
+          for (const hz of terrainHazards) {
+            if (hz.type === 'swamp' && Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius) {
+              speed *= hz.slowMult;
+              break;
+            }
+          }
           const progressPerSec = speed * TICK_RATE / (currentPathLength || 1000);
           e.pathProgress = (e.pathProgress || 0) + progressPerSec * dtSec;
           const pos = getPathPosition(currentPath, e.pathProgress);
@@ -2920,6 +3020,120 @@
         ctx.stroke();
         ctx.setLineDash([]);
       }
+
+      // ── Draw Terrain Hazard Zones ──────────────────────
+      const now = Date.now() / 1000;
+      for (const hz of terrainHazards) {
+        const pulse = 0.7 + 0.3 * Math.sin(now * 2 + hz.animOffset);
+        const r = hz.radius;
+
+        if (hz.type === 'swamp') {
+          // Murky green swamp with bubbling animation
+          const grad = ctx.createRadialGradient(hz.x, hz.y, 0, hz.x, hz.y, r);
+          grad.addColorStop(0, `rgba(${hz.glowColor},${0.25 * pulse})`);
+          grad.addColorStop(0.6, `rgba(${hz.glowColor},${0.15 * pulse})`);
+          grad.addColorStop(1, `rgba(${hz.glowColor},0)`);
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(hz.x, hz.y, r, 0, Math.PI * 2);
+          ctx.fill();
+          // Swamp border
+          ctx.strokeStyle = `rgba(${hz.glowColor},${0.3 * pulse})`;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 4]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          // Bubble particles
+          for (let b = 0; b < 3; b++) {
+            const bx = hz.x + Math.sin(now * 1.5 + b * 2.1 + hz.animOffset) * r * 0.5;
+            const by = hz.y + Math.cos(now * 1.2 + b * 1.7 + hz.animOffset) * r * 0.4;
+            const bSize = 2 + Math.sin(now * 3 + b * 4) * 1;
+            ctx.globalAlpha = 0.3 + 0.2 * Math.sin(now * 4 + b);
+            ctx.fillStyle = '#4a8a3f';
+            ctx.beginPath();
+            ctx.arc(bx, by, bSize, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+        } else if (hz.type === 'lava') {
+          // Glowing orange-red lava pool
+          const grad = ctx.createRadialGradient(hz.x, hz.y, 0, hz.x, hz.y, r);
+          grad.addColorStop(0, `rgba(255,100,0,${0.35 * pulse})`);
+          grad.addColorStop(0.4, `rgba(${hz.glowColor},${0.25 * pulse})`);
+          grad.addColorStop(0.8, `rgba(139,37,0,${0.15 * pulse})`);
+          grad.addColorStop(1, 'rgba(139,37,0,0)');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(hz.x, hz.y, r, 0, Math.PI * 2);
+          ctx.fill();
+          // Lava cracks / bright veins
+          ctx.strokeStyle = `rgba(255,140,0,${0.4 * pulse})`;
+          ctx.lineWidth = 1;
+          for (let v = 0; v < 4; v++) {
+            const angle = (v / 4) * Math.PI * 2 + now * 0.3 + hz.animOffset;
+            const vr = r * (0.3 + 0.3 * Math.sin(now + v * 1.5));
+            ctx.beginPath();
+            ctx.moveTo(hz.x, hz.y);
+            ctx.lineTo(hz.x + Math.cos(angle) * vr, hz.y + Math.sin(angle) * vr);
+            ctx.stroke();
+          }
+          // Rising heat shimmer particles
+          for (let s = 0; s < 2; s++) {
+            const sx = hz.x + Math.sin(now * 2 + s * 3 + hz.animOffset) * r * 0.4;
+            const sy = hz.y - r * 0.3 + Math.sin(now * 1.5 + s * 2) * 5;
+            ctx.globalAlpha = 0.2 + 0.15 * Math.sin(now * 5 + s);
+            ctx.fillStyle = '#ff6600';
+            ctx.fillRect(sx - 1, sy - 3, 2, 6);
+          }
+          ctx.globalAlpha = 1;
+        } else if (hz.type === 'lightning') {
+          // Purple storm zone with crackling arcs
+          const grad = ctx.createRadialGradient(hz.x, hz.y, 0, hz.x, hz.y, r);
+          grad.addColorStop(0, `rgba(${hz.glowColor},${0.2 * pulse})`);
+          grad.addColorStop(0.5, `rgba(${hz.glowColor},${0.12 * pulse})`);
+          grad.addColorStop(1, `rgba(${hz.glowColor},0)`);
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(hz.x, hz.y, r, 0, Math.PI * 2);
+          ctx.fill();
+          // Crackling lightning arcs
+          ctx.strokeStyle = `rgba(187,134,252,${0.5 * pulse})`;
+          ctx.lineWidth = 1.5;
+          const numArcs = 2 + Math.floor(Math.sin(now * 6 + hz.animOffset) + 1);
+          for (let a = 0; a < numArcs; a++) {
+            const startAngle = (a / numArcs) * Math.PI * 2 + now * 1.5 + hz.animOffset;
+            const arcR = r * (0.3 + 0.4 * Math.random());
+            ctx.beginPath();
+            let px = hz.x + Math.cos(startAngle) * 5;
+            let py = hz.y + Math.sin(startAngle) * 5;
+            ctx.moveTo(px, py);
+            const segs = 3 + Math.floor(Math.random() * 3);
+            for (let s = 0; s < segs; s++) {
+              px += (Math.random() - 0.5) * arcR * 0.6;
+              py += (Math.random() - 0.5) * arcR * 0.6;
+              ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+          }
+          // Central glow pulse
+          ctx.globalAlpha = 0.15 * pulse;
+          ctx.fillStyle = '#bb86fc';
+          ctx.beginPath();
+          ctx.arc(hz.x, hz.y, 6 + 3 * Math.sin(now * 4), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+
+        // Hazard label
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = '#fff';
+        ctx.font = '9px ' + getComputedStyle(document.body).fontFamily;
+        ctx.textAlign = 'center';
+        ctx.fillText(hz.label, hz.x, hz.y + r + 12);
+        ctx.textAlign = 'start';
+        ctx.globalAlpha = 1;
+      }
+      // ── End Terrain Hazard Zones ───────────────────────
 
       // Draw cannons
       for (const [cid, c] of Object.entries(cannons)) {
@@ -3833,6 +4047,25 @@
         wavePreview.appendChild(div);
       }
       wavePreview.classList.add('active');
+
+      // Show hazard preview for upcoming wave
+      const previewPath = generatePath(waveNum);
+      const previewPathLen = getPathLength(previewPath);
+      const previewHazards = generateHazards(waveNum, previewPath, previewPathLen);
+      if (previewHazards.length > 0) {
+        const hzDiv = document.createElement('div');
+        hzDiv.className = 'wave-preview-enemy';
+        hzDiv.style.borderTop = '1px solid rgba(255,255,255,0.1)';
+        hzDiv.style.paddingTop = '4px';
+        hzDiv.style.marginTop = '2px';
+        const hzLabel = document.createElement('span');
+        hzLabel.className = 'wpe-name';
+        hzLabel.style.color = '#8888aa';
+        hzLabel.style.fontSize = '0.65rem';
+        hzLabel.textContent = '⚠ Hazards: ' + previewHazards.map(h => h.label).join(' ');
+        hzDiv.appendChild(hzLabel);
+        wavePreview.appendChild(hzDiv);
+      }
     }
 
     function hideWavePreview() {
