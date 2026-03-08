@@ -120,6 +120,25 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **Glow auras** — All upgraded cannons (path or spec selected) get a subtle pulsing glow aura in their path color, making them visually pop against the dark background.
 - **Helper functions** — Added `drawCtxPolygon()` for drawing polygons on the main canvas context (separate from the existing `drawPolygon()` which is used for enemies) and `roundRect()` for rounded rectangle shapes.
 
+### 2025-06-07: Boss Phase Mechanics
+- **3-phase boss system** — Bosses are no longer HP sponges. They now have three distinct phases that trigger at HP thresholds, each introducing new mechanics and visual effects:
+  - **Phase 1 — Shield (75% HP):** Boss generates a damage-absorbing shield equal to 30% of its max HP. All damage goes to shield first. When broken, a "💥 SHIELD BROKEN!" popup appears with blue particle explosion. Shield is shown as rotating blue arc segments around the boss with a subtle glow.
+  - **Phase 2 — Summon (50% HP):** Boss spawns 4 scout minions around it, each with 8% of boss's max HP. Minions use the same path system and have boosted speed (1.3×). Creates an "👹 SUMMON!" popup with red particles and heavy screen shake.
+  - **Phase 3 — Enrage (25% HP):** Boss doubles its movement speed and turns bright red. A pulsing red aura surrounds it with rotating fire particles. "💀 ENRAGED!" popup with heavy shake makes it clear the boss is desperate.
+- **Shield-aware damage system** — New `applyDamage(enemy, dmg)` helper function routes all damage through shield absorption first. All cannon hits, AoE splash, pierce, chain, ability damage, and even napalm DOT now use this function, so shields work consistently across all damage sources.
+- **Enhanced boss visuals:**
+  - Pulsing dark red aura around all bosses (even before phase triggers)
+  - Slowly rotating octagon body (not static like regular enemies)
+  - Inner detail octagon rotating at different speed
+  - Phase transition white flash effect
+  - Phase indicator dots below the boss (3 dots, colored by phase: blue/red/crimson)
+  - "BOSS" label above the enemy
+  - Wider HP bar (3× radius) for better visibility
+  - Separate shield HP bar above the main HP bar (blue)
+  - Enrage mode: red pulsing aura, 6 rotating fire particles, bright red body
+- **Phase transition effects** — Each phase triggers screen shake (light for shield, heavy for summon/enrage), colored particle bursts, and floating text popups
+- **Multiplayer sync** — Boss phase properties (`bossPhase`, `shieldHp`, `shieldMaxHp`, `enraged`, `baseSpeed`, `phaseFlashTimer`) are serialized in enemy state and synced via Firebase snapshots automatically
+
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
 - [ ] No sound effects
@@ -133,7 +152,7 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - [x] ~~Combo system for rapid kills~~ → Kill combo system with multiplied XP rewards
 - [x] ~~Active abilities (click to fire special shot)~~ → Per-cannon active abilities with targeting, cooldowns, and visual effects
 - [ ] Environmental features (obstacles, terrain that slows enemies)
-- [ ] Mini-boss mechanics (special attacks, phases)
+- [x] ~~Mini-boss mechanics (special attacks, phases)~~ → 3-phase boss system with shield, summon minions, and enrage
 - [ ] Better balancing at higher waves
 - [x] ~~Speed controls (1x, 2x, 3x game speed)~~ → Speed toggle buttons with sim timer adjustment
 - [x] ~~Wave skip / early send for bonus XP~~ → "Send Next" button overlaps waves for bonus XP

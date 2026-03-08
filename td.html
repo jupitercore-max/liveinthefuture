@@ -936,10 +936,18 @@
           hp: baseHp * boss.hpMult,
           maxHp: baseHp * boss.hpMult,
           speed: boss.speed,
+          baseSpeed: boss.speed,
           color: boss.color,
           shape: boss.shape,
           radius: boss.radius,
-          slowTimer: 0
+          slowTimer: 0,
+          // Boss phase mechanics
+          bossPhase: 0,        // 0=normal, 1=shielded, 2=summoned, 3=enraged
+          shieldHp: 0,         // absorbs damage before HP
+          shieldMaxHp: 0,
+          enraged: false,
+          summonDone: false,
+          phaseFlashTimer: 0   // visual flash on phase transition
         });
       }
       return enemies;
@@ -1429,6 +1437,37 @@
     // ═══════════════════════════════════════════════════
     //  Simulation (Leader Only)
     // ═══════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════
+    //  Boss Shield Damage Helper
+    // ═══════════════════════════════════════════════════
+    function applyDamage(enemy, dmg) {
+      if (enemy.shieldHp > 0) {
+        const absorbed = Math.min(enemy.shieldHp, dmg);
+        enemy.shieldHp -= absorbed;
+        dmg -= absorbed;
+        if (enemy.shieldHp <= 0) {
+          // Shield break particles
+          for (let i = 0; i < 12; i++) {
+            particles.push({
+              x: enemy.x, y: enemy.y,
+              vx: (Math.random() - 0.5) * 7,
+              vy: (Math.random() - 0.5) * 7,
+              color: '#3498db',
+              life: 15 + Math.random() * 10
+            });
+          }
+          scorePopups.push({
+            x: enemy.x, y: enemy.y - 20,
+            text: '💥 SHIELD BROKEN!',
+            color: '#e74c3c',
+            life: 40, maxLife: 40,
+            size: 12, vy: -1.5
+          });
+        }
+      }
+      enemy.hp -= dmg;
+    }
+
     function simTick() {
       if (!isLeader) return;
       if (waveState === 'gameover') return;
@@ -1466,6 +1505,114 @@
 
       // Cannon firing
       const cannonList = Object.entries(cannons);
+
+      // ── Boss Phase Mechanics ──────────────────────────
+      for (const e of enemies) {
+        if (e.type !== 'boss' || e.hp <= 0) continue;
+        const hpPct = e.hp / e.maxHp;
+
+        // Phase 1: Shield at 75% HP
+        if (hpPct <= 0.75 && e.bossPhase < 1) {
+          e.bossPhase = 1;
+          e.shieldHp = e.maxHp * 0.3;
+          e.shieldMaxHp = e.maxHp * 0.3;
+          e.phaseFlashTimer = 20;
+          triggerScreenShake(false);
+          // Phase transition particles
+          for (let i = 0; i < 16; i++) {
+            particles.push({
+              x: e.x, y: e.y,
+              vx: (Math.random() - 0.5) * 6,
+              vy: (Math.random() - 0.5) * 6,
+              color: '#3498db',
+              life: 20 + Math.random() * 15
+            });
+          }
+          // Phase popup
+          scorePopups.push({
+            x: e.x, y: e.y - 30,
+            text: '🛡 SHIELD UP!',
+            color: '#3498db',
+            life: 50, maxLife: 50,
+            size: 14, vy: -1.2
+          });
+        }
+
+        // Phase 2: Summon Minions at 50% HP
+        if (hpPct <= 0.50 && e.bossPhase < 2 && !e.summonDone) {
+          e.bossPhase = 2;
+          e.summonDone = true;
+          e.phaseFlashTimer = 20;
+          triggerScreenShake(true);
+          // Spawn 4 scout minions around the boss
+          const minionType = ENEMY_TYPES.find(et => et.type === 'scout');
+          for (let m = 0; m < 4; m++) {
+            const angle = (Math.PI * 2 / 4) * m;
+            const mx = e.x + Math.cos(angle) * 30;
+            const my = e.y + Math.sin(angle) * 30;
+            enemies.push({
+              id: `${e.id}_minion${m}`,
+              type: 'scout',
+              x: mx, y: my,
+              pathProgress: e.pathProgress - 0.01 * (m + 1),
+              hp: e.maxHp * 0.08,
+              maxHp: e.maxHp * 0.08,
+              speed: minionType.speed * 1.3,
+              color: '#ff6b6b',
+              shape: 'circle',
+              radius: minionType.radius,
+              slowTimer: 0
+            });
+          }
+          // Summon particles
+          for (let i = 0; i < 20; i++) {
+            particles.push({
+              x: e.x, y: e.y,
+              vx: (Math.random() - 0.5) * 8,
+              vy: (Math.random() - 0.5) * 8,
+              color: '#ff6b6b',
+              life: 20 + Math.random() * 15
+            });
+          }
+          scorePopups.push({
+            x: e.x, y: e.y - 30,
+            text: '👹 SUMMON!',
+            color: '#ff6b6b',
+            life: 50, maxLife: 50,
+            size: 14, vy: -1.2
+          });
+        }
+
+        // Phase 3: Enrage at 25% HP
+        if (hpPct <= 0.25 && e.bossPhase < 3) {
+          e.bossPhase = 3;
+          e.enraged = true;
+          e.speed = (e.baseSpeed || 0.5) * 2.0;
+          e.phaseFlashTimer = 30;
+          triggerScreenShake(true);
+          // Enrage particles
+          for (let i = 0; i < 24; i++) {
+            particles.push({
+              x: e.x, y: e.y,
+              vx: (Math.random() - 0.5) * 10,
+              vy: (Math.random() - 0.5) * 10,
+              color: '#ff0000',
+              life: 25 + Math.random() * 15
+            });
+          }
+          scorePopups.push({
+            x: e.x, y: e.y - 30,
+            text: '💀 ENRAGED!',
+            color: '#ff0000',
+            life: 60, maxLife: 60,
+            size: 16, vy: -1.0
+          });
+        }
+
+        // Decay phase flash timer
+        if (e.phaseFlashTimer > 0) e.phaseFlashTimer--;
+      }
+      // ── End Boss Phase Mechanics ──────────────────────
       for (const [cid, c] of cannonList) {
         if (!c.x || !c.y) continue;
         const stats = getCannonStats(c.level || 1, c.path || null, c.spec || null);
@@ -1488,8 +1635,8 @@
 
         myCannonFireTimers[cid] = 0;
 
-        // Apply damage
-        nearest.hp -= stats.dmg;
+        // Apply damage (shield-aware)
+        applyDamage(nearest, stats.dmg);
 
         // Slow
         if (stats.slowPct > 0) {
@@ -1502,7 +1649,7 @@
             if (e === nearest || e.hp <= 0) continue;
             const d = Math.hypot(e.x - nearest.x, e.y - nearest.y);
             if (d <= stats.aoeSplash) {
-              e.hp -= stats.dmg * 0.5;
+              applyDamage(e, stats.dmg * 0.5);
             }
           }
         }
@@ -1514,7 +1661,7 @@
             if (e === nearest || e.hp <= 0 || pierced >= stats.pierce) continue;
             const d = Math.hypot(e.x - nearest.x, e.y - nearest.y);
             if (d <= 60) {
-              e.hp -= stats.dmg * 0.7;
+              applyDamage(e, stats.dmg * 0.7);
               pierced++;
             }
           }
@@ -1531,7 +1678,7 @@
               if (d < bestD) { best = e; bestD = d; }
             }
             if (best) {
-              best.hp -= stats.dmg * 0.6;
+              applyDamage(best, stats.dmg * 0.6);
               if (stats.slowPct > 0) best.slowTimer = Math.max(best.slowTimer, TICK_RATE);
               chainTarget = best;
             }
@@ -2420,7 +2567,7 @@
           // Power Shot — 5× damage to nearest enemy to target point
           const target = findNearestEnemy(targetX, targetY, 80);
           if (target) {
-            target.hp -= stats.dmg * 5;
+            applyDamage(target, stats.dmg * 5);
             spawnAbilityProjectile(c.x, c.y, target.x, target.y, '#1E90FF');
             abilityZones.push({ x: target.x, y: target.y, radius: 20, color: '30,144,255', life: 15, maxLife: 15, type: 'burst' });
             triggerScreenShake(false);
@@ -2434,7 +2581,7 @@
             if (e.hp <= 0 || fired >= 10) continue;
             const dist = Math.hypot(e.x - c.x, e.y - c.y);
             if (dist <= stats.range * 1.2) {
-              e.hp -= stats.dmg * 1.5;
+              applyDamage(e, stats.dmg * 1.5);
               spawnAbilityProjectile(c.x, c.y, e.x, e.y, '#ff6b35');
               fired++;
             }
@@ -2448,9 +2595,9 @@
             if (e.hp <= 0) continue;
             const dist = Math.hypot(e.x - targetX, e.y - targetY);
             if (dist <= 80) {
-              e.hp -= stats.dmg * 4;
+              applyDamage(e, stats.dmg * 4);
             } else if (dist <= 120) {
-              e.hp -= stats.dmg * 2;
+              applyDamage(e, stats.dmg * 2);
             }
           }
           triggerScreenShake(true);
@@ -2461,7 +2608,7 @@
           for (const e of enemies) {
             if (e.hp <= 0) continue;
             e.slowTimer = Math.max(e.slowTimer, TICK_RATE * 3);
-            e.hp -= stats.dmg * 0.5;
+            applyDamage(e, stats.dmg * 0.5);
           }
           abilityZones.push({ x: CANVAS_W / 2, y: CANVAS_H / 2, radius: 400, color: '155,89,182', life: 20, maxLife: 20, type: 'pulse' });
           triggerScreenShake(false);
@@ -2475,7 +2622,7 @@
             if (fired >= 20) break;
             const dist = Math.hypot(e.x - c.x, e.y - c.y);
             if (dist <= stats.range * 1.5) {
-              e.hp -= stats.dmg * 1.2;
+              applyDamage(e, stats.dmg * 1.2);
               setTimeout(() => spawnAbilityProjectile(c.x, c.y, e.x, e.y, '#ff8c42'), fired * 40);
               fired++;
             }
@@ -2487,7 +2634,7 @@
           const target = findNearestEnemy(targetX, targetY, 60);
           if (target) {
             if (target.type === 'boss') {
-              target.hp -= stats.dmg * 20;
+              applyDamage(target, stats.dmg * 20);
             } else {
               target.hp = 0; // instant kill
             }
@@ -2504,7 +2651,7 @@
             if (e.hp <= 0) continue;
             const dist = Math.hypot(e.x - targetX, e.y - targetY);
             if (dist <= 60) {
-              e.hp -= stats.dmg * 3;
+              applyDamage(e, stats.dmg * 3);
             }
           }
           triggerScreenShake(true);
@@ -2528,7 +2675,7 @@
             const closestY = c.y + ny * t;
             const dist = Math.hypot(e.x - closestX, e.y - closestY);
             if (dist <= 30) {
-              e.hp -= stats.dmg * 6;
+              applyDamage(e, stats.dmg * 6);
             }
           }
           triggerScreenShake(true);
@@ -2538,7 +2685,7 @@
           // Chain Overload — hit all enemies with lightning
           for (const e of enemies) {
             if (e.hp <= 0) continue;
-            e.hp -= stats.dmg * 2;
+            applyDamage(e, stats.dmg * 2);
             spawnAbilityProjectile(c.x, c.y, e.x, e.y, '#8e44ad');
           }
           abilityZones.push({ x: c.x, y: c.y, radius: 300, color: '142,68,173', life: 15, maxLife: 15, type: 'pulse' });
@@ -2849,7 +2996,7 @@
               if (e.hp <= 0) continue;
               const dist = Math.hypot(e.x - az.x, e.y - az.y);
               if (dist <= az.radius) {
-                e.hp -= 0.3;
+                applyDamage(e, 0.3);
               }
             }
           }
@@ -3383,7 +3530,53 @@
 
     function drawEnemy(e) {
       const x = e.x, y = e.y;
-      ctx.fillStyle = e.color;
+      const isBoss = e.type === 'boss';
+      const t = Date.now();
+
+      // ── Boss: Pulsing aura ──
+      if (isBoss) {
+        const pulse = 0.3 + Math.sin(t * 0.004) * 0.15;
+        const auraR = e.radius + 8 + Math.sin(t * 0.003) * 4;
+
+        // Enrage: red pulsing aura
+        if (e.enraged) {
+          ctx.globalAlpha = 0.25 + Math.sin(t * 0.008) * 0.15;
+          ctx.fillStyle = '#ff0000';
+          ctx.beginPath();
+          ctx.arc(x, y, auraR + 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          // Rotating fire particles around boss
+          for (let i = 0; i < 6; i++) {
+            const angle = (t * 0.005) + (Math.PI * 2 / 6) * i;
+            const px = x + Math.cos(angle) * (e.radius + 5);
+            const py = y + Math.sin(angle) * (e.radius + 5);
+            ctx.fillStyle = `rgba(255,${80 + Math.floor(Math.random() * 80)},0,0.7)`;
+            ctx.fillRect(px - 2, py - 2, 4, 4);
+          }
+        } else {
+          // Normal boss: dark red aura
+          ctx.globalAlpha = pulse;
+          ctx.fillStyle = '#8b0000';
+          ctx.beginPath();
+          ctx.arc(x, y, auraR, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+
+        // Phase flash effect
+        if (e.phaseFlashTimer > 0) {
+          ctx.globalAlpha = e.phaseFlashTimer / 30 * 0.6;
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.arc(x, y, e.radius + 20, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      // ── Main body ──
+      ctx.fillStyle = isBoss && e.enraged ? '#ff2200' : e.color;
 
       switch (e.shape) {
         case 'circle':
@@ -3408,7 +3601,38 @@
           ctx.stroke();
           break;
         case 'octagon':
-          drawPolygon(x, y, e.radius, 8);
+          // Boss: rotating octagon
+          if (isBoss) {
+            const rot = t * 0.001;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rot);
+            ctx.beginPath();
+            for (let i = 0; i < 8; i++) {
+              const angle = (Math.PI * 2 / 8) * i - Math.PI / 2;
+              const px = e.radius * Math.cos(angle);
+              const py = e.radius * Math.sin(angle);
+              if (i === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+            // Inner detail — rotating inner octagon
+            ctx.fillStyle = 'rgba(255,255,255,0.15)';
+            ctx.beginPath();
+            for (let i = 0; i < 8; i++) {
+              const angle = (Math.PI * 2 / 8) * i - Math.PI / 2 + rot * 0.5;
+              const px = (e.radius * 0.5) * Math.cos(angle);
+              const py = (e.radius * 0.5) * Math.sin(angle);
+              if (i === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+          } else {
+            drawPolygon(x, y, e.radius, 8);
+          }
           break;
         default:
           ctx.beginPath();
@@ -3416,17 +3640,74 @@
           ctx.fill();
       }
 
-      // HP bar
+      // ── Boss: Shield visual ──
+      if (isBoss && e.shieldHp > 0) {
+        const shieldPct = e.shieldHp / (e.shieldMaxHp || 1);
+        const shieldR = e.radius + 6;
+        // Shield arc (partial circle based on remaining shield HP)
+        ctx.strokeStyle = `rgba(52,152,219,${0.5 + shieldPct * 0.4})`;
+        ctx.lineWidth = 3;
+        // Draw shield as rotating segments
+        const segRot = t * 0.002;
+        for (let i = 0; i < 3; i++) {
+          const startAngle = segRot + (Math.PI * 2 / 3) * i;
+          const arcLen = (Math.PI * 2 / 3) * 0.7 * shieldPct;
+          ctx.beginPath();
+          ctx.arc(x, y, shieldR, startAngle, startAngle + arcLen);
+          ctx.stroke();
+        }
+        // Shield glow
+        ctx.globalAlpha = 0.1 + shieldPct * 0.15;
+        ctx.fillStyle = '#3498db';
+        ctx.beginPath();
+        ctx.arc(x, y, shieldR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      // ── Boss: Phase indicator dots ──
+      if (isBoss && e.bossPhase > 0) {
+        const dotY = y + e.radius + 14;
+        for (let i = 1; i <= 3; i++) {
+          const dotX = x + (i - 2) * 8;
+          ctx.fillStyle = i <= e.bossPhase
+            ? (i === 1 ? '#3498db' : i === 2 ? '#ff6b6b' : '#ff0000')
+            : 'rgba(255,255,255,0.2)';
+          ctx.beginPath();
+          ctx.arc(dotX, dotY, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // ── Boss: "BOSS" label ──
+      if (isBoss) {
+        ctx.fillStyle = e.enraged ? 'rgba(255,0,0,0.9)' : 'rgba(255,255,255,0.6)';
+        ctx.font = 'bold 8px ' + getComputedStyle(document.body).fontFamily;
+        ctx.textAlign = 'center';
+        ctx.fillText('BOSS', x, y - e.radius - (e.hp < e.maxHp ? 14 : 8));
+        ctx.textAlign = 'start';
+      }
+
+      // ── HP bar ──
       if (e.hp < e.maxHp) {
-        const barW = e.radius * 2 + 4;
-        const barH = 3;
+        const barW = isBoss ? e.radius * 3 : e.radius * 2 + 4;
+        const barH = isBoss ? 5 : 3;
         const barX = x - barW / 2;
-        const barY = y - e.radius - 6;
+        const barY = y - e.radius - (isBoss ? 10 : 6);
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(barX, barY, barW, barH);
         const pct = Math.max(0, e.hp / e.maxHp);
         ctx.fillStyle = pct > 0.5 ? '#2ecc71' : pct > 0.25 ? '#f39c12' : '#e74c3c';
         ctx.fillRect(barX, barY, barW * pct, barH);
+        // Boss: shield bar layered on top
+        if (isBoss && e.shieldHp > 0 && e.shieldMaxHp > 0) {
+          const shieldPct = e.shieldHp / e.shieldMaxHp;
+          const shieldBarY = barY - barH - 1;
+          ctx.fillStyle = 'rgba(0,0,0,0.4)';
+          ctx.fillRect(barX, shieldBarY, barW, barH - 1);
+          ctx.fillStyle = '#3498db';
+          ctx.fillRect(barX, shieldBarY, barW * shieldPct, barH - 1);
+        }
       }
     }
 
