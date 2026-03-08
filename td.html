@@ -432,6 +432,49 @@
       100% { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
 
+    /* ─── Speed Controls ─────────────────────────────── */
+    .speed-controls {
+      display: flex;
+      gap: 2px;
+      background: var(--bg);
+      border-radius: var(--radius);
+      padding: 2px;
+      border: 1px solid var(--border);
+    }
+    .speed-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 4px 10px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s;
+      font-weight: 600;
+    }
+    .speed-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .speed-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* ─── Speed Indicator (on canvas) ────────────────── */
+    .speed-indicator {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent);
+      pointer-events: none;
+      z-index: 11;
+      opacity: 0;
+      transition: opacity 0.3s;
+      text-shadow: 0 0 8px var(--accent-glow);
+    }
+    .speed-indicator.active { opacity: 1; }
+
     /* ─── Screen Shake ───────────────────────────────── */
     .canvas-wrap.shake {
       animation: screenShake 0.3s ease-out;
@@ -498,6 +541,7 @@
         <span class="combo-num" id="comboNum">2</span><span>× COMBO</span>
         <span class="combo-label" id="comboLabel">+2 XP</span>
       </div>
+      <div class="speed-indicator" id="speedIndicator">▶▶ 2×</div>
       <div class="game-over-overlay" id="gameOverOverlay">
         <div class="go-title">GAME OVER</div>
         <div class="go-stats" id="goStats">Wave 1 · 0 kills</div>
@@ -517,6 +561,11 @@
         <div class="xp-bar-text" id="xpBarText">0 / 50 XP</div>
       </div>
       <button class="ctrl-btn" id="upgradeBtn" disabled>Upgrade</button>
+      <div class="speed-controls" id="speedControls">
+        <button class="speed-btn active" data-speed="1">1×</button>
+        <button class="speed-btn" data-speed="2">2×</button>
+        <button class="speed-btn" data-speed="3">3×</button>
+      </div>
       <button class="ctrl-btn" id="relocateBtn">Relocate</button>
       <button class="ctrl-btn" id="playersBtn">Players</button>
     </div>
@@ -805,6 +854,7 @@
     let comboCount = 0; // current combo count
     let comboTimer = 0; // ticks remaining before combo resets
     let comboXpBonus = 0; // total bonus XP from current combo
+    let gameSpeed = 1; // 1, 2, or 3
     const COMBO_WINDOW = TICK_RATE * 1.5; // 1.5s to chain kills
     const COMBO_MIN = 2; // minimum kills to show combo
 
@@ -848,6 +898,8 @@
     const comboLabel = $('comboLabel');
     const wavePreview = $('wavePreview');
     const canvasWrap = document.querySelector('.canvas-wrap');
+    const speedControls = $('speedControls');
+    const speedIndicator = $('speedIndicator');
 
     // ═══════════════════════════════════════════════════
     //  Default Emoji Avatars
@@ -933,7 +985,7 @@
       lastVisualTick = performance.now();
       requestAnimationFrame(renderLoop);
       if (!simTimer) {
-        simTimer = setInterval(simTick, TICK_MS);
+        simTimer = setInterval(simTick, TICK_MS / gameSpeed);
       }
     }
 
@@ -1182,7 +1234,7 @@
 
       // Start sim
       if (!simTimer) {
-        simTimer = setInterval(simTick, TICK_MS);
+        simTimer = setInterval(simTick, TICK_MS / gameSpeed);
       }
 
       // If waiting, start countdown for next wave
@@ -1573,10 +1625,16 @@
       comboCount = 0;
       comboTimer = 0;
       comboXpBonus = 0;
+      gameSpeed = 1;
       scorePopups = [];
       hideWavePreview();
       updateComboDisplay();
       updateBaseHpHUD();
+      updateSpeedIndicator();
+      // Reset speed button UI
+      speedControls.querySelectorAll('.speed-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.speed === '1');
+      });
       hudWave.textContent = waveNumber;
       hudKills.textContent = totalKills;
       hudEnemies.textContent = 0;
@@ -1600,6 +1658,9 @@
         cannons[playerId].spec = null;
         updateCannonUI();
       }
+
+      // Restart sim timer with reset speed
+      restartSimTimer();
 
       // Start first wave after brief pause
       setTimeout(() => {
@@ -1822,6 +1883,45 @@
     }, 1000);
 
     // ═══════════════════════════════════════════════════
+    //  Speed Controls
+    // ═══════════════════════════════════════════════════
+    speedControls.addEventListener('click', e => {
+      const btn = e.target.closest('.speed-btn');
+      if (!btn) return;
+      const newSpeed = parseInt(btn.dataset.speed, 10);
+      if (newSpeed === gameSpeed) return;
+      gameSpeed = newSpeed;
+      // Update button states
+      speedControls.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      // Update speed indicator on canvas
+      updateSpeedIndicator();
+      // Restart simulation timer with new speed
+      restartSimTimer();
+    });
+
+    function updateSpeedIndicator() {
+      if (gameSpeed > 1) {
+        const arrows = '▶'.repeat(gameSpeed);
+        speedIndicator.textContent = `${arrows} ${gameSpeed}×`;
+        speedIndicator.classList.add('active');
+      } else {
+        speedIndicator.classList.remove('active');
+      }
+    }
+
+    function restartSimTimer() {
+      if (simTimer) {
+        clearInterval(simTimer);
+        simTimer = null;
+      }
+      if (isLeader || offlineMode) {
+        const speedTickMs = TICK_MS / gameSpeed;
+        simTimer = setInterval(simTick, speedTickMs);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
     //  Player Panel
     // ═══════════════════════════════════════════════════
     playersBtn.addEventListener('click', () => {
@@ -1865,7 +1965,7 @@
 
       // Non-leader: locally simulate enemy movement between snapshots
       if (!isLeader && waveState === 'active' && dt > 0 && dt < 200 && currentPath) {
-        const dtSec = dt / 1000;
+        const dtSec = dt / 1000 * gameSpeed;
         for (const e of enemies) {
           if (e.hp <= 0) continue;
           let speed = e.speed;
@@ -1883,7 +1983,7 @@
           if (!c.x || !c.y) continue;
           const stats = getCannonStats(c.level || 1, c.path || null, c.spec || null);
           if (!(cid in visualFireTimers)) visualFireTimers[cid] = 0;
-          visualFireTimers[cid] += dt;
+          visualFireTimers[cid] += dt * gameSpeed;
           const fireMs = 1000 / stats.fireRate;
           if (visualFireTimers[cid] >= fireMs) {
             visualFireTimers[cid] -= fireMs;

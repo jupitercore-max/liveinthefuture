@@ -60,6 +60,13 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **Non-leader sync** — Wave preview and screen shake properly handled for non-leader clients via Firebase state transitions
 - **Boss wave indicator** — Boss waves now show "⚠ BOSS WAVE!" instead of just "BOSS WAVE!"
 
+### 2025-06-06: Speed Controls (1×/2×/3×)
+- **Game speed toggle** — Three speed buttons (1×, 2×, 3×) in the controls bar below the canvas. Lets players fast-forward through easy early waves.
+- **Implementation** — Adjusts the simulation timer interval (`TICK_MS / gameSpeed`). At 2× speed, `simTick` runs twice as often; at 3×, three times as often. Visual fire timers and non-leader interpolation also scale by `gameSpeed`.
+- **Speed indicator** — When speed > 1×, a "▶▶ 2×" or "▶▶▶ 3×" indicator appears at the top-left of the canvas with an accent glow.
+- **Reset on game over** — Speed resets to 1× when the game restarts for a clean experience.
+- **Button styling** — Compact pill-style button group that matches the existing dark theme. Active speed is highlighted with the accent blue.
+
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
 - [ ] No sound effects
@@ -75,7 +82,7 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - [ ] Environmental features (obstacles, terrain that slows enemies)
 - [ ] Mini-boss mechanics (special attacks, phases)
 - [ ] Better balancing at higher waves
-- [ ] Speed controls (1x, 2x, 3x game speed)
+- [x] ~~Speed controls (1x, 2x, 3x game speed)~~ → Speed toggle buttons with sim timer adjustment
 - [ ] Sell/reset cannon option
 - [ ] Wave skip / early send for bonus XP
 
