@@ -83,6 +83,48 @@
       --cls-sports: #EF7070;
     }
     html.dark .tier-low, html.dark .tier-avg { color: #1a1a1a; }
+    html.dark .chart-tooltip { box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+
+    /* Chart Tooltip */
+    .chart-tooltip {
+      position: fixed;
+      pointer-events: none;
+      z-index: 10000;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      line-height: 1.5;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      opacity: 0;
+      transition: opacity 0.12s;
+      max-width: 280px;
+    }
+    .chart-tooltip.visible { opacity: 1; }
+    .chart-tooltip .tt-name {
+      font-weight: 700;
+      font-size: 0.8rem;
+      margin-bottom: 4px;
+      white-space: nowrap;
+    }
+    .chart-tooltip .tt-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .chart-tooltip .tt-label { color: var(--text-muted); }
+    .chart-tooltip .tt-value { font-weight: 600; text-align: right; }
+    .chart-tooltip .tt-tier {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: #fff;
+      margin-top: 4px;
+    }
 
     .theme-toggle {
       position: fixed;
@@ -439,6 +481,7 @@
 </head>
 
 <body>
+  <div class="chart-tooltip" id="chartTooltip"></div>
   <div class="container">
     <header>
       <a href="index.html" class="back">&larr; rayhe.net</a>
@@ -2201,6 +2244,118 @@
         renderFarsModelChart();
       }, 150);
     });
+
+    // ================================================================
+    // Chart Hover Tooltips
+    // ================================================================
+    const tooltip = document.getElementById('chartTooltip');
+    let ttVisible = false;
+
+    function showTooltip(html, x, y) {
+      tooltip.innerHTML = html;
+      tooltip.classList.add('visible');
+      ttVisible = true;
+      // Position: prefer right of cursor, flip if near edge
+      const pad = 12;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      tooltip.style.left = '0px';
+      tooltip.style.top = '0px';
+      const rect = tooltip.getBoundingClientRect();
+      let left = x + pad;
+      let top = y - rect.height / 2;
+      if (left + rect.width > vw - pad) left = x - rect.width - pad;
+      if (top < pad) top = pad;
+      if (top + rect.height > vh - pad) top = vh - rect.height - pad;
+      tooltip.style.left = left + 'px';
+      tooltip.style.top = top + 'px';
+    }
+
+    function hideTooltip() {
+      tooltip.classList.remove('visible');
+      ttVisible = false;
+    }
+
+    // IIHS chart tooltip
+    (function() {
+      const canvas = document.getElementById('barChart');
+      canvas.addEventListener('mousemove', function(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleY = canvas.height / (window.devicePixelRatio || 1) / rect.height;
+        const mouseY = (e.clientY - rect.top) * scaleY;
+
+        const barHeight = 26;
+        const barGap = 4;
+        const topPad = 10;
+
+        const idx = Math.floor((mouseY - topPad) / (barHeight + barGap));
+        const barY = topPad + idx * (barHeight + barGap);
+        if (idx >= 0 && idx < filteredData.length && mouseY >= barY && mouseY <= barY + barHeight) {
+          const d = filteredData[idx];
+          const rate = getRate(d);
+          const tier = getTier(rate);
+          const otherMetric = currentMetric === 'driver' ? 'otherRate' : 'driverRate';
+          const otherLabel = currentMetric === 'driver' ? 'Other deaths' : 'Driver deaths';
+          const otherVal = d[otherMetric];
+          let html = '<div class="tt-name">' + vehicleName(d) + '</div>';
+          html += '<div class="tt-row"><span class="tt-label">Class</span><span class="tt-value">' + d.cls + '</span></div>';
+          html += '<div class="tt-row"><span class="tt-label">' + (currentMetric === 'driver' ? 'Driver deaths' : 'Other deaths') + '</span><span class="tt-value">' + rate + ' per M reg. yrs</span></div>';
+          if (otherVal !== null && otherVal !== undefined) {
+            html += '<div class="tt-row"><span class="tt-label">' + otherLabel + '</span><span class="tt-value">' + otherVal + ' per M reg. yrs</span></div>';
+          }
+          if (tier) {
+            html += '<span class="tt-tier" style="background:' + tier.color + '">' + tier.label + ' Risk</span>';
+          }
+          showTooltip(html, e.clientX, e.clientY);
+          canvas.style.cursor = 'crosshair';
+        } else {
+          hideTooltip();
+          canvas.style.cursor = 'default';
+        }
+      });
+      canvas.addEventListener('mouseleave', function() {
+        hideTooltip();
+        canvas.style.cursor = 'default';
+      });
+    })();
+
+    // FARS per-model chart tooltip
+    (function() {
+      const canvas = document.getElementById('farsModelChart');
+      canvas.addEventListener('mousemove', function(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleY = canvas.height / (window.devicePixelRatio || 1) / rect.height;
+        const mouseY = (e.clientY - rect.top) * scaleY;
+
+        const barHeight = 24;
+        const barGap = 3;
+        const topPad = 10;
+
+        const idx = Math.floor((mouseY - topPad) / (barHeight + barGap));
+        const barY = topPad + idx * (barHeight + barGap);
+        if (idx >= 0 && idx < filteredFars.length && mouseY >= barY && mouseY <= barY + barHeight) {
+          const d = filteredFars[idx];
+          const val = getFarsValue(d);
+          const fleetStr = d.fleet ? (d.fleet / 1e6).toFixed(1) + 'M' : '\u2014';
+          const rateStr = d.rate !== null ? d.rate.toFixed(2) : '\u2014';
+          let html = '<div class="tt-name">' + farsVehicleName(d) + '</div>';
+          html += '<div class="tt-row"><span class="tt-label">Class</span><span class="tt-value">' + d.cls + '</span></div>';
+          html += '<div class="tt-row"><span class="tt-label">Total deaths (10yr)</span><span class="tt-value">' + d.deaths.toLocaleString() + '</span></div>';
+          html += '<div class="tt-row"><span class="tt-label">Annual avg</span><span class="tt-value">' + d.annual.toFixed(0) + '</span></div>';
+          html += '<div class="tt-row"><span class="tt-label">Est. fleet</span><span class="tt-value">' + fleetStr + '</span></div>';
+          html += '<div class="tt-row"><span class="tt-label">Est. rate</span><span class="tt-value">' + rateStr + ' per 100M VMT</span></div>';
+          showTooltip(html, e.clientX, e.clientY);
+          canvas.style.cursor = 'crosshair';
+        } else {
+          hideTooltip();
+          canvas.style.cursor = 'default';
+        }
+      });
+      canvas.addEventListener('mouseleave', function() {
+        hideTooltip();
+        canvas.style.cursor = 'default';
+      });
+    })();
 
     // ================================================================
     // Initialize
