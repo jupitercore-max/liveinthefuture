@@ -67,6 +67,14 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **Reset on game over** — Speed resets to 1× when the game restarts for a clean experience.
 - **Button styling** — Compact pill-style button group that matches the existing dark theme. Active speed is highlighted with the accent blue.
 
+### 2025-06-06: Early Send / Wave Skip for Bonus XP
+- **"Send Next" button** — A new `⏩ Send Next` button in the controls bar lets players send the next wave early while enemies are still alive. Creates overlapping waves for increased challenge and reward.
+- **Bonus XP system** — Each early send grants a +25% base XP bonus, with +10% per consecutive early send (capped at 100%). The bonus applies to all XP earned from kills — both normal kills and ability kills — and stacks multiplicatively with the combo system.
+- **Visual feedback** — Green bonus popup (🎯 EARLY SEND! +X% XP) appears at top of canvas with animation. A persistent `⚡ +X% XP BONUS ⚡` indicator shows on the canvas while the bonus is active. The button itself shows the next available bonus percentage.
+- **Risk/reward design** — Early sends spawn the full next wave on top of remaining enemies. Players get half HP regen instead of full. Bonus resets to 0 when a wave clears naturally (all enemies dead before sending next). Incentivizes aggressive play and AoE/crowd-control builds.
+- **Controls** — Button with `[E]` keyboard shortcut. Only available during active waves when the player has a cannon placed. Disabled for non-leader clients in multiplayer.
+- **State management** — Early send count, bonus percentage, and popup timer properly reset on game over/restart. Button state updates during game ticks.
+
 ### 2025-06-06: Active Abilities System
 - **Per-cannon active abilities** — Each cannon gets a unique clickable ability based on its upgrade path. Abilities have cooldowns and add strategic depth beyond idle auto-fire.
 - **Ability types:**
@@ -103,8 +111,8 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - [ ] Mini-boss mechanics (special attacks, phases)
 - [ ] Better balancing at higher waves
 - [x] ~~Speed controls (1x, 2x, 3x game speed)~~ → Speed toggle buttons with sim timer adjustment
+- [x] ~~Wave skip / early send for bonus XP~~ → "Send Next" button overlaps waves for bonus XP
 - [ ] Sell/reset cannon option
-- [ ] Wave skip / early send for bonus XP
 
 ## Hourly Improvement Cycle
 Hatch runs a cron job every hour that:

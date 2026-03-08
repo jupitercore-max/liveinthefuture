@@ -432,6 +432,46 @@
       100% { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
 
+    /* ─── Send Next / Early Wave ──────────────────────── */
+    .send-next-btn:not(:disabled) {
+      border-color: var(--success);
+      color: var(--success);
+    }
+    .send-next-btn:not(:disabled):hover {
+      background: var(--success);
+      color: #fff;
+      border-color: var(--success);
+    }
+    .send-bonus-popup {
+      position: absolute;
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--success);
+      text-shadow: 0 0 12px rgba(34,197,94,0.6), 0 0 24px rgba(34,197,94,0.3);
+      pointer-events: none;
+      z-index: 13;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .send-bonus-popup.active {
+      opacity: 1;
+      animation: bonusPopIn 0.3s ease-out;
+    }
+    @keyframes bonusPopIn {
+      0% { transform: translateX(-50%) scale(1.5); opacity: 0; }
+      50% { transform: translateX(-50%) scale(0.95); }
+      100% { transform: translateX(-50%) scale(1); opacity: 1; }
+    }
+    .send-next-btn .sn-bonus {
+      font-size: 0.6rem;
+      color: var(--success);
+      margin-left: 4px;
+      opacity: 0.8;
+    }
+
     /* ─── Speed Controls ─────────────────────────────── */
     .speed-controls {
       display: flex;
@@ -606,6 +646,7 @@
       <div class="wave-preview" id="wavePreview">
         <div class="wave-preview-label">INCOMING ENEMIES</div>
       </div>
+      <div class="send-bonus-popup" id="sendBonusPopup"></div>
     </div>
 
     <div class="controls">
@@ -623,7 +664,7 @@
         <button class="speed-btn" data-speed="2">2×</button>
         <button class="speed-btn" data-speed="3">3×</button>
       </div>
-      <button class="ctrl-btn send-next-btn" id="sendNextBtn" disabled>⏩ Send Next</button>
+      <button class="ctrl-btn send-next-btn" id="sendNextBtn" disabled>⏩ Send Next <span class="ab-key">[E]</span></button>
       <button class="ctrl-btn" id="relocateBtn">Relocate</button>
       <button class="ctrl-btn" id="playersBtn">Players</button>
     </div>
@@ -916,6 +957,9 @@
     let abilityCooldownLeft = 0; // seconds remaining on ability cooldown
     let abilityTargeting = false; // waiting for canvas click to target
     let abilityZones = []; // visual effect zones on canvas
+    let earlySendBonusPct = 0; // current bonus XP percentage from early sends
+    let earlySendCount = 0; // how many consecutive early sends
+    let bonusPopupTimer = 0; // ticks to show bonus popup
     const COMBO_WINDOW = TICK_RATE * 1.5; // 1.5s to chain kills
     const COMBO_MIN = 2; // minimum kills to show combo
 
@@ -961,6 +1005,8 @@
     const canvasWrap = document.querySelector('.canvas-wrap');
     const speedControls = $('speedControls');
     const speedIndicator = $('speedIndicator');
+    const sendNextBtn = $('sendNextBtn');
+    const sendBonusPopup = $('sendBonusPopup');
 
     // ═══════════════════════════════════════════════════
     //  Default Emoji Avatars
@@ -1476,9 +1522,10 @@
           if (comboCount === 5 || comboCount === 10) {
             triggerScreenShake(comboCount >= 10);
           }
-          // Calculate XP: base 1 + combo bonus
+          // Calculate XP: base 1 + combo bonus + early send bonus
           const comboMult = comboCount >= COMBO_MIN ? Math.min(comboCount, 10) : 1;
-          const xpAmount = comboMult;
+          const earlyBonus = earlySendBonusPct > 0 ? Math.ceil(comboMult * earlySendBonusPct / 100) : 0;
+          const xpAmount = comboMult + earlyBonus;
           // Award XP to cannon that would have killed (simplified: split among all)
           awardXP(cannonList, xpAmount);
           // Score popup
@@ -1554,13 +1601,20 @@
       // Check wave clear
       if (enemies.length === 0 && waveState === 'active') {
         waveNumber++;
+        // Reset early send bonus/streak on natural wave clear
+        earlySendBonusPct = 0;
+        earlySendCount = 0;
         // Heal 1 HP per wave cleared (capped at max)
         baseHp = Math.min(BASE_MAX_HP, baseHp + HP_REGEN_PER_WAVE);
         if (!offlineMode) metaRef.update({ waveNumber, waveState: 'waiting', totalKills, baseHp });
         waveState = 'waiting';
         updateBaseHpHUD();
+        updateSendNextBtn();
         startWaveCountdown();
       }
+
+      // Update send next button state
+      if (tickCount % 10 === 0) updateSendNextBtn();
 
       // Update HUD
       hudKills.textContent = totalKills;
@@ -1691,11 +1745,16 @@
       abilityZones = [];
       abilityCooldownLeft = 0;
       abilityTargeting = false;
+      earlySendBonusPct = 0;
+      earlySendCount = 0;
+      bonusPopupTimer = 0;
+      sendBonusPopup.classList.remove('active');
       canvas.classList.remove('canvas-targeting');
       hideWavePreview();
       updateComboDisplay();
       updateBaseHpHUD();
       updateSpeedIndicator();
+      updateSendNextBtn();
       // Reset speed button UI
       speedControls.querySelectorAll('.speed-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.speed === '1');
@@ -1958,6 +2017,73 @@
     }, 1000);
 
     // ═══════════════════════════════════════════════════
+    //  Early Send / Wave Skip
+    // ═══════════════════════════════════════════════════
+    sendNextBtn.addEventListener('click', () => {
+      if (waveState !== 'active') return;
+      if (!cannons[playerId] || !cannons[playerId].x) return;
+      if (!isLeader && !offlineMode) return; // only leader/offline can trigger early send
+
+      // Calculate bonus based on enemies remaining
+      const totalEnemies = enemies.length;
+      if (totalEnemies === 0) return;
+
+      earlySendCount++;
+      // Bonus: 25% base + 10% per consecutive early send (capped at 100%)
+      earlySendBonusPct = Math.min(100, 25 + (earlySendCount - 1) * 10);
+
+      // Show bonus popup
+      showSendBonusPopup(earlySendBonusPct);
+
+      // Advance wave number and spawn next wave's enemies on top of current ones
+      waveNumber++;
+      const newEnemies = generateWave(waveNumber);
+      enemies = enemies.concat(newEnemies);
+
+      // Heal a bit less than normal clear (half regen)
+      baseHp = Math.min(BASE_MAX_HP, baseHp + Math.ceil(HP_REGEN_PER_WAVE * 0.5));
+
+      // Update state
+      if (!offlineMode) {
+        metaRef.update({ waveNumber, totalKills, baseHp });
+      }
+      updateBaseHpHUD();
+      updateSendNextBtn();
+
+      // Show wave announcement
+      showWaveAnnouncement(waveNumber);
+
+      // Light screen shake for excitement
+      triggerScreenShake(false);
+
+      // Update HUD
+      hudWave.textContent = waveNumber;
+      hudEnemies.textContent = enemies.filter(e => e.hp > 0).length;
+    });
+
+    function updateSendNextBtn() {
+      const hasCannon = cannons[playerId] && cannons[playerId].x;
+      const canControl = isLeader || offlineMode;
+      const canSend = waveState === 'active' && enemies.length > 0 && hasCannon && canControl;
+      sendNextBtn.disabled = !canSend;
+      if (canSend) {
+        const nextBonus = Math.min(100, 25 + earlySendCount * 10);
+        sendNextBtn.innerHTML = `⏩ Send Next <span class="sn-bonus">+${nextBonus}%</span>`;
+      } else {
+        sendNextBtn.textContent = '⏩ Send Next';
+      }
+    }
+
+    function showSendBonusPopup(bonusPct) {
+      sendBonusPopup.textContent = `🎯 EARLY SEND! +${bonusPct}% XP`;
+      sendBonusPopup.classList.add('active');
+      bonusPopupTimer = TICK_RATE * 3; // show for 3 seconds
+      setTimeout(() => {
+        sendBonusPopup.classList.remove('active');
+      }, 3000);
+    }
+
+    // ═══════════════════════════════════════════════════
     //  Speed Controls
     // ═══════════════════════════════════════════════════
     speedControls.addEventListener('click', e => {
@@ -2078,11 +2204,14 @@
       }
     });
 
-    // Keyboard shortcut Q
+    // Keyboard shortcuts: Q = ability, E = early send
     document.addEventListener('keydown', e => {
+      if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
       if (e.key === 'q' || e.key === 'Q') {
-        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
         if (!abilityBtn.disabled) abilityBtn.click();
+      }
+      if (e.key === 'e' || e.key === 'E') {
+        if (!sendNextBtn.disabled) sendNextBtn.click();
       }
       // Escape cancels targeting
       if (e.key === 'Escape' && abilityTargeting) {
@@ -2280,15 +2409,17 @@
           comboCount++;
           comboTimer = COMBO_WINDOW;
           const comboMult = comboCount >= COMBO_MIN ? Math.min(comboCount, 10) : 1;
+          const earlyBonus = earlySendBonusPct > 0 ? Math.ceil(comboMult * earlySendBonusPct / 100) : 0;
+          const xpAmount = comboMult + earlyBonus;
           if (offlineMode) {
-            offlineAwardXP(comboMult);
+            offlineAwardXP(xpAmount);
           } else {
-            awardXP(Object.entries(cannons), comboMult);
+            awardXP(Object.entries(cannons), xpAmount);
           }
           scorePopups.push({
             x: e.x + (Math.random() - 0.5) * 16,
             y: e.y,
-            text: `+${comboMult} XP`,
+            text: `+${xpAmount} XP`,
             color: comboCount >= 8 ? '#ff4444' : comboCount >= 5 ? '#ff8800' : comboCount >= COMBO_MIN ? '#ffd700' : '#ffffff',
             life: 40, maxLife: 40,
             size: comboCount >= 5 ? 16 : comboCount >= COMBO_MIN ? 13 : 11,
@@ -2624,6 +2755,15 @@
         ctx.font = '9px ' + getComputedStyle(document.body).fontFamily;
         ctx.textAlign = 'center';
         ctx.fillText(`❤ ${baseHp}/${BASE_MAX_HP}`, CANVAS_W / 2, barY + barH + 12);
+        ctx.textAlign = 'start';
+      }
+
+      // Early send bonus indicator on canvas
+      if (earlySendBonusPct > 0 && waveState === 'active') {
+        ctx.fillStyle = 'rgba(34,197,94,0.7)';
+        ctx.font = 'bold 11px ' + getComputedStyle(document.body).fontFamily;
+        ctx.textAlign = 'center';
+        ctx.fillText(`⚡ +${earlySendBonusPct}% XP BONUS ⚡`, CANVAS_W / 2, 18);
         ctx.textAlign = 'start';
       }
 
