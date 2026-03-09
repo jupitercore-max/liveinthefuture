@@ -3155,14 +3155,18 @@
           });
         }
       }
-      const totalDmg = dmg + (activePowerupEffects.damage && activePowerupEffects.damage.timer > 0 ? dmg * 0.5 : 0);
+      const megaDmgActive = activePowerupEffects.megadmg && activePowerupEffects.megadmg.timer > 0;
+      const dmgBonus = megaDmgActive ? 1.0 : (activePowerupEffects.damage && activePowerupEffects.damage.timer > 0 ? 0.5 : 0);
+      const totalDmg = dmg + dmg * dmgBonus;
       enemy.hp -= dmg;
       // Track damage for DPS meter
       dpsCurrentBucket += dmg;
       dpsTotalDamage += dmg;
       // Apply active power-up damage boost
-      if (activePowerupEffects.damage && activePowerupEffects.damage.timer > 0) {
-        enemy.hp -= dmg * 0.5; // extra 50% damage
+      if (dmgBonus > 0) {
+        enemy.hp -= dmg * dmgBonus;
+        dpsCurrentBucket += dmg * dmgBonus;
+        dpsTotalDamage += dmg * dmgBonus;
       }
 
       // Floating damage numbers (throttled per enemy)
@@ -3222,6 +3226,12 @@
       { type: 'xp',     emoji: '✨', color: '#a855f7', desc: '3× XP 10s',    weight: 2, duration: 200 },
       { type: 'nuke',   emoji: '💥', color: '#ff4500', desc: 'Kill all weak', weight: 1, duration: 0 },
     ];
+    // Boss-exclusive loot — guaranteed drop, stronger effects, golden visuals
+    const BOSS_LOOT_TYPES = [
+      { type: 'megadmg',  emoji: '🗡️', color: '#ffd700', desc: '+100% DMG 15s', weight: 3, duration: 300, bossOnly: true },
+      { type: 'fullheal', emoji: '💖', color: '#ff69b4', desc: 'Full HP + Shield', weight: 2, duration: 0, bossOnly: true },
+      { type: 'frenzy',   emoji: '🔥', color: '#ff6600', desc: 'All buffs 12s',   weight: 2, duration: 240, bossOnly: true },
+    ];
     const POWERUP_DROP_CHANCE = 0.06; // 6% per kill
     const POWERUP_BOSS_DROP_CHANCE = 0.8; // 80% for bosses
     const POWERUP_ELITE_DROP_CHANCE = 0.25; // 25% for elites
@@ -3248,6 +3258,37 @@
         life: POWERUP_LIFETIME, maxLife: POWERUP_LIFETIME,
         bobPhase: Math.random() * Math.PI * 2
       });
+    }
+
+    // Boss-exclusive guaranteed loot drop
+    function dropBossLoot(x, y) {
+      const totalWeight = BOSS_LOOT_TYPES.reduce((s, p) => s + p.weight, 0);
+      let roll = Math.random() * totalWeight;
+      let chosen = BOSS_LOOT_TYPES[0];
+      for (const lt of BOSS_LOOT_TYPES) {
+        roll -= lt.weight;
+        if (roll <= 0) { chosen = lt; break; }
+      }
+      powerups.push({
+        x, y, type: chosen.type, emoji: chosen.emoji,
+        color: chosen.color, desc: chosen.desc,
+        duration: chosen.duration,
+        life: TICK_RATE * 12, maxLife: TICK_RATE * 12, // 12 seconds — longer than normal
+        bobPhase: Math.random() * Math.PI * 2,
+        bossLoot: true // flag for golden rendering
+      });
+      // Dramatic golden particle burst at drop location
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        particles.push({
+          x, y,
+          vx: Math.cos(angle) * 4,
+          vy: Math.sin(angle) * 4,
+          color: '#ffd700',
+          life: 20 + Math.random() * 10
+        });
+      }
+      scorePopups.push({ x, y: y - 20, text: '👑 BOSS LOOT!', color: '#ffd700', life: 50, maxLife: 50, size: 16, vy: -1.0 });
     }
 
     function collectPowerup(pu) {
@@ -3285,6 +3326,29 @@
           }
           triggerScreenShake(nukeKills > 5);
           scorePopups.push({ x: pu.x, y: pu.y, text: `💥 NUKE! ${nukeKills} kills`, color: '#ff4500', life: 40, maxLife: 40, size: 14, vy: -1.5 });
+          break;
+        // === Boss-exclusive loot types ===
+        case 'megadmg':
+          activePowerupEffects.damage = { timer: pu.duration, startTime: pu.duration };
+          // Double damage instead of +50% — override any existing damage buff
+          activePowerupEffects.megadmg = { timer: pu.duration, startTime: pu.duration };
+          scorePopups.push({ x: pu.x, y: pu.y, text: '🗡️ +100% MEGA DMG!', color: '#ffd700', life: 45, maxLife: 45, size: 15, vy: -1.2 });
+          triggerScreenShake(false);
+          break;
+        case 'fullheal':
+          baseHp = getEffectiveMaxHp();
+          // Temporary shield: absorb next 5 damage for 20s
+          activePowerupEffects.shield = { timer: TICK_RATE * 20, startTime: TICK_RATE * 20, charges: 5 };
+          scorePopups.push({ x: pu.x, y: pu.y, text: '💖 FULL HEAL + SHIELD!', color: '#ff69b4', life: 45, maxLife: 45, size: 15, vy: -1.2 });
+          triggerScreenShake(false);
+          break;
+        case 'frenzy':
+          // Activate ALL buff types simultaneously
+          activePowerupEffects.damage = { timer: pu.duration, startTime: pu.duration };
+          activePowerupEffects.speed = { timer: pu.duration, startTime: pu.duration };
+          activePowerupEffects.xp = { timer: pu.duration, startTime: pu.duration };
+          scorePopups.push({ x: pu.x, y: pu.y, text: '🔥 FRENZY MODE!', color: '#ff6600', life: 45, maxLife: 45, size: 15, vy: -1.2 });
+          triggerScreenShake(true);
           break;
       }
       if (!isMuted) sfxPowerupCollect();
@@ -3331,30 +3395,52 @@
         const bob = Math.sin(now / 300 + pu.bobPhase) * 4;
         const fadeAlpha = Math.min(1, pu.life / (POWERUP_LIFETIME * 0.25));
         const pulseScale = 1 + Math.sin(now / 200) * 0.1;
+        const isBossLoot = pu.bossLoot;
+        const baseRadius = isBossLoot ? 17 : 13;
+        const glowRadius = isBossLoot ? 26 : 18;
         ctx.globalAlpha = fadeAlpha;
+        // Boss loot: rotating golden ring
+        if (isBossLoot) {
+          ctx.save();
+          ctx.translate(pu.x, pu.y + bob);
+          ctx.rotate(now / 500);
+          ctx.strokeStyle = '#ffd700';
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = fadeAlpha * (0.4 + Math.sin(now / 150) * 0.2);
+          ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2;
+            const r = glowRadius + 4;
+            const px = Math.cos(a) * r, py = Math.sin(a) * r;
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.stroke();
+          ctx.restore();
+        }
         // Glow
         ctx.fillStyle = pu.color;
-        ctx.globalAlpha = fadeAlpha * 0.2;
+        ctx.globalAlpha = fadeAlpha * (isBossLoot ? 0.35 : 0.2);
         ctx.beginPath();
-        ctx.arc(pu.x, pu.y + bob, 18 * pulseScale, 0, Math.PI * 2);
+        ctx.arc(pu.x, pu.y + bob, glowRadius * pulseScale, 0, Math.PI * 2);
         ctx.fill();
         // Circle bg
         ctx.globalAlpha = fadeAlpha * 0.8;
-        ctx.fillStyle = '#1a1a2e';
+        ctx.fillStyle = isBossLoot ? '#2a2000' : '#1a1a2e';
         ctx.beginPath();
-        ctx.arc(pu.x, pu.y + bob, 13, 0, Math.PI * 2);
+        ctx.arc(pu.x, pu.y + bob, baseRadius, 0, Math.PI * 2);
         ctx.fill();
         // Border
-        ctx.strokeStyle = pu.color;
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = isBossLoot ? '#ffd700' : pu.color;
+        ctx.lineWidth = isBossLoot ? 3 : 2;
         ctx.beginPath();
-        ctx.arc(pu.x, pu.y + bob, 13, 0, Math.PI * 2);
+        ctx.arc(pu.x, pu.y + bob, baseRadius, 0, Math.PI * 2);
         ctx.stroke();
         // Emoji
         ctx.globalAlpha = fadeAlpha;
-        ctx.font = '14px serif';
+        ctx.font = isBossLoot ? '18px serif' : '14px serif';
         ctx.textAlign = 'center';
-        ctx.fillText(pu.emoji, pu.x, pu.y + bob + 5);
+        ctx.fillText(pu.emoji, pu.x, pu.y + bob + (isBossLoot ? 6 : 5));
         ctx.textAlign = 'start';
         ctx.globalAlpha = 1;
       }
@@ -3363,9 +3449,15 @@
     function drawActivePowerupIndicators() {
       let y = 70;
       const now = Date.now();
+      // Boss loot buff display overrides
+      const BOSS_BUFF_META = {
+        megadmg: { emoji: '🗡️', desc: '+100% DMG', color: '#ffd700' },
+        shield:  { emoji: '🛡️', desc: 'SHIELD',    color: '#00ffff' },
+      };
       for (const [key, eff] of Object.entries(activePowerupEffects)) {
         if (eff.timer <= 0) continue;
-        const pt = POWERUP_TYPES.find(p => p.type === key);
+        const bossMeta = BOSS_BUFF_META[key];
+        const pt = bossMeta || POWERUP_TYPES.find(p => p.type === key);
         if (!pt) continue;
         const secs = Math.ceil(eff.timer / TICK_RATE);
         const pct = eff.timer / eff.startTime;
@@ -3380,7 +3472,11 @@
         ctx.font = '10px ' + getComputedStyle(document.body).fontFamily;
         ctx.textAlign = 'right';
         ctx.fillStyle = '#fff';
-        ctx.fillText(`${pt.emoji} ${pt.desc} ${secs}s`, CANVAS_W - 10, y + 14);
+        // Shield shows charges instead of just time
+        const label = key === 'shield' && eff.charges !== undefined
+          ? `${pt.emoji} ${pt.desc} ×${eff.charges} ${secs}s`
+          : `${pt.emoji} ${pt.desc} ${secs}s`;
+        ctx.fillText(label, CANVAS_W - 10, y + 14);
         ctx.textAlign = 'start';
         ctx.globalAlpha = 1;
         y += 24;
@@ -3748,6 +3844,7 @@
           if (totalKills >= 500) unlockAchievement('mass_murderer');
           if (e.type === 'boss') unlockAchievement('boss_slayer');
           if (e.type === 'boss') sessionBossKills++;
+          if (e.type === 'boss') dropBossLoot(e.x, e.y); // Guaranteed boss loot!
           if (e.elite) sessionEliteKills++;
           if (e.flying) { flyerKills++; if (flyerKills >= 10) unlockAchievement('fly_swatter'); }
           // Combo tracking
@@ -3890,6 +3987,18 @@
         return true;
       });
       if (damageTaken > 0) {
+        // Shield charge absorption from boss loot fullheal
+        const shieldBuff = activePowerupEffects.shield;
+        if (shieldBuff && shieldBuff.charges > 0) {
+          const absorbed = Math.min(shieldBuff.charges, damageTaken);
+          shieldBuff.charges -= absorbed;
+          damageTaken -= absorbed;
+          scorePopups.push({ x: W/2, y: BASE_Y - 30, text: `🛡️ SHIELD! -${absorbed} blocked (${shieldBuff.charges} left)`, color: '#00ffff', life: 35, maxLife: 35, size: 13, vy: -1.5 });
+          if (shieldBuff.charges <= 0) {
+            delete activePowerupEffects.shield;
+            scorePopups.push({ x: W/2, y: BASE_Y - 50, text: '🛡️ SHIELD BROKEN!', color: '#ff6666', life: 40, maxLife: 40, size: 14, vy: -1.2 });
+          }
+        }
         baseHp = Math.max(0, baseHp - damageTaken);
         waveStats.hpLost += damageTaken;
         damageFlashTimer = 8; // ~0.4s at 20fps
