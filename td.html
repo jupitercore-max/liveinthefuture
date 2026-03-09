@@ -1150,6 +1150,7 @@
         <div class="xp-bar-text" id="xpBarText">0 / 50 XP</div>
       </div>
       <button class="ctrl-btn" id="upgradeBtn" disabled>Upgrade</button>
+      <button id="ultimateBtn" title="Ultimate [U]" style="background:linear-gradient(135deg,#ff4400,#ffdd00);color:#000;font-weight:bold;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:0.75rem;display:none">💀 Ultimate<span class="ab-key">[U]</span></button>
       <button class="ability-btn" id="abilityBtn" disabled>⚡ Power Shot<span class="ab-key">[Q]</span><div class="ab-cooldown" id="abCooldownBar"></div></button>
       <div class="speed-controls" id="speedControls">
         <button class="speed-btn active" data-speed="1">1×</button>
@@ -1255,7 +1256,7 @@
     const LEADER_HEARTBEAT_MS = 2000;
     const LEADER_STALE_MS = 6000;
     const STALE_CANNON_DAYS = 30;
-    const XP_PER_LEVEL = lvl => lvl * 50;
+    const XP_PER_LEVEL = lvl => Math.floor(30 * lvl + 2 * lvl * lvl);
 
     // ═══════════════════════════════════════════════════
     //  Targeting Priority System
@@ -1319,7 +1320,7 @@
       ability_user:   { icon: '✨', name: 'Special Forces',   desc: 'Use an active ability' },
       untouchable:    { icon: '🛡️', name: 'Untouchable',     desc: 'Clear wave 5 with full HP' },
       sell_cannon:    { icon: '💰', name: 'Trade-In',         desc: 'Sell a cannon' },
-      max_level:      { icon: '👑', name: 'Maxed Out',        desc: 'Reach level 10' },
+      max_level:      { icon: '👑', name: 'Maxed Out',        desc: 'Reach level 20' },
       prestige_buy:   { icon: '⭐', name: 'Investor',         desc: 'Buy a prestige upgrade' },
       prestige_max:   { icon: '💎', name: 'Fully Upgraded',   desc: 'Max out a prestige upgrade' },
       fly_swatter:    { icon: '✈️', name: 'Fly Swatter',      desc: 'Kill 10 flying enemies in one game' },
@@ -1474,6 +1475,12 @@
         desc: '+10% cannon damage per level',
         maxLevel: 3, costs: [3, 6, 10],
         effect: lvl => `+${lvl * 10}% damage`
+      },
+      {
+        id: 'ultimate_power', icon: '💀', name: 'Apocalypse Protocol',
+        desc: 'Unlocks & empowers the Ultimate ability',
+        maxLevel: 3, costs: [5, 10, 15],
+        effect: lvl => `Ultimate Tier ${lvl}: ${['Shockwave','Annihilation','Apocalypse'][lvl-1]}`
       }
     ];
 
@@ -1515,6 +1522,10 @@
 
     function getPrestigeDamageMultiplier() {
       return 1 + getPrestigeLevel('cannon_mastery') * 0.10;
+    }
+
+    function getUltimateTier() {
+      return getPrestigeLevel('ultimate_power');
     }
 
     function earnPrestigeStars(waveReached, kills) {
@@ -2172,24 +2183,34 @@
 
     function getCannonStats(level, path, spec) {
       let dmg = 1, fireRate = 1, range = 120, aoeSplash = 0, pierce = 0, chain = 0, slowPct = 0;
-      // Per-level scaling
-      const lvlMult = 1 + (level - 1) * 0.10;
-      const rangeMult = 1 + (level - 1) * 0.05;
+      let armorPierce = 0;
+      // Per-level scaling — diminishing returns + milestone jumps
+      const lvlMult = 1 + (level - 1) * 0.08 + Math.max(0, level - 10) * 0.04;
+      const rangeMult = 1 + (level - 1) * 0.04;
       dmg *= lvlMult;
       range *= rangeMult;
+      fireRate *= 1 + (level - 1) * 0.015;
 
-      if (path === 'rapid') { fireRate = 1.8; dmg *= 0.7; }
-      if (path === 'power') { fireRate = 0.6; dmg *= 1.8; }
-      if (path === 'tech')  { fireRate = 0.8; dmg *= 0.9; slowPct = 0.3; }
+      // === MILESTONE BONUSES (every few levels) ===
+      if (level >= 5)  armorPierce += 0.05;   // minor armor pierce
+      if (level >= 8)  aoeSplash += 8;         // minor splash
+      if (level >= 12) armorPierce += 0.15;    // significant armor pierce
+      if (level >= 15 && slowPct === 0) slowPct = 0.1;  // all get minor slow
+      if (level >= 18) armorPierce += 0.30;    // armor mastery
+      if (level >= 20) { dmg *= 1.20; fireRate *= 1.15; range *= 1.10; } // capstone
 
-      if (spec === 'gatling')  { fireRate = 3.0; dmg *= 0.5; }
-      if (spec === 'sniper')   { fireRate = 0.4; dmg *= 3.0; range *= 1.6; }
-      if (spec === 'cannon')   { aoeSplash = 50; dmg *= 1.2; }
-      if (spec === 'railgun')  { pierce = 3; dmg *= 1.1; }
-      if (spec === 'tesla')    { chain = 3; dmg *= 0.8; }
-      if (spec === 'frost')    { slowPct = 0.6; range *= 1.2; }
+      if (path === 'rapid') { fireRate *= 1.8; dmg *= 0.7; }
+      if (path === 'power') { fireRate *= 0.6; dmg *= 1.8; }
+      if (path === 'tech')  { fireRate *= 0.8; dmg *= 0.9; slowPct = Math.max(slowPct, 0.3); }
 
-      return { dmg, fireRate, range, aoeSplash, pierce, chain, slowPct };
+      if (spec === 'gatling')  { fireRate *= 1.7; dmg *= 0.5; if (level >= 15) fireRate *= 1.2; }
+      if (spec === 'sniper')   { fireRate *= 0.22; dmg *= 3.0; range *= 1.6; armorPierce += 0.5; }
+      if (spec === 'cannon')   { aoeSplash = Math.max(aoeSplash, 50) + level * 2; dmg *= 1.2; }
+      if (spec === 'railgun')  { pierce = 3 + Math.floor(level / 5); dmg *= 1.1; armorPierce += 0.3; }
+      if (spec === 'tesla')    { chain = 3 + Math.floor(level / 4); dmg *= 0.8; }
+      if (spec === 'frost')    { slowPct = 0.6 + level * 0.01; range *= 1.2; }
+
+      return { dmg, fireRate, range, aoeSplash, pierce, chain, slowPct, armorPierce };
     }
 
     function getCannonColor(path, spec) {
@@ -2213,8 +2234,11 @@
       { type: 'grunt',    wave: 1,  hpMult: 1.5, speed: 1.5, color: '#f39c12', shape: 'circle',   radius: 8  },
       { type: 'tank',     wave: 5,  hpMult: 4.0, speed: 0.8, color: '#9b59b6', shape: 'hexagon',  radius: 12 },
       { type: 'speedster',wave: 10, hpMult: 0.8, speed: 3.5, color: '#2ecc71', shape: 'diamond',  radius: 7  },
+      { type: 'healer',   wave: 14, hpMult: 1.8, speed: 1.4, color: '#2ecc40', shape: 'cross',    radius: 9, healer: true },
       { type: 'shielded', wave: 15, hpMult: 3.0, speed: 1.2, color: '#3498db', shape: 'shielded', radius: 10 },
+      { type: 'armored',  wave: 16, hpMult: 5.0, speed: 0.9, color: '#7f8c8d', shape: 'hexagon',  radius: 11, armor: 0.6 },
       { type: 'flyer',    wave: 12, hpMult: 1.2, speed: 2.2, color: '#e056fd', shape: 'triangle', radius: 8, flying: true },
+      { type: 'phaser',   wave: 20, hpMult: 1.5, speed: 1.8, color: '#00e5ff', shape: 'diamond',  radius: 8, phaser: true },
       { type: 'splitter', wave: 18, hpMult: 2.5, speed: 1.3, color: '#1abc9c', shape: 'splitter', radius: 10, splits: 2 },
       { type: 'boss',     wave: 10, hpMult: 15,  speed: 0.5, color: '#8b0000', shape: 'octagon',  radius: 16 }
     ];
@@ -2299,6 +2323,13 @@
       { type: 'lava',      color: '#8b2500', glowColor: '200,60,20',  label: '🔥 Lava',     radius: 40, dps: 0.15 },
       { type: 'lightning',  color: '#4a2d8b', glowColor: '120,80,200', label: '⚡ Storm',    radius: 38, minWave: 8 }
     ];
+
+    // Enemy type warning labels for wave preview
+    const ENEMY_WARNINGS = {
+      healer: '💚 Healers heal nearby enemies!',
+      armored: '🛡️ Armored — reduce damage! High-level cannons pierce.',
+      phaser: '⚡ Phasers teleport forward!'
+    };
 
     function generateHazards(waveNum, path, pathLength) {
       const rng = mulberry32(waveNum * 3571);
@@ -2495,6 +2526,11 @@
     let abilityCooldownLeft = 0; // seconds remaining on ability cooldown
     let abilityTargeting = false; // waiting for canvas click to target
     let abilityZones = []; // visual effect zones on canvas
+
+    // Ultimate ability state
+    let ultimateCooldownLeft = 0; // seconds
+    let ultimateFlashTimer = 0;
+    const ULTIMATE_BASE_COOLDOWN = 60; // 60 seconds
     let terrainHazards = []; // environmental hazard zones on the path
     let earlySendBonusPct = 0; // current bonus XP percentage from early sends
     let earlySendCount = 0; // how many consecutive early sends
@@ -2684,7 +2720,7 @@
         c.xp = newXp - needed;
         c.level = level + 1;
         sfxLevelUp();
-        if (c.level >= 10) unlockAchievement('max_level');
+        if (c.level >= 20) unlockAchievement('max_level');
       } else {
         c.xp = newXp;
       }
@@ -2962,7 +2998,12 @@
     // ═══════════════════════════════════════════════════
     //  Boss Shield Damage Helper
     // ═══════════════════════════════════════════════════
-    function applyDamage(enemy, dmg) {
+    function applyDamage(enemy, dmg, armorPierce) {
+      armorPierce = armorPierce || 0;
+      if (enemy.armor && enemy.armor > 0) {
+        const effectiveArmor = Math.max(0, enemy.armor - armorPierce);
+        dmg *= (1 - effectiveArmor);
+      }
       // Apply prestige damage multiplier
       dmg *= getPrestigeDamageMultiplier();
       if (enemy.shieldHp > 0) {
@@ -3405,7 +3446,7 @@
         }
 
         // Apply damage (shield-aware)
-        applyDamage(nearest, stats.dmg);
+        applyDamage(nearest, stats.dmg, stats.armorPierce);
 
         // Slow
         if (stats.slowPct > 0) {
@@ -3430,15 +3471,16 @@
             if (e === nearest || e.hp <= 0 || pierced >= stats.pierce) continue;
             const d = Math.hypot(e.x - nearest.x, e.y - nearest.y);
             if (d <= 60) {
-              applyDamage(e, stats.dmg * 0.7);
+              applyDamage(e, stats.dmg * 0.7, stats.armorPierce);
               pierced++;
             }
           }
         }
 
-        // Chain
+        // Chain lightning with jagged bolt visuals
         if (stats.chain > 0) {
           let chainTarget = nearest;
+          let prevX = nearest.x, prevY = nearest.y;
           for (let ch = 0; ch < stats.chain; ch++) {
             let best = null, bestD = 100;
             for (const e of enemies) {
@@ -3447,10 +3489,49 @@
               if (d < bestD) { best = e; bestD = d; }
             }
             if (best) {
-              applyDamage(best, stats.dmg * 0.6);
+              applyDamage(best, stats.dmg * 0.6, stats.armorPierce);
               if (stats.slowPct > 0) best.slowTimer = Math.max(best.slowTimer, TICK_RATE);
+              spawnLightningBolt(prevX, prevY, best.x, best.y, ch === 0 ? 2 : 1);
+              prevX = best.x; prevY = best.y;
               chainTarget = best;
             }
+          }
+        }
+      }
+
+      // === Healer enemies: heal nearby allies every 2s ===
+      for (const he of enemies) {
+        if (he.hp <= 0 || !he.healer) continue;
+        he.healCooldown = (he.healCooldown || 0) - 1;
+        if (he.healCooldown <= 0) {
+          he.healCooldown = TICK_RATE * 2;
+          for (const ally of enemies) {
+            if (ally === he || ally.hp <= 0 || ally.type === 'boss') continue;
+            const hd = Math.hypot(ally.x - he.x, ally.y - he.y);
+            if (hd < 60) {
+              ally.hp = Math.min(ally.maxHp, ally.hp + ally.maxHp * 0.15);
+              for (let pi = 0; pi < 3; pi++) {
+                deathParticles.push({ x: ally.x, y: ally.y, vx: (Math.random()-0.5)*2, vy: -Math.random()*2, life: 12, maxLife: 12, color: '#2ecc40', size: 3 });
+              }
+            }
+          }
+        }
+      }
+
+      // === Phaser enemies: teleport forward every 4s ===
+      for (const pe of enemies) {
+        if (pe.hp <= 0 || !pe.phaser) continue;
+        pe.phaseCooldown = (pe.phaseCooldown || TICK_RATE * 4) - 1;
+        if (pe.phaseCooldown <= 0) {
+          pe.phaseCooldown = TICK_RATE * 4;
+          for (let pi = 0; pi < 6; pi++) {
+            deathParticles.push({ x: pe.x, y: pe.y, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, life: 15, maxLife: 15, color: '#00e5ff', size: 4 });
+          }
+          pe.pathIndex = Math.min(pe.pathIndex + Math.floor(gamePath.length * 0.12), gamePath.length - 1);
+          const np = gamePath[pe.pathIndex];
+          pe.x = np.x; pe.y = np.y;
+          for (let pi = 0; pi < 6; pi++) {
+            deathParticles.push({ x: pe.x, y: pe.y, vx: (Math.random()-0.5)*3, vy: (Math.random()-0.5)*3, life: 15, maxLife: 15, color: '#00e5ff', size: 3 });
           }
         }
       }
@@ -3865,6 +3946,9 @@
       gameSpeed = 1;
       scorePopups = [];
       abilityZones = [];
+      lightningBolts = [];
+      ultimateCooldownLeft = 0;
+      ultimateFlashTimer = 0;
       terrainHazards = [];
       powerups = [];
       activePowerupEffects = {};
@@ -4477,6 +4561,65 @@
     }
 
     // ═══════════════════════════════════════════════════
+    //  Lightning Bolt Visual System
+    // ═══════════════════════════════════════════════════
+    let lightningBolts = [];
+
+    function spawnLightningBolt(x1, y1, x2, y2, branches) {
+      lightningBolts.push({ x1, y1, x2, y2, life: 8, maxLife: 8, branches: branches || 0 });
+    }
+
+    function drawLightningBolt(ctx, x1, y1, x2, y2, alpha, width) {
+      const segs = 8 + Math.floor(Math.random() * 4);
+      const dx = x2 - x1, dy = y2 - y1;
+      const len = Math.hypot(dx, dy) || 1;
+      const perpX = -dy / len, perpY = dx / len;
+      const jit = len * 0.15;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = '#88ccff';
+      ctx.lineWidth = width || 2;
+      ctx.shadowColor = '#4488ff';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      for (let i = 1; i < segs; i++) {
+        const t = i / segs;
+        ctx.lineTo(x1 + dx*t + perpX*(Math.random()-0.5)*jit, y1 + dy*t + perpY*(Math.random()-0.5)*jit);
+      }
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      // bright inner core
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = (width || 2) * 0.4;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      for (let i = 1; i < segs; i++) {
+        const t = i / segs;
+        ctx.lineTo(x1 + dx*t + perpX*(Math.random()-0.5)*jit*0.5, y1 + dy*t + perpY*(Math.random()-0.5)*jit*0.5);
+      }
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function renderLightningBolts(ctx) {
+      for (let i = lightningBolts.length - 1; i >= 0; i--) {
+        const b = lightningBolts[i];
+        const alpha = b.life / b.maxLife;
+        drawLightningBolt(ctx, b.x1, b.y1, b.x2, b.y2, alpha, 2 + b.branches);
+        if (b.branches > 0 && Math.random() < 0.5) {
+          const t = 0.3 + Math.random() * 0.5;
+          const mx = b.x1 + (b.x2 - b.x1)*t, my = b.y1 + (b.y2 - b.y1)*t;
+          drawLightningBolt(ctx, mx, my, mx + (Math.random()-0.5)*40, my + (Math.random()-0.5)*40, alpha*0.6, 1);
+        }
+        b.life--;
+        if (b.life <= 0) lightningBolts.splice(i, 1);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
     //  Active Abilities
     // ═══════════════════════════════════════════════════
     const ABILITIES = {
@@ -4513,7 +4656,29 @@
       return 'basic';
     }
 
+    // Ultimate button update
+    const ultimateBtn = document.getElementById('ultimateBtn');
+    function updateUltimateBtn() {
+      if (!ultimateBtn) return;
+      const tier = getUltimateTier();
+      if (tier <= 0) { ultimateBtn.style.display = 'none'; return; }
+      ultimateBtn.style.display = '';
+      const names = ['Shockwave','Annihilation','Apocalypse'];
+      if (ultimateCooldownLeft > 0) {
+        const secs = Math.ceil(ultimateCooldownLeft);
+        ultimateBtn.disabled = true;
+        ultimateBtn.textContent = '💀 ' + secs + 's';
+        ultimateBtn.style.opacity = '0.5';
+      } else {
+        ultimateBtn.disabled = false;
+        ultimateBtn.textContent = '💀 ' + names[tier-1];
+        ultimateBtn.style.opacity = '1';
+      }
+    }
+    if (ultimateBtn) ultimateBtn.addEventListener('click', fireUltimate);
+
     function updateAbilityBtn() {
+      updateUltimateBtn();
       const c = cannons[playerId];
       if (!c || !c.x) {
         abilityBtn.disabled = true;
@@ -4539,6 +4704,10 @@
         abilityCooldownLeft = Math.max(0, abilityCooldownLeft - 0.1);
         updateAbilityBtn();
       }
+      if (ultimateCooldownLeft > 0) {
+        ultimateCooldownLeft = Math.max(0, ultimateCooldownLeft - 0.1);
+        updateUltimateBtn();
+      }
     }, 100);
 
     abilityBtn.addEventListener('click', () => {
@@ -4562,6 +4731,10 @@
     // Keyboard shortcuts: Q = ability, E = early send
     document.addEventListener('keydown', e => {
       if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+      if (e.key === 'u' || e.key === 'U') {
+        fireUltimate();
+        return;
+      }
       if (e.key === 'q' || e.key === 'Q') {
         if (!abilityBtn.disabled) abilityBtn.click();
       }
@@ -4724,14 +4897,14 @@
           break;
         }
         case 'tesla': {
-          // Chain Overload — hit all enemies with lightning
+          // Chain Overload — massive lightning storm
           for (const e of enemies) {
             if (e.hp <= 0) continue;
-            applyDamage(e, stats.dmg * 2);
-            spawnAbilityProjectile(c.x, c.y, e.x, e.y, '#8e44ad');
+            applyDamage(e, stats.dmg * 3, stats.armorPierce);
+            spawnLightningBolt(c.x, c.y, e.x, e.y, 2);
           }
           abilityZones.push({ x: c.x, y: c.y, radius: 300, color: '142,68,173', life: 15, maxLife: 15, type: 'pulse' });
-          triggerScreenShake(false);
+          triggerScreenShake(true);
           break;
         }
         case 'frost': {
@@ -4749,6 +4922,83 @@
       checkAbilityKills();
     }
 
+    // ═══════════════════════════════════════════════════
+    //  Ultimate Ability — Screen-clearing nuke
+    // ═══════════════════════════════════════════════════
+    function fireUltimate() {
+      const tier = getUltimateTier();
+      if (tier <= 0 || ultimateCooldownLeft > 0) return;
+      const c = cannons[playerId];
+      if (!c || !c.x) return;
+
+      ultimateCooldownLeft = ULTIMATE_BASE_COOLDOWN;
+      const waveMult = 1 + waveNum * 0.5; // scales with wave
+      const baseDmg = [15, 40, 100][tier - 1] * waveMult;
+
+      // Screen flash
+      ultimateFlashTimer = 20;
+
+      // Apply damage to ALL enemies
+      let killed = 0;
+      for (const e of enemies) {
+        if (e.hp <= 0) continue;
+        const dmg = e.type === 'boss' ? baseDmg * 0.5 : baseDmg;
+        applyDamage(e, dmg, 1.0); // full armor pierce
+        if (e.hp <= 0) killed++;
+      }
+
+      // Tier 1: expanding shockwave
+      abilityZones.push({ x: c.x, y: c.y, radius: 600, color: '255,200,50', life: 30, maxLife: 30, type: 'pulse' });
+
+      // Tier 2: additional lightning storm
+      if (tier >= 2) {
+        for (const e of enemies) {
+          if (e.hp <= 0) continue;
+          spawnLightningBolt(c.x, c.y, e.x, e.y, 3);
+        }
+      }
+
+      // Tier 3: second delayed damage wave + meteor rain
+      if (tier >= 3) {
+        setTimeout(() => {
+          for (const e of enemies) {
+            if (e.hp <= 0) continue;
+            applyDamage(e, baseDmg * 0.5, 1.0);
+            for (let p = 0; p < 5; p++) {
+              deathParticles.push({
+                x: e.x + (Math.random()-0.5)*20, y: e.y + (Math.random()-0.5)*20,
+                vx: (Math.random()-0.5)*6, vy: (Math.random()-0.5)*6,
+                life: 20, maxLife: 20, color: '#ff4400', size: 4 + Math.random()*3
+              });
+            }
+          }
+          abilityZones.push({ x: CANVAS_W/2, y: CANVAS_H/2, radius: 800, color: '255,50,0', life: 20, maxLife: 20, type: 'pulse' });
+          triggerScreenShake(true);
+          checkAbilityKills();
+        }, 500);
+      }
+
+      // Massive particle explosion from cannon
+      for (let p = 0; p < 40 + tier * 20; p++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 6;
+        const colors = ['#ffdd00','#ff6600','#ff0000','#ffffff','#ff44ff'];
+        deathParticles.push({
+          x: c.x, y: c.y,
+          vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+          life: 25 + Math.random()*15, maxLife: 40,
+          color: colors[Math.floor(Math.random()*colors.length)],
+          size: 2 + Math.random() * 4
+        });
+      }
+
+      triggerScreenShake(true);
+      sfxAbility('bombardment'); // reuse big explosion sound
+
+      // Check kills
+      checkAbilityKills();
+    }
+
     function findNearestEnemy(x, y, maxDist) {
       let nearest = null, nearestDist = maxDist;
       for (const e of enemies) {
@@ -4760,6 +5010,12 @@
         }
       }
       return nearest;
+    }
+
+    // Tracer-style projectile for rapid fire cannons
+    function isRapidCannon() {
+      const c = cannons[playerId];
+      return c && (c.spec === 'gatling' || c.path === 'rapid');
     }
 
     function spawnAbilityProjectile(x1, y1, x2, y2, color) {
@@ -5305,6 +5561,9 @@
         if (az.life <= 0) abilityZones.splice(i, 1);
       }
 
+      // Render lightning bolts
+      renderLightningBolts(ctx);
+
       // Draw ability targeting indicator
       if (abilityTargeting) {
         const rect = canvas.getBoundingClientRect();
@@ -5575,6 +5834,25 @@
       // Draw cannon body based on spec/path
       ctx.save();
       if (spec === 'gatling') {
+        // Rapid fire heat glow (applies to gatling and rapid path)
+        if (spec === 'gatling' || path === 'rapid') {
+          const frMult = spec === 'gatling' ? 3.0 : 1.8;
+          const heatPct = Math.min(1, (frMult * (1 + (level-1)*0.015)) / 4.0);
+          if (heatPct > 0.3) {
+            const heatAlpha = (heatPct - 0.3) * 1.4;
+            const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.01);
+            ctx.save();
+            ctx.globalAlpha = heatAlpha * pulse;
+            const heatGrad = ctx.createRadialGradient(cx, cy, r * 0.3, cx, cy, r * 1.8);
+            heatGrad.addColorStop(0, 'rgba(255,100,20,0.6)');
+            heatGrad.addColorStop(1, 'rgba(255,50,0,0)');
+            ctx.fillStyle = heatGrad;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 1.8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        }
         // Gatling: square body with rounded corners + triple barrel
         const s = baseR;
         ctx.fillStyle = color;
@@ -6095,6 +6373,59 @@
           ctx.fill();
       }
 
+      // ── Healer aura ring ──
+      if (e.healer) {
+        const healPulse = 0.3 + 0.2 * Math.sin(t * 0.005);
+        ctx.save();
+        ctx.globalAlpha = healPulse;
+        ctx.strokeStyle = '#2ecc40';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(x, y, e.radius + 15, 0, Math.PI * 2);
+        ctx.stroke();
+        // Small + sign
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = '#2ecc40';
+        ctx.font = 'bold 8px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('+', x, y - e.radius - 4);
+        ctx.restore();
+      }
+
+      // ── Armored visual — thick metallic border ──
+      if (e.armor && e.armor > 0) {
+        ctx.save();
+        ctx.strokeStyle = '#adb5bd';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, y, e.radius + 2, 0, Math.PI * 2);
+        ctx.stroke();
+        // Inner rivets
+        ctx.fillStyle = '#dfe6e9';
+        for (let ri = 0; ri < 4; ri++) {
+          const ra = t * 0.001 + ri * Math.PI / 2;
+          ctx.beginPath();
+          ctx.arc(x + Math.cos(ra) * (e.radius + 2), y + Math.sin(ra) * (e.radius + 2), 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // ── Phaser flicker effect ──
+      if (e.phaser) {
+        const flickerAlpha = 0.3 + 0.3 * Math.sin(t * 0.008);
+        ctx.save();
+        ctx.globalAlpha = flickerAlpha;
+        ctx.strokeStyle = '#00e5ff';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.arc(x, y, e.radius + 5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+
       // ── Elite enemy visual ──
       if (e.elite && !isBoss) {
         // Pulsing gold aura
@@ -6324,6 +6655,29 @@
           break;
         case 'octagon':
           drawMiniPolygon(cx, x, y, r, 8);
+          break;
+        case 'cross':
+          // Healer cross
+          cx.fillRect(x - r*0.3, y - r, r*0.6, r*2);
+          cx.fillRect(x - r, y - r*0.3, r*2, r*0.6);
+          break;
+        case 'armored':
+          // Use hexagon with thick border
+          drawMiniPolygon(cx, x, y, r, 6);
+          cx.strokeStyle = '#adb5bd';
+          cx.lineWidth = 2;
+          cx.beginPath();
+          cx.arc(x, y, r + 1, 0, Math.PI * 2);
+          cx.stroke();
+          break;
+        case 'phaser':
+          // Use diamond with flicker
+          drawMiniPolygon(cx, x, y, r, 4);
+          cx.strokeStyle = '#00e5ff';
+          cx.lineWidth = 1;
+          cx.beginPath();
+          cx.arc(x, y, r + 2, 0, Math.PI * 2);
+          cx.stroke();
           break;
         default:
           cx.beginPath();

@@ -391,3 +391,55 @@ If it fails, DO NOT commit. Fix the error first.
 - **Weighted selection:** Splitters become increasingly common from wave 18+ (weight grows by 0.1 per wave, capped at +2).
 - **Children details:** `isChild: true` flag prevents recursive splitting. Children get no elite status. Children use the parent's pathProgress so they continue from the same location.
 - **No existing mechanics broken:** Children interact normally with all damage, slow, terrain hazards, and targeting systems. The `enemies.push()` during the death loop is safe because the filter (`enemies = enemies.filter(e => !e.dead)`) runs after the loop.
+
+### 2026-03-09: Major Gameplay Overhaul — Upgrades, Enemies, Lightning, Ultimate
+
+#### 1. Upgrade System Expanded (10 → 20 levels)
+- **XP curve** changed from linear (`lvl * 50`) to quadratic (`30*lvl + 2*lvl²`) — early levels fast, late levels earned
+- **Per-level scaling** uses diminishing returns: levels 1-10 give +8%/level, 11-20 give +4%/level
+- **Milestone bonuses** at key levels:
+  - Lv5: +5% armor pierce
+  - Lv8: +8 splash radius
+  - Lv12: +15% armor pierce
+  - Lv15: all cannons get minor slow (10%)
+  - Lv18: +30% armor pierce mastery
+  - Lv20: capstone — +20% damage, +15% fire rate, +10% range
+- **Specialization scaling** — Tesla chains increase with level (3 + level/4), Railgun pierce increases (3 + level/5), Cannon splash grows (+2/level), Gatling gets fire rate boost at Lv15
+- **armorPierce** stat added to cannon stats, passed through all damage functions
+
+#### 2. Three New Enemy Types
+- **Healer** (wave 14+, green cross): Heals nearby allies for 15% maxHP every 2 seconds within 60px radius. Green heal particles on targets. Pulsing green aura ring. Priority target — kill them first.
+- **Armored** (wave 16+, gray hexagon): 60% damage reduction from all sources. Thick metallic border with rotating rivets. High-level cannons with armor pierce counter them (Sniper gets +50%, Railgun +30%, milestone bonuses help all cannons).
+- **Phaser** (wave 20+, cyan diamond): Teleports 12% forward along the path every 4 seconds. Cyan particle burst at departure/arrival. Flickering dashed outline. Forces spread-out cannon placement.
+- All three have mini-canvas icons for wave preview.
+
+#### 3. Chain Lightning Visual Overhaul
+- **Jagged bolt rendering** — `drawLightningBolt()` draws multi-segment paths with random perpendicular jitter, creating realistic zigzag lightning
+- **Dual-layer rendering** — outer blue-white bolt (#88ccff) with inner bright core (#ffffff) and canvas shadowBlur glow
+- **Branch bolts** — first chain bounce has 2 sub-branches, subsequent bounces have 1, each randomly spawning small side forks
+- **Lightning bolt system** — `lightningBolts[]` array with per-bolt lifetime, rendered every frame with alpha fadeout
+- **Chain Overload ability** upgraded to use lightning bolts (3 branches per bolt) + heavy screen shake + 3× damage (up from 2×)
+
+#### 4. Rapid Fire Visual Progression
+- **Barrel heat glow** — radial gradient from orange to red, intensity scales with fire rate multiplier. Pulsing animation. Appears at >30% of max fire rate.
+- Applies to both Rapid path and Gatling specialization
+
+#### 5. Ultimate Ability — "Apocalypse Protocol" (Prestige)
+- **New prestige upgrade** — 3 tiers (costs 5/10/15 stars): Shockwave → Annihilation → Apocalypse
+- **[U] key binding** + golden gradient button in controls bar
+- **60-second cooldown** (displayed as countdown on button)
+- **Damage scales with wave**: base × (1 + waveNum × 0.5), so it stays relevant at wave 50+
+- **Tier 1 — Shockwave**: Deals 15× wave-scaled damage to all enemies. Expanding golden pulse. Screen flash. 40+ particles. Heavy screen shake.
+- **Tier 2 — Annihilation**: 40× wave-scaled damage + lightning storm (bolts to all enemies with 3 branches each). Everything from Tier 1.
+- **Tier 3 — Apocalypse**: 100× wave-scaled damage + delayed second damage wave (500ms later, 50% damage) with red pulse and more particles. True screen-clearing panic button.
+- Bosses take 50% damage from Ultimate (still massive). Full armor pierce on all Ultimate damage.
+- Screen flash overlay fades over 20 frames for dramatic white-out effect.
+
+#### 6. Armor System
+- `armorPierce` stat added throughout: getCannonStats returns it, applyDamage accepts it as third parameter
+- Armored enemies reduce incoming damage by `(armor - armorPierce)` percentage
+- All damage sources updated: main hits, pierce, chain, abilities
+- Sniper naturally counters armor (+50% pierce), Railgun helps (+30%), all cannons get milestone pierce at Lv5/12/18
+
+#### 7. Enemy Warning Labels
+- `ENEMY_WARNINGS` object added with descriptive warnings for healer, armored, and phaser types
