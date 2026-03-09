@@ -2463,7 +2463,12 @@
       if (spec === 'tesla')    { chain = 3 + Math.floor(level / 4); dmg *= 0.8; }
       if (spec === 'frost')    { slowPct = 0.6 + level * 0.01; range *= 1.2; }
 
-      return { dmg, fireRate, range, aoeSplash, pierce, chain, slowPct, armorPierce, critChance: Math.min(critChance, 0.5), critMultiplier };
+      // Apply wave mutator cannon bonuses
+      const mutDmg = currentMutator && currentMutator.dmgMult ? currentMutator.dmgMult : 1;
+      const mutFR = currentMutator && currentMutator.fireRateMult ? currentMutator.fireRateMult : 1;
+      const mutRange = currentMutator && currentMutator.rangeMult ? currentMutator.rangeMult : 1;
+      const mutCrit = currentMutator && currentMutator.critBonus ? currentMutator.critBonus : 0;
+      return { dmg: dmg * mutDmg, fireRate: fireRate * mutFR, range: range * mutRange, aoeSplash, pierce, chain, slowPct, armorPierce, critChance: Math.min(critChance + mutCrit, 0.95), critMultiplier };
     }
 
     function getCannonColor(path, spec) {
@@ -2647,6 +2652,36 @@
     let currentChallenge = null;
     let challengeStarsEarned = 0; // total bonus stars from challenges this run
 
+    // ═══════════════════════════════════════════════════
+    //  Wave Mutators — roguelike modifiers per wave
+    // ═══════════════════════════════════════════════════
+    const WAVE_MUTATORS = [
+      { id: 'glass_cannon',  icon: '🔮', name: 'Glass Cannon',   desc: '+80% DMG, +40% enemy speed', color: '#ff44ff', dmgMult: 1.8, enemySpeedMult: 1.4 },
+      { id: 'iron_skin',     icon: '🛡️', name: 'Iron Skin',      desc: 'Enemies have +50% HP',       color: '#7f8c8d', enemyHpMult: 1.5 },
+      { id: 'double_time',   icon: '⏩', name: 'Double Time',    desc: 'Enemies move 60% faster',    color: '#ff8800', enemySpeedMult: 1.6 },
+      { id: 'payday',        icon: '💰', name: 'Payday',         desc: '3× XP this wave',            color: '#ffd700', xpMult: 3.0 },
+      { id: 'overcharge',    icon: '⚡', name: 'Overcharge',     desc: '+50% fire rate, −25% DMG',   color: '#00e5ff', fireRateMult: 1.5, dmgMult: 0.75 },
+      { id: 'fortified',     icon: '🏰', name: 'Fortified',      desc: 'All enemies gain armor (30%)', color: '#aaaacc', enemyArmor: 0.3 },
+      { id: 'bounty_hunter', icon: '🎯', name: 'Bounty Hunter',  desc: '+100% crit chance this wave', color: '#ff4444', critBonus: 1.0 },
+      { id: 'regenerators',  icon: '💚', name: 'Regenerators',   desc: 'Enemies regen 2% HP/sec',    color: '#2ecc71', enemyRegen: 0.02 },
+      { id: 'loot_rain',     icon: '🎁', name: 'Loot Rain',      desc: '3× power-up drop chance',    color: '#e056fd', dropMult: 3.0 },
+      { id: 'berserker',     icon: '🔥', name: 'Berserker',      desc: '+40% DMG, +30% fire rate, −30% range', color: '#ff4400', dmgMult: 1.4, fireRateMult: 1.3, rangeMult: 0.7 },
+      { id: 'swarm',         icon: '🐜', name: 'Swarm',          desc: '+50% enemies, −30% HP each', color: '#f39c12', enemyCountMult: 1.5, enemyHpMult: 0.7 },
+      { id: 'vampiric',      icon: '🧛', name: 'Vampiric',       desc: 'Kills heal +1 base HP',      color: '#cc0044', vampiric: true },
+    ];
+
+    let currentMutator = null; // active mutator for this wave
+
+    function getWaveMutator(waveNum) {
+      if (waveNum < 3) return null; // no mutators early
+      if (waveNum % 10 === 0) return null; // no mutators on boss waves — boss is enough
+      const rng = mulberry32(waveNum * 6173);
+      // 70% chance to get a mutator from wave 3+
+      if (rng() > 0.7) return null;
+      const idx = Math.floor(rng() * WAVE_MUTATORS.length);
+      return WAVE_MUTATORS[idx];
+    }
+
     function generateHazards(waveNum, path, pathLength) {
       const rng = mulberry32(waveNum * 3571);
       const hazards = [];
@@ -2687,14 +2722,20 @@
       // Generate terrain hazards for this wave
       terrainHazards = generateHazards(waveNum, currentPath, currentPathLength);
 
+      // Set wave mutator
+      currentMutator = getWaveMutator(waveNum);
+
       const rng = mulberry32(waveNum * 7919);
-      const count = 8 + waveNum * 3;
+      const mutHpMult = currentMutator && currentMutator.enemyHpMult ? currentMutator.enemyHpMult : 1;
+      const mutSpeedMult = currentMutator && currentMutator.enemySpeedMult ? currentMutator.enemySpeedMult : 1;
+      const mutCountMult = currentMutator && currentMutator.enemyCountMult ? currentMutator.enemyCountMult : 1;
+      const count = Math.round((8 + waveNum * 3) * mutCountMult);
       // Quadratic HP scaling: gentle early, steep late
       // Wave 1: 1.19, Wave 10: 2.5*1.4=3.5, Wave 20: 4*1.8=7.2, Wave 30: 5.5*2.2=12.1, Wave 50: 8.5*3=25.5
-      const baseHp = (1 + waveNum * 0.15) * (1 + waveNum * 0.04);
+      const baseHp = (1 + waveNum * 0.15) * (1 + waveNum * 0.04) * mutHpMult;
       const isBossWave = waveNum % 10 === 0 && waveNum > 0;
       // Speed scaling: enemies get faster after wave 10, capped at +50%
-      const waveSpeedMult = waveNum > 10 ? Math.min(1.5, 1 + (waveNum - 10) * 0.015) : 1;
+      const waveSpeedMult = (waveNum > 10 ? Math.min(1.5, 1 + (waveNum - 10) * 0.015) : 1) * mutSpeedMult;
       const available = ENEMY_TYPES.filter(e => {
         if (e.type === 'boss') return isBossWave;
         return e.wave <= waveNum;
@@ -2771,6 +2812,11 @@
         if (et.type === 'shielded') {
           enemyObj.shieldHp = enemyObj.maxHp * 0.4;
           enemyObj.shieldMaxHp = enemyObj.maxHp * 0.4;
+        }
+        // Apply mutator effects to individual enemies
+        if (currentMutator) {
+          if (currentMutator.enemyArmor && !enemyObj.armor) enemyObj.armor = currentMutator.enemyArmor;
+          if (currentMutator.enemyRegen) enemyObj.regenRate = currentMutator.enemyRegen;
         }
         enemies.push(enemyObj);
       }
@@ -3568,6 +3614,9 @@
       let chance = POWERUP_DROP_CHANCE;
       if (enemyType === 'boss') chance = POWERUP_BOSS_DROP_CHANCE;
       else if (isElite) chance = POWERUP_ELITE_DROP_CHANCE;
+      // Loot Rain mutator boosts drop chance
+      if (currentMutator && currentMutator.dropMult) chance *= currentMutator.dropMult;
+      chance = Math.min(chance, 1.0);
       if (Math.random() > chance) return;
       // Weighted random selection
       const totalWeight = POWERUP_TYPES.reduce((s, p) => s + p.weight, 0);
@@ -3697,7 +3746,9 @@
     }
 
     function getXPMultiplier() {
-      return (activePowerupEffects.xp && activePowerupEffects.xp.timer > 0) ? 3.0 : 1.0;
+      let mult = (activePowerupEffects.xp && activePowerupEffects.xp.timer > 0) ? 3.0 : 1.0;
+      if (currentMutator && currentMutator.xpMult) mult *= currentMutator.xpMult;
+      return mult;
     }
 
     function sfxPowerupCollect() {
@@ -3844,6 +3895,10 @@
         if (e.slowTimer > 0) {
           speed *= 0.5;
           e.slowTimer--;
+        }
+        // Mutator: enemy regen (2% max HP per second = per TICK_RATE ticks)
+        if (e.regenRate && e.hp > 0 && e.hp < e.maxHp) {
+          e.hp = Math.min(e.maxHp, e.hp + e.maxHp * e.regenRate / TICK_RATE);
         }
 
         // ── Flying enemies: straight-line movement, ignore terrain ──
@@ -4182,6 +4237,11 @@
           comboCount++;
           comboTimer = COMBO_WINDOW;
           if (comboCount > sessionBestCombo) sessionBestCombo = comboCount;
+          // Vampiric mutator: kills heal base HP
+          if (currentMutator && currentMutator.vampiric && baseHp < getEffectiveMaxHp()) {
+            baseHp = Math.min(getEffectiveMaxHp(), baseHp + 1);
+            scorePopups.push({ x: e.x, y: e.y - 15, text: '🧛 +1 HP', color: '#cc0044', life: 25, maxLife: 25, size: 9, vy: -1.8 });
+          }
           // Wave stats tracking
           waveStats.kills++;
           if (comboCount > waveStats.maxCombo) waveStats.maxCombo = comboCount;
@@ -4635,6 +4695,7 @@
       ultimateCooldownLeft = 0;
       ultimateFlashTimer = 0;
       terrainHazards = [];
+      currentMutator = null;
       powerups = [];
       activePowerupEffects = {};
       abilityCooldownLeft = 0;
@@ -6382,6 +6443,32 @@
       // Draw DPS meter
       drawDpsMeter();
 
+      // Draw active wave mutator indicator
+      if (currentMutator && waveState === 'active') {
+        const mutText = `${currentMutator.icon} ${currentMutator.name}`;
+        ctx.save();
+        ctx.font = 'bold 11px monospace';
+        const tw = ctx.measureText(mutText).width;
+        const mx = CANVAS_W / 2;
+        const my = 18;
+        const pw = tw + 16;
+        const ph = 20;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.beginPath();
+        ctx.roundRect(mx - pw / 2, my - ph / 2, pw, ph, 4);
+        ctx.fill();
+        ctx.strokeStyle = currentMutator.color + '88';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(mx - pw / 2, my - ph / 2, pw, ph, 4);
+        ctx.stroke();
+        ctx.fillStyle = currentMutator.color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(mutText, mx, my);
+        ctx.restore();
+      }
+
       // Draw projectiles
       for (let i = projectiles.length - 1; i >= 0; i--) {
         const p = projectiles[i];
@@ -7935,6 +8022,23 @@
         wavePreview.appendChild(chDiv);
       }
       wavePreview.classList.add('active');
+
+      // Show wave mutator if any
+      const mut = getWaveMutator(waveNum);
+      if (mut) {
+        const mutDiv = document.createElement('div');
+        mutDiv.className = 'wave-preview-enemy';
+        mutDiv.style.borderTop = `1px solid ${mut.color}44`;
+        mutDiv.style.paddingTop = '6px';
+        mutDiv.style.marginTop = '4px';
+        const mutLabel = document.createElement('span');
+        mutLabel.className = 'wpe-name';
+        mutLabel.style.color = mut.color;
+        mutLabel.style.fontSize = '0.7rem';
+        mutLabel.textContent = `${mut.icon} MUTATOR: ${mut.name} — ${mut.desc}`;
+        mutDiv.appendChild(mutLabel);
+        wavePreview.appendChild(mutDiv);
+      }
 
       // Show hazard preview for upcoming wave
       const previewPath = generatePath(waveNum);

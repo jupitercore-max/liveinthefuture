@@ -617,3 +617,33 @@ If it fails, DO NOT commit. Fix the error first.
 - **Golden glow rendering** — Boss loot drops render 30% larger with gold border, dark gold background, and pulsing golden shadowBlur glow effect. Uses `bossLoot: true` flag on the powerup object.
 - **`dropBossLoot(x, y)`** — Called on boss death, guaranteed 1 drop from boss-only pool with weighted random selection. Golden "👑 BOSS LOOT!" popup at drop location.
 - **Design rationale:** Boss fights are the game's climax moments (every 10 waves). Boss loot creates an exciting reward loop — players anticipate and strategize around which buff they'll get. The fullheal+shield is a lifeline for struggling players, frenzy mode is a power fantasy, and mega DMG helps with the next wave. This is a standard pattern from ARPGs (Diablo, Path of Exile) and TD games (Kingdom Rush).
+
+### 2026-03-10: Wave Mutators — Roguelike Modifiers
+- **12 unique mutators** that randomly activate on non-boss waves from wave 3+. ~70% chance per wave. Deterministic via seeded PRNG (`waveNum * 6173`) so all multiplayer clients see the same mutator.
+- **Mutator types:**
+  - 🔮 **Glass Cannon** — +80% player DMG, but enemies +40% faster. Risk/reward tradeoff.
+  - 🛡️ **Iron Skin** — Enemies have +50% HP. Pure difficulty spike.
+  - ⏩ **Double Time** — Enemies move 60% faster. Makes slow effects (Frost/Swamp) critical.
+  - 💰 **Payday** — 3× XP this wave. Farm wave for fast leveling.
+  - ⚡ **Overcharge** — +50% fire rate, −25% DMG. Great for Gatling/Tesla, bad for Sniper.
+  - 🏰 **Fortified** — All enemies gain 30% armor. Armor-piercing cannons shine.
+  - 🎯 **Bounty Hunter** — +100% crit chance (capped at 95%). Sniper becomes a monster.
+  - 💚 **Regenerators** — Enemies regen 2% max HP/sec. DPS race — burst damage > sustain.
+  - 🎁 **Loot Rain** — 3× power-up drop chance. Power-up pinata wave.
+  - 🔥 **Berserker** — +40% DMG, +30% fire rate, −30% range. Forces tight positioning.
+  - 🐜 **Swarm** — +50% enemy count, −30% HP each. AoE/Tesla heaven.
+  - 🧛 **Vampiric** — Every kill heals +1 base HP. Offensive healing.
+- **Integration points (minimal, clean):**
+  - `getCannonStats()` applies dmgMult, fireRateMult, rangeMult, critBonus from active mutator
+  - `getXPMultiplier()` applies xpMult from active mutator
+  - `generateWave()` applies enemyHpMult, enemySpeedMult, enemyCountMult to wave generation
+  - `rollPowerupDrop()` applies dropMult to drop chance (capped at 100%)
+  - Enemy loop in simTick applies regenRate for Regenerators mutator
+  - Kill handler applies vampiric healing (+1 HP per kill, capped at max)
+  - Individual enemies get `armor` and `regenRate` properties from Fortified/Regenerators
+- **UI display:**
+  - Wave preview shows mutator as a colored line: "🔮 MUTATOR: Glass Cannon — +80% DMG, +40% enemy speed"
+  - Canvas HUD shows active mutator as a centered pill badge at top during waves (dark background, colored text/border matching mutator)
+- **Boss waves excluded** — wave % 10 === 0 gets no mutator (boss mechanics are enough)
+- **State management** — `currentMutator` set in `generateWave()`, cleared on game reset alongside terrainHazards
+- **Design rationale:** Wave mutators add roguelike variety that makes each run feel different. The same wave number plays differently depending on the mutator — "Iron Skin" on wave 16 (armored enemies) is brutal, while "Payday" on wave 14 (healers) is a gift. Players learn to adapt their strategy per-wave rather than following a fixed build order. The mix of positive (Payday, Loot Rain, Vampiric) and negative (Iron Skin, Double Time, Fortified) mutators keeps things fair — roughly 5 positive, 4 negative, 3 mixed. Inspired by Hades boons, Slay the Spire modifiers, and Risk of Rain artifacts.
