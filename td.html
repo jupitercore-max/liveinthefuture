@@ -6434,6 +6434,49 @@
       }
       // ── End Placement Preview ─────────────────────────
 
+      // Draw cannon range circles on hover (before cannons so circle is behind)
+      if (mouseOnCanvas) {
+        for (const [cid, c] of Object.entries(cannons)) {
+          if (!c.x || !c.y) continue;
+          const dist = Math.hypot(mouseCanvasX - c.x, mouseCanvasY - c.y);
+          if (dist <= 22) { // mouse near cannon
+            const stats = getCannonStats(c.level || 1, c.path, c.spec);
+            const r = stats.range;
+            ctx.save();
+            // Outer glow ring
+            const specColor = c.spec === 'frost' ? '#88ddff' :
+                              c.spec === 'tesla' ? '#88aaff' :
+                              c.spec === 'cannon' ? '#ff8844' :
+                              c.spec === 'sniper' ? '#ff4500' :
+                              c.spec === 'railgun' ? '#88ccff' :
+                              c.spec === 'gatling' ? '#ffcc00' :
+                              '#4da6ff';
+            // Fill
+            const grad = ctx.createRadialGradient(c.x, c.y, r * 0.3, c.x, c.y, r);
+            grad.addColorStop(0, specColor + '15');
+            grad.addColorStop(0.7, specColor + '08');
+            grad.addColorStop(1, specColor + '00');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+            ctx.fill();
+            // Stroke
+            ctx.strokeStyle = specColor + '66';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([6, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            // Range label
+            ctx.font = '9px monospace';
+            ctx.fillStyle = specColor + 'cc';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${Math.round(r)}px`, c.x, c.y - r - 5);
+            ctx.restore();
+            break; // only show one range circle at a time
+          }
+        }
+      }
+
       // Draw cannons
       for (const [cid, c] of Object.entries(cannons)) {
         if (!c.x || !c.y) continue;
