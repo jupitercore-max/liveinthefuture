@@ -377,3 +377,17 @@ If it fails, DO NOT commit. Fix the error first.
 
 ### Past Bugs
 - **2026-03-08**: Duplicate `const lifetimeStats` declaration (prestige system added a second declaration when one already existed). Broke entire game. Fix: use assignment instead of declaration.
+
+### 2026-03-09: Splitter Enemy Type
+- **New enemy type: Splitter** — A teal-colored enemy that appears from wave 18+. When killed, the parent splits into 2 smaller, faster children that continue along the path. Children do NOT split again (no infinite recursion). This is a classic TD mechanic (inspired by Bloons, Kingdom Rush) that adds target prioritization decisions.
+- **Stats** — 2.5× HP multiplier, speed 1.3. Tanky enough to absorb damage, then the children (30% of parent max HP each, 1.4× parent speed) create a second wave of pressure.
+- **Distinct visuals:**
+  - Two overlapping semi-transparent circles with a teal core, creating an "about to split" look
+  - Pulsing vertical divide line on the parent (absent on children)
+  - Children are brighter green (#55efc4) and smaller (radius 6 vs 10) to distinguish from parents
+  - "💥 SPLIT!" popup and teal burst particles when parent dies
+- **Strategic impact:** Forces players to consider overkill — AoE builds (Cannon, Tesla) handle the split children easily, while single-target builds (Sniper, Railgun) need to deal with the aftermath. Also makes positioning matter more since children inherit the parent's path progress.
+- **Wave preview integration:** "🧬 Splitters spawn 2 children on death!" warning shown when splitters are in the upcoming wave.
+- **Weighted selection:** Splitters become increasingly common from wave 18+ (weight grows by 0.1 per wave, capped at +2).
+- **Children details:** `isChild: true` flag prevents recursive splitting. Children get no elite status. Children use the parent's pathProgress so they continue from the same location.
+- **No existing mechanics broken:** Children interact normally with all damage, slow, terrain hazards, and targeting systems. The `enemies.push()` during the death loop is safe because the filter (`enemies = enemies.filter(e => !e.dead)`) runs after the loop.

@@ -2215,6 +2215,7 @@
       { type: 'speedster',wave: 10, hpMult: 0.8, speed: 3.5, color: '#2ecc71', shape: 'diamond',  radius: 7  },
       { type: 'shielded', wave: 15, hpMult: 3.0, speed: 1.2, color: '#3498db', shape: 'shielded', radius: 10 },
       { type: 'flyer',    wave: 12, hpMult: 1.2, speed: 2.2, color: '#e056fd', shape: 'triangle', radius: 8, flying: true },
+      { type: 'splitter', wave: 18, hpMult: 2.5, speed: 1.3, color: '#1abc9c', shape: 'splitter', radius: 10, splits: 2 },
       { type: 'boss',     wave: 10, hpMult: 15,  speed: 0.5, color: '#8b0000', shape: 'octagon',  radius: 16 }
     ];
 
@@ -2365,6 +2366,7 @@
           if (e.type === 'shielded') w += Math.min(3, (waveNum - 15) * 0.15);
           if (e.type === 'speedster') w += Math.min(2, (waveNum - 10) * 0.1);
           if (e.type === 'flyer') w += Math.min(2, (waveNum - 12) * 0.12);
+          if (e.type === 'splitter') w += Math.min(2, (waveNum - 18) * 0.1);
           if (e.type === 'scout' && waveNum > 20) w *= 0.4; // scouts become rarer
           if (e.type === 'grunt' && waveNum > 25) w *= 0.6; // grunts become rarer
           return Math.max(0.1, w);
@@ -3526,6 +3528,50 @@
           }
           // Power-up drop chance
           rollPowerupDrop(e.x, e.y, e.type, e.elite);
+          // Splitter: spawn children on death
+          if (e.type === 'splitter' && !e.isChild) {
+            const numChildren = 2;
+            for (let ci = 0; ci < numChildren; ci++) {
+              const childHp = e.maxHp * 0.3;
+              const angle = (ci / numChildren) * Math.PI * 2 + Math.random() * 0.5;
+              const spread = 15;
+              const child = {
+                id: e.id + '_c' + ci,
+                type: 'splitter',
+                x: e.x + Math.cos(angle) * spread,
+                y: e.y + Math.sin(angle) * spread,
+                pathProgress: e.pathProgress || 0,
+                hp: childHp,
+                maxHp: childHp,
+                speed: e.speed * 1.4,
+                color: '#55efc4',
+                shape: 'splitter',
+                radius: 6,
+                slowTimer: 0,
+                elite: false,
+                isChild: true
+              };
+              enemies.push(child);
+            }
+            // Split burst particles
+            for (let pi = 0; pi < 8; pi++) {
+              particles.push({
+                x: e.x, y: e.y,
+                vx: (Math.random() - 0.5) * 5,
+                vy: (Math.random() - 0.5) * 5,
+                color: '#1abc9c',
+                life: 12 + Math.random() * 8
+              });
+            }
+            // Split popup
+            scorePopups.push({
+              x: e.x, y: e.y - 15,
+              text: '💥 SPLIT!',
+              color: '#1abc9c',
+              life: 30, maxLife: 30,
+              size: 12, vy: -1.2
+            });
+          }
         }
       }
       // Combo timer decay
@@ -5968,6 +6014,37 @@
           ctx.restore();
           break;
         }
+        case 'splitter': {
+          // Splitter: two overlapping circles that look like they're about to split apart
+          const splitOffset = 4 + Math.sin(t * 0.006) * 1.5;
+          const r = e.radius * 0.7;
+          ctx.globalAlpha = 0.6;
+          ctx.fillStyle = e.isChild ? '#55efc4' : e.color;
+          ctx.beginPath();
+          ctx.arc(x - splitOffset, y, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(x + splitOffset, y, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          // Center core
+          ctx.fillStyle = e.isChild ? '#00d2d3' : '#16a085';
+          ctx.beginPath();
+          ctx.arc(x, y, r * 0.6, 0, Math.PI * 2);
+          ctx.fill();
+          // Pulsing divide line
+          if (!e.isChild) {
+            ctx.strokeStyle = '#55efc4';
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.5 + Math.sin(t * 0.008) * 0.3;
+            ctx.beginPath();
+            ctx.moveTo(x, y - e.radius);
+            ctx.lineTo(x, y + e.radius);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+          }
+          break;
+        }
         case 'shielded':
           ctx.beginPath();
           ctx.arc(x, y, e.radius, 0, Math.PI * 2);
@@ -6221,6 +6298,20 @@
           cx.fill();
           cx.globalAlpha = 1;
           break;
+        case 'splitter':
+          cx.globalAlpha = 0.6;
+          cx.beginPath();
+          cx.arc(x - r * 0.35, y, r * 0.6, 0, Math.PI * 2);
+          cx.fill();
+          cx.beginPath();
+          cx.arc(x + r * 0.35, y, r * 0.6, 0, Math.PI * 2);
+          cx.fill();
+          cx.globalAlpha = 1;
+          cx.fillStyle = '#16a085';
+          cx.beginPath();
+          cx.arc(x, y, r * 0.35, 0, Math.PI * 2);
+          cx.fill();
+          break;
         case 'shielded':
           cx.beginPath();
           cx.arc(x, y, r, 0, Math.PI * 2);
@@ -6314,6 +6405,20 @@
         flyLabel.textContent = '✈ Flyers ignore the path!';
         flyDiv.appendChild(flyLabel);
         wavePreview.appendChild(flyDiv);
+      }
+      if (breakdown['splitter']) {
+        const splitDiv = document.createElement('div');
+        splitDiv.className = 'wave-preview-enemy';
+        splitDiv.style.borderTop = '1px solid rgba(26,188,156,0.2)';
+        splitDiv.style.paddingTop = '4px';
+        splitDiv.style.marginTop = '2px';
+        const splitLabel = document.createElement('span');
+        splitLabel.className = 'wpe-name';
+        splitLabel.style.color = '#1abc9c';
+        splitLabel.style.fontSize = '0.65rem';
+        splitLabel.textContent = '🧬 Splitters spawn 2 children on death!';
+        splitDiv.appendChild(splitLabel);
+        wavePreview.appendChild(splitDiv);
       }
       wavePreview.classList.add('active');
 
