@@ -671,3 +671,17 @@ If it fails, DO NOT commit. Fix the error first.
 - **Only one at a time** — first cannon within 22px of mouse wins, break after drawing
 - **No new state/DOM/init needed** — pure rendering code inside the existing draw loop (Phase 5 safe)
 - **Respects wave mutators** — range accounts for berserker's −30% range debuff since it uses getCannonStats()
+
+### 2026-03-10: Mini-Map Overlay
+- **Compact tactical mini-map** — A 140×100px semi-transparent overlay in the bottom-left corner of the canvas showing a bird's-eye view of the entire battlefield. Provides at-a-glance situational awareness without needing to scan the full canvas.
+- **Shows 5 layers of information:**
+  1. **Enemy path** — Drawn from normalized 0-1 path coordinates, scaled to mini-map size. Blue line showing the full route enemies will travel.
+  2. **Terrain hazards** — Swamp (green), lava (orange), storm (purple) zones shown as colored circles at their proportional positions.
+  3. **Enemies** — Each enemy rendered as a small 3×3px colored square at its current position. Color matches the enemy's actual color for type identification.
+  4. **Cannons** — Your cannon shown as a 5×5px blue square, other players' cannons in green. White outline for visibility. Easy to see positioning relative to the path.
+  5. **Base line** — Dashed blue line at the proportional BASE_Y position, showing the defense line.
+- **"MAP" label** in top-left corner of the mini-map for identification.
+- **Implementation:** Pure Phase 5 rendering function `drawMiniMap()` — no new state variables, no DOM elements, no event listeners, no init calls needed. Called from within `drawFrame()` before the countdown overlay. Uses `ctx.save()`/`ctx.restore()` to isolate all style changes.
+- **Coordinate mapping:** Path uses normalized 0-1 coords directly (path.x * MW, path.y * MH). Enemies and cannons convert from screen pixels (e.x / CANVAS_W * MW). Hazards also convert from screen pixels.
+- **Performance:** Negligible — a few rectangles, one polyline, and some small fills. No gradients or shadows.
+- **Design rationale:** With procedurally generated paths, terrain hazards, flying enemies, and multiplayer cannons, players need a way to understand the full battlefield layout at a glance. The mini-map is a standard feature in strategy/TD games that was missing. Positioned bottom-left to avoid overlapping the DPS meter (top-right), combo counter (top-right), and wave preview (bottom-center).

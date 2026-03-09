@@ -6265,6 +6265,78 @@
       dpsGameStartTime = Date.now();
     }
 
+    function drawMiniMap() {
+      const MW = 140, MH = 100, PAD = 8, RAD = 6;
+      const mx = PAD, my = CANVAS_H - MH - PAD;
+      // Background
+      ctx.save();
+      ctx.globalAlpha = 0.65;
+      ctx.fillStyle = '#0a0a1e';
+      ctx.fillRect(mx, my, MW, MH);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(30,144,255,0.4)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(mx, my, MW, MH);
+      // Label
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = '8px monospace';
+      ctx.fillText('MAP', mx + 3, my + 9);
+      // Path (normalized 0-1 → mini-map coords)
+      if (currentPath && currentPath.length > 1) {
+        ctx.strokeStyle = 'rgba(100,180,255,0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(mx + currentPath[0].x * MW, my + currentPath[0].y * MH);
+        for (let i = 1; i < currentPath.length; i++) {
+          ctx.lineTo(mx + currentPath[i].x * MW, my + currentPath[i].y * MH);
+        }
+        ctx.stroke();
+      }
+      // Terrain hazards
+      if (typeof terrainHazards !== 'undefined') {
+        for (const hz of terrainHazards) {
+          const hx = mx + (hz.x / CANVAS_W) * MW;
+          const hy = my + (hz.y / CANVAS_H) * MH;
+          const hr = Math.max(3, (hz.radius / CANVAS_W) * MW);
+          ctx.beginPath();
+          ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+          const hcol = hz.type === 'swamp' ? 'rgba(0,180,0,0.3)' : hz.type === 'lava' ? 'rgba(255,80,0,0.3)' : 'rgba(160,0,255,0.3)';
+          ctx.fillStyle = hcol;
+          ctx.fill();
+        }
+      }
+      // Enemies (screen px → mini-map)
+      for (const e of enemies) {
+        const ex = mx + (e.x / CANVAS_W) * MW;
+        const ey = my + (e.y / CANVAS_H) * MH;
+        ctx.fillStyle = e.color || '#ff4444';
+        ctx.fillRect(ex - 1.5, ey - 1.5, 3, 3);
+      }
+      // Cannons (screen px → mini-map)
+      for (const id in cannons) {
+        const c = cannons[id];
+        if (!c) continue;
+        const cx = mx + (c.x / CANVAS_W) * MW;
+        const cy = my + (c.y / CANVAS_H) * MH;
+        ctx.fillStyle = id === playerId ? '#1E90FF' : '#00cc66';
+        ctx.fillRect(cx - 2.5, cy - 2.5, 5, 5);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(cx - 2.5, cy - 2.5, 5, 5);
+      }
+      // Base line indicator
+      const baseMyY = my + (BASE_Y / CANVAS_H) * MH;
+      ctx.strokeStyle = 'rgba(30,144,255,0.6)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 2]);
+      ctx.beginPath();
+      ctx.moveTo(mx, baseMyY);
+      ctx.lineTo(mx + MW, baseMyY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
     function drawFrame() {
       ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
@@ -7238,6 +7310,9 @@
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
       }
+
+      // Mini-map overlay (bottom-left)
+      drawMiniMap();
 
       // Countdown overlay
       if (waveState === 'countdown') {
