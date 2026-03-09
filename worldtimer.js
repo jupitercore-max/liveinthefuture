@@ -938,4 +938,38 @@
     initSunTimes();
     setInterval(initSunTimes, 86400000);
   }, msToMidnight);
+
+  // Responsive scaling — fit clock to viewport on small screens
+  // clockContainer already declared above
+  const CLOCK_NATIVE_SIZE = 520; // px — the designed size
+
+  function fitClockToViewport() {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const pad = 32; // breathing room
+    // Digital readouts below clock need ~80px
+    const availW = vw - pad;
+    const availH = vh - pad - 80;
+    const maxFit = Math.min(availW, availH);
+
+    if (maxFit < CLOCK_NATIVE_SIZE) {
+      const scale = maxFit / CLOCK_NATIVE_SIZE;
+      clockContainer.style.transform = `scale(${scale.toFixed(4)})`;
+      clockContainer.style.transformOrigin = 'top center';
+      // Keep layout flow correct — shrink the box the container occupies
+      clockContainer.style.marginBottom = `-${Math.round(CLOCK_NATIVE_SIZE * (1 - scale))}px`;
+    } else {
+      clockContainer.style.transform = '';
+      clockContainer.style.transformOrigin = '';
+      clockContainer.style.marginBottom = '';
+    }
+  }
+
+  fitClockToViewport();
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(fitClockToViewport, 100);
+  });
 })();
