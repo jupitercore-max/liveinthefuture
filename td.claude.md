@@ -491,3 +491,16 @@ If it fails, DO NOT commit. Fix the error first.
   3. **Wave summary** — post-wave grade screen shows "THEME NAME CLEAR" instead of "WAVE X CLEAR"
 - **`getWaveTheme(num)`** helper function returns theme data or null for regular waves, with boss fallback
 - **Design rationale:** Themed waves make each run feel designed rather than random. Players get excited anticipating named waves, and the names serve as built-in hints about what's coming (e.g., "Iron Legion" tells you to build armor-piercing). This is a classic design pattern from games like Kingdom Rush, Bloons TD, and Plants vs Zombies.
+
+### 2026-03-09: Floating Damage Numbers
+- **Every hit shows damage** — `applyDamage()` now spawns floating damage number popups above enemies using the existing `scorePopups` system
+- **Throttled per enemy** — Max 1 popup per enemy per 200ms via `_dmgPopupTimers` Map, keyed by `enemy.id`. Prevents visual spam from rapid-fire/tesla chains while still showing meaningful feedback
+- **Color-coded by impact:**
+  - White (size 8): Normal hits (<10 damage)
+  - Yellow (size 10): Big hits (10-24 damage) 
+  - 💥 Red (size 13): Crit hits (25+ damage)
+  - 🛡 Cyan: Shield absorbed all damage
+  - Gray (size 7): Armored enemy, low effective damage
+- **Random X jitter** (±8px) prevents numbers from stacking in a single column
+- **Fast fadeout** — 18 frame lifetime (vs 30-40 for XP/kill popups), faster upward velocity (-2.0 vs -1.5) so damage numbers feel snappy and don't obscure the battlefield
+- **Design rationale:** Floating damage numbers are the #1 most impactful "game juice" feature — they make every hit feel real, help players understand damage scaling, and visually communicate armor/shield effectiveness. The throttle keeps it readable even with gatling/tesla builds firing dozens of times per second.

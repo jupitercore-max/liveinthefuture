@@ -3038,18 +3038,26 @@
     // ═══════════════════════════════════════════════════
     //  Boss Shield Damage Helper
     // ═══════════════════════════════════════════════════
+    // Damage number throttle: max 1 popup per enemy per 200ms to avoid spam
+    const _dmgPopupTimers = new Map();
+    const DMG_POPUP_INTERVAL = 200; // ms between damage popups per enemy
+
     function applyDamage(enemy, dmg, armorPierce) {
       armorPierce = armorPierce || 0;
+      let wasArmored = false;
       if (enemy.armor && enemy.armor > 0) {
         const effectiveArmor = Math.max(0, enemy.armor - armorPierce);
+        if (effectiveArmor > 0) wasArmored = true;
         dmg *= (1 - effectiveArmor);
       }
       // Apply prestige damage multiplier
       dmg *= getPrestigeDamageMultiplier();
+      let shieldAbsorbed = 0;
       if (enemy.shieldHp > 0) {
         const absorbed = Math.min(enemy.shieldHp, dmg);
         enemy.shieldHp -= absorbed;
         dmg -= absorbed;
+        shieldAbsorbed = absorbed;
         if (enemy.shieldHp <= 0) {
           // Shield break particles
           for (let i = 0; i < 12; i++) {
@@ -3070,10 +3078,43 @@
           });
         }
       }
+      const totalDmg = dmg + (activePowerupEffects.damage && activePowerupEffects.damage.timer > 0 ? dmg * 0.5 : 0);
       enemy.hp -= dmg;
       // Apply active power-up damage boost
       if (activePowerupEffects.damage && activePowerupEffects.damage.timer > 0) {
         enemy.hp -= dmg * 0.5; // extra 50% damage
+      }
+
+      // Floating damage numbers (throttled per enemy)
+      const now = Date.now();
+      const lastPopup = _dmgPopupTimers.get(enemy.id) || 0;
+      if (now - lastPopup >= DMG_POPUP_INTERVAL && totalDmg > 0.1) {
+        _dmgPopupTimers.set(enemy.id, now);
+        // Accumulate damage shown
+        const displayDmg = Math.round(totalDmg * 10) / 10;
+        const isBigHit = displayDmg >= 10;
+        const isCrit = displayDmg >= 25;
+        // Color: white normal, yellow big, red crit, gray armored, cyan shield
+        let color = '#ffffff';
+        let size = 8;
+        let prefix = '';
+        if (shieldAbsorbed > 0 && dmg <= 0.1) {
+          color = '#3498db'; prefix = '🛡'; // shield absorbed all
+        } else if (wasArmored && dmg < 1) {
+          color = '#7f8c8d'; size = 7; // armored, low damage
+        } else if (isCrit) {
+          color = '#ff4444'; size = 13; prefix = '💥';
+        } else if (isBigHit) {
+          color = '#fbbf24'; size = 10;
+        }
+        const jitterX = (Math.random() - 0.5) * 16;
+        scorePopups.push({
+          x: enemy.x + jitterX, y: enemy.y - enemy.radius - 4,
+          text: prefix + (displayDmg >= 1 ? Math.round(displayDmg) : displayDmg.toFixed(1)),
+          color: color,
+          life: 18, maxLife: 18,
+          size: size, vy: -2.0
+        });
       }
     }
 
