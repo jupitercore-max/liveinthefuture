@@ -1334,17 +1334,7 @@
       }
     }
 
-    let _resizeTimer;
-    window.addEventListener('resize', () => {
-      clearTimeout(_resizeTimer);
-      _resizeTimer = setTimeout(resizeCanvas, 100);
-    });
-    // Initial size on DOMContentLoaded
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => setTimeout(resizeCanvas, 50));
-    } else {
-      setTimeout(resizeCanvas, 50);
-    }
+
     let PLACEMENT_MIN_Y = Math.floor(CANVAS_H * 0.6);
     const MIN_CANNON_SPACING = 40;
     const RELOCATE_COOLDOWN = 30000;
@@ -1404,7 +1394,6 @@
     // ═══════════════════════════════════════════════════
     //  Offline Player Despawn & Call for Aid
     // ═══════════════════════════════════════════════════
-    const aidBtn = $('aidBtn');
     const AID_NAMES = ['🤖 Sentinel', '🤖 Guardian', '🤖 Watcher'];
     const AID_COOLDOWN_TICKS = TICK_RATE * 90; // 90 second cooldown
 
@@ -1526,12 +1515,6 @@
       fly_swatter:    { icon: '✈️', name: 'Fly Swatter',      desc: 'Kill 10 flying enemies in one game' },
     };
 
-    const achieveToastContainer = document.getElementById('achieveToastContainer');
-    const achievePanel = document.getElementById('achievePanel');
-    const achieveGrid = document.getElementById('achieveGrid');
-    const achieveCount = document.getElementById('achieveCount');
-    const achieveBtn = document.getElementById('achieveBtn');
-    const achieveClose = document.getElementById('achieveClose');
 
     // Load from localStorage
     let unlockedAchievements = {};
@@ -1829,9 +1812,6 @@
       });
     }
 
-    const prestigeBtn = document.getElementById('prestigeBtn');
-    const prestigePanel = document.getElementById('prestigePanel');
-    const prestigeClose = document.getElementById('prestigeClose');
 
     function updatePrestigeBtn() {
       prestigeBtn.textContent = `⭐${prestigeStars > 0 ? ' ' + prestigeStars : ''}`;
@@ -1847,7 +1827,6 @@
         btn.style.display = s <= maxSpeed ? '' : 'none';
       });
     }
-    updatePrestigeBtn();
 
     prestigeBtn.addEventListener('click', () => {
       renderPrestigePanel();
@@ -1949,9 +1928,7 @@
     }
 
     // Stats panel open/close
-    const statsPanel = document.getElementById('statsPanel');
-    const statsBtn = document.getElementById('statsBtn');
-    const statsClose = document.getElementById('statsClose');
+
     statsBtn.addEventListener('click', () => {
       renderStatsPanel();
       statsPanel.classList.add('active');
@@ -3071,6 +3048,39 @@
     const sendBonusPopup = $('sendBonusPopup');
     const sellBtn = $('sellBtn');
 
+    // (Consolidated from scattered sections to prevent TDZ errors)
+    const aidBtn = $('aidBtn');
+    const achieveToastContainer = $('achieveToastContainer');
+    const achievePanel = $('achievePanel');
+    const achieveGrid = $('achieveGrid');
+    const achieveCount = $('achieveCount');
+    const achieveBtn = $('achieveBtn');
+    const achieveClose = $('achieveClose');
+    const prestigeBtn = $('prestigeBtn');
+    const prestigePanel = $('prestigePanel');
+    const prestigeClose = $('prestigeClose');
+    const statsPanel = $('statsPanel');
+    const statsBtn = $('statsBtn');
+    const statsClose = $('statsClose');
+    const waveSummaryEl = $('waveSummary');
+    const wsTitle = $('wsTitle');
+    const wsGrade = $('wsGrade');
+    const wsStatsEl = $('wsStats');
+    const wsBarFill = $('wsBarFill');
+    const priorityBtn = $('priorityBtn');
+    const abilityBtn = $('abilityBtn');
+    const ultimateBtn = $('ultimateBtn');
+    const tutorialOverlay = $('tutorialOverlay');
+    const tutorialHighlight = $('tutorialHighlight');
+    const tutorialTooltip = $('tutorialTooltip');
+    const tutorialStepNum = $('tutorialStepNum');
+    const tutorialTitle = $('tutorialTitle');
+    const tutorialDesc = $('tutorialDesc');
+    const tutorialNext = $('tutorialNext');
+    const tutorialSkip = $('tutorialSkip');
+    const tutorialDots = $('tutorialDots');
+    const helpBtn = $('helpBtn');
+
     // ═══════════════════════════════════════════════════
     //  Default Emoji Avatars
     // ═══════════════════════════════════════════════════
@@ -3088,7 +3098,6 @@
         avatarBtn.textContent = playerEmoji;
       }
     }
-    updateAvatarBtn();
 
     // ═══════════════════════════════════════════════════
     //  Avatar Upload
@@ -3128,11 +3137,7 @@
     });
 
     // Load saved avatar
-    const savedAvatar = localStorage.getItem('td_avatar');
-    if (savedAvatar) {
-      playerAvatar = savedAvatar;
-      updateAvatarBtn();
-    }
+
 
     // ═══════════════════════════════════════════════════
     //  Single-Player / Offline Mode
@@ -4479,11 +4484,7 @@
     }
 
     // --- Wave Summary & Grade System ---
-    const waveSummaryEl = $('waveSummary');
-    const wsTitle = $('wsTitle');
-    const wsGrade = $('wsGrade');
-    const wsStatsEl = $('wsStats');
-    const wsBarFill = $('wsBarFill');
+
     let waveSummaryTimeout = null;
 
     function calcWaveGrade(stats, waveNum) {
@@ -5017,11 +5018,9 @@
     // ═══════════════════════════════════════════════════
     //  Targeting Priority Button
     // ═══════════════════════════════════════════════════
-    const priorityBtn = $('priorityBtn');
     function updatePriorityBtn() {
       priorityBtn.textContent = TARGET_LABELS[myTargetPriority] || '🎯 Nearest';
     }
-    updatePriorityBtn();
     priorityBtn.addEventListener('click', () => {
       const idx = TARGET_PRIORITIES.indexOf(myTargetPriority);
       myTargetPriority = TARGET_PRIORITIES[(idx + 1) % TARGET_PRIORITIES.length];
@@ -5448,7 +5447,6 @@
       frost:   { name: 'Blizzard',       emoji: '❄️', cooldown: 12, targeted: false, desc: 'Slow all enemies 80% for 5s' }
     };
 
-    const abilityBtn = $('abilityBtn');
 
     function getPlayerAbility() {
       const c = cannons[playerId];
@@ -5467,7 +5465,6 @@
     }
 
     // Ultimate button update
-    const ultimateBtn = document.getElementById('ultimateBtn');
     function updateUltimateBtn() {
       if (!ultimateBtn) return;
       const tier = getUltimateTier();
@@ -8276,16 +8273,7 @@
     // ═══════════════════════════════════════════════════
     //  Interactive Tutorial System
     // ═══════════════════════════════════════════════════
-    const tutorialOverlay = $('tutorialOverlay');
-    const tutorialHighlight = $('tutorialHighlight');
-    const tutorialTooltip = $('tutorialTooltip');
-    const tutorialStepNum = $('tutorialStepNum');
-    const tutorialTitle = $('tutorialTitle');
-    const tutorialDesc = $('tutorialDesc');
-    const tutorialNext = $('tutorialNext');
-    const tutorialSkip = $('tutorialSkip');
-    const tutorialDots = $('tutorialDots');
-    const helpBtn = $('helpBtn');
+
 
     const TUTORIAL_STEPS = [
       {
@@ -8522,8 +8510,34 @@
     });
 
     // ═══════════════════════════════════════════════════
-    //  Init
+    //  PHASE: Event Listeners (consolidated)
+    //  Add new event listeners here — not inline with declarations.
     // ═══════════════════════════════════════════════════
+    let _resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(_resizeTimer);
+      _resizeTimer = setTimeout(resizeCanvas, 100);
+    });
+
+    // ═══════════════════════════════════════════════════
+    //  PHASE: Initialization (consolidated)
+    //  Every variable, DOM binding, and function is defined above.
+    //  Add new init calls here — not inline with declarations.
+    // ═══════════════════════════════════════════════════
+    updatePrestigeBtn();
+    updateAvatarBtn();
+    updatePriorityBtn();
+    const savedAvatar = localStorage.getItem('td_avatar');
+    if (savedAvatar) {
+      playerAvatar = savedAvatar;
+      updateAvatarBtn();
+    }
+    // Initial canvas sizing
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => setTimeout(resizeCanvas, 50));
+    } else {
+      setTimeout(resizeCanvas, 50);
+    }
     initFirebase();
     maybeShowTutorial();
 
