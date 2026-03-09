@@ -1820,6 +1820,23 @@
       });
     }
 
+    function sfxCritHit() {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        // Sharp metallic ping — high frequency burst
+        const g = makeGain(ctx, 0.2);
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1800, now);
+        osc.frequency.exponentialRampToValueAtTime(2400, now + 0.05);
+        g.gain.setValueAtTime(0.2, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.connect(g);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      });
+    }
+
     function sfxEnemyDeath(isBoss) {
       playSound(ctx => {
         const now = ctx.currentTime;
@@ -2184,12 +2201,14 @@
     function getCannonStats(level, path, spec) {
       let dmg = 1, fireRate = 1, range = 120, aoeSplash = 0, pierce = 0, chain = 0, slowPct = 0;
       let armorPierce = 0;
+      let critChance = 0.05, critMultiplier = 2.0; // base 5% crit, 2× damage
       // Per-level scaling — diminishing returns + milestone jumps
       const lvlMult = 1 + (level - 1) * 0.08 + Math.max(0, level - 10) * 0.04;
       const rangeMult = 1 + (level - 1) * 0.04;
       dmg *= lvlMult;
       range *= rangeMult;
       fireRate *= 1 + (level - 1) * 0.015;
+      critChance += (level - 1) * 0.005; // +0.5% crit per level
 
       // === MILESTONE BONUSES (every few levels) ===
       if (level >= 5)  armorPierce += 0.05;   // minor armor pierce
@@ -2204,13 +2223,13 @@
       if (path === 'tech')  { fireRate *= 0.8; dmg *= 0.9; slowPct = Math.max(slowPct, 0.3); }
 
       if (spec === 'gatling')  { fireRate *= 1.7; dmg *= 0.5; if (level >= 15) fireRate *= 1.2; }
-      if (spec === 'sniper')   { fireRate *= 0.22; dmg *= 3.0; range *= 1.6; armorPierce += 0.5; }
+      if (spec === 'sniper')   { fireRate *= 0.22; dmg *= 3.0; range *= 1.6; armorPierce += 0.5; critChance += 0.15; critMultiplier = 3.0; }
       if (spec === 'cannon')   { aoeSplash = Math.max(aoeSplash, 50) + level * 2; dmg *= 1.2; }
-      if (spec === 'railgun')  { pierce = 3 + Math.floor(level / 5); dmg *= 1.1; armorPierce += 0.3; }
+      if (spec === 'railgun')  { pierce = 3 + Math.floor(level / 5); dmg *= 1.1; armorPierce += 0.3; critMultiplier = 2.5; }
       if (spec === 'tesla')    { chain = 3 + Math.floor(level / 4); dmg *= 0.8; }
       if (spec === 'frost')    { slowPct = 0.6 + level * 0.01; range *= 1.2; }
 
-      return { dmg, fireRate, range, aoeSplash, pierce, chain, slowPct, armorPierce };
+      return { dmg, fireRate, range, aoeSplash, pierce, chain, slowPct, armorPierce, critChance: Math.min(critChance, 0.5), critMultiplier };
     }
 
     function getCannonColor(path, spec) {
@@ -3098,8 +3117,9 @@
     const _dmgPopupTimers = new Map();
     const DMG_POPUP_INTERVAL = 200; // ms between damage popups per enemy
 
-    function applyDamage(enemy, dmg, armorPierce) {
+    function applyDamage(enemy, dmg, armorPierce, isCrit) {
       armorPierce = armorPierce || 0;
+      isCrit = isCrit || false;
       let wasArmored = false;
       if (enemy.armor && enemy.armor > 0) {
         const effectiveArmor = Math.max(0, enemy.armor - armorPierce);
@@ -3152,8 +3172,8 @@
         // Accumulate damage shown
         const displayDmg = Math.round(totalDmg * 10) / 10;
         const isBigHit = displayDmg >= 10;
-        const isCrit = displayDmg >= 25;
-        // Color: white normal, yellow big, red crit, gray armored, cyan shield
+        const isHugeHit = displayDmg >= 25;
+        // Color: gold crit, red huge, yellow big, gray armored, cyan shield
         let color = '#ffffff';
         let size = 8;
         let prefix = '';
@@ -3162,6 +3182,8 @@
         } else if (wasArmored && dmg < 1) {
           color = '#7f8c8d'; size = 7; // armored, low damage
         } else if (isCrit) {
+          color = '#ffd700'; size = 15; prefix = '⚡'; // actual crit hit — gold
+        } else if (isHugeHit) {
           color = '#ff4444'; size = 13; prefix = '💥';
         } else if (isBigHit) {
           color = '#fbbf24'; size = 10;
@@ -3171,9 +3193,21 @@
           x: enemy.x + jitterX, y: enemy.y - enemy.radius - 4,
           text: prefix + (displayDmg >= 1 ? Math.round(displayDmg) : displayDmg.toFixed(1)),
           color: color,
-          life: 18, maxLife: 18,
-          size: size, vy: -2.0
+          life: isCrit ? 24 : 18, maxLife: isCrit ? 24 : 18,
+          size: size, vy: isCrit ? -2.5 : -2.0
         });
+        // Crit hit particles — golden burst
+        if (isCrit) {
+          for (let ci = 0; ci < 6; ci++) {
+            particles.push({
+              x: enemy.x, y: enemy.y,
+              vx: (Math.random() - 0.5) * 5,
+              vy: (Math.random() - 0.5) * 5,
+              color: '#ffd700',
+              life: 12 + Math.random() * 6
+            });
+          }
+        }
       }
     }
 
@@ -3587,8 +3621,15 @@
           sfxShoot(c.path || null, c.spec || null);
         }
 
-        // Apply damage (shield-aware)
-        applyDamage(nearest, stats.dmg, stats.armorPierce);
+        // Apply damage (shield-aware) with crit chance
+        let shotDmg = stats.dmg;
+        let isCritHit = false;
+        if (Math.random() < stats.critChance) {
+          shotDmg *= stats.critMultiplier;
+          isCritHit = true;
+          sfxCritHit();
+        }
+        applyDamage(nearest, shotDmg, stats.armorPierce, isCritHit);
 
         // Slow
         if (stats.slowPct > 0) {
@@ -6175,6 +6216,7 @@
             if (tipStats.pierce > 0) lines.push(`Pierce: ${tipStats.pierce}`);
             if (tipStats.chain > 0) lines.push(`Chain: ${tipStats.chain}`);
             if (tipStats.slowPct > 0) lines.push(`Slow: ${Math.round(tipStats.slowPct * 100)}%`);
+            if (tipStats.critChance > 0) lines.push(`Crit: ${Math.round(tipStats.critChance * 100)}% (${tipStats.critMultiplier}×)`);
             if (myCannon.kills) lines.push(`Kills: ${myCannon.kills}`);
             lines.push(`Target: ${TARGET_LABELS[myTargetPriority].replace(/^.+\s/, '')} [T]`);
 

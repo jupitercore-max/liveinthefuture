@@ -573,3 +573,17 @@ If it fails, DO NOT commit. Fix the error first.
   - Both arrays cleared on game reset alongside lightningBolts/levelUpRings.
 - **Performance:** Muzzle flashes are 1 radial gradient per shot (6 frames max, typically 2-4 active at once). Impact sparks are 3-6 fillRect calls per hit, decaying quickly. Even with gatling builds, the spark count stays manageable because projectile lifetimes are short (5 frames) and sparks last <11 frames.
 - **Design rationale:** The projectile system drew lines from cannon to enemy but there was no visual "punch" at either end. Muzzle flashes make cannons feel like they're actually firing something powerful, and impact sparks confirm hits visually. Together they complete the shot → travel → impact feedback loop. This is the most common "missing juice" in indie TD games — the difference between feeling like you're clicking spreadsheet numbers vs. commanding weapons.
+
+### 2026-03-09: Critical Hit System
+- **Crit chance & multiplier stats** added to `getCannonStats()` — base 5% chance at 2× damage for all cannons, scaling with level (+0.5% per level, capped at 50%)
+- **Specialization bonuses:**
+  - **Sniper**: +15% crit chance, 3× crit multiplier (headshot fantasy — slow but devastating crits)
+  - **Railgun**: 2.5× crit multiplier (piercing shots crit harder)
+  - All other specs use base crit scaling
+- **Crit roll in main fire loop** — each shot rolls against `stats.critChance`; on success, `stats.dmg` is multiplied by `stats.critMultiplier` before being passed to `applyDamage()`
+- **`applyDamage()` updated** — new 4th parameter `isCrit` (default false). Existing callers (AoE, pierce, chain, abilities, terrain) unaffected since they don't pass it.
+- **Golden crit damage numbers** — crits show ⚡-prefixed gold (#ffd700) damage text, size 15, with longer lifetime (24 frames vs 18) and faster upward velocity (-2.5 vs -2.0) to make them visually pop above normal hits
+- **Crit particle burst** — 6 golden particles spray from the enemy on crit hits, separate from normal death particles
+- **Crit sound effect** — `sfxCritHit()` plays a sharp metallic ping (1800→2400Hz sine sweep, 0.15s duration) that cuts through the normal shoot/death sounds
+- **Tooltip integration** — Cannon hover tooltip now shows `Crit: X% (Y×)` stat line when crit chance > 0
+- **Design rationale:** Crits add variance and excitement to every shot — the random chance of a big golden number creates "slot machine" satisfaction that makes even routine auto-fire engaging. Sniper's high crit rate/multiplier reinforces its fantasy as a precision weapon (slow fire, huge single hits), while Gatling's low per-shot crit chance is offset by volume of fire (many chances per second). The 50% cap prevents crits from becoming guaranteed. This is a fundamental RPG/ARPG mechanic (Diablo, Path of Exile, Warcraft) that every good TD benefits from.
