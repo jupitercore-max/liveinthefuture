@@ -2438,7 +2438,7 @@
           slowTimer: 0,
           elite: isElite
         };
-        // Flying enemies move straight down, ignoring path
+        // Copy special type properties from ENEMY_TYPES
         if (et.flying) {
           enemyObj.flying = true;
           enemyObj.flyStartX = 30 + rng() * (CANVAS_W - 60);
@@ -2446,6 +2446,15 @@
           enemyObj.flyY = -20 - i * 35; // stagger vertically
           enemyObj.x = enemyObj.flyStartX;
           enemyObj.y = enemyObj.flyY;
+        }
+        if (et.healer) enemyObj.healer = true;
+        if (et.armor) enemyObj.armor = et.armor;
+        if (et.phaser) enemyObj.phaser = true;
+        if (et.splits) enemyObj.splits = et.splits;
+        // Shielded enemies get a shield HP bar
+        if (et.type === 'shielded') {
+          enemyObj.shieldHp = enemyObj.maxHp * 0.4;
+          enemyObj.shieldMaxHp = enemyObj.maxHp * 0.4;
         }
         enemies.push(enemyObj);
       }
@@ -3527,8 +3536,8 @@
           for (let pi = 0; pi < 6; pi++) {
             deathParticles.push({ x: pe.x, y: pe.y, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, life: 15, maxLife: 15, color: '#00e5ff', size: 4 });
           }
-          pe.pathIndex = Math.min(pe.pathIndex + Math.floor(gamePath.length * 0.12), gamePath.length - 1);
-          const np = gamePath[pe.pathIndex];
+          pe.pathProgress = Math.min((pe.pathProgress || 0) + 0.12, 1.0);
+          const np = getPathPosition(currentPath, pe.pathProgress);
           pe.x = np.x; pe.y = np.y;
           for (let pi = 0; pi < 6; pi++) {
             deathParticles.push({ x: pe.x, y: pe.y, vx: (Math.random()-0.5)*3, vy: (Math.random()-0.5)*3, life: 15, maxLife: 15, color: '#00e5ff', size: 3 });
