@@ -587,3 +587,21 @@ If it fails, DO NOT commit. Fix the error first.
 - **Crit sound effect** — `sfxCritHit()` plays a sharp metallic ping (1800→2400Hz sine sweep, 0.15s duration) that cuts through the normal shoot/death sounds
 - **Tooltip integration** — Cannon hover tooltip now shows `Crit: X% (Y×)` stat line when crit chance > 0
 - **Design rationale:** Crits add variance and excitement to every shot — the random chance of a big golden number creates "slot machine" satisfaction that makes even routine auto-fire engaging. Sniper's high crit rate/multiplier reinforces its fantasy as a precision weapon (slow fire, huge single hits), while Gatling's low per-shot crit chance is offset by volume of fire (many chances per second). The 50% cap prevents crits from becoming guaranteed. This is a fundamental RPG/ARPG mechanic (Diablo, Path of Exile, Warcraft) that every good TD benefits from.
+
+### 2026-03-09: Enemy Death Animations (Ghost Shrink/Spin/Flash)
+- **Death ghost system** — When enemies die, instead of instantly vanishing, a "ghost" of their body stays visible and plays a shrink + spin + flash-fade animation. Uses a separate `deathGhosts[]` render array that doesn't interfere with gameplay logic.
+- **Animation details:**
+  - **White flash** — Ghost body starts white and fades to the enemy's original color over the first 30% of its lifetime, simulating a "hit flash" at the moment of death
+  - **Expanding ring** — A white circle ring expands outward from the death point during the flash phase. Bosses get a 3× larger ring for dramatic emphasis.
+  - **Shrink** — Ghost radius shrinks from 100% to 30% over its lifetime using ease curve `0.3 + t * 0.7`
+  - **Spin** — Each ghost gets a random initial rotation and spin speed (±0.4 rad/frame), creating varied death tumbles
+  - **Fade** — Alpha decreases linearly from 0.8 to 0 over lifetime
+  - **Shape-accurate** — Ghost renders the correct shape (circle, hexagon, diamond, octagon) matching the original enemy type, not just a generic circle
+  - **Elite golden outline** — Elite enemy ghosts retain their gold border during the death animation
+- **Timing:**
+  - Regular enemies: 18-frame animation (~0.3s at 60fps) — fast enough not to clutter
+  - Boss enemies: 30-frame animation (~0.5s) — longer for dramatic weight
+- **State management:** `deathGhosts` array declared alongside other visual arrays (muzzleFlashes, impactSparks). Cleared on game restart alongside lightningBolts/levelUpRings.
+- **Spawn point:** Ghost created in the death processing loop right after `e.dead = true`, capturing position, radius, color, shape, and elite/boss flags before the enemy is filtered out.
+- **Performance:** Each ghost is one canvas save/translate/rotate + one shape fill + one optional stroke (elite). Max ~20 ghosts alive at once during heavy combat (18-frame lifetime with high kill rate). Negligible cost.
+- **Design rationale:** Enemy death was the biggest remaining "juice gap" — enemies just popped out of existence with some particles. The ghost animation gives each kill a satisfying visual weight. The white flash → shrink → spin → fade sequence reads as "destroyed" not "disappeared." The shape-accurate rendering means you can tell what just died even in the animation, which reinforces that your cannon is effective against specific enemy types. Boss death ghosts are extra dramatic because boss kills should feel like an achievement. This is standard practice in polished TD games (Bloons, Kingdom Rush) where enemy death animations are one of the most impactful "feel good" systems.
