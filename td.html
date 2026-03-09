@@ -2325,6 +2325,36 @@
     ];
 
     // Enemy type warning labels for wave preview
+    // Named/themed waves — special waves get a title and subtitle for flavor
+    const WAVE_THEMES = {
+      1:  { name: 'First Contact',      sub: 'They\'re coming...',        color: '#aaa' },
+      3:  { name: 'Scouting Party',      sub: 'Light and fast',           color: '#e74c3c' },
+      5:  { name: 'Heavy Armor',         sub: 'Tanks incoming!',          color: '#9b59b6' },
+      7:  { name: 'The Swarm',           sub: 'Strength in numbers',      color: '#f39c12' },
+      10: { name: 'TITAN',               sub: '⚠ FIRST BOSS',            color: '#ff4444' },
+      12: { name: 'Air Raid',            sub: '✈ Flyers ignore the path!',color: '#e056fd' },
+      14: { name: 'Field Medics',        sub: '💚 Kill the healers first',color: '#2ecc40' },
+      15: { name: 'Shield Wall',         sub: '🛡️ Break their shields',   color: '#3498db' },
+      16: { name: 'Iron Legion',         sub: '🔶 Armor-piercing required',color: '#7f8c8d' },
+      18: { name: 'Mitosis',             sub: '🧬 They split when killed', color: '#1abc9c' },
+      20: { name: 'LEVIATHAN',           sub: '⚠ PHASE BOSS',            color: '#ff4444' },
+      22: { name: 'Ghost Protocol',      sub: '👻 Phasers teleport ahead',color: '#00e5ff' },
+      25: { name: 'The Gauntlet',        sub: 'Everything at once',       color: '#ff6b6b' },
+      30: { name: 'BEHEMOTH',            sub: '⚠ MEGA BOSS',             color: '#ff2200' },
+      35: { name: 'Blitz Rush',          sub: '⚡ Maximum speed',         color: '#2ecc71' },
+      40: { name: 'COLOSSUS',            sub: '⚠ ULTRA BOSS',            color: '#ff0000' },
+      42: { name: 'The Answer',          sub: 'To life, the universe...',  color: '#9b59b6' },
+      45: { name: 'Dark Swarm',          sub: 'Elites everywhere',        color: '#f1c40f' },
+      50: { name: 'APOCALYPSE',          sub: '☠ FINAL BOSS',            color: '#ff0000' },
+    };
+
+    function getWaveTheme(num) {
+      if (WAVE_THEMES[num]) return WAVE_THEMES[num];
+      // Every 10th wave is a boss — give generic boss names for unnamed ones
+      if (num % 10 === 0 && num > 0) return { name: 'DESTROYER', sub: '⚠ BOSS WAVE', color: '#ff4444' };
+      return null;
+    }
+
     const ENEMY_WARNINGS = {
       healer: '💚 Healers heal nearby enemies!',
       armored: '🛡️ Armored — reduce damage! High-level cannons pierce.',
@@ -3809,7 +3839,10 @@
 
     function showWaveSummary(waveNum) {
       const result = calcWaveGrade(waveStats, waveNum);
-      wsTitle.textContent = `WAVE ${waveNum} CLEAR`;
+      const summaryTheme = getWaveTheme(waveNum);
+      wsTitle.textContent = summaryTheme ? `${summaryTheme.name} CLEAR` : `WAVE ${waveNum} CLEAR`;
+      if (summaryTheme) wsTitle.style.color = summaryTheme.color;
+      else wsTitle.style.color = '';
       wsGrade.textContent = result.grade;
       wsGrade.className = 'ws-grade ' + result.cls;
       const timeFmt = result.elapsed < 60 ? `${result.elapsed.toFixed(1)}s` : `${Math.floor(result.elapsed / 60)}m ${Math.round(result.elapsed % 60)}s`;
@@ -3848,11 +3881,19 @@
     }
 
     function showWaveAnnouncement(num) {
-      waText.textContent = `WAVE ${num}`;
+      const theme = getWaveTheme(num);
       const isBossWave = num % 10 === 0 && num > 0;
-      waSub.textContent = isBossWave ? '⚠ BOSS WAVE!' : 'incoming';
+      if (theme) {
+        waText.textContent = theme.name;
+        waText.style.color = theme.color;
+        waSub.textContent = `Wave ${num} — ${theme.sub}`;
+      } else {
+        waText.textContent = `WAVE ${num}`;
+        waText.style.color = '';
+        waSub.textContent = 'incoming';
+      }
       waveAnnounce.classList.add('active');
-      setTimeout(() => waveAnnounce.classList.remove('active'), 2500);
+      setTimeout(() => { waveAnnounce.classList.remove('active'); waText.style.color = ''; }, 2500);
       sfxWaveStart(isBossWave);
       // Show wave preview with enemy breakdown
       showWavePreview(num);
@@ -6785,6 +6826,16 @@
       // Clear old entries (keep the label)
       while (wavePreview.children.length > 1) {
         wavePreview.removeChild(wavePreview.lastChild);
+      }
+      // Update label with theme name if available
+      const theme = getWaveTheme(waveNum);
+      const labelEl = wavePreview.children[0];
+      if (theme) {
+        labelEl.textContent = `${theme.name} — Wave ${waveNum}`;
+        labelEl.style.color = theme.color;
+      } else {
+        labelEl.textContent = 'INCOMING ENEMIES';
+        labelEl.style.color = '';
       }
       // Sort: boss first, then by count descending; exclude meta keys
       const sorted = Object.entries(breakdown).filter(([k]) => !k.startsWith('_')).sort((a, b) => {

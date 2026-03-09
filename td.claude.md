@@ -462,3 +462,32 @@ If it fails, DO NOT commit. Fix the error first.
   - Milestone ring colors match the unlock theme (amber, red, purple, cyan, orange, gold)
 - **State management** — `levelUpRings` array cleared on game reset. Ring rendering uses expanding radius with decreasing alpha and line width for smooth dissolve.
 - **Design rationale** — With 20 levels now, each level-up was a non-event (just a sound). Players need visual reward feedback to feel the progression, especially since milestones unlock meaningful gameplay bonuses. The ring+particle combo is satisfying without being visually noisy — it fades in <1 second for normal levels, ~1.3 seconds for milestones.
+
+### 2026-03-09: Themed/Named Waves
+- **19 named waves** with distinctive titles, subtitles, and accent colors that appear in the wave announcement, wave preview panel, and wave summary screen:
+  - Wave 1: *First Contact* — "They're coming..."
+  - Wave 3: *Scouting Party* — "Light and fast"
+  - Wave 5: *Heavy Armor* — "Tanks incoming!"
+  - Wave 7: *The Swarm* — "Strength in numbers"
+  - Wave 10: *TITAN* — "⚠ FIRST BOSS"
+  - Wave 12: *Air Raid* — "✈ Flyers ignore the path!"
+  - Wave 14: *Field Medics* — "💚 Kill the healers first"
+  - Wave 15: *Shield Wall* — "🛡️ Break their shields"
+  - Wave 16: *Iron Legion* — "🔶 Armor-piercing required"
+  - Wave 18: *Mitosis* — "🧬 They split when killed"
+  - Wave 20: *LEVIATHAN* — "⚠ PHASE BOSS"
+  - Wave 22: *Ghost Protocol* — "👻 Phasers teleport ahead"
+  - Wave 25: *The Gauntlet* — "Everything at once"
+  - Wave 30: *BEHEMOTH* — "⚠ MEGA BOSS"
+  - Wave 35: *Blitz Rush* — "⚡ Maximum speed"
+  - Wave 40: *COLOSSUS* — "⚠ ULTRA BOSS"
+  - Wave 42: *The Answer* — "To life, the universe..." (Easter egg)
+  - Wave 45: *Dark Swarm* — "Elites everywhere"
+  - Wave 50: *APOCALYPSE* — "☠ FINAL BOSS"
+- **Unnamed boss waves** (60, 70, etc.) get a generic "DESTROYER" title with boss warning
+- **Three display locations:**
+  1. **Wave announcement** — themed name replaces "WAVE X" as the big text, with colored styling and "Wave X — subtitle" below
+  2. **Wave preview panel** — label shows "THEME NAME — Wave X" in the theme's accent color instead of "INCOMING ENEMIES"
+  3. **Wave summary** — post-wave grade screen shows "THEME NAME CLEAR" instead of "WAVE X CLEAR"
+- **`getWaveTheme(num)`** helper function returns theme data or null for regular waves, with boss fallback
+- **Design rationale:** Themed waves make each run feel designed rather than random. Players get excited anticipating named waves, and the names serve as built-in hints about what's coming (e.g., "Iron Legion" tells you to build armor-piercing). This is a classic design pattern from games like Kingdom Rush, Bloons TD, and Plants vs Zombies.
