@@ -140,6 +140,7 @@
     let acItems = [];
     let acIdx = -1;
     let connectedAt = null;
+    let passwordMode = false;
 
     // --- GMCP state ---
     let gmcpVitals = null;
@@ -181,6 +182,9 @@
         updateGmcpBar();
       } else if (pkg === 'Char.Status') {
         // Could display name/class/level somewhere
+      } else if (pkg === 'Echo') {
+        passwordMode = data.off;
+        input.type = passwordMode ? 'password' : 'text';
       }
     }
 
@@ -293,7 +297,7 @@
         if (acIdx >= 0) { applyAC(); return; }
         const cmd = input.value;
         send(cmd);
-        addHistory(cmd);
+        if (!passwordMode) addHistory(cmd);
         input.value = '';
         hideAC();
       } else if (e.key === 'ArrowUp') {
