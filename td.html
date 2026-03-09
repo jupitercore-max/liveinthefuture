@@ -5404,18 +5404,68 @@
         ctx.textAlign = 'start';
       }
 
-      // Draw enemy path
+      // Draw enemy path with animated directional flow arrows
       if (currentPath && currentPath.length >= 2) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([8, 6]);
+        // Base path line (subtle)
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 12;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
         ctx.beginPath();
         ctx.moveTo(currentPath[0].x, currentPath[0].y);
         for (let i = 1; i < currentPath.length; i++) {
           ctx.lineTo(currentPath[i].x, currentPath[i].y);
         }
         ctx.stroke();
-        ctx.setLineDash([]);
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
+
+        // Animated flow chevrons along path
+        const flowTime = Date.now() * 0.001; // seconds
+        const chevronSpacing = 40; // pixels between chevrons
+        const flowSpeed = 30; // pixels per second
+        // Build cumulative distance array
+        const cumDist = [0];
+        for (let i = 1; i < currentPath.length; i++) {
+          const dx = currentPath[i].x - currentPath[i-1].x;
+          const dy = currentPath[i].y - currentPath[i-1].y;
+          cumDist.push(cumDist[i-1] + Math.sqrt(dx*dx + dy*dy));
+        }
+        const totalDist = cumDist[cumDist.length - 1];
+        const offset = (flowTime * flowSpeed) % chevronSpacing;
+
+        for (let d = offset; d < totalDist - 5; d += chevronSpacing) {
+          // Find position and direction at distance d
+          let segIdx = 0;
+          for (let i = 1; i < cumDist.length; i++) {
+            if (cumDist[i] >= d) { segIdx = i - 1; break; }
+          }
+          const segStart = cumDist[segIdx];
+          const segEnd = cumDist[segIdx + 1] || segStart + 1;
+          const t = (d - segStart) / (segEnd - segStart);
+          const px = currentPath[segIdx].x + t * (currentPath[segIdx+1].x - currentPath[segIdx].x);
+          const py = currentPath[segIdx].y + t * (currentPath[segIdx+1].y - currentPath[segIdx].y);
+          const dirX = currentPath[segIdx+1].x - currentPath[segIdx].x;
+          const dirY = currentPath[segIdx+1].y - currentPath[segIdx].y;
+          const angle = Math.atan2(dirY, dirX);
+
+          // Fade near start/end
+          const edgeFade = Math.min(d / 60, (totalDist - d) / 60, 1);
+          const alpha = 0.15 * edgeFade;
+
+          // Draw small chevron (>)
+          ctx.save();
+          ctx.translate(px, py);
+          ctx.rotate(angle);
+          ctx.strokeStyle = `rgba(100,180,255,${alpha})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(-4, -4);
+          ctx.lineTo(2, 0);
+          ctx.lineTo(-4, 4);
+          ctx.stroke();
+          ctx.restore();
+        }
       }
 
       // ── Draw Terrain Hazard Zones ──────────────────────

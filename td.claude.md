@@ -519,3 +519,15 @@ If it fails, DO NOT commit. Fix the error first.
 - **State management:** `streakAnnouncement` object with timer countdown, properly reset on game over/restart alongside other visual state
 - **Trigger:** Fires in the combo tracking code on exact match of each tier's kill count. Uses reverse iteration to find the highest matching tier.
 - **Design rationale:** The combo system already tracked kill streaks but the only feedback was the small corner counter and occasional screen shake. These announcements make big combos feel EPIC — they're the classic "feel good" moment in action games. Each tier has escalating size and color intensity to build excitement. The animation timing (fast in, hold, slow out) is borrowed from fighting game hit confirms.
+
+### 2026-03-09: Animated Path Flow Arrows
+- **Replaced static dashed path with animated directional chevrons** — The enemy path was a barely-visible 8% opacity dashed line that gave no indication of movement direction. Now it's a 12px-wide soft path lane with animated chevron arrows (>) flowing along it at 30px/s.
+- **Implementation details:**
+  - Base path drawn as a wide (12px), subtle (6% alpha) rounded stroke with `lineCap: 'round'` for smooth corners
+  - Chevrons placed every 40px along the path using cumulative distance calculation
+  - Each chevron is a small ">" shape rotated to match the path direction at that point
+  - Flow animation driven by `Date.now() * 0.001 * flowSpeed` modulo spacing for smooth continuous movement
+  - Edge fade: chevrons near path start/end fade out to avoid visual clutter at spawn/base
+  - Subtle blue tint (`rgba(100,180,255,0.15)`) that fits the dark theme
+- **Why this matters:** In TD games, path clarity is critical for strategic cannon placement. The animated arrows serve dual purpose: (1) show players WHERE enemies will walk, (2) show WHICH DIRECTION they move. This is especially important since paths are procedurally generated each wave and can change layout. The animation also adds "life" to the battlefield between waves when nothing else is moving.
+- **Performance:** Chevron rendering uses simple `moveTo/lineTo` strokes (3 points each) — negligible GPU cost. Distance array is computed once per path, not per frame.
