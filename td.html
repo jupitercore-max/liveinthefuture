@@ -1408,6 +1408,237 @@
       canvasWrap = document.querySelector('.canvas-wrap');
     }
 
+    function initListeners() {
+      aidBtn.addEventListener('click', callForAid);
+
+      achieveBtn.addEventListener('click', () => {
+        renderAchievePanel();
+        achievePanel.classList.add('active');
+      });
+
+      achieveClose.addEventListener('click', () => achievePanel.classList.remove('active'));
+
+      achievePanel.addEventListener('click', e => {
+        if (e.target === achievePanel) achievePanel.classList.remove('active');
+      });
+
+      prestigeBtn.addEventListener('click', () => {
+        renderPrestigePanel();
+        prestigePanel.classList.add('active');
+      });
+
+      prestigeClose.addEventListener('click', () => prestigePanel.classList.remove('active'));
+
+      prestigePanel.addEventListener('click', e => {
+        if (e.target === prestigePanel) prestigePanel.classList.remove('active');
+      });
+
+      statsBtn.addEventListener('click', () => {
+        renderStatsPanel();
+        statsPanel.classList.add('active');
+      });
+
+      statsClose.addEventListener('click', () => statsPanel.classList.remove('active'));
+
+      statsPanel.addEventListener('click', e => {
+        if (e.target === statsPanel) statsPanel.classList.remove('active');
+      });
+
+      avatarBtn.addEventListener('click', () => avatarInput.click());
+
+      avatarInput.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const img = new Image();
+          img.onload = () => {
+            const c = document.createElement('canvas');
+            c.width = 64; c.height = 64;
+            const cx = c.getContext('2d');
+            // Center crop
+            const size = Math.min(img.width, img.height);
+            const sx = (img.width - size) / 2;
+            const sy = (img.height - size) / 2;
+            cx.drawImage(img, sx, sy, size, size, 0, 0, 64, 64);
+            let dataUrl = c.toDataURL('image/png');
+            // If too large, compress as JPEG
+            if (dataUrl.length > 10000) {
+              dataUrl = c.toDataURL('image/jpeg', 0.5);
+            }
+            playerAvatar = dataUrl;
+            localStorage.setItem('td_avatar', dataUrl);
+            updateAvatarBtn();
+            // Update Firebase cannon data if cannon exists
+            if (db && cannons[playerId]) {
+              cannonsRef.child(playerId).update({ avatar: dataUrl });
+            }
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      waveSummaryEl.addEventListener('click', () => {
+        waveSummaryEl.classList.remove('active');
+        if (waveSummaryTimeout) { clearTimeout(waveSummaryTimeout); waveSummaryTimeout = null; }
+      });
+
+      goRestart.addEventListener('click', resetGame);
+
+      upgradeBtn.addEventListener('click', openUpgradeModal);
+
+      upgradeClose.addEventListener('click', () => upgradeModal.classList.remove('active'));
+
+      upgradeModal.addEventListener('click', e => {
+        if (e.target === upgradeModal) upgradeModal.classList.remove('active');
+      });
+
+      priorityBtn.addEventListener('click', () => {
+        const idx = TARGET_PRIORITIES.indexOf(myTargetPriority);
+        myTargetPriority = TARGET_PRIORITIES[(idx + 1) % TARGET_PRIORITIES.length];
+        localStorage.setItem('td_target_priority', myTargetPriority);
+        updatePriorityBtn();
+        // Sync to Firebase for multiplayer
+        if (!offlineMode && cannons[playerId]) {
+          cannonsRef.child(playerId).update({ targetPriority: myTargetPriority });
+        }
+        if (offlineMode && cannons[playerId]) {
+          cannons[playerId].targetPriority = myTargetPriority;
+        }
+      });
+
+      relocateBtn.addEventListener('click', () => {
+        const myCannon = cannons[playerId];
+        if (!myCannon || !myCannon.x) return;
+        const elapsed = Date.now() - lastRelocateTime;
+        if (elapsed < RELOCATE_COOLDOWN) {
+          const remaining = Math.ceil((RELOCATE_COOLDOWN - elapsed) / 1000);
+          relocateBtn.textContent = `Wait ${remaining}s`;
+          return;
+        }
+        relocateBtn.textContent = 'Click map...';
+        // Next canvas click will relocate
+      });
+
+      sellBtn.addEventListener('click', openSellModal);
+
+      sendNextBtn.addEventListener('click', () => {
+        if (waveState !== 'active') return;
+        if (!cannons[playerId] || !cannons[playerId].x) return;
+        if (!isLeader && !offlineMode) return; // only leader/offline can trigger early send
+  
+        // Calculate bonus based on enemies remaining
+        const totalEnemies = enemies.length;
+        if (totalEnemies === 0) return;
+  
+        earlySendCount++;
+        waveStats.earlySendUsed = true;
+        sessionEarlySends++;
+        unlockAchievement('early_bird');
+        // Bonus: 25% base + 10% per consecutive early send (capped at 100%)
+        earlySendBonusPct = Math.min(100, 25 + (earlySendCount - 1) * 10);
+  
+        // Show bonus popup
+        showSendBonusPopup(earlySendBonusPct);
+        sfxEarlySend();
+  
+        // Advance wave number and spawn next wave's enemies on top of current ones
+        waveNumber++;
+        const newEnemies = generateWave(waveNumber);
+        enemies = enemies.concat(newEnemies);
+  
+        // Heal a bit less than normal clear (half regen) — includes prestige bonus
+        baseHp = Math.min(getEffectiveMaxHp(), baseHp + Math.ceil(getEffectiveRegen() * 0.5));
+  
+        // Update state
+        if (!offlineMode) {
+          metaRef.update({ waveNumber, totalKills, baseHp });
+        }
+        updateBaseHpHUD();
+        updateSendNextBtn();
+  
+        // Show wave announcement
+        showWaveAnnouncement(waveNumber);
+  
+        // Light screen shake for excitement
+        triggerScreenShake(false);
+  
+        // Update HUD
+        hudWave.textContent = waveNumber;
+        hudEnemies.textContent = enemies.filter(e => e.hp > 0).length;
+      });
+
+      speedControls.addEventListener('click', e => {
+        const btn = e.target.closest('.speed-btn');
+        if (!btn) return;
+        const newSpeed = parseInt(btn.dataset.speed, 10);
+        if (newSpeed === gameSpeed) return;
+        gameSpeed = newSpeed;
+        if (gameSpeed === 3) unlockAchievement('speed_demon');
+        // Update button states
+        speedControls.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        // Update speed indicator on canvas
+        updateSpeedIndicator();
+        // Restart simulation timer with new speed
+        restartSimTimer();
+      });
+
+      if (ultimateBtn) ultimateBtn.addEventListener('click', fireUltimate);
+
+      abilityBtn.addEventListener('click', () => {
+        if (abilityCooldownLeft > 0) return;
+        const c = cannons[playerId];
+        if (!c || !c.x) return;
+        if (waveState !== 'active' && waveState !== 'countdown') return;
+  
+        const ab = getPlayerAbility();
+        if (ab.targeted) {
+          // Enter targeting mode — next canvas click fires ability
+          abilityTargeting = true;
+          canvas.classList.add('canvas-targeting');
+          updateAbilityBtn();
+        } else {
+          // Immediate activation (no targeting needed)
+          fireAbility(null, null);
+        }
+      });
+
+      playersBtn.addEventListener('click', () => {
+        playerPanel.classList.toggle('active');
+      });
+
+      muteBtn.addEventListener('click', () => {
+        soundMuted = !soundMuted;
+        localStorage.setItem('td_sound_muted', soundMuted);
+        muteBtn.textContent = soundMuted ? '🔇' : '🔊';
+        // Initialize audio context on first unmute (needs user gesture)
+        if (!soundMuted) ensureAudioCtx();
+      });
+
+      tutorialNext.addEventListener('click', () => {
+        tutorialStep++;
+        if (tutorialStep >= TUTORIAL_STEPS.length) {
+          endTutorial();
+        } else {
+          showTutorialStep();
+        }
+      });
+
+      tutorialSkip.addEventListener('click', endTutorial);
+
+      tutorialOverlay.addEventListener('click', (e) => {
+        if (e.target === tutorialOverlay) endTutorial();
+      });
+
+      helpBtn.addEventListener('click', () => {
+        startTutorial();
+      });
+
+    }
+
+
 
     // ═══════════════════════════════════════════════════
     //  Constants & Config
@@ -1632,7 +1863,6 @@
       if (aidCooldown > 0) aidCooldown--;
     }
 
-    aidBtn.addEventListener('click', callForAid);
 
     // ═══════════════════════════════════════════════════
     //  Achievement System
@@ -1762,14 +1992,6 @@
       }
     }
 
-    achieveBtn.addEventListener('click', () => {
-      renderAchievePanel();
-      achievePanel.classList.add('active');
-    });
-    achieveClose.addEventListener('click', () => achievePanel.classList.remove('active'));
-    achievePanel.addEventListener('click', e => {
-      if (e.target === achievePanel) achievePanel.classList.remove('active');
-    });
 
     // ═══════════════════════════════════════════════════
     //  Prestige System (persistent meta-progression)
@@ -1974,14 +2196,6 @@
       });
     }
 
-    prestigeBtn.addEventListener('click', () => {
-      renderPrestigePanel();
-      prestigePanel.classList.add('active');
-    });
-    prestigeClose.addEventListener('click', () => prestigePanel.classList.remove('active'));
-    prestigePanel.addEventListener('click', e => {
-      if (e.target === prestigePanel) prestigePanel.classList.remove('active');
-    });
 
     // ═══════════════════════════════════════════════════
     //  Statistics & Personal Records
@@ -2075,14 +2289,6 @@
 
     // Stats panel open/close
 
-    statsBtn.addEventListener('click', () => {
-      renderStatsPanel();
-      statsPanel.classList.add('active');
-    });
-    statsClose.addEventListener('click', () => statsPanel.classList.remove('active'));
-    statsPanel.addEventListener('click', e => {
-      if (e.target === statsPanel) statsPanel.classList.remove('active');
-    });
 
     // ═══════════════════════════════════════════════════
     //  Sound Effects System (Web Audio API)
@@ -3178,39 +3384,6 @@
     // ═══════════════════════════════════════════════════
     //  Avatar Upload
     // ═══════════════════════════════════════════════════
-    avatarBtn.addEventListener('click', () => avatarInput.click());
-    avatarInput.addEventListener('change', e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const img = new Image();
-        img.onload = () => {
-          const c = document.createElement('canvas');
-          c.width = 64; c.height = 64;
-          const cx = c.getContext('2d');
-          // Center crop
-          const size = Math.min(img.width, img.height);
-          const sx = (img.width - size) / 2;
-          const sy = (img.height - size) / 2;
-          cx.drawImage(img, sx, sy, size, size, 0, 0, 64, 64);
-          let dataUrl = c.toDataURL('image/png');
-          // If too large, compress as JPEG
-          if (dataUrl.length > 10000) {
-            dataUrl = c.toDataURL('image/jpeg', 0.5);
-          }
-          playerAvatar = dataUrl;
-          localStorage.setItem('td_avatar', dataUrl);
-          updateAvatarBtn();
-          // Update Firebase cannon data if cannon exists
-          if (db && cannons[playerId]) {
-            cannonsRef.child(playerId).update({ avatar: dataUrl });
-          }
-        };
-        img.src = ev.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
 
     // Load saved avatar
 
@@ -4636,10 +4809,6 @@
     }
 
     // Click to dismiss wave summary early
-    waveSummaryEl.addEventListener('click', () => {
-      waveSummaryEl.classList.remove('active');
-      if (waveSummaryTimeout) { clearTimeout(waveSummaryTimeout); waveSummaryTimeout = null; }
-    });
 
     function startWaveCountdown() {
       waveState = 'countdown';
@@ -4838,7 +5007,6 @@
       }, 500);
     }
 
-    goRestart.addEventListener('click', resetGame);
 
     // ═══════════════════════════════════════════════════
     //  Canvas Interaction
@@ -4984,11 +5152,6 @@
     // ═══════════════════════════════════════════════════
     //  Upgrade System
     // ═══════════════════════════════════════════════════
-    upgradeBtn.addEventListener('click', openUpgradeModal);
-    upgradeClose.addEventListener('click', () => upgradeModal.classList.remove('active'));
-    upgradeModal.addEventListener('click', e => {
-      if (e.target === upgradeModal) upgradeModal.classList.remove('active');
-    });
 
     function openUpgradeModal() {
       const c = cannons[playerId];
@@ -5097,19 +5260,6 @@
     function updatePriorityBtn() {
       priorityBtn.textContent = TARGET_LABELS[myTargetPriority] || '🎯 Nearest';
     }
-    priorityBtn.addEventListener('click', () => {
-      const idx = TARGET_PRIORITIES.indexOf(myTargetPriority);
-      myTargetPriority = TARGET_PRIORITIES[(idx + 1) % TARGET_PRIORITIES.length];
-      localStorage.setItem('td_target_priority', myTargetPriority);
-      updatePriorityBtn();
-      // Sync to Firebase for multiplayer
-      if (!offlineMode && cannons[playerId]) {
-        cannonsRef.child(playerId).update({ targetPriority: myTargetPriority });
-      }
-      if (offlineMode && cannons[playerId]) {
-        cannons[playerId].targetPriority = myTargetPriority;
-      }
-    });
     // Keyboard shortcut: T
     document.addEventListener('keydown', e => {
       if (e.key === 't' || e.key === 'T') {
@@ -5125,18 +5275,6 @@
     // ═══════════════════════════════════════════════════
     //  Relocate Button
     // ═══════════════════════════════════════════════════
-    relocateBtn.addEventListener('click', () => {
-      const myCannon = cannons[playerId];
-      if (!myCannon || !myCannon.x) return;
-      const elapsed = Date.now() - lastRelocateTime;
-      if (elapsed < RELOCATE_COOLDOWN) {
-        const remaining = Math.ceil((RELOCATE_COOLDOWN - elapsed) / 1000);
-        relocateBtn.textContent = `Wait ${remaining}s`;
-        return;
-      }
-      relocateBtn.textContent = 'Click map...';
-      // Next canvas click will relocate
-    });
 
     // Update relocate cooldown display
     setInterval(() => {
@@ -5154,7 +5292,6 @@
     // ═══════════════════════════════════════════════════
     //  Sell Cannon
     // ═══════════════════════════════════════════════════
-    sellBtn.addEventListener('click', openSellModal);
 
     function calcSellRefund() {
       const c = cannons[playerId];
@@ -5286,51 +5423,6 @@
     // ═══════════════════════════════════════════════════
     //  Early Send / Wave Skip
     // ═══════════════════════════════════════════════════
-    sendNextBtn.addEventListener('click', () => {
-      if (waveState !== 'active') return;
-      if (!cannons[playerId] || !cannons[playerId].x) return;
-      if (!isLeader && !offlineMode) return; // only leader/offline can trigger early send
-
-      // Calculate bonus based on enemies remaining
-      const totalEnemies = enemies.length;
-      if (totalEnemies === 0) return;
-
-      earlySendCount++;
-      waveStats.earlySendUsed = true;
-      sessionEarlySends++;
-      unlockAchievement('early_bird');
-      // Bonus: 25% base + 10% per consecutive early send (capped at 100%)
-      earlySendBonusPct = Math.min(100, 25 + (earlySendCount - 1) * 10);
-
-      // Show bonus popup
-      showSendBonusPopup(earlySendBonusPct);
-      sfxEarlySend();
-
-      // Advance wave number and spawn next wave's enemies on top of current ones
-      waveNumber++;
-      const newEnemies = generateWave(waveNumber);
-      enemies = enemies.concat(newEnemies);
-
-      // Heal a bit less than normal clear (half regen) — includes prestige bonus
-      baseHp = Math.min(getEffectiveMaxHp(), baseHp + Math.ceil(getEffectiveRegen() * 0.5));
-
-      // Update state
-      if (!offlineMode) {
-        metaRef.update({ waveNumber, totalKills, baseHp });
-      }
-      updateBaseHpHUD();
-      updateSendNextBtn();
-
-      // Show wave announcement
-      showWaveAnnouncement(waveNumber);
-
-      // Light screen shake for excitement
-      triggerScreenShake(false);
-
-      // Update HUD
-      hudWave.textContent = waveNumber;
-      hudEnemies.textContent = enemies.filter(e => e.hp > 0).length;
-    });
 
     function updateSendNextBtn() {
       const hasCannon = cannons[playerId] && cannons[playerId].x;
@@ -5357,21 +5449,6 @@
     // ═══════════════════════════════════════════════════
     //  Speed Controls
     // ═══════════════════════════════════════════════════
-    speedControls.addEventListener('click', e => {
-      const btn = e.target.closest('.speed-btn');
-      if (!btn) return;
-      const newSpeed = parseInt(btn.dataset.speed, 10);
-      if (newSpeed === gameSpeed) return;
-      gameSpeed = newSpeed;
-      if (gameSpeed === 3) unlockAchievement('speed_demon');
-      // Update button states
-      speedControls.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      // Update speed indicator on canvas
-      updateSpeedIndicator();
-      // Restart simulation timer with new speed
-      restartSimTimer();
-    });
 
     function updateSpeedIndicator() {
       if (gameSpeed > 1) {
@@ -5558,7 +5635,6 @@
         ultimateBtn.style.opacity = '1';
       }
     }
-    if (ultimateBtn) ultimateBtn.addEventListener('click', fireUltimate);
 
     function updateAbilityBtn() {
       updateUltimateBtn();
@@ -5593,23 +5669,6 @@
       }
     }, 100);
 
-    abilityBtn.addEventListener('click', () => {
-      if (abilityCooldownLeft > 0) return;
-      const c = cannons[playerId];
-      if (!c || !c.x) return;
-      if (waveState !== 'active' && waveState !== 'countdown') return;
-
-      const ab = getPlayerAbility();
-      if (ab.targeted) {
-        // Enter targeting mode — next canvas click fires ability
-        abilityTargeting = true;
-        canvas.classList.add('canvas-targeting');
-        updateAbilityBtn();
-      } else {
-        // Immediate activation (no targeting needed)
-        fireAbility(null, null);
-      }
-    });
 
     // Keyboard shortcuts: Q = ability, E = early send
     document.addEventListener('keydown', e => {
@@ -5966,19 +6025,9 @@
     // ═══════════════════════════════════════════════════
     //  Player Panel
     // ═══════════════════════════════════════════════════
-    playersBtn.addEventListener('click', () => {
-      playerPanel.classList.toggle('active');
-    });
 
     // ── Sound Mute Toggle ──────────────────────────────
     muteBtn.textContent = soundMuted ? '🔇' : '🔊';
-    muteBtn.addEventListener('click', () => {
-      soundMuted = !soundMuted;
-      localStorage.setItem('td_sound_muted', soundMuted);
-      muteBtn.textContent = soundMuted ? '🔇' : '🔊';
-      // Initialize audio context on first unmute (needs user gesture)
-      if (!soundMuted) ensureAudioCtx();
-    });
 
     function updatePlayerPanel() {
       let html = '';
@@ -8546,21 +8595,9 @@
       localStorage.setItem('td_tutorial_complete', '1');
     }
 
-    tutorialNext.addEventListener('click', () => {
-      tutorialStep++;
-      if (tutorialStep >= TUTORIAL_STEPS.length) {
-        endTutorial();
-      } else {
-        showTutorialStep();
-      }
-    });
 
-    tutorialSkip.addEventListener('click', endTutorial);
 
     // Close on overlay click (outside tooltip and highlight)
-    tutorialOverlay.addEventListener('click', (e) => {
-      if (e.target === tutorialOverlay) endTutorial();
-    });
 
     // Escape closes tutorial
     document.addEventListener('keydown', (e) => {
@@ -8568,9 +8605,6 @@
     });
 
     // Help button replays tutorial
-    helpBtn.addEventListener('click', () => {
-      startTutorial();
-    });
 
     // Auto-show tutorial for first-time players
     function maybeShowTutorial() {
@@ -8600,6 +8634,8 @@
     //  Every variable, DOM binding, and function is defined above.
     //  Add new init calls here — not inline with declarations.
     // ═══════════════════════════════════════════════════
+    initDOM();
+    initListeners();
     updatePrestigeBtn();
     updateAvatarBtn();
     updatePriorityBtn();
@@ -8614,7 +8650,6 @@
     } else {
       setTimeout(resizeCanvas, 50);
     }
-    initDOM();
     initFirebase();
     maybeShowTutorial();
 
