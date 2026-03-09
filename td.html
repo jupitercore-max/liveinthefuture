@@ -2729,6 +2729,7 @@
         c.xp = newXp - needed;
         c.level = level + 1;
         sfxLevelUp();
+        spawnLevelUpEffect(c.x, c.y, c.level);
         if (c.level >= 20) unlockAchievement('max_level');
       } else {
         c.xp = newXp;
@@ -3956,6 +3957,7 @@
       scorePopups = [];
       abilityZones = [];
       lightningBolts = [];
+      levelUpRings = [];
       ultimateCooldownLeft = 0;
       ultimateFlashTimer = 0;
       terrainHazards = [];
@@ -4573,6 +4575,57 @@
     //  Lightning Bolt Visual System
     // ═══════════════════════════════════════════════════
     let lightningBolts = [];
+    let levelUpRings = []; // expanding celebration rings around cannon on level-up
+
+    const MILESTONE_LEVELS = {
+      5:  { emoji: '🛡️', text: 'Armor Pierce!', color: '#f59e0b' },
+      8:  { emoji: '💥', text: 'Splash Unlocked!', color: '#ef4444' },
+      12: { emoji: '⚡', text: 'Heavy Pierce!', color: '#8b5cf6' },
+      15: { emoji: '🧊', text: 'All Slow!', color: '#06b6d4' },
+      18: { emoji: '🔥', text: 'Armor Mastery!', color: '#f97316' },
+      20: { emoji: '👑', text: 'MAX LEVEL!', color: '#ffd700' }
+    };
+
+    function spawnLevelUpEffect(x, y, newLevel) {
+      const milestone = MILESTONE_LEVELS[newLevel];
+      const isMilestone = !!milestone;
+      const particleCount = isMilestone ? 24 : 12;
+      const ringColor = isMilestone ? milestone.color : '#1E90FF';
+
+      // Expanding ring
+      levelUpRings.push({ x, y, radius: 8, maxRadius: isMilestone ? 80 : 50, life: 30, maxLife: 30, color: ringColor, thick: isMilestone ? 3 : 2 });
+      if (isMilestone) {
+        // Second outer ring for milestones
+        levelUpRings.push({ x, y, radius: 8, maxRadius: 100, life: 40, maxLife: 40, color: ringColor, thick: 1.5 });
+      }
+
+      // Particle burst — radial spray from cannon position
+      for (let i = 0; i < particleCount; i++) {
+        const angle = (Math.PI * 2 / particleCount) * i + Math.random() * 0.3;
+        const speed = 2 + Math.random() * (isMilestone ? 3 : 2);
+        scorePopups.push({
+          x: x, y: y,
+          text: '✦',
+          color: ringColor,
+          life: 20 + Math.floor(Math.random() * 10),
+          maxLife: 30,
+          size: isMilestone ? 10 : 7,
+          vy: Math.sin(angle) * speed * -0.5,
+          vx: Math.cos(angle) * speed
+        });
+      }
+
+      // Level number popup
+      const lvlText = isMilestone ? `${milestone.emoji} Lv${newLevel} — ${milestone.text}` : `⬆ Level ${newLevel}`;
+      const lvlColor = isMilestone ? milestone.color : '#4ade80';
+      const lvlSize = isMilestone ? 16 : 13;
+      scorePopups.push({ x, y: y - 25, text: lvlText, color: lvlColor, life: isMilestone ? 60 : 40, maxLife: isMilestone ? 60 : 40, size: lvlSize, vy: -0.8 });
+
+      // Light screen shake for milestones
+      if (isMilestone) {
+        triggerScreenShake(newLevel === 20 ? 'heavy' : 'light');
+      }
+    }
 
     function spawnLightningBolt(x1, y1, x2, y2, branches) {
       lightningBolts.push({ x1, y1, x2, y2, life: 8, maxLife: 8, branches: branches || 0 });
@@ -5596,8 +5649,27 @@
         ctx.textAlign = 'start';
         ctx.globalAlpha = 1;
         sp.y += sp.vy;
+        if (sp.vx) sp.x += sp.vx; // horizontal velocity for particle bursts
         sp.life--;
         if (sp.life <= 0) scorePopups.splice(i, 1);
+      }
+
+      // Draw level-up celebration rings
+      for (let i = levelUpRings.length - 1; i >= 0; i--) {
+        const ring = levelUpRings[i];
+        const progress = 1 - ring.life / ring.maxLife;
+        const alpha = 1 - progress;
+        ring.radius = 8 + (ring.maxRadius - 8) * progress;
+        ctx.save();
+        ctx.globalAlpha = alpha * 0.7;
+        ctx.strokeStyle = ring.color;
+        ctx.lineWidth = ring.thick * (1 - progress * 0.5);
+        ctx.beginPath();
+        ctx.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        ring.life--;
+        if (ring.life <= 0) levelUpRings.splice(i, 1);
       }
 
       // Draw base HP bar along the base line

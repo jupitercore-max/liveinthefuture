@@ -443,3 +443,22 @@ If it fails, DO NOT commit. Fix the error first.
 
 #### 7. Enemy Warning Labels
 - `ENEMY_WARNINGS` object added with descriptive warnings for healer, armored, and phaser types
+
+### 2026-03-09: Level-Up Celebration Effects & Milestone Notifications
+- **Expanding ring effect** — When a cannon levels up, a colored ring expands outward from the cannon position with smooth alpha fadeout. Uses `levelUpRings[]` array rendered in drawFrame.
+- **Particle burst** — 12 star particles (✦) spray radially outward from the cannon on every level-up. Particles have both horizontal (`vx`) and vertical (`vy`) velocity for a true circular burst effect. `vx` support added to the scorePopups renderer.
+- **Level number popup** — "⬆ Level X" text floats up from the cannon in green.
+- **Milestone celebrations** — Levels 5, 8, 12, 15, 18, and 20 get enhanced effects:
+  - More particles (24 vs 12) with faster spread
+  - Double expanding ring (inner + outer)
+  - Larger, colored popup text with emoji + description:
+    - Lv5: 🛡️ Armor Pierce!
+    - Lv8: 💥 Splash Unlocked!
+    - Lv12: ⚡ Heavy Pierce!
+    - Lv15: 🧊 All Slow!
+    - Lv18: 🔥 Armor Mastery!
+    - Lv20: 👑 MAX LEVEL!
+  - Screen shake (light for milestones, heavy for Lv20 capstone)
+  - Milestone ring colors match the unlock theme (amber, red, purple, cyan, orange, gold)
+- **State management** — `levelUpRings` array cleared on game reset. Ring rendering uses expanding radius with decreasing alpha and line width for smooth dissolve.
+- **Design rationale** — With 20 levels now, each level-up was a non-event (just a sound). Players need visual reward feedback to feel the progression, especially since milestones unlock meaningful gameplay bonuses. The ring+particle combo is satisfying without being visually noisy — it fades in <1 second for normal levels, ~1.3 seconds for milestones.
