@@ -651,7 +651,8 @@
   for (let i = 0; i < 60; i++) {
     const tick = document.createElement('div');
     const isMajor = i % 5 === 0;
-    tick.className = 'clock-tick' + (isMajor ? ' major' : '');
+    const isQuarter = !isMajor && (i % 5 === 1 || i % 5 === 4); // ticks adjacent to hours
+    tick.className = 'clock-tick' + (isMajor ? ' major' : isQuarter ? ' quarter' : '');
     tick.style.transform = `translateX(-50%) rotate(${i * 6}deg)`;
     clockFace.appendChild(tick);
   }
