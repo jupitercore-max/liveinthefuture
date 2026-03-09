@@ -819,6 +819,19 @@
       day: 'numeric'
     });
 
+    // Update date window complication
+    const dateNumEl = document.getElementById('dateNum');
+    if (dateNumEl) {
+      const dayOfMonth = now.toLocaleDateString('en-US', { timeZone: homeTz, day: 'numeric' });
+      if (dateNumEl.textContent !== dayOfMonth) {
+        dateNumEl.classList.add('flip');
+        setTimeout(() => {
+          dateNumEl.textContent = dayOfMonth;
+          dateNumEl.classList.remove('flip');
+        }, 350);
+      }
+    }
+
     const offset = getHomeOffset();
     const offsetHours = Math.floor(Math.abs(offset));
     const offsetMinutes = Math.round((Math.abs(offset) % 1) * 60);
