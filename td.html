@@ -24,7 +24,8 @@
       font-family: var(--font-mono);
       background: var(--bg);
       color: var(--text);
-      min-height: 100vh;
+      height: 100vh;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -35,13 +36,13 @@
     /* ─── Header ─────────────────────────────────────── */
     .header {
       width: 100%;
-      max-width: 740px;
-      padding: 16px 20px 0;
+      max-width: 100%;
+      padding: 8px 20px 0;
       display: flex;
       align-items: center;
       gap: 12px;
     }
-    .header .back { font-size: 0.8rem; color: var(--text-muted); }
+    .header .back { font-size: 0.75rem; color: var(--text-muted); }
     .header h1 { font-size: 1.1rem; font-weight: 600; }
 
     /* ─── Avatar Button (in controls) ────────────────── */
@@ -70,13 +71,13 @@
     .avatar-input { display: none; }
 
     /* ─── Game Screen ────────────────────────────────── */
-    #gameScreen { width: 100%; max-width: 740px; padding: 0 10px 20px; }
+    #gameScreen { width: 100%; max-width: 100%; padding: 0; display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 
     .hud {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 12px;
+      padding: 6px 12px;
       font-size: 0.75rem;
       color: var(--text-muted);
       flex-wrap: wrap;
@@ -87,16 +88,18 @@
 
     .canvas-wrap {
       width: 100%;
+      flex: 1;
       position: relative;
       background: var(--bg-light);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
+      border: none;
+      border-radius: 0;
       overflow: hidden;
+      min-height: 0;
     }
     canvas {
       display: block;
       width: 100%;
-      height: auto;
+      height: 100%;
       cursor: crosshair;
     }
 
@@ -104,8 +107,8 @@
     .controls {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 10px 12px;
+      gap: 6px;
+      padding: 6px 12px;
       flex-wrap: wrap;
     }
     .ctrl-btn {
@@ -226,7 +229,14 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 12px;
-      margin-top: 8px;
+      position: absolute;
+      bottom: 50px;
+      right: 10px;
+      width: 280px;
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 50;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     }
     .player-panel.active { display: block; }
     .player-panel h3 {
@@ -1100,9 +1110,9 @@
 </head>
 <body>
 
-  <div class="header">
+  <div class="header" style="padding:4px 10px;">
     <a href="index.html" class="back">&larr; home</a>
-    <h1>Tower Defense</h1>
+    <h1 style="font-size:1rem;">Tower Defense</h1>
   </div>
 
   <!-- ─── Game Screen ──────────────────────────────── -->
@@ -1116,7 +1126,7 @@
     </div>
 
     <div class="canvas-wrap">
-      <canvas id="gameCanvas" width="700" height="500"></canvas>
+      <canvas id="gameCanvas"></canvas>
       <div class="wave-announce" id="waveAnnounce">
         <div class="wa-text" id="waText"></div>
         <div class="wa-sub" id="waSub"></div>
@@ -1251,9 +1261,84 @@
     // ═══════════════════════════════════════════════════
     //  Constants & Config
     // ═══════════════════════════════════════════════════
-    const CANVAS_W = 700, CANVAS_H = 500;
-    const BASE_Y = CANVAS_H - 30;
-    const PLACEMENT_MIN_Y = 300;
+    let CANVAS_W = 700, CANVAS_H = 500;
+    let BASE_Y = CANVAS_H - 30;
+
+    // ═══════════════════════════════════════════════════
+    //  Adaptive Canvas Sizing
+    // ═══════════════════════════════════════════════════
+    function resizeCanvas() {
+      const wrap = document.querySelector('.canvas-wrap');
+      if (!wrap) return;
+      const rect = wrap.getBoundingClientRect();
+      let w = Math.floor(rect.width);
+      let h = Math.floor(rect.height);
+      // Clamp aspect ratio between 4:3 and 21:9
+      const aspect = w / h;
+      const MIN_ASPECT = 4 / 3;
+      const MAX_ASPECT = 21 / 9;
+      if (aspect < MIN_ASPECT) h = Math.floor(w / MIN_ASPECT);
+      if (aspect > MAX_ASPECT) w = Math.floor(h * MAX_ASPECT);
+      // Minimum sizes
+      w = Math.max(w, 320);
+      h = Math.max(h, 200);
+      const oldW = CANVAS_W, oldH = CANVAS_H;
+      CANVAS_W = w;
+      CANVAS_H = h;
+      BASE_Y = CANVAS_H - 30;
+      PLACEMENT_MIN_Y = Math.floor(CANVAS_H * 0.6);
+      const cvs = document.getElementById('gameCanvas');
+      if (cvs) {
+        cvs.width = CANVAS_W;
+        cvs.height = CANVAS_H;
+      }
+      // Rescale path and entities if game is running
+      if (oldW > 0 && oldH > 0 && (oldW !== w || oldH !== h)) {
+        const sx = w / oldW, sy = h / oldH;
+        if (typeof currentPath !== 'undefined' && currentPath && currentPath.length) {
+          for (const p of currentPath) { p.x *= sx; p.y *= sy; }
+        }
+        if (typeof enemies !== 'undefined' && enemies) {
+          for (const e of enemies) {
+            e.x *= sx; e.y *= sy;
+            if (e.flyStartX) e.flyStartX *= sx;
+            if (e.flyEndX) e.flyEndX *= sx;
+            if (e.flyY) e.flyY *= sy;
+          }
+        }
+        if (typeof cannons !== 'undefined' && cannons) {
+          for (const c of Object.values(cannons)) {
+            if (c.x) c.x *= sx;
+            if (c.y) c.y *= sy;
+          }
+        }
+        if (typeof aidCannons !== 'undefined' && aidCannons) {
+          for (const c of aidCannons) {
+            if (c.x) c.x *= sx;
+            if (c.y) c.y *= sy;
+          }
+        }
+        if (typeof terrainHazards !== 'undefined' && terrainHazards) {
+          for (const hz of terrainHazards) {
+            hz.x *= sx; hz.y *= sy;
+            hz.radius *= Math.min(sx, sy);
+          }
+        }
+      }
+    }
+
+    let _resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(_resizeTimer);
+      _resizeTimer = setTimeout(resizeCanvas, 100);
+    });
+    // Initial size on DOMContentLoaded
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => setTimeout(resizeCanvas, 50));
+    } else {
+      setTimeout(resizeCanvas, 50);
+    }
+    let PLACEMENT_MIN_Y = Math.floor(CANVAS_H * 0.6);
     const MIN_CANNON_SPACING = 40;
     const RELOCATE_COOLDOWN = 30000;
     const TICK_RATE = 20; // ticks per second
