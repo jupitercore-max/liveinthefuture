@@ -786,7 +786,32 @@
       millis = homeTime.millis;
     }
 
-    const secondAngle = (seconds + millis / 1000) * 6;
+    // Mechanical movement simulation: 8 beats per second with spring overshoot
+    // Each beat: hand snaps to next 0.75° position, overshoots slightly, settles
+    const BEATS_PER_SEC = 8;
+    const beatIndex = Math.floor((seconds * BEATS_PER_SEC) + (millis / 1000 * BEATS_PER_SEC));
+    const beatFrac = ((seconds * BEATS_PER_SEC) + (millis / 1000 * BEATS_PER_SEC)) % 1;
+    const baseDeg = (beatIndex / BEATS_PER_SEC) * 6; // 6° per second, divided into beats
+
+    // Spring physics: quick snap with slight overshoot then settle
+    let springOffset = 0;
+    if (beatFrac < 0.15) {
+      // Snap phase: accelerate to target + overshoot
+      const t = beatFrac / 0.15;
+      springOffset = (1 + 0.12 * Math.sin(t * Math.PI)) * t;
+      springOffset = Math.min(springOffset, 1.12);
+    } else if (beatFrac < 0.35) {
+      // Settle phase: overshoot decays back
+      const t = (beatFrac - 0.15) / 0.2;
+      springOffset = 1.12 - 0.12 * t;
+    } else {
+      // Rest phase: stationary at target
+      springOffset = 1.0;
+    }
+
+    const nextBeatDeg = 6 / BEATS_PER_SEC; // degrees per beat
+    const secondAngle = baseDeg + springOffset * nextBeatDeg;
+
     const minuteAngle = (minutes * 6) + (seconds * 0.1);
     const hourAngle = ((hours % 12) * 30) + (minutes * 0.5);
 
