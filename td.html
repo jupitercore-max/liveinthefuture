@@ -1158,8 +1158,12 @@
         <button class="speed-btn active" data-speed="1">1×</button>
         <button class="speed-btn" data-speed="2">2×</button>
         <button class="speed-btn" data-speed="3">3×</button>
+        <button class="speed-btn prestige-speed" data-speed="4" style="display:none">4×</button>
+        <button class="speed-btn prestige-speed" data-speed="6" style="display:none">6×</button>
+        <button class="speed-btn prestige-speed" data-speed="10" style="display:none">10×</button>
       </div>
       <button class="ctrl-btn send-next-btn" id="sendNextBtn" disabled>⏩ Send Next <span class="ab-key">[E]</span></button>
+      <button class="ctrl-btn" id="aidBtn" title="Call for Aid [H]" style="background:linear-gradient(135deg,#2ecc71,#27ae60);color:#fff;font-weight:bold;display:none">🆘 Aid<span class="ab-key">[H]</span></button>
       <button class="ctrl-btn" id="relocateBtn">Relocate</button>
       <button class="ctrl-btn" id="priorityBtn" title="Cycle targeting priority [T]">🎯 Nearest</button>
       <button class="ctrl-btn sell-btn" id="sellBtn" disabled>🗑 Sell</button>
@@ -1258,6 +1262,10 @@
     const LEADER_HEARTBEAT_MS = 2000;
     const LEADER_STALE_MS = 6000;
     const STALE_CANNON_DAYS = 30;
+    const OFFLINE_DESPAWN_SECS = 120; // remove offline player cannons after 2 minutes
+    const AID_CANNON_DURATION = TICK_RATE * 45; // AI aid cannons last 45 seconds
+    let aidCooldown = 0; // ticks until next aid available
+    let aidCannons = []; // temporary AI ally cannons
     const XP_PER_LEVEL = lvl => Math.floor(30 * lvl + 2 * lvl * lvl);
 
     // ═══════════════════════════════════════════════════
@@ -1300,6 +1308,104 @@
     function getEffectiveRegen() {
       return HP_REGEN_PER_WAVE + (typeof getPrestigeRegenBonus === 'function' ? getPrestigeRegenBonus() : 0);
     }
+
+    // ═══════════════════════════════════════════════════
+    //  Offline Player Despawn & Call for Aid
+    // ═══════════════════════════════════════════════════
+    const aidBtn = $('aidBtn');
+    const AID_NAMES = ['🤖 Sentinel', '🤖 Guardian', '🤖 Watcher'];
+    const AID_COOLDOWN_TICKS = TICK_RATE * 90; // 90 second cooldown
+
+    // Despawn offline cannons after OFFLINE_DESPAWN_SECS
+    function despawnOfflinePlayers() {
+      const now = Date.now();
+      for (const [cid, c] of Object.entries(cannons)) {
+        if (cid === playerId) continue; // never remove self
+        const playerInfo = onlinePlayers[cid];
+        if (playerInfo && playerInfo.online) continue; // still online
+        // Check lastSeen timestamp
+        const lastSeen = c.lastSeen || (playerInfo && playerInfo.lastSeen) || 0;
+        if (lastSeen && (now - lastSeen) > OFFLINE_DESPAWN_SECS * 1000) {
+          // Fade-out effect before removing
+          if (!c._despawning) {
+            c._despawning = true;
+            c._despawnStart = now;
+          }
+          if (now - c._despawnStart > 2000) {
+            delete cannons[cid];
+            if (!offlineMode && isLeader) cannonsRef.child(cid).remove();
+          }
+        }
+      }
+    }
+
+    function callForAid() {
+      if (aidCooldown > 0 || waveState !== 'active') return;
+      aidCooldown = AID_COOLDOWN_TICKS;
+      const numAid = Math.min(3, Math.max(1, Math.floor(waveNumber / 10) + 1));
+      for (let i = 0; i < numAid; i++) {
+        const aidId = 'aid_' + Date.now() + '_' + i;
+        // Place aid cannons randomly in the placement zone
+        const zoneLeft = 20, zoneRight = CANVAS_W - 20;
+        const zoneTop = 20, zoneBot = CANVAS_H - 20;
+        const ax = zoneLeft + Math.random() * (zoneRight - zoneLeft);
+        const ay = zoneTop + Math.random() * (zoneBot - zoneTop);
+        const aidLevel = Math.min(20, Math.max(3, Math.floor(waveNumber / 3)));
+        const specs = ['gatling', 'sniper', 'cannon', 'tesla', 'frost'];
+        const aidSpec = specs[Math.floor(Math.random() * specs.length)];
+        const aidCannon = {
+          x: ax, y: ay,
+          level: aidLevel,
+          path: aidSpec === 'frost' ? 'tech' : aidSpec === 'gatling' ? 'rapid' : 'power',
+          spec: aidSpec,
+          name: AID_NAMES[i % AID_NAMES.length],
+          emoji: '🤖',
+          kills: 0,
+          isAid: true,
+          aidLife: AID_CANNON_DURATION,
+          lastSeen: Date.now()
+        };
+        cannons[aidId] = aidCannon;
+        // Spawn-in visual
+        levelUpRings.push({
+          x: ax, y: ay, radius: 5, maxRadius: 60, life: 20, maxLife: 20,
+          color: '46, 204, 113', particles: []
+        });
+      }
+      // Screen announcement
+      floatingTexts.push({
+        x: CANVAS_W / 2, y: CANVAS_H / 3,
+        text: `🆘 ${numAid} REINFORCEMENT${numAid > 1 ? 'S' : ''} DEPLOYED!`,
+        color: '#2ecc71', size: 24, life: 40, maxLife: 40
+      });
+      updatePlayerPanel();
+    }
+
+    function updateAidCannons() {
+      for (const [cid, c] of Object.entries(cannons)) {
+        if (!c.isAid) continue;
+        c.aidLife--;
+        if (c.aidLife <= 0) {
+          // Despawn effect
+          deathParticles.push(
+            ...Array.from({ length: 8 }, () => ({
+              x: c.x, y: c.y,
+              vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
+              life: 15, maxLife: 15, color: '#2ecc71', size: 3
+            }))
+          );
+          delete cannons[cid];
+        }
+      }
+    }
+
+    function updateAidBtn() {
+      const canAid = waveState === 'active' && aidCooldown <= 0 && (isLeader || offlineMode);
+      aidBtn.style.display = canAid ? '' : 'none';
+      if (aidCooldown > 0) aidCooldown--;
+    }
+
+    aidBtn.addEventListener('click', callForAid);
 
     // ═══════════════════════════════════════════════════
     //  Achievement System
@@ -1483,6 +1589,24 @@
         desc: 'Unlocks & empowers the Ultimate ability',
         maxLevel: 3, costs: [5, 10, 15],
         effect: lvl => `Ultimate Tier ${lvl}: ${['Shockwave','Annihilation','Apocalypse'][lvl-1]}`
+      },
+      {
+        id: 'time_warp', icon: '⏩', name: 'Time Warp',
+        desc: 'Unlock faster game speeds',
+        maxLevel: 3, costs: [2, 5, 10],
+        effect: lvl => `Max speed: ${[4, 6, 10][lvl-1]}× (was 3×)`
+      },
+      {
+        id: 'wave_rush', icon: '🌊', name: 'Wave Rush',
+        desc: 'Waves start faster between rounds',
+        maxLevel: 3, costs: [1, 3, 6],
+        effect: lvl => `Wave countdown: ${[2.5, 2, 1][lvl-1]}s (was 3s)`
+      },
+      {
+        id: 'headstart', icon: '🚀', name: 'Head Start',
+        desc: 'Start each game with bonus XP on your cannons',
+        maxLevel: 3, costs: [3, 6, 10],
+        effect: lvl => `+${lvl * 50} starting XP per cannon`
       }
     ];
 
@@ -1528,6 +1652,20 @@
 
     function getUltimateTier() {
       return getPrestigeLevel('ultimate_power');
+    }
+
+    function getMaxGameSpeed() {
+      const lvl = getPrestigeLevel('time_warp');
+      return [3, 4, 6, 10][lvl]; // 0=3×, 1=4×, 2=6×, 3=10×
+    }
+
+    function getWaveCountdownSecs() {
+      const lvl = getPrestigeLevel('wave_rush');
+      return [3, 2.5, 2, 1][lvl]; // 0=3s, 1=2.5s, 2=2s, 3=1s
+    }
+
+    function getHeadStartXP() {
+      return getPrestigeLevel('headstart') * 50;
     }
 
     function earnPrestigeStars(waveReached, kills) {
@@ -1605,6 +1743,15 @@
 
     function updatePrestigeBtn() {
       prestigeBtn.textContent = `⭐${prestigeStars > 0 ? ' ' + prestigeStars : ''}`;
+      updatePrestigeSpeedButtons();
+    }
+
+    function updatePrestigeSpeedButtons() {
+      const maxSpeed = getMaxGameSpeed();
+      speedControls.querySelectorAll('.prestige-speed').forEach(btn => {
+        const s = parseInt(btn.dataset.speed, 10);
+        btn.style.display = s <= maxSpeed ? '' : 'none';
+      });
     }
     updatePrestigeBtn();
 
@@ -2642,6 +2789,85 @@
     let earlySendBonusPct = 0; // current bonus XP percentage from early sends
     let earlySendCount = 0; // how many consecutive early sends
 
+    // ═══════════════════════════════════════════════════
+    //  Visual Effects Queue (leader → followers via Firebase)
+    // ═══════════════════════════════════════════════════
+    let pendingVfx = []; // leader accumulates events between snapshots
+    const VFX_MAX_BATCH = 30; // max events per broadcast to keep payload small
+
+    function queueVfx(evt) {
+      if (!isLeader || offlineMode) return;
+      if (pendingVfx.length < VFX_MAX_BATCH) pendingVfx.push(evt);
+    }
+
+    function flushVfx() {
+      if (!isLeader || offlineMode || pendingVfx.length === 0 || !vfxRef) return;
+      vfxRef.set(JSON.stringify(pendingVfx));
+      pendingVfx = [];
+    }
+
+    function handleIncomingVfx(events) {
+      if (isLeader) return; // leader already renders locally
+      for (const evt of events) {
+        switch (evt.t) {
+          case 'dmg': // damage number
+            scorePopups.push({
+              x: evt.x, y: evt.y,
+              text: evt.tx, color: evt.c,
+              life: 30, maxLife: 30, size: evt.s || 8, vy: -1.5
+            });
+            break;
+          case 'bolt': // chain lightning
+            spawnLightningBolt(evt.x1, evt.y1, evt.x2, evt.y2, evt.b || 1);
+            break;
+          case 'kill': // death effect
+            for (let i = 0; i < 6; i++) {
+              deathParticles.push({
+                x: evt.x, y: evt.y,
+                vx: (Math.random() - 0.5) * 5,
+                vy: (Math.random() - 0.5) * 5,
+                life: 20, maxLife: 20,
+                color: evt.c || '#ff4444', size: 4
+              });
+            }
+            break;
+          case 'streak': // kill streak callout
+            streakAnnouncement = {
+              text: evt.tx, color: evt.c, size: evt.s,
+              timer: 60, maxTimer: 60
+            };
+            break;
+          case 'wave': // wave announcement
+            waveAnnounce.classList.add('active');
+            waText.textContent = evt.tx;
+            waText.style.color = evt.c || '';
+            waSub.textContent = evt.sub || 'incoming';
+            setTimeout(() => { waveAnnounce.classList.remove('active'); waText.style.color = ''; }, evt.ms || 1200);
+            break;
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Player Name Change
+    // ═══════════════════════════════════════════════════
+    function changePlayerName() {
+      const current = playerName || 'Player';
+      const newName = prompt('Enter your new display name:', current);
+      if (newName && newName.trim() && newName.trim() !== current) {
+        playerName = newName.trim().substring(0, 20); // max 20 chars
+        localStorage.setItem('rayhe_visitor_name', playerName);
+        if (typeof FirebaseShared !== 'undefined' && FirebaseShared.setVisitorName) {
+          FirebaseShared.setVisitorName(playerName);
+        }
+        // Update cannon name in Firebase
+        if (!offlineMode && cannonsRef && playerId) {
+          cannonsRef.child(playerId).update({ name: playerName });
+        }
+        updatePlayerPanel();
+      }
+    }
+
     // DPS Meter — rolling 5-second window of damage samples
     const DPS_WINDOW_SEC = 5;
     const DPS_HISTORY_LEN = 30; // 30 bars in the graph (each = 1 second)
@@ -2660,7 +2886,7 @@
     let mouseOnCanvas = false;
 
     // Firebase refs
-    let metaRef, leaderRef, stateRef, cannonsRef, playersRef;
+    let metaRef, leaderRef, stateRef, cannonsRef, playersRef, vfxRef;
 
     // ═══════════════════════════════════════════════════
     //  DOM Elements
@@ -2878,6 +3104,7 @@
       stateRef = db.ref('td/state');
       cannonsRef = db.ref('td/cannons');
       playersRef = db.ref('td/players');
+      vfxRef = db.ref('td/vfx');
 
       // Auto-join immediately
       joinGame();
@@ -2968,6 +3195,17 @@
             terrainHazards = generateHazards(waveNumber, currentPath, currentPathLength);
           } catch(e) {}
         }
+      });
+
+      // VFX event stream — non-leaders listen for visual effects from leader
+      vfxRef.on('value', snap => {
+        if (isLeader) return;
+        const raw = snap.val();
+        if (!raw) return;
+        try {
+          const events = JSON.parse(raw);
+          if (Array.isArray(events)) handleIncomingVfx(events);
+        } catch(e) {}
       });
 
       // Start leader election
@@ -3203,6 +3441,7 @@
           life: isCrit ? 24 : 18, maxLife: isCrit ? 24 : 18,
           size: size, vy: isCrit ? -2.5 : -2.0
         });
+        queueVfx({ t: 'dmg', x: Math.round(enemy.x + jitterX), y: Math.round(enemy.y - enemy.radius - 4), tx: prefix + (displayDmg >= 1 ? Math.round(displayDmg) : displayDmg.toFixed(1)), c: color, s: size });
         // Crit hit particles — golden burst
         if (isCrit) {
           for (let ci = 0; ci < 6; ci++) {
@@ -3491,6 +3730,11 @@
 
       tickCount++;
       shootSoundBudget = 0; // reset per-tick sound throttle
+
+      // Despawn offline players & update aid cannons
+      if (tickCount % (TICK_RATE * 5) === 0) despawnOfflinePlayers();
+      updateAidCannons();
+      updateAidBtn();
 
       if (waveState === 'countdown') {
         countdownTimer--;
@@ -4077,6 +4321,8 @@
         baseHp,
         lastActivity: firebase.database.ServerValue.TIMESTAMP
       });
+      // Flush visual effects to followers
+      flushVfx();
     }
 
     // --- Wave Summary & Grade System ---
@@ -4167,7 +4413,7 @@
 
     function startWaveCountdown() {
       waveState = 'countdown';
-      countdownTimer = TICK_RATE * 3; // 3 seconds
+      countdownTimer = Math.round(TICK_RATE * getWaveCountdownSecs());
       countdownStartedAt = Date.now();
       if (!offlineMode) metaRef.update({ waveState: 'countdown' });
       // Show announcement
@@ -4345,7 +4591,7 @@
       // Reset cannon levels for offline mode
       if (offlineMode && cannons[playerId]) {
         cannons[playerId].level = 1;
-        cannons[playerId].xp = 0;
+        cannons[playerId].xp = getHeadStartXP();
         cannons[playerId].kills = 0;
         cannons[playerId].path = null;
         cannons[playerId].spec = null;
@@ -5151,6 +5397,9 @@
       if (e.key === 'e' || e.key === 'E') {
         if (!sendNextBtn.disabled) sendNextBtn.click();
       }
+      if (e.key === 'h' || e.key === 'H') {
+        callForAid();
+      }
       // Escape cancels targeting
       if (e.key === 'Escape' && abilityTargeting) {
         cancelTargeting();
@@ -5515,7 +5764,7 @@
           : `<div class="p-avatar" style="display:flex;align-items:center;justify-content:center;font-size:14px;">${c.emoji || '⚪'}</div>`;
         html += `<div class="player-row ${statusClass}">
           ${avatarContent}
-          <span class="p-name">${escapeHtml(c.name)}${cid === playerId ? ' (you)' : ''}</span>
+          <span class="p-name">${escapeHtml(c.name)}${cid === playerId ? ' <span class="name-edit" onclick="changePlayerName()" title="Change name" style="cursor:pointer;opacity:0.6;font-size:10px;">✏️</span>' : ''}</span>
           <span class="p-level">Lv${c.level || 1}</span>
           <span class="p-kills">${c.kills || 0}k</span>
         </div>`;
@@ -6562,6 +6811,32 @@
       const path = c.path || null;
       const baseR = 12;
 
+      // Despawning fade for offline players
+      if (c._despawning) {
+        const elapsed = Date.now() - (c._despawnStart || Date.now());
+        ctx.globalAlpha = Math.max(0.1, 1 - elapsed / 2000);
+      }
+      // Aid cannon glow
+      if (c.isAid) {
+        const aidPulse = 0.3 + 0.2 * Math.sin(Date.now() * 0.005);
+        ctx.save();
+        ctx.globalAlpha = aidPulse;
+        ctx.fillStyle = '#2ecc71';
+        ctx.beginPath();
+        ctx.arc(x, y, baseR + 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        // Timer ring showing remaining life
+        if (c.aidLife > 0) {
+          const pct = c.aidLife / AID_CANNON_DURATION;
+          ctx.strokeStyle = pct > 0.3 ? '#2ecc71' : '#e74c3c';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(x, y, baseR + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct);
+          ctx.stroke();
+        }
+      }
+
       // Range circle (only for own cannon)
       if (isMe) {
         // Filled gradient range indicator
@@ -6917,6 +7192,8 @@
         ctx.fillText(pIcons[myTargetPriority] || '', x - 18, y - 10);
       }
       ctx.textAlign = 'start';
+      // Reset alpha after despawn fade
+      if (c._despawning) ctx.globalAlpha = 1;
     }
 
     // Helper: draw a polygon on main canvas context
