@@ -2579,6 +2579,8 @@
     let cannons = {}; // id -> cannon data
     let projectiles = []; // client-side visual only
     let particles = []; // death particles
+    let muzzleFlashes = []; // brief flash at cannon barrel on fire
+    let impactSparks = []; // spark burst at enemy hit location
     let powerups = []; // dropped power-ups on the field
     let activePowerupEffects = {}; // type -> {timer, startTime}
     let onlinePlayers = {};
@@ -4129,6 +4131,8 @@
       abilityZones = [];
       lightningBolts = [];
       levelUpRings = [];
+      muzzleFlashes = [];
+      impactSparks = [];
       ultimateCooldownLeft = 0;
       ultimateFlashTimer = 0;
       terrainHazards = [];
@@ -5413,6 +5417,20 @@
             const vPriority = (cid === playerId) ? myTargetPriority : (c.targetPriority || 'nearest');
             const nearest = findTarget(enemies, c.x, c.y, stats.range, vPriority);
             if (nearest) {
+              // Muzzle flash at barrel tip (toward target)
+              const mAngle = Math.atan2(nearest.y - c.y, nearest.x - c.x);
+              const flashDist = 14; // barrel tip offset
+              const spec = c.spec || null;
+              const flashSize = spec === 'sniper' ? 8 : spec === 'cannon' ? 10 : spec === 'gatling' ? 5 : 6;
+              const flashColor = spec === 'frost' ? '150,220,255' : spec === 'tesla' ? '120,180,255' : '255,200,80';
+              muzzleFlashes.push({
+                x: c.x + Math.cos(mAngle) * flashDist,
+                y: c.y + Math.sin(mAngle) * flashDist,
+                size: flashSize,
+                life: 6,
+                maxLife: 6,
+                color: flashColor
+              });
               projectiles.push({
                 x1: c.x, y1: c.y,
                 x2: nearest.x, y2: nearest.y,
@@ -5874,7 +5892,60 @@
         ctx.stroke();
         ctx.globalAlpha = 1;
         p.life--;
-        if (p.life <= 0) projectiles.splice(i, 1);
+        if (p.life <= 0) {
+          // Spawn impact sparks at target location
+          const sparkCount = 3 + Math.floor(Math.random() * 3);
+          for (let s = 0; s < sparkCount; s++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 1 + Math.random() * 2.5;
+            impactSparks.push({
+              x: p.x2, y: p.y2,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              life: 6 + Math.floor(Math.random() * 5),
+              maxLife: 11,
+              color: p.color,
+              size: 1.5 + Math.random()
+            });
+          }
+          projectiles.splice(i, 1);
+        }
+      }
+
+      // Draw muzzle flashes
+      for (let i = muzzleFlashes.length - 1; i >= 0; i--) {
+        const mf = muzzleFlashes[i];
+        const t = mf.life / mf.maxLife;
+        const r = mf.size * (1.4 - t * 0.4); // expand slightly as it fades
+        ctx.save();
+        ctx.globalAlpha = t * 0.9;
+        const grad = ctx.createRadialGradient(mf.x, mf.y, 0, mf.x, mf.y, r);
+        grad.addColorStop(0, `rgba(255,255,255,${t})`);
+        grad.addColorStop(0.4, `rgba(${mf.color},${t * 0.8})`);
+        grad.addColorStop(1, `rgba(${mf.color},0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(mf.x, mf.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        mf.life--;
+        if (mf.life <= 0) muzzleFlashes.splice(i, 1);
+      }
+
+      // Draw impact sparks
+      for (let i = impactSparks.length - 1; i >= 0; i--) {
+        const sp = impactSparks[i];
+        const t = sp.life / sp.maxLife;
+        ctx.globalAlpha = t;
+        ctx.fillStyle = sp.color;
+        ctx.fillRect(sp.x - sp.size * 0.5, sp.y - sp.size * 0.5, sp.size, sp.size);
+        ctx.globalAlpha = 1;
+        sp.x += sp.vx;
+        sp.y += sp.vy;
+        sp.vy += 0.15; // gravity
+        sp.vx *= 0.96; // friction
+        sp.life--;
+        if (sp.life <= 0) impactSparks.splice(i, 1);
       }
 
       // Draw particles
