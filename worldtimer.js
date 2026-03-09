@@ -978,6 +978,168 @@
     }
   }
 
+  // ═══════════════════════════════════════════════════
+  //  Moonphase Complication
+  // ═══════════════════════════════════════════════════
+  const moonCanvas = document.getElementById('moonCanvas');
+  const moonCtx = moonCanvas ? moonCanvas.getContext('2d') : null;
+  const moonTooltip = document.getElementById('moonphaseTooltip');
+
+  const MOON_PHASE_NAMES = [
+    'New Moon', 'Waxing Crescent', 'First Quarter', 'Waxing Gibbous',
+    'Full Moon', 'Waning Gibbous', 'Last Quarter', 'Waning Crescent'
+  ];
+  const MOON_PHASE_ICONS = ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'];
+
+  // Calculate moon phase (0..1) using Conway's approximation
+  // Reference new moon: Jan 6, 2000 (known new moon)
+  function getMoonPhase(date) {
+    const SYNODIC_MONTH = 29.53058770576;
+    const REF_NEW_MOON = new Date(Date.UTC(2000, 0, 6, 18, 14, 0)); // Jan 6 2000 18:14 UTC
+    const daysSinceRef = (date.getTime() - REF_NEW_MOON.getTime()) / (1000 * 60 * 60 * 24);
+    let phase = (daysSinceRef % SYNODIC_MONTH) / SYNODIC_MONTH;
+    if (phase < 0) phase += 1;
+    return phase; // 0 = new moon, 0.5 = full moon
+  }
+
+  function getMoonPhaseName(phase) {
+    const idx = Math.round(phase * 8) % 8;
+    return { name: MOON_PHASE_NAMES[idx], icon: MOON_PHASE_ICONS[idx], idx };
+  }
+
+  let lastMoonDay = -1;
+
+  function updateMoonphase(now) {
+    if (!moonCtx) return;
+
+    // Only redraw once per day (moon doesn't change visibly faster)
+    const dayKey = now.getFullYear() * 400 + now.getMonth() * 32 + now.getDate();
+    if (dayKey === lastMoonDay) return;
+    lastMoonDay = dayKey;
+
+    const phase = getMoonPhase(now);
+    const info = getMoonPhaseName(phase);
+    const age = Math.round(phase * 29.53);
+    const illum = Math.round((1 - Math.cos(phase * 2 * Math.PI)) / 2 * 100);
+
+    // Update tooltip
+    if (moonTooltip) {
+      moonTooltip.textContent = `${info.icon} ${info.name} · ${illum}% · Day ${age}`;
+    }
+
+    // Draw moon on canvas
+    const size = 64;
+    const cx = size / 2;
+    const cy = size / 2;
+    const r = size / 2 - 3;
+
+    moonCtx.clearRect(0, 0, size, size);
+
+    // Night sky background with stars
+    moonCtx.fillStyle = '#0a0e1a';
+    moonCtx.beginPath();
+    moonCtx.arc(cx, cy, r + 2, 0, Math.PI * 2);
+    moonCtx.fill();
+
+    // Tiny stars
+    const starSeed = 42;
+    for (let i = 0; i < 12; i++) {
+      const sx = ((starSeed * (i + 1) * 7) % (size - 10)) + 5;
+      const sy = ((starSeed * (i + 1) * 13) % (size - 10)) + 5;
+      const distFromCenter = Math.hypot(sx - cx, sy - cy);
+      if (distFromCenter < r - 2) {
+        moonCtx.fillStyle = `rgba(255,255,255,${0.3 + (i % 3) * 0.15})`;
+        moonCtx.fillRect(sx, sy, 1, 1);
+      }
+    }
+
+    // Draw illuminated moon disc
+    // Full lit circle first
+    moonCtx.save();
+    moonCtx.beginPath();
+    moonCtx.arc(cx, cy, r, 0, Math.PI * 2);
+    moonCtx.clip();
+
+    // Lit surface: subtle grey gradient for crater texture
+    const moonGrad = moonCtx.createRadialGradient(cx - 3, cy - 3, 0, cx, cy, r);
+    moonGrad.addColorStop(0, '#e8e4d8');
+    moonGrad.addColorStop(0.4, '#d4d0c4');
+    moonGrad.addColorStop(0.8, '#b8b4a8');
+    moonGrad.addColorStop(1, '#9a968a');
+    moonCtx.fillStyle = moonGrad;
+    moonCtx.beginPath();
+    moonCtx.arc(cx, cy, r, 0, Math.PI * 2);
+    moonCtx.fill();
+
+    // Simple crater marks
+    const craters = [
+      { x: cx - 4, y: cy - 5, r: 3 },
+      { x: cx + 6, y: cy + 2, r: 2.5 },
+      { x: cx + 1, y: cy + 7, r: 2 },
+      { x: cx - 7, y: cy + 4, r: 1.5 },
+      { x: cx + 4, y: cy - 8, r: 1.8 },
+    ];
+    for (const cr of craters) {
+      moonCtx.fillStyle = 'rgba(0,0,0,0.08)';
+      moonCtx.beginPath();
+      moonCtx.arc(cr.x, cr.y, cr.r, 0, Math.PI * 2);
+      moonCtx.fill();
+    }
+
+    // Shadow overlay for phase
+    // phase 0 = new moon (fully dark), 0.5 = full moon (fully lit)
+    // Shadow comes from right during waxing (0-0.5), from left during waning (0.5-1)
+    const shadowPhase = phase <= 0.5 ? phase * 2 : (1 - phase) * 2; // 0=fully dark, 1=fully lit
+    const waxing = phase <= 0.5;
+
+    if (shadowPhase < 0.98) { // skip drawing shadow if nearly full
+      moonCtx.fillStyle = 'rgba(6, 8, 16, 0.92)';
+
+      // Use terminator ellipse technique
+      // The terminator is an ellipse whose semi-minor axis varies with phase
+      const terminatorX = (1 - shadowPhase * 2) * r; // width of shadow ellipse
+
+      moonCtx.beginPath();
+      if (shadowPhase < 0.5) {
+        // More than half in shadow
+        // Draw shadow over the lit-side half + terminator ellipse
+        if (waxing) {
+          // Shadow on left, terminator curves right
+          moonCtx.arc(cx, cy, r, -Math.PI / 2, Math.PI / 2, false); // right half
+          moonCtx.ellipse(cx, cy, Math.abs(terminatorX), r, 0, Math.PI / 2, -Math.PI / 2, terminatorX > 0);
+        } else {
+          // Shadow on right, terminator curves left
+          moonCtx.arc(cx, cy, r, Math.PI / 2, -Math.PI / 2, false); // left half
+          moonCtx.ellipse(cx, cy, Math.abs(terminatorX), r, 0, -Math.PI / 2, Math.PI / 2, terminatorX > 0);
+        }
+      } else {
+        // Less than half in shadow
+        if (waxing) {
+          // Shadow on left side only
+          moonCtx.arc(cx, cy, r, Math.PI / 2, -Math.PI / 2, false); // left half arc
+          moonCtx.ellipse(cx, cy, Math.abs(terminatorX), r, 0, -Math.PI / 2, Math.PI / 2, terminatorX < 0);
+        } else {
+          // Shadow on right side only
+          moonCtx.arc(cx, cy, r, -Math.PI / 2, Math.PI / 2, false); // right half arc
+          moonCtx.ellipse(cx, cy, Math.abs(terminatorX), r, 0, Math.PI / 2, -Math.PI / 2, terminatorX < 0);
+        }
+      }
+      moonCtx.closePath();
+      moonCtx.fill();
+    }
+
+    // Subtle earthshine on the dark side during crescent phases
+    if (shadowPhase < 0.3) {
+      const esAlpha = (0.3 - shadowPhase) / 0.3 * 0.06;
+      moonCtx.fillStyle = `rgba(100, 140, 200, ${esAlpha})`;
+      moonCtx.beginPath();
+      moonCtx.arc(cx, cy, r, 0, Math.PI * 2);
+      moonCtx.fill();
+    }
+
+    moonCtx.restore();
+  }
+
   fitClockToViewport();
 
   let resizeTimer;
