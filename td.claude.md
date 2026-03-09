@@ -295,7 +295,7 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **No mobile impact** — Mouse events don't fire on touch devices. Touch-based placement continues to work identically via existing `touchend` handler.
 
 ## Known Issues / TODO
-- [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
+- [x] ~~Mobile touch experience needs improvement~~ → Touch ripple feedback, tap-on-cannon stat tooltip, bigger buttons, touch-action:none on canvas
 - [x] ~~No sound effects~~ → Full procedural sound effects system using Web Audio API
 - [x] ~~No base HP system — single enemy reaching base = wave failed, feels harsh~~ → Base HP system added (20 HP, regen, game over)
 - [x] ~~Score popup text when enemies die~~ → Floating XP popups with color and size scaling

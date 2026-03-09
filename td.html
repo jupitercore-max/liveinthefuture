@@ -963,13 +963,33 @@
       .header h1 { font-size: 0.95rem; }
       .start-title { font-size: 1.4rem; }
       .hud { font-size: 0.65rem; }
-      .controls { font-size: 0.65rem; }
+      .controls { font-size: 0.65rem; gap: 5px; padding: 8px 10px; flex-wrap: wrap; }
+      .ctrl-btn { padding: 8px 12px; font-size: 0.7rem; min-height: 36px; }
       .wave-announce .wa-text { font-size: 1.2rem; }
       .achieve-grid { grid-template-columns: 1fr; }
       .achieve-inner { padding: 14px; }
       .tutorial-tooltip { max-width: 280px; padding: 14px 16px; }
       .tutorial-title { font-size: 0.85rem; }
       .tutorial-desc { font-size: 0.7rem; }
+      .xp-bar-wrap { min-width: 80px; height: 18px; }
+      .xp-bar-text { font-size: 0.55rem; }
+      .cannon-info { font-size: 0.65rem; }
+      .speed-group .ctrl-btn { padding: 6px 10px; min-height: 32px; }
+    }
+    canvas { touch-action: none; }
+    /* Touch feedback ripple */
+    .touch-ripple {
+      position: absolute;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      opacity: 0.7;
+      pointer-events: none;
+      animation: rippleFade 0.4s ease-out forwards;
+    }
+    @keyframes rippleFade {
+      0% { transform: scale(0.5); opacity: 0.8; }
+      100% { transform: scale(1.5); opacity: 0; }
     }
   </style>
 </head>
@@ -3368,11 +3388,40 @@
       if (e.changedTouches.length === 0) return;
       const touch = e.changedTouches[0];
       const pos = canvasCoords(touch);
+
+      // Show touch ripple feedback
+      showTouchRipple(touch.clientX, touch.clientY);
+
+      // Tap on own cannon → show stat tooltip briefly
+      const myCannon = cannons[playerId];
+      if (myCannon && myCannon.x) {
+        const dist = Math.hypot(pos.x - myCannon.x, pos.y - myCannon.y);
+        if (dist <= 25) {
+          // Show mobile stat tooltip for 3 seconds
+          mobileStatTimer = 180; // ~3s at 60fps
+          return; // Don't relocate when tapping own cannon
+        }
+      }
+
       if (abilityTargeting) {
         fireAbility(pos.x, pos.y);
         return;
       }
       placeCannon(pos.x, pos.y);
+    }
+
+    let mobileStatTimer = 0;
+
+    function showTouchRipple(clientX, clientY) {
+      const wrap = document.querySelector('.canvas-wrap');
+      if (!wrap) return;
+      const rect = wrap.getBoundingClientRect();
+      const ripple = document.createElement('div');
+      ripple.className = 'touch-ripple';
+      ripple.style.left = (clientX - rect.left - 20) + 'px';
+      ripple.style.top = (clientY - rect.top - 20) + 'px';
+      wrap.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 400);
     }
 
     function placeCannon(x, y) {
@@ -4710,11 +4759,13 @@
       }
 
       // ── Hover Stat Tooltip for Own Cannon ────────────
-      if (mouseOnCanvas && waveState !== 'gameover') {
+      if (mobileStatTimer > 0) mobileStatTimer--;
+      const showCannonTip = (mouseOnCanvas && waveState !== 'gameover') || mobileStatTimer > 0;
+      if (showCannonTip) {
         const myCannon = cannons[playerId];
         if (myCannon && myCannon.x) {
-          const dist = Math.hypot(mouseCanvasX - myCannon.x, mouseCanvasY - myCannon.y);
-          if (dist <= 30) { // hovering near own cannon
+          const dist = mobileStatTimer > 0 ? 0 : Math.hypot(mouseCanvasX - myCannon.x, mouseCanvasY - myCannon.y);
+          if (dist <= 30) { // hovering near own cannon or mobile tap active
             const tipStats = getCannonStats(myCannon.level || 1, myCannon.path || null, myCannon.spec || null);
             const tipLabel = getCannonLabel(myCannon.level || 1, myCannon.path || null, myCannon.spec || null);
             const dps = (tipStats.dmg * tipStats.fireRate).toFixed(1);
