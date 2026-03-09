@@ -2561,6 +2561,17 @@
     let comboCount = 0; // current combo count
     let comboTimer = 0; // ticks remaining before combo resets
     let comboXpBonus = 0; // total bonus XP from current combo
+
+    // Kill Streak Announcements (Quake-style)
+    const STREAK_ANNOUNCEMENTS = [
+      { at: 3,  text: 'TRIPLE KILL!',   color: '#ffd700', size: 28 },
+      { at: 5,  text: 'RAMPAGE!',       color: '#ff8800', size: 32 },
+      { at: 7,  text: 'DOMINATING!',    color: '#ff4400', size: 36 },
+      { at: 10, text: 'UNSTOPPABLE!',   color: '#ff0044', size: 40 },
+      { at: 15, text: 'GODLIKE!',       color: '#ff00ff', size: 44 },
+      { at: 20, text: 'BEYOND GODLIKE!',color: '#00ffff', size: 48 },
+    ];
+    let streakAnnouncement = null; // { text, color, size, timer, maxTimer }
     let gameSpeed = 1; // 1, 2, or 3
     let abilityCooldownLeft = 0; // seconds remaining on ability cooldown
     let abilityTargeting = false; // waiting for canvas click to target
@@ -3646,6 +3657,14 @@
             triggerScreenShake(comboCount >= 10);
             sfxComboMilestone(comboCount);
           }
+          // Kill streak announcements
+          for (let si = STREAK_ANNOUNCEMENTS.length - 1; si >= 0; si--) {
+            if (comboCount === STREAK_ANNOUNCEMENTS[si].at) {
+              const sa = STREAK_ANNOUNCEMENTS[si];
+              streakAnnouncement = { text: sa.text, color: sa.color, size: sa.size, timer: 60, maxTimer: 60 };
+              break;
+            }
+          }
           // Combo achievements
           if (comboCount >= 5) unlockAchievement('combo_5');
           if (comboCount >= 10) unlockAchievement('combo_10');
@@ -4037,6 +4056,7 @@
       comboXpBonus = 0;
       gameSpeed = 1;
       scorePopups = [];
+      streakAnnouncement = null;
       abilityZones = [];
       lightningBolts = [];
       levelUpRings = [];
@@ -5734,6 +5754,42 @@
         if (sp.vx) sp.x += sp.vx; // horizontal velocity for particle bursts
         sp.life--;
         if (sp.life <= 0) scorePopups.splice(i, 1);
+      }
+
+      // Draw kill streak announcement (centered, big, dramatic)
+      if (streakAnnouncement && streakAnnouncement.timer > 0) {
+        const sa = streakAnnouncement;
+        const progress = 1 - sa.timer / sa.maxTimer;
+        let alpha, scale;
+        if (progress < 0.15) {
+          const t = progress / 0.15;
+          alpha = t;
+          scale = 0.5 + t * 0.5;
+        } else if (progress < 0.7) {
+          alpha = 1;
+          scale = 1;
+        } else {
+          const t = (progress - 0.7) / 0.3;
+          alpha = 1 - t;
+          scale = 1 + t * 0.3;
+        }
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(CANVAS_W / 2, CANVAS_H * 0.35);
+        ctx.scale(scale, scale);
+        ctx.shadowColor = sa.color;
+        ctx.shadowBlur = 20 + (1 - progress) * 20;
+        ctx.font = `900 ${sa.size}px ${getComputedStyle(document.body).fontFamily}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+        ctx.lineWidth = 4;
+        ctx.strokeText(sa.text, 0, 0);
+        ctx.fillStyle = sa.color;
+        ctx.fillText(sa.text, 0, 0);
+        ctx.restore();
+        sa.timer--;
+        if (sa.timer <= 0) streakAnnouncement = null;
       }
 
       // Draw level-up celebration rings

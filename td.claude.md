@@ -504,3 +504,18 @@ If it fails, DO NOT commit. Fix the error first.
 - **Random X jitter** (±8px) prevents numbers from stacking in a single column
 - **Fast fadeout** — 18 frame lifetime (vs 30-40 for XP/kill popups), faster upward velocity (-2.0 vs -1.5) so damage numbers feel snappy and don't obscure the battlefield
 - **Design rationale:** Floating damage numbers are the #1 most impactful "game juice" feature — they make every hit feel real, help players understand damage scaling, and visually communicate armor/shield effectiveness. The throttle keeps it readable even with gatling/tesla builds firing dozens of times per second.
+
+### 2026-03-09: Kill Streak Announcements (Quake-Style)
+- **Big centered canvas text** at combo milestones — inspired by Unreal Tournament / Quake announcer callouts
+- **6 tiers of announcements:**
+  - 3 kills: "TRIPLE KILL!" (gold, 28px)
+  - 5 kills: "RAMPAGE!" (orange, 32px)
+  - 7 kills: "DOMINATING!" (red-orange, 36px)
+  - 10 kills: "UNSTOPPABLE!" (red, 40px)
+  - 15 kills: "GODLIKE!" (magenta, 44px)
+  - 20 kills: "BEYOND GODLIKE!" (cyan, 48px)
+- **Animation:** Scale-in from 50% to 100% (fast 0.15s), hold for 0.55s, then fade out with slight grow. Total ~1 second display time (60 frames).
+- **Visual treatment:** Bold 900-weight font, black stroke outline for readability, color-matched shadowBlur glow, rendered at 35% canvas height (above the action, below wave announcements)
+- **State management:** `streakAnnouncement` object with timer countdown, properly reset on game over/restart alongside other visual state
+- **Trigger:** Fires in the combo tracking code on exact match of each tier's kill count. Uses reverse iteration to find the highest matching tier.
+- **Design rationale:** The combo system already tracked kill streaks but the only feedback was the small corner counter and occasional screen shake. These announcements make big combos feel EPIC — they're the classic "feel good" moment in action games. Each tier has escalating size and color intensity to build excitement. The animation timing (fast in, hold, slow out) is borrowed from fighting game hit confirms.
