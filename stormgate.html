@@ -13,6 +13,18 @@
     #status.connecting .dot { color: #ff4; }
     #status .dot { margin-right: 4px; }
     #status .right { color: #555; font-size: 11px; }
+    #gmcp-bar { display: none; background: #111; border-bottom: 1px solid #222; padding: 4px 8px; font-size: 12px; color: #aaa; }
+    #gmcp-bar .room-name { color: #fff; font-weight: bold; margin-right: 12px; }
+    #gmcp-bar .bar-group { display: inline-flex; align-items: center; margin-right: 12px; }
+    #gmcp-bar .bar-label { color: #888; margin-right: 4px; }
+    #gmcp-bar .bar-outer { display: inline-block; width: 80px; height: 10px; background: #222; border-radius: 2px; overflow: hidden; vertical-align: middle; }
+    #gmcp-bar .bar-inner { height: 100%; border-radius: 2px; transition: width 0.3s; }
+    #gmcp-bar .bar-hp { background: #c44; }
+    #gmcp-bar .bar-mana { background: #48c; }
+    #gmcp-bar .bar-move { background: #4a4; }
+    #gmcp-bar .bar-text { color: #888; font-size: 11px; margin-left: 4px; }
+    #gmcp-bar .exits { color: #666; }
+    #gmcp-bar .exits span { color: #8a8; }
     #terminal { flex: 1; overflow: hidden; }
     #input-bar { display: flex; background: #111; border-top: 1px solid #222; padding: 0; }
     #input-bar .prompt { color: #4f4; padding: 6px 4px 6px 8px; font-size: 14px; line-height: 20px; }
@@ -28,6 +40,7 @@
     @media (max-width: 600px) {
       #macros { gap: 4px; padding: 4px; }
       #macros button { padding: 6px 12px; font-size: 13px; }
+      #gmcp-bar .bar-outer { width: 50px; }
     }
   </style>
 </head>
@@ -35,6 +48,13 @@
   <div id="status" class="connecting">
     <span><span class="dot">&#9679;</span> <span id="status-text">Connecting...</span></span>
     <span class="right" id="status-right"></span>
+  </div>
+  <div id="gmcp-bar">
+    <span class="room-name" id="gmcp-room">-</span>
+    <span class="bar-group"><span class="bar-label">HP</span><span class="bar-outer"><span class="bar-inner bar-hp" id="bar-hp"></span></span><span class="bar-text" id="bar-hp-text"></span></span>
+    <span class="bar-group"><span class="bar-label">Mana</span><span class="bar-outer"><span class="bar-inner bar-mana" id="bar-mana"></span></span><span class="bar-text" id="bar-mana-text"></span></span>
+    <span class="bar-group"><span class="bar-label">Move</span><span class="bar-outer"><span class="bar-inner bar-move" id="bar-move"></span></span><span class="bar-text" id="bar-move-text"></span></span>
+    <span class="exits" id="gmcp-exits"></span>
   </div>
   <div id="terminal"></div>
   <div id="autocomplete"></div>
@@ -106,6 +126,7 @@
     const statusRight = document.getElementById('status-right');
     const input = document.getElementById('input');
     const acEl = document.getElementById('autocomplete');
+    const gmcpBar = document.getElementById('gmcp-bar');
     let ws;
     const history = JSON.parse(localStorage.getItem('sg-history') || '[]');
     let histIdx = history.length;
@@ -113,6 +134,49 @@
     let acItems = [];
     let acIdx = -1;
     let connectedAt = null;
+
+    // --- GMCP state ---
+    let gmcpVitals = null;
+    let gmcpRoom = null;
+
+    function updateGmcpBar() {
+      if (!gmcpVitals && !gmcpRoom) return;
+      gmcpBar.style.display = 'block';
+
+      if (gmcpVitals) {
+        const v = gmcpVitals;
+        const hpPct = Math.max(0, Math.min(100, (v.hp / v.maxhp) * 100));
+        const manaPct = Math.max(0, Math.min(100, (v.mana / v.maxmana) * 100));
+        const movePct = Math.max(0, Math.min(100, (v.move / v.maxmove) * 100));
+        document.getElementById('bar-hp').style.width = hpPct + '%';
+        document.getElementById('bar-hp-text').textContent = v.hp + '/' + v.maxhp;
+        document.getElementById('bar-mana').style.width = manaPct + '%';
+        document.getElementById('bar-mana-text').textContent = v.mana + '/' + v.maxmana;
+        document.getElementById('bar-move').style.width = movePct + '%';
+        document.getElementById('bar-move-text').textContent = v.move + '/' + v.maxmove;
+      }
+
+      if (gmcpRoom) {
+        document.getElementById('gmcp-room').textContent = gmcpRoom.name || '-';
+        const exits = gmcpRoom.exits || {};
+        const dirs = Object.keys(exits);
+        document.getElementById('gmcp-exits').innerHTML = dirs.length > 0
+          ? '[<span>' + dirs.join('</span> <span>') + '</span>]'
+          : '';
+      }
+    }
+
+    function handleGmcp(pkg, data) {
+      if (pkg === 'Char.Vitals') {
+        gmcpVitals = data;
+        updateGmcpBar();
+      } else if (pkg === 'Room.Info') {
+        gmcpRoom = data;
+        updateGmcpBar();
+      } else if (pkg === 'Char.Status') {
+        // Could display name/class/level somewhere
+      }
+    }
 
     // --- Connection ---
     function connect() {
@@ -128,8 +192,21 @@
       };
 
       ws.onmessage = (e) => {
-        const data = typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data);
-        term.write(data);
+        if (typeof e.data === 'string') {
+          // Could be GMCP JSON from proxy or plain text
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg.gmcp) {
+              handleGmcp(msg.gmcp, msg.data);
+              return;
+            }
+          } catch (_) {
+            // Not JSON, treat as normal text
+          }
+          term.write(e.data);
+        } else {
+          term.write(new TextDecoder().decode(e.data));
+        }
       };
 
       ws.onclose = () => {
