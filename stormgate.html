@@ -7,28 +7,91 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0a0a0f; height: 100vh; display: flex; flex-direction: column; }
-    #status { color: #888; font: 12px monospace; padding: 4px 8px; background: #111; }
-    #status.connected { color: #4f4; }
-    #status.connecting { color: #ff4; }
-    #terminal { flex: 1; }
+    body { background: #0a0a0f; height: 100vh; display: flex; flex-direction: column; font-family: 'Fira Code', 'Cascadia Code', 'Menlo', monospace; }
+    #status { color: #888; font-size: 12px; padding: 4px 8px; background: #111; display: flex; justify-content: space-between; }
+    #status.connected .dot { color: #4f4; }
+    #status.connecting .dot { color: #ff4; }
+    #status .dot { margin-right: 4px; }
+    #status .right { color: #555; font-size: 11px; }
+    #terminal { flex: 1; overflow: hidden; }
+    #input-bar { display: flex; background: #111; border-top: 1px solid #222; padding: 0; }
+    #input-bar .prompt { color: #4f4; padding: 6px 4px 6px 8px; font-size: 14px; line-height: 20px; }
+    #input { flex: 1; background: #0a0a0f; color: #ccc; border: none; outline: none; font: 14px/20px 'Fira Code', 'Cascadia Code', 'Menlo', monospace; padding: 6px 8px 6px 0; }
+    #autocomplete { position: absolute; bottom: 33px; left: 0; background: #1a1a2a; border: 1px solid #333; border-radius: 4px; max-height: 200px; overflow-y: auto; display: none; z-index: 10; padding: 2px 0; }
+    #autocomplete .item { padding: 3px 12px; color: #aaa; cursor: pointer; font: 13px/18px 'Fira Code', monospace; }
+    #autocomplete .item.selected { background: #2a2a4a; color: #fff; }
+    #autocomplete .item:hover { background: #2a2a4a; }
+    #macros { display: flex; gap: 2px; padding: 2px 4px; background: #0d0d14; border-top: 1px solid #1a1a1a; flex-wrap: wrap; }
+    #macros button { background: #1a1a2a; color: #7a7a9a; border: 1px solid #2a2a3a; border-radius: 3px; padding: 2px 8px; font: 11px monospace; cursor: pointer; }
+    #macros button:hover { background: #2a2a4a; color: #aaa; }
+    #macros button:active { background: #3a3a5a; }
+    @media (max-width: 600px) {
+      #macros { gap: 4px; padding: 4px; }
+      #macros button { padding: 6px 12px; font-size: 13px; }
+    }
   </style>
 </head>
 <body>
-  <div id="status" class="connecting">Connecting...</div>
+  <div id="status" class="connecting">
+    <span><span class="dot">&#9679;</span> <span id="status-text">Connecting...</span></span>
+    <span class="right" id="status-right"></span>
+  </div>
   <div id="terminal"></div>
+  <div id="autocomplete"></div>
+  <div id="macros">
+    <button data-cmd="north">N</button>
+    <button data-cmd="south">S</button>
+    <button data-cmd="east">E</button>
+    <button data-cmd="west">W</button>
+    <button data-cmd="up">U</button>
+    <button data-cmd="down">D</button>
+    <button data-cmd="look">Look</button>
+    <button data-cmd="score">Score</button>
+    <button data-cmd="inventory">Inv</button>
+    <button data-cmd="equipment">Eq</button>
+    <button data-cmd="who">Who</button>
+    <button data-cmd="exits">Exits</button>
+    <button data-cmd="flee">Flee</button>
+  </div>
+  <div id="input-bar">
+    <span class="prompt">&gt;</span>
+    <input id="input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" autofocus>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
   <script>
     const WS_URL = 'wss://macmini.rayhe.net/ws';
 
+    // --- MUD commands for tab completion ---
+    const COMMANDS = [
+      'north','south','east','west','up','down','look','score','inventory','equipment',
+      'who','exits','flee','kill','cast','get','drop','put','wear','remove','wield',
+      'buy','sell','list','say','tell','shout','chat','yell','emote','reply','gtell',
+      'group','follow','order','rest','sleep','stand','wake','practice','train',
+      'recall','quit','save','help','areas','commands','consider','examine','compare',
+      'open','close','lock','unlock','pick','search','drink','eat','fill','quaff',
+      'recite','brandish','zap','sacrifice','give','hold','auction','bid','alias',
+      'affects','affected','score','worth','time','weather','where','report',
+      'backstab','bash','berserk','dirt','disarm','kick','trip','rescue',
+      'sneak','hide','steal','visible','heal','bank','split','config','brief',
+      'autoexit','autoloot','autogold','autosac','prompt','title','description',
+      'note','bug','idea','typo','socials','channels','quest','pray','mount','dismount',
+      'spells','skills','slist','forge','patch','repair','dual','fire','stare',
+      'enter','push','drag','clan','clantalk','guildtalk','ooc','info','music',
+      'afk','password','wimpy','blank','combine','speak','learn',
+    ];
+
+    // --- Terminal setup ---
     const term = new Terminal({
-      cursorBlink: true,
+      cursorBlink: false,
+      disableStdin: true,
       fontFamily: '"Fira Code", "Cascadia Code", "Menlo", monospace',
       fontSize: 14,
       theme: { background: '#0a0a0f' },
-      scrollback: 5000,
+      scrollback: 10000,
+      convertEol: true,
     });
     const fitAddon = new FitAddon.FitAddon();
     term.loadAddon(fitAddon);
@@ -37,18 +100,31 @@
     fitAddon.fit();
     window.addEventListener('resize', () => fitAddon.fit());
 
-    const status = document.getElementById('status');
+    // --- State ---
+    const statusEl = document.getElementById('status');
+    const statusText = document.getElementById('status-text');
+    const statusRight = document.getElementById('status-right');
+    const input = document.getElementById('input');
+    const acEl = document.getElementById('autocomplete');
     let ws;
+    const history = JSON.parse(localStorage.getItem('sg-history') || '[]');
+    let histIdx = history.length;
+    let histDraft = '';
+    let acItems = [];
+    let acIdx = -1;
+    let connectedAt = null;
 
+    // --- Connection ---
     function connect() {
       ws = new WebSocket(WS_URL);
       ws.binaryType = 'arraybuffer';
-      status.textContent = 'Connecting...';
-      status.className = 'connecting';
+      statusText.textContent = 'Connecting...';
+      statusEl.className = 'connecting';
 
       ws.onopen = () => {
-        status.textContent = 'Connected';
-        status.className = 'connected';
+        statusText.textContent = 'Connected';
+        statusEl.className = 'connected';
+        connectedAt = Date.now();
       };
 
       ws.onmessage = (e) => {
@@ -57,19 +133,168 @@
       };
 
       ws.onclose = () => {
-        status.textContent = 'Disconnected - reconnecting...';
-        status.className = 'connecting';
+        statusText.textContent = 'Disconnected - reconnecting...';
+        statusEl.className = 'connecting';
+        connectedAt = null;
         setTimeout(connect, 3000);
       };
     }
 
-    term.onData((data) => {
+    function send(text) {
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
-      ws.send(data);
+      ws.send(text + '\r\n');
+    }
+
+    // --- Command history ---
+    function addHistory(cmd) {
+      if (!cmd.trim()) return;
+      // Don't add dupes of last entry
+      if (history.length > 0 && history[history.length - 1] === cmd) {
+        histIdx = history.length;
+        return;
+      }
+      history.push(cmd);
+      if (history.length > 500) history.splice(0, history.length - 500);
+      histIdx = history.length;
+      localStorage.setItem('sg-history', JSON.stringify(history));
+    }
+
+    // --- Autocomplete ---
+    function updateAC() {
+      const val = input.value;
+      if (!val || val.includes(' ')) { hideAC(); return; }
+      const lower = val.toLowerCase();
+      acItems = COMMANDS.filter(c => c.startsWith(lower) && c !== lower).slice(0, 10);
+      if (acItems.length === 0) { hideAC(); return; }
+      acIdx = -1;
+      acEl.innerHTML = acItems.map((c, i) =>
+        `<div class="item" data-idx="${i}">${c}</div>`
+      ).join('');
+      acEl.style.display = 'block';
+    }
+
+    function hideAC() {
+      acEl.style.display = 'none';
+      acItems = [];
+      acIdx = -1;
+    }
+
+    function selectAC(idx) {
+      acEl.querySelectorAll('.item').forEach((el, i) => {
+        el.classList.toggle('selected', i === idx);
+      });
+    }
+
+    function applyAC() {
+      if (acIdx >= 0 && acIdx < acItems.length) {
+        input.value = acItems[acIdx] + ' ';
+      } else if (acItems.length === 1) {
+        input.value = acItems[0] + ' ';
+      }
+      hideAC();
+    }
+
+    acEl.addEventListener('click', (e) => {
+      const item = e.target.closest('.item');
+      if (item) {
+        input.value = item.textContent + ' ';
+        hideAC();
+        input.focus();
+      }
     });
 
+    // --- Input handling ---
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (acIdx >= 0) { applyAC(); return; }
+        const cmd = input.value;
+        send(cmd);
+        addHistory(cmd);
+        input.value = '';
+        hideAC();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (acItems.length > 0) {
+          acIdx = Math.max(0, acIdx - 1);
+          selectAC(acIdx);
+          return;
+        }
+        if (histIdx > 0) {
+          if (histIdx === history.length) histDraft = input.value;
+          histIdx--;
+          input.value = history[histIdx];
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (acItems.length > 0) {
+          acIdx = Math.min(acItems.length - 1, acIdx + 1);
+          selectAC(acIdx);
+          return;
+        }
+        if (histIdx < history.length) {
+          histIdx++;
+          input.value = histIdx === history.length ? histDraft : history[histIdx];
+        }
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        if (acItems.length > 0) {
+          applyAC();
+        } else {
+          updateAC();
+          if (acItems.length === 1) applyAC();
+        }
+      } else if (e.key === 'Escape') {
+        hideAC();
+      } else if (e.key === 'PageUp') {
+        e.preventDefault();
+        term.scrollPages(-1);
+      } else if (e.key === 'PageDown') {
+        e.preventDefault();
+        term.scrollPages(1);
+      }
+    });
+
+    input.addEventListener('input', () => {
+      histIdx = history.length;
+      updateAC();
+    });
+
+    // --- Numpad directions ---
+    window.addEventListener('keydown', (e) => {
+      if (document.activeElement !== input) return;
+      const numpad = { Numpad8:'north', Numpad2:'south', Numpad6:'east', Numpad4:'west', Numpad9:'up', Numpad3:'down' };
+      if (numpad[e.code] && input.value === '') {
+        e.preventDefault();
+        send(numpad[e.code]);
+      }
+    });
+
+    // --- Macro buttons ---
+    document.getElementById('macros').addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (btn) {
+        send(btn.dataset.cmd);
+        input.focus();
+      }
+    });
+
+    // --- Click anywhere to focus input ---
+    document.addEventListener('click', (e) => {
+      if (!window.getSelection().toString()) input.focus();
+    });
+
+    // --- Uptime in status bar ---
+    setInterval(() => {
+      if (!connectedAt) { statusRight.textContent = ''; return; }
+      const s = Math.floor((Date.now() - connectedAt) / 1000);
+      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+      statusRight.textContent = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    }, 10000);
+
+    // --- Start ---
     connect();
-    term.focus();
+    input.focus();
   </script>
 </body>
 </html>
