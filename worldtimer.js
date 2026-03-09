@@ -847,6 +847,10 @@
 
     drawPolarEarth(hours, minutes, seconds);
 
+    // Power reserve
+    updatePowerReserve();
+    drawPowerReserve();
+
     requestAnimationFrame(updateClock);
   }
 
@@ -938,6 +942,110 @@
   initSunTimes();
   positionCities();
   generateHourRing();
+  // ═══════════════════════════════════════════════════
+  // Power Reserve Complication (6 o'clock)
+  // Simulates a mechanical watch mainspring:
+  //   - Starts fully wound (100%)
+  //   - Drains slowly when tab is hidden (~1%/min)
+  //   - Recharges on any user interaction (mouse/key/touch)
+  //   - Drawn as a classic arc gauge with needle
+  // ═══════════════════════════════════════════════════
+  const powerCanvas = document.getElementById('powerCanvas');
+  let powerLevel = 1.0; // 0..1
+  let lastPowerUpdate = Date.now();
+
+  // Recharge on interaction
+  function rechargePower() {
+    powerLevel = Math.min(1.0, powerLevel + 0.15);
+  }
+  document.addEventListener('mousemove', rechargePower);
+  document.addEventListener('keydown', rechargePower);
+  document.addEventListener('click', rechargePower);
+  document.addEventListener('touchstart', rechargePower);
+  document.addEventListener('scroll', rechargePower);
+
+  function updatePowerReserve() {
+    const now = Date.now();
+    const dt = (now - lastPowerUpdate) / 1000; // seconds
+    lastPowerUpdate = now;
+
+    // Drain rate: faster when hidden, slow when visible
+    const drainRate = document.hidden ? 0.003 : 0.0003; // per second
+    powerLevel = Math.max(0, powerLevel - drainRate * dt);
+  }
+
+  function drawPowerReserve() {
+    if (!powerCanvas) return;
+    const ctx = powerCanvas.getContext('2d');
+    const w = powerCanvas.width;
+    const h = powerCanvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const cx = w / 2;
+    const cy = h * 0.85;
+    const r = 30;
+    const startAngle = Math.PI + 0.3;  // ~210 deg
+    const endAngle = -0.3;             // ~-17 deg (sweep ~180 deg)
+    const sweep = endAngle - startAngle; // negative = clockwise in canvas coords
+    // Actually we want left-to-right arc: from ~210° to ~330°
+    const arcStart = Math.PI * 1.15;
+    const arcEnd = Math.PI * -0.15;
+    const arcSweep = arcEnd - arcStart;
+
+    // Background arc (dark track)
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, arcStart, arcEnd, true);
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // Filled arc (color based on level)
+    const fillAngle = arcStart + arcSweep * powerLevel;
+    let color;
+    if (powerLevel > 0.5) {
+      color = '#4da6ff'; // blue = healthy
+    } else if (powerLevel > 0.2) {
+      color = '#ffa726'; // orange = getting low
+    } else {
+      color = '#ef5350'; // red = critical
+    }
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, arcStart, fillAngle, true);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // Small needle
+    const needleAngle = arcStart + arcSweep * powerLevel;
+    const nx = cx + Math.cos(needleAngle) * (r + 4);
+    const ny = cy + Math.sin(needleAngle) * (r + 4);
+    const nb = cx + Math.cos(needleAngle) * (r - 8);
+    const nb2 = cy + Math.sin(needleAngle) * (r - 8);
+    ctx.beginPath();
+    ctx.moveTo(nb, nb2);
+    ctx.lineTo(nx, ny);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // Center dot
+    ctx.beginPath();
+    ctx.arc(cx, cy, 1.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+
+    // Labels
+    ctx.font = '7px ' + getComputedStyle(document.body).fontFamily;
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.textAlign = 'left';
+    ctx.fillText('E', cx - r - 2, cy - r + 10);
+    ctx.textAlign = 'right';
+    ctx.fillText('F', cx + r + 2, cy - r + 10);
+  }
+
   updateClock();
 
   setInterval(() => {
