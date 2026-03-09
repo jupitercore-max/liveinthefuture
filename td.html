@@ -442,6 +442,29 @@
       color: #fff;
       border-color: var(--success);
     }
+    .wave-summary {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.8);
+      background: rgba(10, 10, 30, 0.95); border: 2px solid var(--accent);
+      border-radius: 12px; padding: 20px 28px; text-align: center;
+      font-family: var(--font); color: var(--text); z-index: 60;
+      display: none; opacity: 0; transition: opacity 0.3s, transform 0.3s;
+      min-width: 220px; box-shadow: 0 0 30px rgba(30, 144, 255, 0.3);
+    }
+    .wave-summary.active { display: block; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    .wave-summary .ws-title { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 2px; }
+    .wave-summary .ws-grade { font-size: 3rem; font-weight: bold; margin: 6px 0; text-shadow: 0 0 20px currentColor; }
+    .wave-summary .ws-grade.grade-s { color: #ffd700; }
+    .wave-summary .ws-grade.grade-a { color: #00ff88; }
+    .wave-summary .ws-grade.grade-b { color: #1E90FF; }
+    .wave-summary .ws-grade.grade-c { color: #ff8800; }
+    .wave-summary .ws-grade.grade-d { color: #ff4444; }
+    .wave-summary .ws-grade.grade-f { color: #888; }
+    .wave-summary .ws-stats { display: grid; grid-template-columns: auto auto; gap: 3px 14px; text-align: left; margin: 10px auto; width: fit-content; font-size: 0.8rem; }
+    .wave-summary .ws-stats .ws-label { color: var(--text-muted); }
+    .wave-summary .ws-stats .ws-value { color: var(--text); font-weight: bold; text-align: right; }
+    .wave-summary .ws-bar { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+    .wave-summary .ws-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
     .send-bonus-popup {
       position: absolute;
       top: 40px;
@@ -1110,6 +1133,12 @@
         <div class="wave-preview-label">INCOMING ENEMIES</div>
       </div>
       <div class="send-bonus-popup" id="sendBonusPopup"></div>
+      <div class="wave-summary" id="waveSummary">
+        <div class="ws-title" id="wsTitle">WAVE 1 CLEAR</div>
+        <div class="ws-grade" id="wsGrade">S</div>
+        <div class="ws-stats" id="wsStats"></div>
+        <div class="ws-bar"><div class="ws-bar-fill" id="wsBarFill"></div></div>
+      </div>
     </div>
 
     <div class="controls">
@@ -2438,6 +2467,9 @@
     let totalKills = 0;
     let flyerKills = 0; // track flying enemy kills for achievement
     let damageFlashTimer = 0; // frames remaining for red flash
+    // Wave summary tracking
+    let waveStats = { kills: 0, hpLost: 0, maxCombo: 0, startTick: 0, enemiesSpawned: 0 };
+    let waveSummaryTimer = 0; // ticks remaining to show summary
     let enemies = [];
     let cannons = {}; // id -> cannon data
     let projectiles = []; // client-side visual only
@@ -3148,6 +3180,8 @@
         if (countdownTimer <= 0) {
           waveState = 'active';
           enemies = generateWave(waveNumber);
+          // Reset per-wave stats tracking
+          waveStats = { kills: 0, hpLost: 0, maxCombo: 0, startTick: tickCount, enemiesSpawned: enemies.length };
           hideWavePreview();
           if (!offlineMode) metaRef.update({ waveState: 'active' });
         }
@@ -3440,6 +3474,9 @@
           comboCount++;
           comboTimer = COMBO_WINDOW;
           if (comboCount > sessionBestCombo) sessionBestCombo = comboCount;
+          // Wave stats tracking
+          waveStats.kills++;
+          if (comboCount > waveStats.maxCombo) waveStats.maxCombo = comboCount;
           // Screen shake on big combos
           if (comboCount === 5 || comboCount === 10) {
             triggerScreenShake(comboCount >= 10);
@@ -3522,6 +3559,7 @@
       });
       if (damageTaken > 0) {
         baseHp = Math.max(0, baseHp - damageTaken);
+        waveStats.hpLost += damageTaken;
         damageFlashTimer = 8; // ~0.4s at 20fps
         triggerScreenShake(damageTaken >= BOSS_DAMAGE); // heavy shake for boss damage
         sfxBaseDamage(damageTaken >= BOSS_DAMAGE);
@@ -3562,6 +3600,8 @@
         waveState = 'waiting';
         updateBaseHpHUD();
         updateSendNextBtn();
+        // Show wave summary with grade before next countdown
+        showWaveSummary(waveNumber - 1);
         startWaveCountdown();
       }
 
@@ -3595,6 +3635,71 @@
         lastActivity: firebase.database.ServerValue.TIMESTAMP
       });
     }
+
+    // --- Wave Summary & Grade System ---
+    const waveSummaryEl = $('waveSummary');
+    const wsTitle = $('wsTitle');
+    const wsGrade = $('wsGrade');
+    const wsStatsEl = $('wsStats');
+    const wsBarFill = $('wsBarFill');
+    let waveSummaryTimeout = null;
+
+    function calcWaveGrade(stats, waveNum) {
+      const maxHp = getEffectiveMaxHp();
+      // HP preservation score (0-1): 1.0 = no damage, 0 = lost all HP
+      const hpScore = Math.max(0, 1 - stats.hpLost / maxHp);
+      // Kill efficiency (0-1): kills / total enemies spawned
+      const killEff = stats.enemiesSpawned > 0 ? Math.min(1, stats.kills / stats.enemiesSpawned) : 1;
+      // Combo score (0-1): best combo relative to wave expectations
+      const comboTarget = Math.min(8, 2 + waveNum * 0.3);
+      const comboScore = Math.min(1, stats.maxCombo / comboTarget);
+      // Speed score (0-1): faster = better. Baseline ~1s per enemy
+      const elapsed = (tickCount - stats.startTick) / TICK_RATE; // seconds
+      const expectedTime = stats.enemiesSpawned * 1.2;
+      const speedScore = expectedTime > 0 ? Math.min(1, expectedTime / Math.max(1, elapsed)) : 1;
+      // Weighted total
+      const total = hpScore * 0.40 + killEff * 0.30 + comboScore * 0.15 + speedScore * 0.15;
+      // Letter grade
+      let grade, cls;
+      if (total >= 0.95) { grade = 'S'; cls = 'grade-s'; }
+      else if (total >= 0.80) { grade = 'A'; cls = 'grade-a'; }
+      else if (total >= 0.65) { grade = 'B'; cls = 'grade-b'; }
+      else if (total >= 0.45) { grade = 'C'; cls = 'grade-c'; }
+      else if (total >= 0.25) { grade = 'D'; cls = 'grade-d'; }
+      else { grade = 'F'; cls = 'grade-f'; }
+      return { grade, cls, total, hpScore, killEff, comboScore, speedScore, elapsed };
+    }
+
+    function showWaveSummary(waveNum) {
+      const result = calcWaveGrade(waveStats, waveNum);
+      wsTitle.textContent = `WAVE ${waveNum} CLEAR`;
+      wsGrade.textContent = result.grade;
+      wsGrade.className = 'ws-grade ' + result.cls;
+      const timeFmt = result.elapsed < 60 ? `${result.elapsed.toFixed(1)}s` : `${Math.floor(result.elapsed / 60)}m ${Math.round(result.elapsed % 60)}s`;
+      wsStatsEl.innerHTML = `
+        <span class="ws-label">🎯 Kills</span><span class="ws-value">${waveStats.kills}/${waveStats.enemiesSpawned}</span>
+        <span class="ws-label">❤️ HP Lost</span><span class="ws-value">${waveStats.hpLost}</span>
+        <span class="ws-label">🔥 Best Combo</span><span class="ws-value">${waveStats.maxCombo}×</span>
+        <span class="ws-label">⏱ Time</span><span class="ws-value">${timeFmt}</span>
+      `;
+      // Score bar fill with grade color
+      const colors = { 'grade-s': '#ffd700', 'grade-a': '#00ff88', 'grade-b': '#1E90FF', 'grade-c': '#ff8800', 'grade-d': '#ff4444', 'grade-f': '#888' };
+      wsBarFill.style.width = (result.total * 100) + '%';
+      wsBarFill.style.background = colors[result.cls] || '#1E90FF';
+      waveSummaryEl.classList.add('active');
+      // Auto-dismiss after 2.5 seconds
+      if (waveSummaryTimeout) clearTimeout(waveSummaryTimeout);
+      waveSummaryTimeout = setTimeout(() => {
+        waveSummaryEl.classList.remove('active');
+        waveSummaryTimeout = null;
+      }, 2500);
+    }
+
+    // Click to dismiss wave summary early
+    waveSummaryEl.addEventListener('click', () => {
+      waveSummaryEl.classList.remove('active');
+      if (waveSummaryTimeout) { clearTimeout(waveSummaryTimeout); waveSummaryTimeout = null; }
+    });
 
     function startWaveCountdown() {
       waveState = 'countdown';
@@ -3668,6 +3773,9 @@
     }
 
     function showGameOver() {
+      // Dismiss wave summary if showing
+      waveSummaryEl.classList.remove('active');
+      if (waveSummaryTimeout) { clearTimeout(waveSummaryTimeout); waveSummaryTimeout = null; }
       // Earn prestige stars
       const earned = earnPrestigeStars(waveNumber, totalKills);
       lifetimeStats.totalStarsEarned += earned;
@@ -3719,6 +3827,10 @@
       earlySendBonusPct = 0;
       earlySendCount = 0;
       bonusPopupTimer = 0;
+      // Reset wave summary state
+      waveStats = { kills: 0, hpLost: 0, maxCombo: 0, startTick: 0, enemiesSpawned: 0 };
+      waveSummaryEl.classList.remove('active');
+      if (waveSummaryTimeout) { clearTimeout(waveSummaryTimeout); waveSummaryTimeout = null; }
       // Clear any banked sell refund on game reset
       localStorage.removeItem('td_sell_refund');
       sendBonusPopup.classList.remove('active');
@@ -4622,6 +4734,9 @@
           if (e.flying) { flyerKills++; if (flyerKills >= 10) unlockAchievement('fly_swatter'); }
           comboCount++;
           comboTimer = COMBO_WINDOW;
+          // Wave stats tracking (ability kills)
+          waveStats.kills++;
+          if (comboCount > waveStats.maxCombo) waveStats.maxCombo = comboCount;
           const comboMult = comboCount >= COMBO_MIN ? Math.min(comboCount, 10) : 1;
           const earlyBonus = earlySendBonusPct > 0 ? Math.ceil(comboMult * earlySendBonusPct / 100) : 0;
           const eliteMult = e.elite ? 3 : 1;

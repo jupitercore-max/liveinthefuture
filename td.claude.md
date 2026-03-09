@@ -316,6 +316,23 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - [x] ~~Better cannon placement UX~~ → Ghost cannon placement preview with range circle, hover stat tooltip with DPS/range/specials
 
 ### Power-Up Drops System (Fully Wired)
+
+### Wave Summary & Grade System
+- **Post-wave stats overlay** — After every wave clears, a centered panel shows performance stats and a letter grade (S/A/B/C/D/F). Provides satisfying feedback between waves — a classic game design pattern that was missing despite all the other polish.
+- **Per-wave stat tracking:**
+  - 🎯 **Kills** — enemies killed vs total spawned (kill efficiency)
+  - ❤️ **HP Lost** — damage taken during the wave
+  - 🔥 **Best Combo** — highest combo chain achieved during the wave
+  - ⏱ **Time** — wave completion time
+- **Grade calculation** — Weighted score from four factors:
+  - **HP Preservation (40%):** 1.0 = no damage, 0 = lost all HP. Most important factor.
+  - **Kill Efficiency (30%):** kills / enemies spawned. Penalizes letting enemies leak through.
+  - **Combo Score (15%):** best combo relative to wave-scaled target (2 + wave × 0.3, capped at 8).
+  - **Speed Score (15%):** faster clears = higher score, baseline ~1.2s per enemy.
+- **Grade thresholds:** S (≥95%), A (≥80%), B (≥65%), C (≥45%), D (≥25%), F (<25%)
+- **Visual design:** Dark panel with accent border, grade letter in large text with color-coded glow (gold S, green A, blue B, orange C, red D, gray F), stat grid, and a score bar showing the weighted total.
+- **Auto-dismiss:** Panel disappears after 2.5 seconds or on click. Doesn't block gameplay.
+- **State management:** Wave stats reset on wave start, on game over, and on game restart. Panel dismissed on game over to not overlap with the game over screen.
 - **5 power-up types** drop from killed enemies with weighted random selection:
   - 💚 **Heal** (+3 HP, weight 3) — instant base repair
   - ⚔️ **Damage** (+50% DMG for 8s, weight 2) — applied in `applyDamage()`
