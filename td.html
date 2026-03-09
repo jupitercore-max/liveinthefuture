@@ -1259,6 +1259,11 @@
     'use strict';
 
     // ═══════════════════════════════════════════════════
+    //  DOM Helper (must be first — used throughout)
+    // ═══════════════════════════════════════════════════
+    const $ = id => document.getElementById(id);
+
+    // ═══════════════════════════════════════════════════
     //  Constants & Config
     // ═══════════════════════════════════════════════════
     let CANVAS_W = 700, CANVAS_H = 500;
@@ -1294,11 +1299,12 @@
       }
       // Rescale path and entities if game is running
       if (oldW > 0 && oldH > 0 && (oldW !== w || oldH !== h)) {
+        try {
         const sx = w / oldW, sy = h / oldH;
-        if (typeof currentPath !== 'undefined' && currentPath && currentPath.length) {
+        if (currentPath && currentPath.length) {
           for (const p of currentPath) { p.x *= sx; p.y *= sy; }
         }
-        if (typeof enemies !== 'undefined' && enemies) {
+        if (enemies) {
           for (const e of enemies) {
             e.x *= sx; e.y *= sy;
             if (e.flyStartX) e.flyStartX *= sx;
@@ -1306,24 +1312,25 @@
             if (e.flyY) e.flyY *= sy;
           }
         }
-        if (typeof cannons !== 'undefined' && cannons) {
+        if (cannons) {
           for (const c of Object.values(cannons)) {
             if (c.x) c.x *= sx;
             if (c.y) c.y *= sy;
           }
         }
-        if (typeof aidCannons !== 'undefined' && aidCannons) {
+        if (aidCannons) {
           for (const c of aidCannons) {
             if (c.x) c.x *= sx;
             if (c.y) c.y *= sy;
           }
         }
-        if (typeof terrainHazards !== 'undefined' && terrainHazards) {
+        if (terrainHazards) {
           for (const hz of terrainHazards) {
             hz.x *= sx; hz.y *= sy;
             hz.radius *= Math.min(sx, sy);
           }
         }
+        } catch(_) { /* variables not yet initialized — skip rescale */ }
       }
     }
 
@@ -3022,7 +3029,6 @@
     // ═══════════════════════════════════════════════════
     //  DOM Elements
     // ═══════════════════════════════════════════════════
-    const $ = id => document.getElementById(id);
     const canvas = $('gameCanvas');
     const ctx = canvas.getContext('2d');
     const hudWave = $('hudWave');
