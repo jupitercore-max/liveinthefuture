@@ -359,3 +359,21 @@ Hatch runs a cron job every hour that:
 - Monospace fonts
 - Mobile responsive with 600px breakpoint
 - No external dependencies except Firebase SDK (CDN)
+
+## CRITICAL: Syntax Validation
+Before committing ANY change to td.html, ALWAYS run this check:
+```bash
+python3 -c "
+import re
+with open('td.html') as f:
+    html = f.read()
+scripts = re.findall(r'<script[^>]*>(.*?)</script>', html, re.DOTALL)
+largest = max(scripts, key=len)
+with open('/tmp/td_check.js', 'w') as f:
+    f.write(largest)
+" && node --check /tmp/td_check.js
+```
+If it fails, DO NOT commit. Fix the error first.
+
+### Past Bugs
+- **2026-03-08**: Duplicate `const lifetimeStats` declaration (prestige system added a second declaration when one already existed). Broke entire game. Fix: use assignment instead of declaration.
