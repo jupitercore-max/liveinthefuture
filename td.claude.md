@@ -647,3 +647,17 @@ If it fails, DO NOT commit. Fix the error first.
 - **Boss waves excluded** — wave % 10 === 0 gets no mutator (boss mechanics are enough)
 - **State management** — `currentMutator` set in `generateWave()`, cleared on game reset alongside terrainHazards
 - **Design rationale:** Wave mutators add roguelike variety that makes each run feel different. The same wave number plays differently depending on the mutator — "Iron Skin" on wave 16 (armored enemies) is brutal, while "Payday" on wave 14 (healers) is a gift. Players learn to adapt their strategy per-wave rather than following a fixed build order. The mix of positive (Payday, Loot Rain, Vampiric) and negative (Iron Skin, Double Time, Fortified) mutators keeps things fair — roughly 5 positive, 4 negative, 3 mixed. Inspired by Hades boons, Slay the Spire modifiers, and Risk of Rain artifacts.
+
+### 2026-03-10: Spec-Specific Projectile Visuals
+- **Every cannon specialization now fires visually distinct projectiles** — previously all cannons shot identical thin lines. This was the biggest remaining visual gap since cannon bodies already had unique shapes.
+- **6 distinct projectile styles:**
+  - **Sniper**: Bright yellow tracer beam with glowing head dot. `shadowBlur` glow creates a laser-like feel. Wider (3px) than default.
+  - **Gatling**: Short thick tracers (12px max length) — rapid-fire staccato bursts that read as "many small hits" vs sniper's "one big shot."
+  - **Cannon**: Glowing orange orb with 3-dot trail. Radial gradient gives it depth (bright core → orange mid → dark edge). Extra impact sparks (6-10 vs standard 3-6) and orange-colored sparks for explosive feel.
+  - **Railgun**: Dual-layer energy beam — wide translucent outer glow (6px, blue) + thin bright inner core (2px, white). Plus a head flare dot. Strong `shadowBlur` creates the "charged energy" look.
+  - **Frost**: Elongated diamond ice crystal shard with sparkle trail (3 small diamonds behind it). Cyan coloring with bright center line. Impact sparks are icy blue (`#88ddff`).
+  - **Basic/Rapid/Tesla/default**: Standard 2px colored line (unchanged — Tesla already uses the lightning bolt system, and basic/rapid are the visual baseline).
+- **Implementation:** Added `spec` and `path` properties to projectile objects at spawn time. Projectile renderer now uses a `switch(p.spec)` to select the appropriate visual. Each style uses the normalized lifetime (`p.life / 5`) for fade effects.
+- **Impact sparks updated:** Cannon and railgun generate more sparks on impact. Frost sparks are icy blue. Color matching makes the whole shot→travel→impact cycle feel cohesive per spec.
+- **Performance:** All rendering uses basic canvas primitives (lines, arcs, fill/stroke). Sniper and railgun use `shadowBlur` (GPU-composited) but only for their limited projectile count. Gatling's short tracers are actually cheaper than full-length lines.
+- **Design rationale:** The cannon bodies already had unique shapes per spec (hexagon cannon, diamond sniper, triple-barrel gatling, etc.) but projectiles were identical. This breaks the visual connection — you see a distinctive cannon fire a generic line. Now each spec has a complete visual identity from barrel to impact. Sniper's bright tracer reinforces "precision" fantasy, cannon's orb says "explosive power," frost's crystal says "ice magic," railgun's beam says "high-tech energy." This is one of the highest-impact visual improvements because projectiles are the most frequently rendered game element — every frame shows dozens of them.
