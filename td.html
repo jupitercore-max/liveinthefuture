@@ -2221,6 +2221,10 @@
     const COMBO_WINDOW = TICK_RATE * 1.5; // 1.5s to chain kills
     const COMBO_MIN = 2; // minimum kills to show combo
 
+    // Mouse tracking for placement preview & hover info
+    let mouseCanvasX = -1, mouseCanvasY = -1; // -1 = mouse not on canvas
+    let mouseOnCanvas = false;
+
     // Firebase refs
     let metaRef, leaderRef, stateRef, cannonsRef, playersRef;
 
@@ -2350,6 +2354,8 @@
       // Register canvas events
       canvas.addEventListener('click', onCanvasClick);
       canvas.addEventListener('touchend', onCanvasTouchEnd);
+      canvas.addEventListener('mousemove', onCanvasMouseMove);
+      canvas.addEventListener('mouseleave', onCanvasMouseLeave);
 
       // Start render + sim loops
       lastVisualTick = performance.now();
@@ -2536,6 +2542,8 @@
       // Canvas events
       canvas.addEventListener('click', onCanvasClick);
       canvas.addEventListener('touchend', onCanvasTouchEnd);
+      canvas.addEventListener('mousemove', onCanvasMouseMove);
+      canvas.addEventListener('mouseleave', onCanvasMouseLeave);
 
       // Start render loop
       lastVisualTick = performance.now();
@@ -3329,6 +3337,19 @@
         x: (e.clientX - rect.left) * scaleX,
         y: (e.clientY - rect.top) * scaleY
       };
+    }
+
+    function onCanvasMouseMove(e) {
+      const pos = canvasCoords(e);
+      mouseCanvasX = pos.x;
+      mouseCanvasY = pos.y;
+      mouseOnCanvas = true;
+    }
+
+    function onCanvasMouseLeave() {
+      mouseOnCanvas = false;
+      mouseCanvasX = -1;
+      mouseCanvasY = -1;
     }
 
     function onCanvasClick(e) {
@@ -4433,6 +4454,85 @@
       }
       // ── End Terrain Hazard Zones ───────────────────────
 
+      // ── Placement Preview (ghost cannon) ──────────────
+      if (mouseOnCanvas && waveState !== 'gameover') {
+        const mx = mouseCanvasX, my = mouseCanvasY;
+        const myCannon = cannons[playerId];
+        const needsPlacement = !myCannon || !myCannon.x;
+        const canRelocate = myCannon && myCannon.x && (Date.now() - lastRelocateTime >= RELOCATE_COOLDOWN);
+        const inPlacementZone = my >= PLACEMENT_MIN_Y && my <= BASE_Y;
+
+        if (inPlacementZone && (needsPlacement || canRelocate) && !abilityTargeting) {
+          // Get stats for preview (use existing cannon's level/path/spec if relocating)
+          const previewLevel = myCannon ? (myCannon.level || 1) : 1;
+          const previewPath = myCannon ? (myCannon.path || null) : null;
+          const previewSpec = myCannon ? (myCannon.spec || null) : null;
+          const previewStats = getCannonStats(previewLevel, previewPath, previewSpec);
+          const previewColor = getCannonColor(previewPath, previewSpec);
+
+          // Range circle (filled gradient)
+          const pGrad = ctx.createRadialGradient(mx, my, previewStats.range * 0.3, mx, my, previewStats.range);
+          pGrad.addColorStop(0, 'rgba(30,144,255,0.05)');
+          pGrad.addColorStop(1, 'rgba(30,144,255,0.12)');
+          ctx.fillStyle = pGrad;
+          ctx.beginPath();
+          ctx.arc(mx, my, previewStats.range, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Range border (dashed, pulsing)
+          const pulseAlpha = 0.2 + 0.1 * Math.sin(Date.now() / 300);
+          ctx.strokeStyle = `rgba(30,144,255,${pulseAlpha})`;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([6, 4]);
+          ctx.beginPath();
+          ctx.arc(mx, my, previewStats.range, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Ghost cannon body
+          ctx.globalAlpha = 0.4;
+          ctx.fillStyle = previewColor;
+          ctx.beginPath();
+          ctx.arc(mx, my, 12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          // Ghost barrel (pointing up)
+          ctx.strokeStyle = previewColor;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(mx, my);
+          ctx.lineTo(mx, my - 20);
+          ctx.stroke();
+
+          // Crosshair
+          ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(mx - 8, my);
+          ctx.lineTo(mx + 8, my);
+          ctx.moveTo(mx, my - 8);
+          ctx.lineTo(mx, my + 8);
+          ctx.stroke();
+
+          ctx.globalAlpha = 1;
+
+          // Label
+          const previewLabel = needsPlacement ? 'Click to place' : 'Click to relocate';
+          ctx.fillStyle = 'rgba(30,144,255,0.7)';
+          ctx.font = '10px ' + getComputedStyle(document.body).fontFamily;
+          ctx.textAlign = 'center';
+          ctx.fillText(previewLabel, mx, my + 24);
+          // Range stat
+          ctx.fillStyle = 'rgba(255,255,255,0.5)';
+          ctx.fillText(`Range: ${Math.round(previewStats.range)}px`, mx, my + 36);
+          ctx.textAlign = 'start';
+        }
+      }
+      // ── End Placement Preview ─────────────────────────
+
       // Draw cannons
       for (const [cid, c] of Object.entries(cannons)) {
         if (!c.x || !c.y) continue;
@@ -4609,6 +4709,84 @@
         ctx.textAlign = 'start';
       }
 
+      // ── Hover Stat Tooltip for Own Cannon ────────────
+      if (mouseOnCanvas && waveState !== 'gameover') {
+        const myCannon = cannons[playerId];
+        if (myCannon && myCannon.x) {
+          const dist = Math.hypot(mouseCanvasX - myCannon.x, mouseCanvasY - myCannon.y);
+          if (dist <= 30) { // hovering near own cannon
+            const tipStats = getCannonStats(myCannon.level || 1, myCannon.path || null, myCannon.spec || null);
+            const tipLabel = getCannonLabel(myCannon.level || 1, myCannon.path || null, myCannon.spec || null);
+            const dps = (tipStats.dmg * tipStats.fireRate).toFixed(1);
+            const lines = [
+              tipLabel,
+              `DPS: ${dps}`,
+              `Range: ${Math.round(tipStats.range)}px`,
+            ];
+            if (tipStats.aoeSplash > 0) lines.push(`Splash: ${tipStats.aoeSplash}px`);
+            if (tipStats.pierce > 0) lines.push(`Pierce: ${tipStats.pierce}`);
+            if (tipStats.chain > 0) lines.push(`Chain: ${tipStats.chain}`);
+            if (tipStats.slowPct > 0) lines.push(`Slow: ${Math.round(tipStats.slowPct * 100)}%`);
+            if (myCannon.kills) lines.push(`Kills: ${myCannon.kills}`);
+
+            const lineH = 14;
+            const padX = 8, padY = 6;
+            const tipFont = '10px ' + getComputedStyle(document.body).fontFamily;
+            ctx.font = tipFont;
+            let maxW = 0;
+            for (const l of lines) {
+              const w = ctx.measureText(l).width;
+              if (w > maxW) maxW = w;
+            }
+            const tipW = maxW + padX * 2;
+            const tipH = lines.length * lineH + padY * 2;
+
+            // Position tooltip above cannon, clamp to canvas
+            let tipX = myCannon.x - tipW / 2;
+            let tipY = myCannon.y - 30 - tipH;
+            if (tipX < 4) tipX = 4;
+            if (tipX + tipW > CANVAS_W - 4) tipX = CANVAS_W - 4 - tipW;
+            if (tipY < 4) tipY = myCannon.y + 25; // flip below if too high
+
+            // Background
+            ctx.fillStyle = 'rgba(10,10,30,0.85)';
+            ctx.beginPath();
+            const cr = 4;
+            ctx.moveTo(tipX + cr, tipY);
+            ctx.lineTo(tipX + tipW - cr, tipY);
+            ctx.quadraticCurveTo(tipX + tipW, tipY, tipX + tipW, tipY + cr);
+            ctx.lineTo(tipX + tipW, tipY + tipH - cr);
+            ctx.quadraticCurveTo(tipX + tipW, tipY + tipH, tipX + tipW - cr, tipY + tipH);
+            ctx.lineTo(tipX + cr, tipY + tipH);
+            ctx.quadraticCurveTo(tipX, tipY + tipH, tipX, tipY + tipH - cr);
+            ctx.lineTo(tipX, tipY + cr);
+            ctx.quadraticCurveTo(tipX, tipY, tipX + cr, tipY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Border
+            ctx.strokeStyle = 'rgba(30,144,255,0.4)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Text
+            ctx.textAlign = 'left';
+            for (let i = 0; i < lines.length; i++) {
+              if (i === 0) {
+                ctx.fillStyle = getCannonColor(myCannon.path || null, myCannon.spec || null);
+                ctx.font = 'bold ' + tipFont;
+              } else {
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                ctx.font = tipFont;
+              }
+              ctx.fillText(lines[i], tipX + padX, tipY + padY + (i + 1) * lineH - 2);
+            }
+            ctx.textAlign = 'start';
+          }
+        }
+      }
+      // ── End Hover Stat Tooltip ────────────────────────
+
       // Damage flash overlay
       if (damageFlashTimer > 0) {
         const flashAlpha = (damageFlashTimer / 8) * 0.25;
@@ -4690,11 +4868,22 @@
 
       // Range circle (only for own cannon)
       if (isMe) {
-        ctx.strokeStyle = 'rgba(30,144,255,0.12)';
+        // Filled gradient range indicator
+        const rangeGrad = ctx.createRadialGradient(x, y, stats.range * 0.6, x, y, stats.range);
+        rangeGrad.addColorStop(0, 'rgba(30,144,255,0.0)');
+        rangeGrad.addColorStop(1, 'rgba(30,144,255,0.06)');
+        ctx.fillStyle = rangeGrad;
+        ctx.beginPath();
+        ctx.arc(x, y, stats.range, 0, Math.PI * 2);
+        ctx.fill();
+        // Dashed border
+        ctx.strokeStyle = 'rgba(30,144,255,0.2)';
         ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
         ctx.beginPath();
         ctx.arc(x, y, stats.range, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.setLineDash([]);
       }
 
       // Barrel — point toward nearest enemy or up

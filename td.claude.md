@@ -280,6 +280,20 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - **Multiplayer sync** — All flying properties (`flying`, `flyStartX`, `flyEndX`, `flyY`) serialize automatically via JSON in Firebase snapshots. Non-leader clients handle flyer interpolation separately from path-following enemies.
 - **No existing mechanics broken** — Flyers interact normally with cannon targeting/damage, slow effects from frost cannons, boss phases (if a boss somehow were flying — it isn't), and all other systems. They simply move differently.
 
+### 2025-07-06: Placement Preview & Enhanced Range Indicator
+- **Ghost cannon placement preview** — When hovering in the placement zone (below the blue base line), a semi-transparent ghost cannon appears at the cursor position with its full range circle, crosshair, and label ("Click to place" or "Click to relocate"). Uses the current cannon's level/path/spec for accurate range preview when relocating. Only shows when placement is valid (no cooldown, not in ability targeting mode).
+- **Enhanced range circle** — The player's cannon range indicator upgraded from a nearly invisible single stroke to a filled radial gradient (fades from transparent center to subtle blue edge) with a dashed border. Much easier to see at a glance during gameplay.
+- **Hover stat tooltip** — Moving the mouse within 30px of your cannon shows a compact floating tooltip with:
+  - Cannon name and level (colored by upgrade path)
+  - DPS (damage × fire rate)
+  - Range in pixels
+  - Special stats when applicable: splash radius, pierce count, chain count, slow percentage
+  - Kill count
+  - Tooltip auto-positions above cannon, flips below if too close to top edge, clamps to canvas bounds
+- **Mouse tracking system** — Added `mousemove` and `mouseleave` event listeners on canvas for both offline and Firebase modes. Cursor position tracked in canvas coordinates with proper DPI scaling.
+- **Pulsing preview border** — The ghost cannon's range circle border gently pulses (sinusoidal alpha modulation) to draw attention and feel alive.
+- **No mobile impact** — Mouse events don't fire on touch devices. Touch-based placement continues to work identically via existing `touchend` handler.
+
 ## Known Issues / TODO
 - [ ] Mobile touch experience needs improvement (hard to precisely place cannons)
 - [x] ~~No sound effects~~ → Full procedural sound effects system using Web Audio API
@@ -299,6 +313,7 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - [x] ~~Wave skip / early send for bonus XP~~ → "Send Next" button overlaps waves for bonus XP
 - [x] ~~Sell/reset cannon option~~ → Sell button with 50% XP refund banked for next cannon
 - [x] ~~Persistent meta-progression / prestige system~~ → Stars earned at game over, 5 permanent upgrades with multiple levels
+- [x] ~~Better cannon placement UX~~ → Ghost cannon placement preview with range circle, hover stat tooltip with DPS/range/specials
 
 ## Hourly Improvement Cycle
 Hatch runs a cron job every hour that:
