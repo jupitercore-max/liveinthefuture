@@ -315,6 +315,20 @@ A cooperative idle tower defense game at rayhe.net/td.html. Players place cannon
 - [x] ~~Persistent meta-progression / prestige system~~ → Stars earned at game over, 5 permanent upgrades with multiple levels
 - [x] ~~Better cannon placement UX~~ → Ghost cannon placement preview with range circle, hover stat tooltip with DPS/range/specials
 
+### Power-Up Drops System (Fully Wired)
+- **5 power-up types** drop from killed enemies with weighted random selection:
+  - 💚 **Heal** (+3 HP, weight 3) — instant base repair
+  - ⚔️ **Damage** (+50% DMG for 8s, weight 2) — applied in `applyDamage()`
+  - ⚡ **Speed** (2× fire rate for 8s, weight 2) — applied via `getFireRateMultiplier()`
+  - ✨ **XP** (3× XP for 10s, weight 2) — applied via `getXPMultiplier()` in all award paths
+  - 💥 **Nuke** (kill all non-boss enemies, weight 1) — rare but devastating
+- **Drop chances**: 6% per kill, 25% for elites, 80% for bosses
+- **Collection**: Auto-collected within 35px of cannon position
+- **Visual rendering**: Bobbing animation with glow, colored circles, emoji icons, fade-out on expiry
+- **Active buff indicators**: Timer bars in top-right showing remaining buff duration with progress bars
+- **Sound effect**: Ascending sine sweep on collection (`sfxPowerupCollect`)
+- **Full integration**: Drops in both leader simTick and non-leader checkAbilityKills paths, rendering in drawFrame, proper reset on game over
+
 ## Hourly Improvement Cycle
 Hatch runs a cron job every hour that:
 1. Reads this file for context

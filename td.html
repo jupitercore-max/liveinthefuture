@@ -823,6 +823,86 @@
       .prestige-inner { padding: 14px; max-width: 95%; }
     }
 
+    /* ─── Stats Panel ───────────────────────────────── */
+    .stats-panel {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 1000;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    .stats-panel.active { display: flex; }
+    .stats-inner {
+      background: var(--bg-light);
+      border: 1px solid rgba(30,144,255,0.4);
+      border-radius: 10px;
+      width: 90%;
+      max-width: 420px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    .stats-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .stats-header h2 { font-size: 1.1rem; color: #4FC3F7; margin: 0; }
+    .stats-close {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      padding: 4px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-family: var(--font-mono);
+    }
+    .stats-close:hover { color: var(--text); border-color: var(--text-muted); }
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.75rem;
+    }
+    .stats-row:last-child { border-bottom: none; }
+    .stats-row .sr-label { color: var(--text-muted); }
+    .stats-row .sr-value { color: #e2e8f0; font-weight: 700; }
+    .stats-row .sr-value.record { color: #fbbf24; }
+    .stats-section-title {
+      font-size: 0.65rem;
+      color: #4FC3F7;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 14px 0 6px 0;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(30,144,255,0.2);
+    }
+    .stats-section-title:first-of-type { margin-top: 0; }
+    .new-record-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      color: #1a1a2e;
+      font-size: 0.55rem;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-left: 6px;
+      animation: recordPulse 0.6s ease-in-out infinite alternate;
+    }
+    @keyframes recordPulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.08); }
+    }
+    @media (max-width: 600px) {
+      .stats-inner { padding: 14px; max-width: 95%; }
+    }
+
     /* ─── Tutorial Overlay ───────────────────────────── */
     .tutorial-overlay {
       display: none;
@@ -1049,12 +1129,14 @@
       </div>
       <button class="ctrl-btn send-next-btn" id="sendNextBtn" disabled>⏩ Send Next <span class="ab-key">[E]</span></button>
       <button class="ctrl-btn" id="relocateBtn">Relocate</button>
+      <button class="ctrl-btn" id="priorityBtn" title="Cycle targeting priority [T]">🎯 Nearest</button>
       <button class="ctrl-btn sell-btn" id="sellBtn" disabled>🗑 Sell</button>
       <button class="ctrl-btn" id="playersBtn">Players</button>
       <button class="ctrl-btn" id="achieveBtn" title="Achievements">🏆</button>
       <button class="ctrl-btn" id="prestigeBtn" title="Prestige Upgrades" style="color:#c084fc;border-color:rgba(160,120,255,0.4)">⭐</button>
       <button class="ctrl-btn" id="muteBtn" title="Toggle sound">🔊</button>
       <button class="ctrl-btn" id="helpBtn" title="Tutorial">❓</button>
+      <button class="ctrl-btn" id="statsBtn" title="Statistics" style="color:#4FC3F7;border-color:rgba(30,144,255,0.4)">📊</button>
     </div>
 
     <div class="player-panel" id="playerPanel">
@@ -1114,6 +1196,17 @@
     </div>
   </div>
 
+  <!-- ─── Stats Panel ──────────────────────────────── -->
+  <div class="stats-panel" id="statsPanel">
+    <div class="stats-inner">
+      <div class="stats-header">
+        <h2>📊 Statistics</h2>
+        <button class="stats-close" id="statsClose">Close</button>
+      </div>
+      <div id="statsContent"></div>
+    </div>
+  </div>
+
   <script src="firebase-shared.js"></script>
   <script>
   (() => {
@@ -1134,6 +1227,35 @@
     const LEADER_STALE_MS = 6000;
     const STALE_CANNON_DAYS = 30;
     const XP_PER_LEVEL = lvl => lvl * 50;
+
+    // ═══════════════════════════════════════════════════
+    //  Targeting Priority System
+    // ═══════════════════════════════════════════════════
+    const TARGET_PRIORITIES = ['nearest', 'strongest', 'weakest', 'fastest', 'closest-to-base'];
+    const TARGET_LABELS = { nearest: '🎯 Nearest', strongest: '💪 Strongest', weakest: '🩸 Weakest', fastest: '⚡ Fastest', 'closest-to-base': '🏠 Closest' };
+    let myTargetPriority = localStorage.getItem('td_target_priority') || 'nearest';
+
+    function findTarget(enemies, cx, cy, range, priority) {
+      let best = null, bestScore = priority === 'weakest' ? Infinity : -Infinity;
+      for (const e of enemies) {
+        if (e.hp <= 0) continue;
+        const dist = Math.hypot(e.x - cx, e.y - cy);
+        if (dist > range) continue;
+        let score;
+        switch (priority) {
+          case 'nearest': score = -dist; break;
+          case 'strongest': score = e.maxHp; break;
+          case 'weakest': score = e.hp; break;
+          case 'fastest': score = e.speed * (e.slowTimer > 0 ? 0.5 : 1); break;
+          case 'closest-to-base': score = e.flying ? e.y : e.y; break; // higher y = closer to base
+          default: score = -dist;
+        }
+        if (priority === 'weakest' ? score < bestScore : score > bestScore) {
+          best = e; bestScore = score;
+        }
+      }
+      return best;
+    }
     const BASE_MAX_HP = 20;
     const BOSS_DAMAGE = 3;
     const HP_REGEN_PER_WAVE = 1;
@@ -1451,6 +1573,109 @@
     prestigeClose.addEventListener('click', () => prestigePanel.classList.remove('active'));
     prestigePanel.addEventListener('click', e => {
       if (e.target === prestigePanel) prestigePanel.classList.remove('active');
+    });
+
+    // ═══════════════════════════════════════════════════
+    //  Statistics & Personal Records
+    // ═══════════════════════════════════════════════════
+    const STATS_KEY = 'td_lifetime_stats';
+    function loadLifetimeStats() {
+      try {
+        const raw = localStorage.getItem(STATS_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch(e) {}
+      return {
+        gamesPlayed: 0,
+        bestWave: 0,
+        totalKills: 0,
+        bestKills: 0,
+        bossKills: 0,
+        bestCombo: 0,
+        eliteKills: 0,
+        totalStarsEarned: 0,
+        totalWavesCleared: 0,
+        earlySends: 0,
+        abilitiesUsed: 0,
+        firstPlayedAt: null,
+        lastPlayedAt: null
+      };
+    }
+    function saveLifetimeStats() { localStorage.setItem(STATS_KEY, JSON.stringify(lifetimeStats)); }
+    const lifetimeStats = loadLifetimeStats();
+
+    // Session tracking vars
+    let sessionBossKills = 0;
+    let sessionBestCombo = 0;
+    let sessionEliteKills = 0;
+    let sessionWavesCleared = 0;
+    let sessionEarlySends = 0;
+    let sessionAbilitiesUsed = 0;
+
+    function updateLifetimeStatsOnGameOver(wave, kills) {
+      const records = [];
+      lifetimeStats.gamesPlayed++;
+      if (wave > lifetimeStats.bestWave) { lifetimeStats.bestWave = wave; records.push('Best Wave'); }
+      if (kills > lifetimeStats.bestKills) { lifetimeStats.bestKills = kills; records.push('Best Kills'); }
+      if (sessionBestCombo > lifetimeStats.bestCombo) { lifetimeStats.bestCombo = sessionBestCombo; records.push('Best Combo'); }
+      lifetimeStats.totalKills += kills;
+      lifetimeStats.bossKills += sessionBossKills;
+      lifetimeStats.eliteKills += sessionEliteKills;
+      lifetimeStats.totalWavesCleared += sessionWavesCleared;
+      lifetimeStats.earlySends += sessionEarlySends;
+      lifetimeStats.abilitiesUsed += sessionAbilitiesUsed;
+      lifetimeStats.lastPlayedAt = Date.now();
+      if (!lifetimeStats.firstPlayedAt) lifetimeStats.firstPlayedAt = Date.now();
+      saveLifetimeStats();
+      return records;
+    }
+
+    function resetSessionStats() {
+      sessionBossKills = 0;
+      sessionBestCombo = 0;
+      sessionEliteKills = 0;
+      sessionWavesCleared = 0;
+      sessionEarlySends = 0;
+      sessionAbilitiesUsed = 0;
+    }
+
+    function renderStatsPanel() {
+      const s = lifetimeStats;
+      const avgKills = s.gamesPlayed > 0 ? Math.round(s.totalKills / s.gamesPlayed) : 0;
+      const avgWaves = s.gamesPlayed > 0 ? (s.totalWavesCleared / s.gamesPlayed).toFixed(1) : '0';
+      const statsContent = document.getElementById('statsContent');
+      statsContent.innerHTML = `
+        <div class="stats-section-title">🏆 Personal Records</div>
+        <div class="stats-row"><span class="sr-label">Best Wave</span><span class="sr-value record">${s.bestWave}</span></div>
+        <div class="stats-row"><span class="sr-label">Best Kills (single game)</span><span class="sr-value record">${s.bestKills}</span></div>
+        <div class="stats-row"><span class="sr-label">Best Combo</span><span class="sr-value record">${s.bestCombo}×</span></div>
+        <div class="stats-section-title">📈 Lifetime Totals</div>
+        <div class="stats-row"><span class="sr-label">Games Played</span><span class="sr-value">${s.gamesPlayed}</span></div>
+        <div class="stats-row"><span class="sr-label">Total Kills</span><span class="sr-value">${s.totalKills.toLocaleString()}</span></div>
+        <div class="stats-row"><span class="sr-label">Bosses Slain</span><span class="sr-value">${s.bossKills}</span></div>
+        <div class="stats-row"><span class="sr-label">Elites Slain</span><span class="sr-value">${s.eliteKills}</span></div>
+        <div class="stats-row"><span class="sr-label">Waves Cleared</span><span class="sr-value">${s.totalWavesCleared}</span></div>
+        <div class="stats-row"><span class="sr-label">Stars Earned</span><span class="sr-value">${s.totalStarsEarned} ⭐</span></div>
+        <div class="stats-section-title">⚡ Actions</div>
+        <div class="stats-row"><span class="sr-label">Early Sends</span><span class="sr-value">${s.earlySends}</span></div>
+        <div class="stats-row"><span class="sr-label">Abilities Used</span><span class="sr-value">${s.abilitiesUsed}</span></div>
+        <div class="stats-section-title">📊 Averages</div>
+        <div class="stats-row"><span class="sr-label">Avg Kills / Game</span><span class="sr-value">${avgKills}</span></div>
+        <div class="stats-row"><span class="sr-label">Avg Waves / Game</span><span class="sr-value">${avgWaves}</span></div>
+        ${s.firstPlayedAt ? `<div class="stats-row"><span class="sr-label">Playing Since</span><span class="sr-value">${new Date(s.firstPlayedAt).toLocaleDateString()}</span></div>` : ''}
+      `;
+    }
+
+    // Stats panel open/close
+    const statsPanel = document.getElementById('statsPanel');
+    const statsBtn = document.getElementById('statsBtn');
+    const statsClose = document.getElementById('statsClose');
+    statsBtn.addEventListener('click', () => {
+      renderStatsPanel();
+      statsPanel.classList.add('active');
+    });
+    statsClose.addEventListener('click', () => statsPanel.classList.remove('active'));
+    statsPanel.addEventListener('click', e => {
+      if (e.target === statsPanel) statsPanel.classList.remove('active');
     });
 
     // ═══════════════════════════════════════════════════
@@ -2217,6 +2442,8 @@
     let cannons = {}; // id -> cannon data
     let projectiles = []; // client-side visual only
     let particles = []; // death particles
+    let powerups = []; // dropped power-ups on the field
+    let activePowerupEffects = {}; // type -> {timer, startTime}
     let onlinePlayers = {};
     let lastRelocateTime = 0;
     let countdownTimer = 0;
@@ -2729,6 +2956,184 @@
         }
       }
       enemy.hp -= dmg;
+      // Apply active power-up damage boost
+      if (activePowerupEffects.damage && activePowerupEffects.damage.timer > 0) {
+        enemy.hp -= dmg * 0.5; // extra 50% damage
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Power-Up Drop System
+    // ═══════════════════════════════════════════════════
+    const POWERUP_TYPES = [
+      { type: 'heal',   emoji: '💚', color: '#22c55e', desc: '+3 HP',         weight: 3, duration: 0 },
+      { type: 'damage', emoji: '⚔️', color: '#e74c3c', desc: '+50% DMG 8s',  weight: 2, duration: 160 },
+      { type: 'speed',  emoji: '⚡', color: '#f59e0b', desc: '2× Fire 8s',   weight: 2, duration: 160 },
+      { type: 'xp',     emoji: '✨', color: '#a855f7', desc: '3× XP 10s',    weight: 2, duration: 200 },
+      { type: 'nuke',   emoji: '💥', color: '#ff4500', desc: 'Kill all weak', weight: 1, duration: 0 },
+    ];
+    const POWERUP_DROP_CHANCE = 0.06; // 6% per kill
+    const POWERUP_BOSS_DROP_CHANCE = 0.8; // 80% for bosses
+    const POWERUP_ELITE_DROP_CHANCE = 0.25; // 25% for elites
+    const POWERUP_LIFETIME = TICK_RATE * 8; // 8 seconds to collect
+    const POWERUP_COLLECT_RADIUS = 35;
+
+    function rollPowerupDrop(x, y, enemyType, isElite) {
+      let chance = POWERUP_DROP_CHANCE;
+      if (enemyType === 'boss') chance = POWERUP_BOSS_DROP_CHANCE;
+      else if (isElite) chance = POWERUP_ELITE_DROP_CHANCE;
+      if (Math.random() > chance) return;
+      // Weighted random selection
+      const totalWeight = POWERUP_TYPES.reduce((s, p) => s + p.weight, 0);
+      let roll = Math.random() * totalWeight;
+      let chosen = POWERUP_TYPES[0];
+      for (const pt of POWERUP_TYPES) {
+        roll -= pt.weight;
+        if (roll <= 0) { chosen = pt; break; }
+      }
+      powerups.push({
+        x, y, type: chosen.type, emoji: chosen.emoji,
+        color: chosen.color, desc: chosen.desc,
+        duration: chosen.duration,
+        life: POWERUP_LIFETIME, maxLife: POWERUP_LIFETIME,
+        bobPhase: Math.random() * Math.PI * 2
+      });
+    }
+
+    function collectPowerup(pu) {
+      const c = cannons[playerId];
+      if (!c || !c.x) return false;
+      const dist = Math.hypot(pu.x - c.x, pu.y - c.y);
+      if (dist > POWERUP_COLLECT_RADIUS) return false;
+      // Apply effect
+      switch (pu.type) {
+        case 'heal':
+          baseHp = Math.min(baseHp + 3, getEffectiveMaxHp());
+          scorePopups.push({ x: pu.x, y: pu.y, text: '💚 +3 HP', color: '#22c55e', life: 30, maxLife: 30, size: 12, vy: -1.5 });
+          break;
+        case 'damage':
+          activePowerupEffects.damage = { timer: pu.duration, startTime: pu.duration };
+          scorePopups.push({ x: pu.x, y: pu.y, text: '⚔️ +50% DMG!', color: '#e74c3c', life: 30, maxLife: 30, size: 12, vy: -1.5 });
+          break;
+        case 'speed':
+          activePowerupEffects.speed = { timer: pu.duration, startTime: pu.duration };
+          scorePopups.push({ x: pu.x, y: pu.y, text: '⚡ 2× FIRE RATE!', color: '#f59e0b', life: 30, maxLife: 30, size: 12, vy: -1.5 });
+          break;
+        case 'xp':
+          activePowerupEffects.xp = { timer: pu.duration, startTime: pu.duration };
+          scorePopups.push({ x: pu.x, y: pu.y, text: '✨ 3× XP!', color: '#a855f7', life: 30, maxLife: 30, size: 12, vy: -1.5 });
+          break;
+        case 'nuke':
+          let nukeKills = 0;
+          for (const e of enemies) {
+            if (e.hp > 0 && !e.dead && e.type !== 'boss' && e.hp <= e.maxHp * 0.5) {
+              e.hp = 0; nukeKills++;
+              for (let i = 0; i < 4; i++) {
+                particles.push({ x: e.x, y: e.y, vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5, color: '#ff4500', life: 12+Math.random()*8 });
+              }
+            }
+          }
+          triggerScreenShake(nukeKills > 5);
+          scorePopups.push({ x: pu.x, y: pu.y, text: `💥 NUKE! ${nukeKills} kills`, color: '#ff4500', life: 40, maxLife: 40, size: 14, vy: -1.5 });
+          break;
+      }
+      if (!isMuted) sfxPowerupCollect();
+      return true;
+    }
+
+    function tickPowerupEffects() {
+      for (const key of Object.keys(activePowerupEffects)) {
+        if (activePowerupEffects[key].timer > 0) {
+          activePowerupEffects[key].timer--;
+        } else {
+          delete activePowerupEffects[key];
+        }
+      }
+    }
+
+    function getFireRateMultiplier() {
+      return (activePowerupEffects.speed && activePowerupEffects.speed.timer > 0) ? 2.0 : 1.0;
+    }
+
+    function getXPMultiplier() {
+      return (activePowerupEffects.xp && activePowerupEffects.xp.timer > 0) ? 3.0 : 1.0;
+    }
+
+    function sfxPowerupCollect() {
+      if (!audioCtx) return;
+      try {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(880, audioCtx.currentTime);
+        o.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.1);
+        g.gain.setValueAtTime(0.15 * soundVolume, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(); o.stop(audioCtx.currentTime + 0.2);
+      } catch(e) {}
+    }
+
+    function drawPowerups() {
+      const now = Date.now();
+      for (const pu of powerups) {
+        const bob = Math.sin(now / 300 + pu.bobPhase) * 4;
+        const fadeAlpha = Math.min(1, pu.life / (POWERUP_LIFETIME * 0.25));
+        const pulseScale = 1 + Math.sin(now / 200) * 0.1;
+        ctx.globalAlpha = fadeAlpha;
+        // Glow
+        ctx.fillStyle = pu.color;
+        ctx.globalAlpha = fadeAlpha * 0.2;
+        ctx.beginPath();
+        ctx.arc(pu.x, pu.y + bob, 18 * pulseScale, 0, Math.PI * 2);
+        ctx.fill();
+        // Circle bg
+        ctx.globalAlpha = fadeAlpha * 0.8;
+        ctx.fillStyle = '#1a1a2e';
+        ctx.beginPath();
+        ctx.arc(pu.x, pu.y + bob, 13, 0, Math.PI * 2);
+        ctx.fill();
+        // Border
+        ctx.strokeStyle = pu.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(pu.x, pu.y + bob, 13, 0, Math.PI * 2);
+        ctx.stroke();
+        // Emoji
+        ctx.globalAlpha = fadeAlpha;
+        ctx.font = '14px serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(pu.emoji, pu.x, pu.y + bob + 5);
+        ctx.textAlign = 'start';
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    function drawActivePowerupIndicators() {
+      let y = 70;
+      const now = Date.now();
+      for (const [key, eff] of Object.entries(activePowerupEffects)) {
+        if (eff.timer <= 0) continue;
+        const pt = POWERUP_TYPES.find(p => p.type === key);
+        if (!pt) continue;
+        const secs = Math.ceil(eff.timer / TICK_RATE);
+        const pct = eff.timer / eff.startTime;
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(CANVAS_W - 120, y, 115, 20);
+        // Progress bar
+        ctx.fillStyle = pt.color;
+        ctx.globalAlpha = 0.4;
+        ctx.fillRect(CANVAS_W - 120, y, 115 * pct, 20);
+        ctx.globalAlpha = 0.9;
+        ctx.font = '10px ' + getComputedStyle(document.body).fontFamily;
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(`${pt.emoji} ${pt.desc} ${secs}s`, CANVAS_W - 10, y + 14);
+        ctx.textAlign = 'start';
+        ctx.globalAlpha = 1;
+        y += 24;
+      }
     }
 
     function simTick() {
@@ -2947,19 +3352,12 @@
         const stats = getCannonStats(c.level || 1, c.path || null, c.spec || null);
         if (!(cid in myCannonFireTimers)) myCannonFireTimers[cid] = 0;
         myCannonFireTimers[cid]++;
-        const fireInterval = TICK_RATE / stats.fireRate;
+        const fireInterval = TICK_RATE / (stats.fireRate * getFireRateMultiplier());
         if (myCannonFireTimers[cid] < fireInterval) continue;
 
-        // Find nearest enemy in range
-        let nearest = null, nearestDist = Infinity;
-        for (const e of enemies) {
-          if (e.hp <= 0) continue;
-          const dist = Math.hypot(e.x - c.x, e.y - c.y);
-          if (dist <= stats.range && dist < nearestDist) {
-            nearest = e;
-            nearestDist = dist;
-          }
-        }
+        // Find target based on cannon's priority
+        const priority = (cid === playerId) ? myTargetPriority : (c.targetPriority || 'nearest');
+        const nearest = findTarget(enemies, c.x, c.y, stats.range, priority);
         if (!nearest) continue;
 
         myCannonFireTimers[cid] = 0;
@@ -3035,10 +3433,13 @@
           if (totalKills >= 100) unlockAchievement('sharpshooter');
           if (totalKills >= 500) unlockAchievement('mass_murderer');
           if (e.type === 'boss') unlockAchievement('boss_slayer');
+          if (e.type === 'boss') sessionBossKills++;
+          if (e.elite) sessionEliteKills++;
           if (e.flying) { flyerKills++; if (flyerKills >= 10) unlockAchievement('fly_swatter'); }
           // Combo tracking
           comboCount++;
           comboTimer = COMBO_WINDOW;
+          if (comboCount > sessionBestCombo) sessionBestCombo = comboCount;
           // Screen shake on big combos
           if (comboCount === 5 || comboCount === 10) {
             triggerScreenShake(comboCount >= 10);
@@ -3053,7 +3454,7 @@
           const eliteMult = e.elite ? 3 : 1;
           const xpAmount = (comboMult + earlyBonus) * eliteMult;
           // Award XP to cannon that would have killed (simplified: split among all)
-          awardXP(cannonList, xpAmount);
+          awardXP(cannonList, xpAmount * getXPMultiplier());
           // Score popup
           const popupText = e.elite
             ? `+${xpAmount} XP ★`
@@ -3086,6 +3487,8 @@
               life: 15 + Math.random() * 10
             });
           }
+          // Power-up drop chance
+          rollPowerupDrop(e.x, e.y, e.type, e.elite);
         }
       }
       // Combo timer decay
@@ -3099,6 +3502,14 @@
       // Update combo display
       updateComboDisplay();
       enemies = enemies.filter(e => !e.dead);
+
+      // Tick power-up effects and collection
+      tickPowerupEffects();
+      for (let i = powerups.length - 1; i >= 0; i--) {
+        powerups[i].life--;
+        if (powerups[i].life <= 0) { powerups.splice(i, 1); continue; }
+        if (collectPowerup(powerups[i])) { powerups.splice(i, 1); }
+      }
 
       // Check if enemy reached base (end of path) — deal damage instead of instant fail
       let damageTaken = 0;
@@ -3134,6 +3545,7 @@
       if (enemies.length === 0 && waveState === 'active') {
         sfxWaveClear();
         waveNumber++;
+        sessionWavesCleared++;
         // Wave achievements
         if (waveNumber > 5) unlockAchievement('wave_5');
         if (waveNumber > 10) unlockAchievement('wave_10');
@@ -3258,7 +3670,13 @@
     function showGameOver() {
       // Earn prestige stars
       const earned = earnPrestigeStars(waveNumber, totalKills);
-      goStats.innerHTML = `Wave ${waveNumber} · ${totalKills} kills<br><span style="color:#fbbf24;font-size:0.9rem">⭐ +${earned} Star${earned !== 1 ? 's' : ''} earned!</span><br><span style="color:#c084fc;font-size:0.7rem">${prestigeStars} total — spend in ⭐ Prestige</span>`;
+      lifetimeStats.totalStarsEarned += earned;
+      // Update lifetime stats and get records broken
+      const records = updateLifetimeStatsOnGameOver(waveNumber, totalKills);
+      const recordHtml = records.length > 0
+        ? `<br><span style="color:#fbbf24;font-size:0.85rem">🏆 NEW RECORD: ${records.join(', ')}!</span>`
+        : '';
+      goStats.innerHTML = `Wave ${waveNumber} · ${totalKills} kills${recordHtml}<br><span style="color:#fbbf24;font-size:0.9rem">⭐ +${earned} Star${earned !== 1 ? 's' : ''} earned!</span><br><span style="color:#c084fc;font-size:0.7rem">${prestigeStars} total — spend in ⭐ Prestige</span>`;
       gameOverOverlay.classList.add('active');
     }
 
@@ -3279,6 +3697,7 @@
 
     function resetGame() {
       gameOverOverlay.classList.remove('active');
+      resetSessionStats();
       waveNumber = 1;
       baseHp = getEffectiveMaxHp();
       totalKills = 0;
@@ -3293,6 +3712,8 @@
       scorePopups = [];
       abilityZones = [];
       terrainHazards = [];
+      powerups = [];
+      activePowerupEffects = {};
       abilityCooldownLeft = 0;
       abilityTargeting = false;
       earlySendBonusPct = 0;
@@ -3598,6 +4019,35 @@
     }
 
     // ═══════════════════════════════════════════════════
+    //  Targeting Priority Button
+    // ═══════════════════════════════════════════════════
+    const priorityBtn = $('priorityBtn');
+    function updatePriorityBtn() {
+      priorityBtn.textContent = TARGET_LABELS[myTargetPriority] || '🎯 Nearest';
+    }
+    updatePriorityBtn();
+    priorityBtn.addEventListener('click', () => {
+      const idx = TARGET_PRIORITIES.indexOf(myTargetPriority);
+      myTargetPriority = TARGET_PRIORITIES[(idx + 1) % TARGET_PRIORITIES.length];
+      localStorage.setItem('td_target_priority', myTargetPriority);
+      updatePriorityBtn();
+      // Sync to Firebase for multiplayer
+      if (!offlineMode && cannons[playerId]) {
+        cannonsRef.child(playerId).update({ targetPriority: myTargetPriority });
+      }
+      if (offlineMode && cannons[playerId]) {
+        cannons[playerId].targetPriority = myTargetPriority;
+      }
+    });
+    // Keyboard shortcut: T
+    document.addEventListener('keydown', e => {
+      if (e.key === 't' || e.key === 'T') {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        priorityBtn.click();
+      }
+    });
+
+    // ═══════════════════════════════════════════════════
     //  Relocate Button
     // ═══════════════════════════════════════════════════
     relocateBtn.addEventListener('click', () => {
@@ -3771,6 +4221,7 @@
       if (totalEnemies === 0) return;
 
       earlySendCount++;
+      sessionEarlySends++;
       unlockAchievement('early_bird');
       // Bonus: 25% base + 10% per consecutive early send (capped at 100%)
       earlySendBonusPct = Math.min(100, 25 + (earlySendCount - 1) * 10);
@@ -3983,6 +4434,7 @@
       canvas.classList.remove('canvas-targeting');
       updateAbilityBtn();
       unlockAchievement('ability_user');
+      sessionAbilitiesUsed++;
 
       const stats = getCannonStats(c.level || 1, c.path || null, c.spec || null);
 
@@ -4175,10 +4627,12 @@
           const eliteMult = e.elite ? 3 : 1;
           const xpAmount = (comboMult + earlyBonus) * eliteMult;
           if (offlineMode) {
-            offlineAwardXP(xpAmount);
+            offlineAwardXP(xpAmount * getXPMultiplier());
           } else {
-            awardXP(Object.entries(cannons), xpAmount);
+            awardXP(Object.entries(cannons), xpAmount * getXPMultiplier());
           }
+          // Power-up drop chance
+          rollPowerupDrop(e.x, e.y, e.type, e.elite);
           scorePopups.push({
             x: e.x + (Math.random() - 0.5) * 16,
             y: e.y,
@@ -4299,15 +4753,9 @@
           const fireMs = 1000 / stats.fireRate;
           if (visualFireTimers[cid] >= fireMs) {
             visualFireTimers[cid] -= fireMs;
-            // Find nearest enemy in range
-            let nearest = null, nearestDist = Infinity;
-            for (const e of enemies) {
-              if (e.hp <= 0) continue;
-              const dist = Math.hypot(e.x - c.x, e.y - c.y);
-              if (dist <= stats.range && dist < nearestDist) {
-                nearest = e; nearestDist = dist;
-              }
-            }
+            // Find target based on priority
+            const vPriority = (cid === playerId) ? myTargetPriority : (c.targetPriority || 'nearest');
+            const nearest = findTarget(enemies, c.x, c.y, stats.range, vPriority);
             if (nearest) {
               projectiles.push({
                 x1: c.x, y1: c.y,
@@ -4594,6 +5042,10 @@
         drawEnemy(e);
       }
 
+      // Draw power-up drops and active buff indicators
+      drawPowerups();
+      drawActivePowerupIndicators();
+
       // Draw projectiles
       for (let i = projectiles.length - 1; i >= 0; i--) {
         const p = projectiles[i];
@@ -4779,6 +5231,7 @@
             if (tipStats.chain > 0) lines.push(`Chain: ${tipStats.chain}`);
             if (tipStats.slowPct > 0) lines.push(`Slow: ${Math.round(tipStats.slowPct * 100)}%`);
             if (myCannon.kills) lines.push(`Kills: ${myCannon.kills}`);
+            lines.push(`Target: ${TARGET_LABELS[myTargetPriority].replace(/^.+\s/, '')} [T]`);
 
             const lineH = 14;
             const padX = 8, padY = 6;
@@ -4937,16 +5390,12 @@
         ctx.setLineDash([]);
       }
 
-      // Barrel — point toward nearest enemy or up
+      // Barrel — point toward prioritized target or up
       let barrelAngle = -Math.PI / 2;
-      let nearestDist = Infinity;
-      for (const e of enemies) {
-        if (e.hp <= 0) continue;
-        const dist = Math.hypot(e.x - x, e.y - y);
-        if (dist <= stats.range && dist < nearestDist) {
-          nearestDist = dist;
-          barrelAngle = Math.atan2(e.y - y, e.x - x);
-        }
+      const bPriority = (cid === playerId) ? myTargetPriority : (c.targetPriority || 'nearest');
+      const barrelTarget = findTarget(enemies, x, y, stats.range, bPriority);
+      if (barrelTarget) {
+        barrelAngle = Math.atan2(barrelTarget.y - y, barrelTarget.x - x);
       }
 
       // Spec/path-specific glow aura
@@ -5249,6 +5698,13 @@
       ctx.font = '9px ' + getComputedStyle(document.body).fontFamily;
       ctx.textAlign = 'center';
       ctx.fillText(c.name || '???', x, y + 24);
+
+      // Targeting priority icon (own cannon only, non-default)
+      if (isMe && myTargetPriority !== 'nearest') {
+        const pIcons = { strongest: '💪', weakest: '🩸', fastest: '⚡', 'closest-to-base': '🏠' };
+        ctx.font = '10px serif';
+        ctx.fillText(pIcons[myTargetPriority] || '', x - 18, y - 10);
+      }
       ctx.textAlign = 'start';
     }
 
