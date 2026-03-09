@@ -1674,21 +1674,15 @@
         cvs.width = CANVAS_W;
         cvs.height = CANVAS_H;
       }
-      // Rescale path and entities if game is running
+      // Recompute derived values after resize (path is normalized, no rescale needed)
       if (oldW > 0 && oldH > 0 && (oldW !== w || oldH !== h)) {
         try {
-        const sx = w / oldW, sy = h / oldH;
+        // Path is in normalized coords — just recompute screen-pixel length
         if (currentPath && currentPath.length) {
-          for (const p of currentPath) { p.x *= sx; p.y *= sy; }
+          currentPathLength = getPathLength(currentPath);
         }
-        if (enemies) {
-          for (const e of enemies) {
-            e.x *= sx; e.y *= sy;
-            if (e.flyStartX) e.flyStartX *= sx;
-            if (e.flyEndX) e.flyEndX *= sx;
-            if (e.flyY) e.flyY *= sy;
-          }
-        }
+        // Cannons are in absolute pixel coords — rescale
+        const sx = w / oldW, sy = h / oldH;
         if (cannons) {
           for (const c of Object.values(cannons)) {
             if (c.x) c.x *= sx;
@@ -1701,12 +1695,9 @@
             if (c.y) c.y *= sy;
           }
         }
-        if (terrainHazards) {
-          for (const hz of terrainHazards) {
-            hz.x *= sx; hz.y *= sy;
-            hz.radius *= Math.min(sx, sy);
-          }
-        }
+        // Enemies get positions from getPathPosition each tick — they auto-adjust.
+        // Flying enemy positions are normalized — no rescale needed.
+        // Hazards use progress + getPathPosition — no rescale needed.
         } catch(_) { /* variables not yet initialized — skip rescale */ }
       }
     }
@@ -2845,70 +2836,77 @@
     let currentPath = null;
     let currentPathLength = 0;
 
+    // Path points are in NORMALIZED coords (0-1).
+    // Use pathToScreen()/getPathPosition() to convert to pixels.
     function generatePath(waveNum) {
       const rng = mulberry32(waveNum * 4219);
       const numPoints = 4 + Math.floor(rng() * 3); // 4-6 waypoints
       const path = [];
-      // Start off-screen
-      path.push({ x: 60 + rng() * (CANVAS_W - 120), y: -20 });
+      // Margins in normalized space (≈8.6% from edges)
+      const margin = 0.086;
+      // Normalized BASE_Y (≈ 0.94 of canvas height)
+      const baseN = 1 - 30 / 500; // 0.94
+      // Start off-screen (y slightly above 0)
+      path.push({ x: margin + rng() * (1 - 2 * margin), y: -0.04 });
       // Intermediate waypoints — zigzag
       for (let i = 1; i < numPoints - 1; i++) {
         const yFrac = i / (numPoints - 1);
-        const y = yFrac * (BASE_Y + 20) - 20;
-        // Alternate sides for zigzag
+        const y = yFrac * (baseN + 0.04) - 0.04;
         let x;
         if (i % 2 === 1) {
-          x = 60 + rng() * (CANVAS_W / 2 - 80); // left side
+          x = margin + rng() * (0.5 - margin - 0.03); // left side
         } else {
-          x = CANVAS_W / 2 + 20 + rng() * (CANVAS_W / 2 - 80); // right side
+          x = 0.5 + 0.03 + rng() * (0.5 - margin - 0.03); // right side
         }
         path.push({ x, y });
       }
       // End at base
-      path.push({ x: 60 + rng() * (CANVAS_W - 120), y: BASE_Y });
+      path.push({ x: margin + rng() * (1 - 2 * margin), y: baseN });
       return path;
     }
 
+    // Compute path length in current screen pixels (path is normalized 0-1)
     function getPathLength(path) {
       let len = 0;
       for (let i = 1; i < path.length; i++) {
-        len += Math.hypot(path[i].x - path[i-1].x, path[i].y - path[i-1].y);
+        const dx = (path[i].x - path[i-1].x) * CANVAS_W;
+        const dy = (path[i].y - path[i-1].y) * CANVAS_H;
+        len += Math.hypot(dx, dy);
       }
       return len;
     }
 
+    // Returns SCREEN-PIXEL position from normalized path + progress (0-1).
     function getPathPosition(path, progress) {
       if (!path || path.length < 2) return { x: CANVAS_W / 2, y: -20 };
       const totalLen = currentPathLength || getPathLength(path);
       const targetDist = progress * totalLen;
 
       if (progress <= 0) {
-        // Extrapolate backward from first segment
-        const dx = path[1].x - path[0].x;
-        const dy = path[1].y - path[0].y;
+        const dx = (path[1].x - path[0].x) * CANVAS_W;
+        const dy = (path[1].y - path[0].y) * CANVAS_H;
         const segLen = Math.hypot(dx, dy) || 1;
         return {
-          x: path[0].x - (dx / segLen) * (-targetDist),
-          y: path[0].y - (dy / segLen) * (-targetDist)
+          x: path[0].x * CANVAS_W - (dx / segLen) * (-targetDist),
+          y: path[0].y * CANVAS_H - (dy / segLen) * (-targetDist)
         };
       }
 
       let traveled = 0;
       for (let i = 1; i < path.length; i++) {
-        const dx = path[i].x - path[i-1].x;
-        const dy = path[i].y - path[i-1].y;
+        const dx = (path[i].x - path[i-1].x) * CANVAS_W;
+        const dy = (path[i].y - path[i-1].y) * CANVAS_H;
         const segLen = Math.hypot(dx, dy);
         if (traveled + segLen >= targetDist) {
           const t = (targetDist - traveled) / (segLen || 1);
           return {
-            x: path[i-1].x + dx * t,
-            y: path[i-1].y + dy * t
+            x: (path[i-1].x + (path[i].x - path[i-1].x) * t) * CANVAS_W,
+            y: (path[i-1].y + (path[i].y - path[i-1].y) * t) * CANVAS_H
           };
         }
         traveled += segLen;
       }
-      // Past end
-      return { x: path[path.length - 1].x, y: path[path.length - 1].y };
+      return { x: path[path.length - 1].x * CANVAS_W, y: path[path.length - 1].y * CANVAS_H };
     }
 
     // ═══════════════════════════════════════════════════
@@ -3136,11 +3134,11 @@
         // Copy special type properties from ENEMY_TYPES
         if (et.flying) {
           enemyObj.flying = true;
-          enemyObj.flyStartX = 30 + rng() * (CANVAS_W - 60);
-          enemyObj.flyEndX = 30 + rng() * (CANVAS_W - 60);
-          enemyObj.flyY = -20 - i * 35; // stagger vertically
-          enemyObj.x = enemyObj.flyStartX;
-          enemyObj.y = enemyObj.flyY;
+          enemyObj.flyStartX = 0.04 + rng() * 0.92; // normalized 0-1
+          enemyObj.flyEndX = 0.04 + rng() * 0.92;
+          enemyObj.flyY = -0.04 - i * 0.07; // normalized, stagger vertically
+          enemyObj.x = enemyObj.flyStartX * CANVAS_W;
+          enemyObj.y = enemyObj.flyY * CANVAS_H;
         }
         if (et.healer) enemyObj.healer = true;
         if (et.armor) enemyObj.armor = et.armor;
@@ -3192,8 +3190,8 @@
     // ═══════════════════════════════════════════════════
     //  Game State
     // ═══════════════════════════════════════════════════
-    let playerId = null;
-    let playerName = '';
+    let playerId = localStorage.getItem('td_player_id') || null;
+    let playerName = localStorage.getItem('rayhe_visitor_name') || '';
     let playerAvatar = null; // data URL
     let db = null;
     let isLeader = false;
@@ -3397,8 +3395,9 @@
     function startOfflineMode() {
       offlineMode = true;
       isLeader = true; // always leader in offline mode
-      playerId = playerId || 'local_' + Math.random().toString(36).slice(2);
-      playerName = playerName || 'Player';
+      playerId = playerId || localStorage.getItem('td_player_id') || 'local_' + Math.random().toString(36).slice(2);
+      localStorage.setItem('td_player_id', playerId);
+      playerName = playerName || localStorage.getItem('rayhe_visitor_name') || 'Player';
       console.log('[TD] Running in offline/single-player mode');
 
       // Apply prestige max HP bonus at start
@@ -3478,7 +3477,8 @@
       try {
         await FirebaseShared.init('td', { presenceId: '_norender' });
         playerId = FirebaseShared.getVisitorId();
-        playerName = FirebaseShared.getVisitorName() || 'Player';
+        if (playerId) localStorage.setItem('td_player_id', playerId);
+        playerName = FirebaseShared.getVisitorName() || localStorage.getItem('rayhe_visitor_name') || 'Player';
       } catch (err) {
         console.warn('[TD] FirebaseShared.init failed, going offline:', err);
         startOfflineMode();
@@ -4165,14 +4165,14 @@
 
         // ── Flying enemies: straight-line movement, ignore terrain ──
         if (e.flying) {
-          // Flying enemies move from flyY toward BASE_Y in a straight line
-          const totalDist = BASE_Y + 20; // total vertical distance to cover
-          const pixelsPerTick = speed * 2.5; // convert speed to pixels/tick
-          e.flyY = (e.flyY || -20) + pixelsPerTick;
-          const t = Math.max(0, Math.min(1, (e.flyY + 20) / totalDist));
-          e.x = e.flyStartX + (e.flyEndX - e.flyStartX) * t;
-          e.y = e.flyY;
-          // Set pathProgress equivalent for base-reach detection
+          // Flying enemies: flyStartX/flyEndX/flyY are normalized (0-1)
+          const normSpeed = speed * 2.5 / CANVAS_H; // normalize speed
+          const normBaseY = 1 - 30 / CANVAS_H; // ~0.94
+          const totalNorm = normBaseY + 0.04;
+          e.flyY = (e.flyY || -0.04) + normSpeed;
+          const t = Math.max(0, Math.min(1, (e.flyY + 0.04) / totalNorm));
+          e.x = (e.flyStartX + (e.flyEndX - e.flyStartX) * t) * CANVAS_W;
+          e.y = e.flyY * CANVAS_H;
           e.pathProgress = t;
           continue;
         }
@@ -4180,7 +4180,11 @@
         // ── Terrain Hazard Effects (ground enemies only) ──
         e.inHazard = null; // track for visual feedback
         for (const hz of terrainHazards) {
-          const dist = Math.hypot(e.x - hz.x, e.y - hz.y);
+        // Recompute screen position from path progress each frame
+        const _hzScreen = getPathPosition(currentPath, hz.progress);
+        hz.x = _hzScreen.x; hz.y = _hzScreen.y;
+          const hzPos = getPathPosition(currentPath, hz.progress);
+          const dist = Math.hypot(e.x - hzPos.x, e.y - hzPos.y);
           if (dist <= hz.radius) {
             e.inHazard = hz.type;
             if (hz.type === 'swamp') {
@@ -6072,18 +6076,22 @@
           if (e.slowTimer > 0) speed *= 0.5;
           // Flying enemies: straight-line interpolation
           if (e.flying) {
-            const totalDist = BASE_Y + 20;
-            const pixelsPerSec = speed * 2.5 * TICK_RATE;
-            e.flyY = (e.flyY || e.y) + pixelsPerSec * dtSec;
-            const t = Math.max(0, Math.min(1, (e.flyY + 20) / totalDist));
-            e.x = (e.flyStartX || e.x) + ((e.flyEndX || e.x) - (e.flyStartX || e.x)) * t;
-            e.y = e.flyY;
+            const normSpeed = speed * 2.5 * TICK_RATE / CANVAS_H;
+            const normBaseY = 1 - 30 / CANVAS_H;
+            const totalNorm = normBaseY + 0.04;
+            e.flyY = (e.flyY || -0.04) + normSpeed * dtSec;
+            const t = Math.max(0, Math.min(1, (e.flyY + 0.04) / totalNorm));
+            const fsx = e.flyStartX || 0.5;
+            const fex = e.flyEndX || 0.5;
+            e.x = (fsx + (fex - fsx) * t) * CANVAS_W;
+            e.y = e.flyY * CANVAS_H;
             e.pathProgress = t;
             continue;
           }
           // Apply terrain hazard slow for visual consistency
           for (const hz of terrainHazards) {
-            if (hz.type === 'swamp' && Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius) {
+            const _hzP = getPathPosition(currentPath, hz.progress);
+            if (hz.type === 'swamp' && Math.hypot(e.x - _hzP.x, e.y - _hzP.y) <= hz.radius) {
               speed *= hz.slowMult;
               break;
             }
@@ -6306,9 +6314,9 @@
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.beginPath();
-        ctx.moveTo(currentPath[0].x, currentPath[0].y);
+        ctx.moveTo(currentPath[0].x * CANVAS_W, currentPath[0].y * CANVAS_H);
         for (let i = 1; i < currentPath.length; i++) {
-          ctx.lineTo(currentPath[i].x, currentPath[i].y);
+          ctx.lineTo(currentPath[i].x * CANVAS_W, currentPath[i].y * CANVAS_H);
         }
         ctx.stroke();
         ctx.lineCap = 'butt';
@@ -6321,8 +6329,8 @@
         // Build cumulative distance array
         const cumDist = [0];
         for (let i = 1; i < currentPath.length; i++) {
-          const dx = currentPath[i].x - currentPath[i-1].x;
-          const dy = currentPath[i].y - currentPath[i-1].y;
+          const dx = (currentPath[i].x - currentPath[i-1].x) * CANVAS_W;
+          const dy = (currentPath[i].y - currentPath[i-1].y) * CANVAS_H;
           cumDist.push(cumDist[i-1] + Math.sqrt(dx*dx + dy*dy));
         }
         const totalDist = cumDist[cumDist.length - 1];
@@ -6337,10 +6345,10 @@
           const segStart = cumDist[segIdx];
           const segEnd = cumDist[segIdx + 1] || segStart + 1;
           const t = (d - segStart) / (segEnd - segStart);
-          const px = currentPath[segIdx].x + t * (currentPath[segIdx+1].x - currentPath[segIdx].x);
-          const py = currentPath[segIdx].y + t * (currentPath[segIdx+1].y - currentPath[segIdx].y);
-          const dirX = currentPath[segIdx+1].x - currentPath[segIdx].x;
-          const dirY = currentPath[segIdx+1].y - currentPath[segIdx].y;
+          const px = (currentPath[segIdx].x + t * (currentPath[segIdx+1].x - currentPath[segIdx].x)) * CANVAS_W;
+          const py = (currentPath[segIdx].y + t * (currentPath[segIdx+1].y - currentPath[segIdx].y)) * CANVAS_H;
+          const dirX = (currentPath[segIdx+1].x - currentPath[segIdx].x) * CANVAS_W;
+          const dirY = (currentPath[segIdx+1].y - currentPath[segIdx].y) * CANVAS_H;
           const angle = Math.atan2(dirY, dirX);
 
           // Fade near start/end
