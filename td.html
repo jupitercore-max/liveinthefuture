@@ -2361,6 +2361,39 @@
       phaser: '⚡ Phasers teleport forward!'
     };
 
+    // ═══════════════════════════════════════════════════
+    //  Wave Challenges — bonus objectives for stars
+    // ═══════════════════════════════════════════════════
+    const WAVE_CHALLENGES = [
+      { id: 'perfect',    icon: '💎', name: 'Perfect Wave',     desc: 'Take zero damage',         check: s => s.hpLost === 0 },
+      { id: 'speedrun',   icon: '⚡', name: 'Speed Clear',      desc: 'Clear in under 15 seconds', check: s => s.elapsed < 15 },
+      { id: 'combo5',     icon: '🔥', name: 'Combo Master',     desc: 'Reach a 5× combo',          check: s => s.maxCombo >= 5 },
+      { id: 'combo8',     icon: '💥', name: 'Combo Legend',      desc: 'Reach an 8× combo',         check: s => s.maxCombo >= 8 },
+      { id: 'fullkill',   icon: '☠️', name: 'Total Annihilation', desc: 'Kill every enemy',        check: s => s.kills >= s.enemiesSpawned },
+      { id: 'noleak',     icon: '🛡️', name: 'Iron Wall',        desc: 'No enemies reach the base', check: s => s.hpLost === 0 },
+      { id: 'ability',    icon: '✨', name: 'Ability Kill',      desc: 'Use your ability this wave', check: s => s.abilityUsed },
+      { id: 'earlybird',  icon: '🐦', name: 'Rush Bonus',       desc: 'Use early send this wave',  check: s => s.earlySendUsed },
+      { id: 'nopowerup',  icon: '🚫', name: 'Purist',           desc: 'Clear without collecting a power-up', check: s => !s.powerupCollected },
+    ];
+
+    function getWaveChallenge(waveNum) {
+      if (waveNum < 2) return null; // no challenge on wave 1
+      // Use seeded selection so it's deterministic
+      const rng = mulberry32(waveNum * 7919);
+      // Filter challenges appropriate for wave
+      const pool = WAVE_CHALLENGES.filter(c => {
+        if (c.id === 'combo8' && waveNum < 10) return false;
+        if (c.id === 'speedrun' && waveNum > 25) return false; // late waves are too long
+        if (c.id === 'earlybird' && waveNum < 3) return false;
+        return true;
+      });
+      const idx = Math.floor(rng() * pool.length);
+      return pool[idx];
+    }
+
+    let currentChallenge = null;
+    let challengeStarsEarned = 0; // total bonus stars from challenges this run
+
     function generateHazards(waveNum, path, pathLength) {
       const rng = mulberry32(waveNum * 3571);
       const hazards = [];
@@ -2540,7 +2573,7 @@
     let flyerKills = 0; // track flying enemy kills for achievement
     let damageFlashTimer = 0; // frames remaining for red flash
     // Wave summary tracking
-    let waveStats = { kills: 0, hpLost: 0, maxCombo: 0, startTick: 0, enemiesSpawned: 0 };
+    let waveStats = { kills: 0, hpLost: 0, maxCombo: 0, startTick: 0, enemiesSpawned: 0, abilityUsed: false, earlySendUsed: false, powerupCollected: false };
     let waveSummaryTimer = 0; // ticks remaining to show summary
     let enemies = [];
     let cannons = {}; // id -> cannon data
@@ -3218,6 +3251,7 @@
           break;
       }
       if (!isMuted) sfxPowerupCollect();
+      waveStats.powerupCollected = true;
       return true;
     }
 
@@ -3329,7 +3363,8 @@
           waveState = 'active';
           enemies = generateWave(waveNumber);
           // Reset per-wave stats tracking
-          waveStats = { kills: 0, hpLost: 0, maxCombo: 0, startTick: tickCount, enemiesSpawned: enemies.length };
+          waveStats = { kills: 0, hpLost: 0, maxCombo: 0, startTick: tickCount, enemiesSpawned: enemies.length, abilityUsed: false, earlySendUsed: false, powerupCollected: false };
+          currentChallenge = getWaveChallenge(waveNumber);
           hideWavePreview();
           if (!offlineMode) metaRef.update({ waveState: 'active' });
         }
@@ -3912,6 +3947,8 @@
 
     function showWaveSummary(waveNum) {
       const result = calcWaveGrade(waveStats, waveNum);
+      // Add elapsed to waveStats so challenge checks can use it
+      waveStats.elapsed = result.elapsed;
       const summaryTheme = getWaveTheme(waveNum);
       wsTitle.textContent = summaryTheme ? `${summaryTheme.name} CLEAR` : `WAVE ${waveNum} CLEAR`;
       if (summaryTheme) wsTitle.style.color = summaryTheme.color;
@@ -3919,23 +3956,39 @@
       wsGrade.textContent = result.grade;
       wsGrade.className = 'ws-grade ' + result.cls;
       const timeFmt = result.elapsed < 60 ? `${result.elapsed.toFixed(1)}s` : `${Math.floor(result.elapsed / 60)}m ${Math.round(result.elapsed % 60)}s`;
+      // Check wave challenge
+      let challengeHtml = '';
+      if (currentChallenge) {
+        const passed = currentChallenge.check(waveStats);
+        if (passed) {
+          challengeStarsEarned++;
+          prestigeStars += 1;
+          savePrestige();
+          updatePrestigeBtn();
+          challengeHtml = `<span class="ws-label" style="color:#ffd700">${currentChallenge.icon} ${currentChallenge.name}</span><span class="ws-value" style="color:#ffd700">✅ +1⭐</span>`;
+        } else {
+          challengeHtml = `<span class="ws-label" style="color:#888">${currentChallenge.icon} ${currentChallenge.name}</span><span class="ws-value" style="color:#ff4444">✗ Failed</span>`;
+        }
+      }
       wsStatsEl.innerHTML = `
         <span class="ws-label">🎯 Kills</span><span class="ws-value">${waveStats.kills}/${waveStats.enemiesSpawned}</span>
         <span class="ws-label">❤️ HP Lost</span><span class="ws-value">${waveStats.hpLost}</span>
         <span class="ws-label">🔥 Best Combo</span><span class="ws-value">${waveStats.maxCombo}×</span>
         <span class="ws-label">⏱ Time</span><span class="ws-value">${timeFmt}</span>
+        ${challengeHtml}
       `;
       // Score bar fill with grade color
       const colors = { 'grade-s': '#ffd700', 'grade-a': '#00ff88', 'grade-b': '#1E90FF', 'grade-c': '#ff8800', 'grade-d': '#ff4444', 'grade-f': '#888' };
       wsBarFill.style.width = (result.total * 100) + '%';
       wsBarFill.style.background = colors[result.cls] || '#1E90FF';
       waveSummaryEl.classList.add('active');
-      // Auto-dismiss after 2.5 seconds
+      // Auto-dismiss after 2.5 seconds (3s if challenge completed for celebration)
+      const dismissTime = (currentChallenge && currentChallenge.check(waveStats)) ? 3500 : 2500;
       if (waveSummaryTimeout) clearTimeout(waveSummaryTimeout);
       waveSummaryTimeout = setTimeout(() => {
         waveSummaryEl.classList.remove('active');
         waveSummaryTimeout = null;
-      }, 2500);
+      }, dismissTime);
     }
 
     // Click to dismiss wave summary early
@@ -4061,6 +4114,8 @@
       baseHp = getEffectiveMaxHp();
       totalKills = 0;
       flyerKills = 0;
+      currentChallenge = null;
+      challengeStarsEarned = 0;
       enemies = [];
       waveState = 'waiting';
       damageFlashTimer = 0;
@@ -4594,6 +4649,7 @@
       if (totalEnemies === 0) return;
 
       earlySendCount++;
+      waveStats.earlySendUsed = true;
       sessionEarlySends++;
       unlockAchievement('early_bird');
       // Bonus: 25% base + 10% per consecutive early send (capped at 100%)
@@ -4946,6 +5002,7 @@
       abilityTargeting = false;
       canvas.classList.remove('canvas-targeting');
       updateAbilityBtn();
+      waveStats.abilityUsed = true;
       unlockAchievement('ability_user');
       sessionAbilitiesUsed++;
 
@@ -7180,6 +7237,22 @@
         splitLabel.textContent = '🧬 Splitters spawn 2 children on death!';
         splitDiv.appendChild(splitLabel);
         wavePreview.appendChild(splitDiv);
+      }
+      // Show wave challenge if any
+      const challenge = getWaveChallenge(waveNum);
+      if (challenge) {
+        const chDiv = document.createElement('div');
+        chDiv.className = 'wave-preview-enemy';
+        chDiv.style.borderTop = '1px solid rgba(255,215,0,0.3)';
+        chDiv.style.paddingTop = '6px';
+        chDiv.style.marginTop = '4px';
+        const chLabel = document.createElement('span');
+        chLabel.className = 'wpe-name';
+        chLabel.style.color = '#ffd700';
+        chLabel.style.fontSize = '0.7rem';
+        chLabel.textContent = `${challenge.icon} CHALLENGE: ${challenge.desc}  (+1⭐)`;
+        chDiv.appendChild(chLabel);
+        wavePreview.appendChild(chDiv);
       }
       wavePreview.classList.add('active');
 

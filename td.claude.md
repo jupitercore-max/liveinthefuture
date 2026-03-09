@@ -543,3 +543,23 @@ If it fails, DO NOT commit. Fix the error first.
 - **State management** — `resetDpsMeter()` called on game reset/play again. Clears all samples, resets total damage, restores start time.
 - **Design rationale:** Players had no way to evaluate their actual damage output in real time. The theoretical DPS from `getCannonStats()` doesn't account for targeting efficiency, armor reduction, missed frames, or buff uptime. This meter shows REAL damage — what actually lands. The bar graph format lets you see spikes (boss fights, ultimate usage) and valleys (between waves), which helps evaluate build choices. The green→red gradient makes high-damage moments feel exciting and low moments feel urgent.
 - **Performance:** Negligible — one array rotation per second, 30 fillRect calls per frame. No new DOM elements.
+
+### 2026-03-09: Wave Challenges — Bonus Objectives for Stars
+- **Per-wave bonus objectives** — Starting from wave 2, each wave gets a randomly-selected (but deterministic via seeded PRNG) challenge shown in the wave preview panel. Completing the challenge awards +1 prestige star immediately.
+- **9 challenge types:**
+  - 💎 **Perfect Wave** — Take zero damage
+  - ⚡ **Speed Clear** — Clear in under 15 seconds (only available waves 2-25)
+  - 🔥 **Combo Master** — Reach a 5× combo
+  - 💥 **Combo Legend** — Reach an 8× combo (only available wave 10+)
+  - ☠️ **Total Annihilation** — Kill every enemy (none leak)
+  - 🛡️ **Iron Wall** — No enemies reach the base
+  - ✨ **Ability Kill** — Use your active ability during the wave
+  - 🐦 **Rush Bonus** — Use early send during the wave
+  - 🚫 **Purist** — Clear without collecting any power-ups
+- **Wave preview integration** — Challenge shown as a gold-bordered line at the bottom of the wave preview: "💎 CHALLENGE: Take zero damage (+1⭐)"
+- **Wave summary integration** — After wave clear, challenge result shown below the stats grid: green ✅ +1⭐ on success, red ✗ Failed on miss. Successful challenges extend the summary display to 3.5s (vs 2.5s) for celebration.
+- **Star reward** — Completing a challenge instantly awards +1 prestige star (saved to localStorage, prestige button updated). This stacks with the normal game-over star earnings, giving skilled players a faster prestige progression path.
+- **Tracking hooks** — `waveStats` expanded with `abilityUsed`, `earlySendUsed`, and `powerupCollected` booleans. `elapsed` added from grade calculation for speed challenge. Hooks placed in `fireAbility()`, early send handler, and powerup collection code.
+- **Deterministic selection** — `getWaveChallenge(waveNum)` uses `mulberry32(waveNum * 7919)` so all multiplayer clients see the same challenge. Challenges are filtered by wave appropriateness (no speed clears on wave 30+, no combo8 before wave 10, etc.).
+- **State management** — `currentChallenge` and `challengeStarsEarned` reset on game restart alongside other per-run state.
+- **Design rationale:** The game had great moment-to-moment feedback (damage numbers, combos, grades) but lacked per-wave micro-goals. Challenges add a "quest" layer that makes every wave feel purposeful — instead of just surviving, you're actively trying to achieve something specific. The star reward ties into the prestige system, giving mid-game players a reason to play optimally rather than just coast. Inspired by Kingdom Rush's star objectives and Bloons TD's challenge modes.
