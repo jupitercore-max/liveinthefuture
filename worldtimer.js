@@ -916,20 +916,108 @@
     ctx.rotate(shadingRotation);
     ctx.translate(-polarCenter, -polarCenter);
 
-    const gradient = ctx.createLinearGradient(
-      polarCenter, polarCenter - polarRadius,
-      polarCenter, polarCenter + polarRadius
-    );
-    gradient.addColorStop(0, 'rgba(255, 255, 200, 0.25)');
-    gradient.addColorStop(0.35, 'rgba(255, 255, 220, 0.1)');
-    gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
-    gradient.addColorStop(0.65, 'rgba(0, 0, 40, 0.3)');
-    gradient.addColorStop(1, 'rgba(0, 0, 20, 0.65)');
+    // Draw curved terminator with twilight bands
+    // The terminator is an ellipse — wider at equator, narrower at poles
+    // We draw night as a filled shape covering the dark half
+    const tw = polarRadius * 0.12; // twilight band width
 
+    // Night side (bottom half after rotation = away from sun)
+    // Civil twilight zone
     ctx.beginPath();
     ctx.arc(polarCenter, polarCenter, polarRadius, 0, Math.PI * 2);
-    ctx.fillStyle = gradient;
+    ctx.fillStyle = 'rgba(0, 0, 40, 0.15)';
     ctx.fill();
+
+    // Draw the night shadow as a half-circle with soft edge
+    // The terminator curves — use an elliptical clip
+    ctx.save();
+    ctx.beginPath();
+    // Terminator line: a slight ellipse to simulate curvature
+    ctx.ellipse(polarCenter, polarCenter + tw * 0.3, polarRadius, polarRadius * 0.92, 0, 0, Math.PI);
+    ctx.fillStyle = 'rgba(0, 0, 30, 0.35)';
+    ctx.fill();
+    ctx.restore();
+
+    // Deeper night core
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(polarCenter, polarCenter + tw, polarRadius * 0.95, polarRadius * 0.8, 0, 0, Math.PI);
+    ctx.fillStyle = 'rgba(0, 0, 20, 0.3)';
+    ctx.fill();
+    ctx.restore();
+
+    // Sun-side warm glow
+    ctx.save();
+    const sunGlow = ctx.createRadialGradient(
+      polarCenter, polarCenter - polarRadius * 0.5, 0,
+      polarCenter, polarCenter - polarRadius * 0.5, polarRadius * 0.8
+    );
+    sunGlow.addColorStop(0, 'rgba(255, 250, 200, 0.2)');
+    sunGlow.addColorStop(0.5, 'rgba(255, 240, 180, 0.08)');
+    sunGlow.addColorStop(1, 'rgba(255, 240, 180, 0)');
+    ctx.beginPath();
+    ctx.arc(polarCenter, polarCenter, polarRadius, 0, Math.PI * 2);
+    ctx.fillStyle = sunGlow;
+    ctx.fill();
+    ctx.restore();
+
+    // City lights on the dark side — small twinkling dots
+    const cityPositions = [
+      // Approximate polar-projection positions (relative to center, -1 to 1)
+      // Major cities in northern hemisphere
+      { x: 0.05, y: 0.15, s: 1.2 },   // London
+      { x: 0.12, y: 0.18, s: 0.9 },   // Paris
+      { x: 0.25, y: 0.12, s: 1.0 },   // Moscow
+      { x: -0.35, y: 0.28, s: 1.3 },  // New York
+      { x: -0.52, y: 0.25, s: 1.1 },  // Chicago
+      { x: -0.7, y: 0.22, s: 1.0 },   // LA
+      { x: 0.55, y: 0.35, s: 1.2 },   // Tokyo
+      { x: 0.48, y: 0.38, s: 1.1 },   // Shanghai
+      { x: 0.35, y: 0.45, s: 0.8 },   // Mumbai
+      { x: 0.15, y: 0.30, s: 0.7 },   // Cairo
+      { x: 0.18, y: 0.15, s: 0.8 },   // Berlin
+      { x: -0.42, y: 0.35, s: 0.7 },  // Houston
+      { x: 0.52, y: 0.30, s: 0.9 },   // Seoul
+      { x: -0.60, y: 0.30, s: 0.8 },  // Denver
+      { x: 0.40, y: 0.25, s: 0.7 },   // Dubai
+    ];
+    const now = Date.now();
+    for (const city of cityPositions) {
+      // Rotate city position with the map
+      const rot = mapRotation * Math.PI / 180;
+      const rx = city.x * Math.cos(rot) - city.y * Math.sin(rot);
+      const ry = city.x * Math.sin(rot) + city.y * Math.cos(rot);
+      const cx = polarCenter + rx * polarRadius;
+      const cy = polarCenter + ry * polarRadius;
+
+      // Only show if in the dark half (positive y after shading rotation means night side)
+      const sr = shadingRotation;
+      const nightY = (cx - polarCenter) * Math.sin(-sr) + (cy - polarCenter) * Math.cos(-sr);
+      if (nightY < polarRadius * 0.1) continue; // skip if on day side
+
+      // Check if within circle
+      const dist = Math.hypot(cx - polarCenter, cy - polarCenter);
+      if (dist > polarRadius * 0.9) continue;
+
+      // Twinkle effect
+      const twinkle = 0.5 + 0.5 * Math.sin(now / (300 + city.s * 200) + city.x * 10);
+      const alpha = 0.3 + twinkle * 0.5;
+      const size = city.s * (0.8 + twinkle * 0.4);
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 230, 150, ${alpha.toFixed(2)})`;
+      ctx.fill();
+
+      // Tiny glow
+      if (twinkle > 0.6) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, size * 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 200, 100, ${(alpha * 0.15).toFixed(2)})`;
+        ctx.fill();
+      }
+    }
+
     ctx.restore();
 
     ctx.beginPath();
