@@ -661,3 +661,13 @@ If it fails, DO NOT commit. Fix the error first.
 - **Impact sparks updated:** Cannon and railgun generate more sparks on impact. Frost sparks are icy blue. Color matching makes the whole shot→travel→impact cycle feel cohesive per spec.
 - **Performance:** All rendering uses basic canvas primitives (lines, arcs, fill/stroke). Sniper and railgun use `shadowBlur` (GPU-composited) but only for their limited projectile count. Gatling's short tracers are actually cheaper than full-length lines.
 - **Design rationale:** The cannon bodies already had unique shapes per spec (hexagon cannon, diamond sniper, triple-barrel gatling, etc.) but projectiles were identical. This breaks the visual connection — you see a distinctive cannon fire a generic line. Now each spec has a complete visual identity from barrel to impact. Sniper's bright tracer reinforces "precision" fantasy, cannon's orb says "explosive power," frost's crystal says "ice magic," railgun's beam says "high-tech energy." This is one of the highest-impact visual improvements because projectiles are the most frequently rendered game element — every frame shows dozens of them.
+
+### 2026-03-10: Hover Range Circles
+- **Mouse over any cannon** to see its range as a translucent circle with dashed ring
+- **Spec-colored** — frost=cyan, tesla=blue, cannon=orange, sniper=red, railgun=light blue, gatling=yellow, default=accent blue
+- **Radial gradient fill** — visible but not distracting, fades from center to edge
+- **Range label** — shows exact range in pixels above the circle (e.g. "152px")
+- **Drawn behind cannons** — range circle renders before cannon sprites so it doesn't obscure them
+- **Only one at a time** — first cannon within 22px of mouse wins, break after drawing
+- **No new state/DOM/init needed** — pure rendering code inside the existing draw loop (Phase 5 safe)
+- **Respects wave mutators** — range accounts for berserker's −30% range debuff since it uses getCannonStats()
