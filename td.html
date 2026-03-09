@@ -2584,6 +2584,16 @@
     let terrainHazards = []; // environmental hazard zones on the path
     let earlySendBonusPct = 0; // current bonus XP percentage from early sends
     let earlySendCount = 0; // how many consecutive early sends
+
+    // DPS Meter — rolling 5-second window of damage samples
+    const DPS_WINDOW_SEC = 5;
+    const DPS_HISTORY_LEN = 30; // 30 bars in the graph (each = 1 second)
+    let dpsSamples = new Array(DPS_HISTORY_LEN).fill(0); // damage per 1-second bucket
+    let dpsCurrentBucket = 0; // accumulates damage for the current second
+    let dpsLastBucketTime = 0; // timestamp of last bucket rotation
+    let dpsTotalDamage = 0; // total damage dealt this game
+    let dpsGameStartTime = 0; // when the game started (for avg calc)
+    let dpsVisible = true; // toggle with [D] key
     let bonusPopupTimer = 0; // ticks to show bonus popup
     const COMBO_WINDOW = TICK_RATE * 1.5; // 1.5s to chain kills
     const COMBO_MIN = 2; // minimum kills to show combo
@@ -3091,6 +3101,9 @@
       }
       const totalDmg = dmg + (activePowerupEffects.damage && activePowerupEffects.damage.timer > 0 ? dmg * 0.5 : 0);
       enemy.hp -= dmg;
+      // Track damage for DPS meter
+      dpsCurrentBucket += dmg;
+      dpsTotalDamage += dmg;
       // Apply active power-up damage boost
       if (activePowerupEffects.damage && activePowerupEffects.damage.timer > 0) {
         enemy.hp -= dmg * 0.5; // extra 50% damage
@@ -4057,6 +4070,7 @@
       gameSpeed = 1;
       scorePopups = [];
       streakAnnouncement = null;
+      resetDpsMeter();
       abilityZones = [];
       lightningBolts = [];
       levelUpRings = [];
@@ -4399,6 +4413,10 @@
       if (e.key === 't' || e.key === 'T') {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
         priorityBtn.click();
+      }
+      if (e.key === 'd' || e.key === 'D') {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        dpsVisible = !dpsVisible;
       }
     });
 
@@ -5363,6 +5381,113 @@
       requestAnimationFrame(renderLoop);
     }
 
+    // ═══════════════════════════════════════════════════
+    //  DPS Meter — Rolling bar graph overlay
+    // ═══════════════════════════════════════════════════
+    function updateDpsBuckets() {
+      const now = Date.now();
+      if (dpsLastBucketTime === 0) { dpsLastBucketTime = now; dpsGameStartTime = now; }
+      const elapsed = now - dpsLastBucketTime;
+      if (elapsed >= 1000) {
+        const buckets = Math.min(Math.floor(elapsed / 1000), DPS_HISTORY_LEN);
+        for (let i = 0; i < buckets; i++) {
+          dpsSamples.push(i === 0 ? dpsCurrentBucket : 0);
+          dpsSamples.shift();
+        }
+        dpsCurrentBucket = 0;
+        dpsLastBucketTime = now;
+      }
+    }
+
+    function drawDpsMeter() {
+      if (!dpsVisible) return;
+      const c = cannons[playerId];
+      if (!c) return;
+
+      updateDpsBuckets();
+
+      const mW = 120, mH = 50;
+      const mX = CANVAS_W - mW - 8, mY = 8;
+      const barW = Math.floor((mW - 4) / DPS_HISTORY_LEN);
+
+      // Background
+      ctx.save();
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = '#0a0a1a';
+      ctx.beginPath();
+      ctx.moveTo(mX + 4, mY);
+      ctx.lineTo(mX + mW - 4, mY);
+      ctx.quadraticCurveTo(mX + mW, mY, mX + mW, mY + 4);
+      ctx.lineTo(mX + mW, mY + mH - 4);
+      ctx.quadraticCurveTo(mX + mW, mY + mH, mX + mW - 4, mY + mH);
+      ctx.lineTo(mX + 4, mY + mH);
+      ctx.quadraticCurveTo(mX, mY + mH, mX, mY + mH - 4);
+      ctx.lineTo(mX, mY + 4);
+      ctx.quadraticCurveTo(mX, mY, mX + 4, mY);
+      ctx.fill();
+
+      // Border
+      ctx.globalAlpha = 0.4;
+      ctx.strokeStyle = '#1E90FF';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // Compute current DPS (last 5 seconds)
+      const recentSamples = dpsSamples.slice(-DPS_WINDOW_SEC);
+      const currentDps = recentSamples.reduce((a, b) => a + b, 0) / DPS_WINDOW_SEC;
+
+      // Find max for scaling
+      const maxVal = Math.max(1, ...dpsSamples);
+
+      // Draw bars
+      const barArea = mH - 18; // leave room for label
+      for (let i = 0; i < DPS_HISTORY_LEN; i++) {
+        const val = dpsSamples[i];
+        const h = Math.max(0, (val / maxVal) * barArea);
+        const bx = mX + 2 + i * barW;
+        const by = mY + mH - 3 - h;
+
+        // Color: green → yellow → red based on relative intensity
+        const intensity = val / maxVal;
+        let r, g;
+        if (intensity < 0.5) { r = Math.floor(255 * intensity * 2); g = 255; }
+        else { r = 255; g = Math.floor(255 * (1 - intensity) * 2); }
+
+        ctx.globalAlpha = (i >= DPS_HISTORY_LEN - DPS_WINDOW_SEC) ? 0.9 : 0.4;
+        ctx.fillStyle = `rgb(${r},${g},60)`;
+        ctx.fillRect(bx, by, Math.max(1, barW - 1), h);
+      }
+      ctx.globalAlpha = 1;
+
+      // DPS label
+      const dpsStr = currentDps >= 100 ? Math.round(currentDps).toString() :
+                     currentDps >= 10 ? currentDps.toFixed(1) : currentDps.toFixed(2);
+      ctx.font = 'bold 9px monospace';
+      ctx.fillStyle = '#fbbf24';
+      ctx.textAlign = 'left';
+      ctx.fillText(`⚔ ${dpsStr} DPS`, mX + 3, mY + 10);
+
+      // Total damage (compact)
+      const totalStr = dpsTotalDamage >= 10000 ? (dpsTotalDamage / 1000).toFixed(1) + 'k' :
+                       dpsTotalDamage >= 1000 ? Math.round(dpsTotalDamage).toString() :
+                       dpsTotalDamage.toFixed(0);
+      ctx.fillStyle = '#888';
+      ctx.font = '7px monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(`Σ${totalStr}`, mX + mW - 3, mY + 10);
+
+      ctx.restore();
+    }
+
+    function resetDpsMeter() {
+      dpsSamples = new Array(DPS_HISTORY_LEN).fill(0);
+      dpsCurrentBucket = 0;
+      dpsLastBucketTime = 0;
+      dpsTotalDamage = 0;
+      dpsGameStartTime = Date.now();
+    }
+
     function drawFrame() {
       ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
@@ -5676,6 +5801,9 @@
       // Draw power-up drops and active buff indicators
       drawPowerups();
       drawActivePowerupIndicators();
+
+      // Draw DPS meter
+      drawDpsMeter();
 
       // Draw projectiles
       for (let i = projectiles.length - 1; i >= 0; i--) {

@@ -531,3 +531,15 @@ If it fails, DO NOT commit. Fix the error first.
   - Subtle blue tint (`rgba(100,180,255,0.15)`) that fits the dark theme
 - **Why this matters:** In TD games, path clarity is critical for strategic cannon placement. The animated arrows serve dual purpose: (1) show players WHERE enemies will walk, (2) show WHICH DIRECTION they move. This is especially important since paths are procedurally generated each wave and can change layout. The animation also adds "life" to the battlefield between waves when nothing else is moving.
 - **Performance:** Chevron rendering uses simple `moveTo/lineTo` strokes (3 points each) — negligible GPU cost. Distance array is computed once per path, not per frame.
+
+### 2026-03-09: Real-Time DPS Meter
+- **Rolling bar graph overlay** — A compact 120×50px semi-transparent panel in the top-right corner of the canvas showing a 30-second rolling history of damage output as a bar chart. Each bar = 1 second of damage, colored green→yellow→red by intensity.
+- **Current DPS calculation** — Uses a 5-second rolling window average. The last 5 bars are drawn at full opacity; older bars are dimmed to 40% opacity so you can see the trend.
+- **Damage tracking** — Every `applyDamage()` call accumulates damage into a per-second bucket. Buckets rotate every second via `updateDpsBuckets()` in the render loop. Total cumulative damage is also tracked.
+- **Display info:**
+  - `⚔ X.XX DPS` in gold (left) — current 5-second average DPS
+  - `ΣXXXk` in gray (right) — total cumulative damage dealt (auto-formats to k for thousands)
+- **[D] key toggle** — Press D to show/hide the meter. On by default. Doesn't interfere with other keybinds since it only triggers outside of text inputs.
+- **State management** — `resetDpsMeter()` called on game reset/play again. Clears all samples, resets total damage, restores start time.
+- **Design rationale:** Players had no way to evaluate their actual damage output in real time. The theoretical DPS from `getCannonStats()` doesn't account for targeting efficiency, armor reduction, missed frames, or buff uptime. This meter shows REAL damage — what actually lands. The bar graph format lets you see spikes (boss fights, ultimate usage) and valleys (between waves), which helps evaluate build choices. The green→red gradient makes high-damage moments feel exciting and low moments feel urgent.
+- **Performance:** Negligible — one array rotation per second, 30 fillRect calls per frame. No new DOM elements.
