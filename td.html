@@ -208,6 +208,41 @@
       font-size: 0.75rem;
       color: var(--text-muted);
     }
+    .upgrade-card .uc-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3px 12px;
+      margin-top: 8px;
+      font-size: 0.65rem;
+      font-family: var(--font);
+    }
+    .upgrade-card .uc-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2px 0;
+    }
+    .upgrade-card .uc-stat-label {
+      color: var(--text-muted);
+    }
+    .upgrade-card .uc-stat-val {
+      font-weight: 600;
+      color: var(--text);
+    }
+    .upgrade-card .uc-stat-val.up { color: #2ecc71; }
+    .upgrade-card .uc-stat-val.down { color: #e74c3c; }
+    .upgrade-card .uc-stat-val.same { color: var(--text-muted); }
+    .upgrade-card .uc-ability {
+      margin-top: 6px;
+      padding: 4px 6px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+    .upgrade-card .uc-ability strong {
+      color: var(--text);
+    }
     .modal-close {
       display: block;
       margin: 16px auto 0;
@@ -5549,20 +5584,63 @@
     //  Upgrade System
     // ═══════════════════════════════════════════════════
 
+    // Build stat comparison HTML for upgrade cards
+    function buildStatPreview(currentStats, newStats, abilityKey) {
+      const rows = [
+        { label: '⚔ DMG',     cur: currentStats.dmg,      next: newStats.dmg,      fmt: v => v.toFixed(1) },
+        { label: '🔥 Fire Rate', cur: currentStats.fireRate, next: newStats.fireRate, fmt: v => v.toFixed(2) },
+        { label: '📏 Range',   cur: currentStats.range,    next: newStats.range,    fmt: v => Math.round(v) + 'px' },
+        { label: '⚡ DPS',     cur: currentStats.dmg * currentStats.fireRate, next: newStats.dmg * newStats.fireRate, fmt: v => v.toFixed(1) },
+        { label: '🎯 Crit',    cur: currentStats.critChance, next: newStats.critChance, fmt: v => Math.round(v * 100) + '%' },
+      ];
+      // Show special stats only if either has them
+      if (currentStats.aoeSplash > 0 || newStats.aoeSplash > 0)
+        rows.push({ label: '💥 Splash', cur: currentStats.aoeSplash, next: newStats.aoeSplash, fmt: v => Math.round(v) + 'px' });
+      if (currentStats.pierce > 0 || newStats.pierce > 0)
+        rows.push({ label: '🔱 Pierce', cur: currentStats.pierce, next: newStats.pierce, fmt: v => v.toString() });
+      if (currentStats.chain > 0 || newStats.chain > 0)
+        rows.push({ label: '⚡ Chain', cur: currentStats.chain, next: newStats.chain, fmt: v => v.toString() });
+      if (currentStats.slowPct > 0 || newStats.slowPct > 0)
+        rows.push({ label: '🧊 Slow', cur: currentStats.slowPct, next: newStats.slowPct, fmt: v => Math.round(v * 100) + '%' });
+      if (currentStats.armorPierce > 0 || newStats.armorPierce > 0)
+        rows.push({ label: '🛡 AP', cur: currentStats.armorPierce, next: newStats.armorPierce, fmt: v => Math.round(v * 100) + '%' });
+
+      let html = '<div class="uc-stats">';
+      for (const r of rows) {
+        const diff = r.next - r.cur;
+        const cls = Math.abs(diff) < 0.001 ? 'same' : (diff > 0 ? 'up' : 'down');
+        const arrow = cls === 'up' ? '▲' : cls === 'down' ? '▼' : '';
+        html += `<div class="uc-stat"><span class="uc-stat-label">${r.label}</span><span class="uc-stat-val ${cls}">${r.fmt(r.next)} ${arrow}</span></div>`;
+      }
+      html += '</div>';
+
+      // Show ability info
+      const ab = ABILITIES[abilityKey];
+      if (ab) {
+        html += `<div class="uc-ability">${ab.emoji} <strong>${ab.name}</strong> — ${ab.desc} (${ab.cooldown}s)</div>`;
+      }
+      return html;
+    }
+
     function openUpgradeModal() {
       const c = cannons[playerId];
       if (!c) return;
       const level = c.level || 1;
 
       upgradeCards.innerHTML = '';
+      // Save current mutator and temporarily clear it so stat preview is clean
+      const savedMutator = currentMutator;
+      currentMutator = null;
 
       if (level >= 3 && !c.path) {
         // Choose path
         upgradeTitle.textContent = 'Choose Your Path (Level 3)';
+        const currentStats = getCannonStats(level, null, null);
         for (const [key, p] of Object.entries(PATHS)) {
+          const newStats = getCannonStats(level, key, null);
           const card = document.createElement('div');
           card.className = 'upgrade-card';
-          card.innerHTML = `<div class="uc-name" style="color:${p.color}">${p.name}</div><div class="uc-desc">${p.desc}</div>`;
+          card.innerHTML = `<div class="uc-name" style="color:${p.color}">${p.name}</div><div class="uc-desc">${p.desc}</div>` + buildStatPreview(currentStats, newStats, key);
           card.addEventListener('click', () => {
             if (offlineMode) {
               cannons[playerId].path = key;
@@ -5578,11 +5656,13 @@
       } else if (level >= 6 && c.path && !c.spec) {
         // Choose spec
         upgradeTitle.textContent = 'Choose Specialization (Level 6)';
+        const currentStats = getCannonStats(level, c.path, null);
         const available = Object.entries(SPECS).filter(([, s]) => s.path === c.path);
         for (const [key, s] of available) {
+          const newStats = getCannonStats(level, c.path, key);
           const card = document.createElement('div');
           card.className = 'upgrade-card';
-          card.innerHTML = `<div class="uc-name" style="color:${s.color}">${s.name}</div><div class="uc-desc">${s.desc}</div>`;
+          card.innerHTML = `<div class="uc-name" style="color:${s.color}">${s.name}</div><div class="uc-desc">${s.desc}</div>` + buildStatPreview(currentStats, newStats, key);
           card.addEventListener('click', () => {
             if (offlineMode) {
               cannons[playerId].spec = key;
@@ -5609,6 +5689,7 @@
         upgradeCards.appendChild(info);
       }
 
+      currentMutator = savedMutator; // restore mutator
       upgradeModal.classList.add('active');
     }
 
