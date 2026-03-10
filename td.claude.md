@@ -685,3 +685,12 @@ If it fails, DO NOT commit. Fix the error first.
 - **Coordinate mapping:** Path uses normalized 0-1 coords directly (path.x * MW, path.y * MH). Enemies and cannons convert from screen pixels (e.x / CANVAS_W * MW). Hazards also convert from screen pixels.
 - **Performance:** Negligible — a few rectangles, one polyline, and some small fills. No gradients or shadows.
 - **Design rationale:** With procedurally generated paths, terrain hazards, flying enemies, and multiplayer cannons, players need a way to understand the full battlefield layout at a glance. The mini-map is a standard feature in strategy/TD games that was missing. Positioned bottom-left to avoid overlapping the DPS meter (top-right), combo counter (top-right), and wave preview (bottom-center).
+
+### 2026-03-10: Targeting Lines & Reticles
+- **During active waves**, each cannon draws a subtle dashed line to its current target enemy, plus a small circle reticle around the target
+- **Spec-colored** — the line and reticle use the cannon's color (frost=cyan, tesla=blue, etc.) so you can tell which cannon is targeting what
+- **Very subtle** — 18% opacity dashed line + 30% opacity reticle circle. Present enough to read, faint enough to not clutter the battlefield
+- **Only during combat** — lines only appear when `waveState === 'active'`, so they vanish between waves
+- **Zero new state/DOM/init** — pure rendering code inside the existing `drawCannon()` function (Phase 5), right where `barrelTarget` is already computed for barrel rotation. No TDZ risk whatsoever.
+- **Tactical feedback** — you can now visually confirm your targeting priority is working. If you set "Strongest" and see all lines converging on the boss, it's working. If one cannon is targeting a weak enemy instead, you might need to adjust its position.
+- **Design rationale:** Targeting lines are a staple of TD games (Kingdom Rush, Bloons TD6, Mindustry). They solve the "is my tower doing anything useful?" question at a glance. The dashed style prevents visual overload when many cannons are active.
