@@ -48,6 +48,17 @@
   let isAnimatingCities = false;
   let polarEarthAnimationOffset = 0; // Degrees, decays to 0 during animation
 
+  // ═══════════════════════════════════════════════════
+  // Bezel Drag Rotation State
+  // Drag the outer city ring to rotate timezones,
+  // like turning a real world timer bezel.
+  // ═══════════════════════════════════════════════════
+  let bezelDragging = false;
+  let bezelDragStartAngle = 0;   // angle (deg) where drag began
+  let bezelDragCurrentDelta = 0; // cumulative rotation delta in degrees
+  let bezelDragMoved = false;    // true once drag exceeds threshold (distinguishes click vs drag)
+  let bezelDragEndTime = 0;      // timestamp when drag ended, to suppress click
+
   // Set home timezone with animated transition
   function setHomeTimezone(tz, cityName) {
     if (isAnimatingCities) return; // Ignore clicks during animation
@@ -526,6 +537,8 @@
 
       text.addEventListener('click', (e) => {
         e.stopPropagation();
+        // Suppress click if we just finished a bezel drag
+        if (Date.now() - bezelDragEndTime < 400) return;
         hideCityTooltip();
         setHomeTimezone(city.tz, city.name);
       });
@@ -702,6 +715,8 @@
   clockContainer.style.cursor = 'pointer';
   clockContainer.addEventListener('click', (e) => {
     if (e.target.closest('.city-tooltip')) return;
+    // Suppress time-lapse toggle if we just finished a bezel drag
+    if (Date.now() - bezelDragEndTime < 400) return;
 
     if (isAnimating) {
       isAnimating = false;
@@ -725,6 +740,174 @@
   clockFace.addEventListener('dblclick', (e) => {
     e.stopPropagation();
     resetToLocalTimezone();
+  });
+
+  // ═══════════════════════════════════════════════════
+  // Bezel Drag Rotation Handlers
+  // Drag the outer city ring to rotate timezones.
+  // On release, snaps to the nearest 1-hour (15°) and
+  // selects the city at that offset via setHomeTimezone.
+  // ═══════════════════════════════════════════════════
+
+  function getAngleFromCenter(clientX, clientY) {
+    const rect = clockCities.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    return Math.atan2(clientY - cy, clientX - cx) * 180 / Math.PI;
+  }
+
+  function isInBezelRing(clientX, clientY) {
+    const rect = clockCities.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = clientX - cx;
+    const dy = clientY - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const radius = rect.width / 2;
+    // Bezel ring = outer 30% of the city circle (between 70% and 100% of radius)
+    return dist > radius * 0.65 && dist <= radius * 1.05;
+  }
+
+  function bezelStart(clientX, clientY) {
+    if (isAnimatingCities) return;
+    if (!isInBezelRing(clientX, clientY)) return;
+    bezelDragging = true;
+    bezelDragMoved = false;
+    bezelDragCurrentDelta = 0;
+    bezelDragStartAngle = getAngleFromCenter(clientX, clientY);
+    clockCities.style.cursor = 'grabbing';
+  }
+
+  function bezelMove(clientX, clientY) {
+    if (!bezelDragging) return;
+    const currentAngle = getAngleFromCenter(clientX, clientY);
+    let delta = currentAngle - bezelDragStartAngle;
+    // Handle wrap-around at ±180°
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+
+    bezelDragCurrentDelta = delta;
+
+    // Mark as dragged once past 3° threshold
+    if (Math.abs(delta) > 3) {
+      bezelDragMoved = true;
+    }
+
+    // Live rotate the SVG inside clockCities
+    const svg = clockCities.querySelector('svg');
+    if (svg && bezelDragMoved) {
+      const rect = clockCities.getBoundingClientRect();
+      const cx = rect.width / 2;
+      const cy = rect.height / 2;
+      svg.style.transition = 'none';
+      svg.style.transformOrigin = `${cx}px ${cy}px`;
+      svg.style.transform = `rotate(${delta}deg)`;
+    }
+  }
+
+  function bezelEnd() {
+    if (!bezelDragging) return;
+    bezelDragging = false;
+    bezelDragEndTime = Date.now();
+    clockCities.style.cursor = '';
+
+    if (!bezelDragMoved) {
+      // Tiny movement — let click handler deal with it
+      const svg = clockCities.querySelector('svg');
+      if (svg) { svg.style.transition = ''; svg.style.transform = ''; }
+      return;
+    }
+
+    // Snap to nearest 15° (= 1 hour)
+    const snappedDeg = Math.round(bezelDragCurrentDelta / 15) * 15;
+    const hourShift = -snappedDeg / 15; // positive = eastward (higher UTC offset)
+
+    // Animate snap
+    const svg = clockCities.querySelector('svg');
+    if (svg) {
+      const rect = clockCities.getBoundingClientRect();
+      const cx = rect.width / 2;
+      const cy = rect.height / 2;
+      svg.style.transformOrigin = `${cx}px ${cy}px`;
+      svg.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+      svg.style.transform = `rotate(${snappedDeg}deg)`;
+    }
+
+    if (Math.abs(hourShift) < 0.5) {
+      // Negligible rotation — just reset
+      setTimeout(() => {
+        if (svg) { svg.style.transition = ''; svg.style.transform = ''; }
+      }, 350);
+      return;
+    }
+
+    // Find the city closest to the new target offset
+    const currentOffset = getHomeOffset();
+    const targetOffset = currentOffset + hourShift;
+
+    let bestCity = null;
+    let bestDist = Infinity;
+    allCities.forEach(city => {
+      let cityOff = city.normalizedOffset !== undefined
+        ? city.normalizedOffset
+        : Math.round(getTimezoneOffset(city.tz));
+      if (cityOff > 12) cityOff -= 24;
+      if (cityOff < -11) cityOff += 24;
+      const dist = Math.abs(cityOff - targetOffset);
+      // Also check wrap-around
+      const distWrap = Math.min(dist, 24 - dist);
+      if (distWrap < bestDist) {
+        bestDist = distWrap;
+        bestCity = city;
+      }
+    });
+
+    // Wait for snap animation, then apply the timezone change
+    setTimeout(() => {
+      if (svg) { svg.style.transition = ''; svg.style.transform = ''; }
+      if (bestCity) {
+        setHomeTimezone(bestCity.tz, bestCity.name);
+      }
+    }, 350);
+  }
+
+  // Mouse events on the city ring
+  clockCities.addEventListener('mousedown', (e) => {
+    bezelStart(e.clientX, e.clientY);
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (bezelDragging) {
+      e.preventDefault();
+      bezelMove(e.clientX, e.clientY);
+    }
+  });
+  document.addEventListener('mouseup', () => {
+    bezelEnd();
+  });
+
+  // Touch events on the city ring
+  clockCities.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    bezelStart(t.clientX, t.clientY);
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (bezelDragging) {
+      e.preventDefault();
+      const t = e.touches[0];
+      bezelMove(t.clientX, t.clientY);
+    }
+  }, { passive: false });
+  document.addEventListener('touchend', () => {
+    bezelEnd();
+  });
+
+  // Hover cursor: show grab when over the bezel ring area
+  clockCities.addEventListener('mousemove', (e) => {
+    if (!bezelDragging && isInBezelRing(e.clientX, e.clientY)) {
+      clockCities.style.cursor = 'grab';
+    } else if (!bezelDragging) {
+      clockCities.style.cursor = '';
+    }
   });
 
   function getHomeTime(date) {
