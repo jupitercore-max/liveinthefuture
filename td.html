@@ -7344,6 +7344,141 @@
         }
       }
 
+      // ── Draw Spawn Portal & Base Gate ──────────────────
+      if (currentPath && currentPath.length >= 2) {
+        const portalTime = Date.now() * 0.001;
+        const isActive = waveState === 'active' || waveState === 'countdown';
+
+        // ── Spawn Portal (path start) ──
+        {
+          const sx = currentPath[0].x * CANVAS_W;
+          const sy = currentPath[0].y * CANVAS_H;
+          const baseR = 22;
+          const intensity = isActive ? 1.0 : 0.5;
+          const pulse = 0.8 + 0.2 * Math.sin(portalTime * 3);
+
+          ctx.save();
+          // Outer glow
+          const outerGrad = ctx.createRadialGradient(sx, sy, 0, sx, sy, baseR * 1.8);
+          outerGrad.addColorStop(0, `rgba(180,60,255,${0.15 * intensity * pulse})`);
+          outerGrad.addColorStop(0.5, `rgba(120,30,200,${0.08 * intensity * pulse})`);
+          outerGrad.addColorStop(1, 'rgba(120,30,200,0)');
+          ctx.fillStyle = outerGrad;
+          ctx.beginPath();
+          ctx.arc(sx, sy, baseR * 1.8, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Rotating ring segments (vortex effect)
+          for (let ring = 0; ring < 3; ring++) {
+            const r = baseR * (0.5 + ring * 0.35);
+            const ringSpeed = (ring % 2 === 0 ? 1 : -1) * (2.5 - ring * 0.5);
+            const segments = 3 + ring;
+            const gap = Math.PI * 2 / segments;
+            const arcLen = gap * 0.6;
+            ctx.strokeStyle = `rgba(${180 - ring * 30},${60 + ring * 20},255,${(0.3 - ring * 0.06) * intensity * pulse})`;
+            ctx.lineWidth = 2.5 - ring * 0.5;
+            for (let s = 0; s < segments; s++) {
+              const startAngle = portalTime * ringSpeed + s * gap;
+              ctx.beginPath();
+              ctx.arc(sx, sy, r, startAngle, startAngle + arcLen);
+              ctx.stroke();
+            }
+          }
+
+          // Center core — bright during active waves
+          const coreGrad = ctx.createRadialGradient(sx, sy, 0, sx, sy, baseR * 0.4);
+          coreGrad.addColorStop(0, `rgba(220,180,255,${0.5 * intensity * pulse})`);
+          coreGrad.addColorStop(1, `rgba(160,80,255,${0.1 * intensity})`);
+          ctx.fillStyle = coreGrad;
+          ctx.beginPath();
+          ctx.arc(sx, sy, baseR * 0.4, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Orbiting energy dots
+          for (let d = 0; d < 5; d++) {
+            const angle = portalTime * 1.8 + d * (Math.PI * 2 / 5);
+            const orbitR = baseR * (0.7 + 0.15 * Math.sin(portalTime * 4 + d));
+            const dx = sx + Math.cos(angle) * orbitR;
+            const dy = sy + Math.sin(angle) * orbitR;
+            ctx.fillStyle = `rgba(200,140,255,${0.4 * intensity * pulse})`;
+            ctx.beginPath();
+            ctx.arc(dx, dy, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // Label
+          ctx.fillStyle = `rgba(180,120,255,${0.5 * intensity})`;
+          ctx.font = '9px ' + getComputedStyle(document.body).fontFamily;
+          ctx.textAlign = 'center';
+          ctx.fillText('SPAWN', sx, sy - baseR * 1.5);
+          ctx.textAlign = 'start';
+          ctx.restore();
+        }
+
+        // ── Base Gate (path end) ──
+        {
+          const lastPt = currentPath[currentPath.length - 1];
+          const ex = lastPt.x * CANVAS_W;
+          const ey = lastPt.y * CANVAS_H;
+          const baseR = 18;
+          const intensity = isActive ? 1.0 : 0.4;
+          const hpPct = baseHp / getEffectiveMaxHp();
+          // Gate color shifts from blue (healthy) to red (damaged)
+          const gR = Math.round(30 + (1 - hpPct) * 200);
+          const gG = Math.round(100 + hpPct * 44);
+          const gB = Math.round(255 * hpPct + 80 * (1 - hpPct));
+          const pulse = 0.8 + 0.2 * Math.sin(portalTime * 2.5 + 1);
+
+          ctx.save();
+          // Outer shield glow
+          const shieldGrad = ctx.createRadialGradient(ex, ey, 0, ex, ey, baseR * 1.6);
+          shieldGrad.addColorStop(0, `rgba(${gR},${gG},${gB},${0.12 * intensity * pulse})`);
+          shieldGrad.addColorStop(0.6, `rgba(${gR},${gG},${gB},${0.06 * intensity * pulse})`);
+          shieldGrad.addColorStop(1, `rgba(${gR},${gG},${gB},0)`);
+          ctx.fillStyle = shieldGrad;
+          ctx.beginPath();
+          ctx.arc(ex, ey, baseR * 1.6, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Shield ring — solid arc proportional to HP
+          const shieldArc = Math.PI * 2 * hpPct;
+          ctx.strokeStyle = `rgba(${gR},${gG},${gB},${0.4 * intensity * pulse})`;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(ex, ey, baseR, -Math.PI / 2, -Math.PI / 2 + shieldArc);
+          ctx.stroke();
+
+          // Background track ring
+          ctx.strokeStyle = `rgba(${gR},${gG},${gB},${0.1 * intensity})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(ex, ey, baseR, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Rotating defense sparks
+          for (let d = 0; d < 4; d++) {
+            const angle = -portalTime * 1.5 + d * (Math.PI / 2);
+            const sparkR = baseR * 1.1;
+            const dx = ex + Math.cos(angle) * sparkR;
+            const dy = ey + Math.sin(angle) * sparkR;
+            ctx.fillStyle = `rgba(${gR},${gG},${gB},${0.35 * intensity * pulse})`;
+            ctx.beginPath();
+            ctx.arc(dx, dy, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // Center icon
+          ctx.fillStyle = `rgba(${gR},${gG},${gB},${0.6 * intensity * pulse})`;
+          ctx.font = '10px ' + getComputedStyle(document.body).fontFamily;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🛡', ex, ey);
+          ctx.textBaseline = 'alphabetic';
+          ctx.textAlign = 'start';
+          ctx.restore();
+        }
+      }
+
       // ── Draw Terrain Hazard Zones ──────────────────────
       const now = Date.now() / 1000;
       for (const hz of terrainHazards) {
