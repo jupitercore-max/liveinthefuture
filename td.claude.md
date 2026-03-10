@@ -796,3 +796,26 @@ If it fails, DO NOT commit. Fix the error first.
   - Healer `drawEnemy()` enhanced with radial gradient fill + dashed border at 60px radius
 - **Phase compliance:** State in Phase 3, function in Phase 5, render call inside existing drawFrame (Phase 5). No new DOM, listeners, or init calls. Zero TDZ risk.
 - **Strategic impact:** Healers were the least visually communicative enemy type. You could see the small green particles on healed allies but couldn't tell which enemy was doing the healing or how far its range extended. The beams make healer → target relationships instantly visible (like Tesla chain lightning but green), and the radius circle helps players decide where to position frost/AoE cannons to catch both the healer and its allies.
+
+### 2026-03-10: Enemy Bestiary Panel
+- **📖 Bestiary button** in the controls bar (red-tinted, between help and stats) — opens a full-screen panel showing all 11 enemy types with detailed info, combat tips, and lifetime kill tracking.
+- **Discovery mechanic** — Enemies start as locked "???" entries. Killing one for the first time "discovers" it, revealing full stats, description, and tips. Creates a collection incentive.
+- **Per-enemy info cards** show:
+  - Color-coded emoji icon and type name
+  - HP tier (Light/Medium/Heavy/Massive) and speed tier (Slow/Medium/Fast/Very Fast)
+  - First appearance wave number
+  - Special traits (✈ Flying, 💚 Healer, 🛡 Armor %, ⚡ Teleports, 🧬 Splits, 👑 Phases, 🔵 Shield)
+  - Flavor description explaining the enemy's role
+  - 💡 Combat tip with specific counter-strategy advice (which cannon specs/abilities work best)
+  - Lifetime kill count (☠ X,XXX) — persisted in localStorage
+- **Kill tracking** — `recordBestiaryKill(type)` called at both death locations (simTick kills and ability kills). Saves to `localStorage('td_bestiary_kills')` on every kill.
+- **[B] keyboard shortcut** to open/close the bestiary
+- **Phase compliance:**
+  - Phase 2: `BESTIARY_INFO` constant (descriptions + tips for all 11 types)
+  - Phase 3: `let bestiaryKills = {}` state variable
+  - Phase 4: `bestiaryBtn`, `bestiaryClose`, `bestiaryPanel`, `bestiaryContent` DOM bindings in initDOM()
+  - Phase 5: `loadBestiaryKills()`, `saveBestiaryKills()`, `recordBestiaryKill()`, `renderBestiaryPanel()` functions
+  - Phase 6: Click/close/backdrop listeners in initListeners(), [B] key in keydown handler
+  - Phase 7: `loadBestiaryKills()` init call
+- **Sorted display:** Discovered enemies first (sorted by wave), then locked entries (sorted by wave)
+- **Design rationale:** The game has 11 enemy types with complex interactions (armor, shields, phasing, splitting, healing, flying) but the only info was brief wave preview labels. The bestiary serves as both a reference manual (what counters what) and a collection incentive (discover them all). Standard feature in games with diverse enemy rosters (Kingdom Rush, Bloons TD, Hades). The combat tips also help new players learn which cannon specs counter which enemies — reducing the trial-and-error frustration of "why isn't my sniper killing that armored enemy?"
