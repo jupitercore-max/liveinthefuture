@@ -62,6 +62,11 @@
   let lastTickBeat = -1; // track last played beat to avoid double-ticks
   let tickAudioCtx = null; // reuse AudioContext for ticks
 
+  // Lume Shot mode state
+  let lumeMode = localStorage.getItem('wt_lume') === 'on';
+  let lumeToggle = null; // created later in DOM init
+  if (lumeMode) document.body.classList.add('lume-mode');
+
   // ═══════════════════════════════════════════════════
   // Alarm Complication (JLC Memovox style)
   // ═══════════════════════════════════════════════════
@@ -1320,7 +1325,8 @@
     const hourForGlow = hour24;
     const rawGlow = (Math.cos(hourForGlow * Math.PI / 12) + 1) / 2;
     const glowIntensity = Math.pow(rawGlow, 1.5);
-    const finalGlow = hourForGlow >= 18 || hourForGlow <= 6 ? glowIntensity : glowIntensity * 0.3;
+    const finalGlow = lumeMode ? 1.0 :
+      (hourForGlow >= 18 || hourForGlow <= 6 ? glowIntensity : glowIntensity * 0.3);
     clockFace.style.setProperty('--lume-glow', finalGlow.toFixed(3));
 
     const timeStr = String(hours).padStart(2, '0') + ':' +
@@ -2435,6 +2441,14 @@
             if (ab) ab.classList.toggle('visible');
           }
           break;
+        case 'n':
+          // N = Toggle lume shot mode
+          e.preventDefault();
+          lumeMode = !lumeMode;
+          localStorage.setItem('wt_lume', lumeMode ? 'on' : 'off');
+          document.body.classList.toggle('lume-mode', lumeMode);
+          if (lumeToggle) lumeToggle.textContent = lumeMode ? '☀️' : '🌙';
+          break;
         case '?':
           // ? = Toggle keyboard shortcut hints
           e.preventDefault();
@@ -2458,6 +2472,7 @@
       '<span><kbd>T</kbd> Toggle tick</span>',
       '<span><kbd>A</kbd> Alarm</span>',
       '<span><kbd>R</kbd> 🎵 Minute Repeater</span>',
+      '<span><kbd>N</kbd> Lume shot mode</span>',
       '<span><kbd>?</kbd> Toggle this help</span>',
     ].join('');
     hintsEl.style.cssText = `
@@ -2811,6 +2826,29 @@
     if (tickEnabled) playTickSound();
   });
   document.body.appendChild(tickToggle);
+
+  // Lume Shot toggle button (next to tick)
+  lumeToggle = document.createElement('button');
+  lumeToggle.className = 'lume-toggle';
+  lumeToggle.textContent = lumeMode ? '☀️' : '🌙';
+  lumeToggle.title = 'Toggle lume shot mode (N)';
+  lumeToggle.style.cssText = `
+    position:fixed; bottom:16px; left:176px; padding:6px 10px;
+    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
+    border:1px solid var(--border); border-radius:var(--radius);
+    cursor:pointer; z-index:9999; opacity:0.5;
+    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
+    line-height:1; font-family:var(--font-mono);
+  `;
+  lumeToggle.addEventListener('mouseenter', function() { lumeToggle.style.opacity = '1'; });
+  lumeToggle.addEventListener('mouseleave', function() { lumeToggle.style.opacity = '0.5'; });
+  lumeToggle.addEventListener('click', function() {
+    lumeMode = !lumeMode;
+    localStorage.setItem('wt_lume', lumeMode ? 'on' : 'off');
+    document.body.classList.toggle('lume-mode', lumeMode);
+    lumeToggle.textContent = lumeMode ? '☀️' : '🌙';
+  });
+  document.body.appendChild(lumeToggle);
 
   // ═══════════════════════════════════════════════════
   // Alarm Bar Wiring
