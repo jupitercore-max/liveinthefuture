@@ -1173,6 +1173,7 @@
         <button class="speed-btn prestige-speed" data-speed="6" style="display:none">6×</button>
         <button class="speed-btn prestige-speed" data-speed="10" style="display:none">10×</button>
       </div>
+      <button class="ctrl-btn" id="pauseBtn" title="Pause/Resume [P]" style="font-weight:bold">⏸ Pause<span class="ab-key">[P]</span></button>
       <button class="ctrl-btn send-next-btn" id="sendNextBtn" disabled>⏩ Send Next <span class="ab-key">[E]</span></button>
       <button class="ctrl-btn" id="aidBtn" title="Call for Aid [H]" style="background:linear-gradient(135deg,#2ecc71,#27ae60);color:#fff;font-weight:bold;display:none">🆘 Aid<span class="ab-key">[H]</span></button>
       <button class="ctrl-btn" id="relocateBtn">Relocate</button>
@@ -1292,6 +1293,7 @@
     let hudOnline = null;
     let hudWave = null;
     let muteBtn = null;
+    let pauseBtn = null;
     let playerList = null;
     let playerPanel = null;
     let playersBtn = null;
@@ -1365,6 +1367,7 @@
       hudOnline = $('hudOnline');
       hudWave = $('hudWave');
       muteBtn = $('muteBtn');
+      pauseBtn = $('pauseBtn');
       playerList = $('playerList');
       playerPanel = $('playerPanel');
       playersBtn = $('playersBtn');
@@ -1623,6 +1626,8 @@
         // Initialize audio context on first unmute (needs user gesture)
         if (!soundMuted) ensureAudioCtx();
       });
+
+      pauseBtn.addEventListener('click', togglePause);
 
       tutorialNext.addEventListener('click', () => {
         tutorialStep++;
@@ -3252,6 +3257,7 @@
     ];
     let streakAnnouncement = null; // { text, color, size, timer, maxTimer }
     let gameSpeed = 1; // 1, 2, or 3
+    let gamePaused = false; // pause toggle
     let abilityCooldownLeft = 0; // seconds remaining on ability cooldown
     let abilityTargeting = false; // waiting for canvas click to target
     let autoAbilityEnabled = localStorage.getItem('td_auto_ability') === 'true';
@@ -4950,6 +4956,8 @@
       comboTimer = 0;
       comboXpBonus = 0;
       gameSpeed = 1;
+      gamePaused = false;
+      updatePauseBtn();
       scorePopups = [];
       streakAnnouncement = null;
       resetDpsMeter();
@@ -5649,6 +5657,34 @@
       }
     }
 
+    function togglePause() {
+      if (waveState === 'gameover') return;
+      gamePaused = !gamePaused;
+      if (gamePaused) {
+        // Stop simulation timer
+        if (simTimer) { clearInterval(simTimer); simTimer = null; }
+      } else {
+        // Restart simulation timer
+        if (!simTimer && (isLeader || offlineMode)) {
+          simTimer = setInterval(simTick, TICK_MS / gameSpeed);
+        }
+      }
+      updatePauseBtn();
+    }
+
+    function updatePauseBtn() {
+      if (!pauseBtn) return;
+      if (gamePaused) {
+        pauseBtn.textContent = '▶ Play';
+        pauseBtn.style.background = 'linear-gradient(135deg,#2ecc71,#27ae60)';
+        pauseBtn.style.color = '#fff';
+      } else {
+        pauseBtn.innerHTML = '⏸ Pause<span class="ab-key">[P]</span>';
+        pauseBtn.style.background = '';
+        pauseBtn.style.color = '';
+      }
+    }
+
     function toggleAutoAbility() {
       autoAbilityEnabled = !autoAbilityEnabled;
       localStorage.setItem('td_auto_ability', autoAbilityEnabled);
@@ -5761,6 +5797,9 @@
       }
       if (e.key === 'h' || e.key === 'H') {
         callForAid();
+      }
+      if (e.key === 'p' || e.key === 'P') {
+        togglePause();
       }
       // Escape cancels targeting
       if (e.key === 'Escape' && abilityTargeting) {
@@ -7410,6 +7449,25 @@
 
       // Mini-map overlay (bottom-left)
       drawMiniMap();
+
+      // Pause overlay
+      if (gamePaused) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 48px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#1E90FF';
+        ctx.shadowBlur = 20;
+        ctx.fillText('⏸ PAUSED', CANVAS_W / 2, CANVAS_H * 0.4);
+        ctx.shadowBlur = 0;
+        ctx.font = '16px monospace';
+        ctx.fillStyle = '#aaa';
+        ctx.fillText('Press [P] or click Play to resume', CANVAS_W / 2, CANVAS_H * 0.4 + 40);
+        ctx.restore();
+      }
 
       // Countdown overlay
       if (waveState === 'countdown') {

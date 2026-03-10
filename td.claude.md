@@ -755,3 +755,15 @@ If it fails, DO NOT commit. Fix the error first.
 - **No new state** — computed each frame from `e.pathProgress`, `e.speed`, and `getPathPosition()`. Pure render code inside `drawEnemy()`.
 - **Phase compliance** — All code inside the existing `drawEnemy` function body (Phase 5). No state, no DOM, no init changes needed.
 - **Threshold** — Only enemies with effectiveSpeed >= 1.2 get trails, keeping the battlefield clean for slow enemies
+
+### 2026-03-10: Pause Button
+- **⏸ Pause / ▶ Play toggle** — New button in the controls bar and [P] keyboard shortcut that freezes the simulation while keeping the render loop running. Enemies, cannons, countdowns, and all game logic stop. Visual overlays (pause screen with "⏸ PAUSED" text and resume instructions) continue rendering.
+- **Implementation:**
+  - `gamePaused` boolean state variable (Phase 3)
+  - `togglePause()` function (Phase 5): flips `gamePaused`, clears/restarts `simTimer`. Only works when `waveState !== 'gameover'`.
+  - `updatePauseBtn()` function (Phase 5): swaps button text/style between pause (default) and play (green gradient).
+  - `pauseBtn` click listener + [P] key handler (Phase 6)
+  - Canvas overlay in `drawFrame()`: semi-transparent dark overlay with "⏸ PAUSED" in 48px bold text with blue glow, plus "Press [P] or click Play to resume" hint below.
+  - Pause state resets to `false` on game restart alongside `gameSpeed = 1`.
+- **Why it matters:** The game had speed controls (1×-10×) and early send but no way to STOP. Pause is essential QoL for any real-time game — lets you answer a phone call, read upgrade descriptions, plan strategy, or just take a break without losing your run. Works in both offline and Firebase modes (only the leader's sim stops; non-leader clients just see a frozen state).
+- **Phase compliance:** State in Phase 3, DOM binding in Phase 4 initDOM(), functions in Phase 5, listener in Phase 6, no init calls needed in Phase 7 (button starts in default unpressed state). Zero TDZ risk.
