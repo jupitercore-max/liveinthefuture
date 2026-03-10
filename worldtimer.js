@@ -1315,6 +1315,7 @@
     checkChime(hours, minutes, seconds);
     checkAlarm(hours, minutes, seconds);
     updateAlarmHand();
+    drawBalanceWheel(seconds, millis);
 
     requestAnimationFrame(updateClock);
   }
@@ -1852,6 +1853,117 @@
     }
 
     moonCtx.restore();
+  }
+
+  // ═══════════════════════════════════════════════════
+  //  Open Heart Balance Wheel (12 o'clock)
+  //  Oscillating escapement visible through dial cutout
+  //  Syncs with the 8-beat/sec mechanical tick
+  // ═══════════════════════════════════════════════════
+  const balanceCanvas = document.getElementById('balanceCanvas');
+  const balanceCtx = balanceCanvas ? balanceCanvas.getContext('2d') : null;
+
+  function drawBalanceWheel(seconds, millis) {
+    if (!balanceCtx) return;
+    const ctx = balanceCtx;
+    const size = 56;
+    const cx = size / 2;
+    const cy = size / 2;
+    const r = size / 2 - 3;
+
+    ctx.clearRect(0, 0, size, size);
+
+    // Dark cavity background
+    ctx.fillStyle = '#0d1520';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 1, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Balance wheel oscillation: 4 Hz = 8 beats/sec
+    // The wheel swings ±270° (like a real tourbillon/balance)
+    const FREQ = 4; // Hz
+    const t = seconds + millis / 1000;
+    // Damped sine for natural oscillation feel
+    const phase = t * FREQ * Math.PI * 2;
+    const swing = Math.sin(phase) * 270; // ±270° amplitude
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(swing * Math.PI / 180);
+
+    // Balance wheel rim — thin metallic ring
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.78, 0, Math.PI * 2);
+    ctx.lineWidth = 1.8;
+    ctx.strokeStyle = 'rgba(180, 175, 160, 0.7)';
+    ctx.stroke();
+
+    // Timing screws on the rim (8 small dots evenly spaced)
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const sx = Math.cos(a) * r * 0.78;
+      const sy = Math.sin(a) * r * 0.78;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 1.2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(200, 195, 180, 0.8)';
+      ctx.fill();
+    }
+
+    // Crossbar spokes (3 arms at 120° like a Gyromax balance)
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 - Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(a) * r * 0.76, Math.sin(a) * r * 0.76);
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = 'rgba(160, 155, 140, 0.6)';
+      ctx.stroke();
+    }
+
+    // Center jewel — ruby bearing
+    ctx.beginPath();
+    ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+    const jewelGrad = ctx.createRadialGradient(0.5, -0.5, 0, 0, 0, 2.5);
+    jewelGrad.addColorStop(0, '#ff4466');
+    jewelGrad.addColorStop(0.5, '#cc2244');
+    jewelGrad.addColorStop(1, '#881133');
+    ctx.fillStyle = jewelGrad;
+    ctx.fill();
+    // Jewel highlight
+    ctx.beginPath();
+    ctx.arc(-0.5, -0.5, 0.8, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 200, 210, 0.5)';
+    ctx.fill();
+
+    ctx.restore();
+
+    // Hairspring — concentric spiral (doesn't rotate, sits behind)
+    ctx.save();
+    ctx.globalAlpha = 0.2;
+    ctx.strokeStyle = '#8090a0';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    const spiralTurns = 3;
+    for (let i = 0; i <= 360 * spiralTurns; i += 3) {
+      const a = (i * Math.PI) / 180;
+      const sr = 3 + (i / (360 * spiralTurns)) * (r * 0.55);
+      const px = cx + Math.cos(a) * sr;
+      const py = cy + Math.sin(a) * sr;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    // Subtle metallic sheen on the aperture rim
+    const sheenGrad = ctx.createRadialGradient(cx - 2, cy - 3, 0, cx, cy, r);
+    sheenGrad.addColorStop(0, 'rgba(255,255,255,0.06)');
+    sheenGrad.addColorStop(0.5, 'rgba(255,255,255,0)');
+    sheenGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sheenGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   // ═══════════════════════════════════════════════════
