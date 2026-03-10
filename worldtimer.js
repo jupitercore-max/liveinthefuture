@@ -1093,6 +1093,7 @@
     // Power reserve
     updatePowerReserve();
     drawPowerReserve();
+    updateSunInfo(hours, minutes);
 
     requestAnimationFrame(updateClock);
   }
@@ -1294,6 +1295,60 @@
   document.addEventListener('click', rechargePower);
   document.addEventListener('touchstart', rechargePower);
   document.addEventListener('scroll', rechargePower);
+
+  // Sunrise/sunset info display
+  let sunInfoEl = null;
+  let lastSunInfoUpdate = 0;
+
+  function updateSunInfo(hours, minutes) {
+    if (!sunInfoEl) sunInfoEl = document.getElementById('sunInfo');
+    if (!sunInfoEl) return;
+
+    // Only update every 30 seconds to avoid DOM thrashing
+    const now = Date.now();
+    if (now - lastSunInfoUpdate < 30000) return;
+    lastSunInfoUpdate = now;
+
+    const st = currentSunTimes;
+    if (!st) return;
+
+    const currentHour = hours + minutes / 60;
+    const dayLen = st.sunset - st.sunrise;
+
+    function fmtTime(h) {
+      const hr = Math.floor(h);
+      const mn = Math.round((h - hr) * 60);
+      const ampm = hr >= 12 ? 'PM' : 'AM';
+      const h12 = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr;
+      return h12 + ':' + String(mn).padStart(2, '0') + ' ' + ampm;
+    }
+
+    const riseStr = fmtTime(st.sunrise);
+    const setStr = fmtTime(st.sunset);
+
+    let statusStr;
+    if (currentHour >= st.sunrise && currentHour < st.sunset) {
+      const remaining = st.sunset - currentHour;
+      const remH = Math.floor(remaining);
+      const remM = Math.round((remaining - remH) * 60);
+      statusStr = '<span class="daylight-rem">' + remH + 'h ' + remM + 'm daylight left</span>';
+    } else {
+      let untilSunrise;
+      if (currentHour < st.sunrise) {
+        untilSunrise = st.sunrise - currentHour;
+      } else {
+        untilSunrise = (24 - currentHour) + st.sunrise;
+      }
+      const untilH = Math.floor(untilSunrise);
+      const untilM = Math.round((untilSunrise - untilH) * 60);
+      statusStr = '<span class="daylight-rem">' + untilH + 'h ' + untilM + 'm until sunrise</span>';
+    }
+
+    sunInfoEl.innerHTML =
+      '<span class="sun-rise">\u2600 ' + riseStr + '</span>' +
+      ' \u00b7 <span class="sun-set">\ud83c\udf19 ' + setStr + '</span>' +
+      ' \u00b7 ' + statusStr;
+  }
 
   function updatePowerReserve() {
     const now = Date.now();
