@@ -3230,6 +3230,7 @@
     let muzzleFlashes = []; // brief flash at cannon barrel on fire
     let impactSparks = []; // spark burst at enemy hit location
     let deathGhosts = []; // shrink/fade/spin death animations
+    let healBeams = []; // green beams from healer to healed ally
     let powerups = []; // dropped power-ups on the field
     let activePowerupEffects = {}; // type -> {timer, startTime}
     let onlinePlayers = {};
@@ -4457,6 +4458,7 @@
             const hd = Math.hypot(ally.x - he.x, ally.y - he.y);
             if (hd < 60) {
               ally.hp = Math.min(ally.maxHp, ally.hp + ally.maxHp * 0.15);
+              healBeams.push({ x1: he.x, y1: he.y, x2: ally.x, y2: ally.y, life: 12, maxLife: 12 });
               for (let pi = 0; pi < 3; pi++) {
                 deathParticles.push({ x: ally.x, y: ally.y, vx: (Math.random()-0.5)*2, vy: -Math.random()*2, life: 12, maxLife: 12, color: '#2ecc40', size: 3 });
               }
@@ -4967,6 +4969,7 @@
       muzzleFlashes = [];
       impactSparks = [];
       deathGhosts = [];
+      healBeams = [];
       ultimateCooldownLeft = 0;
       ultimateFlashTimer = 0;
       terrainHazards = [];
@@ -5599,6 +5602,47 @@
         }
         b.life--;
         if (b.life <= 0) lightningBolts.splice(i, 1);
+      }
+    }
+
+    // ─── Heal Beam Rendering ─────────────────────────
+    function renderHealBeams(ctx) {
+      for (let i = healBeams.length - 1; i >= 0; i--) {
+        const hb = healBeams[i];
+        const alpha = (hb.life / hb.maxLife) * 0.7;
+        const width = 2 + (hb.life / hb.maxLife) * 2;
+        // Outer green glow
+        ctx.save();
+        ctx.globalAlpha = alpha * 0.4;
+        ctx.strokeStyle = '#2ecc40';
+        ctx.lineWidth = width + 4;
+        ctx.shadowColor = '#2ecc40';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(hb.x1, hb.y1);
+        ctx.lineTo(hb.x2, hb.y2);
+        ctx.stroke();
+        // Inner bright core
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = '#a0ffa0';
+        ctx.lineWidth = width;
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.moveTo(hb.x1, hb.y1);
+        ctx.lineTo(hb.x2, hb.y2);
+        ctx.stroke();
+        // + symbol at target end
+        const sz = 3 + (hb.life / hb.maxLife) * 3;
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(hb.x2 - sz, hb.y2); ctx.lineTo(hb.x2 + sz, hb.y2);
+        ctx.moveTo(hb.x2, hb.y2 - sz); ctx.lineTo(hb.x2, hb.y2 + sz);
+        ctx.stroke();
+        ctx.restore();
+        hb.life--;
+        if (hb.life <= 0) healBeams.splice(i, 1);
       }
     }
 
@@ -7269,6 +7313,9 @@
       // Render lightning bolts
       renderLightningBolts(ctx);
 
+      // Render heal beams
+      renderHealBeams(ctx);
+
       // Draw ability targeting indicator
       if (abilityTargeting) {
         const rect = canvas.getBoundingClientRect();
@@ -8398,10 +8445,29 @@
           ctx.fill();
       }
 
-      // ── Healer aura ring ──
+      // ── Healer aura ring + heal radius ──
       if (e.healer) {
         const healPulse = 0.3 + 0.2 * Math.sin(t * 0.005);
         ctx.save();
+        // Show the actual 60px heal radius as a soft green filled circle
+        const healRadGrad = ctx.createRadialGradient(x, y, 0, x, y, 60);
+        healRadGrad.addColorStop(0, 'rgba(46,204,64,0)');
+        healRadGrad.addColorStop(0.7, 'rgba(46,204,64,0)');
+        healRadGrad.addColorStop(1, `rgba(46,204,64,${healPulse * 0.15})`);
+        ctx.fillStyle = healRadGrad;
+        ctx.beginPath();
+        ctx.arc(x, y, 60, 0, Math.PI * 2);
+        ctx.fill();
+        // Dashed radius border
+        ctx.globalAlpha = healPulse * 0.5;
+        ctx.strokeStyle = '#2ecc40';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.arc(x, y, 60, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // Inner body aura ring
         ctx.globalAlpha = healPulse;
         ctx.strokeStyle = '#2ecc40';
         ctx.lineWidth = 1.5;

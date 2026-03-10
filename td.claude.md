@@ -783,3 +783,16 @@ If it fails, DO NOT commit. Fix the error first.
 - **Phase compliance:** Pure Phase 5 function definition + Phase 5 call site inside `drawFrame()`. Zero TDZ risk.
 - **Performance:** 4 linear gradients per frame + 1 optional `fillText`. Negligible cost — gradients are GPU-composited.
 - **Design rationale:** The game had a HP bar, heart icon, and damage flash, but no persistent "danger sense" feedback. The vignette is the standard AAA game solution (Call of Duty, Dark Souls, every FPS since 2005) — it uses peripheral vision to create urgency without blocking the play area. Players instinctively know "red edges = danger" even if they've never seen this game before. The escalating pulse speed creates genuine tension as HP drops, making close-call victories feel more dramatic.
+
+### 2026-03-10: Healer Heal Beams & Enhanced Heal Radius
+- **Green connecting beams** from healer to healed allies — When a healer enemy heals nearby allies (every 2s, 60px radius), bright green beam lines now visually connect the healer to each target. Dual-layer rendering: outer green glow with `shadowBlur` + inner bright core (`#a0ffa0`). A white `+` symbol renders at the target end of each beam. Beams fade over 12 frames.
+- **60px heal radius indicator** — Healers now show their actual 60px healing range as a soft radial gradient fill (green edge glow) with a pulsing dashed circle border. Previously only a small 15px aura ring was shown, which gave no strategic information about range. Now players can see exactly which enemies are in heal range and position cannons accordingly.
+- **Implementation:**
+  - `healBeams[]` state array added (Phase 3)
+  - Beams spawned in healer sim tick (inside the existing heal loop) with `{x1, y1, x2, y2, life, maxLife}`
+  - `renderHealBeams(ctx)` function (Phase 5) handles dual-layer rendering + decay + cleanup
+  - Called from `drawFrame()` right after `renderLightningBolts(ctx)`
+  - Array cleared on game reset alongside other visual arrays
+  - Healer `drawEnemy()` enhanced with radial gradient fill + dashed border at 60px radius
+- **Phase compliance:** State in Phase 3, function in Phase 5, render call inside existing drawFrame (Phase 5). No new DOM, listeners, or init calls. Zero TDZ risk.
+- **Strategic impact:** Healers were the least visually communicative enemy type. You could see the small green particles on healed allies but couldn't tell which enemy was doing the healing or how far its range extended. The beams make healer → target relationships instantly visible (like Tesla chain lightning but green), and the radius circle helps players decide where to position frost/AoE cannons to catch both the healer and its allies.
