@@ -858,6 +858,19 @@
       }
     }
 
+    // Day-of-week window (Rolex Day-Date style)
+    const dayTextEl = document.getElementById('dayText');
+    if (dayTextEl) {
+      const dowShort = now.toLocaleDateString('en-US', { timeZone: homeTz, weekday: 'short' }).toUpperCase();
+      if (dayTextEl.textContent !== dowShort) {
+        dayTextEl.classList.add('flip');
+        setTimeout(() => {
+          dayTextEl.textContent = dowShort;
+          dayTextEl.classList.remove('flip');
+        }, 350);
+      }
+    }
+
     const offset = getHomeOffset();
     const offsetHours = Math.floor(Math.abs(offset));
     const offsetMinutes = Math.round((Math.abs(offset) % 1) * 60);
