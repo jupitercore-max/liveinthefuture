@@ -1629,6 +1629,19 @@
       }
     }
 
+    // Month window (Annual Calendar / Perpetual Calendar style)
+    const monthTextEl = document.getElementById('monthText');
+    if (monthTextEl) {
+      const monthShort = now.toLocaleDateString('en-US', { timeZone: homeTz, month: 'short' }).toUpperCase();
+      if (monthTextEl.textContent !== monthShort) {
+        monthTextEl.classList.add('flip');
+        setTimeout(() => {
+          monthTextEl.textContent = monthShort;
+          monthTextEl.classList.remove('flip');
+        }, 350);
+      }
+    }
+
     const offset = getHomeOffset();
     const offsetHours = Math.floor(Math.abs(offset));
     const offsetMinutes = Math.round((Math.abs(offset) % 1) * 60);
