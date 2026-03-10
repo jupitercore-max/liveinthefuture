@@ -1375,6 +1375,85 @@
     moonCtx.restore();
   }
 
+  // ═══════════════════════════════════════════════════
+  //  Chronograph Stopwatch
+  // ═══════════════════════════════════════════════════
+  const chronoDisplay = document.getElementById('chronoDisplay');
+  const chronoLapEl = document.getElementById('chronoLap');
+  const chronoStartStop = document.getElementById('chronoStartStop');
+  const chronoLapReset = document.getElementById('chronoLapReset');
+
+  if (chronoDisplay && chronoStartStop && chronoLapReset) {
+    let chronoRunning = false;
+    let chronoStart = 0;
+    let chronoElapsed = 0; // accumulated ms when paused
+    let chronoRaf = null;
+    let chronoLapStart = 0;
+    let chronoLapCount = 0;
+
+    function formatChrono(ms) {
+      const totalSec = ms / 1000;
+      const min = Math.floor(totalSec / 60);
+      const sec = Math.floor(totalSec % 60);
+      const cs = Math.floor((ms % 1000) / 10);
+      return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(cs).padStart(2, '0')}`;
+    }
+
+    function updateChronoDisplay() {
+      const now = performance.now();
+      const total = chronoElapsed + (chronoRunning ? now - chronoStart : 0);
+      chronoDisplay.textContent = formatChrono(total);
+      if (chronoRunning) {
+        chronoRaf = requestAnimationFrame(updateChronoDisplay);
+      }
+    }
+
+    chronoStartStop.addEventListener('click', () => {
+      if (!chronoRunning) {
+        // Start
+        chronoRunning = true;
+        chronoStart = performance.now();
+        if (chronoElapsed === 0) {
+          chronoLapStart = chronoStart;
+          chronoLapCount = 0;
+        }
+        chronoStartStop.textContent = 'Stop';
+        chronoStartStop.classList.add('running');
+        chronoLapReset.disabled = false;
+        chronoLapReset.textContent = 'Lap';
+        updateChronoDisplay();
+      } else {
+        // Stop
+        chronoRunning = false;
+        chronoElapsed += performance.now() - chronoStart;
+        if (chronoRaf) cancelAnimationFrame(chronoRaf);
+        chronoStartStop.textContent = 'Start';
+        chronoStartStop.classList.remove('running');
+        chronoLapReset.textContent = 'Reset';
+      }
+    });
+
+    chronoLapReset.addEventListener('click', () => {
+      if (chronoRunning) {
+        // Lap
+        const now = performance.now();
+        const total = chronoElapsed + (now - chronoStart);
+        const lapTime = now - chronoLapStart;
+        chronoLapCount++;
+        chronoLapEl.textContent = `L${chronoLapCount} ${formatChrono(lapTime)}`;
+        chronoLapStart = now;
+      } else {
+        // Reset
+        chronoElapsed = 0;
+        chronoLapCount = 0;
+        chronoDisplay.textContent = '00:00.00';
+        chronoLapEl.textContent = '';
+        chronoLapReset.disabled = true;
+        chronoLapReset.textContent = 'Lap';
+      }
+    });
+  }
+
   fitClockToViewport();
 
   let resizeTimer;
