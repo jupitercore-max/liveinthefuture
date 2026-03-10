@@ -967,6 +967,189 @@
   }
 
   // ═══════════════════════════════════════════════════
+  // Crown Winding — scroll wheel over crown to wind power reserve
+  // Each scroll tick plays a mechanical ratcheting click and charges
+  // the mainspring, just like winding a real mechanical watch.
+  // ═══════════════════════════════════════════════════
+  let windAudioCtx = null;
+  let lastWindTime = 0;
+  const WIND_COOLDOWN = 60; // ms between wind clicks
+
+  function getWindAudioCtx() {
+    if (!windAudioCtx || windAudioCtx.state === 'closed') {
+      windAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (windAudioCtx.state === 'suspended') windAudioCtx.resume();
+    return windAudioCtx;
+  }
+
+  function playWindClick(direction) {
+    try {
+      const ctx = getWindAudioCtx();
+      const now = ctx.currentTime;
+
+      // Mechanical ratchet click: brief noise burst + metallic ping
+      // 1. Ratchet click — very short noise burst
+      const clickLen = 0.008 + Math.random() * 0.004;
+      const noiseBuffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * clickLen), ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / data.length); // decaying noise
+      }
+      const noiseSrc = ctx.createBufferSource();
+      noiseSrc.buffer = noiseBuffer;
+
+      // Bandpass to make it metallic
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 3000 + Math.random() * 1500;
+      bp.Q.value = 2;
+
+      const clickGain = ctx.createGain();
+      clickGain.gain.value = 0.15;
+
+      noiseSrc.connect(bp);
+      bp.connect(clickGain);
+      clickGain.connect(ctx.destination);
+      noiseSrc.start(now);
+
+      // 2. Metallic ping — sine at ~4kHz, very short
+      const ping = ctx.createOscillator();
+      ping.type = 'sine';
+      ping.frequency.value = 3800 + Math.random() * 800;
+      const pingGain = ctx.createGain();
+      pingGain.gain.setValueAtTime(0.06, now);
+      pingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+      ping.connect(pingGain);
+      pingGain.connect(ctx.destination);
+      ping.start(now);
+      ping.stop(now + 0.04);
+
+      // 3. Spring tension tone — subtle low hum that gets higher as power fills
+      const springFreq = 120 + powerLevel * 180; // 120-300 Hz based on tension
+      const spring = ctx.createOscillator();
+      spring.type = 'triangle';
+      spring.frequency.value = springFreq;
+      const springGain = ctx.createGain();
+      springGain.gain.setValueAtTime(0.02, now);
+      springGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+      spring.connect(springGain);
+      springGain.connect(ctx.destination);
+      spring.start(now);
+      spring.stop(now + 0.07);
+    } catch (e) { /* audio not available */ }
+  }
+
+  function showWindFlash() {
+    const flash = document.getElementById('powerWindFlash');
+    if (!flash) return;
+    const pct = Math.round(powerLevel * 100);
+    flash.textContent = pct + '%';
+    // Color based on level
+    if (powerLevel > 0.5) {
+      flash.style.color = '#4da6ff';
+      flash.style.textShadow = '0 0 6px rgba(77,166,255,0.6)';
+    } else if (powerLevel > 0.2) {
+      flash.style.color = '#ffa726';
+      flash.style.textShadow = '0 0 6px rgba(255,167,38,0.6)';
+    } else {
+      flash.style.color = '#ef5350';
+      flash.style.textShadow = '0 0 6px rgba(239,83,80,0.6)';
+    }
+    flash.classList.remove('show');
+    // Force reflow
+    void flash.offsetWidth;
+    flash.classList.add('show');
+  }
+
+  if (watchCrown) {
+    // Scroll wheel on crown winds the power reserve
+    watchCrown.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const now = Date.now();
+      if (now - lastWindTime < WIND_COOLDOWN) return;
+      lastWindTime = now;
+
+      const direction = e.deltaY < 0 ? 1 : -1; // scroll up = wind
+
+      if (direction > 0) {
+        // Wind up — charge power reserve
+        const chargeAmount = 0.03; // 3% per click, ~33 clicks for full wind
+        const before = powerLevel;
+        powerLevel = Math.min(1.0, powerLevel + chargeAmount);
+
+        if (powerLevel > before) {
+          playWindClick(direction);
+          showWindFlash();
+
+          // Animate crown rotation
+          watchCrown.classList.remove('winding', 'winding-reverse');
+          void watchCrown.offsetWidth;
+          watchCrown.classList.add('winding');
+        }
+      } else {
+        // Scroll down — does nothing useful on a real watch, but give feedback
+        // Light reverse click, no power change
+        playWindClick(direction);
+        watchCrown.classList.remove('winding', 'winding-reverse');
+        void watchCrown.offsetWidth;
+        watchCrown.classList.add('winding-reverse');
+      }
+    }, { passive: false });
+
+    // Touch drag on crown for mobile winding
+    let crownTouchStartY = null;
+    let crownLastDeltaY = 0;
+
+    watchCrown.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        crownTouchStartY = e.touches[0].clientY;
+        crownLastDeltaY = 0;
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    watchCrown.addEventListener('touchmove', (e) => {
+      if (crownTouchStartY === null || e.touches.length !== 1) return;
+      e.preventDefault();
+
+      const currentY = e.touches[0].clientY;
+      const deltaY = crownTouchStartY - currentY; // positive = finger moving up = wind
+      const stepSize = 12; // px per wind step
+
+      // Check if we've moved enough for another wind click
+      if (Math.abs(deltaY - crownLastDeltaY) >= stepSize) {
+        const direction = (deltaY > crownLastDeltaY) ? 1 : -1;
+        crownLastDeltaY = deltaY;
+
+        const now = Date.now();
+        if (now - lastWindTime < WIND_COOLDOWN) return;
+        lastWindTime = now;
+
+        if (direction > 0) {
+          powerLevel = Math.min(1.0, powerLevel + 0.03);
+          playWindClick(direction);
+          showWindFlash();
+          watchCrown.classList.remove('winding', 'winding-reverse');
+          void watchCrown.offsetWidth;
+          watchCrown.classList.add('winding');
+        } else {
+          playWindClick(direction);
+          watchCrown.classList.remove('winding', 'winding-reverse');
+          void watchCrown.offsetWidth;
+          watchCrown.classList.add('winding-reverse');
+        }
+      }
+    }, { passive: false });
+
+    watchCrown.addEventListener('touchend', () => {
+      crownTouchStartY = null;
+    });
+  }
+
+  // ═══════════════════════════════════════════════════
   // Bezel Drag Rotation Handlers
   // Drag the outer city ring to rotate timezones.
   // On release, snaps to the nearest 1-hour (15°) and
@@ -2473,6 +2656,7 @@
       '<span><kbd>A</kbd> Alarm</span>',
       '<span><kbd>R</kbd> 🎵 Minute Repeater</span>',
       '<span><kbd>N</kbd> Lume shot mode</span>',
+      '<span><kbd>Scroll</kbd> Crown winding</span>',
       '<span><kbd>?</kbd> Toggle this help</span>',
     ].join('');
     hintsEl.style.cssText = `
