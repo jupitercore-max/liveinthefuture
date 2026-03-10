@@ -767,3 +767,19 @@ If it fails, DO NOT commit. Fix the error first.
   - Pause state resets to `false` on game restart alongside `gameSpeed = 1`.
 - **Why it matters:** The game had speed controls (1×-10×) and early send but no way to STOP. Pause is essential QoL for any real-time game — lets you answer a phone call, read upgrade descriptions, plan strategy, or just take a break without losing your run. Works in both offline and Firebase modes (only the leader's sim stops; non-leader clients just see a frozen state).
 - **Phase compliance:** State in Phase 3, DOM binding in Phase 4 initDOM(), functions in Phase 5, listener in Phase 6, no init calls needed in Phase 7 (button starts in default unpressed state). Zero TDZ risk.
+
+### 2026-03-10: Low HP Danger Vignette
+- **Pulsing red edge vignette** — When base HP drops below 50%, all four edges of the canvas glow red with increasing intensity. The lower the HP, the brighter and faster the pulse. Creates visceral urgency and "this is going badly" feel without any text or HUD clutter.
+- **Three intensity tiers:**
+  - **50-25% HP**: Subtle red edges, slow pulse (~2-4 Hz). Noticeable but not alarming — a gentle "heads up"
+  - **25-10% HP**: Brighter, wider edges, faster pulse (~4-6 Hz). Plus a "⚠ BASE CRITICAL ⚠" text warning at the top center that fades in and out
+  - **<10% HP**: Maximum intensity, frantic pulse (~8 Hz), thick 100px edges. The screen practically throbs red — unmistakable danger signal
+- **Dynamic parameters:**
+  - `intensity` = `1 - (hpPct / 0.5)` — linear 0→1 as HP drops from 50%→0%
+  - `pulseSpeed` = `2 + intensity * 6` — 2 Hz at 50%, 8 Hz at 0%
+  - `edgeSize` = `40 + intensity * 60` — 40px at 50%, 100px at 0%
+  - `alpha` = base (0.05-0.20) + pulse (0-0.12) — never overwhelming, always readable
+- **Implementation:** Single `drawDangerVignette()` function (Phase 5) using 4 linear gradients (top/bottom/left/right). Called from `drawFrame()` right before the mini-map. No new state variables, DOM elements, event listeners, or init calls.
+- **Phase compliance:** Pure Phase 5 function definition + Phase 5 call site inside `drawFrame()`. Zero TDZ risk.
+- **Performance:** 4 linear gradients per frame + 1 optional `fillText`. Negligible cost — gradients are GPU-composited.
+- **Design rationale:** The game had a HP bar, heart icon, and damage flash, but no persistent "danger sense" feedback. The vignette is the standard AAA game solution (Call of Duty, Dark Souls, every FPS since 2005) — it uses peripheral vision to create urgency without blocking the play area. Players instinctively know "red edges = danger" even if they've never seen this game before. The escalating pulse speed creates genuine tension as HP drops, making close-call victories feel more dramatic.

@@ -6376,6 +6376,70 @@
       dpsGameStartTime = Date.now();
     }
 
+    // ═══ Low HP Danger Vignette (pulsing red edges) ═══
+    function drawDangerVignette() {
+      // Only show when HP is below 50% of max and game is active
+      const maxHp = getEffectiveMaxHp();
+      const hpPct = baseHp / maxHp;
+      if (hpPct >= 0.5 || waveState === 'gameover') return;
+
+      ctx.save();
+      // Intensity scales from 0 (at 50% HP) to 1 (at 0% HP)
+      const intensity = 1 - (hpPct / 0.5); // 0..1
+
+      // Pulse speed increases as HP drops: slow at 50%, frantic at <10%
+      const pulseSpeed = 2 + intensity * 6; // 2..8 Hz
+      const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 1000 * pulseSpeed * Math.PI * 2);
+
+      // Alpha: base intensity + pulse, scaled so it's subtle at 50% and dramatic at low HP
+      const baseAlpha = 0.05 + intensity * 0.15; // 0.05..0.20
+      const pulseAlpha = intensity * 0.12 * pulse; // 0..0.12
+      const alpha = baseAlpha + pulseAlpha;
+
+      // Vignette size: thicker at lower HP
+      const edgeSize = 40 + intensity * 60; // 40..100px from edges
+
+      // Top edge
+      const gTop = ctx.createLinearGradient(0, 0, 0, edgeSize);
+      gTop.addColorStop(0, `rgba(255,0,0,${alpha})`);
+      gTop.addColorStop(1, 'rgba(255,0,0,0)');
+      ctx.fillStyle = gTop;
+      ctx.fillRect(0, 0, CANVAS_W, edgeSize);
+
+      // Bottom edge
+      const gBot = ctx.createLinearGradient(0, CANVAS_H, 0, CANVAS_H - edgeSize);
+      gBot.addColorStop(0, `rgba(255,0,0,${alpha})`);
+      gBot.addColorStop(1, 'rgba(255,0,0,0)');
+      ctx.fillStyle = gBot;
+      ctx.fillRect(0, CANVAS_H - edgeSize, CANVAS_W, edgeSize);
+
+      // Left edge
+      const gLeft = ctx.createLinearGradient(0, 0, edgeSize, 0);
+      gLeft.addColorStop(0, `rgba(255,0,0,${alpha})`);
+      gLeft.addColorStop(1, 'rgba(255,0,0,0)');
+      ctx.fillStyle = gLeft;
+      ctx.fillRect(0, 0, edgeSize, CANVAS_H);
+
+      // Right edge
+      const gRight = ctx.createLinearGradient(CANVAS_W, 0, CANVAS_W - edgeSize, 0);
+      gRight.addColorStop(0, `rgba(255,0,0,${alpha})`);
+      gRight.addColorStop(1, 'rgba(255,0,0,0)');
+      ctx.fillStyle = gRight;
+      ctx.fillRect(CANVAS_W - edgeSize, 0, edgeSize, CANVAS_H);
+
+      // Critical HP warning text (below 25%)
+      if (hpPct < 0.25 && waveState === 'active') {
+        const warnAlpha = 0.4 + 0.4 * pulse;
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = `rgba(255,60,60,${warnAlpha})`;
+        ctx.fillText('⚠ BASE CRITICAL ⚠', CANVAS_W / 2, 30);
+        ctx.textAlign = 'start';
+      }
+
+      ctx.restore();
+    }
+
     function drawMiniMap() {
       const MW = 140, MH = 100, PAD = 8, RAD = 6;
       const mx = PAD, my = CANVAS_H - MH - PAD;
@@ -7446,6 +7510,9 @@
         ctx.fillText(`${killed}/${total}`, CANVAS_W - 6, barH + 12);
         ctx.restore();
       }
+
+      // Low HP danger vignette (pulsing red edges)
+      drawDangerVignette();
 
       // Mini-map overlay (bottom-left)
       drawMiniMap();
