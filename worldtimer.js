@@ -1944,57 +1944,137 @@
 
     ctx.clearRect(0, 0, size, size);
 
-    // Dark cavity background
-    ctx.fillStyle = '#0d1520';
+    // Dark cavity background with depth
+    const cavityGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r + 1);
+    cavityGrad.addColorStop(0, '#111a28');
+    cavityGrad.addColorStop(0.7, '#0d1520');
+    cavityGrad.addColorStop(1, '#080c14');
+    ctx.fillStyle = cavityGrad;
     ctx.beginPath();
     ctx.arc(cx, cy, r + 1, 0, Math.PI * 2);
     ctx.fill();
 
-    // Balance wheel oscillation: 4 Hz = 8 beats/sec
-    // The wheel swings ±270° (like a real tourbillon/balance)
-    const FREQ = 4; // Hz
+    // ── Tourbillon cage rotation: 360° per minute ──
     const t = seconds + millis / 1000;
-    // Damped sine for natural oscillation feel
+    const cageAngle = (t / 60) * Math.PI * 2; // full rotation per minute
+
+    // Hairspring — concentric spiral (rotates with cage)
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(cageAngle);
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = '#8090a0';
+    ctx.lineWidth = 0.4;
+    ctx.beginPath();
+    const spiralTurns = 3;
+    for (let i = 0; i <= 360 * spiralTurns; i += 3) {
+      const a = (i * Math.PI) / 180;
+      const sr = 3 + (i / (360 * spiralTurns)) * (r * 0.50);
+      const px = Math.cos(a) * sr;
+      const py = Math.sin(a) * sr;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    // ── Tourbillon cage frame ──
+    // The cage is a Y-shaped bridge that rotates once per minute
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(cageAngle);
+
+    // Outer cage ring — thin polished steel
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2);
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(150, 148, 140, 0.45)';
+    ctx.stroke();
+
+    // Cage bridge arms — 3 arms at 120° (Y-shaped like a Breguet tourbillon)
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 - Math.PI / 2;
+      const innerR = r * 0.82;
+      const outerR = r * 0.92;
+
+      // Main bridge arm
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * innerR, Math.sin(a) * innerR);
+      ctx.lineTo(Math.cos(a) * outerR, Math.sin(a) * outerR);
+      ctx.lineWidth = 2.0;
+      ctx.strokeStyle = 'rgba(170, 165, 155, 0.55)';
+      ctx.stroke();
+
+      // Polished bevel highlight on bridge
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * (innerR + 1), Math.sin(a) * (innerR + 1));
+      ctx.lineTo(Math.cos(a) * (outerR - 1), Math.sin(a) * (outerR - 1));
+      ctx.lineWidth = 0.5;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.stroke();
+
+      // Small screw at each bridge-cage junction
+      const screwX = Math.cos(a) * outerR;
+      const screwY = Math.sin(a) * outerR;
+      ctx.beginPath();
+      ctx.arc(screwX, screwY, 1.4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(200, 195, 180, 0.7)';
+      ctx.fill();
+      // Screw slot
+      ctx.beginPath();
+      ctx.moveTo(screwX - 0.8, screwY);
+      ctx.lineTo(screwX + 0.8, screwY);
+      ctx.lineWidth = 0.4;
+      ctx.strokeStyle = 'rgba(80, 75, 70, 0.8)';
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    // ── Balance wheel oscillation inside the cage ──
+    // 4 Hz = 8 beats/sec, swings ±270°
+    const FREQ = 4;
     const phase = t * FREQ * Math.PI * 2;
-    const swing = Math.sin(phase) * 270; // ±270° amplitude
+    const swing = Math.sin(phase) * 270;
 
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.rotate(swing * Math.PI / 180);
+    // Cage rotation + balance oscillation combined
+    ctx.rotate(cageAngle + swing * Math.PI / 180);
 
     // Balance wheel rim — thin metallic ring
     ctx.beginPath();
-    ctx.arc(0, 0, r * 0.78, 0, Math.PI * 2);
-    ctx.lineWidth = 1.8;
+    ctx.arc(0, 0, r * 0.72, 0, Math.PI * 2);
+    ctx.lineWidth = 1.6;
     ctx.strokeStyle = 'rgba(180, 175, 160, 0.7)';
     ctx.stroke();
 
-    // Timing screws on the rim (8 small dots evenly spaced)
+    // Timing screws on the rim (8 small dots)
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
-      const sx = Math.cos(a) * r * 0.78;
-      const sy = Math.sin(a) * r * 0.78;
+      const sx = Math.cos(a) * r * 0.72;
+      const sy = Math.sin(a) * r * 0.72;
       ctx.beginPath();
-      ctx.arc(sx, sy, 1.2, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(200, 195, 180, 0.8)';
+      ctx.arc(sx, sy, 1.0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(200, 195, 180, 0.75)';
       ctx.fill();
     }
 
-    // Crossbar spokes (3 arms at 120° like a Gyromax balance)
+    // Crossbar spokes (3 arms at 120° — Gyromax style)
     for (let i = 0; i < 3; i++) {
       const a = (i / 3) * Math.PI * 2 - Math.PI / 2;
       ctx.beginPath();
       ctx.moveTo(0, 0);
-      ctx.lineTo(Math.cos(a) * r * 0.76, Math.sin(a) * r * 0.76);
-      ctx.lineWidth = 1.2;
-      ctx.strokeStyle = 'rgba(160, 155, 140, 0.6)';
+      ctx.lineTo(Math.cos(a) * r * 0.70, Math.sin(a) * r * 0.70);
+      ctx.lineWidth = 1.0;
+      ctx.strokeStyle = 'rgba(160, 155, 140, 0.55)';
       ctx.stroke();
     }
 
     // Center jewel — ruby bearing
     ctx.beginPath();
-    ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
-    const jewelGrad = ctx.createRadialGradient(0.5, -0.5, 0, 0, 0, 2.5);
+    ctx.arc(0, 0, 2.2, 0, Math.PI * 2);
+    const jewelGrad = ctx.createRadialGradient(0.4, -0.4, 0, 0, 0, 2.2);
     jewelGrad.addColorStop(0, '#ff4466');
     jewelGrad.addColorStop(0.5, '#cc2244');
     jewelGrad.addColorStop(1, '#881133');
@@ -2002,28 +2082,45 @@
     ctx.fill();
     // Jewel highlight
     ctx.beginPath();
-    ctx.arc(-0.5, -0.5, 0.8, 0, Math.PI * 2);
+    ctx.arc(-0.4, -0.4, 0.7, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(255, 200, 210, 0.5)';
     ctx.fill();
 
     ctx.restore();
 
-    // Hairspring — concentric spiral (doesn't rotate, sits behind)
+    // ── Upper bridge (fixed, doesn't rotate) ──
+    // A horizontal bridge across the top, like the cock of a tourbillon
     ctx.save();
-    ctx.globalAlpha = 0.2;
-    ctx.strokeStyle = '#8090a0';
-    ctx.lineWidth = 0.5;
+    ctx.translate(cx, cy);
+    // Fixed upper bridge — polished steel
     ctx.beginPath();
-    const spiralTurns = 3;
-    for (let i = 0; i <= 360 * spiralTurns; i += 3) {
-      const a = (i * Math.PI) / 180;
-      const sr = 3 + (i / (360 * spiralTurns)) * (r * 0.55);
-      const px = cx + Math.cos(a) * sr;
-      const py = cy + Math.sin(a) * sr;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
+    ctx.moveTo(-r * 0.5, -r * 0.1);
+    ctx.quadraticCurveTo(-r * 0.3, -r * 0.95, 0, -r * 0.95);
+    ctx.quadraticCurveTo(r * 0.3, -r * 0.95, r * 0.5, -r * 0.1);
+    ctx.lineWidth = 1.8;
+    ctx.strokeStyle = 'rgba(160, 158, 150, 0.4)';
     ctx.stroke();
+    // Bridge highlight
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.45, -r * 0.15);
+    ctx.quadraticCurveTo(-r * 0.25, -r * 0.88, 0, -r * 0.88);
+    ctx.quadraticCurveTo(r * 0.25, -r * 0.88, r * 0.45, -r * 0.15);
+    ctx.lineWidth = 0.4;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.stroke();
+    // Bridge screws at anchor points
+    for (const bx of [-r * 0.5, r * 0.5]) {
+      ctx.beginPath();
+      ctx.arc(bx, -r * 0.1, 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(190, 185, 175, 0.6)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(bx - 0.9, -r * 0.1);
+      ctx.lineTo(bx + 0.9, -r * 0.1);
+      ctx.lineWidth = 0.4;
+      ctx.strokeStyle = 'rgba(70, 65, 60, 0.7)';
+      ctx.stroke();
+    }
     ctx.restore();
 
     // Subtle metallic sheen on the aperture rim
