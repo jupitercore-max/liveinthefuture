@@ -6699,6 +6699,151 @@
       ctx.restore();
     }
 
+    // ── Cinematic Boss Health Bar (Dark Souls / Elden Ring style) ──
+    function drawBossHealthBar() {
+      // Find the first alive boss
+      const boss = enemies.find(e => e.type === 'boss' && e.hp > 0 && !e.dead);
+      if (!boss) return;
+
+      const barW = Math.min(CANVAS_W * 0.6, 400);
+      const barH = 14;
+      const barX = (CANVAS_W - barW) / 2;
+      const barY = 50;
+      const hpPct = Math.max(0, boss.hp / boss.maxHp);
+      const shieldPct = (boss.shieldHp > 0 && boss.shieldMaxHp > 0) ? boss.shieldHp / boss.shieldMaxHp : 0;
+      const now = Date.now() / 1000;
+
+      ctx.save();
+
+      // Dark backdrop panel
+      const panelPad = 10;
+      const panelX = barX - panelPad;
+      const panelY = barY - 28;
+      const panelW = barW + panelPad * 2;
+      const panelH = barH + 42;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.beginPath();
+      const cr = 6;
+      ctx.moveTo(panelX + cr, panelY);
+      ctx.lineTo(panelX + panelW - cr, panelY);
+      ctx.quadraticCurveTo(panelX + panelW, panelY, panelX + panelW, panelY + cr);
+      ctx.lineTo(panelX + panelW, panelY + panelH - cr);
+      ctx.quadraticCurveTo(panelX + panelW, panelY + panelH, panelX + panelW - cr, panelY + panelH);
+      ctx.lineTo(panelX + cr, panelY + panelH);
+      ctx.quadraticCurveTo(panelX, panelY + panelH, panelX, panelY + panelH - cr);
+      ctx.lineTo(panelX, panelY + cr);
+      ctx.quadraticCurveTo(panelX, panelY, panelX + cr, panelY);
+      ctx.closePath();
+      ctx.fill();
+      // Subtle border
+      ctx.strokeStyle = 'rgba(139,0,0,0.5)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Boss name from wave theme
+      const theme = getWaveTheme(wave);
+      const bossName = theme ? theme.name : 'BOSS';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 13px ' + getComputedStyle(document.body).fontFamily;
+      // Pulsing red glow for enraged bosses
+      if (boss.enraged) {
+        const pulse = 0.7 + 0.3 * Math.sin(now * 6);
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 8 * pulse;
+        ctx.fillStyle = `rgba(255,${Math.floor(60 * pulse)},${Math.floor(60 * pulse)},1)`;
+      } else {
+        ctx.shadowColor = '#8b0000';
+        ctx.shadowBlur = 4;
+        ctx.fillStyle = '#ff6666';
+      }
+      ctx.fillText('💀 ' + bossName, CANVAS_W / 2, barY - 8);
+      ctx.shadowBlur = 0;
+
+      // HP bar track (dark)
+      ctx.fillStyle = 'rgba(60,0,0,0.8)';
+      ctx.fillRect(barX, barY, barW, barH);
+
+      // HP fill — gradient from dark red to bright red based on HP
+      if (hpPct > 0) {
+        const hpGrad = ctx.createLinearGradient(barX, barY, barX + barW * hpPct, barY);
+        if (boss.enraged) {
+          hpGrad.addColorStop(0, '#ff2200');
+          hpGrad.addColorStop(1, '#ff6600');
+        } else if (hpPct < 0.25) {
+          hpGrad.addColorStop(0, '#8b0000');
+          hpGrad.addColorStop(1, '#cc2200');
+        } else if (hpPct < 0.5) {
+          hpGrad.addColorStop(0, '#aa2200');
+          hpGrad.addColorStop(1, '#dd4400');
+        } else {
+          hpGrad.addColorStop(0, '#8b0000');
+          hpGrad.addColorStop(1, '#cc3333');
+        }
+        ctx.fillStyle = hpGrad;
+        ctx.fillRect(barX, barY, barW * hpPct, barH);
+
+        // Damage shimmer effect (bright edge on the HP bar)
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillRect(barX, barY, barW * hpPct, 3);
+      }
+
+      // Shield bar overlay (blue, on top of HP)
+      if (shieldPct > 0) {
+        const shieldW = barW * (boss.shieldHp / boss.maxHp);
+        const shGrad = ctx.createLinearGradient(barX, barY, barX + shieldW, barY);
+        shGrad.addColorStop(0, 'rgba(30,144,255,0.7)');
+        shGrad.addColorStop(1, 'rgba(100,200,255,0.7)');
+        ctx.fillStyle = shGrad;
+        ctx.fillRect(barX, barY, shieldW, barH);
+        // Shield shimmer
+        const shimmer = 0.1 + 0.1 * Math.sin(now * 4);
+        ctx.fillStyle = `rgba(200,230,255,${shimmer})`;
+        ctx.fillRect(barX, barY, shieldW, 3);
+      }
+
+      // Bar border (metallic look)
+      ctx.strokeStyle = 'rgba(180,120,80,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(barX, barY, barW, barH);
+      // Inner highlight border
+      ctx.strokeStyle = 'rgba(255,200,150,0.15)';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(barX + 1, barY + 1, barW - 2, barH - 2);
+
+      // Phase indicator pips (3 dots below bar)
+      const pipY = barY + barH + 6;
+      const pipSpacing = 14;
+      const pipStartX = CANVAS_W / 2 - pipSpacing;
+      const phaseColors = ['#4488ff', '#ff4444', '#ff0000'];
+      const phaseLabels = ['🛡', '👹', '💀'];
+      for (let i = 0; i < 3; i++) {
+        const px = pipStartX + i * pipSpacing;
+        const active = boss.bossPhase > i;
+        const current = boss.bossPhase === i + 1;
+        ctx.beginPath();
+        ctx.arc(px, pipY, 3.5, 0, Math.PI * 2);
+        if (active) {
+          ctx.fillStyle = phaseColors[i];
+          if (current) {
+            ctx.shadowColor = phaseColors[i];
+            ctx.shadowBlur = 6;
+          }
+        } else {
+          ctx.fillStyle = 'rgba(100,100,100,0.4)';
+        }
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      // HP percentage text (right of bar)
+      ctx.textAlign = 'right';
+      ctx.font = '10px ' + getComputedStyle(document.body).fontFamily;
+      ctx.fillStyle = 'rgba(255,200,200,0.8)';
+      ctx.fillText(Math.ceil(hpPct * 100) + '%', barX + barW - 2, barY + barH - 3);
+
+      ctx.restore();
+    }
+
     function drawMiniMap() {
       const MW = 140, MH = 100, PAD = 8, RAD = 6;
       const mx = PAD, my = CANVAS_H - MH - PAD;
@@ -7772,6 +7917,9 @@
         ctx.fillText(`${killed}/${total}`, CANVAS_W - 6, barH + 12);
         ctx.restore();
       }
+
+      // Cinematic boss health bar (Dark Souls style, top-center)
+      drawBossHealthBar();
 
       // Low HP danger vignette (pulsing red edges)
       drawDangerVignette();

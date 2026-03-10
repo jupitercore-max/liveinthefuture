@@ -819,3 +819,18 @@ If it fails, DO NOT commit. Fix the error first.
   - Phase 7: `loadBestiaryKills()` init call
 - **Sorted display:** Discovered enemies first (sorted by wave), then locked entries (sorted by wave)
 - **Design rationale:** The game has 11 enemy types with complex interactions (armor, shields, phasing, splitting, healing, flying) but the only info was brief wave preview labels. The bestiary serves as both a reference manual (what counters what) and a collection incentive (discover them all). Standard feature in games with diverse enemy rosters (Kingdom Rush, Bloons TD, Hades). The combat tips also help new players learn which cannon specs counter which enemies — reducing the trial-and-error frustration of "why isn't my sniper killing that armored enemy?"
+
+### 2026-03-10: Cinematic Boss Health Bar (Dark Souls / Elden Ring Style)
+- **Wide centered health bar at the top of the canvas** — When a boss is alive, a prominent health bar appears at the top-center of the screen (60% canvas width, max 400px). This is the standard boss fight presentation from action games (Dark Souls, Elden Ring, Monster Hunter, Hollow Knight) that instantly communicates "this is a major enemy."
+- **Visual elements:**
+  - **Dark panel backdrop** — rounded rectangle with subtle dark red border, 60% opacity black background for readability over any terrain/enemies below
+  - **Boss name** — pulled from `getWaveTheme()` (TITAN, LEVIATHAN, BEHEMOTH, COLOSSUS, APOCALYPSE, DESTROYER). Displayed in red with skull emoji above the bar. Enraged bosses get pulsing red glow text.
+  - **HP gradient fill** — color shifts by HP threshold: full HP = dark crimson, <50% = orange-red, <25% = deep red. Enraged bosses glow bright orange-red.
+  - **Top shimmer highlight** — subtle white 3px line along the top of the HP fill for a 3D beveled look
+  - **Shield overlay** — when boss has an active shield (Phase 1), a translucent blue bar is drawn on top of the HP bar with its own shimmer, proportional to shield HP relative to boss max HP
+  - **Metallic border** — gold-bronze strokeRect with inner highlight for premium feel
+  - **Phase indicator pips** — 3 small circles below the bar showing boss phase progression (blue=shield, red=summon, crimson=enrage). Active phases are filled + glowing, future phases are dimmed gray.
+  - **HP percentage text** — small "X%" aligned to the right of the bar
+- **No new state variables, DOM elements, event listeners, or init calls** — pure Phase 5 rendering function that scans `enemies` array each frame. Zero TDZ risk. Called from `drawFrame()` right before `drawDangerVignette()`.
+- **Boss detection** — `enemies.find(e => e.type === 'boss' && e.hp > 0 && !e.dead)` — bar auto-appears when a boss exists and auto-disappears when killed.
+- **Design rationale:** Boss fights are the game's climactic events (every 10 waves), but bosses were visually treated the same as regular enemies — just a slightly wider HP bar above their sprite. The cinematic health bar makes boss encounters feel like real boss fights. The phase pips help players track the 3-phase system (shield → summon → enrage) at a glance instead of guessing. This is one of the most impactful UX improvements for late-game engagement because it makes the milestone waves feel special and dramatic. The Dark Souls comparison is intentional — that franchise popularized the "wide bottom/top bar with boss name" pattern that's now standard in action games.
