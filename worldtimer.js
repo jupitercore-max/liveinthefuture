@@ -680,6 +680,11 @@
   minuteHand.id = 'minuteHand';
   clockFace.appendChild(minuteHand);
 
+  const gmtHand = document.createElement('div');
+  gmtHand.className = 'clock-hand clock-hand-gmt';
+  gmtHand.id = 'gmtHand';
+  clockFace.appendChild(gmtHand);
+
   const secondHand = document.createElement('div');
   secondHand.className = 'clock-hand clock-hand-second';
   secondHand.id = 'secondHand';
@@ -818,6 +823,22 @@
     document.getElementById('hourHand').style.transform = `translateX(-50%) rotate(${hourAngle}deg)`;
     document.getElementById('minuteHand').style.transform = `translateX(-50%) rotate(${minuteAngle}deg)`;
     document.getElementById('secondHand').style.transform = `translateX(-50%) rotate(${secondAngle}deg)`;
+
+    // GMT hand: shows LOCAL time on 24h scale when a city is selected
+    // This lets you read city time on hour/minute hands + local time on 24h bezel
+    const gmtEl = document.getElementById('gmtHand');
+    if (homeTimezone && homeTimezone !== getLocalTimezone()) {
+      const localNow = new Date();
+      const localH = localNow.getHours();
+      const localM = localNow.getMinutes();
+      const localS = localNow.getSeconds();
+      const localMs = localNow.getMilliseconds();
+      const gmtDeg = (localH * 15) + (localM * 0.25) + (localS * (0.25 / 60)) + (localMs * (0.25 / 60000));
+      gmtEl.style.transform = `translateX(-50%) rotate(${gmtDeg}deg)`;
+      gmtEl.classList.add('visible');
+    } else {
+      gmtEl.classList.remove('visible');
+    }
 
     const hour24 = hours + minutes / 60 + seconds / 3600;
     const ringRotation = hour24 * 15;
