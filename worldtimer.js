@@ -1664,6 +1664,7 @@
     drawPowerReserve();
     updateSunInfo(hours, minutes);
     updateEquationOfTime();
+    updateHomeTimeDual();
     checkChime(hours, minutes, seconds);
     checkAlarm(hours, minutes, seconds);
     updateAlarmHand();
@@ -2111,6 +2112,53 @@
     // Spencer formula (simplified)
     const eot = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
     return eot; // minutes
+  }
+
+  // ═══════════════════════════════════════════════════
+  //  Home Time Dual Display
+  //  Shows local time when viewing a foreign timezone
+  // ═══════════════════════════════════════════════════
+  const homeTimeDualEl = document.getElementById('homeTimeDual');
+
+  function updateHomeTimeDual() {
+    if (!homeTimeDualEl) return;
+    const isAway = homeTimezone && homeTimezone !== getLocalTimezone();
+    if (!isAway) {
+      homeTimeDualEl.classList.remove('visible');
+      return;
+    }
+
+    const now = new Date();
+    const localH = now.getHours();
+    const localM = now.getMinutes();
+    const ampm = localH >= 12 ? 'PM' : 'AM';
+    const h12 = localH % 12 || 12;
+    const timeStr = String(h12) + ':' + String(localM).padStart(2, '0') + ' ' + ampm;
+
+    const localTz = getLocalTimezone();
+    const dayStr = now.toLocaleDateString('en-US', {
+      timeZone: localTz,
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+
+    // Detect if the local date differs from the displayed city's date
+    const cityDateStr = now.toLocaleDateString('en-US', {
+      timeZone: homeTimezone,
+      year: 'numeric', month: 'numeric', day: 'numeric'
+    });
+    const localDateStr = now.toLocaleDateString('en-US', {
+      timeZone: localTz,
+      year: 'numeric', month: 'numeric', day: 'numeric'
+    });
+    const dateDiffNote = cityDateStr !== localDateStr ? ' ⚠' : '';
+
+    homeTimeDualEl.innerHTML =
+      '<span class="home-label">🏠 Local</span> ' +
+      '<span class="home-clock">' + timeStr + '</span> ' +
+      '<span class="home-date">· ' + dayStr + dateDiffNote + '</span>';
+    homeTimeDualEl.classList.add('visible');
   }
 
   function updateEquationOfTime() {
