@@ -867,3 +867,23 @@ If it fails, DO NOT commit. Fix the error first.
 - **Pure Phase 5 rendering function** — `drawWaveForecast()` defined alongside other HUD functions, called from `drawFrame()` after `drawMiniMap()`. No new state variables, DOM elements, event listeners, or init calls. Zero TDZ risk.
 - **Performance:** 3× `getWaveEnemyBreakdown()` calls per frame (each is lightweight — just RNG + loop). A few fillText + arc calls. Negligible cost.
 - **Design rationale:** The game had a detailed wave preview during countdown (bottom panel with enemy icons), but between waves and during combat there was no way to see what's coming next. Players often want to decide "should I sell and rebuild?" or "is a boss coming soon?" without waiting for the countdown. The forecast gives that strategic foresight at all times. Inspired by Bloons TD6's wave preview sidebar and Kingdom Rush's upcoming wave indicators. Positioned to complement the DPS meter (both right side, stacked vertically).
+
+### 2026-03-10: Wave Clear Confetti Celebration
+- **Colorful confetti burst** when all enemies are killed and a wave clears — 40 particles for normal waves, 80 for boss waves (every 10th). Provides a satisfying visual reward at the moment of wave completion.
+- **Particle physics:**
+  - Spawns from the upper-center area of the canvas with random radial velocity
+  - Each particle is a small colored rectangle with rotation, spin, and gravity
+  - 10 vibrant colors: gold, coral, teal, sky blue, pink, blue, purple, dark teal, fuchsia, orange
+  - Particles tumble (random rotation speed), decelerate (0.99× friction), and fall (gravity 0.06-0.10)
+  - Lifetime 60-100 frames with smooth alpha fadeout over last 20 frames
+  - Auto-removed when life expires or particle falls off screen
+- **Boss wave celebration** — double the particle count (80 vs 40) for boss wave clears, since those are the game's climactic moments
+- **Implementation:**
+  - Phase 3: `confettiParticles` state array
+  - Phase 5: `spawnConfetti(isBossWave)` and `renderConfetti(ctx)` functions placed after `renderHealBeams`
+  - Wave clear hook: `spawnConfetti()` called right after `sfxWaveClear()`, before `waveNumber++`. Boss detection uses `waveNumber % 10 === 0` (checked before increment)
+  - drawFrame: `renderConfetti(ctx)` called after `renderHealBeams(ctx)`
+  - resetGame: `confettiParticles = []` cleared alongside other visual arrays
+- **No new DOM elements, event listeners, or init calls** — zero TDZ risk. Pure Phase 3 state + Phase 5 functions + one function call inserted into existing wave clear logic.
+- **Performance:** Max ~80 particles with simple fillRect + rotate. Each particle is one save/translate/rotate/fillRect/restore — negligible cost even at 60fps.
+- **Design rationale:** The game had `sfxWaveClear()` (audio) and `showWaveSummary()` (DOM overlay) on wave clear, but no on-canvas visual celebration. The moment between "last enemy dies" and "summary panel appears" was visually flat. Confetti fills that gap with instant, satisfying, physical-feeling feedback. The tumbling rectangles are the classic confetti pattern used in mobile games, achievement screens, and sports broadcasts. Boss waves getting 2× confetti reinforces their significance.

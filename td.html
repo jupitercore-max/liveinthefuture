@@ -3513,6 +3513,7 @@
     let impactSparks = []; // spark burst at enemy hit location
     let deathGhosts = []; // shrink/fade/spin death animations
     let healBeams = []; // green beams from healer to healed ally
+    let confettiParticles = []; // wave clear celebration confetti
     let powerups = []; // dropped power-ups on the field
     let activePowerupEffects = {}; // type -> {timer, startTime}
     let onlinePlayers = {};
@@ -4981,6 +4982,8 @@
       // Check wave clear
       if (enemies.length === 0 && waveState === 'active') {
         sfxWaveClear();
+        // Spawn confetti celebration (bigger burst for boss waves)
+        spawnConfetti((waveNumber) % 10 === 0);
         waveNumber++;
         sessionWavesCleared++;
         // Check for personal best record
@@ -5257,6 +5260,7 @@
       impactSparks = [];
       deathGhosts = [];
       healBeams = [];
+      confettiParticles = [];
       ultimateCooldownLeft = 0;
       ultimateFlashTimer = 0;
       terrainHazards = [];
@@ -5934,6 +5938,54 @@
         ctx.restore();
         hb.life--;
         if (hb.life <= 0) healBeams.splice(i, 1);
+      }
+    }
+
+    // --- Wave Clear Confetti ---
+    function spawnConfetti(isBossWave) {
+      const count = isBossWave ? 80 : 40;
+      const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#45b7d1', '#ff9ff3', '#54a0ff', '#5f27cd', '#01a3a4', '#f368e0', '#ff9f43'];
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1.5 + Math.random() * 4;
+        confettiParticles.push({
+          x: CANVAS_W * (0.2 + Math.random() * 0.6),
+          y: CANVAS_H * (0.1 + Math.random() * 0.3),
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 2,
+          w: 4 + Math.random() * 4,
+          h: 2 + Math.random() * 3,
+          rot: Math.random() * Math.PI * 2,
+          rotSpeed: (Math.random() - 0.5) * 0.3,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          life: 60 + Math.floor(Math.random() * 40),
+          maxLife: 100,
+          gravity: 0.06 + Math.random() * 0.04
+        });
+      }
+    }
+
+    function renderConfetti(ctx) {
+      for (let i = confettiParticles.length - 1; i >= 0; i--) {
+        const p = confettiParticles[i];
+        p.x += p.vx;
+        p.vy += p.gravity;
+        p.y += p.vy;
+        p.vx *= 0.99;
+        p.rot += p.rotSpeed;
+        p.life--;
+        if (p.life <= 0 || p.y > CANVAS_H + 20) {
+          confettiParticles.splice(i, 1);
+          continue;
+        }
+        const alpha = Math.min(1, p.life / 20);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
       }
     }
 
@@ -7875,6 +7927,9 @@
 
       // Render heal beams
       renderHealBeams(ctx);
+
+      // Render wave clear confetti
+      renderConfetti(ctx);
 
       // Draw ability targeting indicator
       if (abilityTargeting) {
