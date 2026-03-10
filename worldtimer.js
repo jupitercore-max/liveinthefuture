@@ -202,6 +202,8 @@
   let bezelDragCurrentDelta = 0; // cumulative rotation delta in degrees
   let bezelDragMoved = false;    // true once drag exceeds threshold (distinguishes click vs drag)
   let bezelDragEndTime = 0;      // timestamp when drag ended, to suppress click
+  let bezelLastDetent = 0;       // last crossed 15° detent index during drag
+  let bezelClickCtx = null;      // shared AudioContext for bezel clicks
 
   // Set home timezone with animated transition
   function setHomeTimezone(tz, cityName) {
@@ -1175,6 +1177,72 @@
     return dist > radius * 0.65 && dist <= radius * 1.05;
   }
 
+  // ── Bezel Detent Click Sound ──
+  // Synthesizes the tactile "click" of a unidirectional bezel
+  // engaging its spring-loaded ball bearing at each hour position.
+  // Shorter and sharper than the crown wind click — more metallic snap.
+  function getBezelClickCtx() {
+    if (!bezelClickCtx || bezelClickCtx.state === 'closed') {
+      try {
+        bezelClickCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) { return null; }
+    }
+    if (bezelClickCtx.state === 'suspended') bezelClickCtx.resume();
+    return bezelClickCtx;
+  }
+
+  function playBezelClick() {
+    const ctx = getBezelClickCtx();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+
+    // 1. Sharp metallic snap — very short noise burst (~4ms)
+    const clickLen = 0.004;
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * clickLen), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.1));
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+
+    // High-pass to keep only the crisp snap
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 4500;
+    hp.Q.value = 0.8;
+
+    const clickGain = ctx.createGain();
+    clickGain.gain.value = 0.12;
+
+    src.connect(hp);
+    hp.connect(clickGain);
+    clickGain.connect(ctx.destination);
+    src.start(t);
+
+    // 2. Brief metallic ring — sine at ~6kHz, extremely short
+    const ring = ctx.createOscillator();
+    ring.type = 'sine';
+    ring.frequency.value = 5800 + Math.random() * 600;
+    const ringGain = ctx.createGain();
+    ringGain.gain.setValueAtTime(0.05, t);
+    ringGain.gain.exponentialRampToValueAtTime(0.001, t + 0.015);
+    ring.connect(ringGain);
+    ringGain.connect(ctx.destination);
+    ring.start(t);
+    ring.stop(t + 0.02);
+  }
+
+  // ── Bezel Detent Visual Pulse ──
+  // Brief flash on the outer bezel ring when crossing a detent
+  function flashBezelDetent() {
+    const ring = hourRing;
+    if (!ring) return;
+    ring.classList.remove('detent-flash');
+    void ring.offsetWidth; // force reflow
+    ring.classList.add('detent-flash');
+  }
+
   function bezelStart(clientX, clientY) {
     if (isAnimatingCities) return;
     if (!isInBezelRing(clientX, clientY)) return;
@@ -1182,6 +1250,7 @@
     bezelDragMoved = false;
     bezelDragCurrentDelta = 0;
     bezelDragStartAngle = getAngleFromCenter(clientX, clientY);
+    bezelLastDetent = 0; // start at detent 0
     clockCities.style.cursor = 'grabbing';
   }
 
@@ -1198,6 +1267,15 @@
     // Mark as dragged once past 3° threshold
     if (Math.abs(delta) > 3) {
       bezelDragMoved = true;
+    }
+
+    // ── Detent detection: click at every 15° crossing ──
+    // Calculate which 15° detent we're closest to (rounded)
+    const currentDetent = Math.round(delta / 15);
+    if (currentDetent !== bezelLastDetent && bezelDragMoved) {
+      bezelLastDetent = currentDetent;
+      playBezelClick();
+      flashBezelDetent();
     }
 
     // Live rotate the SVG inside clockCities
