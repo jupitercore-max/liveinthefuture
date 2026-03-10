@@ -2134,6 +2134,66 @@
     }
   }
 
+  // ═══════════════════════════════════════════════════
+  // Dynamic Sapphire Crystal Reflection
+  // The highlight tracks the mouse cursor like tilting
+  // a real watch under a lamp. The primary reflection
+  // follows the cursor; the secondary (AR coating bounce)
+  // moves to the opposite side.
+  // ═══════════════════════════════════════════════════
+  (function initCrystalReflection() {
+    let crystalX = 30, crystalY = 22; // current animated position (%)
+    let targetX = 30, targetY = 22;   // target from mouse
+    let rafId = null;
+
+    function lerpCrystal() {
+      // Smooth follow — 8% per frame ≈ 120ms lag at 60fps
+      crystalX += (targetX - crystalX) * 0.08;
+      crystalY += (targetY - crystalY) * 0.08;
+
+      // Primary highlight follows cursor
+      const px = crystalX.toFixed(1);
+      const py = crystalY.toFixed(1);
+      // Secondary reflection on the opposite side
+      const sx = (100 - crystalX).toFixed(1);
+      const sy = (100 - crystalY).toFixed(1);
+
+      clockFace.style.setProperty('--crystal-x', px + '%');
+      clockFace.style.setProperty('--crystal-y', py + '%');
+      clockFace.style.setProperty('--crystal-x2', sx + '%');
+      clockFace.style.setProperty('--crystal-y2', sy + '%');
+
+      // Keep animating if still moving
+      if (Math.abs(targetX - crystalX) > 0.1 || Math.abs(targetY - crystalY) > 0.1) {
+        rafId = requestAnimationFrame(lerpCrystal);
+      } else {
+        rafId = null;
+      }
+    }
+
+    document.addEventListener('mousemove', function(e) {
+      const rect = clockFace.getBoundingClientRect();
+      // Relative position within clock face (0-100%)
+      const rx = ((e.clientX - rect.left) / rect.width) * 100;
+      const ry = ((e.clientY - rect.top) / rect.height) * 100;
+
+      // Clamp to a realistic range (15-85%) so the highlight
+      // never goes to the very edge — real domed crystals
+      // have a sweet spot in the inner 70%
+      targetX = Math.max(15, Math.min(85, rx));
+      targetY = Math.max(15, Math.min(85, ry));
+
+      if (!rafId) rafId = requestAnimationFrame(lerpCrystal);
+    });
+
+    // When mouse leaves the watch area, drift back to default upper-left
+    document.addEventListener('mouseleave', function() {
+      targetX = 30;
+      targetY = 22;
+      if (!rafId) rafId = requestAnimationFrame(lerpCrystal);
+    });
+  })();
+
   // Chime toggle button
   chimeToggle = document.createElement('button');
   chimeToggle.className = 'chime-toggle';
