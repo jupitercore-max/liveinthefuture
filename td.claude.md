@@ -983,3 +983,25 @@ If it fails, DO NOT commit. Fix the error first.
 - **Now the default** — New players start with Smart. Existing players keep their saved preference (localStorage `td_target_priority`). Press [T] to cycle through all 6 modes.
 - **Closest-to-base bug fix** — The old code used `e.y` for both flying and non-flying enemies (the ternary `e.flying ? e.y : e.y` was a no-op). Now correctly uses `pathProgress` (0-1, normalized) for path-following enemies and `y / CANVAS_H` for flyers. This means it actually finds the enemy closest to reaching the base, not just the one with the highest pixel Y coordinate (which was wrong for zigzag paths where an enemy could be physically high on screen but far along the path).
 - **Phase compliance:** All changes are in Phase 5 (inside existing `findTarget()` function body) and Phase 2 (constants). Zero new state variables, DOM elements, event listeners, or init calls needed. The icon display condition changed from `!== 'nearest'` to `!== 'smart'` since Smart is now the default.
+
+### 2026-03-11: Enhanced Enemy HP Bars — Segments, Damage Flash, Regen Pulse
+- **Gradient HP fill** — HP bar now uses a linear gradient (bright top → dark bottom) instead of a flat color, giving each bar a polished 3D look. Three color tiers: green (>50% HP), amber (25-50%), red (<25%).
+- **Top highlight shimmer** — A 1px bright white line along the top of the HP fill creates a beveled, glossy effect, like a real game UI health bar.
+- **Damage flash effect** — When an enemy takes damage, the HP bar briefly (200ms) shows:
+  - A **ghost bar** at the previous HP position (translucent white) that fades away — shows exactly how much HP was lost per hit
+  - A **bright white flash edge** at the current HP line that pulses and fades — confirms the hit visually
+  - Tracked via `enemy._lastDamageTime` and `enemy._prevHpPct` set in `applyDamage()`
+- **Regen pulse indicator** — Enemies that are regenerating (from Healer allies or Regenerators mutator) show a pulsing green glow at the HP bar edge, communicating that damage is being undone in real time. Helps players identify "why isn't this dying?" situations.
+- **Segmented HP bars for tanky enemies** — Tanks, armored enemies, shielded enemies, bosses, and elites get visible segment dividers on their HP bars:
+  - **Bosses**: 10 segments (each representing 10% HP — lets you track boss phase thresholds visually)
+  - **Elites**: 5 segments
+  - **Tank/Armored/Shielded**: 4 segments
+  - Thin dark lines divide the bar, making HP chunks visible at a glance. When a segment empties, you can see the chunk disappear — satisfying visual feedback.
+- **Slightly taller bars** — Bosses: 5→6px, regular enemies: 3→4px, for better readability at all zoom levels.
+- **Shield bar upgraded** — Boss shield bars now also use gradients and top shimmer instead of flat blue fill.
+- **Implementation:** All changes in two locations:
+  - `applyDamage()` (Phase 5): Two new lines setting `enemy._prevHpPct` and `enemy._lastDamageTime` before HP reduction
+  - `drawEnemy()` HP bar section (Phase 5): Replaced the flat-color HP bar with the enhanced rendering
+  - No new state variables, DOM elements, event listeners, or init calls needed. Zero TDZ risk.
+- **Performance:** Adds one linear gradient per HP bar (GPU-composited), one optional ghost bar fade (200ms window), and 4-10 thin lines for segments on tanky enemies. Negligible cost.
+- **Design rationale:** Enemy HP bars were the game's simplest visual element — flat colored rectangles with no feedback beyond color change at thresholds. Every other visual system had been upgraded (damage numbers, death ghosts, muzzle flashes, impact sparks, armor cracks) but the HP bar itself was still basic. The gradient+shimmer brings it up to modern game UI standards (Diablo, League of Legends, Hades). The damage flash is the highest-impact addition — it confirms every hit visually and shows exactly how much HP was removed, making damage feel tangible. Segments on tanky enemies help players gauge "how much more?" at a glance — especially useful for bosses where phase transitions happen at specific HP thresholds (75%, 50%, 25%). The regen pulse solves a real gameplay problem: healers regenerate allies silently, and players often don't realize their damage is being undone until they notice the enemy isn't dying.

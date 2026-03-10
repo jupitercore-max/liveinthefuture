@@ -4236,6 +4236,9 @@
       const megaDmgActive = activePowerupEffects.megadmg && activePowerupEffects.megadmg.timer > 0;
       const dmgBonus = megaDmgActive ? 1.0 : (activePowerupEffects.damage && activePowerupEffects.damage.timer > 0 ? 0.5 : 0);
       const totalDmg = dmg + dmg * dmgBonus;
+      // Track damage flash for HP bar visual
+      enemy._prevHpPct = enemy.hp / enemy.maxHp;
+      enemy._lastDamageTime = Date.now();
       enemy.hp -= dmg;
       // Track damage for DPS meter
       dpsCurrentBucket += dmg;
@@ -9683,25 +9686,104 @@
         ctx.textAlign = 'start';
       }
 
-      // ── HP bar ──
+      // ── Enhanced HP bar with segments, damage flash, and regen pulse ──
       if (e.hp < e.maxHp) {
         const barW = isBoss ? e.radius * 3 : e.radius * 2 + 4;
-        const barH = isBoss ? 5 : 3;
+        const barH = isBoss ? 6 : 4;
         const barX = x - barW / 2;
         const barY = y - e.radius - (isBoss ? 10 : 6);
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(barX, barY, barW, barH);
         const pct = Math.max(0, e.hp / e.maxHp);
-        ctx.fillStyle = pct > 0.5 ? '#2ecc71' : pct > 0.25 ? '#f39c12' : '#e74c3c';
-        ctx.fillRect(barX, barY, barW * pct, barH);
+
+        // Dark track background with subtle border
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(barX - 0.5, barY - 0.5, barW + 1, barH + 1);
+
+        // HP fill — gradient for depth
+        const hpFillW = barW * pct;
+        if (hpFillW > 0) {
+          const hpGrad = ctx.createLinearGradient(barX, barY, barX, barY + barH);
+          if (pct > 0.5) {
+            hpGrad.addColorStop(0, '#5dde8e');
+            hpGrad.addColorStop(1, '#27ae60');
+          } else if (pct > 0.25) {
+            hpGrad.addColorStop(0, '#f9d423');
+            hpGrad.addColorStop(1, '#e67e22');
+          } else {
+            hpGrad.addColorStop(0, '#ff6b6b');
+            hpGrad.addColorStop(1, '#c0392b');
+          }
+          ctx.fillStyle = hpGrad;
+          ctx.fillRect(barX, barY, hpFillW, barH);
+
+          // Top highlight shimmer — bright line along the top of the fill for 3D look
+          ctx.fillStyle = 'rgba(255,255,255,0.25)';
+          ctx.fillRect(barX, barY, hpFillW, 1);
+        }
+
+        // Damage flash — brief white flash at the damage edge when recently hit
+        {
+          const dmgAge = t - (e._lastDamageTime || 0);
+          if (dmgAge < 200 && hpFillW > 0) {
+            const flashAlpha = 0.7 * (1 - dmgAge / 200);
+            // Ghost bar showing previous HP position
+            const prevPct = Math.min(1, e._prevHpPct || pct);
+            const prevW = barW * prevPct;
+            if (prevW > hpFillW) {
+              ctx.fillStyle = `rgba(255,255,255,${flashAlpha * 0.5})`;
+              ctx.fillRect(barX + hpFillW, barY, prevW - hpFillW, barH);
+            }
+            // Flash edge glow
+            ctx.fillStyle = `rgba(255,255,255,${flashAlpha})`;
+            ctx.fillRect(barX + hpFillW - 2, barY, 4, barH);
+          }
+        }
+
+        // Regen pulse — green glow on bar edge when being healed
+        if (e.type !== 'boss' && e.healer) {
+          // Healer enemies pulse their own bar
+          const regenPulse = 0.3 + Math.sin(t * 0.008) * 0.2;
+          ctx.fillStyle = `rgba(46,204,113,${regenPulse})`;
+          ctx.fillRect(barX + hpFillW - 1, barY - 1, 3, barH + 2);
+        }
+        // Enemies being actively healed (regen from healer or Regenerators mutator)
+        if (e.regenRate && e.regenRate > 0 && e.hp < e.maxHp) {
+          const regenGlow = 0.4 + Math.sin(t * 0.01) * 0.3;
+          ctx.fillStyle = `rgba(46,204,113,${regenGlow})`;
+          ctx.fillRect(barX + hpFillW - 1, barY - 1, 3, barH + 2);
+        }
+
+        // Segment dividers for tanky enemies (tanks, armored, shielded, bosses, elites)
+        {
+          const isTanky = isBoss || e.type === 'tank' || e.type === 'armored' || e.type === 'shielded' || e.elite;
+          if (isTanky && barW > 12) {
+            // Number of segments based on max HP
+            const segments = isBoss ? 10 : e.elite ? 5 : 4;
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+            ctx.lineWidth = 0.5;
+            for (let s = 1; s < segments; s++) {
+              const sx = barX + (barW / segments) * s;
+              ctx.beginPath();
+              ctx.moveTo(sx, barY);
+              ctx.lineTo(sx, barY + barH);
+              ctx.stroke();
+            }
+          }
+        }
+
         // Boss: shield bar layered on top
         if (isBoss && e.shieldHp > 0 && e.shieldMaxHp > 0) {
           const shieldPct = e.shieldHp / e.shieldMaxHp;
           const shieldBarY = barY - barH - 1;
           ctx.fillStyle = 'rgba(0,0,0,0.4)';
           ctx.fillRect(barX, shieldBarY, barW, barH - 1);
-          ctx.fillStyle = '#3498db';
+          const shieldGrad = ctx.createLinearGradient(barX, shieldBarY, barX, shieldBarY + barH - 1);
+          shieldGrad.addColorStop(0, '#5dade2');
+          shieldGrad.addColorStop(1, '#2980b9');
+          ctx.fillStyle = shieldGrad;
           ctx.fillRect(barX, shieldBarY, barW * shieldPct, barH - 1);
+          // Shield shimmer
+          ctx.fillStyle = 'rgba(255,255,255,0.2)';
+          ctx.fillRect(barX, shieldBarY, barW * shieldPct, 1);
         }
       }
     }
