@@ -47,6 +47,10 @@
   // Animation state for city ring transitions
   let isAnimatingCities = false;
   let polarEarthAnimationOffset = 0; // Degrees, decays to 0 during animation
+
+  // Day/night city label tinting state
+  let lastCityTintUpdate = 0;
+  const CITY_TINT_INTERVAL = 30000; // update every 30s
   // Hour chime state
   let chimeEnabled = localStorage.getItem('wt_chime') !== 'off';
   let lastChimeKey = '';
@@ -730,6 +734,71 @@
     tooltip.classList.remove('visible');
   }
 
+  // ═══════════════════════════════════════════════════
+  // Day/Night City Label Tinting
+  // Cities in daylight glow warm gold; nighttime cities dim to cool blue.
+  // Smooth gradient through dawn/dusk hours for natural transitions.
+  // ═══════════════════════════════════════════════════
+  function getCityTintColor(tz, isHome) {
+    if (isHome) return null; // home city keeps accent blue
+    try {
+      const now = new Date();
+      const cityTime = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+      const h = cityTime.getHours() + cityTime.getMinutes() / 60;
+
+      // Smooth day/night curve:
+      //   Night (21-5):   cool dim blue-gray  #7088a8
+      //   Dawn (5-7):     warming transition
+      //   Day (7-17):     warm golden white    #ffe8b0
+      //   Dusk (17-21):   cooling transition
+      let warmth; // 0 = full night, 1 = full day
+      if (h >= 7 && h <= 17) {
+        warmth = 1.0;
+      } else if (h >= 21 || h <= 5) {
+        warmth = 0.0;
+      } else if (h > 5 && h < 7) {
+        // Dawn transition
+        warmth = (h - 5) / 2;
+      } else {
+        // Dusk transition (17 < h < 21)
+        warmth = 1.0 - (h - 17) / 4;
+      }
+
+      // Interpolate between night color and day color
+      const nightR = 112, nightG = 136, nightB = 168; // #7088a8 — cool blue-gray
+      const dayR = 255, dayG = 232, dayB = 176;       // #ffe8b0 — warm gold
+      const r = Math.round(nightR + (dayR - nightR) * warmth);
+      const g = Math.round(nightG + (dayG - nightG) * warmth);
+      const b = Math.round(nightB + (dayB - nightB) * warmth);
+
+      return `rgb(${r},${g},${b})`;
+    } catch (e) {
+      return '#ccc';
+    }
+  }
+
+  function updateCityTints() {
+    const now = Date.now();
+    if (now - lastCityTintUpdate < CITY_TINT_INTERVAL) return;
+    lastCityTintUpdate = now;
+
+    const svg = clockCities.querySelector('svg');
+    if (!svg) return;
+
+    const homeOffset = getHomeOffset();
+    const texts = svg.querySelectorAll('text');
+    texts.forEach(text => {
+      const tz = text.dataset.tz;
+      if (!tz) return;
+      const offset = parseFloat(text.dataset.offset);
+      const isHome = Math.abs(offset - homeOffset) < 0.5;
+      const tint = getCityTintColor(tz, isHome);
+      if (tint) {
+        text.setAttribute('fill', tint);
+      }
+    });
+  }
+
   function generateHourRing() {
     hourRing.innerHTML = '';
 
@@ -1307,6 +1376,7 @@
     timezoneInfo.textContent = `${tzDisplay} (UTC${offsetStr})` + (isAnimating ? ' ⏩' : '');
 
     drawPolarEarth(hours, minutes, seconds);
+    updateCityTints();
 
     // Power reserve
     updatePowerReserve();
@@ -1495,6 +1565,7 @@
   // Initialize
   initSunTimes();
   positionCities();
+  lastCityTintUpdate = 0; // force immediate tint on first frame
   generateHourRing();
   // ═══════════════════════════════════════════════════
   // Power Reserve Complication (6 o'clock)
