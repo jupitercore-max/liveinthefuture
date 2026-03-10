@@ -52,6 +52,12 @@
   let lastChimeKey = '';
   let chimeToggle = null; // created later in DOM init
 
+  // Mechanical tick sound state
+  let tickEnabled = localStorage.getItem('wt_tick') === 'on'; // off by default
+  let tickToggle = null; // created later in DOM init
+  let lastTickBeat = -1; // track last played beat to avoid double-ticks
+  let tickAudioCtx = null; // reuse AudioContext for ticks
+
   // ═══════════════════════════════════════════════════
   // Bezel Drag Rotation State
   // Drag the outer city ring to rotate timezones,
@@ -943,6 +949,68 @@
     };
   }
 
+  // ═══════════════════════════════════════════════════
+  // Mechanical Tick Sound
+  // Synthesizes the sharp "tick" of an escapement wheel
+  // releasing a pallet jewel — 8 beats/sec matching the
+  // visual spring movement. Uses a shared AudioContext
+  // to avoid garbage-collecting hundreds of contexts.
+  // ═══════════════════════════════════════════════════
+  function getTickAudioCtx() {
+    if (!tickAudioCtx || tickAudioCtx.state === 'closed') {
+      try {
+        tickAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) { return null; }
+    }
+    if (tickAudioCtx.state === 'suspended') {
+      tickAudioCtx.resume();
+    }
+    return tickAudioCtx;
+  }
+
+  function playTickSound() {
+    const ctx = getTickAudioCtx();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+
+    // Sharp click: very short noise burst filtered to high frequency
+    // Simulates metal-on-metal pallet jewel impact
+    const bufferSize = Math.floor(ctx.sampleRate * 0.008); // 8ms
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      // Exponential decay noise
+      const env = Math.exp(-i / (bufferSize * 0.15));
+      data[i] = (Math.random() * 2 - 1) * env;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+
+    // High-pass filter — only the sharp "tick", no thud
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 3000;
+    hp.Q.value = 0.7;
+
+    // Band emphasis for metallic character
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 5500;
+    bp.Q.value = 2.0;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0.04; // very subtle
+
+    source.connect(hp);
+    hp.connect(bp);
+    bp.connect(gain);
+    gain.connect(ctx.destination);
+
+    source.start(t);
+    source.stop(t + 0.01);
+  }
+
   function updateClock() {
     const now = new Date();
     let hours, minutes, seconds, millis;
@@ -993,6 +1061,12 @@
     const beatIndex = Math.floor((seconds * BEATS_PER_SEC) + (millis / 1000 * BEATS_PER_SEC));
     const beatFrac = ((seconds * BEATS_PER_SEC) + (millis / 1000 * BEATS_PER_SEC)) % 1;
     const baseDeg = (beatIndex / BEATS_PER_SEC) * 6; // 6° per second, divided into beats
+
+    // Trigger tick sound on each new beat
+    if (tickEnabled && beatIndex !== lastTickBeat && !document.hidden) {
+      lastTickBeat = beatIndex;
+      playTickSound();
+    }
 
     // Spring physics: quick snap with slight overshoot then settle
     let springOffset = 0;
@@ -1910,6 +1984,12 @@
           }
           break;
         case 'escape':
+          // Esc = Reset home timezone to local
+          if (homeTimezone) {
+            e.preventDefault();
+            resetToLocalTimezone();
+          }
+          break;
         case 'm':
           // M = Toggle hour chime
           e.preventDefault();
@@ -1918,11 +1998,13 @@
           chimeToggle.textContent = chimeEnabled ? '🔔' : '🔕';
           if (chimeEnabled) playChimeTone(554.37, 0.8, 0.06, 0);
           break;
-          // Esc = Reset home timezone to local
-          if (homeTimezone) {
-            e.preventDefault();
-            resetToLocalTimezone();
-          }
+        case 't':
+          // T = Toggle mechanical tick sound
+          e.preventDefault();
+          tickEnabled = !tickEnabled;
+          localStorage.setItem('wt_tick', tickEnabled ? 'on' : 'off');
+          tickToggle.textContent = tickEnabled ? '⚙️' : '🔇';
+          if (tickEnabled) playTickSound(); // audible confirmation
           break;
         case '?':
           // ? = Toggle keyboard shortcut hints
@@ -1943,6 +2025,8 @@
       '<span><kbd>R</kbd> Reset</span>',
       '<span><kbd>C</kbd> Stopwatch / Countdown</span>',
       '<span><kbd>Esc</kbd> Reset timezone</span>',
+      '<span><kbd>M</kbd> Toggle chime</span>',
+      '<span><kbd>T</kbd> Toggle tick</span>',
       '<span><kbd>?</kbd> Toggle this help</span>',
     ].join('');
     hintsEl.style.cssText = `
@@ -2072,6 +2156,29 @@
     if (chimeEnabled) playChimeTone(554.37, 0.8, 0.06, 0);
   });
   document.body.appendChild(chimeToggle);
+
+  // Tick toggle button (next to chime)
+  tickToggle = document.createElement('button');
+  tickToggle.className = 'tick-toggle';
+  tickToggle.textContent = tickEnabled ? '⚙️' : '🔇';
+  tickToggle.title = 'Toggle tick sound (T)';
+  tickToggle.style.cssText = `
+    position:fixed; bottom:16px; left:56px; padding:6px 10px;
+    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
+    border:1px solid var(--border); border-radius:var(--radius);
+    cursor:pointer; z-index:9999; opacity:0.5;
+    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
+    line-height:1; font-family:var(--font-mono);
+  `;
+  tickToggle.addEventListener('mouseenter', function() { tickToggle.style.opacity = '1'; });
+  tickToggle.addEventListener('mouseleave', function() { tickToggle.style.opacity = '0.5'; });
+  tickToggle.addEventListener('click', function() {
+    tickEnabled = !tickEnabled;
+    localStorage.setItem('wt_tick', tickEnabled ? 'on' : 'off');
+    tickToggle.textContent = tickEnabled ? '⚙️' : '🔇';
+    if (tickEnabled) playTickSound();
+  });
+  document.body.appendChild(tickToggle);
 
   fitClockToViewport();
 
