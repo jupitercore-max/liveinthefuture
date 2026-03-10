@@ -728,3 +728,20 @@ If it fails, DO NOT commit. Fix the error first.
 - **Duration-based intensity** — All effects scale with `e.slowTimer / (TICK_RATE * 2)`, capped at 0.7 alpha. As the slow wears off, the frost effect gracefully fades
 - **No new state variables** — Uses existing `e.slowTimer > 0` check. Pure render code inside `drawEnemy()`, placed after elite visual and before boss shield visual
 - **Phase compliance** — All code is inside the existing `drawEnemy` function (Phase 5). No new state, no new DOM, no new init calls needed.
+
+### 2025-07-08: Auto-Ability Toggle
+- **🤖 Auto button** next to the ability button — toggles automatic ability casting when off cooldown and enemies are present
+- **Smart targeting** — For targeted abilities (Power Shot, Bombardment, Napalm, Orbital Strike, Headshot), auto-fire picks the strongest enemy in range (preferring bosses > elites > highest maxHP). Falls back to nearest enemy if none in range.
+- **Non-targeted abilities** (Rapid Burst, EMP, Bullet Storm, Chain Overload, Blizzard) fire immediately when off cooldown
+- **[A] keyboard shortcut** to toggle auto-ability on/off
+- **Persistent** — State saved to localStorage (`td_auto_ability`), survives page refresh
+- **Visual feedback** — Button highlights blue with ✓ when active, reverts to default when off
+- **Safety checks** — Only fires during active waves, when cannon exists, when cooldown is 0, and when enemies are alive. Won't fire if player is in manual targeting mode.
+- **Integration** — Auto-fire check runs in the existing 100ms cooldown timer setInterval, so it fires as soon as cooldown expires
+- **Phase compliance:**
+  - Phase 3: `let autoAbilityEnabled` state variable
+  - Phase 4: `let autoAbilityBtn = null` DOM variable + `initDOM()` binding
+  - Phase 5: `toggleAutoAbility()`, `updateAutoAbilityBtn()`, `tryAutoFireAbility()` functions
+  - Phase 6: Click listener on `autoAbilityBtn`, [A] key in keydown handler
+  - Phase 7: `updateAutoAbilityBtn()` init call
+- **Design rationale:** The game is increasingly idle-oriented with prestige progression, but the most powerful feature (active ability) required manual timing every 8-16 seconds. Auto-ability completes the idle experience — set it and forget it, while still allowing manual override (press Q to use the ability manually anytime). This is a standard QoL feature in idle/incremental TD games (Bloons TD, Realm Defense).

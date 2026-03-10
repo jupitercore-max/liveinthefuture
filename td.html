@@ -1164,6 +1164,7 @@
       <button class="ctrl-btn" id="upgradeBtn" disabled>Upgrade</button>
       <button id="ultimateBtn" title="Ultimate [U]" style="background:linear-gradient(135deg,#ff4400,#ffdd00);color:#000;font-weight:bold;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:0.75rem;display:none">💀 Ultimate<span class="ab-key">[U]</span></button>
       <button class="ability-btn" id="abilityBtn" disabled>⚡ Power Shot<span class="ab-key">[Q]</span><div class="ab-cooldown" id="abCooldownBar"></div></button>
+      <button class="ctrl-btn" id="autoAbilityBtn" title="Auto-cast ability when off cooldown [A]" style="font-size:0.7rem;padding:2px 6px">🤖 Auto</button>
       <div class="speed-controls" id="speedControls">
         <button class="speed-btn active" data-speed="1">1×</button>
         <button class="speed-btn" data-speed="2">2×</button>
@@ -1265,6 +1266,7 @@
 
     // DOM element bindings (declared early, assigned in initDOM)
     let abilityBtn = null;
+    let autoAbilityBtn = null;
     let achieveBtn = null;
     let achieveClose = null;
     let achieveCount = null;
@@ -1337,6 +1339,7 @@
 
     function initDOM() {
       abilityBtn = $('abilityBtn');
+      autoAbilityBtn = $('autoAbilityBtn');
       achieveBtn = $('achieveBtn');
       achieveClose = $('achieveClose');
       achieveCount = $('achieveCount');
@@ -1603,6 +1606,10 @@
           // Immediate activation (no targeting needed)
           fireAbility(null, null);
         }
+      });
+
+      autoAbilityBtn.addEventListener('click', () => {
+        toggleAutoAbility();
       });
 
       playersBtn.addEventListener('click', () => {
@@ -2110,6 +2117,7 @@
       prestigeStars += earned;
       savePrestige();
       updatePrestigeBtn();
+    updateAutoAbilityBtn();
       return earned;
     }
 
@@ -3246,6 +3254,7 @@
     let gameSpeed = 1; // 1, 2, or 3
     let abilityCooldownLeft = 0; // seconds remaining on ability cooldown
     let abilityTargeting = false; // waiting for canvas click to target
+    let autoAbilityEnabled = localStorage.getItem('td_auto_ability') === 'true';
     let abilityZones = []; // visual effect zones on canvas
 
     // Ultimate ability state
@@ -5640,6 +5649,64 @@
       }
     }
 
+    function toggleAutoAbility() {
+      autoAbilityEnabled = !autoAbilityEnabled;
+      localStorage.setItem('td_auto_ability', autoAbilityEnabled);
+      updateAutoAbilityBtn();
+    }
+
+    function updateAutoAbilityBtn() {
+      if (!autoAbilityBtn) return;
+      if (autoAbilityEnabled) {
+        autoAbilityBtn.style.background = 'rgba(30,144,255,0.3)';
+        autoAbilityBtn.style.borderColor = 'rgba(30,144,255,0.8)';
+        autoAbilityBtn.style.color = '#7df';
+        autoAbilityBtn.textContent = '🤖 Auto ✓';
+      } else {
+        autoAbilityBtn.style.background = '';
+        autoAbilityBtn.style.borderColor = '';
+        autoAbilityBtn.style.color = '';
+        autoAbilityBtn.textContent = '🤖 Auto';
+      }
+    }
+
+    function tryAutoFireAbility() {
+      if (!autoAbilityEnabled) return;
+      if (abilityCooldownLeft > 0) return;
+      if (waveState !== 'active') return;
+      if (abilityTargeting) return;
+      const c = cannons[playerId];
+      if (!c || !c.x) return;
+      const ab = getPlayerAbility();
+      const stats = getCannonStats(c.level || 1, c.path || null, c.spec || null);
+      // Check if any enemies alive
+      const aliveEnemies = enemies.filter(e => e.hp > 0);
+      if (aliveEnemies.length === 0) return;
+      if (ab.targeted) {
+        // For targeted abilities, find best target automatically
+        // Prefer strongest enemy in range, fall back to nearest
+        let bestTarget = null;
+        let bestScore = -Infinity;
+        for (const e of aliveEnemies) {
+          const dist = Math.hypot(e.x - c.x, e.y - c.y);
+          if (dist <= stats.range * 1.5) {
+            const score = (e.maxHp || e.hp) + (e.boss ? 100000 : 0) + (e.elite ? 50000 : 0);
+            if (score > bestScore) { bestScore = score; bestTarget = e; }
+          }
+        }
+        if (!bestTarget) {
+          // No enemy in extended range — find nearest anywhere
+          bestTarget = findNearestEnemy(c.x, c.y, 9999);
+        }
+        if (bestTarget) {
+          fireAbility(bestTarget.x, bestTarget.y);
+        }
+      } else {
+        // Non-targeted abilities fire immediately
+        fireAbility(null, null);
+      }
+    }
+
     function updateAbilityBtn() {
       updateUltimateBtn();
       const c = cannons[playerId];
@@ -5671,6 +5738,8 @@
         ultimateCooldownLeft = Math.max(0, ultimateCooldownLeft - 0.1);
         updateUltimateBtn();
       }
+      // Auto-fire ability when off cooldown
+      tryAutoFireAbility();
     }, 100);
 
 
@@ -5683,6 +5752,9 @@
       }
       if (e.key === 'q' || e.key === 'Q') {
         if (!abilityBtn.disabled) abilityBtn.click();
+      }
+      if (e.key === 'a' || e.key === 'A') {
+        toggleAutoAbility();
       }
       if (e.key === 'e' || e.key === 'E') {
         if (!sendNextBtn.disabled) sendNextBtn.click();
