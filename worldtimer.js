@@ -742,6 +742,15 @@
     resetToLocalTimezone();
   });
 
+  // Watch crown click — reset to local timezone (like pressing Esc)
+  const watchCrown = document.getElementById('watchCrown');
+  if (watchCrown) {
+    watchCrown.addEventListener('click', (e) => {
+      e.stopPropagation();
+      resetToLocalTimezone();
+    });
+  }
+
   // ═══════════════════════════════════════════════════
   // Bezel Drag Rotation Handlers
   // Drag the outer city ring to rotate timezones.
