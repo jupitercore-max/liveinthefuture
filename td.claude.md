@@ -745,3 +745,13 @@ If it fails, DO NOT commit. Fix the error first.
   - Phase 6: Click listener on `autoAbilityBtn`, [A] key in keydown handler
   - Phase 7: `updateAutoAbilityBtn()` init call
 - **Design rationale:** The game is increasingly idle-oriented with prestige progression, but the most powerful feature (active ability) required manual timing every 8-16 seconds. Auto-ability completes the idle experience — set it and forget it, while still allowing manual override (press Q to use the ability manually anytime). This is a standard QoL feature in idle/incremental TD games (Bloons TD, Realm Defense).
+
+### 2025-07-08: Enemy Speed Trails
+- **Visual motion streaks** behind fast-moving enemies — fading circles along the path behind each enemy
+- **Speed-proportional** — trail length (1-5 dots) and opacity scale with `e.speed`. Slow enemies (tanks, bosses at 0.5-0.8 speed) get no trail. Fast enemies (speedsters at 3.5) get 5 bright dots. Medium enemies get 2-3 subtle dots.
+- **Frost-aware** — uses `effectiveSpeed` (halved when slowed), so frozen enemies lose their trails, giving visual feedback that the slow is working
+- **Boss-aware** — boss trails use 60% radius (wider), normal enemy trails use 45% radius
+- **Shrinking dots** — each trail dot is 12% smaller than the last, creating a natural taper
+- **No new state** — computed each frame from `e.pathProgress`, `e.speed`, and `getPathPosition()`. Pure render code inside `drawEnemy()`.
+- **Phase compliance** — All code inside the existing `drawEnemy` function body (Phase 5). No state, no DOM, no init changes needed.
+- **Threshold** — Only enemies with effectiveSpeed >= 1.2 get trails, keeping the battlefield clean for slow enemies

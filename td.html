@@ -8058,6 +8058,28 @@
       const isBoss = e.type === 'boss';
       const t = Date.now();
 
+      // ── Speed Trails ──
+      // Motion streaks behind fast enemies — longer/brighter for faster units
+      const effectiveSpeed = e.speed * (e.slowTimer > 0 ? 0.5 : 1);
+      if (effectiveSpeed >= 1.2 && currentPath && e.pathProgress > 0.02) {
+        const trailCount = Math.min(5, Math.floor(effectiveSpeed * 1.5));
+        const stepSize = 0.008 * effectiveSpeed;
+        const baseAlpha = Math.min(0.4, effectiveSpeed * 0.1);
+        const trailRadius = isBoss ? e.radius * 0.6 : e.radius * 0.45;
+        for (let i = 1; i <= trailCount; i++) {
+          const tp = e.pathProgress - stepSize * i;
+          if (tp <= 0) break;
+          const trailPos = getPathPosition(currentPath, tp);
+          const alpha = baseAlpha * (1 - i / (trailCount + 1));
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = e.color;
+          ctx.beginPath();
+          ctx.arc(trailPos.x, trailPos.y, Math.max(2, trailRadius * (1 - i * 0.12)), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
       // ── Boss: Pulsing aura ──
       if (isBoss) {
         const pulse = 0.3 + Math.sin(t * 0.004) * 0.15;
