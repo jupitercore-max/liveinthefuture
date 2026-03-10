@@ -694,3 +694,13 @@ If it fails, DO NOT commit. Fix the error first.
 - **Zero new state/DOM/init** — pure rendering code inside the existing `drawCannon()` function (Phase 5), right where `barrelTarget` is already computed for barrel rotation. No TDZ risk whatsoever.
 - **Tactical feedback** — you can now visually confirm your targeting priority is working. If you set "Strongest" and see all lines converging on the boss, it's working. If one cannon is targeting a weak enemy instead, you might need to adjust its position.
 - **Design rationale:** Targeting lines are a staple of TD games (Kingdom Rush, Bloons TD6, Mindustry). They solve the "is my tower doing anything useful?" question at a glance. The dashed style prevents visual overload when many cannons are active.
+
+### 2026-03-10: XP Progress Ring Around Cannons
+- **Visual XP feedback on every cannon** — A thin circular arc drawn around each cannon showing progress toward the next level. Fills clockwise from the top as XP accumulates. Provides at-a-glance leveling feedback without needing to hover or click.
+- **Three visual states:**
+  - **Empty** (0 XP): No ring shown — clean look for freshly placed cannons
+  - **In progress** (1-99%): Subtle white track ring (15% alpha) with a brighter progress arc. Blue for your own cannon, green for other players' cannons — consistent with existing color conventions.
+  - **Max level (20)**: Full gold ring with gentle pulse animation (sinusoidal alpha). Immediately communicates "this cannon is fully upgraded" at a glance.
+- **Implementation:** Pure rendering code inside `drawCannon()` (Phase 5), inserted before the glow aura section. Uses `XP_PER_LEVEL()` (Phase 2 constant) and `c.xp`/`c.level` from cannon data. Block-scoped with `{}` to avoid variable leaks.
+- **No new state, DOM, listeners, or init calls** — zero TDZ risk. Just 35 lines of canvas arc drawing inside an existing function.
+- **Design rationale:** The game has 20 levels with a quadratic XP curve, but the only XP feedback was the HUD bar (only for your own cannon) and the hover tooltip. The ring gives instant visual feedback for ALL cannons on the field. In multiplayer, you can see which teammates are close to leveling up. The gold max-level ring creates a clear visual goal — players want to see that ring turn gold. This is a standard pattern from RPGs and MOBAs (League of Legends champion level indicator, Diablo paragon glow).

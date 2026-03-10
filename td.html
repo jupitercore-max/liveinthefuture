@@ -7311,6 +7311,31 @@
         ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
       }
 
+      // Wave progress bar (top of canvas, during active waves)
+      if (waveState === 'active' && waveStats.enemiesSpawned > 0) {
+        const barH = 4;
+        const killed = waveStats.kills;
+        const total = waveStats.enemiesSpawned;
+        const alive = enemies.filter(e => e.hp > 0).length;
+        const progress = Math.min(killed / total, 1);
+        // Background track
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillRect(0, 0, CANVAS_W, barH);
+        // Fill — green to yellow to red based on how many are still alive
+        const aliveRatio = total > 0 ? alive / total : 0;
+        const r = Math.floor(40 + 200 * aliveRatio);
+        const g = Math.floor(200 - 100 * aliveRatio);
+        ctx.fillStyle = `rgb(${r},${g},60)`;
+        ctx.fillRect(0, 0, CANVAS_W * progress, barH);
+        // Kill count label (right-aligned, small)
+        ctx.save();
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'right';
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillText(`${killed}/${total}`, CANVAS_W - 6, barH + 12);
+        ctx.restore();
+      }
+
       // Mini-map overlay (bottom-left)
       drawMiniMap();
 
@@ -7451,6 +7476,47 @@
           ctx.arc(barrelTarget.x, barrelTarget.y, 8, 0, Math.PI * 2);
           ctx.stroke();
           ctx.restore();
+        }
+      }
+
+      // XP progress ring around cannon
+      {
+        const xp = c.xp || 0;
+        const lvl = c.level || 1;
+        const maxLvl = 20;
+        const ringR = baseR + 3;
+        if (lvl >= maxLvl) {
+          // Max level — full gold ring with subtle pulse
+          ctx.save();
+          const pulse = 0.5 + 0.2 * Math.sin(Date.now() / 300);
+          ctx.globalAlpha = pulse;
+          ctx.strokeStyle = '#ffd700';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(x, y, ringR, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          const needed = XP_PER_LEVEL(lvl);
+          const pct = needed > 0 ? Math.min(xp / needed, 1) : 0;
+          if (pct > 0) {
+            // Background track
+            ctx.save();
+            ctx.globalAlpha = 0.15;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, ringR, 0, Math.PI * 2);
+            ctx.stroke();
+            // Progress arc (starts at top, clockwise)
+            ctx.globalAlpha = 0.7;
+            ctx.strokeStyle = isMe ? '#1E90FF' : '#2ecc71';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, ringR, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct);
+            ctx.stroke();
+            ctx.restore();
+          }
         }
       }
 
