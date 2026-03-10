@@ -1273,6 +1273,7 @@
         <button class="speed-btn prestige-speed" data-speed="10" style="display:none">10×</button>
       </div>
       <button class="ctrl-btn" id="pauseBtn" title="Pause/Resume [P]" style="font-weight:bold">⏸ Pause<span class="ab-key">[P]</span></button>
+      <button class="ctrl-btn" id="autoWaveBtn" title="Auto-start next wave [W]" style="font-size:0.7rem;padding:2px 6px">🌊 Auto</button>
       <button class="ctrl-btn send-next-btn" id="sendNextBtn" disabled>⏩ Send Next <span class="ab-key">[E]</span></button>
       <button class="ctrl-btn" id="aidBtn" title="Call for Aid [H]" style="background:linear-gradient(135deg,#2ecc71,#27ae60);color:#fff;font-weight:bold;display:none">🆘 Aid<span class="ab-key">[H]</span></button>
       <button class="ctrl-btn" id="relocateBtn">Relocate</button>
@@ -1379,6 +1380,7 @@
     // DOM element bindings (declared early, assigned in initDOM)
     let abilityBtn = null;
     let autoAbilityBtn = null;
+    let autoWaveBtn = null;
     let achieveBtn = null;
     let achieveClose = null;
     let achieveCount = null;
@@ -1457,6 +1459,7 @@
     function initDOM() {
       abilityBtn = $('abilityBtn');
       autoAbilityBtn = $('autoAbilityBtn');
+      autoWaveBtn = $('autoWaveBtn');
       achieveBtn = $('achieveBtn');
       achieveClose = $('achieveClose');
       achieveCount = $('achieveCount');
@@ -1741,6 +1744,10 @@
 
       autoAbilityBtn.addEventListener('click', () => {
         toggleAutoAbility();
+      });
+
+      autoWaveBtn.addEventListener('click', () => {
+        toggleAutoWave();
       });
 
       playersBtn.addEventListener('click', () => {
@@ -2234,6 +2241,7 @@
     }
 
     function getWaveCountdownSecs() {
+      if (autoWaveEnabled) return 0.5; // auto-wave: minimal delay
       const lvl = getPrestigeLevel('wave_rush');
       return [3, 2.5, 2, 1][lvl]; // 0=3s, 1=2.5s, 2=2s, 3=1s
     }
@@ -3614,6 +3622,7 @@
     let abilityCooldownLeft = 0; // seconds remaining on ability cooldown
     let abilityTargeting = false; // waiting for canvas click to target
     let autoAbilityEnabled = localStorage.getItem('td_auto_ability') === 'true';
+    let autoWaveEnabled = localStorage.getItem('td_auto_wave') === 'true';
     let abilityZones = []; // visual effect zones on canvas
     let bestiaryKills = {}; // { type: killCount } — tracks lifetime kills per enemy type
 
@@ -5178,8 +5187,9 @@
       wsBarFill.style.width = (result.total * 100) + '%';
       wsBarFill.style.background = colors[result.cls] || '#1E90FF';
       waveSummaryEl.classList.add('active');
-      // Auto-dismiss after 2.5 seconds (3s if challenge completed for celebration)
-      const dismissTime = (currentChallenge && currentChallenge.check(waveStats)) ? 3500 : 2500;
+      // Auto-dismiss after 2.5 seconds (3s if challenge completed for celebration, 1s if auto-wave)
+      let dismissTime = (currentChallenge && currentChallenge.check(waveStats)) ? 3500 : 2500;
+      if (autoWaveEnabled) dismissTime = Math.min(dismissTime, 1000);
       if (waveSummaryTimeout) clearTimeout(waveSummaryTimeout);
       waveSummaryTimeout = setTimeout(() => {
         waveSummaryEl.classList.remove('active');
@@ -6164,6 +6174,27 @@
       }
     }
 
+    function toggleAutoWave() {
+      autoWaveEnabled = !autoWaveEnabled;
+      localStorage.setItem('td_auto_wave', autoWaveEnabled);
+      updateAutoWaveBtn();
+    }
+
+    function updateAutoWaveBtn() {
+      if (!autoWaveBtn) return;
+      if (autoWaveEnabled) {
+        autoWaveBtn.style.background = 'rgba(30,144,255,0.3)';
+        autoWaveBtn.style.borderColor = 'rgba(30,144,255,0.8)';
+        autoWaveBtn.style.color = '#7df';
+        autoWaveBtn.textContent = '🌊 Auto ✓';
+      } else {
+        autoWaveBtn.style.background = '';
+        autoWaveBtn.style.borderColor = '';
+        autoWaveBtn.style.color = '';
+        autoWaveBtn.textContent = '🌊 Auto';
+      }
+    }
+
     function tryAutoFireAbility() {
       if (!autoAbilityEnabled) return;
       if (abilityCooldownLeft > 0) return;
@@ -6249,6 +6280,9 @@
       }
       if (e.key === 'a' || e.key === 'A') {
         toggleAutoAbility();
+      }
+      if (e.key === 'w' || e.key === 'W') {
+        toggleAutoWave();
       }
       if (e.key === 'e' || e.key === 'E') {
         if (!sendNextBtn.disabled) sendNextBtn.click();
@@ -10089,6 +10123,7 @@
     loadRunHistory();
     muteBtn.textContent = soundMuted ? '🔇' : '🔊';
     updatePrestigeBtn();
+    updateAutoWaveBtn();
     updateAvatarBtn();
     updatePriorityBtn();
     const savedAvatar = localStorage.getItem('td_avatar');
