@@ -646,6 +646,85 @@
     .chrono-start.running { background: #c0392b; color: #fff; border-color: #c0392b; }
     .chrono-start.running:hover { background: #e74c3c; border-color: #e74c3c; }
 
+    /* Chrono mode toggle (⏱/⏳) */
+    .chrono-mode-toggle {
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 2px 6px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .chrono-mode-toggle:hover { border-color: var(--accent); }
+    .chrono-mode-toggle.countdown-mode { background: rgba(230, 126, 34, 0.15); border-color: #e67e22; }
+
+    /* Countdown preset chips */
+    .countdown-presets {
+      display: none;
+      gap: 4px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 4px;
+    }
+    .countdown-presets.visible { display: flex; }
+    .countdown-preset {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      padding: 2px 8px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--card-bg);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .countdown-preset:hover { border-color: #e67e22; color: #e67e22; }
+    .countdown-preset.active { background: #e67e22; color: #fff; border-color: #e67e22; }
+
+    /* Countdown progress bar */
+    .countdown-progress {
+      display: none;
+      width: 100%;
+      max-width: 200px;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+    .countdown-progress.visible { display: block; }
+    .countdown-progress-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #e67e22, #f39c12);
+      border-radius: 2px;
+      transition: width 0.1s linear;
+    }
+    .countdown-progress-fill.critical { background: linear-gradient(90deg, #c0392b, #e74c3c); }
+
+    /* Countdown flash alert */
+    .countdown-flash {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(230, 76, 60, 0.25);
+      z-index: 9999;
+      pointer-events: none;
+      animation: countdownFlash 0.5s ease-out 3;
+    }
+    .countdown-flash.active { display: block; }
+    @keyframes countdownFlash {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* Countdown display color */
+    .chrono-display.countdown-active { color: #e67e22; }
+    .chrono-display.countdown-critical { color: #e74c3c; }
+    .chrono-display.countdown-done { color: #e74c3c; }
+
     /* City tooltip */
     .city-tooltip {
       position: absolute;
@@ -961,8 +1040,9 @@
     <div class="timezone-info" id="timezoneInfo"></div>
     <div class="sun-info" id="sunInfo"></div>
 
-    <!-- Chronograph Stopwatch -->
+    <!-- Chronograph Stopwatch / Countdown -->
     <div class="chrono-bar" id="chronoBar">
+      <span class="chrono-mode-toggle" id="chronoModeToggle" title="Switch Stopwatch / Countdown">⏱</span>
       <div class="chrono-display" id="chronoDisplay">00:00.00</div>
       <div class="chrono-lap" id="chronoLap"></div>
       <div class="chrono-buttons">
@@ -970,6 +1050,18 @@
         <button class="chrono-btn chrono-lap-btn" id="chronoLapReset" disabled>Lap</button>
       </div>
     </div>
+    <div class="countdown-presets" id="countdownPresets">
+      <span class="countdown-preset" data-secs="60">1m</span>
+      <span class="countdown-preset" data-secs="180">3m</span>
+      <span class="countdown-preset active" data-secs="300">5m</span>
+      <span class="countdown-preset" data-secs="600">10m</span>
+      <span class="countdown-preset" data-secs="900">15m</span>
+      <span class="countdown-preset" data-secs="1800">30m</span>
+    </div>
+    <div class="countdown-progress" id="countdownProgress">
+      <div class="countdown-progress-fill" id="countdownProgressFill"></div>
+    </div>
+    <div class="countdown-flash" id="countdownFlash"></div>
   </div>
 
   <script src="worldtimer.js"></script>

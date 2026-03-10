@@ -1643,7 +1643,7 @@
   }
 
   // ═══════════════════════════════════════════════════
-  //  Chronograph Stopwatch
+  //  Chronograph Stopwatch + Countdown Timer
   // ═══════════════════════════════════════════════════
   const chronoDisplay = document.getElementById('chronoDisplay');
   const chronoLapEl = document.getElementById('chronoLap');
@@ -1658,6 +1658,16 @@
     let chronoLapStart = 0;
     let chronoLapCount = 0;
 
+    // ── Countdown state ──
+    let countdownMode = false;
+    let countdownDurationMs = 300000; // default 5 min
+    let countdownDone = false;
+    const chronoModeToggle = document.getElementById('chronoModeToggle');
+    const countdownPresetsEl = document.getElementById('countdownPresets');
+    const countdownProgress = document.getElementById('countdownProgress');
+    const countdownProgressFill = document.getElementById('countdownProgressFill');
+    const countdownFlash = document.getElementById('countdownFlash');
+
     function formatChrono(ms) {
       const totalSec = ms / 1000;
       const min = Math.floor(totalSec / 60);
@@ -1669,15 +1679,144 @@
     function updateChronoDisplay() {
       const now = performance.now();
       const total = chronoElapsed + (chronoRunning ? now - chronoStart : 0);
-      chronoDisplay.textContent = formatChrono(total);
+
+      if (countdownMode) {
+        const remaining = Math.max(0, countdownDurationMs - total);
+        chronoDisplay.textContent = formatChrono(remaining);
+
+        // Progress bar
+        if (countdownProgress && countdownProgressFill) {
+          const pct = remaining / countdownDurationMs;
+          countdownProgressFill.style.width = (pct * 100).toFixed(1) + '%';
+          countdownProgressFill.classList.toggle('critical', pct < 0.15);
+        }
+
+        // Color states
+        const pctLeft = remaining / countdownDurationMs;
+        chronoDisplay.classList.toggle('countdown-active', pctLeft > 0.15 && pctLeft <= 1);
+        chronoDisplay.classList.toggle('countdown-critical', pctLeft <= 0.15 && remaining > 0);
+        chronoDisplay.classList.toggle('countdown-done', remaining <= 0);
+
+        // Timer reached zero
+        if (remaining <= 0 && !countdownDone) {
+          countdownDone = true;
+          chronoRunning = false;
+          if (chronoRaf) cancelAnimationFrame(chronoRaf);
+          chronoStartStop.textContent = 'Start';
+          chronoStartStop.classList.remove('running');
+          chronoLapReset.textContent = 'Reset';
+          chronoDisplay.textContent = '00:00.00';
+
+          // Flash alert
+          if (countdownFlash) {
+            countdownFlash.classList.add('active');
+            setTimeout(() => countdownFlash.classList.remove('active'), 1600);
+          }
+          // Audio beep (3 short tones)
+          try {
+            const actx = new (window.AudioContext || window.webkitAudioContext)();
+            [0, 200, 400].forEach(delay => {
+              const osc = actx.createOscillator();
+              const gain = actx.createGain();
+              osc.connect(gain);
+              gain.connect(actx.destination);
+              osc.frequency.value = 880;
+              osc.type = 'sine';
+              gain.gain.value = 0.15;
+              osc.start(actx.currentTime + delay / 1000);
+              osc.stop(actx.currentTime + delay / 1000 + 0.12);
+            });
+          } catch (e) { /* no audio context */ }
+          return;
+        }
+      } else {
+        chronoDisplay.textContent = formatChrono(total);
+      }
+
       if (chronoRunning) {
         chronoRaf = requestAnimationFrame(updateChronoDisplay);
       }
     }
 
+    // ── Mode toggle ──
+    function setCountdownMode(enabled) {
+      countdownMode = enabled;
+      if (chronoModeToggle) {
+        chronoModeToggle.textContent = enabled ? '⏳' : '⏱';
+        chronoModeToggle.classList.toggle('countdown-mode', enabled);
+        chronoModeToggle.title = enabled ? 'Switch to Stopwatch' : 'Switch to Countdown';
+      }
+      if (countdownPresetsEl) countdownPresetsEl.classList.toggle('visible', enabled);
+      if (countdownProgress) countdownProgress.classList.toggle('visible', enabled);
+
+      // Reset state when switching modes
+      chronoRunning = false;
+      chronoElapsed = 0;
+      chronoLapCount = 0;
+      countdownDone = false;
+      if (chronoRaf) cancelAnimationFrame(chronoRaf);
+      chronoStartStop.textContent = 'Start';
+      chronoStartStop.classList.remove('running');
+      chronoLapReset.disabled = true;
+      chronoLapEl.textContent = '';
+      chronoDisplay.className = 'chrono-display';
+
+      if (enabled) {
+        chronoDisplay.textContent = formatChrono(countdownDurationMs);
+        chronoLapReset.textContent = 'Reset';
+        if (countdownProgressFill) {
+          countdownProgressFill.style.width = '100%';
+          countdownProgressFill.classList.remove('critical');
+        }
+      } else {
+        chronoDisplay.textContent = '00:00.00';
+        chronoLapReset.textContent = 'Lap';
+      }
+    }
+
+    if (chronoModeToggle) {
+      chronoModeToggle.addEventListener('click', () => {
+        if (chronoRunning) return; // don't switch while running
+        setCountdownMode(!countdownMode);
+      });
+    }
+
+    // ── Preset chips ──
+    if (countdownPresetsEl) {
+      countdownPresetsEl.addEventListener('click', (e) => {
+        const chip = e.target.closest('.countdown-preset');
+        if (!chip || chronoRunning) return;
+        const secs = parseInt(chip.dataset.secs, 10);
+        if (!secs) return;
+        countdownDurationMs = secs * 1000;
+        // Update active state
+        countdownPresetsEl.querySelectorAll('.countdown-preset').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        // Reset display
+        chronoElapsed = 0;
+        countdownDone = false;
+        chronoDisplay.textContent = formatChrono(countdownDurationMs);
+        chronoDisplay.className = 'chrono-display';
+        if (countdownProgressFill) {
+          countdownProgressFill.style.width = '100%';
+          countdownProgressFill.classList.remove('critical');
+        }
+      });
+    }
+
     chronoStartStop.addEventListener('click', () => {
       if (!chronoRunning) {
         // Start
+        if (countdownMode && countdownDone) {
+          // Re-start after countdown finished — reset first
+          chronoElapsed = 0;
+          countdownDone = false;
+          chronoDisplay.className = 'chrono-display';
+          if (countdownProgressFill) {
+            countdownProgressFill.style.width = '100%';
+            countdownProgressFill.classList.remove('critical');
+          }
+        }
         chronoRunning = true;
         chronoStart = performance.now();
         if (chronoElapsed === 0) {
@@ -1687,7 +1826,7 @@
         chronoStartStop.textContent = 'Stop';
         chronoStartStop.classList.add('running');
         chronoLapReset.disabled = false;
-        chronoLapReset.textContent = 'Lap';
+        chronoLapReset.textContent = countdownMode ? 'Reset' : 'Lap';
         updateChronoDisplay();
       } else {
         // Stop
@@ -1701,22 +1840,33 @@
     });
 
     chronoLapReset.addEventListener('click', () => {
-      if (chronoRunning) {
-        // Lap
+      if (chronoRunning && !countdownMode) {
+        // Lap (stopwatch only)
         const now = performance.now();
-        const total = chronoElapsed + (now - chronoStart);
         const lapTime = now - chronoLapStart;
         chronoLapCount++;
         chronoLapEl.textContent = `L${chronoLapCount} ${formatChrono(lapTime)}`;
         chronoLapStart = now;
-      } else {
+      } else if (!chronoRunning) {
         // Reset
         chronoElapsed = 0;
         chronoLapCount = 0;
-        chronoDisplay.textContent = '00:00.00';
+        countdownDone = false;
+        chronoDisplay.className = 'chrono-display';
         chronoLapEl.textContent = '';
         chronoLapReset.disabled = true;
-        chronoLapReset.textContent = 'Lap';
+
+        if (countdownMode) {
+          chronoDisplay.textContent = formatChrono(countdownDurationMs);
+          chronoLapReset.textContent = 'Reset';
+          if (countdownProgressFill) {
+            countdownProgressFill.style.width = '100%';
+            countdownProgressFill.classList.remove('critical');
+          }
+        } else {
+          chronoDisplay.textContent = '00:00.00';
+          chronoLapReset.textContent = 'Lap';
+        }
       }
     });
 
@@ -1734,17 +1884,24 @@
           chronoStartStop.click();
           break;
         case 'l':
-          // L = Lap (when running) or noop
-          if (chronoRunning) {
+          // L = Lap (when running in stopwatch mode)
+          if (chronoRunning && !countdownMode) {
             e.preventDefault();
             chronoLapReset.click();
           }
           break;
         case 'r':
           // R = Reset (when stopped with elapsed time)
-          if (!chronoRunning && chronoElapsed > 0) {
+          if (!chronoRunning && (chronoElapsed > 0 || countdownDone)) {
             e.preventDefault();
             chronoLapReset.click();
+          }
+          break;
+        case 'c':
+          // C = Toggle countdown/stopwatch mode
+          if (!chronoRunning) {
+            e.preventDefault();
+            setCountdownMode(!countdownMode);
           }
           break;
         case 'escape':
@@ -1771,6 +1928,7 @@
       '<span><kbd>Space</kbd> Start / Stop</span>',
       '<span><kbd>L</kbd> Lap</span>',
       '<span><kbd>R</kbd> Reset</span>',
+      '<span><kbd>C</kbd> Stopwatch / Countdown</span>',
       '<span><kbd>Esc</kbd> Reset timezone</span>',
       '<span><kbd>?</kbd> Toggle this help</span>',
     ].join('');
