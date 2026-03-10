@@ -2364,6 +2364,7 @@
     let sessionWavesCleared = 0;
     let sessionEarlySends = 0;
     let sessionAbilitiesUsed = 0;
+    let personalBestBroken = false; // true once we pass lifetimeStats.bestWave this run
 
     function updateLifetimeStatsOnGameOver(wave, kills) {
       const records = [];
@@ -2930,6 +2931,79 @@
         g2.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
         osc2.connect(g2); osc2.start(now + 0.08); osc2.stop(now + 0.3);
       });
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Personal Best Record Celebration
+    // ═══════════════════════════════════════════════════
+    function sfxNewRecord() {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        // Triumphant fanfare: C5 → E5 → G5 → C6, each with shimmer
+        const notes = [523, 659, 784, 1047];
+        notes.forEach((freq, i) => {
+          const t = now + i * 0.12;
+          const osc = ctx.createOscillator();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          const g = makeGain(ctx, 0.18);
+          g.gain.setValueAtTime(0.18 * soundVolume, t);
+          g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+          osc.connect(g); osc.start(t); osc.stop(t + 0.35);
+          // Shimmer overtone
+          const osc2 = ctx.createOscillator();
+          osc2.type = 'sine';
+          osc2.frequency.value = freq * 2;
+          const g2 = makeGain(ctx, 0.06);
+          g2.gain.setValueAtTime(0.06 * soundVolume, t);
+          g2.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+          osc2.connect(g2); osc2.start(t); osc2.stop(t + 0.25);
+        });
+        // Final sustained chord (C5+E5+G5)
+        [523, 659, 784].forEach(freq => {
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const g = makeGain(ctx, 0.08);
+          const t = now + 0.48;
+          g.gain.setValueAtTime(0.08 * soundVolume, t);
+          g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+          osc.connect(g); osc.start(t); osc.stop(t + 0.6);
+        });
+      });
+    }
+
+    function checkPersonalBest() {
+      if (personalBestBroken) return; // only trigger once per run
+      if (!lifetimeStats || lifetimeStats.bestWave <= 0) return; // no previous record
+      if (waveNumber <= lifetimeStats.bestWave) return; // haven't passed it yet
+      personalBestBroken = true;
+      // Big golden announcement via streakAnnouncement system
+      streakAnnouncement = {
+        text: '\u{1F3C6} NEW RECORD!',
+        color: '#ffd700',
+        size: 44,
+        timer: 90,
+        maxTimer: 90
+      };
+      // Golden particle burst from center
+      for (let i = 0; i < 20; i++) {
+        const angle = (Math.PI * 2 * i) / 20;
+        const speed = 2 + Math.random() * 3;
+        scorePopups.push({
+          x: CANVAS_W / 2 + (Math.random() - 0.5) * 40,
+          y: CANVAS_H * 0.35,
+          text: '\u2728',
+          color: '#ffd700',
+          life: 30 + Math.floor(Math.random() * 15),
+          size: 10 + Math.floor(Math.random() * 8),
+          vy: -speed * Math.sin(angle) * 0.7,
+          vx: speed * Math.cos(angle)
+        });
+      }
+      // Sound + screen shake
+      sfxNewRecord();
+      triggerScreenShake(true);
     }
 
     // Sound throttle for rapid-fire cannons (limit sounds per frame)
@@ -4909,6 +4983,8 @@
         sfxWaveClear();
         waveNumber++;
         sessionWavesCleared++;
+        // Check for personal best record
+        checkPersonalBest();
         // Wave achievements
         if (waveNumber > 5) unlockAchievement('wave_5');
         if (waveNumber > 10) unlockAchievement('wave_10');
@@ -5172,6 +5248,7 @@
       updatePauseBtn();
       scorePopups = [];
       streakAnnouncement = null;
+      personalBestBroken = false;
       resetDpsMeter();
       abilityZones = [];
       lightningBolts = [];
@@ -7926,6 +8003,21 @@
 
       // Mini-map overlay (bottom-left)
       drawMiniMap();
+
+      // Draw persistent personal best indicator when in record territory
+      if (personalBestBroken && waveState !== 'gameover') {
+        const pbAlpha = 0.6 + 0.2 * Math.sin(Date.now() * 0.003);
+        ctx.save();
+        ctx.globalAlpha = pbAlpha;
+        ctx.font = 'bold 13px ' + getComputedStyle(document.body).fontFamily;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = '#ffd700';
+        ctx.fillText('\u{1F3C6} NEW PB: Wave ' + waveNumber, 10, 10);
+        ctx.restore();
+      }
 
       // Pause overlay
       if (gamePaused) {

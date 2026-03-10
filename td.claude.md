@@ -834,3 +834,19 @@ If it fails, DO NOT commit. Fix the error first.
 - **No new state variables, DOM elements, event listeners, or init calls** — pure Phase 5 rendering function that scans `enemies` array each frame. Zero TDZ risk. Called from `drawFrame()` right before `drawDangerVignette()`.
 - **Boss detection** — `enemies.find(e => e.type === 'boss' && e.hp > 0 && !e.dead)` — bar auto-appears when a boss exists and auto-disappears when killed.
 - **Design rationale:** Boss fights are the game's climactic events (every 10 waves), but bosses were visually treated the same as regular enemies — just a slightly wider HP bar above their sprite. The cinematic health bar makes boss encounters feel like real boss fights. The phase pips help players track the 3-phase system (shield → summon → enrage) at a glance instead of guessing. This is one of the most impactful UX improvements for late-game engagement because it makes the milestone waves feel special and dramatic. The Dark Souls comparison is intentional — that franchise popularized the "wide bottom/top bar with boss name" pattern that's now standard in action games.
+
+### 2026-03-10: Live Personal Best Celebration
+- **Real-time record-breaking notification** — When you clear a wave past your `lifetimeStats.bestWave`, the game immediately fires a dramatic "🏆 NEW RECORD!" announcement instead of waiting until game over to tell you.
+- **Golden announcement** — Uses the existing `streakAnnouncement` system with 44px gold text, 90-frame (1.5s) duration — longer than streak callouts to emphasize the significance.
+- **Particle burst** — 20 golden ✨ sparkle particles spray radially from the center of the canvas in all directions. Uses the existing `scorePopups` system with `vx` support for true circular burst.
+- **Triumphant fanfare** — `sfxNewRecord()` plays an ascending C major arpeggio (C5→E5→G5→C6) with shimmer overtones, followed by a sustained C major chord. Richer than the level-up sound, shorter than the game over jingle.
+- **Heavy screen shake** — `triggerScreenShake(true)` for maximum impact.
+- **Persistent PB indicator** — After the initial celebration, a golden pulsing "🏆 NEW PB: Wave X" text remains in the top-left corner of the canvas for the rest of the run. Gentle sine-wave alpha pulse (0.6-0.8). Disappears on game over.
+- **Once per run** — `personalBestBroken` flag prevents the celebration from firing on every subsequent wave. Resets on `resetGame()`.
+- **No first-game false positive** — Skips if `lifetimeStats.bestWave <= 0` (first ever game has no record to beat).
+- **Phase compliance:**
+  - Phase 3: `let personalBestBroken = false` state variable
+  - Phase 5: `sfxNewRecord()`, `checkPersonalBest()` functions + PB indicator rendering inside `drawFrame()`
+  - Hook: `checkPersonalBest()` called in wave clear block after `waveNumber++` and `sessionWavesCleared++`
+  - Reset: `personalBestBroken = false` in `resetGame()` alongside other per-run state
+- **Design rationale:** The game already tracked bestWave in localStorage and showed "🏆 NEW RECORD" on the game over screen, but that's an anticlimax — by the time you see it, you've already died. The excitement of *surpassing your record* should happen in the moment, while you're still playing and pushing further. This creates a "just one more wave" motivator because every wave beyond your PB is visibly extending your record. Inspired by racing games that show live "NEW LAP RECORD" overlays during gameplay, and roguelikes that celebrate floor milestones.
