@@ -850,3 +850,20 @@ If it fails, DO NOT commit. Fix the error first.
   - Hook: `checkPersonalBest()` called in wave clear block after `waveNumber++` and `sessionWavesCleared++`
   - Reset: `personalBestBroken = false` in `resetGame()` alongside other per-run state
 - **Design rationale:** The game already tracked bestWave in localStorage and showed "🏆 NEW RECORD" on the game over screen, but that's an anticlimax — by the time you see it, you've already died. The excitement of *surpassing your record* should happen in the moment, while you're still playing and pushing further. This creates a "just one more wave" motivator because every wave beyond your PB is visibly extending your record. Inspired by racing games that show live "NEW LAP RECORD" overlays during gameplay, and roguelikes that celebrate floor milestones.
+
+### 2026-03-10: Wave Forecast Panel
+- **Compact overlay showing next 3 waves** — positioned on the right side of the canvas below the DPS meter area (top-right, Y=66). Shows at-a-glance what's coming so players can plan upgrades and positioning.
+- **Per-wave row shows:**
+  - Wave number (red for boss waves, theme-colored for named waves)
+  - Theme name if it has one (truncated to 12 chars), or generic "Wave N"
+  - Colored enemy type dots with counts — top 5 types shown as small circles matching enemy colors with ×count labels
+  - 💀 BOSS indicator for boss waves (right-aligned, red)
+  - ★ elite count in gold (right-aligned) when elites are present
+  - Separator lines between rows
+- **Rounded dark panel** with blue border matching existing HUD style (DPS meter, mini-map)
+- **Uses existing infrastructure** — `getWaveEnemyBreakdown()` for enemy composition, `getWaveTheme()` for wave names, `ENEMY_TYPES` for colors
+- **Hidden during game over** — doesn't overlap with game over screen
+- **Only shows after wave 1** — no forecast before the game really starts
+- **Pure Phase 5 rendering function** — `drawWaveForecast()` defined alongside other HUD functions, called from `drawFrame()` after `drawMiniMap()`. No new state variables, DOM elements, event listeners, or init calls. Zero TDZ risk.
+- **Performance:** 3× `getWaveEnemyBreakdown()` calls per frame (each is lightweight — just RNG + loop). A few fillText + arc calls. Negligible cost.
+- **Design rationale:** The game had a detailed wave preview during countdown (bottom panel with enemy icons), but between waves and during combat there was no way to see what's coming next. Players often want to decide "should I sell and rebuild?" or "is a boss coming soon?" without waiting for the countdown. The forecast gives that strategic foresight at all times. Inspired by Bloons TD6's wave preview sidebar and Kingdom Rush's upcoming wave indicators. Positioned to complement the DPS meter (both right side, stacked vertically).

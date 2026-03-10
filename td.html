@@ -6921,6 +6921,129 @@
       ctx.restore();
     }
 
+    // ═══════════════════════════════════════════════════
+    //  Wave Forecast — next 3 upcoming waves (right side)
+    // ═══════════════════════════════════════════════════
+    function drawWaveForecast() {
+      if (waveState === 'gameover') return;
+      if (waveNumber < 1) return;
+
+      const FORECAST_COUNT = 3;
+      const fW = 130, rowH = 28, pad = 6;
+      const fH = pad * 2 + FORECAST_COUNT * rowH + 14; // 14 for header
+      const fX = CANVAS_W - fW - 8;
+      const fY = 66; // below DPS meter area
+
+      ctx.save();
+
+      // Background
+      ctx.globalAlpha = 0.65;
+      ctx.fillStyle = '#0a0a1a';
+      ctx.beginPath();
+      ctx.moveTo(fX + 4, fY);
+      ctx.lineTo(fX + fW - 4, fY);
+      ctx.quadraticCurveTo(fX + fW, fY, fX + fW, fY + 4);
+      ctx.lineTo(fX + fW, fY + fH - 4);
+      ctx.quadraticCurveTo(fX + fW, fY + fH, fX + fW - 4, fY + fH);
+      ctx.lineTo(fX + 4, fY + fH);
+      ctx.quadraticCurveTo(fX, fY + fH, fX, fY + fH - 4);
+      ctx.lineTo(fX, fY + 4);
+      ctx.quadraticCurveTo(fX, fY, fX + 4, fY);
+      ctx.fill();
+
+      // Border
+      ctx.globalAlpha = 0.3;
+      ctx.strokeStyle = '#1E90FF';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // Header
+      ctx.font = 'bold 9px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillText('NEXT WAVES', fX + pad, fY + pad);
+
+      // Rows
+      for (let i = 0; i < FORECAST_COUNT; i++) {
+        const wNum = waveNumber + 1 + i;
+        const rY = fY + pad + 14 + i * rowH;
+        const theme = getWaveTheme(wNum);
+        const isBoss = wNum % 10 === 0 && wNum > 0;
+        const breakdown = getWaveEnemyBreakdown(wNum);
+
+        // Wave number
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = isBoss ? '#ff4444' : (theme ? theme.color : 'rgba(255,255,255,0.8)');
+        ctx.fillText(`W${wNum}`, fX + pad, rY);
+
+        // Theme name or enemy summary
+        ctx.font = '8px monospace';
+        const nameX = fX + pad + 28;
+        if (theme) {
+          ctx.fillStyle = theme.color;
+          ctx.fillText(theme.name.length > 12 ? theme.name.substring(0, 11) + '…' : theme.name, nameX, rY);
+        } else {
+          ctx.fillStyle = 'rgba(255,255,255,0.5)';
+          ctx.fillText('Wave ' + wNum, nameX, rY);
+        }
+
+        // Enemy type dots — show top 3 types as colored dots
+        const types = Object.keys(breakdown).filter(k => k !== '_elites').sort((a, b) => breakdown[b] - breakdown[a]);
+        const dotY = rY + 12;
+        let dotX = fX + pad;
+        const maxDots = Math.min(types.length, 5);
+        for (let d = 0; d < maxDots; d++) {
+          const et = ENEMY_TYPES.find(e => e.type === types[d]);
+          if (!et) continue;
+          ctx.fillStyle = et.color;
+          ctx.globalAlpha = 0.9;
+          ctx.beginPath();
+          ctx.arc(dotX + 4, dotY + 3, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+
+          // Count next to dot
+          ctx.font = '7px monospace';
+          ctx.fillStyle = 'rgba(255,255,255,0.6)';
+          ctx.fillText('×' + breakdown[types[d]], dotX + 9, dotY + 1);
+          dotX += 22;
+        }
+
+        // Boss indicator
+        if (isBoss) {
+          ctx.fillStyle = '#ff4444';
+          ctx.font = 'bold 8px monospace';
+          ctx.textAlign = 'right';
+          ctx.fillText('💀 BOSS', fX + fW - pad, rY);
+          ctx.textAlign = 'left';
+        }
+
+        // Elite count
+        if (breakdown['_elites']) {
+          ctx.fillStyle = '#ffd700';
+          ctx.font = '7px monospace';
+          ctx.textAlign = 'right';
+          ctx.fillText('★' + breakdown['_elites'], fX + fW - pad, dotY + 1);
+          ctx.textAlign = 'left';
+        }
+
+        // Separator line (except last)
+        if (i < FORECAST_COUNT - 1) {
+          ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(fX + pad, rY + rowH - 2);
+          ctx.lineTo(fX + fW - pad, rY + rowH - 2);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
     function drawMiniMap() {
       const MW = 140, MH = 100, PAD = 8, RAD = 6;
       const mx = PAD, my = CANVAS_H - MH - PAD;
@@ -8003,6 +8126,9 @@
 
       // Mini-map overlay (bottom-left)
       drawMiniMap();
+
+      // Wave forecast (right side, below DPS meter)
+      drawWaveForecast();
 
       // Draw persistent personal best indicator when in record territory
       if (personalBestBroken && waveState !== 'gameover') {
