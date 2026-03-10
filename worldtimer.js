@@ -59,6 +59,131 @@
   let tickAudioCtx = null; // reuse AudioContext for ticks
 
   // ═══════════════════════════════════════════════════
+  // Alarm Complication (JLC Memovox style)
+  // ═══════════════════════════════════════════════════
+  let alarmArmed = false;
+  let alarmHour = 7;   // 0-23
+  let alarmMinute = 0;
+  let alarmFiredKey = ''; // prevents re-fire within same minute
+  let alarmRinging = false;
+  let alarmRingStart = 0;
+  const ALARM_RING_DURATION = 15000; // 15 seconds of ringing
+
+  // Restore alarm from localStorage
+  const savedAlarm = localStorage.getItem('wt_alarm');
+  if (savedAlarm) {
+    try {
+      const a = JSON.parse(savedAlarm);
+      alarmArmed = a.armed;
+      alarmHour = a.hour;
+      alarmMinute = a.minute;
+    } catch (_) {}
+  }
+
+  function saveAlarm() {
+    localStorage.setItem('wt_alarm', JSON.stringify({
+      armed: alarmArmed, hour: alarmHour, minute: alarmMinute
+    }));
+  }
+
+  function getAlarmAngleDeg() {
+    // 12-hour dial: alarm hand points to hour+minute position
+    const h12 = alarmHour % 12;
+    return (h12 * 30) + (alarmMinute * 0.5);
+  }
+
+  function playAlarmSound() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // Escalating bell pattern: 5 quick rings
+      for (let i = 0; i < 5; i++) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        // Rising frequency for urgency
+        osc.frequency.value = 880 + i * 80;
+        osc.type = 'sine';
+        const t = ctx.currentTime + i * 0.18;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.12, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+        osc.start(t);
+        osc.stop(t + 0.15);
+      }
+    } catch (_) {}
+  }
+
+  function checkAlarm(hours, minutes, seconds) {
+    if (!alarmArmed) return;
+    const key = hours + ':' + minutes;
+    if (hours === alarmHour && minutes === alarmMinute && seconds < 2) {
+      if (alarmFiredKey !== key) {
+        alarmFiredKey = key;
+        alarmRinging = true;
+        alarmRingStart = Date.now();
+        playAlarmSound();
+        // Repeat sound every 2 seconds for duration
+        const ringInterval = setInterval(() => {
+          if (!alarmRinging || Date.now() - alarmRingStart > ALARM_RING_DURATION) {
+            clearInterval(ringInterval);
+            alarmRinging = false;
+            const handEl = document.getElementById('alarmHand');
+            if (handEl) handEl.classList.remove('ringing');
+            return;
+          }
+          playAlarmSound();
+        }, 2000);
+        const handEl = document.getElementById('alarmHand');
+        if (handEl) handEl.classList.add('ringing');
+      }
+    } else {
+      alarmFiredKey = '';
+    }
+    // Auto-stop ringing after duration
+    if (alarmRinging && Date.now() - alarmRingStart > ALARM_RING_DURATION) {
+      alarmRinging = false;
+      const handEl = document.getElementById('alarmHand');
+      if (handEl) handEl.classList.remove('ringing');
+    }
+  }
+
+  function updateAlarmHand() {
+    const handEl = document.getElementById('alarmHand');
+    if (!handEl) return;
+    if (alarmArmed) {
+      const deg = getAlarmAngleDeg();
+      handEl.style.setProperty('--alarm-deg', deg + 'deg');
+      handEl.style.transform = 'translateX(-50%) rotate(' + deg + 'deg)';
+      handEl.classList.add('visible');
+    } else {
+      handEl.classList.remove('visible');
+      handEl.classList.remove('ringing');
+    }
+  }
+
+  function updateAlarmUI() {
+    const statusEl = document.getElementById('alarmStatus');
+    const barEl = document.getElementById('alarmBar');
+    const inputEl = document.getElementById('alarmTimeInput');
+    if (alarmArmed) {
+      const hh = String(alarmHour).padStart(2, '0');
+      const mm = String(alarmMinute).padStart(2, '0');
+      if (statusEl) {
+        statusEl.textContent = '⏰ ' + hh + ':' + mm;
+        statusEl.classList.add('armed');
+      }
+      if (inputEl) inputEl.value = hh + ':' + mm;
+    } else {
+      if (statusEl) {
+        statusEl.textContent = 'Off';
+        statusEl.classList.remove('armed');
+      }
+    }
+    updateAlarmHand();
+  }
+
+  // ═══════════════════════════════════════════════════
   // Bezel Drag Rotation State
   // Drag the outer city ring to rotate timezones,
   // like turning a real world timer bezel.
@@ -693,6 +818,12 @@
   }
 
   // Create hands
+  // Alarm hand (behind all other hands)
+  const alarmHand = document.createElement('div');
+  alarmHand.className = 'clock-hand clock-hand-alarm';
+  alarmHand.id = 'alarmHand';
+  clockFace.appendChild(alarmHand);
+
   const hourHand = document.createElement('div');
   hourHand.className = 'clock-hand clock-hand-hour';
   hourHand.id = 'hourHand';
@@ -1182,6 +1313,8 @@
     drawPowerReserve();
     updateSunInfo(hours, minutes);
     checkChime(hours, minutes, seconds);
+    checkAlarm(hours, minutes, seconds);
+    updateAlarmHand();
 
     requestAnimationFrame(updateClock);
   }
@@ -2006,6 +2139,19 @@
           tickToggle.textContent = tickEnabled ? '⚙️' : '🔇';
           if (tickEnabled) playTickSound(); // audible confirmation
           break;
+        case 'a':
+          // A = Toggle alarm panel
+          e.preventDefault();
+          if (alarmRinging) {
+            // Dismiss ringing alarm
+            alarmRinging = false;
+            const handEl = document.getElementById('alarmHand');
+            if (handEl) handEl.classList.remove('ringing');
+          } else {
+            const ab = document.getElementById('alarmBar');
+            if (ab) ab.classList.toggle('visible');
+          }
+          break;
         case '?':
           // ? = Toggle keyboard shortcut hints
           e.preventDefault();
@@ -2027,6 +2173,7 @@
       '<span><kbd>Esc</kbd> Reset timezone</span>',
       '<span><kbd>M</kbd> Toggle chime</span>',
       '<span><kbd>T</kbd> Toggle tick</span>',
+      '<span><kbd>A</kbd> Alarm</span>',
       '<span><kbd>?</kbd> Toggle this help</span>',
     ].join('');
     hintsEl.style.cssText = `
@@ -2239,6 +2386,69 @@
     if (tickEnabled) playTickSound();
   });
   document.body.appendChild(tickToggle);
+
+  // ═══════════════════════════════════════════════════
+  // Alarm Bar Wiring
+  // ═══════════════════════════════════════════════════
+  const alarmBar = document.getElementById('alarmBar');
+  const alarmTimeInput = document.getElementById('alarmTimeInput');
+  const alarmSetBtn = document.getElementById('alarmSetBtn');
+  const alarmClearBtn = document.getElementById('alarmClearBtn');
+
+  // Alarm toggle button (next to tick)
+  const alarmToggle = document.createElement('button');
+  alarmToggle.className = 'alarm-toggle';
+  alarmToggle.textContent = alarmArmed ? '⏰' : '🔕';
+  alarmToggle.title = 'Toggle alarm (A)';
+  alarmToggle.style.cssText = `
+    position:fixed; bottom:16px; left:96px; padding:6px 10px;
+    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
+    border:1px solid var(--border); border-radius:var(--radius);
+    cursor:pointer; z-index:9999; opacity:0.5;
+    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
+    line-height:1; font-family:var(--font-mono);
+  `;
+  alarmToggle.addEventListener('mouseenter', function() { alarmToggle.style.opacity = '1'; });
+  alarmToggle.addEventListener('mouseleave', function() { alarmToggle.style.opacity = '0.5'; });
+  alarmToggle.addEventListener('click', function() {
+    if (alarmBar) {
+      alarmBar.classList.toggle('visible');
+    }
+  });
+  document.body.appendChild(alarmToggle);
+
+  if (alarmSetBtn) {
+    alarmSetBtn.addEventListener('click', function() {
+      if (!alarmTimeInput) return;
+      const parts = alarmTimeInput.value.split(':');
+      if (parts.length < 2) return;
+      alarmHour = parseInt(parts[0], 10);
+      alarmMinute = parseInt(parts[1], 10);
+      alarmArmed = true;
+      alarmFiredKey = '';
+      alarmRinging = false;
+      saveAlarm();
+      updateAlarmUI();
+      alarmToggle.textContent = '⏰';
+    });
+  }
+
+  if (alarmClearBtn) {
+    alarmClearBtn.addEventListener('click', function() {
+      alarmArmed = false;
+      alarmRinging = false;
+      alarmFiredKey = '';
+      saveAlarm();
+      updateAlarmUI();
+      alarmToggle.textContent = '🔕';
+      const handEl = document.getElementById('alarmHand');
+      if (handEl) handEl.classList.remove('ringing');
+    });
+  }
+
+  // Initialize alarm UI on load
+  updateAlarmUI();
+  if (alarmArmed && alarmToggle) alarmToggle.textContent = '⏰';
 
   fitClockToViewport();
 

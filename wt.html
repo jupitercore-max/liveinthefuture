@@ -559,6 +559,91 @@
       border-radius: 50%;
     }
 
+    /* Alarm hand — gold, JLC Memovox style */
+    .clock-hand-alarm {
+      width: 3px;
+      height: 90px;
+      bottom: calc(50% - 18px);
+      background: linear-gradient(90deg, #b8860b 0%, #ffd700 40%, #ffd700 60%, #b8860b 100%);
+      z-index: 48; /* behind GMT(49), hour(50), minute(51), second(52) */
+      border-radius: 2px;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .clock-hand-alarm.visible { opacity: 0.85; }
+    .clock-hand-alarm.ringing {
+      animation: alarm-vibrate 0.08s ease-in-out infinite alternate;
+    }
+    @keyframes alarm-vibrate {
+      0% { transform: translateX(-50%) rotate(var(--alarm-deg)) rotate(-1.5deg); }
+      100% { transform: translateX(-50%) rotate(var(--alarm-deg)) rotate(1.5deg); }
+    }
+    /* Small bell icon at tip */
+    .clock-hand-alarm::before {
+      content: '🔔';
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 8px;
+      filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.6));
+    }
+    /* Counterweight */
+    .clock-hand-alarm::after {
+      content: '';
+      position: absolute;
+      bottom: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 5px;
+      height: 5px;
+      background: #ffd700;
+      border-radius: 50%;
+    }
+
+    /* Alarm set bar */
+    .alarm-bar {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 6px;
+      padding: 6px 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      transition: background 0.6s ease, border-color 0.6s ease;
+    }
+    .alarm-bar.visible { display: flex; }
+    .alarm-bar input[type="time"] {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+    }
+    .alarm-bar button {
+      background: var(--card-bg);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      cursor: pointer;
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+    }
+    .alarm-bar button:hover { color: var(--text); border-color: var(--text-muted); }
+    .alarm-bar .alarm-status {
+      font-size: 0.65rem;
+      opacity: 0.7;
+    }
+    .alarm-bar .alarm-status.armed { color: #ffd700; opacity: 1; }
+
     /* Local time indicator triangle */
     .local-indicator {
       position: absolute;
@@ -1045,6 +1130,13 @@
     <div class="digital-date" id="digitalDate"></div>
     <div class="timezone-info" id="timezoneInfo"></div>
     <div class="sun-info" id="sunInfo"></div>
+    <div class="alarm-bar" id="alarmBar">
+      <span>⏰</span>
+      <input type="time" id="alarmTimeInput" value="07:00">
+      <button id="alarmSetBtn">Set</button>
+      <button id="alarmClearBtn">Clear</button>
+      <span class="alarm-status" id="alarmStatus">Off</span>
+    </div>
 
     <!-- Chronograph Stopwatch / Countdown -->
     <div class="chrono-bar" id="chronoBar">
