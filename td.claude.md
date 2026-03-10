@@ -718,3 +718,13 @@ If it fails, DO NOT commit. Fix the error first.
 - **Rounded progress bar** — 140px wide with dark background, color-filled portion proportional to difficulty. Rounded corners using quadratic curves. Label below with matching color and glow effect.
 - **Pure Phase 5 rendering** — `drawWaveDifficulty()` function defined alongside `drawGrid()`, called from the existing countdown block in `drawFrame()`. No new state variables, DOM elements, event listeners, or init calls needed.
 - **Strategic value** — Players can now make informed decisions about whether to upgrade, reposition, or sell their cannon before the wave starts. Also helps evaluate if an early send is risky. Especially useful in multiplayer where you can see if the team's combined DPS is sufficient.
+
+
+### 2025-06-08: Frost/Slow Visual Effect on Enemies
+- **Icy blue glow ring** — Semi-transparent cyan aura pulses around slowed enemies, opacity proportional to remaining slow duration
+- **Frost tint overlay** — Light blue wash over the enemy body so they visually look "frozen"
+- **Orbiting ice crystals** — 4 diamond-shaped crystals (6 for bosses) orbit the enemy, rotating smoothly. Each crystal is a small diamond shape in pale ice blue (#ccf0ff)
+- **Frost sparkle particles** — 3 small white dots that drift upward from the enemy, fading as they rise, simulating cold vapor/frost particles
+- **Duration-based intensity** — All effects scale with `e.slowTimer / (TICK_RATE * 2)`, capped at 0.7 alpha. As the slow wears off, the frost effect gracefully fades
+- **No new state variables** — Uses existing `e.slowTimer > 0` check. Pure render code inside `drawEnemy()`, placed after elite visual and before boss shield visual
+- **Phase compliance** — All code is inside the existing `drawEnemy` function (Phase 5). No new state, no new DOM, no new init calls needed.

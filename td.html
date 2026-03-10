@@ -8256,6 +8256,57 @@
         ctx.textAlign = 'start';
       }
 
+      // ── Frost/Slow visual effect ──
+      if (e.slowTimer > 0) {
+        const frostAlpha = Math.min(0.7, e.slowTimer / (TICK_RATE * 2));
+        ctx.save();
+        // Icy blue glow ring
+        ctx.globalAlpha = frostAlpha * 0.35;
+        ctx.fillStyle = '#88ddff';
+        ctx.beginPath();
+        ctx.arc(x, y, e.radius + 5, 0, Math.PI * 2);
+        ctx.fill();
+        // Inner frost tint on enemy body
+        ctx.globalAlpha = frostAlpha * 0.25;
+        ctx.fillStyle = '#aaeeff';
+        ctx.beginPath();
+        ctx.arc(x, y, e.radius, 0, Math.PI * 2);
+        ctx.fill();
+        // Orbiting ice crystals
+        const crystalCount = isBoss ? 6 : 4;
+        ctx.globalAlpha = frostAlpha * 0.85;
+        for (let ci = 0; ci < crystalCount; ci++) {
+          const cAngle = t * 0.003 + (ci * Math.PI * 2 / crystalCount);
+          const cDist = e.radius + 3 + Math.sin(t * 0.005 + ci) * 2;
+          const cx2 = x + Math.cos(cAngle) * cDist;
+          const cy2 = y + Math.sin(cAngle) * cDist;
+          // Diamond-shaped crystal
+          ctx.fillStyle = '#ccf0ff';
+          ctx.beginPath();
+          ctx.moveTo(cx2, cy2 - 3);
+          ctx.lineTo(cx2 + 1.5, cy2);
+          ctx.lineTo(cx2, cy2 + 3);
+          ctx.lineTo(cx2 - 1.5, cy2);
+          ctx.closePath();
+          ctx.fill();
+        }
+        // Frost sparkle particles (small dots that drift upward)
+        ctx.globalAlpha = frostAlpha * 0.6;
+        ctx.fillStyle = '#ffffff';
+        for (let si = 0; si < 3; si++) {
+          const sparkPhase = (t * 0.002 + si * 2.1) % 3;
+          const sparkX = x + Math.sin(t * 0.004 + si * 1.7) * e.radius * 0.8;
+          const sparkY = y - sparkPhase * (e.radius * 0.5);
+          const sparkSize = (1 - sparkPhase / 3) * 1.5;
+          if (sparkSize > 0.2) {
+            ctx.beginPath();
+            ctx.arc(sparkX, sparkY, sparkSize, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+      }
+
       // ── Boss: Shield visual ──
       if (isBoss && e.shieldHp > 0) {
         const shieldPct = e.shieldHp / (e.shieldMaxHp || 1);
