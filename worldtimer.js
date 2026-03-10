@@ -1650,6 +1650,7 @@
     updatePowerReserve();
     drawPowerReserve();
     updateSunInfo(hours, minutes);
+    updateEquationOfTime();
     checkChime(hours, minutes, seconds);
     checkAlarm(hours, minutes, seconds);
     updateAlarmHand();
@@ -2075,6 +2076,65 @@
       '<span class="sun-rise">\u2600 ' + riseStr + '</span>' +
       ' \u00b7 <span class="sun-set">\ud83c\udf19 ' + setStr + '</span>' +
       ' \u00b7 ' + statusStr;
+  }
+
+  // ═══════════════════════════════════════════════════
+  //  Equation of Time Complication
+  //  Shows the difference between solar noon and clock noon.
+  //  Ranges from about -14.2 min (Feb) to +16.4 min (Nov).
+  //  Positive = sun is ahead (solar noon before 12:00)
+  //  Negative = sun is behind (solar noon after 12:00)
+  // ═══════════════════════════════════════════════════
+  let eotInfoEl = null;
+  let lastEotUpdate = 0;
+
+  // Compute EoT in minutes using the standard two-term Fourier approximation.
+  // Input: a Date object.  Returns minutes (positive = sundial fast).
+  function getEquationOfTime(date) {
+    const start = new Date(date.getFullYear(), 0, 1);
+    const dayOfYear = Math.floor((date - start) / 86400000) + 1;
+    // B parameter in radians
+    const B = (2 * Math.PI / 365) * (dayOfYear - 81);
+    // Spencer formula (simplified)
+    const eot = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+    return eot; // minutes
+  }
+
+  function updateEquationOfTime() {
+    if (!eotInfoEl) eotInfoEl = document.getElementById('eotInfo');
+    if (!eotInfoEl) return;
+
+    // Update once per minute — value barely changes
+    const now = Date.now();
+    if (now - lastEotUpdate < 60000) return;
+    lastEotUpdate = now;
+
+    const eot = getEquationOfTime(new Date());
+    const absEot = Math.abs(eot);
+    const sign = eot >= 0 ? '+' : '\u2212'; // − unicode minus
+    const label = eot >= 0 ? 'fast' : 'slow';
+    const colorClass = absEot < 1 ? 'near-zero' : (eot >= 0 ? 'fast' : 'slow');
+
+    // Position needle: EoT ranges ~ -16.5 to +16.5. Map to 0%–100% of bar.
+    const MAX_EOT = 17; // minutes — clamp range
+    const clamped = Math.max(-MAX_EOT, Math.min(MAX_EOT, eot));
+    const pct = 50 + (clamped / MAX_EOT) * 50; // 0% = -17m, 50% = 0, 100% = +17m
+
+    // Fill bar from center to needle
+    const fillLeft = eot >= 0 ? 50 : pct;
+    const fillWidth = Math.abs(pct - 50);
+    const fillColor = eot >= 0 ? '#e8a060' : '#6fa8dc';
+    const needleColor = eot >= 0 ? '#e8a060' : '#6fa8dc';
+
+    eotInfoEl.innerHTML =
+      '<span class="eot-label">EoT</span>' +
+      '<span class="eot-value ' + colorClass + '">' + sign + absEot.toFixed(1) + 'm</span>' +
+      '<span class="eot-bar">' +
+        '<span class="eot-bar-center"></span>' +
+        '<span class="eot-bar-fill" style="left:' + fillLeft.toFixed(1) + '%;width:' + fillWidth.toFixed(1) + '%;background:' + fillColor + '"></span>' +
+        '<span class="eot-bar-needle" style="left:calc(' + pct.toFixed(1) + '% - 1.5px);background:' + needleColor + '"></span>' +
+      '</span>' +
+      '<span class="eot-label">sun ' + label + '</span>';
   }
 
   function updatePowerReserve() {
