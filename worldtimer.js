@@ -1568,6 +1568,7 @@
     updateCityTints();
 
     // Power reserve
+    updateRotor();
     updatePowerReserve();
     drawPowerReserve();
     updateSunInfo(hours, minutes);
@@ -1768,15 +1769,181 @@
   let powerLevel = 1.0; // 0..1
   let lastPowerUpdate = Date.now();
 
-  // Recharge on interaction
-  function rechargePower() {
-    powerLevel = Math.min(1.0, powerLevel + 0.15);
+  // ═══════════════════════════════════════════════════
+  // Automatic Winding Rotor
+  // Like a real automatic watch: mouse/touch movement spins a
+  // weighted rotor with inertia and friction. Rotor spin speed
+  // charges the mainspring (power reserve). Visible behind the
+  // tourbillon in the open-heart complication.
+  // ═══════════════════════════════════════════════════
+  let rotorAngle = 0;        // current rotor angle in radians
+  let rotorVelocity = 0;     // angular velocity in rad/s
+  const ROTOR_FRICTION = 0.97;  // per-frame friction multiplier (~60fps)
+  const ROTOR_MOUSE_GAIN = 0.08; // how much mouse movement adds to velocity
+  const ROTOR_CHARGE_RATE = 0.0004; // power charge per abs(velocity) per frame
+  let lastMouseX = 0;
+  let lastMouseY = 0;
+  let lastMouseTime = 0;
+
+  // Mouse movement drives the rotor via angular impulse from cursor velocity
+  document.addEventListener('mousemove', function(e) {
+    const now = performance.now();
+    const dt = now - lastMouseTime;
+    if (dt > 0 && dt < 200) { // ignore stale deltas
+      const dx = e.clientX - lastMouseX;
+      const dy = e.clientY - lastMouseY;
+      const speed = Math.sqrt(dx * dx + dy * dy);
+      // Direction: use cross product of delta to give consistent rotation sense
+      const dir = (dx + dy) > 0 ? 1 : -1;
+      rotorVelocity += dir * speed * ROTOR_MOUSE_GAIN * (16 / Math.max(dt, 8));
+      // Clamp velocity to prevent runaway
+      rotorVelocity = Math.max(-40, Math.min(40, rotorVelocity));
+    }
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    lastMouseTime = now;
+  });
+
+  // Touch movement also drives rotor
+  let lastTouchX = 0, lastTouchY = 0, lastTouchTime = 0;
+  document.addEventListener('touchmove', function(e) {
+    if (!e.touches.length) return;
+    const touch = e.touches[0];
+    const now = performance.now();
+    const dt = now - lastTouchTime;
+    if (dt > 0 && dt < 200) {
+      const dx = touch.clientX - lastTouchX;
+      const dy = touch.clientY - lastTouchY;
+      const speed = Math.sqrt(dx * dx + dy * dy);
+      const dir = (dx + dy) > 0 ? 1 : -1;
+      rotorVelocity += dir * speed * ROTOR_MOUSE_GAIN * (16 / Math.max(dt, 8));
+      rotorVelocity = Math.max(-40, Math.min(40, rotorVelocity));
+    }
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+    lastTouchTime = now;
+  }, { passive: true });
+  document.addEventListener('touchstart', function(e) {
+    if (!e.touches.length) return;
+    lastTouchX = e.touches[0].clientX;
+    lastTouchY = e.touches[0].clientY;
+    lastTouchTime = performance.now();
+  }, { passive: true });
+
+  // Keyboard actions give a small kick
+  document.addEventListener('keydown', function() {
+    rotorVelocity += (Math.random() > 0.5 ? 1 : -1) * 3;
+  });
+  document.addEventListener('scroll', function() {
+    rotorVelocity += 2;
+  });
+
+  function updateRotor() {
+    // Apply friction
+    rotorVelocity *= ROTOR_FRICTION;
+    // Threshold to zero when nearly stopped
+    if (Math.abs(rotorVelocity) < 0.05) rotorVelocity = 0;
+    // Update angle
+    rotorAngle += rotorVelocity * (1 / 60); // approximate 60fps frame
+    // Charge power reserve proportional to spin speed
+    const chargeAmount = Math.abs(rotorVelocity) * ROTOR_CHARGE_RATE;
+    if (chargeAmount > 0) {
+      powerLevel = Math.min(1.0, powerLevel + chargeAmount);
+    }
   }
-  document.addEventListener('mousemove', rechargePower);
-  document.addEventListener('keydown', rechargePower);
-  document.addEventListener('click', rechargePower);
-  document.addEventListener('touchstart', rechargePower);
-  document.addEventListener('scroll', rechargePower);
+
+  function drawRotor(ctx, cx, cy, r) {
+    // Draw the automatic winding rotor — a semicircular weight
+    // Layered behind the tourbillon cage
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rotorAngle);
+
+    // Central bearing
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.15, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(180, 175, 160, 0.5)';
+    ctx.fill();
+    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = 'rgba(120, 115, 105, 0.6)';
+    ctx.stroke();
+
+    // Rotor arm — extends from center to edge
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 0.12);
+    ctx.lineTo(r * 0.85, -r * 0.06);
+    ctx.lineTo(r * 0.85, r * 0.06);
+    ctx.lineTo(0, r * 0.12);
+    ctx.closePath();
+    const armGrad = ctx.createLinearGradient(0, -r * 0.1, 0, r * 0.1);
+    armGrad.addColorStop(0, 'rgba(160, 155, 140, 0.35)');
+    armGrad.addColorStop(0.5, 'rgba(190, 185, 170, 0.45)');
+    armGrad.addColorStop(1, 'rgba(140, 135, 120, 0.3)');
+    ctx.fillStyle = armGrad;
+    ctx.fill();
+
+    // Rotor weight — semicircular heavy mass at the end
+    // This is the characteristic weighted sector of an automatic rotor
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.88, -0.45, 0.45); // ~50° arc
+    ctx.lineTo(r * 0.6 * Math.cos(0.45), r * 0.6 * Math.sin(0.45));
+    ctx.arc(0, 0, r * 0.6, 0.45, -0.45, true);
+    ctx.closePath();
+
+    // Tungsten-like heavy metal gradient (darker, denser look)
+    const weightGrad = ctx.createRadialGradient(
+      r * 0.5, 0, r * 0.1,
+      r * 0.5, 0, r * 0.5
+    );
+    weightGrad.addColorStop(0, 'rgba(100, 95, 85, 0.7)');
+    weightGrad.addColorStop(0.5, 'rgba(140, 135, 120, 0.65)');
+    weightGrad.addColorStop(1, 'rgba(80, 75, 65, 0.6)');
+    ctx.fillStyle = weightGrad;
+    ctx.fill();
+    ctx.lineWidth = 0.6;
+    ctx.strokeStyle = 'rgba(200, 195, 180, 0.3)';
+    ctx.stroke();
+
+    // Decorative Geneva stripes on the rotor weight (Côtes de Genève)
+    ctx.save();
+    ctx.clip(); // clip to rotor weight shape
+    ctx.globalAlpha = 0.12;
+    for (let i = -5; i < 8; i++) {
+      const y = i * r * 0.12;
+      ctx.beginPath();
+      ctx.moveTo(r * 0.5, y);
+      ctx.lineTo(r * 1.0, y + r * 0.04);
+      ctx.lineWidth = r * 0.06;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // "AUTOMATIC" text engraved on rotor
+    ctx.save();
+    ctx.rotate(0); // already in rotor space
+    ctx.font = `${Math.max(3, r * 0.09)}px sans-serif`;
+    ctx.fillStyle = 'rgba(200, 195, 180, 0.35)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('AUTOMATIC', r * 0.74, 0);
+    ctx.restore();
+
+    // Bearing screw in center
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.05, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(220, 215, 200, 0.7)';
+    ctx.fill();
+    // Screw slot
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.035, 0);
+    ctx.lineTo(r * 0.035, 0);
+    ctx.lineWidth = 0.4;
+    ctx.strokeStyle = 'rgba(60, 55, 50, 0.8)';
+    ctx.stroke();
+
+    ctx.restore();
+  }
 
   // Sunrise/sunset info display
   let sunInfoEl = null;
@@ -2142,6 +2309,9 @@
     ctx.beginPath();
     ctx.arc(cx, cy, r + 1, 0, Math.PI * 2);
     ctx.fill();
+
+    // ── Automatic winding rotor (drawn behind tourbillon) ──
+    drawRotor(ctx, cx, cy, r);
 
     // ── Tourbillon cage rotation: 360° per minute ──
     const t = seconds + millis / 1000;
