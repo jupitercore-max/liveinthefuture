@@ -704,3 +704,17 @@ If it fails, DO NOT commit. Fix the error first.
 - **Implementation:** Pure rendering code inside `drawCannon()` (Phase 5), inserted before the glow aura section. Uses `XP_PER_LEVEL()` (Phase 2 constant) and `c.xp`/`c.level` from cannon data. Block-scoped with `{}` to avoid variable leaks.
 - **No new state, DOM, listeners, or init calls** — zero TDZ risk. Just 35 lines of canvas arc drawing inside an existing function.
 - **Design rationale:** The game has 20 levels with a quadratic XP curve, but the only XP feedback was the HUD bar (only for your own cannon) and the hover tooltip. The ring gives instant visual feedback for ALL cannons on the field. In multiplayer, you can see which teammates are close to leveling up. The gold max-level ring creates a clear visual goal — players want to see that ring turn gold. This is a standard pattern from RPGs and MOBAs (League of Legends champion level indicator, Diablo paragon glow).
+
+### 2026-03-10: Wave Difficulty Indicator
+- **Threat-vs-firepower bar** during countdown — A colored difficulty bar appears below the countdown timer showing how hard the upcoming wave is relative to current player firepower.
+- **Calculation** — Uses `getWaveEnemyBreakdown()` to compute total wave HP (enemy count × base HP × type hpMult, plus elite bonus). Computes total player DPS from all cannons via `getCannonStats()`. The ratio (seconds to kill all enemies) determines the difficulty tier.
+- **5 difficulty tiers** with distinct colors and labels:
+  - 🟢 **EASY** (green, ≤6s kill time) — cannons will shred this wave
+  - 🟡 **MEDIUM** (yellow, 6-15s) — fair challenge
+  - 🟠 **HARD** (orange, 15-35s) — expect some leaks
+  - 🔴 **BRUTAL** (red, 35-60s) — serious pressure
+  - 🟣 **NIGHTMARE** (purple, 60s+) — survival mode
+  - Special **NO CANNONS!** warning in red when no cannons are placed
+- **Rounded progress bar** — 140px wide with dark background, color-filled portion proportional to difficulty. Rounded corners using quadratic curves. Label below with matching color and glow effect.
+- **Pure Phase 5 rendering** — `drawWaveDifficulty()` function defined alongside `drawGrid()`, called from the existing countdown block in `drawFrame()`. No new state variables, DOM elements, event listeners, or init calls needed.
+- **Strategic value** — Players can now make informed decisions about whether to upgrade, reposition, or sell their cannon before the wave starts. Also helps evaluate if an early send is risky. Especially useful in multiplayer where you can see if the team's combined DPS is sufficient.

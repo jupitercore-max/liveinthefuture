@@ -7358,7 +7358,109 @@
           ctx.fillText(secs, CANVAS_W / 2, CANVAS_H / 2 + 8);
           ctx.textAlign = 'start';
         }
+        // Wave difficulty indicator below countdown
+        drawWaveDifficulty();
       }
+    }
+
+    // ═══ Wave Difficulty Indicator (drawn during countdown) ═══
+    function drawWaveDifficulty() {
+      // Calculate total wave threat HP
+      const breakdown = getWaveEnemyBreakdown(waveNumber);
+      let totalThreatHp = 0;
+      const baseHpScale = (1 + waveNumber * 0.15) * (1 + waveNumber * 0.04);
+      for (const type in breakdown) {
+        if (type === '_elites') continue;
+        const et = ENEMY_TYPES.find(e => e.type === type);
+        if (!et) continue;
+        totalThreatHp += breakdown[type] * baseHpScale * et.hpMult;
+      }
+      // Add elite HP bonus
+      if (breakdown['_elites']) {
+        totalThreatHp += breakdown['_elites'] * baseHpScale * 1.5; // elites have 2.5x but already counted at 1x
+      }
+
+      // Calculate total player DPS from all cannons
+      let totalDps = 0;
+      const cannonEntries = Object.values(cannons);
+      for (const c of cannonEntries) {
+        const stats = getCannonStats(c.level || 1, c.path, c.spec);
+        totalDps += stats.dmg * stats.fireRate;
+      }
+
+      // Difficulty ratio: how many seconds of current DPS to kill all enemies
+      // Lower = easier, higher = harder
+      const killTime = totalDps > 0 ? totalThreatHp / totalDps : 999;
+      // Normalize: ~5s = easy, ~15s = medium, ~30s = hard, ~60s+ = brutal
+      let difficulty, color, label;
+      if (killTime <= 6) {
+        difficulty = killTime / 6;
+        color = '#2ecc71'; label = 'EASY';
+      } else if (killTime <= 15) {
+        difficulty = 0.25 + (killTime - 6) / 9 * 0.25;
+        color = '#f1c40f'; label = 'MEDIUM';
+      } else if (killTime <= 35) {
+        difficulty = 0.5 + (killTime - 15) / 20 * 0.25;
+        color = '#e67e22'; label = 'HARD';
+      } else if (killTime <= 60) {
+        difficulty = 0.75 + (killTime - 35) / 25 * 0.15;
+        color = '#e74c3c'; label = 'BRUTAL';
+      } else {
+        difficulty = 0.95;
+        color = '#9b59b6'; label = 'NIGHTMARE';
+      }
+      // No cannon = show warning
+      if (cannonEntries.length === 0) {
+        difficulty = 1; color = '#e74c3c'; label = 'NO CANNONS!';
+      }
+
+      // Draw bar below countdown timer
+      const barW = 140, barH = 10;
+      const bx = CANVAS_W / 2 - barW / 2;
+      const by = CANVAS_H / 2 + 24;
+
+      ctx.save();
+      // Background bar
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.beginPath();
+      ctx.moveTo(bx + 3, by);
+      ctx.lineTo(bx + barW - 3, by);
+      ctx.quadraticCurveTo(bx + barW, by, bx + barW, by + 3);
+      ctx.lineTo(bx + barW, by + barH - 3);
+      ctx.quadraticCurveTo(bx + barW, by + barH, bx + barW - 3, by + barH);
+      ctx.lineTo(bx + 3, by + barH);
+      ctx.quadraticCurveTo(bx, by + barH, bx, by + barH - 3);
+      ctx.lineTo(bx, by + 3);
+      ctx.quadraticCurveTo(bx, by, bx + 3, by);
+      ctx.fill();
+
+      // Filled portion
+      const fillW = Math.max(4, barW * Math.min(1, difficulty));
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(bx + 3, by);
+      ctx.lineTo(bx + fillW - 3, by);
+      ctx.quadraticCurveTo(bx + fillW, by, bx + fillW, by + 3);
+      ctx.lineTo(bx + fillW, by + barH - 3);
+      ctx.quadraticCurveTo(bx + fillW, by + barH, bx + fillW - 3, by + barH);
+      ctx.lineTo(bx + 3, by + barH);
+      ctx.quadraticCurveTo(bx, by + barH, bx, by + barH - 3);
+      ctx.lineTo(bx, by + 3);
+      ctx.quadraticCurveTo(bx, by, bx + 3, by);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Label
+      ctx.font = 'bold 10px ' + getComputedStyle(document.body).fontFamily;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 4;
+      ctx.fillText(label, CANVAS_W / 2, by + barH + 13);
+      ctx.shadowBlur = 0;
+      ctx.textAlign = 'start';
+      ctx.restore();
     }
 
     function drawGrid() {
