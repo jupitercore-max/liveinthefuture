@@ -931,3 +931,15 @@ If it fails, DO NOT commit. Fix the error first.
 - Button highlights blue when active, shows checkmark
 - State persisted in localStorage (`td_auto_wave`)
 - Fixed a broken `tryAutoFireAbility` function that had been split by the auto-wave insertion (duplicate function header removed)
+
+### 2026-03-10: Armor Crack Overlay on Damaged Armored Enemies
+- **Visual armor degradation** — Armored enemies (type `armored` with the `armor` property) now show progressively worsening cracks on their metallic border as they take damage. The cracks appear when HP drops below 85% and intensify as HP approaches 0, giving instant visual feedback that your attacks are working against tough armored enemies.
+- **Deterministic cracks** — Each enemy gets a unique crack pattern seeded by its `id` string (or `maxHp` fallback). The same enemy always shows the same crack positions, so cracks don't jitter frame-to-frame. Uses a simple integer hash → pseudo-RNG function, all block-scoped.
+- **Scaling with damage:**
+  - **85-60% HP**: 2-4 small cracks, thin dark lines
+  - **60-30% HP**: 4-6 cracks with branching segments, thicker lines
+  - **<30% HP**: 6-8 large branching cracks + bright highlight edges for a "shattered" 3D depth effect
+- **Crack rendering:** Each crack is a short jagged polyline starting from a random point on the armor ring and branching inward/outward with 2-4 segments. Crack segment length scales with damage intensity. Below 40% HP, a bright edge highlight (offset 0.5px) is drawn alongside each crack for a beveled/chipped look.
+- **Implementation:** All code is inside the existing `drawEnemy()` function (Phase 5), placed right after the armor rivets and before `ctx.restore()` for the armor block. Uses block-scoped variables only — no new state, DOM, listeners, or init calls. Zero TDZ risk.
+- **Performance:** 2-8 short polylines + optional highlights per armored enemy per frame. Each crack is 2-4 `lineTo` calls. Negligible cost.
+- **Design rationale:** Armored enemies are the hardest to read tactically — you can't tell if your attacks are doing anything because the armor percentage reduces damage silently. The HP bar helps, but it's a small bar above a small enemy. The crack overlay provides body-level feedback: "I can SEE this thing breaking apart." This is a standard visual pattern in games with destructible armor (Monster Hunter, Dark Souls, Zelda BotW shields) and it's especially important here because armor-piercing is a key spec choice (Railgun, high-level cannons) — players need visual confirmation that their armor-pierce investment is paying off. The deterministic seed prevents the common "jittering cracks" bug where random positions change every frame.

@@ -9375,6 +9375,60 @@
           ctx.arc(x + Math.cos(ra) * (e.radius + 2), y + Math.sin(ra) * (e.radius + 2), 1.5, 0, Math.PI * 2);
           ctx.fill();
         }
+        // Armor cracks — intensify as HP drops
+        const armorHpPct = e.hp / e.maxHp;
+        if (armorHpPct < 0.85) {
+          const crackIntensity = 1 - armorHpPct; // 0..1, higher = more damaged
+          // Deterministic crack seed from enemy id
+          let crackSeed = 0;
+          if (e.id) { for (let ci = 0; ci < e.id.length; ci++) crackSeed = ((crackSeed << 5) - crackSeed + e.id.charCodeAt(ci)) | 0; }
+          else crackSeed = (e.maxHp * 1000) | 0;
+          const pseudoRng = (n) => { let s = (crackSeed + n * 2654435761) | 0; s = Math.imul(s ^ (s >>> 16), 0x45d9f3b); s = Math.imul(s ^ (s >>> 13), 0x45d9f3b); return ((s ^ (s >>> 16)) >>> 0) / 4294967296; };
+          // Number of cracks scales with damage: 2 at 85% HP, up to 8 below 20%
+          const numCracks = Math.min(8, 2 + Math.floor(crackIntensity * 8));
+          ctx.save();
+          ctx.strokeStyle = `rgba(60,40,20,${0.4 + crackIntensity * 0.5})`;
+          ctx.lineWidth = 1 + crackIntensity * 1.5;
+          ctx.lineCap = 'round';
+          const r = e.radius + 2;
+          for (let ci = 0; ci < numCracks; ci++) {
+            const startAngle = pseudoRng(ci) * Math.PI * 2;
+            const startR = r * (0.5 + pseudoRng(ci + 100) * 0.5);
+            const crX = x + Math.cos(startAngle) * startR;
+            const crY = y + Math.sin(startAngle) * startR;
+            const segs = 2 + Math.floor(pseudoRng(ci + 200) * 3);
+            ctx.beginPath();
+            ctx.moveTo(crX, crY);
+            let cx2 = crX, cy2 = crY;
+            for (let s = 0; s < segs; s++) {
+              const branchAngle = startAngle + (pseudoRng(ci * 10 + s) - 0.5) * 1.8;
+              const segLen = 3 + pseudoRng(ci * 10 + s + 50) * (4 + crackIntensity * 6);
+              cx2 += Math.cos(branchAngle) * segLen;
+              cy2 += Math.sin(branchAngle) * segLen;
+              ctx.lineTo(cx2, cy2);
+            }
+            ctx.stroke();
+            // Bright edge highlight along crack for depth
+            if (crackIntensity > 0.4) {
+              ctx.save();
+              ctx.strokeStyle = `rgba(200,180,150,${(crackIntensity - 0.4) * 0.5})`;
+              ctx.lineWidth = 0.5;
+              ctx.beginPath();
+              ctx.moveTo(crX + 0.5, crY + 0.5);
+              let hx = crX + 0.5, hy = crY + 0.5;
+              for (let s = 0; s < segs; s++) {
+                const branchAngle = startAngle + (pseudoRng(ci * 10 + s) - 0.5) * 1.8;
+                const segLen = 3 + pseudoRng(ci * 10 + s + 50) * (4 + crackIntensity * 6);
+                hx += Math.cos(branchAngle) * segLen;
+                hy += Math.sin(branchAngle) * segLen;
+                ctx.lineTo(hx, hy);
+              }
+              ctx.stroke();
+              ctx.restore();
+            }
+          }
+          ctx.restore();
+        }
         ctx.restore();
       }
 
