@@ -957,3 +957,29 @@ If it fails, DO NOT commit. Fix the error first.
 - **CSS additions:** `.uc-stats`, `.uc-stat`, `.uc-stat-label`, `.uc-stat-val` (with `.up`/`.down`/`.same` modifiers), `.uc-ability` — all scoped under `.upgrade-card`
 - **Implementation:** `buildStatPreview(currentStats, newStats, abilityKey)` helper function (Phase 5) generates the HTML. `openUpgradeModal()` now computes `getCannonStats()` for both current and prospective builds, passing results to the helper. No new state variables, DOM bindings, event listeners, or init calls. Zero TDZ risk.
 - **Design rationale:** Path/spec choice is the single most impactful decision in the entire game — it determines your cannon's identity, stat profile, and ability for the rest of the run. But the modal showed zero quantitative information, forcing players to either guess or look up stats externally. Now players can see at a glance that Sniper trades 70%+ fire rate for 3× damage and 160% range, or that Frost gives 60% slow but lower DPS. The green/red arrows make tradeoffs instantly readable. The ability preview is equally important — knowing that Tesla gets "Chain Overload — Lightning hits all enemies" vs. Frost gets "Blizzard — Slow all 80% for 5s" is crucial for build planning. This is standard practice in every RPG/ARPG skill tree (Diablo, Path of Exile, Borderlands) — show the numbers before committing.
+
+### 2026-03-11: Smart Targeting Mode + Closest-to-Base Fix
+- **New default targeting: 🧠 Smart** — A composite threat-assessment AI that evaluates 5 factors simultaneously to pick the most dangerous enemy in range. Far more effective than any single-factor priority mode.
+- **Threat score calculation (weighted composite):**
+  - **Base proximity (50%):** How close the enemy is to reaching the base. Uses `pathProgress` for path-following enemies (0-1, normalized). For flying enemies, uses `y / CANVAS_H`. The #1 factor — enemies about to reach your base are the top priority.
+  - **Speed (20%):** Faster enemies score higher because they'll reach the base sooner. Uses effective speed (accounts for frost slow). Normalized to 0-1 range (capped at speed 4).
+  - **Type danger (15%):** Prioritizes dangerous enemy types that have outsized impact:
+    - Healers: 1.0 (highest — they sustain other enemies, kill them first!)
+    - Bosses: 0.9 (massive HP, 3× base damage)
+    - Splitters: 0.7 (create additional enemies on death)
+    - Phasers: 0.6 (teleport ahead, hard to stop)
+    - Flyers: 0.55 (bypass the path entirely)
+    - Speedsters: 0.5 (fast, hard to hit)
+    - Shielded: 0.4 (damage absorption)
+    - Others: 0.3 (baseline)
+  - **Finish bonus (15%):** Enemies below 30% HP get a significant bonus (0.3 at ≤30% HP). This ensures cannons "finish off" nearly-dead enemies instead of switching to fresh ones — preventing leaks. Scales linearly below 70% HP.
+  - **Elite bonus (+0.08):** Elite enemies are treated as slightly more dangerous since they have 2.5× HP and award 3× XP.
+  - **Enraged boss bonus (+0.15):** Enraged bosses (doubled speed at 25% HP) are critical threats that need immediate focus.
+- **Why Smart is better than single-factor modes:**
+  - **Nearest** wastes shots on enemies far from base that aren't threats yet
+  - **Strongest** ignores nearly-dead enemies about to leak through
+  - **Closest-to-base** ignores healers/bosses/fast enemies
+  - **Smart** balances all these factors — it'll target a healer near the base first, finish off a nearly-dead speedster second, and handle the full-HP tank last
+- **Now the default** — New players start with Smart. Existing players keep their saved preference (localStorage `td_target_priority`). Press [T] to cycle through all 6 modes.
+- **Closest-to-base bug fix** — The old code used `e.y` for both flying and non-flying enemies (the ternary `e.flying ? e.y : e.y` was a no-op). Now correctly uses `pathProgress` (0-1, normalized) for path-following enemies and `y / CANVAS_H` for flyers. This means it actually finds the enemy closest to reaching the base, not just the one with the highest pixel Y coordinate (which was wrong for zigzag paths where an enemy could be physically high on screen but far along the path).
+- **Phase compliance:** All changes are in Phase 5 (inside existing `findTarget()` function body) and Phase 2 (constants). Zero new state variables, DOM elements, event listeners, or init calls needed. The icon display condition changed from `!== 'nearest'` to `!== 'smart'` since Smart is now the default.

@@ -1903,9 +1903,9 @@
     // ═══════════════════════════════════════════════════
     //  Targeting Priority System
     // ═══════════════════════════════════════════════════
-    const TARGET_PRIORITIES = ['nearest', 'strongest', 'weakest', 'fastest', 'closest-to-base'];
-    const TARGET_LABELS = { nearest: '🎯 Nearest', strongest: '💪 Strongest', weakest: '🩸 Weakest', fastest: '⚡ Fastest', 'closest-to-base': '🏠 Closest' };
-    let myTargetPriority = localStorage.getItem('td_target_priority') || 'nearest';
+    const TARGET_PRIORITIES = ['smart', 'nearest', 'strongest', 'weakest', 'fastest', 'closest-to-base'];
+    const TARGET_LABELS = { smart: '🧠 Smart', nearest: '🎯 Nearest', strongest: '💪 Strongest', weakest: '🩸 Weakest', fastest: '⚡ Fastest', 'closest-to-base': '🏠 Closest' };
+    let myTargetPriority = localStorage.getItem('td_target_priority') || 'smart';
 
     function findTarget(enemies, cx, cy, range, priority) {
       let best = null, bestScore = priority === 'weakest' ? Infinity : -Infinity;
@@ -1919,7 +1919,39 @@
           case 'strongest': score = e.maxHp; break;
           case 'weakest': score = e.hp; break;
           case 'fastest': score = e.speed * (e.slowTimer > 0 ? 0.5 : 1); break;
-          case 'closest-to-base': score = e.flying ? e.y : e.y; break; // higher y = closer to base
+          case 'closest-to-base': {
+            // For path-following enemies, pathProgress is 0-1 where 1 = at base
+            // For flying enemies, y position (higher y = closer to base)
+            score = e.flying ? (e.y / (typeof CANVAS_H !== 'undefined' ? CANVAS_H : 1)) : (e.pathProgress || 0);
+            break;
+          }
+          case 'smart': {
+            // Composite threat score: prioritizes enemies most likely to reach the base
+            // Factors: proximity to base (50%), speed (20%), type danger (15%), HP efficiency (15%)
+            const progress = e.flying ? (e.y / (typeof CANVAS_H !== 'undefined' ? CANVAS_H : 1)) : (e.pathProgress || 0);
+            const baseProximity = progress; // 0-1, higher = closer to base
+            const effectiveSpeed = e.speed * (e.slowTimer > 0 ? 0.5 : 1);
+            const speedNorm = Math.min(effectiveSpeed / 4, 1); // normalize to ~0-1
+            // Type danger: healers are high priority (they sustain others), bosses are huge threats
+            let typeDanger = 0.3; // default
+            if (e.type === 'healer') typeDanger = 1.0; // kill healers first!
+            else if (e.type === 'boss') typeDanger = 0.9;
+            else if (e.type === 'splitter') typeDanger = 0.7; // splits into more enemies
+            else if (e.type === 'phaser') typeDanger = 0.6; // teleports ahead
+            else if (e.type === 'speedster') typeDanger = 0.5;
+            else if (e.type === 'shielded') typeDanger = 0.4;
+            else if (e.type === 'flyer') typeDanger = 0.55; // bypasses path
+            // HP efficiency: prefer enemies we can actually kill (low HP relative to max)
+            const hpRatio = 1 - (e.hp / (e.maxHp || 1)); // 0 = full HP, 1 = almost dead
+            const finishBonus = hpRatio > 0.7 ? 0.3 : hpRatio * 0.15; // bonus for nearly-dead enemies
+            // Weighted composite
+            score = baseProximity * 0.50 + speedNorm * 0.20 + typeDanger * 0.15 + finishBonus * 0.15;
+            // Elite enemies get a small bump
+            if (e.elite) score += 0.08;
+            // Enraged bosses are critical threats
+            if (e.enraged) score += 0.15;
+            break;
+          }
           default: score = -dist;
         }
         if (priority === 'weakest' ? score < bestScore : score > bestScore) {
@@ -9144,8 +9176,8 @@
       ctx.fillText(c.name || '???', x, y + 24);
 
       // Targeting priority icon (own cannon only, non-default)
-      if (isMe && myTargetPriority !== 'nearest') {
-        const pIcons = { strongest: '💪', weakest: '🩸', fastest: '⚡', 'closest-to-base': '🏠' };
+      if (isMe && myTargetPriority !== 'smart') {
+        const pIcons = { nearest: '🎯', strongest: '💪', weakest: '🩸', fastest: '⚡', 'closest-to-base': '🏠' };
         ctx.font = '10px serif';
         ctx.fillText(pIcons[myTargetPriority] || '', x - 18, y - 10);
       }
