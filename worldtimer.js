@@ -2286,10 +2286,13 @@
           }
           break;
         case 'r':
-          // R = Reset (when stopped with elapsed time)
+          // R = Reset chrono (when stopped with elapsed time), or Minute Repeater (when chrono idle)
           if (!chronoRunning && (chronoElapsed > 0 || countdownDone)) {
             e.preventDefault();
             chronoLapReset.click();
+          } else if (!chronoRunning && chronoElapsed === 0) {
+            e.preventDefault();
+            playMinuteRepeater();
           }
           break;
         case 'c':
@@ -2351,12 +2354,13 @@
       '<strong>Keyboard Shortcuts</strong>',
       '<span><kbd>Space</kbd> Start / Stop</span>',
       '<span><kbd>L</kbd> Lap</span>',
-      '<span><kbd>R</kbd> Reset</span>',
+      '<span><kbd>R</kbd> Reset / Repeater</span>',
       '<span><kbd>C</kbd> Stopwatch / Countdown</span>',
       '<span><kbd>Esc</kbd> Reset timezone</span>',
       '<span><kbd>M</kbd> Toggle chime</span>',
       '<span><kbd>T</kbd> Toggle tick</span>',
       '<span><kbd>A</kbd> Alarm</span>',
+      '<span><kbd>R</kbd> 🎵 Minute Repeater</span>',
       '<span><kbd>?</kbd> Toggle this help</span>',
     ].join('');
     hintsEl.style.cssText = `
@@ -2462,6 +2466,147 @@
       lastChimeKey = key;
       playHalfHourChime();
     }
+
+  // ═══════════════════════════════════════════════════
+  // Minute Repeater Complication
+  // The pinnacle of mechanical watchmaking: press the
+  // button and the watch chimes the current time.
+  //   - Low gongs for hours (1-12)
+  //   - Ding-dong pairs for quarter hours (0-3)
+  //   - High pings for remaining minutes (0-14)
+  // Inspired by Patek Philippe Ref. 5078
+  // ═══════════════════════════════════════════════════
+  let repeaterPlaying = false;
+
+  function playRepeaterTone(freq, duration, gain, delay, type) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const t = ctx.currentTime + delay;
+
+      if (type === 'gong') {
+        // Deep, rich gong — two detuned sines + sub-harmonic
+        const osc1 = ctx.createOscillator();
+        osc1.type = 'sine';
+        osc1.frequency.value = freq;
+        const osc2 = ctx.createOscillator();
+        osc2.type = 'sine';
+        osc2.frequency.value = freq * 1.003; // slight detune for warmth
+        const osc3 = ctx.createOscillator();
+        osc3.type = 'sine';
+        osc3.frequency.value = freq * 0.5; // sub-harmonic body
+        const g1 = ctx.createGain();
+        const g2 = ctx.createGain();
+        const g3 = ctx.createGain();
+        g1.gain.setValueAtTime(0, t);
+        g1.gain.linearRampToValueAtTime(gain, t + 0.01);
+        g1.gain.exponentialRampToValueAtTime(gain * 0.4, t + duration * 0.3);
+        g1.gain.exponentialRampToValueAtTime(0.001, t + duration);
+        g2.gain.setValueAtTime(0, t);
+        g2.gain.linearRampToValueAtTime(gain * 0.6, t + 0.01);
+        g2.gain.exponentialRampToValueAtTime(0.001, t + duration * 0.8);
+        g3.gain.setValueAtTime(0, t);
+        g3.gain.linearRampToValueAtTime(gain * 0.25, t + 0.015);
+        g3.gain.exponentialRampToValueAtTime(0.001, t + duration * 0.6);
+        osc1.connect(g1).connect(ctx.destination);
+        osc2.connect(g2).connect(ctx.destination);
+        osc3.connect(g3).connect(ctx.destination);
+        osc1.start(t); osc1.stop(t + duration + 0.05);
+        osc2.start(t); osc2.stop(t + duration + 0.05);
+        osc3.start(t); osc3.stop(t + duration + 0.05);
+      } else if (type === 'ding' || type === 'dong') {
+        // Ding = higher, brighter; Dong = lower, warmer
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const overtone = ctx.createOscillator();
+        overtone.type = 'sine';
+        overtone.frequency.value = freq * 2.76; // strike tone partial
+        const g = ctx.createGain();
+        const g2 = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(gain, t + 0.005);
+        g.gain.exponentialRampToValueAtTime(gain * 0.3, t + duration * 0.25);
+        g.gain.exponentialRampToValueAtTime(0.001, t + duration);
+        g2.gain.setValueAtTime(0, t);
+        g2.gain.linearRampToValueAtTime(gain * 0.15, t + 0.005);
+        g2.gain.exponentialRampToValueAtTime(0.001, t + duration * 0.4);
+        osc.connect(g).connect(ctx.destination);
+        overtone.connect(g2).connect(ctx.destination);
+        osc.start(t); osc.stop(t + duration + 0.05);
+        overtone.start(t); overtone.stop(t + duration + 0.05);
+      } else {
+        // Ping — bright, short, crystalline
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(gain, t + 0.003);
+        g.gain.exponentialRampToValueAtTime(0.001, t + duration);
+        osc.connect(g).connect(ctx.destination);
+        osc.start(t); osc.stop(t + duration + 0.05);
+      }
+
+      setTimeout(() => ctx.close(), (delay + duration + 0.3) * 1000);
+    } catch (e) { /* no audio */ }
+  }
+
+  function playMinuteRepeater() {
+    if (repeaterPlaying) return;
+    repeaterPlaying = true;
+
+    const homeTime = getHomeTime(new Date());
+    const h = homeTime.hours;
+    const m = homeTime.minutes;
+
+    const hour12 = h % 12 || 12;
+    const quarters = Math.floor(m / 15);
+    const remainMinutes = m % 15;
+
+    let t = 0; // running delay accumulator
+
+    // Phase 1: Hour gongs — deep C4 (262 Hz)
+    for (let i = 0; i < hour12; i++) {
+      const wobble = (Math.random() - 0.5) * 3;
+      playRepeaterTone(262 + wobble, 2.0, 0.18, t, 'gong');
+      t += 0.85;
+    }
+
+    // Brief pause between phases
+    t += 0.4;
+
+    // Phase 2: Quarter ding-dongs — ding (E5, 659 Hz) + dong (C5, 523 Hz)
+    for (let i = 0; i < quarters; i++) {
+      playRepeaterTone(659, 1.2, 0.14, t, 'ding');
+      playRepeaterTone(523, 1.4, 0.14, t + 0.22, 'dong');
+      t += 0.7;
+    }
+
+    if (quarters > 0) t += 0.3;
+
+    // Phase 3: Minute pings — bright A5 (880 Hz)
+    for (let i = 0; i < remainMinutes; i++) {
+      const wobble = (Math.random() - 0.5) * 4;
+      playRepeaterTone(880 + wobble, 0.8, 0.10, t, 'ping');
+      t += 0.35;
+    }
+
+    // Visual feedback on the repeater button
+    const btn = document.querySelector('.repeater-toggle');
+    if (btn) {
+      btn.style.opacity = '1';
+      btn.style.borderColor = 'var(--accent)';
+    }
+
+    // Reset state after all chimes finish
+    setTimeout(() => {
+      repeaterPlaying = false;
+      if (btn) {
+        btn.style.opacity = '';
+        btn.style.borderColor = '';
+      }
+    }, (t + 1.5) * 1000);
+  }
   }
 
   // ═══════════════════════════════════════════════════
@@ -2599,6 +2744,24 @@
     }
   });
   document.body.appendChild(alarmToggle);
+
+  // Minute Repeater button (next to alarm)
+  const repeaterToggle = document.createElement('button');
+  repeaterToggle.className = 'repeater-toggle';
+  repeaterToggle.textContent = '🎵';
+  repeaterToggle.title = 'Minute Repeater — chimes the current time (R)';
+  repeaterToggle.style.cssText = `
+    position:fixed; bottom:16px; left:136px; padding:6px 10px;
+    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
+    border:1px solid var(--border); border-radius:var(--radius);
+    cursor:pointer; z-index:9999; opacity:0.5;
+    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
+    line-height:1; font-family:var(--font-mono);
+  `;
+  repeaterToggle.addEventListener('mouseenter', function() { repeaterToggle.style.opacity = '1'; });
+  repeaterToggle.addEventListener('mouseleave', function() { if (!repeaterPlaying) repeaterToggle.style.opacity = '0.5'; });
+  repeaterToggle.addEventListener('click', playMinuteRepeater);
+  document.body.appendChild(repeaterToggle);
 
   if (alarmSetBtn) {
     alarmSetBtn.addEventListener('click', function() {
