@@ -1392,29 +1392,28 @@
   }, msToMidnight);
 
   // Responsive scaling — fit clock to viewport on small screens
-  // clockContainer already declared above
+  // Uses zoom (baseline in all modern browsers) instead of transform: scale()
+  // because zoom doesn't break getBoundingClientRect() which positionCities() needs
   const CLOCK_NATIVE_SIZE = 520; // px — the designed size
+  const worldTimerEl = document.querySelector('.world-timer');
 
   function fitClockToViewport() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const pad = 32; // breathing room
-    // Digital readouts below clock need ~80px
+    const pad = 24; // breathing room
+    // Digital readouts + chrono below clock need ~120px
     const availW = vw - pad;
-    const availH = vh - pad - 80;
+    const availH = vh - pad - 120;
     const maxFit = Math.min(availW, availH);
 
     if (maxFit < CLOCK_NATIVE_SIZE) {
-      const scale = maxFit / CLOCK_NATIVE_SIZE;
-      clockContainer.style.transform = `scale(${scale.toFixed(4)})`;
-      clockContainer.style.transformOrigin = 'top center';
-      // Keep layout flow correct — shrink the box the container occupies
-      clockContainer.style.marginBottom = `-${Math.round(CLOCK_NATIVE_SIZE * (1 - scale))}px`;
+      const scale = Math.max(0.45, maxFit / CLOCK_NATIVE_SIZE); // floor at 45%
+      worldTimerEl.style.zoom = scale.toFixed(4);
     } else {
-      clockContainer.style.transform = '';
-      clockContainer.style.transformOrigin = '';
-      clockContainer.style.marginBottom = '';
+      worldTimerEl.style.zoom = '';
     }
+    // Re-position cities after layout shift
+    positionCities();
   }
 
   // ═══════════════════════════════════════════════════
