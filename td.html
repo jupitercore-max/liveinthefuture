@@ -6851,6 +6851,9 @@
                 maxLife: 6,
                 color: flashColor
               });
+              // Trigger cannon recoil animation
+              c._recoilTime = Date.now();
+              c._recoilAngle = mAngle;
               projectiles.push({
                 x1: c.x, y1: c.y,
                 x2: nearest.x, y2: nearest.y,
@@ -8871,8 +8874,24 @@
         ctx.restore();
       }
 
+      // Cannon recoil animation — shift body backward along barrel angle on fire
+      let recoilDist = 0;
+      if (c._recoilTime) {
+        const elapsed = Date.now() - c._recoilTime;
+        const duration = spec === 'sniper' ? 180 : spec === 'cannon' ? 200 : spec === 'railgun' ? 200 : spec === 'gatling' ? 80 : 120;
+        const maxDist = spec === 'sniper' ? 5 : spec === 'cannon' ? 6 : spec === 'railgun' ? 5 : spec === 'gatling' ? 2 : 3;
+        if (elapsed < duration) {
+          // Fast snap back then ease out (exponential decay)
+          const t = elapsed / duration;
+          recoilDist = maxDist * Math.pow(1 - t, 2.5);
+        }
+      }
+      const recoilX = recoilDist > 0.1 ? -Math.cos(c._recoilAngle || barrelAngle) * recoilDist : 0;
+      const recoilY = recoilDist > 0.1 ? -Math.sin(c._recoilAngle || barrelAngle) * recoilDist : 0;
+
       // Draw cannon body based on spec/path
       ctx.save();
+      if (recoilDist > 0.1) ctx.translate(recoilX, recoilY);
       if (spec === 'gatling') {
         // Rapid fire heat glow (applies to gatling and rapid path)
         if (spec === 'gatling' || path === 'rapid') {

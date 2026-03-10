@@ -1005,3 +1005,20 @@ If it fails, DO NOT commit. Fix the error first.
   - No new state variables, DOM elements, event listeners, or init calls needed. Zero TDZ risk.
 - **Performance:** Adds one linear gradient per HP bar (GPU-composited), one optional ghost bar fade (200ms window), and 4-10 thin lines for segments on tanky enemies. Negligible cost.
 - **Design rationale:** Enemy HP bars were the game's simplest visual element — flat colored rectangles with no feedback beyond color change at thresholds. Every other visual system had been upgraded (damage numbers, death ghosts, muzzle flashes, impact sparks, armor cracks) but the HP bar itself was still basic. The gradient+shimmer brings it up to modern game UI standards (Diablo, League of Legends, Hades). The damage flash is the highest-impact addition — it confirms every hit visually and shows exactly how much HP was removed, making damage feel tangible. Segments on tanky enemies help players gauge "how much more?" at a glance — especially useful for bosses where phase transitions happen at specific HP thresholds (75%, 50%, 25%). The regen pulse solves a real gameplay problem: healers regenerate allies silently, and players often don't realize their damage is being undone until they notice the enemy isn't dying.
+
+### 2026-03-11: Cannon Recoil Animation
+- **Physical kick-back on every shot** — When a cannon fires, its entire body snaps backward along the barrel angle then smoothly springs back to position. Uses exponential decay curve `(1-t)^2.5` for a fast initial snap with gradual ease-out, creating a satisfying mechanical feel.
+- **Per-specialization tuning:**
+  - **Sniper**: 5px displacement, 180ms duration — heavy, deliberate recoil matching the single big-shot fantasy
+  - **Cannon**: 6px displacement, 200ms — heaviest recoil for explosive ordnance
+  - **Railgun**: 5px displacement, 200ms — energy weapon kickback
+  - **Gatling**: 2px displacement, 80ms — light but extremely rapid, creating a machine-gun vibration effect
+  - **Default/Rapid/Tech/Frost/Basic**: 3px displacement, 120ms — standard feel
+- **Implementation:**
+  - Trigger: `c._recoilTime` and `c._recoilAngle` set on the cannon object when `muzzleFlashes.push()` fires in the visual projectile loop
+  - Render: In `drawCannon()`, computes elapsed time, applies `ctx.translate()` to shift the body/barrel backward. `ctx.restore()` undoes the shift after all cannon elements are drawn.
+  - No new state variables in Phase 3 — uses ad-hoc `_recoilTime`/`_recoilAngle` properties on cannon objects (same pattern as existing `_despawnStart`, `_lastDamageTime`)
+  - No new DOM, event listeners, or init calls. Pure Phase 5 rendering changes + one trigger line in the visual fire loop.
+- **Visual feedback loop completed:** Muzzle flash (barrel tip) → recoil (body snaps back) → projectile travels → impact sparks (target hit). Every part of the shot cycle now has physical weight. The recoil is the missing middle piece that makes cannons feel like they're actually exerting force, not just spawning lines.
+- **Gatling rapid-fire effect:** Because Gatling fires so fast (~3× normal), its 2px/80ms recoil creates a constant vibration — the cannon visibly buzzes while firing, reinforcing the machine-gun fantasy.
+- **Design rationale:** Cannon recoil is the #1 "weapon feel" enhancement in any shooter/turret game. Without it, weapons feel disconnected from their projectiles — they just sit there while lines fly out. Real turrets kick back. The per-spec tuning means each cannon type FEELS different to watch, not just looks different. Sniper's long deliberate kick vs gatling's buzzy vibration vs cannon's heavy thump creates distinct personality per build. This is standard in premium TD games (Bloons TD6, Kingdom Rush) and essential in any game with projectile weapons (every FPS, every shoot-em-up). The exponential decay curve specifically matches how real springs/recoil buffers work — instant peak displacement followed by diminishing oscillation back to rest.
