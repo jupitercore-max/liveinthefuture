@@ -47,6 +47,10 @@
   // Animation state for city ring transitions
   let isAnimatingCities = false;
   let polarEarthAnimationOffset = 0; // Degrees, decays to 0 during animation
+  // Hour chime state
+  let chimeEnabled = localStorage.getItem('wt_chime') !== 'off';
+  let lastChimeKey = '';
+  let chimeToggle = null; // created later in DOM init
 
   // ═══════════════════════════════════════════════════
   // Bezel Drag Rotation State
@@ -1103,6 +1107,7 @@
     updatePowerReserve();
     drawPowerReserve();
     updateSunInfo(hours, minutes);
+    checkChime(hours, minutes, seconds);
 
     requestAnimationFrame(updateClock);
   }
@@ -1905,6 +1910,14 @@
           }
           break;
         case 'escape':
+        case 'm':
+          // M = Toggle hour chime
+          e.preventDefault();
+          chimeEnabled = !chimeEnabled;
+          localStorage.setItem('wt_chime', chimeEnabled ? 'on' : 'off');
+          chimeToggle.textContent = chimeEnabled ? '🔔' : '🔕';
+          if (chimeEnabled) playChimeTone(554.37, 0.8, 0.06, 0);
+          break;
           // Esc = Reset home timezone to local
           if (homeTimezone) {
             e.preventDefault();
@@ -1960,6 +1973,105 @@
       hintsEl.style.display = hintsVisible ? 'flex' : 'none';
     }
   }
+
+
+  // ═══════════════════════════════════════════════════════════
+  // Hour Chime (Sonnerie) Complication
+  // Westminster-style bell strikes: 1-12 at each hour, single
+  // softer tone at half hour. Toggle with 🔔 button or [M] key.
+  // ═══════════════════════════════════════════════════════════
+
+  function playChimeTone(freq, duration, gain, delay) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const t = ctx.currentTime + delay;
+      // Bell fundamental
+      const osc1 = ctx.createOscillator();
+      osc1.type = 'sine';
+      osc1.frequency.value = freq;
+      // Bell overtone (minor third partial — church bell character)
+      const osc2 = ctx.createOscillator();
+      osc2.type = 'sine';
+      osc2.frequency.value = freq * 1.183;
+      // Subtle shimmer partial (octave)
+      const osc3 = ctx.createOscillator();
+      osc3.type = 'sine';
+      osc3.frequency.value = freq * 2.0;
+      const g1 = ctx.createGain();
+      const g2 = ctx.createGain();
+      const g3 = ctx.createGain();
+      // Bell envelope: quick attack, long exponential decay
+      g1.gain.setValueAtTime(0, t);
+      g1.gain.linearRampToValueAtTime(gain, t + 0.008);
+      g1.gain.exponentialRampToValueAtTime(gain * 0.3, t + duration * 0.4);
+      g1.gain.exponentialRampToValueAtTime(0.001, t + duration);
+      g2.gain.setValueAtTime(0, t);
+      g2.gain.linearRampToValueAtTime(gain * 0.35, t + 0.008);
+      g2.gain.exponentialRampToValueAtTime(0.001, t + duration * 0.7);
+      g3.gain.setValueAtTime(0, t);
+      g3.gain.linearRampToValueAtTime(gain * 0.12, t + 0.008);
+      g3.gain.exponentialRampToValueAtTime(0.001, t + duration * 0.5);
+      osc1.connect(g1).connect(ctx.destination);
+      osc2.connect(g2).connect(ctx.destination);
+      osc3.connect(g3).connect(ctx.destination);
+      osc1.start(t); osc1.stop(t + duration + 0.05);
+      osc2.start(t); osc2.stop(t + duration + 0.05);
+      osc3.start(t); osc3.stop(t + duration + 0.05);
+      setTimeout(() => ctx.close(), (delay + duration + 0.2) * 1000);
+    } catch (e) { /* no audio context */ }
+  }
+
+  function playHourChime(hour12) {
+    const baseFreq = 440;
+    const count = hour12 || 12;
+    for (let i = 0; i < count; i++) {
+      const wobble = (Math.random() - 0.5) * 4;
+      playChimeTone(baseFreq + wobble, 1.8, 0.15, i * 0.7);
+    }
+  }
+
+  function playHalfHourChime() {
+    playChimeTone(554.37, 1.4, 0.08, 0);
+  }
+
+  function checkChime(hours, minutes, seconds) {
+    if (!chimeEnabled) return;
+    if (seconds > 2) return;
+    if (minutes === 0) {
+      const key = 'H' + hours;
+      if (lastChimeKey === key) return;
+      lastChimeKey = key;
+      playHourChime(hours % 12);
+    } else if (minutes === 30) {
+      const key = 'M' + hours + ':30';
+      if (lastChimeKey === key) return;
+      lastChimeKey = key;
+      playHalfHourChime();
+    }
+  }
+
+  // Chime toggle button
+  chimeToggle = document.createElement('button');
+  chimeToggle.className = 'chime-toggle';
+  chimeToggle.textContent = chimeEnabled ? '🔔' : '🔕';
+  chimeToggle.title = 'Toggle hour chime (M)';
+  chimeToggle.style.cssText = `
+    position:fixed; bottom:16px; left:16px; padding:6px 10px;
+    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
+    border:1px solid var(--border); border-radius:var(--radius);
+    cursor:pointer; z-index:9999; opacity:0.5;
+    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
+    line-height:1; font-family:var(--font-mono);
+  `;
+  chimeToggle.addEventListener('mouseenter', function() { chimeToggle.style.opacity = '1'; });
+  chimeToggle.addEventListener('mouseleave', function() { chimeToggle.style.opacity = '0.5'; });
+  chimeToggle.addEventListener('click', function() {
+    chimeEnabled = !chimeEnabled;
+    localStorage.setItem('wt_chime', chimeEnabled ? 'on' : 'off');
+    chimeToggle.textContent = chimeEnabled ? '🔔' : '🔕';
+    if (chimeEnabled) playChimeTone(554.37, 0.8, 0.06, 0);
+  });
+  document.body.appendChild(chimeToggle);
 
   fitClockToViewport();
 
