@@ -1473,6 +1473,88 @@
         chronoLapReset.textContent = 'Lap';
       }
     });
+
+    // ═══════════════════════════════════════════════════
+    //  Keyboard Shortcuts for Chronograph & Navigation
+    // ═══════════════════════════════════════════════════
+    document.addEventListener('keydown', (e) => {
+      // Ignore if user is typing in an input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      switch (e.key.toLowerCase()) {
+        case ' ':
+          // Space = Start/Stop chronograph
+          e.preventDefault();
+          chronoStartStop.click();
+          break;
+        case 'l':
+          // L = Lap (when running) or noop
+          if (chronoRunning) {
+            e.preventDefault();
+            chronoLapReset.click();
+          }
+          break;
+        case 'r':
+          // R = Reset (when stopped with elapsed time)
+          if (!chronoRunning && chronoElapsed > 0) {
+            e.preventDefault();
+            chronoLapReset.click();
+          }
+          break;
+        case 'escape':
+          // Esc = Reset home timezone to local
+          if (homeTimezone) {
+            e.preventDefault();
+            resetToLocalTimezone();
+          }
+          break;
+        case '?':
+          // ? = Toggle keyboard shortcut hints
+          e.preventDefault();
+          toggleShortcutHints();
+          break;
+      }
+    });
+
+    // Shortcut hints overlay
+    let hintsVisible = false;
+    const hintsEl = document.createElement('div');
+    hintsEl.className = 'shortcut-hints';
+    hintsEl.innerHTML = [
+      '<strong>Keyboard Shortcuts</strong>',
+      '<span><kbd>Space</kbd> Start / Stop</span>',
+      '<span><kbd>L</kbd> Lap</span>',
+      '<span><kbd>R</kbd> Reset</span>',
+      '<span><kbd>Esc</kbd> Reset timezone</span>',
+      '<span><kbd>?</kbd> Toggle this help</span>',
+    ].join('');
+    hintsEl.style.cssText = `
+      position:fixed; bottom:60px; right:16px; background:var(--card-bg);
+      border:1px solid var(--border); border-radius:8px; padding:12px 16px;
+      font-family:var(--font-mono); font-size:0.7rem; color:var(--text-muted);
+      display:none; flex-direction:column; gap:5px; z-index:9998;
+      box-shadow:0 4px 12px rgba(0,0,0,0.15); max-width:220px;
+    `;
+    document.body.appendChild(hintsEl);
+
+    // Style kbd elements
+    const kbdStyle = document.createElement('style');
+    kbdStyle.textContent = `
+      .shortcut-hints kbd {
+        display:inline-block; background:var(--bg); border:1px solid var(--border);
+        border-radius:3px; padding:1px 5px; font-size:0.65rem; font-family:var(--font-mono);
+        margin-right:6px; min-width:18px; text-align:center;
+        box-shadow:0 1px 0 var(--border);
+      }
+      .shortcut-hints strong { color:var(--text); margin-bottom:4px; }
+      .shortcut-hints span { display:flex; align-items:center; }
+    `;
+    document.head.appendChild(kbdStyle);
+
+    function toggleShortcutHints() {
+      hintsVisible = !hintsVisible;
+      hintsEl.style.display = hintsVisible ? 'flex' : 'none';
+    }
   }
 
   fitClockToViewport();
