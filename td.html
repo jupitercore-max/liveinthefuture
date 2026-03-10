@@ -3686,6 +3686,7 @@
     let streakAnnouncement = null; // { text, color, size, timer, maxTimer }
     let gameSpeed = 1; // 1, 2, or 3
     let gamePaused = false; // pause toggle
+    let showHelpOverlay = false; // keyboard shortcut help
     let abilityCooldownLeft = 0; // seconds remaining on ability cooldown
     let abilityTargeting = false; // waiting for canvas click to target
     let autoAbilityEnabled = localStorage.getItem('td_auto_ability') === 'true';
@@ -6413,6 +6414,10 @@
       if (e.key === 'Escape' && abilityTargeting) {
         cancelTargeting();
       }
+      // ? toggles keyboard shortcut help overlay
+      if (e.key === '?') {
+        showHelpOverlay = !showHelpOverlay;
+      }
     });
 
     function cancelTargeting() {
@@ -7389,6 +7394,122 @@
       ctx.lineTo(mx + MW, baseMyY);
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // ═══ Keyboard Shortcut Help Overlay ═══
+    function drawHelpOverlay() {
+      if (!showHelpOverlay) return;
+      const font = getComputedStyle(document.body).fontFamily;
+      ctx.save();
+
+      // Dim backdrop
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // Panel dimensions
+      const shortcuts = [
+        ['Q', 'Use Ability'],
+        ['U', 'Ultimate'],
+        ['A', 'Toggle Auto-Ability'],
+        ['W', 'Toggle Auto-Wave'],
+        ['E', 'Send Next Wave Early'],
+        ['H', 'Call for Aid'],
+        ['P', 'Pause / Resume'],
+        ['T', 'Cycle Targeting Mode'],
+        ['D', 'Toggle DPS Meter'],
+        ['B', 'Open Bestiary'],
+        ['Esc', 'Cancel Targeting'],
+        ['?', 'Toggle This Help'],
+      ];
+      const rowH = 26;
+      const panelW = 300;
+      const panelH = shortcuts.length * rowH + 60;
+      const panelX = (CANVAS_W - panelW) / 2;
+      const panelY = (CANVAS_H - panelH) / 2;
+
+      // Panel background
+      ctx.fillStyle = 'rgba(20,24,36,0.95)';
+      ctx.strokeStyle = 'rgba(30,144,255,0.5)';
+      ctx.lineWidth = 1.5;
+      const cr = 8;
+      ctx.beginPath();
+      ctx.moveTo(panelX + cr, panelY);
+      ctx.lineTo(panelX + panelW - cr, panelY);
+      ctx.quadraticCurveTo(panelX + panelW, panelY, panelX + panelW, panelY + cr);
+      ctx.lineTo(panelX + panelW, panelY + panelH - cr);
+      ctx.quadraticCurveTo(panelX + panelW, panelY + panelH, panelX + panelW - cr, panelY + panelH);
+      ctx.lineTo(panelX + cr, panelY + panelH);
+      ctx.quadraticCurveTo(panelX, panelY + panelH, panelX, panelY + panelH - cr);
+      ctx.lineTo(panelX, panelY + cr);
+      ctx.quadraticCurveTo(panelX, panelY, panelX + cr, panelY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Title
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 16px ' + font;
+      ctx.fillStyle = '#1E90FF';
+      ctx.fillText('⌨ Keyboard Shortcuts', panelX + panelW / 2, panelY + 22);
+
+      // Divider
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(panelX + 16, panelY + 40);
+      ctx.lineTo(panelX + panelW - 16, panelY + 40);
+      ctx.stroke();
+
+      // Rows
+      const startY = panelY + 56;
+      ctx.textBaseline = 'middle';
+      for (let i = 0; i < shortcuts.length; i++) {
+        const y = startY + i * rowH;
+        const key = shortcuts[i][0];
+        const desc = shortcuts[i][1];
+
+        // Key badge
+        const keyW = ctx.measureText(key).width;
+        const badgeW = Math.max(keyW + 14, 32);
+        const badgeX = panelX + 30;
+        const badgeY = y - 10;
+        ctx.fillStyle = 'rgba(30,144,255,0.15)';
+        ctx.strokeStyle = 'rgba(30,144,255,0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(badgeX + 4, badgeY);
+        ctx.lineTo(badgeX + badgeW - 4, badgeY);
+        ctx.quadraticCurveTo(badgeX + badgeW, badgeY, badgeX + badgeW, badgeY + 4);
+        ctx.lineTo(badgeX + badgeW, badgeY + 20 - 4);
+        ctx.quadraticCurveTo(badgeX + badgeW, badgeY + 20, badgeX + badgeW - 4, badgeY + 20);
+        ctx.lineTo(badgeX + 4, badgeY + 20);
+        ctx.quadraticCurveTo(badgeX, badgeY + 20, badgeX, badgeY + 20 - 4);
+        ctx.lineTo(badgeX, badgeY + 4);
+        ctx.quadraticCurveTo(badgeX, badgeY, badgeX + 4, badgeY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = 'bold 12px monospace';
+        ctx.fillStyle = '#7ec8ff';
+        ctx.textAlign = 'center';
+        ctx.fillText(key, badgeX + badgeW / 2, y);
+
+        // Description
+        ctx.font = '13px ' + font;
+        ctx.fillStyle = '#ccc';
+        ctx.textAlign = 'left';
+        ctx.fillText(desc, panelX + 80, y);
+      }
+
+      // Footer hint
+      ctx.textAlign = 'center';
+      ctx.font = '11px ' + font;
+      ctx.fillStyle = '#666';
+      ctx.fillText('Press ? to close', panelX + panelW / 2, panelY + panelH - 12);
+
       ctx.restore();
     }
 
@@ -8600,6 +8721,9 @@
         // Wave difficulty indicator below countdown
         drawWaveDifficulty();
       }
+
+      // Keyboard shortcut help overlay (topmost layer)
+      drawHelpOverlay();
     }
 
     // ═══ Wave Difficulty Indicator (drawn during countdown) ═══
