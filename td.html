@@ -2365,6 +2365,7 @@
     let sessionEarlySends = 0;
     let sessionAbilitiesUsed = 0;
     let personalBestBroken = false; // true once we pass lifetimeStats.bestWave this run
+    let runHistory = []; // Array of past game run records
 
     function updateLifetimeStatsOnGameOver(wave, kills) {
       const records = [];
@@ -2456,6 +2457,36 @@
       bestiaryContent.innerHTML = html;
     }
 
+    // ═══════════════════════════════════════════════════
+    //  Run History — record & display past games
+    // ═══════════════════════════════════════════════════
+    const RUN_HISTORY_KEY = 'td_run_history';
+    const MAX_RUN_HISTORY = 20;
+
+    function loadRunHistory() {
+      try { runHistory = JSON.parse(localStorage.getItem(RUN_HISTORY_KEY) || '[]'); }
+      catch(e) { runHistory = []; }
+    }
+    function saveRunHistory() {
+      localStorage.setItem(RUN_HISTORY_KEY, JSON.stringify(runHistory));
+    }
+    function recordRun(wave, kills, stars) {
+      const myCannon = cannons[playerId];
+      const cannonSpec = myCannon ? (myCannon.spec || myCannon.path || 'basic') : 'none';
+      const cannonLevel = myCannon ? (myCannon.level || 1) : 0;
+      runHistory.unshift({
+        wave,
+        kills,
+        stars,
+        spec: cannonSpec,
+        level: cannonLevel,
+        combo: sessionBestCombo,
+        date: Date.now()
+      });
+      if (runHistory.length > MAX_RUN_HISTORY) runHistory.length = MAX_RUN_HISTORY;
+      saveRunHistory();
+    }
+
     function renderStatsPanel() {
       const s = lifetimeStats;
       const avgKills = s.gamesPlayed > 0 ? Math.round(s.totalKills / s.gamesPlayed) : 0;
@@ -2480,6 +2511,44 @@
         <div class="stats-row"><span class="sr-label">Avg Kills / Game</span><span class="sr-value">${avgKills}</span></div>
         <div class="stats-row"><span class="sr-label">Avg Waves / Game</span><span class="sr-value">${avgWaves}</span></div>
         ${s.firstPlayedAt ? `<div class="stats-row"><span class="sr-label">Playing Since</span><span class="sr-value">${new Date(s.firstPlayedAt).toLocaleDateString()}</span></div>` : ''}
+        ${runHistory.length > 0 ? `
+        <div class="stats-section-title">🕐 Recent Runs</div>
+        <div style="max-height:220px;overflow-y:auto;margin-top:4px;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+            <thead>
+              <tr style="color:var(--text-muted);border-bottom:1px solid var(--border);text-align:left;">
+                <th style="padding:3px 4px;">Wave</th>
+                <th style="padding:3px 4px;">Kills</th>
+                <th style="padding:3px 4px;">Combo</th>
+                <th style="padding:3px 4px;">Build</th>
+                <th style="padding:3px 4px;">⭐</th>
+                <th style="padding:3px 4px;">When</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${runHistory.map((r, i) => {
+                const isBest = r.wave === s.bestWave;
+                const specColors = {gatling:'#f1c40f',sniper:'#e67e22',cannon:'#e74c3c',railgun:'#3498db',tesla:'#9b59b6',frost:'#00bcd4',rapid:'#2ecc71',power:'#e74c3c',tech:'#9b59b6',basic:'#888',none:'#555'};
+                const specColor = specColors[r.spec] || '#888';
+                const specLabel = r.spec === 'none' ? '—' : (r.spec.charAt(0).toUpperCase() + r.spec.slice(1));
+                const ago = Date.now() - r.date;
+                const mins = Math.floor(ago / 60000);
+                const hrs = Math.floor(ago / 3600000);
+                const days = Math.floor(ago / 86400000);
+                const when = days > 0 ? days + 'd' : hrs > 0 ? hrs + 'h' : mins > 0 ? mins + 'm' : 'now';
+                return '<tr style="border-bottom:1px solid rgba(42,42,74,0.5);' + (isBest ? 'background:rgba(251,191,36,0.08);' : '') + '">' +
+                  '<td style="padding:3px 4px;color:' + (isBest ? '#fbbf24' : 'var(--text)') + ';font-weight:' + (isBest ? '700' : '400') + ';">' + (isBest ? '🏆 ' : '') + r.wave + '</td>' +
+                  '<td style="padding:3px 4px;">' + r.kills + '</td>' +
+                  '<td style="padding:3px 4px;">' + (r.combo || 0) + '×</td>' +
+                  '<td style="padding:3px 4px;"><span style="color:' + specColor + ';">' + specLabel + '</span> <span style="color:var(--text-muted);font-size:0.65rem;">Lv' + (r.level || 1) + '</span></td>' +
+                  '<td style="padding:3px 4px;color:#fbbf24;">' + (r.stars || 0) + '</td>' +
+                  '<td style="padding:3px 4px;color:var(--text-muted);">' + when + '</td>' +
+                '</tr>';
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
       `;
     }
 
@@ -5207,6 +5276,8 @@
       // Earn prestige stars
       const earned = earnPrestigeStars(waveNumber, totalKills);
       lifetimeStats.totalStarsEarned += earned;
+      // Record this run in history
+      recordRun(waveNumber, totalKills, earned);
       // Update lifetime stats and get records broken
       const records = updateLifetimeStatsOnGameOver(waveNumber, totalKills);
       const recordHtml = records.length > 0
@@ -9880,6 +9951,7 @@
     initDOM();
     initListeners();
     loadBestiaryKills();
+    loadRunHistory();
     muteBtn.textContent = soundMuted ? '🔇' : '🔊';
     updatePrestigeBtn();
     updateAvatarBtn();

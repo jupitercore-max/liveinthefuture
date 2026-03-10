@@ -887,3 +887,30 @@ If it fails, DO NOT commit. Fix the error first.
 - **No new DOM elements, event listeners, or init calls** — zero TDZ risk. Pure Phase 3 state + Phase 5 functions + one function call inserted into existing wave clear logic.
 - **Performance:** Max ~80 particles with simple fillRect + rotate. Each particle is one save/translate/rotate/fillRect/restore — negligible cost even at 60fps.
 - **Design rationale:** The game had `sfxWaveClear()` (audio) and `showWaveSummary()` (DOM overlay) on wave clear, but no on-canvas visual celebration. The moment between "last enemy dies" and "summary panel appears" was visually flat. Confetti fills that gap with instant, satisfying, physical-feeling feedback. The tumbling rectangles are the classic confetti pattern used in mobile games, achievement screens, and sports broadcasts. Boss waves getting 2× confetti reinforces their significance.
+
+### 2026-03-10: Run History in Stats Panel
+- **Past game log** — Every game over now records the run's details to localStorage and displays them in a scrollable table in the 📊 Stats panel. Last 20 runs stored, newest first.
+- **Per-run data recorded:**
+  - Wave reached
+  - Total kills
+  - Best combo
+  - Cannon build (spec/path) and level
+  - Stars earned
+  - Timestamp
+- **Stats panel table shows:**
+  - Wave (🏆 highlighted in gold if it matches your all-time best)
+  - Kills
+  - Combo multiplier
+  - Build name (color-coded by spec: gatling=gold, sniper=orange, cannon=red, railgun=blue, tesla=purple, frost=cyan) + level
+  - Stars earned
+  - Relative time (now, 5m, 2h, 3d)
+- **Best wave row** gets a subtle gold background highlight so your record run stands out visually
+- **Scrollable** — max-height 220px with overflow-y:auto, so it doesn't dominate the stats panel even with 20 entries
+- **Implementation:**
+  - Phase 3: `let runHistory = []` state variable
+  - Phase 5: `loadRunHistory()`, `saveRunHistory()`, `recordRun()` functions + run history HTML in `renderStatsPanel()`
+  - Phase 7: `loadRunHistory()` init call
+  - Hook: `recordRun()` called in `showGameOver()` after `earnPrestigeStars()` but before `updateLifetimeStatsOnGameOver()`
+- **No new DOM elements, event listeners, or CSS** — the table is generated inline in the existing `renderStatsPanel()` template literal using inline styles
+- **Phase compliance:** State in Phase 3, functions in Phase 5, init in Phase 7, hook in existing showGameOver function body. Zero TDZ risk.
+- **Design rationale:** The stats panel had lifetime totals and personal records, but no way to see individual game progression over time. Run history lets players track improvement — "am I reaching higher waves?", "which build gets me the farthest?", "how many stars am I earning per game?" This is a standard feature in roguelikes (Hades run history, Slay the Spire run log, Dead Cells daily run tracker) that adds long-term engagement without any gameplay changes. The color-coded build column also helps players evaluate which cannon specs perform best for them.
