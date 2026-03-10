@@ -923,3 +923,11 @@ If it fails, DO NOT commit. Fix the error first.
 - **Phase compliance:** Pure rendering code inserted into the existing drawFrame function body (Phase 5). Zero TDZ risk. No state in Phase 3, no DOM in Phase 4, no init in Phase 7.
 - **Performance:** 3 arc loops + 5 small circle fills + 4 small circle fills + 2 radial gradients + 1 shield arc per frame. Negligible cost — less than the existing terrain hazard rendering.
 - **Design rationale:** The path had a start point and end point but they looked identical — just where the chevrons happened to begin and end. Real TD games (Kingdom Rush, Bloons, Plants vs Zombies) always mark the spawn point and base with distinctive visual landmarks. The spawn portal tells players "enemies come from here" and the base gate tells players "defend this." The HP-reactive base gate also creates a spatial connection between the abstract HP number and a physical location on the battlefield — when the gate turns red, it feels like your actual base is under attack, not just a number going down.
+
+### 2026-03-10: Auto-Wave Mode
+- **🌊 Auto button** — click or press [W] to toggle auto-wave mode
+- When enabled, waves start with only 0.5s delay (instead of 1-3s countdown)
+- Wave summary popup auto-dismisses in 1s instead of 2.5s
+- Button highlights blue when active, shows checkmark
+- State persisted in localStorage (`td_auto_wave`)
+- Fixed a broken `tryAutoFireAbility` function that had been split by the auto-wave insertion (duplicate function header removed)
