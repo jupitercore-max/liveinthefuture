@@ -125,6 +125,25 @@
     .ctrl-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
     .ctrl-btn:disabled { opacity: 0.4; cursor: default; }
     .ctrl-btn:disabled:hover { background: var(--card-bg); color: var(--text); border-color: var(--border); }
+    /* ─── More Menu (meta buttons) ─────────────────── */
+    .more-menu-wrap { position: relative; }
+    .more-menu {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 6px);
+      right: 0;
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px;
+      gap: 4px;
+      flex-wrap: wrap;
+      box-shadow: 0 -4px 16px rgba(0,0,0,0.4);
+      z-index: 50;
+      min-width: 200px;
+      justify-content: center;
+    }
+    .more-menu.open { display: flex; }
     .xp-bar-wrap {
       flex: 1;
       min-width: 100px;
@@ -1390,13 +1409,18 @@
       <button class="ctrl-btn" id="relocateBtn">Relocate</button>
       <button class="ctrl-btn" id="priorityBtn" title="Cycle targeting priority [T]">🎯 Nearest</button>
       <button class="ctrl-btn sell-btn" id="sellBtn" disabled>🗑 Sell</button>
-      <button class="ctrl-btn" id="playersBtn">Players</button>
-      <button class="ctrl-btn" id="achieveBtn" title="Achievements">🏆</button>
-      <button class="ctrl-btn" id="prestigeBtn" title="Prestige Upgrades" style="color:#c084fc;border-color:rgba(160,120,255,0.4)">⭐</button>
-      <button class="ctrl-btn" id="muteBtn" title="Toggle sound">🔊</button>
-      <button class="ctrl-btn" id="helpBtn" title="Tutorial">❓</button>
-      <button class="ctrl-btn" id="bestiaryBtn" title="Enemy Bestiary [B]" style="color:#ff6b6b;border-color:rgba(255,107,107,0.4)">📖</button>
-      <button class="ctrl-btn" id="statsBtn" title="Statistics" style="color:#4FC3F7;border-color:rgba(30,144,255,0.4)">📊</button>
+      <div class="more-menu-wrap" id="moreMenuWrap">
+        <button class="ctrl-btn" id="moreMenuBtn" title="More options">⋯</button>
+        <div class="more-menu" id="moreMenu">
+          <button class="ctrl-btn" id="playersBtn">Players</button>
+          <button class="ctrl-btn" id="achieveBtn" title="Achievements">🏆</button>
+          <button class="ctrl-btn" id="prestigeBtn" title="Prestige Upgrades" style="color:#c084fc;border-color:rgba(160,120,255,0.4)">⭐</button>
+          <button class="ctrl-btn" id="muteBtn" title="Toggle sound">🔊</button>
+          <button class="ctrl-btn" id="helpBtn" title="Tutorial">❓</button>
+          <button class="ctrl-btn" id="bestiaryBtn" title="Enemy Bestiary [B]" style="color:#ff6b6b;border-color:rgba(255,107,107,0.4)">📖</button>
+          <button class="ctrl-btn" id="statsBtn" title="Statistics" style="color:#4FC3F7;border-color:rgba(30,144,255,0.4)">📊</button>
+        </div>
+      </div>
     </div>
 
     <div class="player-panel" id="playerPanel">
@@ -1539,6 +1563,8 @@
     let statsClose = null;
     let statsPanel = null;
     let bestiaryBtn = null;
+    let moreMenuBtn = null;
+    let moreMenu = null;
     let bestiaryClose = null;
     let bestiaryPanel = null;
     let bestiaryContent = null;
@@ -1624,6 +1650,8 @@
       bestiaryBtn = $('bestiaryBtn');
       bestiaryClose = $('bestiaryClose');
       bestiaryPanel = $('bestiaryPanel');
+      moreMenuBtn = $('moreMenuBtn');
+      moreMenu = $('moreMenu');
       bestiaryContent = $('bestiaryContent');
       tutorialDesc = $('tutorialDesc');
       tutorialDots = $('tutorialDots');
@@ -1909,6 +1937,25 @@
       helpBtn.addEventListener('click', () => {
         startTutorial();
       });
+
+      // More menu toggle + click-outside-to-close
+      if (moreMenuBtn && moreMenu) {
+        moreMenuBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          moreMenu.classList.toggle('open');
+        });
+        document.addEventListener('click', (ev) => {
+          if (moreMenu.classList.contains('open') && !moreMenu.contains(ev.target) && ev.target !== moreMenuBtn) {
+            moreMenu.classList.remove('open');
+          }
+        });
+        // Close menu when any button inside it is clicked
+        moreMenu.querySelectorAll('.ctrl-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            moreMenu.classList.remove('open');
+          });
+        });
+      }
 
     }
 

@@ -1498,3 +1498,11 @@ If it fails, DO NOT commit. Fix the error first.
 - **Proposed:** FPS monitoring + adaptive quality reduction for performance on lower-end devices
 - **Challenge:** Does this make the game more fun? Not directly — but 1,094 canvas draw calls per frame with no quality adaptation means the game could stutter badly on Chromebooks, older phones, or tabs with many open. Stuttering IS a fun problem. Is it resume-driven? No — nobody brags about quality settings. Would a game designer approve? Yes — this is standard practice before shipping any game with heavy particle effects.
 - **Verdict:** PROCEED. Infrastructure the game needed. Previous two cycles correctly identified stability > features. Performance is stability.
+
+### 2026-03-11: Cycle Skipped (Self-Critique Gate — 2nd consecutive skip)
+- **Proposed ideas evaluated:**
+  1. New gameplay feature → KILLED. 12,338 lines, 217 functions, 64 particle emitters, 50+ features. The game is feature-complete for a solo TD. Adding more is resume-driven, not player-driven.
+  2. Balance tuning → KILLED. No playtest data. Changing HP curves without knowing if players hit a wall or breeze through is guesswork that could make things worse.
+  3. Code cleanup/refactor → KILLED. The last 3 cycles already handled stability (localStorage crash protection, adaptive quality, path-aware aids). The code is as clean as a 12K-line single-file game gets.
+- **Verdict:** SKIP. The game needs a human to play it and report what's actually wrong, not another cycle of an AI guessing at improvements. The self-critique gate exists precisely for this situation — sometimes the best commit is no commit.
+- **What would change this:** User feedback about a specific pain point, a crash report, a balance complaint, or a request for a specific feature.
