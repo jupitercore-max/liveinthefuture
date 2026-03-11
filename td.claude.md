@@ -1506,3 +1506,31 @@ If it fails, DO NOT commit. Fix the error first.
   3. Code cleanup/refactor → KILLED. The last 3 cycles already handled stability (localStorage crash protection, adaptive quality, path-aware aids). The code is as clean as a 12K-line single-file game gets.
 - **Verdict:** SKIP. The game needs a human to play it and report what's actually wrong, not another cycle of an AI guessing at improvements. The self-critique gate exists precisely for this situation — sometimes the best commit is no commit.
 - **What would change this:** User feedback about a specific pain point, a crash report, a balance complaint, or a request for a specific feature.
+
+### 2026-03-11 (run 828edf9e): More Menu committed + cycle skipped
+- **Committed leftover:** Previous cycle's "More Menu" feature was complete but uncommitted. Pushed as `a85b6f4`. Collapses 7 secondary buttons (Players, Achievements, Prestige, Mute, Help, Bestiary, Stats) into a ⋯ overflow dropdown. Syntax validated.
+- **This cycle's proposal:** No new feature proposed. Evaluated: new gameplay (KILLED — 50+ features, no user feedback), balance tuning (KILLED — no playtest data), code cleanup (KILLED — last 3 cycles already covered stability).
+- **Verdict:** SKIP. Third consecutive gate-approved skip. The game needs player feedback, not more AI guesswork. Committing the leftover More Menu was the right use of this cycle.
+
+### 2026-03-12: Controls Bar — "More" Menu Reorganization
+- **20 buttons → 12 visible + 7 in "⋯" menu** — The controls bar had 20 undifferentiated buttons on a single flex row. On mobile (≤600px), this wrapped into 3+ rows of tiny buttons with no visual hierarchy — a wall of buttons where nothing is findable.
+- **Combat/active buttons stay visible** (12): Avatar, Cannon Info, XP bar, Upgrade, Ultimate, Ability, Auto-Ability, Speed controls, Pause, Auto-Wave, Send Next, Aid, Relocate, Priority, Sell
+- **Meta/info buttons moved to "⋯" popup** (7): Players, 🏆 Achievements, ⭐ Prestige, 🔊 Mute, ❓ Help, 📖 Bestiary, 📊 Stats
+- **"⋯" button** at the end of the controls bar with a popup menu that appears above it
+- **Click-outside-to-close** — clicking anywhere outside the menu dismisses it
+- **Auto-close on action** — clicking any menu button closes the menu after triggering its action
+- **Keyboard shortcuts still work** — [B] for bestiary, etc. fire the button click directly, bypassing the menu
+- **CSS: `.more-menu-wrap` / `.more-menu.open`** — positioned absolutely above the trigger, frosted dark background, shadow
+- **Phase compliance:**
+  - Phase 3: `let moreMenuBtn = null; let moreMenu = null;` state variables
+  - Phase 4 (initDOM): DOM bindings for both elements
+  - Phase 6 (initListeners): Toggle click, click-outside listener, and menu-item auto-close
+  - No new functions in Phase 5 needed. Zero TDZ risk.
+- **Net effect:** Controls bar drops from ~3 wrapped rows on mobile to ~2, and the visible buttons are all combat-relevant actions you need during gameplay. Meta buttons (achievements, stats, settings) are one tap away but not cluttering the primary action bar.
+
+## Self-Critique Log
+
+### 2026-03-12: Controls Bar Reorganization (Approved)
+- **Proposed:** Move 7 meta/info buttons behind a "⋯" More menu to reduce controls bar clutter from 20 visible buttons to 12.
+- **Challenge:** Does this make the game more fun? Indirectly yes — players can find combat buttons faster during hectic waves instead of scanning 20 undifferentiated buttons. Is this resume-driven? No — hiding buttons behind a menu is the opposite of impressive. Could this break anything? Low risk — buttons are just relocated in the DOM, all event handlers still wire correctly, keyboard shortcuts bypass the menu. Would a real game designer approve? Absolutely — a 20-button flat toolbar with no grouping is a UX red flag in any game.
+- **Verdict:** PROCEED. UX improvement, not new feature bloat. The game has enough features — it needs better organization of what already exists.
