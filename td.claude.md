@@ -1055,3 +1055,25 @@ If it fails, DO NOT commit. Fix the error first.
 - **No new DOM elements, event listeners, or init calls.** Zero TDZ risk.
 - **Performance:** Max 4 rings (lightweight arc strokes) + 30 particles (reuses existing particles array). All auto-cleaned. Negligible cost.
 - **Design rationale:** Boss waves are the game's climactic moments — every 10 waves, the biggest, tankiest enemy appears with phase transitions and a cinematic health bar. But when you finally kill it, the death felt identical to killing a regular grunt — just a death ghost and some particles. This is a massive anticlimax. The shockwave + flash + hitstop creates a clear sensory distinction: "you just killed the BOSS." The hitstop is especially important — it forces a beat of stillness that makes the explosion feel powerful rather than just another visual in the chaos. This is standard practice in action games (God of War finishers, Monster Hunter topple, Bayonetta witch time hits) and is the single highest-impact juiciness improvement for the amount of code added. The multi-ring stagger creates depth — the first ring is fast/hot (red), the last is slow/expansive (white), like a real explosion shockwave.
+
+### 2026-03-11: Enemy Desperation System
+- **Enemies that survive too long get desperate** — After 12 seconds alive on the battlefield, non-boss enemies begin gradually speeding up, gaining up to +60% movement speed over the next 20 seconds. This creates late-wave urgency: tanky enemies that absorb a lot of damage become increasingly dangerous if you can't finish them off.
+- **Three-phase ramp:**
+  - **0-12 seconds alive:** Normal speed, no visual change
+  - **12-22 seconds alive:** Gradual speed increase (0-30% boost), subtle orange-red pulsing aura appears, growing in intensity
+  - **22-32 seconds alive:** Speed boost reaches maximum (+60%), aura is bright red and pulsing rapidly, ⏱ indicator above enemy
+- **Visual feedback:**
+  - Orange-to-red radial gradient aura that pulses around desperate enemies. Pulse frequency increases with desperation (4 Hz at start → 12 Hz at max)
+  - ⏱ emoji indicator above enemies at >50% desperation
+  - "⏱ DESPERATE!" popup fires once per wave when the first enemy reaches the threshold — teaches the mechanic to players
+- **Boss exemption:** Bosses are excluded since they already have their own enrage mechanic at 25% HP (Phase 3). This prevents double-stacking speed boosts.
+- **Implementation:**
+  - Phase 2: `ENEMY_DESPERATION_TICKS` (12s × 20 tps = 240 ticks), `ENEMY_DESPERATION_MAX_BOOST` (0.6), `ENEMY_DESPERATION_RAMP` (20s × 20 tps = 400 ticks)
+  - Phase 3: `let waveDesperationWarned = false` — one-time popup flag per wave
+  - generateWave: `spawnTick: tickCount` added to all enemy objects (regular, boss, minions, splitter children)
+  - simTick movement loop: After slow timer check, computes desperation boost if alive > threshold. Sets `_desperationPct` for visual rendering.
+  - drawEnemy: After speed trails, before boss aura. Renders radial gradient aura + ⏱ indicator based on `_desperationPct`.
+  - Resets: `waveDesperationWarned = false` on wave start and game reset
+- **No new DOM elements, event listeners, or init calls.** Zero TDZ risk.
+- **Performance:** One radial gradient per desperate enemy per frame + one conditional check per enemy per tick. Negligible cost.
+- **Strategic impact:** Creates a "DPS check" mechanic — players need sufficient firepower to kill enemies before they speed up. Rewards DPS-focused builds (Sniper, Cannon, Railgun) and punishes pure slow/utility builds. Also makes the late game more tense since high-HP enemies (tanks, armored, shielded) are more likely to survive long enough to trigger desperation. Inspired by enrage timers in MMO boss fights and the "rage mode" mechanic in tower defense games like Kingdom Rush where enemies speed up near the base.

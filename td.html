@@ -2440,6 +2440,7 @@
     let sessionEarlySends = 0;
     let sessionAbilitiesUsed = 0;
     let personalBestBroken = false; // true once we pass lifetimeStats.bestWave this run
+    let waveDesperationWarned = false; // true once ⏱ DESPERATION! popup fires this wave
     let runHistory = []; // Array of past game run records
 
     function updateLifetimeStatsOnGameOver(wave, kills) {
@@ -3568,7 +3569,8 @@
           shape: et.shape,
           radius: Math.round(et.radius * eliteRadiusMult),
           slowTimer: 0,
-          elite: isElite
+          elite: isElite,
+          spawnTick: tickCount
         };
         // Copy special type properties from ENEMY_TYPES
         if (et.flying) {
@@ -3614,6 +3616,7 @@
           shape: boss.shape,
           radius: boss.radius,
           slowTimer: 0,
+          spawnTick: tickCount,
           // Boss phase mechanics
           bossPhase: 0,        // 0=normal, 1=shielded, 2=summoned, 3=enraged
           shieldHp: 0,         // absorbs damage before HP
@@ -3795,6 +3798,11 @@
     let dpsVisible = true; // toggle with [D] key
     let bonusPopupTimer = 0; // ticks to show bonus popup
     const COMBO_WINDOW = TICK_RATE * 1.5; // 1.5s to chain kills
+
+    // Enemy Desperation: enemies that survive too long speed up and glow
+    const ENEMY_DESPERATION_TICKS = TICK_RATE * 12; // 12 seconds before desperation starts
+    const ENEMY_DESPERATION_MAX_BOOST = 0.6; // max +60% speed bonus
+    const ENEMY_DESPERATION_RAMP = TICK_RATE * 20; // 20 seconds to reach full boost from desperation start
     const COMBO_MIN = 2; // minimum kills to show combo
 
     // Mouse tracking for placement preview & hover info
@@ -4596,6 +4604,7 @@
           enemies = generateWave(waveNumber);
           // Reset per-wave stats tracking
           waveStats = { kills: 0, hpLost: 0, maxCombo: 0, startTick: tickCount, enemiesSpawned: enemies.length, abilityUsed: false, earlySendUsed: false, powerupCollected: false };
+          waveDesperationWarned = false;
           currentChallenge = getWaveChallenge(waveNumber);
           hideWavePreview();
           if (!offlineMode) metaRef.update({ waveState: 'active' });
@@ -4612,6 +4621,22 @@
         if (e.slowTimer > 0) {
           speed *= 0.5;
           e.slowTimer--;
+        }
+        // Desperation: enemies alive too long speed up (bosses exempt — they have their own enrage)
+        if (e.type !== 'boss' && e.spawnTick != null) {
+          const aliveTicks = tickCount - e.spawnTick;
+          if (aliveTicks > ENEMY_DESPERATION_TICKS) {
+            const rampProgress = Math.min(1, (aliveTicks - ENEMY_DESPERATION_TICKS) / ENEMY_DESPERATION_RAMP);
+            e._desperationPct = rampProgress; // for visual rendering
+            speed *= 1 + ENEMY_DESPERATION_MAX_BOOST * rampProgress;
+            // One-time warning popup per wave
+            if (!waveDesperationWarned) {
+              waveDesperationWarned = true;
+              scorePopups.push({ x: e.x, y: e.y - 20, text: '⏱ DESPERATE!', color: '#ff4444', life: 40, maxLife: 40, size: 12, vy: -1.5 });
+            }
+          } else {
+            e._desperationPct = 0;
+          }
         }
         // Mutator: enemy regen (2% max HP per second = per TICK_RATE ticks)
         if (e.regenRate && e.hp > 0 && e.hp < e.maxHp) {
@@ -4751,7 +4776,8 @@
               color: '#ff6b6b',
               shape: 'circle',
               radius: minionType.radius,
-              slowTimer: 0
+              slowTimer: 0,
+              spawnTick: tickCount
             });
           }
           // Summon particles
@@ -5047,7 +5073,8 @@
                 radius: 6,
                 slowTimer: 0,
                 elite: false,
-                isChild: true
+                isChild: true,
+                spawnTick: tickCount
               };
               enemies.push(child);
             }
@@ -5411,6 +5438,7 @@
       scorePopups = [];
       streakAnnouncement = null;
       personalBestBroken = false;
+      waveDesperationWarned = false;
       resetDpsMeter();
       abilityZones = [];
       lightningBolts = [];
@@ -9460,6 +9488,35 @@
           ctx.fill();
         }
         ctx.globalAlpha = 1;
+      }
+
+      // ── Desperation Aura (enemies alive too long) ──
+      {
+        const desp = e._desperationPct || 0;
+        if (desp > 0 && !isBoss) {
+          const pulseSpeed = 4 + desp * 8; // faster pulse as desperation rises
+          const pulse = 0.3 + 0.3 * Math.sin(t * 0.001 * pulseSpeed);
+          const auraAlpha = 0.1 + desp * 0.35 * pulse;
+          const auraR = e.radius + 4 + desp * 6;
+          ctx.save();
+          ctx.globalAlpha = auraAlpha;
+          const grad = ctx.createRadialGradient(x, y, e.radius * 0.5, x, y, auraR);
+          grad.addColorStop(0, `rgba(255,${Math.floor(100 - desp * 80)},0,0.6)`);
+          grad.addColorStop(1, 'rgba(255,0,0,0)');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(x, y, auraR, 0, Math.PI * 2);
+          ctx.fill();
+          // Desperation indicator: small ⏱ above enemy when >50%
+          if (desp > 0.5) {
+            ctx.globalAlpha = 0.6 + 0.3 * pulse;
+            ctx.font = '8px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#ff4444';
+            ctx.fillText('⏱', x, y - e.radius - 10);
+          }
+          ctx.restore();
+        }
       }
 
       // ── Boss: Pulsing aura ──
