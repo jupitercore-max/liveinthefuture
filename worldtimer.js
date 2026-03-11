@@ -3555,6 +3555,44 @@
     });
 
     // ═══════════════════════════════════════════════════
+    //  Chronograph Pushers (physical buttons on case)
+    // ═══════════════════════════════════════════════════
+    const pusher2 = document.getElementById('chronoPusher2');
+    const pusher4 = document.getElementById('chronoPusher4');
+
+    function updatePusherState() {
+      if (!pusher2) return;
+      if (chronoRunning) {
+        pusher2.classList.add('active');
+      } else {
+        pusher2.classList.remove('active');
+      }
+    }
+
+    if (pusher2) {
+      pusher2.addEventListener('click', () => {
+        pusher2.classList.add('pressed');
+        setTimeout(() => pusher2.classList.remove('pressed'), 120);
+        chronoStartStop.click();
+        updatePusherState();
+      });
+    }
+
+    if (pusher4) {
+      pusher4.addEventListener('click', () => {
+        pusher4.classList.add('pressed');
+        setTimeout(() => pusher4.classList.remove('pressed'), 120);
+        chronoLapReset.click();
+      });
+    }
+
+    // Sync pusher state when using keyboard or text buttons
+    const origStartStopClick = chronoStartStop.onclick;
+    chronoStartStop.addEventListener('click', () => {
+      setTimeout(updatePusherState, 10);
+    });
+
+    // ═══════════════════════════════════════════════════
     //  Keyboard Shortcuts for Chronograph & Navigation
     // ═══════════════════════════════════════════════════
     document.addEventListener('keydown', (e) => {
