@@ -67,6 +67,12 @@
   let lumeToggle = null; // created later in DOM init
   if (lumeMode) document.body.classList.add('lume-mode');
 
+  // Chronograph state (hoisted so updateClock can drive the sweep hand)
+  let chronoRunning_ = false;
+  let chronoStart_ = 0;
+  let chronoElapsed_ = 0;
+  let countdownMode_ = false;
+
   // ═══════════════════════════════════════════════════
   // Dial Color Themes — cycle with [D] key or 🎨 button
   // Inspired by iconic luxury watch colorways
@@ -1063,6 +1069,12 @@
   secondHand.id = 'secondHand';
   clockFace.appendChild(secondHand);
 
+  // Chronograph sweep hand — orange, overlays on top of second hand
+  const chronoHand = document.createElement('div');
+  chronoHand.className = 'clock-hand clock-hand-chrono';
+  chronoHand.id = 'chronoHand';
+  clockFace.appendChild(chronoHand);
+
   // Shadow clones — inserted BEFORE real hands for correct layering
   function createShadowHand(refHand, className) {
     const shadow = document.createElement('div');
@@ -1802,6 +1814,25 @@
       gmtEl.classList.add('visible');
     } else {
       gmtEl.classList.remove('visible');
+    }
+
+    // ── Chronograph sweep hand ──────────────────────────
+    // One revolution per 30 seconds (like an Omega Speedmaster)
+    // Visible when chrono is running or stopped with elapsed time
+    const chronoEl = document.getElementById('chronoHand');
+    if (chronoEl) {
+      const chronoTotalMs = chronoElapsed_ + (chronoRunning_ ? performance.now() - chronoStart_ : 0);
+      if (chronoTotalMs > 0 && !countdownMode_) {
+        const chronoSec = chronoTotalMs / 1000;
+        // 360° per 30 seconds
+        const chronoDeg = (chronoSec / 30) * 360;
+        chronoEl.style.transform = `translateX(-50%) rotate(${chronoDeg}deg)`;
+        chronoEl.classList.add(chronoRunning_ ? 'active' : 'stopped');
+        chronoEl.classList.remove(chronoRunning_ ? 'stopped' : 'active');
+      } else {
+        chronoEl.style.transform = 'translateX(-50%) rotate(0deg)';
+        chronoEl.classList.remove('active', 'stopped');
+      }
     }
 
     const hour24 = hours + minutes / 60 + seconds / 3600;
@@ -3327,6 +3358,13 @@
   const chronoLapReset = document.getElementById('chronoLapReset');
 
   if (chronoDisplay && chronoStartStop && chronoLapReset) {
+    // Local aliases that also sync to outer-scope mirrors for updateClock
+    function syncChronoState() {
+      chronoRunning_ = chronoRunning;
+      chronoStart_ = chronoStart;
+      chronoElapsed_ = chronoElapsed;
+      countdownMode_ = countdownMode;
+    }
     let chronoRunning = false;
     let chronoStart = 0;
     let chronoElapsed = 0; // accumulated ms when paused
@@ -3353,6 +3391,7 @@
     }
 
     function updateChronoDisplay() {
+      syncChronoState();
       const now = performance.now();
       const total = chronoElapsed + (chronoRunning ? now - chronoStart : 0);
 
@@ -3452,6 +3491,7 @@
         chronoDisplay.textContent = '00:00.00';
         chronoLapReset.textContent = 'Lap';
       }
+      syncChronoState();
     }
 
     if (chronoModeToggle) {
@@ -3518,6 +3558,7 @@
         chronoStartStop.classList.remove('running');
         chronoLapReset.textContent = 'Reset';
         // Keep chrono-active while stopped with elapsed time (Daytona-style: scale stays lit until reset)
+        syncChronoState();
       }
     });
 
@@ -3551,6 +3592,7 @@
           chronoDisplay.textContent = '00:00.00';
           chronoLapReset.textContent = 'Lap';
         }
+        syncChronoState();
       }
     });
 
