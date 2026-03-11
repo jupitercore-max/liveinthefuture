@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=600, height=600, initial-scale=1.0">
+<title>World Timer - Hypernova WebApp</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0d0d0d;
+  color: #e8e8e8;
+  width: 600px;
+  height: 600px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Main watch canvas */
+#watchCanvas {
+  display: block;
+}
+
+/* City selector overlay */
+.city-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 600px; height: 600px;
+  background: rgba(0,0,0,0.92);
+  display: none;
+  flex-direction: column;
+  z-index: 100;
+}
+.city-overlay.visible { display: flex; }
+
+.city-header {
+  padding: 16px 24px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.city-header .region-label {
+  font-size: 14px;
+  color: #4fc3f7;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 600;
+}
+.city-header .hint {
+  font-size: 12px;
+  color: #555;
+}
+
+.city-list {
+  flex: 1;
+  overflow: hidden;
+  padding: 8px 0;
+}
+
+.city-item {
+  padding: 10px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18px;
+  color: #aaa;
+  border-left: 3px solid transparent;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.city-item.focused {
+  background: rgba(79, 195, 247, 0.08);
+  border-left-color: #4fc3f7;
+  color: #fff;
+}
+.city-item.selected {
+  color: #4fc3f7;
+}
+.city-item .city-name { font-weight: 500; }
+.city-item .city-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+  color: #888;
+}
+.city-item.focused .city-time { color: #ccc; }
+.city-item .city-offset {
+  font-size: 12px;
+  color: #555;
+  margin-left: 8px;
+  min-width: 52px;
+  text-align: right;
+}
+.city-item.focused .city-offset { color: #777; }
+.city-item .day-night {
+  font-size: 14px;
+  margin-right: 8px;
+}
+
+/* Chrono overlay */
+.chrono-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 600px; height: 600px;
+  background: #0d0d0d;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.chrono-overlay.visible { display: flex; }
+
+.chrono-time {
+  font-size: 72px;
+  font-weight: 200;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  letter-spacing: -1px;
+  text-shadow: 0 0 20px rgba(255,255,255,0.3);
+}
+.chrono-ms {
+  font-size: 36px;
+  color: #666;
+  font-variant-numeric: tabular-nums;
+  margin-top: -8px;
+}
+.chrono-label {
+  font-size: 14px;
+  color: #444;
+  margin-top: 24px;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+}
+.chrono-status {
+  font-size: 16px;
+  margin-top: 16px;
+  color: #4fc3f7;
+}
+.chrono-laps {
+  margin-top: 20px;
+  width: 320px;
+  max-height: 160px;
+  overflow: hidden;
+}
+.chrono-lap {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 14px;
+  color: #666;
+  font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid #1a1a1a;
+}
+.chrono-lap:first-child { color: #4fc3f7; }
+.chrono-hint {
+  position: absolute;
+  bottom: 24px;
+  font-size: 12px;
+  color: #333;
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* Voice indicator */
+.voice-indicator {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #ff3333;
+  display: none;
+  z-index: 200;
+  animation: pulse-voice 1s ease-in-out infinite;
+}
+.voice-indicator.active { display: block; }
+@keyframes pulse-voice {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-60px);
+  background: rgba(79, 195, 247, 0.15);
+  border: 1px solid rgba(79, 195, 247, 0.3);
+  color: #4fc3f7;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  z-index: 300;
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  pointer-events: none;
+}
+.toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Swap link */
+.swap-link {
+  position: fixed;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  opacity: 0.3;
+}
+.swap-link a {
+  color: #666;
+  text-decoration: none;
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+}
+
+::-webkit-scrollbar { width: 0; }
+</style>
+</head>
+<body>
+
+<canvas id="watchCanvas" width="600" height="600"></canvas>
+
+<!-- City selector -->
+<div class="city-overlay" id="cityOverlay">
+  <div class="city-header">
+    <span class="region-label" id="regionLabel">Americas</span>
+    <span class="hint">◀ ▶ regions · ▲ ▼ cities · ● select</span>
+  </div>
+  <div class="city-list" id="cityList"></div>
+</div>
+
+<!-- Chronograph -->
+<div class="chrono-overlay" id="chronoOverlay">
+  <div class="chrono-label">Chronograph</div>
+  <div class="chrono-time" id="chronoTime">00:00</div>
+  <div class="chrono-ms" id="chronoMs">.00</div>
+  <div class="chrono-status" id="chronoStatus">Ready</div>
+  <div class="chrono-laps" id="chronoLaps"></div>
+  <div class="chrono-hint">● start/stop · ▲ lap · ▼ reset · ◀ back</div>
+</div>
+
+<!-- Voice indicator -->
+<div class="voice-indicator" id="voiceIndicator"></div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Swap link -->
+<div class="swap-link"><a href="wt.html">← Desktop</a></div>
+
+<script>
+(function() {
+  "use strict";
+
+  // ─── City Data ─────────────────────────────────────
+  var regions = [
+    { name: 'Americas', cities: [
+      { name: 'Honolulu',     tz: 'Pacific/Honolulu' },
+      { name: 'Anchorage',    tz: 'America/Anchorage' },
+      { name: 'Los Angeles',  tz: 'America/Los_Angeles' },
+      { name: 'Denver',       tz: 'America/Denver' },
+      { name: 'Chicago',      tz: 'America/Chicago' },
+      { name: 'New York',     tz: 'America/New_York' },
+      { name: 'São Paulo',    tz: 'America/Sao_Paulo' },
+      { name: 'Buenos Aires', tz: 'America/Argentina/Buenos_Aires' },
+      { name: 'Santiago',     tz: 'America/Santiago' },
+      { name: 'Lima',         tz: 'America/Lima' },
+      { name: 'Bogota',       tz: 'America/Bogota' },
+      { name: 'Mexico City',  tz: 'America/Mexico_City' },
+      { name: 'Toronto',      tz: 'America/Toronto' },
+      { name: 'Vancouver',    tz: 'America/Vancouver' }
+    ]},
+    { name: 'Europe · Africa', cities: [
+      { name: 'London',       tz: 'Europe/London' },
+      { name: 'Paris',        tz: 'Europe/Paris' },
+      { name: 'Berlin',       tz: 'Europe/Berlin' },
+      { name: 'Rome',         tz: 'Europe/Rome' },
+      { name: 'Madrid',       tz: 'Europe/Madrid' },
+      { name: 'Moscow',       tz: 'Europe/Moscow' },
+      { name: 'Istanbul',     tz: 'Europe/Istanbul' },
+      { name: 'Athens',       tz: 'Europe/Athens' },
+      { name: 'Helsinki',     tz: 'Europe/Helsinki' },
+      { name: 'Cairo',        tz: 'Africa/Cairo' },
+      { name: 'Lagos',        tz: 'Africa/Lagos' },
+      { name: 'Nairobi',      tz: 'Africa/Nairobi' },
+      { name: 'Johannesburg', tz: 'Africa/Johannesburg' },
+      { name: 'Dubai',        tz: 'Asia/Dubai' }
+    ]},
+    { name: 'Asia · Pacific', cities: [
+      { name: 'Karachi',      tz: 'Asia/Karachi' },
+      { name: 'Mumbai',       tz: 'Asia/Kolkata' },
+      { name: 'Dhaka',        tz: 'Asia/Dhaka' },
+      { name: 'Bangkok',      tz: 'Asia/Bangkok' },
+      { name: 'Singapore',    tz: 'Asia/Singapore' },
+      { name: 'Hong Kong',    tz: 'Asia/Hong_Kong' },
+      { name: 'Shanghai',     tz: 'Asia/Shanghai' },
+      { name: 'Tokyo',        tz: 'Asia/Tokyo' },
+      { name: 'Seoul',        tz: 'Asia/Seoul' },
+      { name: 'Sydney',       tz: 'Australia/Sydney' },
+      { name: 'Melbourne',    tz: 'Australia/Melbourne' },
+      { name: 'Auckland',     tz: 'Pacific/Auckland' },
+      { name: 'Perth',        tz: 'Australia/Perth' },
+      { name: 'Jakarta',      tz: 'Asia/Jakarta' }
+    ]}
+  ];
+
+  // ─── State ─────────────────────────────────────────
+  var screen = 'watch';       // 'watch' | 'cities' | 'chrono'
+  var selectedCity = null;    // {name, tz} or null
+  var cityFocusIdx = 0;
+  var regionIdx = 0;
+  var cityScrollOffset = 0;
+  var VISIBLE_CITIES = 10;
+
+  // Chrono
+  var chronoRunning = false;
+  var chronoStartTime = 0;
+  var chronoElapsed = 0;
+  var chronoLaps = [];
+
+  // Canvas
+  var canvas = document.getElementById('watchCanvas');
+  var ctx = canvas.getContext('2d');
+  var W = 600;
+  var CX = 300;
+  var CY = 280; // slightly above center to make room for info below
+
+  // ─── Helpers ───────────────────────────────────────
+  function getTzOffset(tz) {
+    try {
+      var now = new Date();
+      var tzTime = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+      var utcTime = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+      return (tzTime - utcTime) / 3600000;
+    } catch (e) { return 0; }
+  }
+
+  function formatOffset(off) {
+    var sign = off >= 0 ? '+' : '-';
+    var abs = Math.abs(off);
+    var h = Math.floor(abs);
+    var m = Math.round((abs - h) * 60);
+    return 'UTC' + sign + String(h) + (m ? ':' + String(m).padStart(2, '0') : '');
+  }
+
+  function getTzTime(tz) {
+    var now = new Date();
+    try {
+      var parts = {};
+      var fmt = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        hour: 'numeric', minute: 'numeric', second: 'numeric',
+        hour12: false, day: 'numeric', month: 'short', weekday: 'short'
+      });
+      fmt.formatToParts(now).forEach(function(p) { parts[p.type] = p.value; });
+      return {
+        h: parseInt(parts.hour) || 0,
+        m: parseInt(parts.minute) || 0,
+        s: parseInt(parts.second) || 0,
+        ms: now.getMilliseconds(),
+        day: parts.weekday || '',
+        date: parseInt(parts.day) || 0,
+        month: parts.month || ''
+      };
+    } catch (e) {
+      return { h: 0, m: 0, s: 0, ms: 0, day: '', date: 0, month: '' };
+    }
+  }
+
+  function getLocalTz() {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }
+
+  function isDaylight(h) { return h >= 6 && h < 18; }
+
+  function showToast(msg) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('visible');
+    clearTimeout(el._tid);
+    el._tid = setTimeout(function() { el.classList.remove('visible'); }, 2000);
+  }
+
+  // ─── Watch Face Rendering ─────────────────────────
+  function drawWatch() {
+    ctx.clearRect(0, 0, W, W);
+
+    var localTz = getLocalTz();
+    var t = getTzTime(localTz);
+    var h = t.h, m = t.m, s = t.s, ms = t.ms;
+
+    // Dial background — dark charcoal with subtle gradient
+    var dialR = 230;
+    var dialGrad = ctx.createRadialGradient(CX, CY, 0, CX, CY, dialR);
+    dialGrad.addColorStop(0, '#1a1a2e');
+    dialGrad.addColorStop(0.7, '#141425');
+    dialGrad.addColorStop(1, '#0d0d1a');
+    ctx.beginPath();
+    ctx.arc(CX, CY, dialR, 0, Math.PI * 2);
+    ctx.fillStyle = dialGrad;
+    ctx.fill();
+
+    // Outer ring — subtle bezel
+    ctx.beginPath();
+    ctx.arc(CX, CY, dialR + 2, 0, Math.PI * 2);
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(CX, CY, dialR + 4, 0, Math.PI * 2);
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Minute ticks
+    for (var i = 0; i < 60; i++) {
+      var ang = (i * 6 - 90) * Math.PI / 180;
+      var isMajor = i % 5 === 0;
+      var outerR = dialR - 6;
+      var innerR = isMajor ? dialR - 28 : dialR - 14;
+      var lw = isMajor ? 3 : 1;
+      var col = isMajor ? '#e0e0e0' : '#555';
+
+      ctx.beginPath();
+      ctx.moveTo(CX + outerR * Math.cos(ang), CY + outerR * Math.sin(ang));
+      ctx.lineTo(CX + innerR * Math.cos(ang), CY + innerR * Math.sin(ang));
+      ctx.strokeStyle = col;
+      ctx.lineWidth = lw;
+      ctx.stroke();
+
+      // Lume dots at hour positions
+      if (isMajor) {
+        var dotR = dialR - 34;
+        ctx.beginPath();
+        ctx.arc(CX + dotR * Math.cos(ang), CY + dotR * Math.sin(ang), 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#d8e8c8';
+        ctx.shadowColor = 'rgba(200,230,180,0.5)';
+        ctx.shadowBlur = 6;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // Hour numbers
+    ctx.font = '600 22px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (var n = 1; n <= 12; n++) {
+      var nAng = (n * 30 - 90) * Math.PI / 180;
+      var nR = dialR - 52;
+      ctx.fillText(String(n), CX + nR * Math.cos(nAng), CY + nR * Math.sin(nAng));
+    }
+
+    // ─── Date window at 3 o'clock ───
+    var dateX = CX + 100;
+    var dateY = CY;
+    ctx.fillStyle = '#111';
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    // Rounded rect
+    var dw = 46, dh = 22, dr = 3;
+    ctx.moveTo(dateX - dw/2 + dr, dateY - dh/2);
+    ctx.arcTo(dateX + dw/2, dateY - dh/2, dateX + dw/2, dateY + dh/2, dr);
+    ctx.arcTo(dateX + dw/2, dateY + dh/2, dateX - dw/2, dateY + dh/2, dr);
+    ctx.arcTo(dateX - dw/2, dateY + dh/2, dateX - dw/2, dateY - dh/2, dr);
+    ctx.arcTo(dateX - dw/2, dateY - dh/2, dateX + dw/2, dateY - dh/2, dr);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = '600 13px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = '#e8e8e8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(t.day.toUpperCase() + ' ' + t.date, dateX, dateY + 1);
+
+    // ─── Day/Night indicator at 9 o'clock (for selected city) ───
+    if (selectedCity) {
+      var scT = getTzTime(selectedCity.tz);
+      var dnX = CX - 100;
+      var dnY = CY;
+      var isDay = isDaylight(scT.h);
+
+      ctx.beginPath();
+      ctx.arc(dnX, dnY, 14, 0, Math.PI * 2);
+      ctx.fillStyle = isDay ? '#1a3a5c' : '#0a0a1e';
+      ctx.fill();
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      if (isDay) {
+        // Sun
+        ctx.beginPath();
+        ctx.arc(dnX, dnY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffd700';
+        ctx.shadowColor = 'rgba(255,215,0,0.6)';
+        ctx.shadowBlur = 8;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        // Rays
+        for (var r = 0; r < 8; r++) {
+          var rAng = r * Math.PI / 4;
+          ctx.beginPath();
+          ctx.moveTo(dnX + 7 * Math.cos(rAng), dnY + 7 * Math.sin(rAng));
+          ctx.lineTo(dnX + 11 * Math.cos(rAng), dnY + 11 * Math.sin(rAng));
+          ctx.strokeStyle = '#ffd700';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      } else {
+        // Moon
+        ctx.beginPath();
+        ctx.arc(dnX - 2, dnY - 1, 7, 0, Math.PI * 2);
+        ctx.fillStyle = '#c0c8d0';
+        ctx.shadowColor = 'rgba(200,210,220,0.4)';
+        ctx.shadowBlur = 6;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(dnX + 2, dnY - 3, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#0a0a1e';
+        ctx.fill();
+      }
+    }
+
+    // ─── Hands ───
+    var secAngle = ((s + ms / 1000) * 6 - 90) * Math.PI / 180;
+    var minAngle = ((m + s / 60) * 6 - 90) * Math.PI / 180;
+    var hrAngle  = (((h % 12) + m / 60) * 30 - 90) * Math.PI / 180;
+
+    // Hour hand
+    drawHand(ctx, CX, CY, hrAngle, 110, 8, '#ffffff', 'rgba(255,255,255,0.5)', 10, true);
+
+    // Minute hand
+    drawHand(ctx, CX, CY, minAngle, 155, 5, '#ffffff', 'rgba(255,255,255,0.4)', 8, true);
+
+    // Center cap (below second hand)
+    ctx.beginPath();
+    ctx.arc(CX, CY, 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#333';
+    ctx.fill();
+
+    // Second hand — red
+    drawHand(ctx, CX, CY, secAngle, 175, 2, '#ff3333', 'rgba(255,50,50,0.5)', 12, false);
+    // Counterweight
+    var cwAng = secAngle + Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(CX, CY);
+    ctx.lineTo(CX + 35 * Math.cos(cwAng), CY + 35 * Math.sin(cwAng));
+    ctx.strokeStyle = '#ff3333';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Center dot
+    ctx.beginPath();
+    ctx.arc(CX, CY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff3333';
+    ctx.fill();
+
+    // ─── Selected city GMT hand (orange, 24h) ───
+    if (selectedCity) {
+      var scT2 = getTzTime(selectedCity.tz);
+      var gmt24 = scT2.h + scT2.m / 60;
+      var gmtAngle = ((gmt24 / 24) * 360 - 90) * Math.PI / 180;
+      // Triangular arrow tip
+      var gmtLen = 90;
+      var tipX = CX + gmtLen * Math.cos(gmtAngle);
+      var tipY = CY + gmtLen * Math.sin(gmtAngle);
+      var perpX = Math.cos(gmtAngle + Math.PI / 2);
+      var perpY = Math.sin(gmtAngle + Math.PI / 2);
+
+      ctx.beginPath();
+      ctx.moveTo(tipX, tipY);
+      ctx.lineTo(tipX - 18 * Math.cos(gmtAngle) + 6 * perpX,
+                 tipY - 18 * Math.sin(gmtAngle) + 6 * perpY);
+      ctx.lineTo(CX + 20 * Math.cos(gmtAngle) + 2 * perpX,
+                 CY + 20 * Math.sin(gmtAngle) + 2 * perpY);
+      ctx.lineTo(CX + 20 * Math.cos(gmtAngle) - 2 * perpX,
+                 CY + 20 * Math.sin(gmtAngle) - 2 * perpY);
+      ctx.lineTo(tipX - 18 * Math.cos(gmtAngle) - 6 * perpX,
+                 tipY - 18 * Math.sin(gmtAngle) - 6 * perpY);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255, 160, 50, 0.85)';
+      ctx.shadowColor = 'rgba(255,160,50,0.4)';
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255,160,50,0.6)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // ─── Info below watch ───
+    var infoY = CY + dialR + 24;
+
+    // Home time digital
+    ctx.font = '300 28px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = '#e8e8e8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    var timeStr = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    ctx.fillText(timeStr, CX, infoY);
+
+    // Home city label
+    ctx.font = '400 13px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = '#666';
+    var homeName = localTz.split('/').pop().replace(/_/g, ' ');
+    var homeOff = formatOffset(getTzOffset(localTz));
+    ctx.fillText(homeName + '  ·  ' + homeOff, CX, infoY + 34);
+
+    // Selected city info
+    if (selectedCity) {
+      var sct = getTzTime(selectedCity.tz);
+      var sTimeStr = String(sct.h).padStart(2, '0') + ':' + String(sct.m).padStart(2, '0');
+      var sOff = formatOffset(getTzOffset(selectedCity.tz));
+      var dayNight = isDaylight(sct.h) ? '☀' : '🌙';
+
+      ctx.font = '500 18px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = '#4fc3f7';
+      ctx.fillText(selectedCity.name + '  ' + sTimeStr + '  ' + dayNight, CX, infoY + 54);
+
+      ctx.font = '400 12px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = '#555';
+      ctx.fillText(sOff + '  ·  ' + sct.day + ' ' + sct.month + ' ' + sct.date, CX, infoY + 76);
+    }
+
+    // Navigation hints (subtle)
+    ctx.font = '400 11px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = '#2a2a2a';
+    if (!selectedCity) {
+      ctx.fillText('▲▼ cities  ·  ● select  ·  hold ● stopwatch', CX, W - 14);
+    } else {
+      ctx.fillText('▲▼ cities  ·  ◀ clear  ·  hold ● stopwatch', CX, W - 14);
+    }
+  }
+
+  function drawHand(ctx, cx, cy, angle, length, width, color, glowColor, glowSize, hasLume) {
+    var tipX = cx + length * Math.cos(angle);
+    var tipY = cy + length * Math.sin(angle);
+
+    ctx.beginPath();
+    ctx.moveTo(cx - (width/2) * Math.cos(angle + Math.PI/2),
+               cy - (width/2) * Math.sin(angle + Math.PI/2));
+    ctx.lineTo(tipX, tipY);
+    ctx.lineTo(cx + (width/2) * Math.cos(angle + Math.PI/2),
+               cy + (width/2) * Math.sin(angle + Math.PI/2));
+    ctx.closePath();
+
+    // Glow
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = glowSize;
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Lume fill (slightly green-white)
+    if (hasLume) {
+      ctx.beginPath();
+      var lumeStart = 0.15;
+      var lumeEnd = 0.85;
+      var sX = cx + length * lumeStart * Math.cos(angle);
+      var sY = cy + length * lumeStart * Math.sin(angle);
+      var eX = cx + length * lumeEnd * Math.cos(angle);
+      var eY = cy + length * lumeEnd * Math.sin(angle);
+      var lw = width * 0.5;
+      ctx.moveTo(sX - lw * Math.cos(angle + Math.PI/2),
+                 sY - lw * Math.sin(angle + Math.PI/2));
+      ctx.lineTo(eX, eY);
+      ctx.lineTo(sX + lw * Math.cos(angle + Math.PI/2),
+                 sY + lw * Math.sin(angle + Math.PI/2));
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(220,240,210,0.3)';
+      ctx.fill();
+    }
+  }
+
+  // ─── City Selector ─────────────────────────────────
+  function renderCityList() {
+    var listEl = document.getElementById('cityList');
+    var regionEl = document.getElementById('regionLabel');
+    var reg = regions[regionIdx];
+    regionEl.textContent = reg.name;
+
+    var html = '';
+    var cities = reg.cities;
+    var start = Math.max(0, Math.min(cityScrollOffset, cities.length - VISIBLE_CITIES));
+    var end = Math.min(start + VISIBLE_CITIES, cities.length);
+
+    for (var i = start; i < end; i++) {
+      var c = cities[i];
+      var ct = getTzTime(c.tz);
+      var off = formatOffset(getTzOffset(c.tz));
+      var focused = i === cityFocusIdx ? ' focused' : '';
+      var sel = selectedCity && selectedCity.name === c.name ? ' selected' : '';
+      var dn = isDaylight(ct.h) ? '☀' : '🌙';
+      var tStr = String(ct.h).padStart(2, '0') + ':' + String(ct.m).padStart(2, '0') + ':' + String(ct.s).padStart(2, '0');
+
+      html += '<div class="city-item' + focused + sel + '" data-idx="' + i + '">';
+      html += '<span class="day-night">' + dn + '</span>';
+      html += '<span class="city-name">' + c.name + '</span>';
+      html += '<span style="flex:1"></span>';
+      html += '<span class="city-time">' + tStr + '</span>';
+      html += '<span class="city-offset">' + off + '</span>';
+      html += '</div>';
+    }
+
+    listEl.innerHTML = html;
+  }
+
+  function openCities() {
+    screen = 'cities';
+    cityFocusIdx = 0;
+    cityScrollOffset = 0;
+    document.getElementById('cityOverlay').classList.add('visible');
+    renderCityList();
+  }
+
+  function closeCities() {
+    screen = 'watch';
+    document.getElementById('cityOverlay').classList.remove('visible');
+  }
+
+  function selectCity() {
+    var reg = regions[regionIdx];
+    var c = reg.cities[cityFocusIdx];
+    selectedCity = { name: c.name, tz: c.tz };
+    showToast(c.name + ' selected');
+    closeCities();
+  }
+
+  // ─── Chronograph ───────────────────────────────────
+  function openChrono() {
+    screen = 'chrono';
+    document.getElementById('chronoOverlay').classList.add('visible');
+    updateChronoDisplay();
+  }
+
+  function closeChrono() {
+    screen = 'watch';
+    document.getElementById('chronoOverlay').classList.remove('visible');
+  }
+
+  function toggleChrono() {
+    if (chronoRunning) {
+      chronoElapsed += performance.now() - chronoStartTime;
+      chronoRunning = false;
+    } else {
+      chronoStartTime = performance.now();
+      chronoRunning = true;
+    }
+    updateChronoDisplay();
+  }
+
+  function resetChrono() {
+    chronoRunning = false;
+    chronoElapsed = 0;
+    chronoLaps = [];
+    updateChronoDisplay();
+  }
+
+  function lapChrono() {
+    if (!chronoRunning) return;
+    var total = chronoElapsed + (performance.now() - chronoStartTime);
+    chronoLaps.unshift(total);
+    if (chronoLaps.length > 5) chronoLaps.pop();
+    updateChronoDisplay();
+  }
+
+  function formatChronoTime(ms) {
+    var totalSec = Math.floor(ms / 1000);
+    var min = Math.floor(totalSec / 60);
+    var sec = totalSec % 60;
+    var cs = Math.floor((ms % 1000) / 10);
+    return {
+      main: String(min).padStart(2, '0') + ':' + String(sec).padStart(2, '0'),
+      frac: '.' + String(cs).padStart(2, '0')
+    };
+  }
+
+  function updateChronoDisplay() {
+    var total = chronoElapsed;
+    if (chronoRunning) total += performance.now() - chronoStartTime;
+
+    var f = formatChronoTime(total);
+    document.getElementById('chronoTime').textContent = f.main;
+    document.getElementById('chronoMs').textContent = f.frac;
+    document.getElementById('chronoStatus').textContent =
+      chronoRunning ? '● Running' : (total > 0 ? '◼ Stopped' : 'Ready');
+
+    var lapsHtml = '';
+    for (var i = 0; i < chronoLaps.length; i++) {
+      var lf = formatChronoTime(chronoLaps[i]);
+      lapsHtml += '<div class="chrono-lap"><span>Lap ' + (chronoLaps.length - i) + '</span><span>' + lf.main + lf.frac + '</span></div>';
+    }
+    document.getElementById('chronoLaps').innerHTML = lapsHtml;
+  }
+
+  // ─── Voice Integration ─────────────────────────────
+  var voiceAvailable = false;
+
+  function initVoice() {
+    try {
+      if (typeof MetaGlassSDK !== 'undefined' && MetaGlassSDK.isSupported &&
+          MetaGlassSDK.dictation) {
+        voiceAvailable = true;
+        MetaGlassSDK.dictation.addEventListener('result', function(e) {
+          if (e.isFinal) {
+            handleVoiceResult(e.transcript);
+            document.getElementById('voiceIndicator').classList.remove('active');
+          }
+        });
+        MetaGlassSDK.dictation.addEventListener('end', function() {
+          document.getElementById('voiceIndicator').classList.remove('active');
+        });
+        MetaGlassSDK.dictation.addEventListener('error', function() {
+          document.getElementById('voiceIndicator').classList.remove('active');
+        });
+      }
+    } catch (e) {
+      voiceAvailable = false;
+    }
+  }
+
+  function startVoice() {
+    if (!voiceAvailable) return;
+    try {
+      document.getElementById('voiceIndicator').classList.add('active');
+      MetaGlassSDK.dictation.start({ silenceTimeout: 4000, maxDuration: 10000, punctuation: 'auto' });
+    } catch (e) {
+      document.getElementById('voiceIndicator').classList.remove('active');
+    }
+  }
+
+  function handleVoiceResult(text) {
+    var lower = text.toLowerCase().trim();
+
+    // "stopwatch" or "chronograph" or "timer"
+    if (lower.indexOf('stopwatch') >= 0 || lower.indexOf('chronograph') >= 0 || lower.indexOf('timer') >= 0) {
+      if (screen !== 'chrono') openChrono();
+      showToast('Chronograph');
+      return;
+    }
+
+    // "time in [city]" or "what time in [city]"
+    var timeMatch = lower.match(/(?:time\s+in\s+|time\s+)(.+)/);
+    if (timeMatch) {
+      var query = timeMatch[1].replace(/[?.!]/g, '').trim();
+      findCityByVoice(query);
+      return;
+    }
+
+    // Just a city name
+    findCityByVoice(lower.replace(/[?.!]/g, '').trim());
+  }
+
+  function findCityByVoice(query) {
+    var best = null;
+    var bestScore = 0;
+    var q = query.toLowerCase();
+
+    for (var ri = 0; ri < regions.length; ri++) {
+      var cities = regions[ri].cities;
+      for (var ci = 0; ci < cities.length; ci++) {
+        var name = cities[ci].name.toLowerCase();
+        if (name === q) {
+          best = cities[ci];
+          bestScore = 100;
+          break;
+        }
+        if (name.indexOf(q) >= 0 || q.indexOf(name) >= 0) {
+          var score = name.length;
+          if (score > bestScore) {
+            best = cities[ci];
+            bestScore = score;
+          }
+        }
+      }
+      if (bestScore === 100) break;
+    }
+
+    if (best) {
+      selectedCity = { name: best.name, tz: best.tz };
+      showToast(best.name);
+      if (screen === 'cities') closeCities();
+    } else {
+      showToast('City not found');
+    }
+  }
+
+  // ─── Input Handling ────────────────────────────────
+  var enterDownTime = 0;
+  var enterLongPress = false;
+  var LONG_PRESS_MS = 600;
+
+  document.addEventListener('keydown', function(e) {
+    e.preventDefault();
+
+    if (e.key === 'Enter') {
+      if (!enterDownTime) {
+        enterDownTime = Date.now();
+        enterLongPress = false;
+        // Start long press timer
+        setTimeout(function() {
+          if (enterDownTime && Date.now() - enterDownTime >= LONG_PRESS_MS) {
+            enterLongPress = true;
+            if (screen === 'watch') {
+              openChrono();
+            }
+          }
+        }, LONG_PRESS_MS);
+      }
+      return;
+    }
+
+    switch (screen) {
+      case 'watch':
+        handleWatchKey(e.key);
+        break;
+      case 'cities':
+        handleCityKey(e.key);
+        break;
+      case 'chrono':
+        handleChronoKey(e.key);
+        break;
+    }
+  });
+
+  document.addEventListener('keyup', function(e) {
+    if (e.key === 'Enter') {
+      if (!enterLongPress) {
+        // Short press
+        switch (screen) {
+          case 'watch':
+            openCities();
+            break;
+          case 'cities':
+            selectCity();
+            break;
+          case 'chrono':
+            toggleChrono();
+            break;
+        }
+      }
+      enterDownTime = 0;
+      enterLongPress = false;
+    }
+  });
+
+  function handleWatchKey(key) {
+    switch (key) {
+      case 'ArrowUp':
+      case 'ArrowDown':
+        openCities();
+        break;
+      case 'ArrowLeft':
+      case 'Backspace':
+        if (selectedCity) {
+          selectedCity = null;
+          showToast('Cleared');
+        }
+        break;
+      case 'ArrowRight':
+        if (voiceAvailable) startVoice();
+        break;
+      case 'Escape':
+        if (selectedCity) {
+          selectedCity = null;
+          showToast('Cleared');
+        }
+        break;
+    }
+  }
+
+  function handleCityKey(key) {
+    var cities = regions[regionIdx].cities;
+    switch (key) {
+      case 'ArrowUp':
+        cityFocusIdx = Math.max(0, cityFocusIdx - 1);
+        if (cityFocusIdx < cityScrollOffset) cityScrollOffset = cityFocusIdx;
+        renderCityList();
+        break;
+      case 'ArrowDown':
+        cityFocusIdx = Math.min(cities.length - 1, cityFocusIdx + 1);
+        if (cityFocusIdx >= cityScrollOffset + VISIBLE_CITIES) cityScrollOffset = cityFocusIdx - VISIBLE_CITIES + 1;
+        renderCityList();
+        break;
+      case 'ArrowLeft':
+        regionIdx = (regionIdx - 1 + regions.length) % regions.length;
+        cityFocusIdx = 0;
+        cityScrollOffset = 0;
+        renderCityList();
+        break;
+      case 'ArrowRight':
+        regionIdx = (regionIdx + 1) % regions.length;
+        cityFocusIdx = 0;
+        cityScrollOffset = 0;
+        renderCityList();
+        break;
+      case 'Backspace':
+      case 'Escape':
+        closeCities();
+        break;
+    }
+  }
+
+  function handleChronoKey(key) {
+    switch (key) {
+      case 'ArrowUp':
+        lapChrono();
+        break;
+      case 'ArrowDown':
+        resetChrono();
+        break;
+      case 'ArrowLeft':
+      case 'Backspace':
+      case 'Escape':
+        closeChrono();
+        break;
+    }
+  }
+
+  // ─── Main Loop ─────────────────────────────────────
+  function tick() {
+    if (screen === 'watch') {
+      drawWatch();
+    } else if (screen === 'chrono' && chronoRunning) {
+      updateChronoDisplay();
+    } else if (screen === 'cities') {
+      // Refresh times in city list every second
+      renderCityList();
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // ─── Init ──────────────────────────────────────────
+  initVoice();
+  tick();
+
+})();
+</script>
+</body>
+</html>
