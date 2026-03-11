@@ -3658,6 +3658,9 @@
     let deathGhosts = []; // shrink/fade/spin death animations
     let healBeams = []; // green beams from healer to healed ally
     let confettiParticles = []; // wave clear celebration confetti
+    let bossDeathRings = []; // expanding shockwave rings from boss kills
+    let bossDeathFlash = 0; // bright white screen flash timer (frames)
+    let hitstopFrames = 0; // brief freeze on boss kill for impact
     let powerups = []; // dropped power-ups on the field
     let activePowerupEffects = {}; // type -> {timer, startTime}
     let onlinePlayers = {};
@@ -4575,6 +4578,9 @@
       if (!isLeader) return;
       if (waveState === 'gameover') return;
 
+      // Hitstop — brief freeze on boss kill for cinematic impact
+      if (hitstopFrames > 0) { hitstopFrames--; return; }
+
       tickCount++;
       shootSoundBudget = 0; // reset per-tick sound throttle
 
@@ -4948,6 +4954,7 @@
           if (e.type === 'boss') unlockAchievement('boss_slayer');
           if (e.type === 'boss') sessionBossKills++;
           if (e.type === 'boss') dropBossLoot(e.x, e.y); // Guaranteed boss loot!
+          if (e.type === 'boss') spawnBossDeathExplosion(e.x, e.y); // Cinematic death explosion
           if (e.elite) sessionEliteKills++;
           if (e.flying) { flyerKills++; if (flyerKills >= 10) unlockAchievement('fly_swatter'); }
           // Combo tracking
@@ -5413,6 +5420,9 @@
       deathGhosts = [];
       healBeams = [];
       confettiParticles = [];
+      bossDeathRings = [];
+      bossDeathFlash = 0;
+      hitstopFrames = 0;
       ultimateCooldownLeft = 0;
       ultimateFlashTimer = 0;
       terrainHazards = [];
@@ -6160,6 +6170,62 @@
           maxLife: 100,
           gravity: 0.06 + Math.random() * 0.04
         });
+      }
+    }
+
+    // Boss death explosion — cinematic shockwave + flash + particles
+    function spawnBossDeathExplosion(bx, by) {
+      // Multiple expanding shockwave rings with staggered timing
+      const colors = ['#ff4400', '#ff8800', '#ffd700', '#ffffff'];
+      for (let i = 0; i < 4; i++) {
+        bossDeathRings.push({
+          x: bx, y: by,
+          radius: 10 + i * 5,
+          maxRadius: 120 + i * 40,
+          life: 40 + i * 8,
+          maxLife: 40 + i * 8,
+          color: colors[i],
+          lineWidth: 4 - i * 0.5
+        });
+      }
+      // Burst of particles radiating outward
+      for (let i = 0; i < 30; i++) {
+        const angle = (i / 30) * Math.PI * 2 + Math.random() * 0.2;
+        const speed = 2 + Math.random() * 4;
+        particles.push({
+          x: bx, y: by,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 25 + Math.floor(Math.random() * 15),
+          maxLife: 40,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          size: 3 + Math.random() * 3
+        });
+      }
+      // Screen flash + hitstop
+      bossDeathFlash = 12; // 12 frames of white flash
+      hitstopFrames = 6; // 6 frames of freeze (~100ms at 60fps)
+      triggerScreenShake(true); // heavy shake
+    }
+
+    function renderBossDeathRings(c) {
+      for (let i = bossDeathRings.length - 1; i >= 0; i--) {
+        const ring = bossDeathRings[i];
+        const t = 1 - ring.life / ring.maxLife;
+        const r = ring.radius + (ring.maxRadius - ring.radius) * t;
+        const alpha = (ring.life / ring.maxLife) * 0.8;
+        c.save();
+        c.globalAlpha = alpha;
+        c.strokeStyle = ring.color;
+        c.lineWidth = ring.lineWidth * (ring.life / ring.maxLife);
+        c.shadowColor = ring.color;
+        c.shadowBlur = 12 * (ring.life / ring.maxLife);
+        c.beginPath();
+        c.arc(ring.x, ring.y, r, 0, Math.PI * 2);
+        c.stroke();
+        c.restore();
+        ring.life--;
+        if (ring.life <= 0) bossDeathRings.splice(i, 1);
       }
     }
 
@@ -8410,6 +8476,15 @@
 
       // Render wave clear confetti
       renderConfetti(ctx);
+      renderBossDeathRings(ctx);
+
+      // Boss death white flash overlay
+      if (bossDeathFlash > 0) {
+        const flashAlpha = (bossDeathFlash / 12) * 0.5;
+        ctx.fillStyle = `rgba(255,255,255,${flashAlpha})`;
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        bossDeathFlash--;
+      }
 
       // Draw ability targeting indicator
       if (abilityTargeting) {
