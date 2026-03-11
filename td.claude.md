@@ -1310,3 +1310,30 @@ If it fails, DO NOT commit. Fix the error first.
   - No new DOM elements, event listeners, or init calls. Zero TDZ risk.
 - **Performance:** 35 `arc` fills per frame with no gradients or shadows. ~0.1ms per frame — negligible.
 - **Design rationale:** The #1 visual gap remaining was the dead-feeling background. During combat, the canvas is alive with projectiles, particles, and effects. Between waves, it's a flat dark void. Ambient particles add the same kind of atmospheric life that dust motes give to a sunlit room — you barely notice them consciously, but their absence makes the space feel sterile. This is a standard technique in polished games (Hollow Knight's background particles, Hades' floating embers, Ori's atmospheric dust) that separates "prototype" from "polished." The ultra-low alpha (3-8%) ensures they never compete with gameplay elements for attention.
+
+### 2026-03-11: Treasure Goblin System (Diablo-inspired)
+- **Rare golden enemy** that spawns mid-path and runs BACKWARD toward the portal. Kill it for 8× XP + guaranteed boss-tier power-up + 2 HP heal + gold coin particle burst.
+- **Spawn rules:**
+  - Wave 8+ only, 18% chance per eligible wave, never on boss waves
+  - Spawns at 50-70% path progress (already partway through — you have limited time)
+  - Speed 2.8 (fast), HP 2× base (tanky enough you have to work for it)
+- **Movement:** Moves backward (pathProgress decreases instead of increases). Escapes at pathProgress ≤ 0 with a "💰 ESCAPED!" popup. Does NOT damage base.
+- **Rewards on kill:**
+  - 8× XP multiplier (stacks with combo/elite/early send bonuses)
+  - Guaranteed `dropBossLoot()` — same quality as boss kills
+  - +2 HP heal (capped at max)
+  - "💰 TREASURE!" screen-shake announcement (size 48, gold)
+  - 20 gold coin burst particles
+- **Visuals:**
+  - Golden (#ffd700) circle body, radius 9
+  - Pulsing golden aura (radial gradient, breathing alpha)
+  - 4 orbiting coin sparkles around the body
+  - 💰 floating label above
+  - "💰 TREASURE GOBLIN!" spawn announcement (0.5s delayed popup)
+- **Bestiary entry:** Added to `BESTIARY_INFO` with discovery unlock on first kill
+- **Works with both sim paths:** Regular simTick and ability-kill code both handle treasure multiplier and rewards
+- **Implementation:**
+  - Phase 2: `GOBLIN_*` constants (min wave, chance, HP mult, speed, XP mult, color, radius)
+  - Phase 5: Spawn logic in `generateWave()`, backward movement in simTick, reward logic in kill handler, aura/sparkle rendering in `drawEnemy()`
+  - No new DOM, listeners, or init calls. Zero TDZ risk.
+- **Design rationale:** The Diablo treasure goblin is one of gaming's most effective dopamine mechanics — a time-limited, high-reward encounter that creates urgency and excitement mid-wave. The backward movement means you can't just let your passive defenses handle it; you need to actively use Target Lock, abilities, or burst damage. The 18% chance keeps it rare enough to be exciting without being routine. The guaranteed boss loot + HP heal makes it a meaningful power spike that can turn a struggling run around.
