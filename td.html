@@ -1731,7 +1731,7 @@
               dataUrl = c.toDataURL('image/jpeg', 0.5);
             }
             playerAvatar = dataUrl;
-            localStorage.setItem('td_avatar', dataUrl);
+            try { localStorage.setItem('td_avatar', dataUrl); } catch(e) {}
             updateAvatarBtn();
             // Update Firebase cannon data if cannon exists
             if (db && cannons[playerId]) {
@@ -1761,7 +1761,7 @@
       priorityBtn.addEventListener('click', () => {
         const idx = TARGET_PRIORITIES.indexOf(myTargetPriority);
         myTargetPriority = TARGET_PRIORITIES[(idx + 1) % TARGET_PRIORITIES.length];
-        localStorage.setItem('td_target_priority', myTargetPriority);
+        try { localStorage.setItem('td_target_priority', myTargetPriority); } catch(e) {}
         updatePriorityBtn();
         // Sync to Firebase for multiplayer
         if (!offlineMode && cannons[playerId]) {
@@ -1883,7 +1883,7 @@
 
       muteBtn.addEventListener('click', () => {
         soundMuted = !soundMuted;
-        localStorage.setItem('td_sound_muted', soundMuted);
+        try { localStorage.setItem('td_sound_muted', soundMuted); } catch(e) {}
         muteBtn.textContent = soundMuted ? '🔇' : '🔊';
         // Initialize audio context on first unmute (needs user gesture)
         if (!soundMuted) ensureAudioCtx();
@@ -2550,7 +2550,7 @@
         lastPlayedAt: null
       };
     }
-    function saveLifetimeStats() { localStorage.setItem(STATS_KEY, JSON.stringify(lifetimeStats)); }
+    function saveLifetimeStats() { try { localStorage.setItem(STATS_KEY, JSON.stringify(lifetimeStats)); } catch(e) {} }
     lifetimeStats = loadLifetimeStats();
 
     // Session tracking vars
@@ -4145,7 +4145,7 @@
       const newName = prompt('Enter your new display name:', current);
       if (newName && newName.trim() && newName.trim() !== current) {
         playerName = newName.trim().substring(0, 20); // max 20 chars
-        localStorage.setItem('rayhe_visitor_name', playerName);
+        try { localStorage.setItem('rayhe_visitor_name', playerName); } catch(e) {}
         if (typeof FirebaseShared !== 'undefined' && FirebaseShared.setVisitorName) {
           FirebaseShared.setVisitorName(playerName);
         }
@@ -4206,7 +4206,7 @@
     let playerEmoji = localStorage.getItem('td_emoji');
     if (!playerEmoji) {
       playerEmoji = EMOJI_AVATARS[Math.floor(Math.random() * EMOJI_AVATARS.length)];
-      localStorage.setItem('td_emoji', playerEmoji);
+      try { localStorage.setItem('td_emoji', playerEmoji); } catch(e) {}
     }
 
     function updateAvatarBtn() {
@@ -4234,7 +4234,7 @@
       offlineMode = true;
       isLeader = true; // always leader in offline mode
       playerId = playerId || localStorage.getItem('td_player_id') || 'local_' + Math.random().toString(36).slice(2);
-      localStorage.setItem('td_player_id', playerId);
+      try { localStorage.setItem('td_player_id', playerId); } catch(e) {}
       playerName = playerName || localStorage.getItem('rayhe_visitor_name') || 'Player';
       console.log('[TD] Running in offline/single-player mode');
 
@@ -4310,13 +4310,13 @@
       // Auto-set a name if none exists (prevents prompt() dialog)
       if (!localStorage.getItem('rayhe_visitor_name')) {
         const autoName = 'Player_' + Math.random().toString(36).slice(2, 6);
-        localStorage.setItem('rayhe_visitor_name', autoName);
+        try { localStorage.setItem('rayhe_visitor_name', autoName); } catch(e) {}
       }
 
       try {
         await FirebaseShared.init('td', { presenceId: '_norender' });
         playerId = FirebaseShared.getVisitorId();
-        if (playerId) localStorage.setItem('td_player_id', playerId);
+        if (playerId) try { localStorage.setItem('td_player_id', playerId); } catch(e) {}
         playerName = FirebaseShared.getVisitorName() || localStorage.getItem('rayhe_visitor_name') || 'Player';
       } catch (err) {
         console.warn('[TD] FirebaseShared.init failed, going offline:', err);
@@ -6781,7 +6781,7 @@
       // Store refund in localStorage so next cannon starts with bonus XP
       if (refund > 0) {
         const existing = parseInt(localStorage.getItem('td_sell_refund') || '0', 10);
-        localStorage.setItem('td_sell_refund', existing + refund);
+        try { localStorage.setItem('td_sell_refund', existing + refund); } catch(e) {}
       }
       sfxSellCannon();
       unlockAchievement('sell_cannon');
@@ -7288,7 +7288,7 @@
 
     function toggleAutoAbility() {
       autoAbilityEnabled = !autoAbilityEnabled;
-      localStorage.setItem('td_auto_ability', autoAbilityEnabled);
+      try { localStorage.setItem('td_auto_ability', autoAbilityEnabled); } catch(e) {}
       updateAutoAbilityBtn();
     }
 
@@ -7309,7 +7309,7 @@
 
     function toggleAutoWave() {
       autoWaveEnabled = !autoWaveEnabled;
-      localStorage.setItem('td_auto_wave', autoWaveEnabled);
+      try { localStorage.setItem('td_auto_wave', autoWaveEnabled); } catch(e) {}
       updateAutoWaveBtn();
     }
 
@@ -12198,7 +12198,7 @@
     function endTutorial() {
       tutorialActive = false;
       tutorialOverlay.classList.remove('active');
-      localStorage.setItem('td_tutorial_complete', '1');
+      try { localStorage.setItem('td_tutorial_complete', '1'); } catch(e) {}
     }
 
 

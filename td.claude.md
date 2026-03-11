@@ -1464,3 +1464,15 @@ If it fails, DO NOT commit. Fix the error first.
 - **Proposed:** Make aid cannons spawn near the path instead of random canvas positions
 - **Challenge:** Is this adding complexity? No, it's fixing a broken implementation. Aid cannons in corners are wasted. Does it break anything? No — only changes spawn coordinates. Is it resume-driven? No — invisible to players, they just notice "aid cannons actually help now."
 - **Verdict:** PROCEED. Quality improvement to existing feature, not new bloat.
+
+### 2026-03-11: Bug Audit — localStorage Crash Protection
+- **12 unprotected `localStorage.setItem()` calls wrapped in try/catch** — these would crash the game in Safari private browsing mode (which throws QuotaExceededError on any setItem). The critical state saves (achievements, prestige, lifetime stats, bestiary, run history, autosave) were already protected, but 12 non-critical saves (avatar, target priority, mute state, visitor name, emoji, player ID, sell refund, auto-ability, auto-wave, tutorial complete) were not.
+- **No new features added.** This is a pure stability pass.
+- **Full audit results:** No other crash bugs found. All JSON.parse calls already wrapped. All currentPath accesses guarded with null checks. No bare top-level code outside the 7-phase structure. The waveNum vs waveNumber issue from previous cycles is fully resolved (all waveNum refs are inside parameterized functions).
+
+## Self-Critique Log
+
+### 2026-03-11: Bug Audit (Approved)
+- **Proposed:** Audit the 12,277-line codebase for latent crash bugs instead of adding features
+- **Challenge:** Is this adding fun? No. But a game that crashes in private browsing is less fun than one that doesn't. The game has 50+ features; it doesn't need 51. The last two user reports were both crashes. A real game designer would mandate a stability pass before any more features.
+- **Verdict:** PROCEED. Found and fixed 12 unprotected localStorage.setItem calls.
