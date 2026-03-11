@@ -1441,3 +1441,10 @@ If it fails, DO NOT commit. Fix the error first.
   - Reset: `secondWindUsed = false` in `resetGame()`
   - No new DOM elements, event listeners, or init calls. Zero TDZ risk.
 - **Design rationale:** Prestige upgrades have been purely incremental (more HP, more damage, more speed). Second Wind is the first "binary" prestige unlock — it doesn't make you stronger, it gives you a second chance. This is a proven game design pattern (Elden Ring tears of denial, Diablo passive cheat death, League of Legends Guardian Angel, Hades Death Defiance). At Tier 3 (75% HP + full non-boss clear), it's essentially a reset button that lets you continue from a near-death state. The 15-star cost for max tier means it requires significant prestige investment, keeping it as a meaningful late-game reward. Killing enemies sorted by path progress (closest to base first) ensures the most imminent threats are cleared, making the revival feel strategic rather than random.
+
+## Self-Critique Log
+
+### 2026-03-11: Cycle Skipped (Post Self-Critique Gate)
+- **Proposed:** Balance tuning or render pipeline cleanup
+- **Critique:** The game is at 12,266 lines with 210 functions and 440 state variables. It has accumulated ~50+ features in 3 days. The honest assessment is that it needs stability and playtesting time, not more changes. Every new commit risks introducing bugs in a codebase this complex. The self-critique gate correctly identifies that not every hour needs a commit.
+- **Verdict:** SKIP. Let the game breathe. Wait for user feedback on actual gameplay issues before adding more.
