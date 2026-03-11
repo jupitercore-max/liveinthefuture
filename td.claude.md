@@ -1337,3 +1337,33 @@ If it fails, DO NOT commit. Fix the error first.
   - Phase 5: Spawn logic in `generateWave()`, backward movement in simTick, reward logic in kill handler, aura/sparkle rendering in `drawEnemy()`
   - No new DOM, listeners, or init calls. Zero TDZ risk.
 - **Design rationale:** The Diablo treasure goblin is one of gaming's most effective dopamine mechanics — a time-limited, high-reward encounter that creates urgency and excitement mid-wave. The backward movement means you can't just let your passive defenses handle it; you need to actively use Target Lock, abilities, or burst damage. The 18% chance keeps it rare enough to be exciting without being routine. The guaranteed boss loot + HP heal makes it a meaningful power spike that can turn a struggling run around.
+
+### 2026-03-11: Dynamic Weather System
+- **5 weather conditions** that randomly change each wave, adding atmospheric visuals and subtle gameplay effects:
+  - **☀️ Clear** — Default. No effects. 40% chance per wave. Always on boss waves.
+  - **🌧️ Rain** — 80 animated rain streaks falling at an angle with slight wind drift. Cannons lose 5% range (reduced visibility). Blue-tinted particles at varying speeds.
+  - **❄️ Snow** — 60 gently falling snowflakes with sinusoidal horizontal drift (wind sway). All enemies move 8% slower (frozen ground). Soft white/blue particles that bob in the wind.
+  - **🌫️ Fog** — 25 large, slow-moving fog patches as radial gradients drifting across the battlefield. Cannons lose 12% range AND 8% crit chance (can't see targets clearly). Creates atmospheric depth.
+  - **🏜️ Sandstorm** — 50 sand particles blowing horizontally at speed. Cannons lose 10% range and 15% crit chance. Enemies move 4% slower (wind resistance). Subtle amber overlay tint on battlefield.
+- **Deterministic** via seeded PRNG (`waveNum * 4591`) — all multiplayer clients see the same weather. 40% chance of clear, 60% chance of weather (evenly distributed among 4 types).
+- **Boss waves always clear** — boss mechanics are dramatic enough without weather interference.
+- **Integration points (all clean, no new DOM/listeners/init):**
+  - `getCannonStats()`: Applies `weatherRange` and `weatherCrit` modifiers alongside existing mutator modifiers
+  - `simTick` enemy movement: Applies `weatherSpeedMod` to enemy speed after slow timer and before desperation
+  - `drawFrame()`: `drawWeather()` called after ambient particles, before base line — weather renders BEHIND gameplay elements
+  - Wave preview: Shows weather forecast with effects description (e.g. "🌧️ WEATHER: Rain — 5% range")
+  - Canvas HUD: Weather badge in top-left corner during active/countdown states
+  - `openUpgradeModal()`: Temporarily clears weather (like mutator) so stat preview shows true base values
+  - `resetGame()`: Resets to Clear weather
+- **Weather particle system** — `spawnWeatherParticles()` creates type-specific particle arrays on wave start. Each type has distinct particle count, speed, size, drift behavior, and alpha:
+  - Rain: Fast vertical lines with slight horizontal wind
+  - Snow: Slow circles with sinusoidal sway
+  - Fog: Large radial gradient patches drifting slowly
+  - Sandstorm: Medium circles blowing horizontally with vertical oscillation
+- **Phase compliance:**
+  - Phase 2 (near WAVE_MUTATORS): `WEATHER_TYPES` constant array
+  - Phase 3 (with other state): `currentWeather`, `weatherParticles` let declarations
+  - Phase 5 (functions): `getWaveWeather()`, `spawnWeatherParticles()`, `drawWeather()` + all integration points inside existing function bodies
+  - No new DOM elements, event listeners, or init calls. Zero TDZ risk.
+- **Performance:** Rain: 80 line strokes. Snow: 60 arc fills. Fog: 25 radial gradients. Sandstorm: 50 arc fills + 1 rect overlay. All lightweight — less than terrain hazard rendering.
+- **Design rationale:** The battlefield felt the same every wave — dark background with grid lines, only changing via mutator text and terrain hazard circles. Weather adds a visual dimension that makes each wave feel distinct before you even see the enemies. Rain creates urgency (reduced range = enemies get closer before you can shoot), fog creates tension (you can't see as far), snow is atmospheric but helpful (enemies slow down), sandstorm is the harshest (range + crit penalties). The 40% clear rate ensures weather doesn't feel forced — it's a pleasant surprise when it shows up. Inspired by weather systems in Kingdom Rush (wind/rain levels), Bloons TD6 (environmental map effects), and classic TDs that use terrain variation to keep runs feeling fresh. The subtle gameplay effects (5-15% range/crit/speed changes) are noticeable but not dominant — weather is atmosphere first, mechanics second.
