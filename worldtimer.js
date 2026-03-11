@@ -791,7 +791,32 @@
       html += `<div class="city-tooltip-others">Also: ${otherNames}</div>`;
     }
 
+    // Pin/unpin button
+    const alreadyPinned = isTzPinned(city.tz);
+    const pinLabel = alreadyPinned ? '📌 Unpin' : '📌 Pin';
+    const pinClass = alreadyPinned ? 'city-tooltip-pin pinned' : 'city-tooltip-pin';
+    html += `<button class="${pinClass}" data-pin-name="${city.name}" data-pin-tz="${city.tz}">${pinLabel}</button>`;
+
     tooltip.innerHTML = html;
+
+    // Wire up pin button
+    const pinBtn = tooltip.querySelector('.city-tooltip-pin');
+    if (pinBtn) {
+      pinBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const tz = pinBtn.getAttribute('data-pin-tz');
+        const name = pinBtn.getAttribute('data-pin-name');
+        if (isTzPinned(tz)) {
+          unpinTimezone(tz);
+          pinBtn.textContent = '📌 Pin';
+          pinBtn.classList.remove('pinned');
+        } else {
+          pinTimezone(name, tz);
+          pinBtn.textContent = '📌 Unpin';
+          pinBtn.classList.add('pinned');
+        }
+      });
+    }
 
     const containerRect = document.getElementById('clockContainer').getBoundingClientRect();
     const x = event.clientX - containerRect.left;
@@ -1819,6 +1844,7 @@
     checkAlarm(hours, minutes, seconds);
     updateAlarmHand();
     drawBalanceWheel(seconds, millis);
+    updateTzSlots();
 
     requestAnimationFrame(updateClock);
   }
@@ -3295,6 +3321,7 @@
       '<span><kbd>Scroll</kbd> Crown winding</span>',
       '<span><kbd>/</kbd> Search cities</span>',
       '<span><kbd>?</kbd> Toggle this help</span>',
+      '<span><kbd>📌</kbd> Pin cities from tooltip / search</span>',
     ].join('');
     hintsEl.style.cssText = `
       position:fixed; bottom:60px; right:16px; background:var(--card-bg);
@@ -3744,6 +3771,138 @@
   document.body.appendChild(repeaterToggle);
 
   // ═══════════════════════════════════════════════════════════
+  // Favorite Timezone Slots — pin up to 3 cities for a
+  // persistent multi-timezone dashboard below the watch.
+  // Slots are saved to localStorage and live-update every tick.
+  // ═══════════════════════════════════════════════════════════
+  const MAX_TZ_SLOTS = 3;
+  let tzFavorites = []; // Array of {name, tz}
+  const tzSlotsEl = document.getElementById('tzSlots');
+
+  // Load favorites from localStorage
+  try {
+    const stored = localStorage.getItem('wt_tz_favorites');
+    if (stored) tzFavorites = JSON.parse(stored);
+    if (!Array.isArray(tzFavorites)) tzFavorites = [];
+    // Validate each entry
+    tzFavorites = tzFavorites.filter(f => f && f.name && f.tz);
+    // Cap at MAX
+    if (tzFavorites.length > MAX_TZ_SLOTS) tzFavorites = tzFavorites.slice(0, MAX_TZ_SLOTS);
+  } catch (e) { tzFavorites = []; }
+
+  function saveTzFavorites() {
+    localStorage.setItem('wt_tz_favorites', JSON.stringify(tzFavorites));
+  }
+
+  function isTzPinned(tz) {
+    return tzFavorites.some(f => f.tz === tz);
+  }
+
+  function pinTimezone(name, tz) {
+    if (isTzPinned(tz)) return; // already pinned
+    if (tzFavorites.length >= MAX_TZ_SLOTS) {
+      // Remove oldest to make room
+      tzFavorites.shift();
+    }
+    tzFavorites.push({ name: name, tz: tz });
+    saveTzFavorites();
+    renderTzSlots();
+  }
+
+  function unpinTimezone(tz) {
+    tzFavorites = tzFavorites.filter(f => f.tz !== tz);
+    saveTzFavorites();
+    renderTzSlots();
+  }
+
+  function renderTzSlots() {
+    if (!tzSlotsEl) return;
+    tzSlotsEl.innerHTML = '';
+    tzFavorites.forEach(function(fav) {
+      const slot = document.createElement('div');
+      slot.className = 'tz-slot';
+
+      const cityLabel = document.createElement('div');
+      cityLabel.className = 'tz-slot-city';
+      cityLabel.textContent = fav.name;
+
+      const timeLabel = document.createElement('div');
+      timeLabel.className = 'tz-slot-time';
+      timeLabel.setAttribute('data-tz', fav.tz);
+      timeLabel.textContent = '--:--';
+
+      const offsetLabel = document.createElement('div');
+      offsetLabel.className = 'tz-slot-offset';
+      offsetLabel.setAttribute('data-tz-offset', fav.tz);
+
+      const removeBtn = document.createElement('div');
+      removeBtn.className = 'tz-slot-remove';
+      removeBtn.textContent = '✕';
+      removeBtn.title = 'Unpin';
+      removeBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        unpinTimezone(fav.tz);
+      });
+
+      // Click the slot to jump to that timezone
+      slot.addEventListener('click', function() {
+        setHomeTimezone(fav.tz, fav.name);
+      });
+
+      slot.appendChild(removeBtn);
+      slot.appendChild(cityLabel);
+      slot.appendChild(timeLabel);
+      slot.appendChild(offsetLabel);
+      slot.appendChild(slot._dayNight = document.createElement('div'));
+
+      tzSlotsEl.appendChild(slot);
+    });
+    // Immediately update times
+    updateTzSlots();
+  }
+
+  function updateTzSlots() {
+    if (!tzSlotsEl || tzFavorites.length === 0) return;
+    const now = new Date();
+    const timeEls = tzSlotsEl.querySelectorAll('.tz-slot-time[data-tz]');
+    const offsetEls = tzSlotsEl.querySelectorAll('.tz-slot-offset[data-tz-offset]');
+
+    timeEls.forEach(function(el) {
+      const tz = el.getAttribute('data-tz');
+      try {
+        el.textContent = now.toLocaleTimeString('en-US', {
+          timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+        });
+      } catch (e) {
+        el.textContent = '--:--';
+      }
+    });
+
+    offsetEls.forEach(function(el) {
+      const tz = el.getAttribute('data-tz-offset');
+      try {
+        const off = getTimezoneOffset(tz);
+        const sign = off >= 0 ? '+' : '';
+        const h = Math.floor(Math.abs(off));
+        const m = Math.round((Math.abs(off) % 1) * 60);
+        const offStr = 'UTC' + sign + h + (m ? ':' + String(m).padStart(2, '0') : '');
+
+        // Day/night indicator
+        const cityTime = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+        const ch = cityTime.getHours();
+        const isDay = ch >= 7 && ch < 19;
+        const icon = isDay ? '☀' : '🌙';
+        el.textContent = offStr + ' ' + icon;
+      } catch (e) {
+        el.textContent = '';
+      }
+    });
+  }
+
+  // Initial render
+  renderTzSlots();
+
+  // ═══════════════════════════════════════════════════════════
   // City Search — press / or click 🔍 to fuzzy-search all cities
   // in the pool and jump to any timezone instantly.
   // ═══════════════════════════════════════════════════════════
@@ -3826,12 +3985,17 @@
         const offStr = off >= 0 ? 'UTC+' + off : 'UTC' + off;
         // Highlight matching substring
         const nameHtml = q ? c.name.replace(new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'i'), '<b style="color:var(--text);">$1</b>') : c.name;
+        const pinIcon = isTzPinned(c.tz) ? '📌' : '📍';
+        const pinTitle = isTzPinned(c.tz) ? 'Unpin' : 'Pin to slots';
         html += '<div class="city-search-item" data-tz="' + c.tz + '" data-name="' + c.name + '" style="' +
           'padding:5px 8px;cursor:pointer;border-radius:4px;display:flex;justify-content:space-between;align-items:center;' +
           'color:var(--text-muted);transition:background 0.1s;' +
           '" onmouseenter="this.style.background=\'var(--border)\'" onmouseleave="this.style.background=\'none\'">' +
           '<span>' + nameHtml + ' <span style="opacity:0.5;font-size:0.65rem;">' + offStr + '</span></span>' +
+          '<span style="display:flex;align-items:center;gap:6px;">' +
           '<span style="font-size:0.7rem;opacity:0.7;">' + timeStr + '</span>' +
+          '<span class="city-search-pin" data-pin-tz="' + c.tz + '" data-pin-name="' + c.name + '" title="' + pinTitle + '" style="cursor:pointer;font-size:0.7rem;">' + pinIcon + '</span>' +
+          '</span>' +
           '</div>';
       }
     }
@@ -3839,11 +4003,31 @@
     // Attach click handlers
     const items = citySearchResults.querySelectorAll('.city-search-item');
     items.forEach(function(item) {
-      item.addEventListener('click', function() {
+      item.addEventListener('click', function(e) {
+        // Don't navigate if pin was clicked
+        if (e.target.classList.contains('city-search-pin')) return;
         const tz = item.getAttribute('data-tz');
         const name = item.getAttribute('data-name');
         setHomeTimezone(tz, name);
         closeCitySearch();
+      });
+    });
+    // Pin button handlers
+    const pins = citySearchResults.querySelectorAll('.city-search-pin');
+    pins.forEach(function(pin) {
+      pin.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const tz = pin.getAttribute('data-pin-tz');
+        const name = pin.getAttribute('data-pin-name');
+        if (isTzPinned(tz)) {
+          unpinTimezone(tz);
+          pin.textContent = '📍';
+          pin.title = 'Pin to slots';
+        } else {
+          pinTimezone(name, tz);
+          pin.textContent = '📌';
+          pin.title = 'Unpin';
+        }
       });
     });
   }
