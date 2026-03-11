@@ -2123,6 +2123,89 @@
                  polarRadius * 2, polarRadius * 0.30);
     ctx.restore();
 
+
+    // 4. Aurora Borealis — shimmering curtains near the north pole (dark side only)
+    // Visible near the center of the polar projection where the Arctic circle is
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(polarCenter, polarCenter, polarRadius, 0, Math.PI * 2);
+    ctx.clip();
+    // We need to know which direction is "night" to only draw aurora on dark side
+    // shadingRotation already applied above; re-apply to position aurora in dark hemisphere
+    ctx.translate(polarCenter, polarCenter);
+    ctx.rotate(shadingRotation);
+    ctx.translate(-polarCenter, -polarCenter);
+
+    const auroraTime = now / 1000; // seconds for animation
+    const auroraRadius = polarRadius * 0.35; // ~65°N latitude band
+    const aurCx = polarCenter;
+    const aurCy = polarCenter;
+
+    // Only draw curtains on the night side (positive y after shading rotation)
+    // Draw 5 aurora curtain arcs spread around the polar region
+    const curtainCount = 5;
+    for (let i = 0; i < curtainCount; i++) {
+      const baseAngle = (i / curtainCount) * Math.PI + Math.PI * 0.1; // spread across night half (PI = bottom)
+      // Gentle wave animation — each curtain undulates at different frequency
+      const wavePhase = auroraTime * (0.3 + i * 0.08) + i * 1.7;
+      const angleOffset = Math.sin(wavePhase) * 0.15;
+      const angle = baseAngle + angleOffset;
+
+      // Curtain center position (in night hemisphere = bottom half)
+      const cr = auroraRadius * (0.7 + 0.25 * Math.sin(auroraTime * 0.2 + i * 2.1));
+      const cx = aurCx + Math.cos(angle) * cr;
+      const cy = aurCy + Math.sin(angle) * cr;
+
+      // Only draw if on night side (cy > aurCy means bottom half = night)
+      if (cy < aurCy - auroraRadius * 0.2) continue;
+
+      // Curtain dimensions
+      const curtainW = polarRadius * (0.25 + 0.1 * Math.sin(auroraTime * 0.4 + i));
+      const curtainH = polarRadius * (0.08 + 0.04 * Math.sin(auroraTime * 0.6 + i * 1.3));
+
+      // Color — alternating green and purple with shimmer
+      const shimmer = 0.5 + 0.5 * Math.sin(auroraTime * (1.5 + i * 0.3) + i * 0.9);
+      const isGreen = (i % 3 !== 2);
+      let r, g, b;
+      if (isGreen) {
+        r = Math.floor(30 + 40 * shimmer);
+        g = Math.floor(180 + 60 * shimmer);
+        b = Math.floor(80 + 40 * shimmer);
+      } else {
+        r = Math.floor(120 + 60 * shimmer);
+        g = Math.floor(50 + 40 * shimmer);
+        b = Math.floor(180 + 60 * shimmer);
+      }
+      const alpha = 0.12 + 0.08 * shimmer;
+
+      // Draw the curtain as a vertical gradient arc
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle + Math.PI / 2);
+
+      // Main curtain body — radial gradient from bright center to transparent edges
+      const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, curtainW * 0.6);
+      grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`);
+      grad.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, ${alpha * 0.7})`);
+      grad.addColorStop(0.7, `rgba(${r}, ${g}, ${b}, ${alpha * 0.3})`);
+      grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(-curtainW / 2, -curtainH / 2, curtainW, curtainH);
+
+      // Bright core line — the intense lower edge of the aurora curtain
+      const coreGrad = ctx.createLinearGradient(-curtainW * 0.4, 0, curtainW * 0.4, 0);
+      coreGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0)`);
+      coreGrad.addColorStop(0.2, `rgba(${Math.min(r+60,255)}, ${Math.min(g+60,255)}, ${Math.min(b+40,255)}, ${alpha * 1.2})`);
+      coreGrad.addColorStop(0.5, `rgba(${Math.min(r+80,255)}, ${Math.min(g+80,255)}, ${Math.min(b+60,255)}, ${alpha * 1.5})`);
+      coreGrad.addColorStop(0.8, `rgba(${Math.min(r+60,255)}, ${Math.min(g+60,255)}, ${Math.min(b+40,255)}, ${alpha * 1.2})`);
+      coreGrad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+      ctx.fillStyle = coreGrad;
+      ctx.fillRect(-curtainW * 0.4, curtainH * 0.1, curtainW * 0.8, curtainH * 0.15);
+
+      ctx.restore();
+    }
+    ctx.restore();
+
     // 3. Atmospheric limb glow — blue haze ring around the earth's edge
     const limbGrad = ctx.createRadialGradient(
       polarCenter, polarCenter, polarRadius * 0.88,
