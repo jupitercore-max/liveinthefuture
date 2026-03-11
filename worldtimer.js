@@ -3109,6 +3109,11 @@
           e.preventDefault();
           toggleShortcutHints();
           break;
+        case '/':
+          // / = Open city search
+          e.preventDefault();
+          openCitySearch();
+          break;
       }
     });
 
@@ -3129,6 +3134,7 @@
       '<span><kbd>R</kbd> 🎵 Minute Repeater</span>',
       '<span><kbd>N</kbd> Lume shot mode</span>',
       '<span><kbd>Scroll</kbd> Crown winding</span>',
+      '<span><kbd>/</kbd> Search cities</span>',
       '<span><kbd>?</kbd> Toggle this help</span>',
     ].join('');
     hintsEl.style.cssText = `
@@ -3557,6 +3563,155 @@
   repeaterToggle.addEventListener('mouseleave', function() { if (!repeaterPlaying) repeaterToggle.style.opacity = '0.5'; });
   repeaterToggle.addEventListener('click', playMinuteRepeater);
   document.body.appendChild(repeaterToggle);
+
+  // ═══════════════════════════════════════════════════════════
+  // City Search — press / or click 🔍 to fuzzy-search all cities
+  // in the pool and jump to any timezone instantly.
+  // ═══════════════════════════════════════════════════════════
+  let citySearchOpen = false;
+  const citySearchPanel = document.createElement('div');
+  citySearchPanel.className = 'city-search-panel';
+  citySearchPanel.style.cssText = `
+    position:fixed; bottom:60px; left:16px; width:260px;
+    background:var(--card-bg); border:1px solid var(--border);
+    border-radius:8px; padding:8px; z-index:10000;
+    box-shadow:0 8px 24px rgba(0,0,0,0.25); display:none;
+    flex-direction:column; gap:4px;
+    font-family:var(--font-mono); font-size:0.75rem;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  `;
+  const citySearchInput = document.createElement('input');
+  citySearchInput.type = 'text';
+  citySearchInput.placeholder = 'Search cities…';
+  citySearchInput.style.cssText = `
+    width:100%; box-sizing:border-box; padding:6px 8px;
+    background:var(--bg); color:var(--text); border:1px solid var(--border);
+    border-radius:4px; font-family:var(--font-mono); font-size:0.75rem;
+    outline:none;
+  `;
+  const citySearchResults = document.createElement('div');
+  citySearchResults.style.cssText = `
+    max-height:200px; overflow-y:auto; display:flex; flex-direction:column; gap:1px;
+  `;
+  citySearchPanel.appendChild(citySearchInput);
+  citySearchPanel.appendChild(citySearchResults);
+  document.body.appendChild(citySearchPanel);
+
+  function openCitySearch() {
+    if (citySearchOpen) return;
+    citySearchOpen = true;
+    citySearchPanel.style.display = 'flex';
+    citySearchInput.value = '';
+    renderCitySearchResults('');
+    setTimeout(function() { citySearchInput.focus(); }, 30);
+  }
+
+  function closeCitySearch() {
+    if (!citySearchOpen) return;
+    citySearchOpen = false;
+    citySearchPanel.style.display = 'none';
+    citySearchInput.blur();
+  }
+
+  function toggleCitySearch() {
+    citySearchOpen ? closeCitySearch() : openCitySearch();
+  }
+
+  function renderCitySearchResults(query) {
+    const q = query.toLowerCase().trim();
+    // Deduplicate by city name — cityPool can have multiple entries for the same tz
+    const seen = new Set();
+    const matches = [];
+    for (let i = 0; i < cityPool.length; i++) {
+      const c = cityPool[i];
+      if (seen.has(c.name)) continue;
+      seen.add(c.name);
+      if (q && c.name.toLowerCase().indexOf(q) === -1) continue;
+      matches.push(c);
+      if (matches.length >= 20) break;
+    }
+    let html = '';
+    if (matches.length === 0) {
+      html = '<div style="padding:6px 8px;color:var(--text-muted);text-align:center;">No cities found</div>';
+    } else {
+      const now = new Date();
+      for (let i = 0; i < matches.length; i++) {
+        const c = matches[i];
+        let timeStr = '';
+        try {
+          timeStr = now.toLocaleTimeString('en-US', {
+            timeZone: c.tz, hour: '2-digit', minute: '2-digit', hour12: false
+          });
+        } catch (e) { timeStr = '??:??'; }
+        const off = getTimezoneOffset(c.tz);
+        const offStr = off >= 0 ? 'UTC+' + off : 'UTC' + off;
+        // Highlight matching substring
+        const nameHtml = q ? c.name.replace(new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'i'), '<b style="color:var(--text);">$1</b>') : c.name;
+        html += '<div class="city-search-item" data-tz="' + c.tz + '" data-name="' + c.name + '" style="' +
+          'padding:5px 8px;cursor:pointer;border-radius:4px;display:flex;justify-content:space-between;align-items:center;' +
+          'color:var(--text-muted);transition:background 0.1s;' +
+          '" onmouseenter="this.style.background=\'var(--border)\'" onmouseleave="this.style.background=\'none\'">' +
+          '<span>' + nameHtml + ' <span style="opacity:0.5;font-size:0.65rem;">' + offStr + '</span></span>' +
+          '<span style="font-size:0.7rem;opacity:0.7;">' + timeStr + '</span>' +
+          '</div>';
+      }
+    }
+    citySearchResults.innerHTML = html;
+    // Attach click handlers
+    const items = citySearchResults.querySelectorAll('.city-search-item');
+    items.forEach(function(item) {
+      item.addEventListener('click', function() {
+        const tz = item.getAttribute('data-tz');
+        const name = item.getAttribute('data-name');
+        setHomeTimezone(tz, name);
+        closeCitySearch();
+      });
+    });
+  }
+
+  citySearchInput.addEventListener('input', function() {
+    renderCitySearchResults(citySearchInput.value);
+  });
+
+  // Close on click outside
+  document.addEventListener('mousedown', function(e) {
+    if (citySearchOpen && !citySearchPanel.contains(e.target) && e.target !== searchToggle) {
+      closeCitySearch();
+    }
+  });
+
+  // Close on Esc (handled in the input specifically so it doesn't reset timezone)
+  citySearchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeCitySearch();
+    }
+    // Enter selects first result
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const first = citySearchResults.querySelector('.city-search-item');
+      if (first) first.click();
+    }
+  });
+
+  // 🔍 button
+  const searchToggle = document.createElement('button');
+  searchToggle.className = 'search-toggle';
+  searchToggle.textContent = '🔍';
+  searchToggle.title = 'Search cities (/)';
+  searchToggle.style.cssText = `
+    position:fixed; bottom:16px; left:216px; padding:6px 10px;
+    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
+    border:1px solid var(--border); border-radius:var(--radius);
+    cursor:pointer; z-index:9999; opacity:0.5;
+    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
+    line-height:1; font-family:var(--font-mono);
+  `;
+  searchToggle.addEventListener('mouseenter', function() { searchToggle.style.opacity = '1'; });
+  searchToggle.addEventListener('mouseleave', function() { if (!citySearchOpen) searchToggle.style.opacity = '0.5'; });
+  searchToggle.addEventListener('click', toggleCitySearch);
+  document.body.appendChild(searchToggle);
 
   if (alarmSetBtn) {
     alarmSetBtn.addEventListener('click', function() {
