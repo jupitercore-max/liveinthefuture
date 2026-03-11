@@ -2404,14 +2404,17 @@
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const pad = 24; // breathing room
-    // Digital readouts + chrono below clock need ~120px
+    // Digital readouts + chrono below clock need ~120px, strap adds ~400px
     const availW = vw - pad;
     const availH = vh - pad - 120;
-    const maxFit = Math.min(availW, availH);
+    // Account for the strap extending 200px above and below the clock
+    const totalNativeH = CLOCK_NATIVE_SIZE + 400;
+    const maxFitW = availW / CLOCK_NATIVE_SIZE;
+    const maxFitH = availH / totalNativeH;
+    const scale = Math.min(maxFitW, maxFitH);
 
-    if (maxFit < CLOCK_NATIVE_SIZE) {
-      const scale = Math.max(0.45, maxFit / CLOCK_NATIVE_SIZE); // floor at 45%
-      worldTimerEl.style.zoom = scale.toFixed(4);
+    if (scale < 1) {
+      worldTimerEl.style.zoom = Math.max(0.35, scale).toFixed(4);
     } else {
       worldTimerEl.style.zoom = '';
     }
