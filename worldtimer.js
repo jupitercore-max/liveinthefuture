@@ -1896,6 +1896,7 @@
     checkChime(hours, minutes, seconds);
     checkAlarm(hours, minutes, seconds);
     updateAlarmHand();
+    updateLeapIndicator(now);
     drawBalanceWheel(seconds, millis);
     updateTzSlots();
 
@@ -2650,6 +2651,51 @@
 
   // Calculate moon phase (0..1) using Conway's approximation
   // Reference new moon: Jan 6, 2000 (known new moon)
+
+  // ── Leap Year Indicator (Perpetual Calendar) ──────────────
+  // Shows position in the 4-year cycle: 3 regular years + 1 leap year
+  // Like a Patek Philippe 5327G perpetual calendar sub-dial
+  function updateLeapIndicator(now) {
+    const indicator = document.getElementById('leapIndicator');
+    if (!indicator) return;
+
+    const homeTz = getHomeTimezone();
+    const year = parseInt(now.toLocaleDateString('en-US', { timeZone: homeTz, year: 'numeric' }));
+
+    // Calculate position in the leap year cycle
+    // Leap years: divisible by 4, except centuries unless divisible by 400
+    function isLeapYear(y) {
+      return (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0);
+    }
+
+    // Find the most recent leap year at or before current year
+    let recentLeap = year;
+    while (!isLeapYear(recentLeap)) recentLeap--;
+
+    // Position in cycle: 0 = leap year, 1-3 = years after
+    const cyclePos = year - recentLeap;
+
+    const pips = indicator.querySelectorAll('.leap-pip');
+    const label = document.getElementById('leapLabel');
+
+    pips.forEach((pip, i) => {
+      pip.classList.remove('active', 'leap-year');
+      if (i === cyclePos) {
+        pip.classList.add('active');
+        if (i === 0) pip.classList.add('leap-year');
+      }
+    });
+
+    if (label) {
+      if (cyclePos === 0) {
+        label.textContent = 'LEAP';
+      } else {
+        const yearsUntil = 4 - cyclePos;
+        label.textContent = yearsUntil === 1 ? 'NEXT YR' : yearsUntil + ' YRS';
+      }
+    }
+  }
+
   function getMoonPhase(date) {
     const SYNODIC_MONTH = 29.53058770576;
     const REF_NEW_MOON = new Date(Date.UTC(2000, 0, 6, 18, 14, 0)); // Jan 6 2000 18:14 UTC
