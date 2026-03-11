@@ -8838,6 +8838,124 @@
       }
       // ── End Hover Stat Tooltip ────────────────────────
 
+      // ── Enemy Hover Info Tooltip ─────────────────────
+      {
+        if (mouseOnCanvas && waveState === 'active' && mouseCanvasX >= 0) {
+          let hoveredEnemy = null;
+          for (let ei = 0; ei < enemies.length; ei++) {
+            const en = enemies[ei];
+            if (en.dead || en.hp <= 0) continue;
+            const edx = mouseCanvasX - en.x;
+            const edy = mouseCanvasY - en.y;
+            const eRad = (en.radius || 8) + 6; // generous hit area
+            if (edx * edx + edy * edy <= eRad * eRad) {
+              hoveredEnemy = en;
+              break;
+            }
+          }
+          if (hoveredEnemy) {
+            const en = hoveredEnemy;
+            const etInfo = ENEMY_TYPES.find(et => et.type === en.type);
+            const typeName = en.type.charAt(0).toUpperCase() + en.type.slice(1);
+            const typeEmoji = { scout: '🔴', grunt: '🟠', tank: '🟣', speedster: '🟢', healer: '💚', shielded: '🔵', armored: '⬛', flyer: '✈️', phaser: '🔷', splitter: '🧬', boss: '💀' }[en.type] || '⚪';
+
+            const eTipLines = [];
+            eTipLines.push(`${typeEmoji} ${typeName}${en.elite ? ' ★ ELITE' : ''}${en.type === 'boss' ? ' BOSS' : ''}`);
+
+            // HP
+            const hpPct = Math.max(0, en.hp / en.maxHp * 100);
+            eTipLines.push(`HP: ${Math.ceil(en.hp)} / ${Math.ceil(en.maxHp)} (${Math.round(hpPct)}%)`);
+
+            // Shield
+            if (en.shieldHp > 0) {
+              eTipLines.push(`🔵 Shield: ${Math.ceil(en.shieldHp)} / ${Math.ceil(en.shieldMaxHp)}`);
+            }
+
+            // Speed
+            const effectiveSpd = en.slowTimer > 0 ? en.speed * 0.5 : en.speed;
+            const despBoost = en._desperationPct ? ` +${Math.round(en._desperationPct * 60)}%` : '';
+            eTipLines.push(`Speed: ${effectiveSpd.toFixed(1)}${despBoost}`);
+
+            // Traits
+            const traits = [];
+            if (en.flying) traits.push('✈ Flying');
+            if (en.armor) traits.push(`🛡 ${Math.round(en.armor * 100)}% Armor`);
+            if (en.healer) traits.push('💚 Healer');
+            if (en.phaser) traits.push('⚡ Phaser');
+            if (en.splits) traits.push('🧬 Splits');
+            if (en.isChild) traits.push('🧬 Child');
+            if (traits.length > 0) eTipLines.push(traits.join(' · '));
+
+            // Status effects
+            const statuses = [];
+            if (en.slowTimer > 0) statuses.push('❄️ Slowed');
+            if (en._desperationPct > 0.1) statuses.push('⏱ Desperate');
+            if (en.enraged) statuses.push('🔥 Enraged');
+            if (en.regenRate > 0) statuses.push('♻️ Regen');
+            if (statuses.length > 0) eTipLines.push(statuses.join(' · '));
+
+            // Path progress
+            if (!en.flying && en.pathProgress !== undefined) {
+              eTipLines.push(`Path: ${Math.round(en.pathProgress * 100)}%`);
+            }
+
+            const eTipFont = '10px ' + getComputedStyle(document.body).fontFamily;
+            ctx.font = eTipFont;
+            const eLineH = 14;
+            const ePadX = 8, ePadY = 6;
+            let eMaxW = 0;
+            for (const l of eTipLines) {
+              const w = ctx.measureText(l).width;
+              if (w > eMaxW) eMaxW = w;
+            }
+            const eTipW = eMaxW + ePadX * 2;
+            const eTipH = eTipLines.length * eLineH + ePadY * 2;
+
+            let eTipX = en.x - eTipW / 2;
+            let eTipY = en.y - (en.radius || 8) - 8 - eTipH;
+            if (eTipX < 4) eTipX = 4;
+            if (eTipX + eTipW > CANVAS_W - 4) eTipX = CANVAS_W - 4 - eTipW;
+            if (eTipY < 4) eTipY = en.y + (en.radius || 8) + 8;
+
+            // Background
+            ctx.fillStyle = 'rgba(10,10,30,0.88)';
+            ctx.beginPath();
+            const ecr = 4;
+            ctx.moveTo(eTipX + ecr, eTipY);
+            ctx.lineTo(eTipX + eTipW - ecr, eTipY);
+            ctx.quadraticCurveTo(eTipX + eTipW, eTipY, eTipX + eTipW, eTipY + ecr);
+            ctx.lineTo(eTipX + eTipW, eTipY + eTipH - ecr);
+            ctx.quadraticCurveTo(eTipX + eTipW, eTipY + eTipH, eTipX + eTipW - ecr, eTipY + eTipH);
+            ctx.lineTo(eTipX + ecr, eTipY + eTipH);
+            ctx.quadraticCurveTo(eTipX, eTipY + eTipH, eTipX, eTipY + eTipH - ecr);
+            ctx.lineTo(eTipX, eTipY + ecr);
+            ctx.quadraticCurveTo(eTipX, eTipY, eTipX + ecr, eTipY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Border — color matches enemy type
+            ctx.strokeStyle = (etInfo ? etInfo.color : '#888') + '88';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Text
+            ctx.textAlign = 'left';
+            for (let li = 0; li < eTipLines.length; li++) {
+              if (li === 0) {
+                ctx.fillStyle = etInfo ? etInfo.color : '#fff';
+                ctx.font = 'bold ' + eTipFont;
+              } else {
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                ctx.font = eTipFont;
+              }
+              ctx.fillText(eTipLines[li], eTipX + ePadX, eTipY + ePadY + li * eLineH + 10);
+            }
+            ctx.textAlign = 'start';
+          }
+        }
+      }
+      // ── End Enemy Hover Info Tooltip ──────────────────
+
       // Damage flash overlay
       if (damageFlashTimer > 0) {
         const flashAlpha = (damageFlashTimer / 8) * 0.25;
