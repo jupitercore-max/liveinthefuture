@@ -1120,3 +1120,31 @@ If it fails, DO NOT commit. Fix the error first.
 - **Performance:** One enemy distance check per frame per alive enemy (early exit on first match). One tooltip rendered. Negligible cost.
 - **No new state variables, DOM elements, event listeners, or init calls.** All code is a single block-scoped `{}` section inside `drawFrame()` (Phase 5), between the cannon tooltip and the damage flash overlay. Uses only existing variables: `mouseOnCanvas`, `mouseCanvasX/Y`, `enemies`, `ENEMY_TYPES`, `waveState`. Zero TDZ risk.
 - **Design rationale:** The game has 11 enemy types with complex mechanics (armor reduction, shield absorption, phasing, healing, splitting, flying) but the only way to learn about them was the bestiary panel (which requires killing them first) or the brief wave preview labels. During combat, players had no way to inspect a specific enemy — "why isn't this one dying?" (answer: it's armored, 60% damage reduction), "is this one being healed?" (answer: it has regen from a nearby healer). The tooltip answers these questions in real time, making the game more transparent and less frustrating. This is standard in strategy/TD games (Bloons TD6, Kingdom Rush, Mindustry, Factorio) — hovering over an entity should show its stats. The tooltip also makes the cannon hover tooltip's targeting info more meaningful — now you can inspect both your cannon AND its target to understand the damage interaction.
+
+### 2026-03-11: Rich Game Over Summary Screen
+- **Transformed the basic "Wave X · Y kills" game over screen** into a detailed post-run breakdown card with visual hierarchy and data-rich content. Previously the game over was 2 lines of text + a Play Again button. Now it's a comprehensive run report.
+- **Performance grade** — S/A/B/C/D based on wave reached + kills-per-wave efficiency:
+  - **S** (Gold): Wave 30+ and 8+ KPW — "Legendary Run"
+  - **A** (Green): Wave 20+ and 6+ KPW — "Excellent"
+  - **B** (Blue): Wave 10+ and 4+ KPW — "Solid Performance"
+  - **C** (Orange): Wave 5+ — "Decent Effort"
+  - **D** (Red): Below wave 5 — "Rough Start"
+  - Large glowing grade letter with text-shadow for visual impact
+- **Time survived** — Session timer starts on wave 1 start, shows Xm Ys format at game over
+- **Build summary** — Shows cannon spec (color-coded) and level in a tinted row
+- **Stats grid** — 2-column grid showing 8 metrics: Waves, Kills, Time, Best Combo, Boss Kills, Elite Kills, Early Sends, Abilities Used
+- **Kill breakdown by enemy type** — Sorted by count (descending), showing:
+  - Color dot matching enemy type
+  - Emoji + type name from BESTIARY_INFO
+  - Kill count
+  - Proportional bar (relative to highest-killed type)
+  - Only shows types that were actually killed this run
+- **Records** — "🏆 NEW RECORD" banner for Best Wave, Best Kills, Best Combo
+- **Stars** — Shows stars earned this run + total balance
+- **Scrollable** — Game over overlay now has `overflow-y: auto` + padding for taller summaries on small screens
+- **New state variables (Phase 3):**
+  - `sessionKillsByType = {}` — per-run kill count by enemy type, tracked in `recordBestiaryKill()`
+  - `sessionStartTime = 0` — timestamp set when wave 1 becomes active
+  - Both reset in `resetSessionStats()`
+- **Phase compliance:** CSS additions in `<style>`. Two new `let` variables in Phase 3 (line ~2468). `sessionStartTime` set inside `simTick` countdown-to-active transition (Phase 5). `sessionKillsByType` incremented inside `recordBestiaryKill()` (Phase 5). `showGameOver()` expanded with local-only variables (Phase 5). No new DOM elements, event listeners, or init calls. Zero TDZ risk.
+- **Design rationale:** The game over screen is the single most-viewed UI in any roguelike/run-based game — players see it at the end of every run. A rich summary serves three purposes: (1) makes the moment of death feel like an event rather than a dead-end, (2) lets players analyze their performance to improve next run, (3) creates a "one more try" pull by showing what they achieved. The kill breakdown specifically answers "what was I fighting?" which is opaque during chaotic late-game combat. The performance grade gives a clear aspirational target. Every successful roguelike (Hades, Slay the Spire, Risk of Rain) invests heavily in the death screen because it's the transition point where players decide whether to play again.

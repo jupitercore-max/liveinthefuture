@@ -361,6 +361,8 @@
       flex-direction: column;
       background: rgba(0,0,0,0.75);
       z-index: 20;
+      overflow-y: auto;
+      padding: 20px 0;
     }
     .game-over-overlay.active { display: flex; }
     .game-over-overlay .go-title {
@@ -373,6 +375,8 @@
       font-size: 0.85rem;
       color: var(--text-muted);
       margin-bottom: 20px;
+      max-width: 380px;
+      width: 90%;
     }
     .game-over-overlay .go-restart {
       background: var(--danger);
@@ -386,6 +390,30 @@
       transition: background 0.15s;
     }
     .game-over-overlay .go-restart:hover { background: #c0392b; }
+
+    /* ─── Rich Game Over Summary ────────────────── */
+    .go-summary { text-align: left; width: 100%; }
+    .go-grade-row { text-align: center; margin-bottom: 8px; }
+    .go-grade { font-size: 2.2rem; font-weight: 700; display: inline-block; text-shadow: 0 0 20px currentColor; }
+    .go-grade.grade-s { color: #ffd700; } .go-grade.grade-a { color: #00ff88; }
+    .go-grade.grade-b { color: #1E90FF; } .go-grade.grade-c { color: #ff8800; }
+    .go-grade.grade-d { color: #ff4444; }
+    .go-subtitle { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+    .go-records { text-align: center; color: #fbbf24; font-size: 0.8rem; margin-bottom: 6px; }
+    .go-stars-row { text-align: center; margin-bottom: 10px; font-size: 0.8rem; }
+    .go-stars-row .earned { color: #fbbf24; } .go-stars-row .total { color: #c084fc; font-size: 0.7rem; }
+    .go-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-bottom: 10px; }
+    .go-stat { display: flex; justify-content: space-between; font-size: 0.72rem; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .go-stat .label { color: var(--text-muted); } .go-stat .val { color: var(--text); font-weight: 600; }
+    .go-kills-section { margin-bottom: 8px; }
+    .go-kills-title { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .go-kill-row { display: flex; align-items: center; gap: 5px; font-size: 0.7rem; padding: 2px 0; }
+    .go-kill-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .go-kill-name { flex: 1; color: var(--text-muted); text-transform: capitalize; }
+    .go-kill-count { font-weight: 600; color: var(--text); min-width: 24px; text-align: right; }
+    .go-kill-bar { flex: 0 0 50px; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+    .go-kill-fill { height: 100%; border-radius: 2px; }
+    .go-build-row { text-align: center; font-size: 0.72rem; color: var(--text-muted); margin-bottom: 6px; padding: 4px 8px; background: rgba(255,255,255,0.04); border-radius: 4px; }
 
     /* ─── Combo Counter ──────────────────────────────── */
     .combo-display {
@@ -2439,6 +2467,8 @@
     let sessionWavesCleared = 0;
     let sessionEarlySends = 0;
     let sessionAbilitiesUsed = 0;
+    let sessionKillsByType = {}; // { type: count } — per-run kill breakdown
+    let sessionStartTime = 0; // timestamp when the first wave starts
     let personalBestBroken = false; // true once we pass lifetimeStats.bestWave this run
     let waveDesperationWarned = false; // true once ⏱ DESPERATION! popup fires this wave
     let runHistory = []; // Array of past game run records
@@ -2468,6 +2498,8 @@
       sessionWavesCleared = 0;
       sessionEarlySends = 0;
       sessionAbilitiesUsed = 0;
+      sessionKillsByType = {};
+      sessionStartTime = 0;
     }
 
     // ═══════════════════════════════════════════════════
@@ -2483,6 +2515,7 @@
     }
     function recordBestiaryKill(type) {
       bestiaryKills[type] = (bestiaryKills[type] || 0) + 1;
+      sessionKillsByType[type] = (sessionKillsByType[type] || 0) + 1;
       saveBestiaryKills();
     }
     function renderBestiaryPanel() {
@@ -4655,6 +4688,7 @@
         countdownTimer--;
         if (countdownTimer <= 0) {
           waveState = 'active';
+          if (waveNumber === 1) sessionStartTime = Date.now();
           enemies = generateWave(waveNumber);
           // Reset per-wave stats tracking
           waveStats = { kills: 0, hpLost: 0, maxCombo: 0, startTick: tickCount, enemiesSpawned: enemies.length, abilityUsed: false, earlySendUsed: false, powerupCollected: false };
@@ -5473,10 +5507,79 @@
       recordRun(waveNumber, totalKills, earned);
       // Update lifetime stats and get records broken
       const records = updateLifetimeStatsOnGameOver(waveNumber, totalKills);
-      const recordHtml = records.length > 0
-        ? `<br><span style="color:#fbbf24;font-size:0.85rem">🏆 NEW RECORD: ${records.join(', ')}!</span>`
-        : '';
-      goStats.innerHTML = `Wave ${waveNumber} · ${totalKills} kills${recordHtml}<br><span style="color:#fbbf24;font-size:0.9rem">⭐ +${earned} Star${earned !== 1 ? 's' : ''} earned!</span><br><span style="color:#c084fc;font-size:0.7rem">${prestigeStars} total — spend in ⭐ Prestige</span>`;
+
+      // ── Performance grade ──
+      const kpw = waveNumber > 0 ? totalKills / waveNumber : 0;
+      let grade, gradeClass;
+      if (waveNumber >= 30 && kpw >= 8)      { grade = 'S'; gradeClass = 'grade-s'; }
+      else if (waveNumber >= 20 && kpw >= 6)  { grade = 'A'; gradeClass = 'grade-a'; }
+      else if (waveNumber >= 10 && kpw >= 4)  { grade = 'B'; gradeClass = 'grade-b'; }
+      else if (waveNumber >= 5)               { grade = 'C'; gradeClass = 'grade-c'; }
+      else                                    { grade = 'D'; gradeClass = 'grade-d'; }
+      const gradeLabels = { S: 'Legendary Run', A: 'Excellent', B: 'Solid Performance', C: 'Decent Effort', D: 'Rough Start' };
+
+      // ── Time survived ──
+      const elapsed = sessionStartTime > 0 ? Math.floor((Date.now() - sessionStartTime) / 1000) : 0;
+      const mins = Math.floor(elapsed / 60);
+      const secs = elapsed % 60;
+      const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+
+      // ── Build summary ──
+      const myCannon = cannons[playerId];
+      const spec = myCannon ? (myCannon.spec || myCannon.path || 'basic') : 'none';
+      const lvl = myCannon ? (myCannon.level || 1) : 0;
+      const specColor = myCannon ? getCannonColor(myCannon.path, myCannon.spec) : '#999';
+      const buildStr = myCannon
+        ? `<span style="color:${specColor};font-weight:700">${spec.toUpperCase()}</span> Lv.${lvl}`
+        : 'No cannon';
+
+      // ── Kill breakdown by type ──
+      const maxTypeKills = Math.max(1, ...Object.values(sessionKillsByType));
+      let killsHtml = '';
+      const typeOrder = ENEMY_TYPES.filter(et => (sessionKillsByType[et.type] || 0) > 0)
+        .sort((a, b) => (sessionKillsByType[b.type] || 0) - (sessionKillsByType[a.type] || 0));
+      for (const et of typeOrder) {
+        const k = sessionKillsByType[et.type] || 0;
+        const info = BESTIARY_INFO[et.type] || {};
+        const pct = Math.round((k / maxTypeKills) * 100);
+        killsHtml += `<div class="go-kill-row">`
+          + `<div class="go-kill-dot" style="background:${et.color}"></div>`
+          + `<span class="go-kill-name">${info.emoji || ''} ${et.type}</span>`
+          + `<span class="go-kill-count">${k}</span>`
+          + `<div class="go-kill-bar"><div class="go-kill-fill" style="width:${pct}%;background:${et.color}"></div></div>`
+          + `</div>`;
+      }
+
+      // ── Build the summary HTML ──
+      let html = `<div class="go-summary">`;
+      // Grade
+      html += `<div class="go-grade-row"><div class="go-grade ${gradeClass}">${grade}</div><div class="go-subtitle">${gradeLabels[grade]}</div></div>`;
+      // Records
+      if (records.length > 0) {
+        html += `<div class="go-records">🏆 NEW RECORD: ${records.join(', ')}!</div>`;
+      }
+      // Stars
+      html += `<div class="go-stars-row"><span class="earned">⭐ +${earned} Star${earned !== 1 ? 's' : ''}</span> · <span class="total">${prestigeStars} total</span></div>`;
+      // Build
+      html += `<div class="go-build-row">🔧 ${buildStr}</div>`;
+      // Stats grid
+      html += `<div class="go-stat-grid">`;
+      html += `<div class="go-stat"><span class="label">🌊 Waves</span><span class="val">${waveNumber}</span></div>`;
+      html += `<div class="go-stat"><span class="label">☠ Kills</span><span class="val">${totalKills}</span></div>`;
+      html += `<div class="go-stat"><span class="label">⏱ Time</span><span class="val">${timeStr}</span></div>`;
+      html += `<div class="go-stat"><span class="label">🔥 Best Combo</span><span class="val">${sessionBestCombo}×</span></div>`;
+      html += `<div class="go-stat"><span class="label">💀 Bosses</span><span class="val">${sessionBossKills}</span></div>`;
+      html += `<div class="go-stat"><span class="label">★ Elites</span><span class="val">${sessionEliteKills}</span></div>`;
+      html += `<div class="go-stat"><span class="label">⏩ Early Sends</span><span class="val">${sessionEarlySends}</span></div>`;
+      html += `<div class="go-stat"><span class="label">✨ Abilities</span><span class="val">${sessionAbilitiesUsed}</span></div>`;
+      html += `</div>`;
+      // Kill breakdown
+      if (killsHtml) {
+        html += `<div class="go-kills-section"><div class="go-kills-title">Kill Breakdown</div>${killsHtml}</div>`;
+      }
+      html += `</div>`;
+
+      goStats.innerHTML = html;
       gameOverOverlay.classList.add('active');
     }
 
