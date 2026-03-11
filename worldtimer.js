@@ -3356,6 +3356,11 @@
           e.preventDefault();
           openCitySearch();
           break;
+        case 'b':
+          // B = Toggle exhibition caseback
+          e.preventDefault();
+          toggleCaseback();
+          break;
       }
     });
 
@@ -3379,6 +3384,7 @@
       '<span><kbd>S</kbd> Cycle strap material</span>',
       '<span><kbd>Scroll</kbd> Crown winding</span>',
       '<span><kbd>/</kbd> Search cities</span>',
+      '<span><kbd>B</kbd> Exhibition caseback</span>',
       '<span><kbd>?</kbd> Toggle this help</span>',
       '<span><kbd>📌</kbd> Pin cities from tooltip / search</span>',
     ].join('');
@@ -4154,6 +4160,467 @@
   searchToggle.addEventListener('mouseleave', function() { if (!citySearchOpen) searchToggle.style.opacity = '0.5'; });
   searchToggle.addEventListener('click', toggleCitySearch);
   document.body.appendChild(searchToggle);
+
+  // ═══════════════════════════════════════════════════════════
+  // Exhibition Caseback — flip the watch to reveal the movement
+  // Press [B] or click 🔧 button to toggle. Shows animated
+  // Geneva-striped bridges, jewel bearings, oscillating balance
+  // wheel, spinning rotor, and engraved serial number through
+  // a sapphire crystal exhibition window.
+  // ═══════════════════════════════════════════════════════════
+  let casebackVisible = false;
+  const casebackOverlay = document.getElementById('casebackOverlay');
+  const casebackCanvas = document.getElementById('casebackCanvas');
+  const cbCtx = casebackCanvas ? casebackCanvas.getContext('2d') : null;
+  let casebackAnimId = null;
+
+  function toggleCaseback() {
+    casebackVisible = !casebackVisible;
+    if (casebackOverlay) {
+      casebackOverlay.classList.toggle('visible', casebackVisible);
+    }
+    if (casebackVisible && cbCtx) {
+      drawCasebackLoop();
+    } else if (casebackAnimId) {
+      cancelAnimationFrame(casebackAnimId);
+      casebackAnimId = null;
+    }
+  }
+
+  function drawCasebackLoop() {
+    if (!casebackVisible) return;
+    drawCaseback();
+    casebackAnimId = requestAnimationFrame(drawCasebackLoop);
+  }
+
+  function drawCaseback() {
+    if (!cbCtx) return;
+    const W = 520, H = 520, cx = W / 2, cy = H / 2;
+    const now = performance.now() / 1000;
+    cbCtx.clearRect(0, 0, W, H);
+
+    // Clip to circular exhibition window (inset from case ring)
+    cbCtx.save();
+    cbCtx.beginPath();
+    cbCtx.arc(cx, cy, 246, 0, Math.PI * 2);
+    cbCtx.clip();
+
+    // ── Main plate (base layer) ──
+    const plateBg = cbCtx.createRadialGradient(cx, cy, 0, cx, cy, 250);
+    plateBg.addColorStop(0, '#c0a870');
+    plateBg.addColorStop(0.4, '#b09860');
+    plateBg.addColorStop(1, '#8a7545');
+    cbCtx.fillStyle = plateBg;
+    cbCtx.fillRect(0, 0, W, H);
+
+    // ── Perlage (circular graining) on main plate ──
+    cbCtx.globalAlpha = 0.12;
+    for (let py = 30; py < H; py += 22) {
+      for (let px = 30 + ((py / 22 | 0) % 2) * 11; px < W; px += 22) {
+        const dist = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
+        if (dist > 245) continue;
+        const pg = cbCtx.createRadialGradient(px - 2, py - 2, 0, px, py, 11);
+        pg.addColorStop(0, '#fff');
+        pg.addColorStop(0.6, 'transparent');
+        cbCtx.fillStyle = pg;
+        cbCtx.beginPath();
+        cbCtx.arc(px, py, 11, 0, Math.PI * 2);
+        cbCtx.fill();
+      }
+    }
+    cbCtx.globalAlpha = 1;
+
+    // ── Geneva stripes (Côtes de Genève) on bridges ──
+    function drawGenevaStripes(x, y, w, h, angle, radius) {
+      cbCtx.save();
+      cbCtx.translate(x + w / 2, y + h / 2);
+      cbCtx.rotate(angle);
+      // Rounded rect path
+      const rr = radius || 6;
+      const hw = w / 2, hh = h / 2;
+      cbCtx.beginPath();
+      cbCtx.moveTo(-hw + rr, -hh);
+      cbCtx.lineTo(hw - rr, -hh);
+      cbCtx.quadraticCurveTo(hw, -hh, hw, -hh + rr);
+      cbCtx.lineTo(hw, hh - rr);
+      cbCtx.quadraticCurveTo(hw, hh, hw - rr, hh);
+      cbCtx.lineTo(-hw + rr, hh);
+      cbCtx.quadraticCurveTo(-hw, hh, -hw, hh - rr);
+      cbCtx.lineTo(-hw, -hh + rr);
+      cbCtx.quadraticCurveTo(-hw, -hh, -hw + rr, -hh);
+      cbCtx.closePath();
+      cbCtx.clip();
+
+      // Base bridge color
+      const bridgeGrad = cbCtx.createLinearGradient(-hw, 0, hw, 0);
+      bridgeGrad.addColorStop(0, '#b8b8c0');
+      bridgeGrad.addColorStop(0.5, '#d0d0d8');
+      bridgeGrad.addColorStop(1, '#b0b0b8');
+      cbCtx.fillStyle = bridgeGrad;
+      cbCtx.fillRect(-hw, -hh, w, h);
+
+      // Stripes
+      const stripeW = 8;
+      for (let s = -hh - stripeW; s < hh + stripeW; s += stripeW) {
+        const sg = cbCtx.createLinearGradient(0, s, 0, s + stripeW);
+        sg.addColorStop(0, 'rgba(255,255,255,0.0)');
+        sg.addColorStop(0.3, 'rgba(255,255,255,0.18)');
+        sg.addColorStop(0.5, 'rgba(255,255,255,0.25)');
+        sg.addColorStop(0.7, 'rgba(255,255,255,0.18)');
+        sg.addColorStop(1, 'rgba(255,255,255,0.0)');
+        cbCtx.fillStyle = sg;
+        cbCtx.fillRect(-hw, s, w, stripeW);
+      }
+
+      // Edge bevel
+      cbCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+      cbCtx.lineWidth = 1;
+      cbCtx.stroke();
+      cbCtx.strokeStyle = 'rgba(0,0,0,0.2)';
+      cbCtx.lineWidth = 0.5;
+      cbCtx.stroke();
+
+      cbCtx.restore();
+    }
+
+    // ── Draw bridges ──
+    // Main bridge (barrel bridge) — top area
+    drawGenevaStripes(120, 80, 280, 55, 0, 8);
+    // Gear train bridge — center left
+    drawGenevaStripes(80, 200, 150, 45, -0.15, 6);
+    // Balance cock — upper right
+    drawGenevaStripes(310, 160, 100, 40, 0.1, 6);
+    // Lower bridge — bottom
+    drawGenevaStripes(140, 340, 240, 50, 0, 8);
+
+    // ── Jewel bearings (ruby) ──
+    function drawJewel(jx, jy, size) {
+      cbCtx.save();
+      const jg = cbCtx.createRadialGradient(jx - 1, jy - 1, 0, jx, jy, size);
+      jg.addColorStop(0, '#ff4466');
+      jg.addColorStop(0.5, '#cc1133');
+      jg.addColorStop(0.8, '#990022');
+      jg.addColorStop(1, '#660011');
+      cbCtx.fillStyle = jg;
+      cbCtx.beginPath();
+      cbCtx.arc(jx, jy, size, 0, Math.PI * 2);
+      cbCtx.fill();
+      // Gold chatons (jewel settings)
+      cbCtx.strokeStyle = '#c8a840';
+      cbCtx.lineWidth = 1.5;
+      cbCtx.stroke();
+      // Highlight
+      cbCtx.beginPath();
+      cbCtx.arc(jx - size * 0.3, jy - size * 0.3, size * 0.3, 0, Math.PI * 2);
+      cbCtx.fillStyle = 'rgba(255,200,200,0.5)';
+      cbCtx.fill();
+      cbCtx.restore();
+    }
+
+    // 28 jewels placement
+    drawJewel(155, 100, 5);  // barrel
+    drawJewel(295, 100, 5);
+    drawJewel(360, 178, 6);  // balance jewel (larger)
+    drawJewel(130, 220, 4.5);
+    drawJewel(200, 215, 4.5);
+    drawJewel(260, 240, 5);
+    drawJewel(160, 358, 5);
+    drawJewel(300, 358, 5);
+    drawJewel(370, 300, 4.5);
+    drawJewel(140, 290, 4.5);
+
+    // ── Gear wheels ──
+    function drawGear(gx, gy, r, teeth, rotation) {
+      cbCtx.save();
+      cbCtx.translate(gx, gy);
+      cbCtx.rotate(rotation);
+      // Gear body
+      cbCtx.beginPath();
+      for (let t = 0; t < teeth; t++) {
+        const a1 = (t / teeth) * Math.PI * 2;
+        const a2 = ((t + 0.35) / teeth) * Math.PI * 2;
+        const a3 = ((t + 0.5) / teeth) * Math.PI * 2;
+        const a4 = ((t + 0.85) / teeth) * Math.PI * 2;
+        const ri = r * 0.85;
+        const ro = r;
+        if (t === 0) cbCtx.moveTo(Math.cos(a1) * ri, Math.sin(a1) * ri);
+        cbCtx.lineTo(Math.cos(a2) * ro, Math.sin(a2) * ro);
+        cbCtx.lineTo(Math.cos(a3) * ro, Math.sin(a3) * ro);
+        cbCtx.lineTo(Math.cos(a4) * ri, Math.sin(a4) * ri);
+      }
+      cbCtx.closePath();
+      const gg = cbCtx.createRadialGradient(0, 0, 0, 0, 0, r);
+      gg.addColorStop(0, '#e8dcc0');
+      gg.addColorStop(1, '#c0b088');
+      cbCtx.fillStyle = gg;
+      cbCtx.fill();
+      cbCtx.strokeStyle = 'rgba(0,0,0,0.25)';
+      cbCtx.lineWidth = 0.5;
+      cbCtx.stroke();
+      // Center hole
+      cbCtx.beginPath();
+      cbCtx.arc(0, 0, r * 0.15, 0, Math.PI * 2);
+      cbCtx.fillStyle = '#222';
+      cbCtx.fill();
+      // Spoke cutouts for larger gears
+      if (r > 20) {
+        cbCtx.globalAlpha = 0.3;
+        for (let s = 0; s < 5; s++) {
+          const sa = (s / 5) * Math.PI * 2;
+          cbCtx.beginPath();
+          cbCtx.arc(Math.cos(sa) * r * 0.5, Math.sin(sa) * r * 0.5, r * 0.18, 0, Math.PI * 2);
+          cbCtx.fillStyle = '#8a7545';
+          cbCtx.fill();
+        }
+        cbCtx.globalAlpha = 1;
+      }
+      cbCtx.restore();
+    }
+
+    // Gear train — meshing gears at different speeds
+    const baseRot = now * 0.3;
+    drawGear(165, 270, 28, 32, baseRot);
+    drawGear(220, 250, 18, 20, -baseRot * 1.6);
+    drawGear(258, 270, 22, 24, baseRot * 1.1);
+    drawGear(300, 260, 15, 18, -baseRot * 2.2);
+
+    // ── Mainspring barrel ──
+    cbCtx.save();
+    cbCtx.beginPath();
+    cbCtx.arc(225, 108, 35, 0, Math.PI * 2);
+    const brlGrad = cbCtx.createRadialGradient(222, 105, 5, 225, 108, 35);
+    brlGrad.addColorStop(0, '#d8d0c0');
+    brlGrad.addColorStop(0.7, '#b0a890');
+    brlGrad.addColorStop(1, '#908068');
+    cbCtx.fillStyle = brlGrad;
+    cbCtx.fill();
+    cbCtx.strokeStyle = 'rgba(0,0,0,0.3)';
+    cbCtx.lineWidth = 1;
+    cbCtx.stroke();
+    // Barrel arbor
+    cbCtx.beginPath();
+    cbCtx.arc(225, 108, 5, 0, Math.PI * 2);
+    cbCtx.fillStyle = '#666';
+    cbCtx.fill();
+    // Coiled mainspring hint
+    cbCtx.globalAlpha = 0.15;
+    for (let sp = 0; sp < 5; sp++) {
+      const sr = 10 + sp * 5;
+      cbCtx.beginPath();
+      cbCtx.arc(225, 108, sr, now * 0.1 + sp, now * 0.1 + sp + 3);
+      cbCtx.strokeStyle = '#555';
+      cbCtx.lineWidth = 1.5;
+      cbCtx.stroke();
+    }
+    cbCtx.globalAlpha = 1;
+    cbCtx.restore();
+
+    // ── Balance wheel (oscillating) ──
+    const balX = 360, balY = 210, balR = 30;
+    const balAngle = Math.sin(now * 4 * Math.PI * 2) * (270 / 2) * (Math.PI / 180); // 4Hz oscillation
+    cbCtx.save();
+    cbCtx.translate(balX, balY);
+    cbCtx.rotate(balAngle);
+    // Rim
+    cbCtx.beginPath();
+    cbCtx.arc(0, 0, balR, 0, Math.PI * 2);
+    cbCtx.strokeStyle = '#c8c0b0';
+    cbCtx.lineWidth = 3;
+    cbCtx.stroke();
+    // 3-arm crossbar (Gyromax)
+    for (let arm = 0; arm < 3; arm++) {
+      const aa = (arm / 3) * Math.PI * 2;
+      cbCtx.beginPath();
+      cbCtx.moveTo(0, 0);
+      cbCtx.lineTo(Math.cos(aa) * (balR - 2), Math.sin(aa) * (balR - 2));
+      cbCtx.strokeStyle = '#b0a890';
+      cbCtx.lineWidth = 2.5;
+      cbCtx.stroke();
+      // Weight screws at tips
+      cbCtx.beginPath();
+      cbCtx.arc(Math.cos(aa) * balR * 0.85, Math.sin(aa) * balR * 0.85, 3, 0, Math.PI * 2);
+      cbCtx.fillStyle = '#e0d8c8';
+      cbCtx.fill();
+      cbCtx.strokeStyle = 'rgba(0,0,0,0.3)';
+      cbCtx.lineWidth = 0.5;
+      cbCtx.stroke();
+    }
+    // Center pivot
+    cbCtx.beginPath();
+    cbCtx.arc(0, 0, 3.5, 0, Math.PI * 2);
+    cbCtx.fillStyle = '#888';
+    cbCtx.fill();
+    // Hairspring (concentric spiral)
+    cbCtx.globalAlpha = 0.4;
+    cbCtx.beginPath();
+    for (let t = 0; t < Math.PI * 8; t += 0.1) {
+      const sr = 5 + t * 1.8;
+      if (sr > balR - 5) break;
+      const sx = Math.cos(t) * sr;
+      const sy = Math.sin(t) * sr;
+      if (t === 0) cbCtx.moveTo(sx, sy); else cbCtx.lineTo(sx, sy);
+    }
+    cbCtx.strokeStyle = '#4488cc';
+    cbCtx.lineWidth = 0.7;
+    cbCtx.stroke();
+    cbCtx.globalAlpha = 1;
+    cbCtx.restore();
+
+    // ── Screws ──
+    function drawScrew(sx, sy, sr) {
+      cbCtx.save();
+      const sg = cbCtx.createRadialGradient(sx - 0.5, sy - 0.5, 0, sx, sy, sr);
+      sg.addColorStop(0, '#e0e0e8');
+      sg.addColorStop(0.6, '#b0b0b8');
+      sg.addColorStop(1, '#808088');
+      cbCtx.fillStyle = sg;
+      cbCtx.beginPath();
+      cbCtx.arc(sx, sy, sr, 0, Math.PI * 2);
+      cbCtx.fill();
+      // Slot
+      cbCtx.beginPath();
+      cbCtx.moveTo(sx - sr * 0.7, sy);
+      cbCtx.lineTo(sx + sr * 0.7, sy);
+      cbCtx.strokeStyle = 'rgba(0,0,0,0.4)';
+      cbCtx.lineWidth = 1;
+      cbCtx.stroke();
+      cbCtx.restore();
+    }
+
+    // Blued screws on bridges
+    function drawBluedScrew(sx, sy, sr) {
+      cbCtx.save();
+      const sg = cbCtx.createRadialGradient(sx - 0.5, sy - 0.5, 0, sx, sy, sr);
+      sg.addColorStop(0, '#4466cc');
+      sg.addColorStop(0.5, '#3355aa');
+      sg.addColorStop(1, '#223377');
+      cbCtx.fillStyle = sg;
+      cbCtx.beginPath();
+      cbCtx.arc(sx, sy, sr, 0, Math.PI * 2);
+      cbCtx.fill();
+      cbCtx.beginPath();
+      cbCtx.moveTo(sx - sr * 0.7, sy);
+      cbCtx.lineTo(sx + sr * 0.7, sy);
+      cbCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+      cbCtx.lineWidth = 0.8;
+      cbCtx.stroke();
+      cbCtx.restore();
+    }
+
+    drawBluedScrew(135, 88, 4);
+    drawBluedScrew(310, 88, 4);
+    drawBluedScrew(115, 210, 3.5);
+    drawBluedScrew(205, 228, 3.5);
+    drawBluedScrew(340, 150, 3.5);
+    drawBluedScrew(395, 180, 3.5);
+    drawBluedScrew(155, 330, 4);
+    drawBluedScrew(345, 350, 4);
+    drawScrew(180, 375, 3);
+    drawScrew(280, 370, 3);
+    drawScrew(330, 310, 3);
+
+    // ── Automatic winding rotor (top layer, slowly spinning) ──
+    const rotorAngle = now * 0.4; // slow rotation
+    cbCtx.save();
+    cbCtx.translate(cx, cy);
+    cbCtx.rotate(rotorAngle);
+    // Semi-circular tungsten weight
+    cbCtx.beginPath();
+    cbCtx.arc(0, 0, 220, -Math.PI * 0.15, Math.PI * 0.85, false);
+    cbCtx.lineTo(Math.cos(Math.PI * 0.85) * 60, Math.sin(Math.PI * 0.85) * 60);
+    cbCtx.arc(0, 0, 60, Math.PI * 0.85, -Math.PI * 0.15, true);
+    cbCtx.closePath();
+    // Geneva stripes on rotor
+    const rotGrad = cbCtx.createLinearGradient(-220, 0, 220, 0);
+    rotGrad.addColorStop(0, '#a0a0a8');
+    rotGrad.addColorStop(0.3, '#c8c8d0');
+    rotGrad.addColorStop(0.5, '#d8d8e0');
+    rotGrad.addColorStop(0.7, '#c8c8d0');
+    rotGrad.addColorStop(1, '#a0a0a8');
+    cbCtx.fillStyle = rotGrad;
+    cbCtx.fill();
+    cbCtx.strokeStyle = 'rgba(0,0,0,0.2)';
+    cbCtx.lineWidth = 1.5;
+    cbCtx.stroke();
+    // Stripe texture on rotor
+    cbCtx.save();
+    cbCtx.clip();
+    for (let rs = -220; rs < 220; rs += 10) {
+      cbCtx.beginPath();
+      cbCtx.moveTo(rs, -220);
+      cbCtx.lineTo(rs, 220);
+      cbCtx.strokeStyle = 'rgba(255,255,255,0.08)';
+      cbCtx.lineWidth = 5;
+      cbCtx.stroke();
+    }
+    cbCtx.restore();
+    // "AUTOMATIC" engraving on rotor
+    cbCtx.save();
+    cbCtx.rotate(Math.PI * 0.35);
+    cbCtx.font = '600 10px "SF Mono", "Fira Code", monospace';
+    cbCtx.textAlign = 'center';
+    cbCtx.fillStyle = 'rgba(0,0,0,0.25)';
+    cbCtx.fillText('AUTOMATIC', 0, -145);
+    cbCtx.font = '500 8px "SF Mono", "Fira Code", monospace';
+    cbCtx.fillText('CAL. WT-01', 0, -132);
+    cbCtx.restore();
+    // Rotor center bearing
+    cbCtx.beginPath();
+    cbCtx.arc(0, 0, 12, 0, Math.PI * 2);
+    const bearGrad = cbCtx.createRadialGradient(-2, -2, 0, 0, 0, 12);
+    bearGrad.addColorStop(0, '#e8e0d8');
+    bearGrad.addColorStop(0.7, '#a09888');
+    bearGrad.addColorStop(1, '#706858');
+    cbCtx.fillStyle = bearGrad;
+    cbCtx.fill();
+    cbCtx.strokeStyle = 'rgba(0,0,0,0.3)';
+    cbCtx.lineWidth = 1;
+    cbCtx.stroke();
+    // Center screw
+    drawBluedScrew(0, 0, 5);
+    cbCtx.restore();
+
+    // ── Engraved text around edge ──
+    cbCtx.save();
+    cbCtx.font = '500 7.5px "SF Mono", "Fira Code", monospace';
+    cbCtx.fillStyle = 'rgba(80,70,55,0.5)';
+    cbCtx.textAlign = 'center';
+    // Serial number and specs along bottom arc
+    const text = 'No. 001/100  ·  28 JEWELS  ·  28800 BPH  ·  WORLD TIMER';
+    const textR = 232;
+    const startAngle = Math.PI * 0.65;
+    const endAngle = Math.PI * 1.35;
+    const span = endAngle - startAngle;
+    for (let i = 0; i < text.length; i++) {
+      const charAngle = startAngle + (i / (text.length - 1)) * span;
+      cbCtx.save();
+      cbCtx.translate(cx + Math.cos(charAngle) * textR, cy + Math.sin(charAngle) * textR);
+      cbCtx.rotate(charAngle + Math.PI / 2);
+      cbCtx.fillText(text[i], 0, 0);
+      cbCtx.restore();
+    }
+    cbCtx.restore();
+
+    cbCtx.restore(); // clip restore
+  }
+
+  // Caseback toggle button
+  const casebackToggle = document.createElement('button');
+  casebackToggle.className = 'caseback-toggle';
+  casebackToggle.textContent = '🔧';
+  casebackToggle.title = 'Exhibition caseback (B)';
+  casebackToggle.style.cssText = `
+    position:fixed; bottom:16px; left:336px; padding:6px 10px;
+    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
+    border:1px solid var(--border); border-radius:var(--radius);
+    cursor:pointer; z-index:9999; opacity:0.5;
+    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
+    line-height:1; font-family:var(--font-mono);
+  `;
+  casebackToggle.addEventListener('mouseenter', function() { casebackToggle.style.opacity = '1'; });
+  casebackToggle.addEventListener('mouseleave', function() { if (!casebackVisible) casebackToggle.style.opacity = '0.5'; });
+  casebackToggle.addEventListener('click', toggleCaseback);
+  document.body.appendChild(casebackToggle);
 
   if (alarmSetBtn) {
     alarmSetBtn.addEventListener('click', function() {
