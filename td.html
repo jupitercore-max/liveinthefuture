@@ -2110,11 +2110,22 @@
       const numAid = Math.min(3, Math.max(1, Math.floor(waveNumber / 10) + 1));
       for (let i = 0; i < numAid; i++) {
         const aidId = 'aid_' + Date.now() + '_' + i;
-        // Place aid cannons randomly in the placement zone
-        const zoneLeft = 20, zoneRight = CANVAS_W - 20;
-        const zoneTop = 20, zoneBot = CANVAS_H - 20;
-        const ax = zoneLeft + Math.random() * (zoneRight - zoneLeft);
-        const ay = zoneTop + Math.random() * (zoneBot - zoneTop);
+        // Place aid cannons near the path for tactical effectiveness
+        let ax, ay;
+        if (currentPath && currentPath.length >= 2) {
+          // Pick a position along the path (spread evenly for multiple aids)
+          const progress = numAid === 1 ? 0.5 : (0.2 + (i / (numAid - 1)) * 0.6);
+          const pathPos = getPathPosition(currentPath, progress);
+          // Offset perpendicular to path by 40-80px so they're adjacent, not on top
+          const angle = Math.random() * Math.PI * 2;
+          const offset = 40 + Math.random() * 40;
+          ax = Math.max(20, Math.min(CANVAS_W - 20, pathPos.x + Math.cos(angle) * offset));
+          ay = Math.max(20, Math.min(CANVAS_H - 20, pathPos.y + Math.sin(angle) * offset));
+        } else {
+          // Fallback: random position if no path available
+          ax = 20 + Math.random() * (CANVAS_W - 40);
+          ay = 20 + Math.random() * (CANVAS_H - 40);
+        }
         const aidLevel = Math.min(20, Math.max(3, Math.floor(waveNumber / 3)));
         const specs = ['gatling', 'sniper', 'cannon', 'tesla', 'frost'];
         const aidSpec = specs[Math.floor(Math.random() * specs.length)];

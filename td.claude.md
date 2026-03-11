@@ -1448,3 +1448,19 @@ If it fails, DO NOT commit. Fix the error first.
 - **Proposed:** Balance tuning or render pipeline cleanup
 - **Critique:** The game is at 12,266 lines with 210 functions and 440 state variables. It has accumulated ~50+ features in 3 days. The honest assessment is that it needs stability and playtesting time, not more changes. Every new commit risks introducing bugs in a codebase this complex. The self-critique gate correctly identifies that not every hour needs a commit.
 - **Verdict:** SKIP. Let the game breathe. Wait for user feedback on actual gameplay issues before adding more.
+
+### 2026-03-11: Path-Aware Aid Cannon Placement
+- **Aid cannons now spawn near the path** — Previously, Call for Aid [H] placed reinforcement cannons at completely random positions on the canvas. An aid cannon in a far corner with no path nearby was useless firepower. Now aid cannons spawn 40-80px offset from evenly-distributed points along the path (20%, 50%, 80% progress for 3 aids), so they always have enemies within range.
+- **Spread positioning for multiple aids** — When 3 aids spawn (wave 20+), they're distributed along the path rather than clumped in one area. Aid 1 covers early path (20%), Aid 2 covers mid path (50%), Aid 3 covers late path (80%).
+- **Perpendicular offset** — Cannons spawn at a random angle 40-80px from the path point, so they're adjacent to the path rather than sitting directly on it (which would block click-to-lock targeting).
+- **Canvas bounds clamped** — Offset positions are clamped to 20px from edges to prevent spawning off-screen.
+- **Fallback** — If no path exists (shouldn't happen during active waves, but safety), falls back to random canvas placement.
+- **Phase compliance:** All changes inside existing `callForAid()` function body (Phase 5). No new state, DOM, listeners, or init calls. Zero TDZ risk.
+- **Self-critique:** Survived gate. Not a new feature — polish on existing feature. Random placement was a shortcut that made an important mechanic (the only panic button) unreliable. A game designer would flag "random cannon placement" as a bug, not a design choice.
+
+## Self-Critique Log
+
+### 2026-03-11: Path-Aware Aid Placement (Approved)
+- **Proposed:** Make aid cannons spawn near the path instead of random canvas positions
+- **Challenge:** Is this adding complexity? No, it's fixing a broken implementation. Aid cannons in corners are wasted. Does it break anything? No — only changes spawn coordinates. Is it resume-driven? No — invisible to players, they just notice "aid cannons actually help now."
+- **Verdict:** PROCEED. Quality improvement to existing feature, not new bloat.
