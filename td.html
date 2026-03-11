@@ -8217,6 +8217,42 @@
           // Range stat
           ctx.fillStyle = 'rgba(255,255,255,0.5)';
           ctx.fillText(`Range: ${Math.round(previewStats.range)}px`, mx, my + 36);
+
+          // Path coverage preview for placement
+          if (currentPath && currentPath.length >= 2) {
+            const prSq = previewStats.range * previewStats.range;
+            const PR_SAMPLES = 100;
+            let prInRange = false;
+            let prCovered = 0;
+            ctx.beginPath();
+            for (let si = 0; si <= PR_SAMPLES; si++) {
+              const prog = si / PR_SAMPLES;
+              const pt = getPathPosition(currentPath, prog);
+              const pdx = pt.x - mx, pdy = pt.y - my;
+              const inside = (pdx * pdx + pdy * pdy) <= prSq;
+              if (inside) {
+                prCovered++;
+                if (!prInRange) { ctx.moveTo(pt.x, pt.y); prInRange = true; }
+                else { ctx.lineTo(pt.x, pt.y); }
+              } else {
+                prInRange = false;
+              }
+            }
+            ctx.strokeStyle = '#4da6ff';
+            ctx.lineWidth = 6;
+            ctx.globalAlpha = 0.3;
+            ctx.shadowColor = '#4da6ff';
+            ctx.shadowBlur = 8;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1.0;
+            const prPct = Math.round((prCovered / (PR_SAMPLES + 1)) * 100);
+            ctx.font = 'bold 10px monospace';
+            ctx.fillStyle = prPct > 50 ? '#2ecc71' : prPct > 25 ? '#f1c40f' : '#e74c3c';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${prPct}% path`, mx, my + 48);
+          }
+
           ctx.textAlign = 'start';
         }
       }
@@ -8259,6 +8295,43 @@
             ctx.fillStyle = specColor + 'cc';
             ctx.textAlign = 'center';
             ctx.fillText(`${Math.round(r)}px`, c.x, c.y - r - 5);
+
+            // Path coverage highlight — glow the path segments within range
+            if (currentPath && currentPath.length >= 2) {
+              const rSq = r * r;
+              const SAMPLES = 100;
+              let inRange = false;
+              let coveredSamples = 0;
+              ctx.beginPath();
+              for (let si = 0; si <= SAMPLES; si++) {
+                const prog = si / SAMPLES;
+                const pt = getPathPosition(currentPath, prog);
+                const dx2 = pt.x - c.x, dy2 = pt.y - c.y;
+                const inside = (dx2 * dx2 + dy2 * dy2) <= rSq;
+                if (inside) {
+                  coveredSamples++;
+                  if (!inRange) { ctx.moveTo(pt.x, pt.y); inRange = true; }
+                  else { ctx.lineTo(pt.x, pt.y); }
+                } else {
+                  inRange = false;
+                }
+              }
+              ctx.strokeStyle = specColor;
+              ctx.lineWidth = 6;
+              ctx.globalAlpha = 0.35;
+              ctx.shadowColor = specColor;
+              ctx.shadowBlur = 10;
+              ctx.stroke();
+              ctx.shadowBlur = 0;
+              ctx.globalAlpha = 1.0;
+              // Coverage percentage label
+              const covPct = Math.round((coveredSamples / (SAMPLES + 1)) * 100);
+              ctx.font = 'bold 10px monospace';
+              ctx.fillStyle = covPct > 50 ? '#2ecc71' : covPct > 25 ? '#f1c40f' : '#e74c3c';
+              ctx.textAlign = 'center';
+              ctx.fillText(`${covPct}% path`, c.x, c.y + r + 14);
+            }
+
             ctx.restore();
             break; // only show one range circle at a time
           }
