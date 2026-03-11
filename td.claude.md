@@ -1367,3 +1367,30 @@ If it fails, DO NOT commit. Fix the error first.
   - No new DOM elements, event listeners, or init calls. Zero TDZ risk.
 - **Performance:** Rain: 80 line strokes. Snow: 60 arc fills. Fog: 25 radial gradients. Sandstorm: 50 arc fills + 1 rect overlay. All lightweight — less than terrain hazard rendering.
 - **Design rationale:** The battlefield felt the same every wave — dark background with grid lines, only changing via mutator text and terrain hazard circles. Weather adds a visual dimension that makes each wave feel distinct before you even see the enemies. Rain creates urgency (reduced range = enemies get closer before you can shoot), fog creates tension (you can't see as far), snow is atmospheric but helpful (enemies slow down), sandstorm is the harshest (range + crit penalties). The 40% clear rate ensures weather doesn't feel forced — it's a pleasant surprise when it shows up. Inspired by weather systems in Kingdom Rush (wind/rain levels), Bloons TD6 (environmental map effects), and classic TDs that use terrain variation to keep runs feeling fresh. The subtle gameplay effects (5-15% range/crit/speed changes) are noticeable but not dominant — weather is atmosphere first, mechanics second.
+
+### 2026-03-11: Overkill Ricochet System
+- **When an enemy is killed with excess damage, the overkill ricochets to the nearest alive enemy within 80px.** The bounced damage decays to 60% per hop, with up to 3 chained ricochets per kill. Creates satisfying cascade kills — a Sniper headshot on a weak scout can chain-kill 2-3 nearby enemies.
+- **Visual: Orange tracer beams** connecting kill to ricochet target, with hot white core, glow, and impact spark particles at the destination. Fades over 10 frames.
+- **Sound: "sfxRicochet()"** — quick descending metallic twang (triangle wave 2200→600 Hz), like a bullet ricochet. Different from the crit ping to keep them distinguishable.
+- **Damage popup: "↯N"** in orange on each ricochet target, showing the damage dealt.
+- **Achievement: "↯ Ricochet!"** — unlocked when a ricochet chain actually kills an enemy (not just damages it).
+- **Excluded from bosses** — boss kills don't trigger ricochets (boss death already has its own cinematic explosion system).
+- **Recursive chaining** — if a ricochet kill itself has overkill, it chains again (up to RICOCHET_MAX_CHAIN = 3). A powerful Sniper crit on a group of weak scouts could theoretically chain-kill 4 enemies from one shot.
+- **Works with both kill paths** — main simTick kill section and ability kill section both trigger ricochets.
+- **Strategic synergies:**
+  - **Sniper** — best spec for ricochets (highest single-target damage = most overkill on weak enemies)
+  - **Railgun** — already pierces, but overkill from pierce kills also ricochets
+  - **Crit hits** — critical hits that massively overkill create the biggest ricochet chains
+  - **Bounty Hunter mutator** — +100% crit chance → more overkill → more ricochets
+  - **Treasure Goblin** — 8× XP kills tend to overkill → ricochets spread the love
+- **Constants (Phase 2 area):**
+  - `RICOCHET_RADIUS = 80` — max distance to find next target
+  - `RICOCHET_DECAY = 0.6` — each bounce keeps 60% of overkill damage
+  - `RICOCHET_MAX_CHAIN = 3` — max bounces per kill
+- **Phase compliance:**
+  - Phase 3: `let ricochetBeams = []` state variable
+  - Phase 5: `tryOverkillRicochet()`, `renderRicochetBeams()`, `sfxRicochet()` functions
+  - Phase 5: Kill handling in simTick and ability sections (existing function bodies)
+  - Phase 5: drawFrame calls `renderRicochetBeams(ctx)` after heal beams
+  - Phase 5: resetGame clears `ricochetBeams = []`
+  - No new DOM elements, event listeners, or init calls. Zero TDZ risk.

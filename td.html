@@ -2188,6 +2188,7 @@
       prestige_buy:   { icon: '⭐', name: 'Investor',         desc: 'Buy a prestige upgrade' },
       prestige_max:   { icon: '💎', name: 'Fully Upgraded',   desc: 'Max out a prestige upgrade' },
       fly_swatter:    { icon: '✈️', name: 'Fly Swatter',      desc: 'Kill 10 flying enemies in one game' },
+      ricochet_kill:  { icon: '↯', name: 'Ricochet!',        desc: 'Kill an enemy with overkill ricochet' },
     };
 
 
@@ -2847,6 +2848,23 @@
         osc.connect(g);
         osc.start(now);
         osc.stop(now + 0.15);
+      });
+    }
+
+    function sfxRicochet() {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        // Quick descending metallic "twang" — bullet ricochet
+        const g = makeGain(ctx, 0.15);
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(2200 + Math.random() * 400, now);
+        osc.frequency.exponentialRampToValueAtTime(600, now + 0.12);
+        g.gain.setValueAtTime(0.15, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc.connect(g);
+        osc.start(now);
+        osc.stop(now + 0.13);
       });
     }
 
@@ -3988,6 +4006,7 @@
     let hitstopFrames = 0; // brief freeze on boss kill for impact
     let ambientParticles = []; // floating dust motes / atmosphere particles
     let powerups = []; // dropped power-ups on the field
+    let ricochetBeams = []; // overkill ricochet visual tracers
     let activePowerupEffects = {}; // type -> {timer, startTime}
     let onlinePlayers = {};
     let lastRelocateTime = 0;
@@ -4643,6 +4662,101 @@
             });
           }
         }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Overkill Ricochet System
+    // ═══════════════════════════════════════════════════
+    const RICOCHET_RADIUS = 80; // max distance to find next target
+    const RICOCHET_DECAY = 0.6; // each bounce keeps 60% of overkill damage
+    const RICOCHET_MAX_CHAIN = 3; // max bounces per kill
+
+    function tryOverkillRicochet(deadEnemy, depth) {
+      if (depth >= RICOCHET_MAX_CHAIN) return;
+      const overkill = Math.abs(deadEnemy.hp); // hp is negative = overkill amount
+      if (overkill < 0.5) return; // not enough to bother
+
+      // Find nearest alive enemy within radius
+      let best = null, bestDist = RICOCHET_RADIUS;
+      for (const e of enemies) {
+        if (e === deadEnemy || e.hp <= 0 || e.dead) continue;
+        const d = Math.hypot(e.x - deadEnemy.x, e.y - deadEnemy.y);
+        if (d < bestDist) { best = e; bestDist = d; }
+      }
+      if (!best) return;
+
+      // Apply decayed overkill damage
+      const ricochetDmg = overkill * RICOCHET_DECAY;
+      applyDamage(best, ricochetDmg, 0, false);
+      sfxRicochet();
+
+      // Visual tracer beam
+      ricochetBeams.push({
+        x1: deadEnemy.x, y1: deadEnemy.y,
+        x2: best.x, y2: best.y,
+        life: 10, maxLife: 10
+      });
+
+      // Ricochet popup on the hit enemy
+      scorePopups.push({
+        x: best.x + (Math.random() - 0.5) * 10,
+        y: best.y - best.radius - 8,
+        text: '↯' + Math.round(ricochetDmg),
+        color: '#ff8844',
+        life: 16, maxLife: 16,
+        size: 9, vy: -1.8
+      });
+
+      // If this kill also overkilled, chain recursively
+      if (best.hp <= 0) {
+        unlockAchievement('ricochet_kill');
+        tryOverkillRicochet(best, depth + 1);
+      }
+    }
+
+    function renderRicochetBeams(ctx) {
+      for (let i = ricochetBeams.length - 1; i >= 0; i--) {
+        const rb = ricochetBeams[i];
+        const alpha = rb.life / rb.maxLife;
+        const t = 1 - alpha; // 0 at start, 1 at end
+
+        ctx.save();
+        // Main beam — bright orange-yellow tracer
+        ctx.strokeStyle = `rgba(255,136,68,${alpha})`;
+        ctx.lineWidth = 3 - t * 2;
+        ctx.shadowColor = '#ff8844';
+        ctx.shadowBlur = 8 * alpha;
+        ctx.beginPath();
+        ctx.moveTo(rb.x1, rb.y1);
+        ctx.lineTo(rb.x2, rb.y2);
+        ctx.stroke();
+
+        // Hot white core
+        ctx.strokeStyle = `rgba(255,255,200,${alpha * 0.7})`;
+        ctx.lineWidth = 1;
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.moveTo(rb.x1, rb.y1);
+        ctx.lineTo(rb.x2, rb.y2);
+        ctx.stroke();
+
+        // Impact spark at destination
+        if (rb.life === rb.maxLife) {
+          for (let si = 0; si < 4; si++) {
+            particles.push({
+              x: rb.x2, y: rb.y2,
+              vx: (Math.random() - 0.5) * 4,
+              vy: (Math.random() - 0.5) * 4,
+              color: '#ff8844',
+              life: 8 + Math.random() * 6
+            });
+          }
+        }
+
+        ctx.restore();
+        rb.life--;
+        if (rb.life <= 0) ricochetBeams.splice(i, 1);
       }
     }
 
@@ -5454,6 +5568,10 @@
           }
           // Power-up drop chance
           rollPowerupDrop(e.x, e.y, e.type, e.elite);
+          // Overkill ricochet — excess damage chains to nearby enemy
+          if (e.hp < -0.5 && e.type !== 'boss') {
+            tryOverkillRicochet(e, 0);
+          }
           // Splitter: spawn children on death
           if (e.type === 'splitter' && !e.isChild) {
             const numChildren = 2;
@@ -6044,6 +6162,7 @@
       resetDpsMeter();
       abilityZones = [];
       lightningBolts = [];
+      ricochetBeams = [];
       levelUpRings = [];
       muzzleFlashes = [];
       impactSparks = [];
@@ -7522,6 +7641,10 @@
           }
           // Power-up drop chance
           rollPowerupDrop(e.x, e.y, e.type, e.elite);
+          // Overkill ricochet — excess damage chains to nearby enemy
+          if (e.hp < -0.5 && e.type !== 'boss') {
+            tryOverkillRicochet(e, 0);
+          }
           scorePopups.push({
             x: e.x + (Math.random() - 0.5) * 16,
             y: e.y,
@@ -9441,6 +9564,9 @@
 
       // Render heal beams
       renderHealBeams(ctx);
+
+      // Render overkill ricochet beams
+      renderRicochetBeams(ctx);
 
       // Render wave clear confetti
       renderConfetti(ctx);
