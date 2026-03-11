@@ -2922,6 +2922,33 @@
       });
     }
 
+    function sfxNova(isMilestone) {
+      playSound(ctx => {
+        const now = ctx.currentTime;
+        // Expanding whoosh + impact thud
+        const bufSize = ctx.sampleRate * 0.3;
+        const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.15));
+        const noise = ctx.createBufferSource();
+        noise.buffer = buf;
+        const g = makeGain(ctx, isMilestone ? 0.2 : 0.12);
+        g.gain.setValueAtTime(0.001, now);
+        g.gain.linearRampToValueAtTime((isMilestone ? 0.2 : 0.12) * soundVolume, now + 0.04);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        noise.connect(g); noise.start(now); noise.stop(now + 0.3);
+        // Low thud
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(isMilestone ? 100 : 80, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+        const g2 = makeGain(ctx, isMilestone ? 0.25 : 0.15);
+        g2.gain.setValueAtTime((isMilestone ? 0.25 : 0.15) * soundVolume, now);
+        g2.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        osc.connect(g2); osc.start(now); osc.stop(now + 0.2);
+      });
+    }
+
     function sfxPlaceCannon() {
       playSound(ctx => {
         const now = ctx.currentTime;
@@ -4000,6 +4027,7 @@
         c.level = level + 1;
         sfxLevelUp();
         spawnLevelUpEffect(c.x, c.y, c.level);
+        levelUpNovaDamage(c.x, c.y, c.level, c.path || null, c.spec || null);
         if (c.level >= 20) unlockAchievement('max_level');
       } else {
         c.xp = newXp;
@@ -5464,6 +5492,11 @@
           // Level up
           if (cid === playerId) sfxLevelUp();
           if (cid === playerId && level + 1 >= 10) unlockAchievement('max_level');
+          // Level-up nova damage — only for player's own cannon
+          if (cid === playerId) {
+            spawnLevelUpEffect(c.x, c.y, level + 1);
+            levelUpNovaDamage(c.x, c.y, level + 1, c.path || null, c.spec || null);
+          }
           cannonsRef.child(cid).update({
             xp: newXp - needed,
             level: level + 1,
@@ -6261,6 +6294,47 @@
       // Light screen shake for milestones
       if (isMilestone) {
         triggerScreenShake(newLevel === 20 ? 'heavy' : 'light');
+      }
+    }
+
+    // Level-Up Nova — AoE damage burst centered on cannon when it levels up
+    // Only fires for the local player's cannon (not other players' to avoid chaos)
+    function levelUpNovaDamage(cx, cy, newLevel, path, spec) {
+      if (!isLeader && !offlineMode) return; // only leader applies damage
+      const stats = getCannonStats(newLevel, path, spec);
+      const novaRange = stats.range * 0.8; // slightly less than firing range
+      const isMilestone = !!MILESTONE_LEVELS[newLevel];
+      // Nova damage = 3× single-shot damage (milestone = 6×)
+      const novaDmg = stats.dmg * (isMilestone ? 6 : 3);
+      let novaHits = 0;
+      for (let i = 0; i < enemies.length; i++) {
+        const e = enemies[i];
+        if (e.hp <= 0 || e.dead) continue;
+        const dx = e.x - cx, dy = e.y - cy;
+        if (dx * dx + dy * dy <= novaRange * novaRange) {
+          applyDamage(e, novaDmg, stats.armorPierce || 0, false);
+          novaHits++;
+          // Small hit particle at each enemy hit by nova
+          particles.push({
+            x: e.x, y: e.y,
+            vx: (Math.random() - 0.5) * 3,
+            vy: -Math.random() * 2 - 1,
+            life: 15, maxLife: 15,
+            color: isMilestone ? '#ffd700' : '#4ade80',
+            size: 3
+          });
+        }
+      }
+      if (novaHits > 0) {
+        sfxNova(isMilestone);
+        scorePopups.push({
+          x: cx, y: cy - 40,
+          text: `⚡ NOVA ×${novaHits}`,
+          color: isMilestone ? '#ffd700' : '#4ade80',
+          life: 40, maxLife: 40,
+          size: isMilestone ? 14 : 11,
+          vy: -1.2
+        });
       }
     }
 

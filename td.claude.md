@@ -1167,3 +1167,24 @@ If it fails, DO NOT commit. Fix the error first.
 - **Audit methodology:** Python script that parses all function definitions, tracks which functions have `waveNum` as a parameter, and flags any reference to `waveNum` inside functions that DON'T receive it as a parameter. Also checked for other common mis-references: `deathParticles` (confirmed all fixed), `gameSpeed` (confirmed declared), `baseHP` vs `baseHp` (no issues).
 - **No other bugs found** — all other `waveNum` references are correctly scoped as function parameters.
 - **Prevention note for future cycles:** The global wave counter is `waveNumber`, NOT `waveNum`. Functions like `generateWave()` accept `waveNum` as a parameter, but code outside those functions must use `waveNumber`.
+
+### 2026-03-11: Level-Up Nova — AoE Damage Burst on Level Up
+- **When your cannon levels up, it emits a damaging shockwave** hitting all enemies within 80% of its firing range. This turns every level-up into a dramatic combat event instead of just a stat bump.
+- **Damage scaling:**
+  - **Normal levels:** 3× single-shot damage — enough to finish off weakened enemies and create a satisfying burst
+  - **Milestone levels (5, 8, 12, 15, 18, 20):** 6× single-shot damage — massive nova that can wipe groups of weaker enemies
+  - Uses the cannon's current armor pierce stat, so upgraded cannons' novas also pierce armor
+- **Visual feedback:**
+  - Each enemy hit gets a green (normal) or gold (milestone) particle burst
+  - **"⚡ NOVA ×N"** floating text shows how many enemies were hit, with count
+  - Inherits the existing level-up ring expansion animation and milestone screen shake
+- **Sound effect:** `sfxNova()` — expanding noise whoosh + low frequency impact thud. Milestone novas are louder and deeper.
+- **"⚡ NOVA" popup** only appears if at least one enemy was hit — no visual noise when leveling between waves
+- **Multiplayer safety:** Only fires if the client is the leader (or in offline mode) to prevent duplicate damage application. Only fires for the local player's cannon — other players' level-ups don't trigger novas on your screen.
+- **Implementation:**
+  - Phase 5: `levelUpNovaDamage(cx, cy, newLevel, path, spec)` function — iterates all alive enemies, checks distance², applies damage via `applyDamage()`, spawns particles and popup
+  - Phase 5: `sfxNova(isMilestone)` — procedural Web Audio sound (noise burst + sine sweep)
+  - `offlineAwardXP()`: calls `levelUpNovaDamage()` after `spawnLevelUpEffect()` on level-up
+  - `awardXP()` Firebase path: calls both `spawnLevelUpEffect()` and `levelUpNovaDamage()` on level-up for `playerId` only
+- **No new state variables, DOM elements, event listeners, or init calls.** All code is in Phase 5 function bodies. Zero TDZ risk.
+- **Strategic impact:** Creates a positive feedback loop — leveling up during combat (via early sends, combos, XP mutators) is now directly rewarded with burst damage. Players who aggressively level through early sends get nova bursts that help clear the overlapping waves. Milestone levels at 5, 8, 12, 15, 18, 20 become "mini-ultimates" — dramatic power spikes you can feel. The feature also synergizes with the existing early send mechanic: more XP from early sends → faster leveling → more nova bursts → easier wave clears. This creates the "snowball" feeling that makes roguelikes addictive.
