@@ -1991,7 +1991,17 @@
     const TARGET_LABELS = { smart: '🧠 Smart', nearest: '🎯 Nearest', strongest: '💪 Strongest', weakest: '🩸 Weakest', fastest: '⚡ Fastest', 'closest-to-base': '🏠 Closest' };
     let myTargetPriority = localStorage.getItem('td_target_priority') || 'smart';
 
-    function findTarget(enemies, cx, cy, range, priority) {
+    function findTarget(enemies, cx, cy, range, priority, cannonId) {
+      // Target lock: if this is the player's cannon and we have a locked target, prefer it
+      if (cannonId === playerId && targetLockedEnemyId) {
+        const locked = enemies.find(e => e.id === targetLockedEnemyId && e.hp > 0 && !e.dead);
+        if (locked) {
+          const dist = Math.hypot(locked.x - cx, locked.y - cy);
+          if (dist <= range) return locked;
+        }
+        // Locked enemy is dead or out of range — auto-clear lock
+        targetLockedEnemyId = null;
+      }
       let best = null, bestScore = priority === 'weakest' ? Infinity : -Infinity;
       for (const e of enemies) {
         if (e.hp <= 0) continue;
@@ -2528,6 +2538,7 @@
     let personalBestBroken = false; // true once we pass lifetimeStats.bestWave this run
     let waveDesperationWarned = false; // true once ⏱ DESPERATION! popup fires this wave
     let runHistory = []; // Array of past game run records
+    let targetLockedEnemyId = null; // ID of manually locked target enemy (click-to-focus)
 
     function updateLifetimeStatsOnGameOver(wave, kills) {
       const records = [];
@@ -5036,7 +5047,7 @@
 
         // Find target based on cannon's priority
         const priority = (cid === playerId) ? myTargetPriority : (c.targetPriority || 'nearest');
-        const nearest = findTarget(enemies, c.x, c.y, stats.range, priority);
+        const nearest = findTarget(enemies, c.x, c.y, stats.range, priority, cid);
         if (!nearest) continue;
 
         myCannonFireTimers[cid] = 0;
@@ -5381,6 +5392,7 @@
         baseHp = Math.min(getEffectiveMaxHp(), baseHp + getEffectiveRegen());
         if (!offlineMode) metaRef.update({ waveNumber, waveState: 'waiting', totalKills, baseHp });
         waveState = 'waiting';
+        targetLockedEnemyId = null; // Clear target lock on wave clear
         updateBaseHpHUD();
         updateSendNextBtn();
         // Auto-save between waves
@@ -5825,6 +5837,7 @@
       scorePopups = [];
       streakAnnouncement = null;
       personalBestBroken = false;
+      targetLockedEnemyId = null;
       waveDesperationWarned = false;
       activeSynergyKeys = new Set();
       resetDpsMeter();
@@ -5934,6 +5947,28 @@
         fireAbility(pos.x, pos.y);
         return;
       }
+      // Target Lock: click on an enemy during active wave to focus-fire it
+      if (waveState === 'active') {
+        for (let i = 0; i < enemies.length; i++) {
+          const en = enemies[i];
+          if (en.dead || en.hp <= 0) continue;
+          const dx = pos.x - en.x;
+          const dy = pos.y - en.y;
+          const hitR = (en.radius || 8) + 8;
+          if (dx * dx + dy * dy <= hitR * hitR) {
+            if (targetLockedEnemyId === en.id) {
+              // Click same enemy again → unlock
+              targetLockedEnemyId = null;
+              scorePopups.push({ x: en.x, y: en.y - 20, text: '🔓 UNLOCKED', color: '#aaa', size: 10, life: 30, maxLife: 30, vy: -1.5, vx: 0 });
+            } else {
+              targetLockedEnemyId = en.id;
+              scorePopups.push({ x: en.x, y: en.y - 20, text: '🔒 LOCKED', color: '#ff4444', size: 12, life: 40, maxLife: 40, vy: -1.5, vx: 0 });
+              sfxCritHit(); // satisfying click sound
+            }
+            return;
+          }
+        }
+      }
       placeCannon(pos.x, pos.y);
     }
 
@@ -5961,6 +5996,24 @@
       if (abilityTargeting) {
         fireAbility(pos.x, pos.y);
         return;
+      }
+      // Target Lock: tap on enemy during active wave to focus-fire
+      if (waveState === 'active') {
+        for (let i = 0; i < enemies.length; i++) {
+          const en = enemies[i];
+          if (en.dead || en.hp <= 0) continue;
+          const dx = pos.x - en.x;
+          const dy = pos.y - en.y;
+          const hitR = (en.radius || 8) + 12; // slightly larger for touch
+          if (dx * dx + dy * dy <= hitR * hitR) {
+            if (targetLockedEnemyId === en.id) {
+              targetLockedEnemyId = null;
+            } else {
+              targetLockedEnemyId = en.id;
+            }
+            return;
+          }
+        }
       }
       placeCannon(pos.x, pos.y);
     }
@@ -6933,9 +6986,10 @@
       if (e.key === 'p' || e.key === 'P') {
         togglePause();
       }
-      // Escape cancels targeting
-      if (e.key === 'Escape' && abilityTargeting) {
-        cancelTargeting();
+      // Escape cancels targeting and target lock
+      if (e.key === 'Escape') {
+        if (abilityTargeting) cancelTargeting();
+        if (targetLockedEnemyId) { targetLockedEnemyId = null; }
       }
       // ? toggles keyboard shortcut help overlay
       if (e.key === '?') {
@@ -7363,7 +7417,7 @@
             visualFireTimers[cid] -= fireMs;
             // Find target based on priority
             const vPriority = (cid === playerId) ? myTargetPriority : (c.targetPriority || 'nearest');
-            const nearest = findTarget(enemies, c.x, c.y, stats.range, vPriority);
+            const nearest = findTarget(enemies, c.x, c.y, stats.range, vPriority, cid);
             if (nearest) {
               // Muzzle flash at barrel tip (toward target)
               const mAngle = Math.atan2(nearest.y - c.y, nearest.x - c.x);
@@ -8027,7 +8081,8 @@
         ['T', 'Cycle Targeting Mode'],
         ['D', 'Toggle DPS Meter'],
         ['B', 'Open Bestiary'],
-        ['Esc', 'Cancel Targeting'],
+        ['Esc', 'Cancel Targeting / Unlock'],
+        ['Click', 'Lock Target on Enemy'],
         ['?', 'Toggle This Help'],
       ];
       const rowH = 26;
@@ -9464,6 +9519,53 @@
       }
       // ── End Enemy Hover Info Tooltip ──────────────────
 
+      // ── Target Lock Reticle ─────────────────────────
+      {
+        if (targetLockedEnemyId && waveState === 'active') {
+          const locked = enemies.find(e => e.id === targetLockedEnemyId && e.hp > 0 && !e.dead);
+          if (locked) {
+            const now = Date.now() / 1000;
+            const pulse = 0.6 + 0.4 * Math.sin(now * 6);
+            const r = (locked.radius || 8) + 10;
+            ctx.save();
+            ctx.strokeStyle = `rgba(255,50,50,${pulse})`;
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#ff0000';
+            ctx.shadowBlur = 6 * pulse;
+            // Outer rotating ring (4 arc segments with gaps)
+            const rot = now * 2;
+            for (let s = 0; s < 4; s++) {
+              const a0 = rot + s * Math.PI / 2 + 0.15;
+              const a1 = rot + s * Math.PI / 2 + Math.PI / 2 - 0.15;
+              ctx.beginPath();
+              ctx.arc(locked.x, locked.y, r, a0, a1);
+              ctx.stroke();
+            }
+            // Crosshair lines
+            const ch = r + 5;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(locked.x - ch, locked.y); ctx.lineTo(locked.x - r + 3, locked.y);
+            ctx.moveTo(locked.x + r - 3, locked.y); ctx.lineTo(locked.x + ch, locked.y);
+            ctx.moveTo(locked.x, locked.y - ch); ctx.lineTo(locked.x, locked.y - r + 3);
+            ctx.moveTo(locked.x, locked.y + r - 3); ctx.lineTo(locked.x, locked.y + ch);
+            ctx.stroke();
+            // 🔒 label above
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = `rgba(255,80,80,${0.7 + 0.3 * Math.sin(now * 4)})`;
+            ctx.font = 'bold 9px ' + getComputedStyle(document.body).fontFamily;
+            ctx.textAlign = 'center';
+            ctx.fillText('🔒 LOCKED', locked.x, locked.y - r - 6);
+            ctx.textAlign = 'start';
+            ctx.restore();
+          } else {
+            // Locked enemy died — auto-clear
+            targetLockedEnemyId = null;
+          }
+        }
+      }
+      // ── End Target Lock Reticle ─────────────────────
+
       // Damage flash overlay
       if (damageFlashTimer > 0) {
         const flashAlpha = (damageFlashTimer / 8) * 0.25;
@@ -9771,7 +9873,7 @@
       // Barrel — point toward prioritized target or up
       let barrelAngle = -Math.PI / 2;
       const bPriority = (cid === playerId) ? myTargetPriority : (c.targetPriority || 'nearest');
-      const barrelTarget = findTarget(enemies, x, y, stats.range, bPriority);
+      const barrelTarget = findTarget(enemies, x, y, stats.range, bPriority, cid);
       if (barrelTarget) {
         barrelAngle = Math.atan2(barrelTarget.y - y, barrelTarget.x - x);
         // Draw subtle targeting line from cannon to current target

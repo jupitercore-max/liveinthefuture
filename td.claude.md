@@ -1250,3 +1250,24 @@ If it fails, DO NOT commit. Fix the error first.
   - Phase 7 (init): Check for auto-save before tutorial — shows resume prompt instead of tutorial if save exists
   - Hooks: `autoSaveGame()` called after wave clear, `clearAutoSave()` called in showGameOver and resetGame
 - **Design rationale:** Ray lost all his game progress due to repeated page crashes during the TDZ fix saga. The game had no way to recover mid-run state — everything was lost on page refresh. Auto-save is the #1 QoL feature for any roguelike/run-based game (Hades auto-saves, Slay the Spire auto-saves, even mobile TD games auto-save). The between-waves save point is ideal because the game is in a clean state (no enemies in flight, no pending damage), making state serialization reliable. The 24-hour expiry prevents stale saves from confusing returning players. The resume prompt gives players explicit choice — some may prefer starting fresh even with a save available.
+
+### 2026-03-11: Target Lock — Click-to-Focus-Fire
+- **Click on any enemy during combat** to force your cannon to focus-fire it, ignoring your targeting priority mode. Click the same enemy again to unlock. Press Escape to clear the lock.
+- **Why this matters:** The #1 tactical frustration in any TD game is "my cannon is shooting the wrong enemy." Smart targeting is great but sometimes you NEED to focus a specific healer, a nearly-dead boss, or a phaser about to teleport past your defenses. Target lock gives you that control.
+- **Red crosshair reticle** — Locked enemies get a dramatic rotating red ring with crosshair lines and a pulsing "🔒 LOCKED" label. The rotation and pulse make it impossible to lose track of your target in a crowded battlefield.
+- **Implementation:**
+  - Phase 3: `let targetLockedEnemyId = null` — stores the ID of the manually locked enemy
+  - Phase 5: `findTarget()` updated with optional `cannonId` parameter. When `cannonId === playerId` and `targetLockedEnemyId` is set, it checks if the locked enemy is alive and in range — if so, returns it immediately. If the enemy died or went out of range, auto-clears the lock and falls through to normal targeting.
+  - Phase 5: `onCanvasClick()` updated — before placement, checks if click is near an enemy (radius + 8px). If so, toggles the lock. Shows "🔒 LOCKED" (red) or "🔓 UNLOCKED" (gray) popup + sfxCritHit sound.
+  - Phase 5: `onCanvasTouchEnd()` updated with same logic (radius + 12px for touch).
+  - Phase 5: Red crosshair reticle drawn in `drawFrame()` after enemy tooltip — 4 rotating arc segments, crosshair lines, "🔒 LOCKED" label with pulse and glow.
+  - Escape key now also clears target lock (in addition to canceling ability targeting).
+  - Lock auto-clears on: enemy death, wave clear, game reset.
+  - Help overlay updated: "Esc" description changed to "Cancel Targeting / Unlock", new "Click — Lock Target on Enemy" entry.
+- **All 3 `findTarget()` call sites** updated to pass `cid`: simTick fire loop, visual fire loop (non-leader), and drawCannon barrel rotation. The lock only activates for `playerId`'s cannon — other players' cannons use their own targeting.
+- **Phase compliance:** State in Phase 3, all logic changes in Phase 5 (existing function bodies). No new DOM elements, event listeners, or init calls. Zero TDZ risk.
+- **Design rationale:** Target lock is a standard feature in TD games with manual control (Bloons TD6 "Target Lock", Kingdom Rush hero targeting, Arknights operator targeting). It complements the existing 6-mode targeting system by adding per-enemy override when strategy demands it. The visual reticle creates a satisfying "I'm choosing to destroy YOU specifically" moment. Especially valuable for:
+  - Focusing healers before they sustain a wave
+  - Finishing a low-HP boss instead of letting the cannon switch to minions
+  - Locking a phaser before it teleports
+  - Targeting a specific splitter to clear one side of a two-wave overlap
