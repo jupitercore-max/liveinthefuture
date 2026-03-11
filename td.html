@@ -146,13 +146,21 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.6rem;
+      font-size: 0.55rem;
       color: #fff;
       text-shadow: 0 0 3px rgba(0,0,0,0.8);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding: 0 4px;
     }
     .cannon-info {
       font-size: 0.7rem;
       color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
     }
 
     /* ─── Upgrade Modal ──────────────────────────────── */
@@ -6549,9 +6557,24 @@
       const needed = XP_PER_LEVEL(level);
       const pct = Math.min(100, (xp / needed) * 100);
 
-      cannonInfo.textContent = getCannonLabel(level, c.path, c.spec);
+      const kills = c.kills || 0;
+      const stats = getCannonStats(level, c.path, c.spec);
+      const dps = (stats.dmg * stats.fireRate).toFixed(1);
+      cannonInfo.textContent = getCannonLabel(level, c.path, c.spec) + ` · ${kills} kills · ${dps} DPS`;
       xpBarFill.style.width = pct + '%';
-      xpBarText.textContent = `${xp} / ${needed} XP`;
+      // Show next milestone hint in XP bar
+      let milestoneHint = '';
+      if (level < 3) milestoneHint = ' → Lv3 Choose Path';
+      else if (level >= 3 && !c.path) milestoneHint = ' → Choose Path!';
+      else if (level < 5) milestoneHint = ' → Lv5 Armor Pierce';
+      else if (level < 6) milestoneHint = c.path && !c.spec ? ' → Lv6 Choose Spec' : ' → Lv6 Choose Spec';
+      else if (level >= 6 && c.path && !c.spec) milestoneHint = ' → Choose Spec!';
+      else if (level < 8) milestoneHint = ' → Lv8 Splash';
+      else if (level < 12) milestoneHint = ' → Lv12 Major Armor Pierce';
+      else if (level < 15) milestoneHint = ' → Lv15 Slow All';
+      else if (level < 18) milestoneHint = ' → Lv18 Armor Mastery';
+      else if (level < 20) milestoneHint = ' → Lv20 Capstone!';
+      xpBarText.textContent = `${xp} / ${needed} XP${milestoneHint}`;
 
       // Enable sell button when cannon exists
       sellBtn.disabled = (waveState === 'gameover');

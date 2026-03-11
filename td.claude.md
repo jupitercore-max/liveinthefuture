@@ -1394,3 +1394,23 @@ If it fails, DO NOT commit. Fix the error first.
   - Phase 5: drawFrame calls `renderRicochetBeams(ctx)` after heal beams
   - Phase 5: resetGame clears `ricochetBeams = []`
   - No new DOM elements, event listeners, or init calls. Zero TDZ risk.
+
+### 2026-03-11: Enhanced Cannon HUD — Kills, DPS & Milestone Preview
+- **Cannon info text now shows kills and DPS** — instead of just "Lv5 Sniper", it now reads "Lv5 Sniper · 47 kills · 12.3 DPS". The DPS is calculated from `getCannonStats()` (dmg × fireRate), reflecting the cannon's actual theoretical output including path/spec bonuses, level scaling, weather, and mutator effects.
+- **XP bar shows next milestone** — the XP progress text now includes a hint about the next meaningful upgrade milestone:
+  - Lv1-2: "→ Lv3 Choose Path"
+  - Lv3 (no path chosen): "→ Choose Path!"
+  - Lv3-4: "→ Lv5 Armor Pierce"
+  - Lv5: "→ Lv6 Choose Spec"
+  - Lv6 (no spec chosen): "→ Choose Spec!"
+  - Lv6-7: "→ Lv8 Splash"
+  - Lv8-11: "→ Lv12 Major Armor Pierce"
+  - Lv12-14: "→ Lv15 Slow All"
+  - Lv15-17: "→ Lv18 Armor Mastery"
+  - Lv18-19: "→ Lv20 Capstone!"
+- **CSS improvements** — xp-bar-text and cannon-info both have text-overflow:ellipsis for graceful truncation on narrow screens. XP bar font slightly reduced (0.6→0.55rem) to fit milestone text.
+- **Phase compliance:**
+  - All changes inside `updateCannonUI()` function body (Phase 5) — no new state, DOM elements, listeners, or init calls
+  - CSS changes in the existing `<style>` block (not Phase-relevant)
+  - Zero TDZ risk — no new declarations or references
+- **Design rationale:** Players had no numeric feedback on cannon performance beyond the XP progress ring. Adding kills+DPS gives immediate build validation ("is my Sniper actually doing more damage than a Gatling?"). The milestone hints create anticipation and short-term goals — you're not just grinding XP, you're working toward a specific unlock. This is a core motivational pattern from RPGs (Diablo's "2 more levels to unlock Whirlwind") applied to the TD upgrade tree.
