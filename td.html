@@ -3572,7 +3572,8 @@
       flyer:    { emoji: '🟪', desc: 'Ignores the path entirely. Flies straight to base.', tip: 'Position a cannon near the base line. Flyers bypass terrain hazards too.' },
       phaser:   { emoji: '🔷', desc: 'Teleports 12% forward every 4 seconds. Unpredictable.', tip: 'Spread cannons along the path. Single chokepoints fail against phasers.' },
       splitter: { emoji: '🧬', desc: 'Splits into 2 fast children on death. Double trouble.', tip: 'AoE/Tesla builds handle children easily. Sniper overkills the parent wastefully.' },
-      boss:     { emoji: '💀', desc: '3 phases: Shield (75% HP), Summon (50%), Enrage (25%). Every 10 waves.', tip: 'Save your Ultimate and active ability for phase transitions. Focus fire only.' }
+      boss:     { emoji: '💀', desc: '3 phases: Shield (75% HP), Summon (50%), Enrage (25%). Every 10 waves.', tip: 'Save your Ultimate and active ability for phase transitions. Focus fire only.' },
+      treasure: { emoji: '💰', desc: 'Rare golden goblin that runs BACKWARD toward the portal. Huge XP reward if killed.', tip: 'Use burst damage abilities or Target Lock [Click] immediately. They escape fast!' }
     };
 
     // ═══════════════════════════════════════════════════
@@ -3806,6 +3807,31 @@
           phaseFlashTimer: 0   // visual flash on phase transition
         });
       }
+
+      // ── Treasure Goblin (rare golden enemy that runs backward) ──
+      if (waveNum >= GOBLIN_MIN_WAVE && !isBossWave && rng() < GOBLIN_CHANCE) {
+        // Spawn at ~60% path progress so it's already partway through
+        const goblinStart = 0.5 + rng() * 0.2; // 50-70% of path
+        const gPos = getPathPosition(currentPath, goblinStart);
+        const goblinHp = baseHp * GOBLIN_HP_MULT;
+        enemies.push({
+          id: `w${waveNum}_goblin`,
+          type: 'treasure',
+          x: gPos.x,
+          y: gPos.y,
+          pathProgress: goblinStart,
+          hp: goblinHp,
+          maxHp: goblinHp,
+          speed: GOBLIN_SPEED,
+          color: GOBLIN_COLOR,
+          shape: 'circle',
+          radius: GOBLIN_RADIUS,
+          slowTimer: 0,
+          spawnTick: tickCount,
+          treasure: true   // flag for special movement + reward
+        });
+      }
+
       return enemies;
     }
 
@@ -3985,6 +4011,17 @@
     const ENEMY_DESPERATION_TICKS = TICK_RATE * 12; // 12 seconds before desperation starts
     const ENEMY_DESPERATION_MAX_BOOST = 0.6; // max +60% speed bonus
     const ENEMY_DESPERATION_RAMP = TICK_RATE * 20; // 20 seconds to reach full boost from desperation start
+
+    // ═══════════════════════════════════════════════════
+    //  Treasure Goblin System
+    // ═══════════════════════════════════════════════════
+    const GOBLIN_MIN_WAVE = 8;         // first wave goblins can appear
+    const GOBLIN_CHANCE = 0.18;        // 18% per eligible wave
+    const GOBLIN_HP_MULT = 2.0;        // tankier than normal — you have to earn it
+    const GOBLIN_SPEED = 2.8;          // fast — runs away toward spawn
+    const GOBLIN_XP_MULT = 8;          // 8× XP reward
+    const GOBLIN_COLOR = '#ffd700';    // gold
+    const GOBLIN_RADIUS = 9;
     const COMBO_MIN = 2; // minimum kills to show combo
 
     // Mouse tracking for placement preview & hover info
@@ -4786,6 +4823,12 @@
           waveState = 'active';
           if (waveNumber === 1) sessionStartTime = Date.now();
           enemies = generateWave(waveNumber);
+          // Treasure goblin spawn announcement
+          if (enemies.some(en => en.treasure)) {
+            setTimeout(() => {
+              scorePopups.push({ x: CANVAS_W / 2, y: CANVAS_H * 0.3, text: '💰 TREASURE GOBLIN!', color: '#ffd700', life: 60, maxLife: 60, size: 18, vy: -0.5 });
+            }, 500);
+          }
           // Reset per-wave stats tracking
           waveStats = { kills: 0, hpLost: 0, maxCombo: 0, startTick: tickCount, enemiesSpawned: enemies.length, abilityUsed: false, earlySendUsed: false, powerupCollected: false };
           waveDesperationWarned = false;
@@ -4892,9 +4935,13 @@
             break; // only one hazard affects at a time
           }
         }
-        // Advance path progress
+        // Advance path progress (treasure goblins move backward toward spawn)
         const progressPerTick = speed / (currentPathLength || 1000);
-        e.pathProgress = (e.pathProgress || 0) + progressPerTick;
+        if (e.treasure) {
+          e.pathProgress = (e.pathProgress || 0) - progressPerTick;
+        } else {
+          e.pathProgress = (e.pathProgress || 0) + progressPerTick;
+        }
         const pos = getPathPosition(currentPath, e.pathProgress);
         e.x = pos.x;
         e.y = pos.y;
@@ -5219,20 +5266,47 @@
           // Combo achievements
           if (comboCount >= 5) unlockAchievement('combo_5');
           if (comboCount >= 10) unlockAchievement('combo_10');
-          // Calculate XP: base 1 + combo bonus + early send bonus + elite bonus
+          // Calculate XP: base 1 + combo bonus + early send bonus + elite bonus + treasure bonus
           const comboMult = comboCount >= COMBO_MIN ? Math.min(comboCount, 10) : 1;
           const earlyBonus = earlySendBonusPct > 0 ? Math.ceil(comboMult * earlySendBonusPct / 100) : 0;
           const eliteMult = e.elite ? 3 : 1;
-          const xpAmount = (comboMult + earlyBonus) * eliteMult;
+          const treasureMult = e.treasure ? GOBLIN_XP_MULT : 1;
+          const xpAmount = (comboMult + earlyBonus) * eliteMult * treasureMult;
           // Award XP to cannon that would have killed (simplified: split among all)
           awardXP(cannonList, xpAmount * getXPMultiplier());
+          // Treasure goblin kill: big announcement + guaranteed power-up + gold coin burst + HP regen
+          if (e.treasure) {
+            streakAnnouncement = { text: '💰 TREASURE!', color: '#ffd700', size: 48, timer: 80, maxTimer: 80 };
+            triggerScreenShake(true);
+            // Guaranteed boss-tier power-up drop
+            dropBossLoot(e.x, e.y);
+            // Heal +2 HP as bonus
+            if (baseHp < getEffectiveMaxHp()) {
+              baseHp = Math.min(getEffectiveMaxHp(), baseHp + 2);
+              updateBaseHpHUD();
+              scorePopups.push({ x: e.x, y: e.y - 25, text: '💚 +2 HP', color: '#22c55e', life: 30, maxLife: 30, size: 12, vy: -1.8 });
+            }
+            // Gold coin burst particles
+            for (let gi = 0; gi < 20; gi++) {
+              particles.push({
+                x: e.x, y: e.y,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8 - 2,
+                color: '#ffd700',
+                life: 25 + Math.random() * 15
+              });
+            }
+          }
           // Score popup
-          const popupText = e.elite
+          const popupText = e.treasure
+            ? `💰 +${xpAmount} XP`
+            : e.elite
             ? `+${xpAmount} XP ★`
             : comboCount >= COMBO_MIN
             ? `+${xpAmount} XP`
             : '+1 XP';
-          const popupColor = e.elite ? '#ffd700'
+          const popupColor = e.treasure ? '#ffd700'
+            : e.elite ? '#ffd700'
             : comboCount >= 8 ? '#ff4444'
             : comboCount >= 5 ? '#ff8800'
             : comboCount >= COMBO_MIN ? '#ffd700'
@@ -5328,10 +5402,16 @@
       }
 
       // Check if enemy reached base (end of path) — deal damage instead of instant fail
+      // Treasure goblins escape at pathProgress <= 0 (they run backward) — no damage, just gone
       let damageTaken = 0;
       enemies = enemies.filter(e => {
+        // Treasure goblin escapes back to portal
+        if (e.treasure && (e.pathProgress || 0) <= 0) {
+          scorePopups.push({ x: e.x, y: e.y - 15, text: '💰 ESCAPED!', color: '#ff4444', life: 40, maxLife: 40, size: 14, vy: -1.5 });
+          return false;
+        }
         if ((e.pathProgress || 0) >= 1.0) {
-          damageTaken += e.type === 'boss' ? BOSS_DAMAGE : 1;
+          if (!e.treasure) damageTaken += e.type === 'boss' ? BOSS_DAMAGE : 1;
           return false; // remove enemy
         }
         return true;
@@ -7295,19 +7375,33 @@
           const comboMult = comboCount >= COMBO_MIN ? Math.min(comboCount, 10) : 1;
           const earlyBonus = earlySendBonusPct > 0 ? Math.ceil(comboMult * earlySendBonusPct / 100) : 0;
           const eliteMult = e.elite ? 3 : 1;
-          const xpAmount = (comboMult + earlyBonus) * eliteMult;
+          const treasureMult = e.treasure ? GOBLIN_XP_MULT : 1;
+          const xpAmount = (comboMult + earlyBonus) * eliteMult * treasureMult;
           if (offlineMode) {
             offlineAwardXP(xpAmount * getXPMultiplier());
           } else {
             awardXP(Object.entries(cannons), xpAmount * getXPMultiplier());
+          }
+          // Treasure goblin kill reward (ability kills)
+          if (e.treasure) {
+            streakAnnouncement = { text: '💰 TREASURE!', color: '#ffd700', size: 48, timer: 80, maxTimer: 80 };
+            triggerScreenShake(true);
+            dropBossLoot(e.x, e.y);
+            if (baseHp < getEffectiveMaxHp()) {
+              baseHp = Math.min(getEffectiveMaxHp(), baseHp + 2);
+              updateBaseHpHUD();
+            }
+            for (let gi = 0; gi < 20; gi++) {
+              particles.push({ x: e.x, y: e.y, vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8 - 2, color: '#ffd700', life: 25 + Math.random() * 15 });
+            }
           }
           // Power-up drop chance
           rollPowerupDrop(e.x, e.y, e.type, e.elite);
           scorePopups.push({
             x: e.x + (Math.random() - 0.5) * 16,
             y: e.y,
-            text: e.elite ? `+${xpAmount} XP ★` : `+${xpAmount} XP`,
-            color: e.elite ? '#ffd700' : comboCount >= 8 ? '#ff4444' : comboCount >= 5 ? '#ff8800' : comboCount >= COMBO_MIN ? '#ffd700' : '#ffffff',
+            text: e.treasure ? `💰 +${xpAmount} XP` : e.elite ? `+${xpAmount} XP ★` : `+${xpAmount} XP`,
+            color: e.treasure ? '#ffd700' : e.elite ? '#ffd700' : comboCount >= 8 ? '#ff4444' : comboCount >= 5 ? '#ff8800' : comboCount >= COMBO_MIN ? '#ffd700' : '#ffffff',
             life: 40, maxLife: 40,
             size: e.elite ? 16 : comboCount >= 5 ? 16 : comboCount >= COMBO_MIN ? 13 : 11,
             vy: -1.5
@@ -7400,7 +7494,11 @@
             }
           }
           const progressPerSec = speed * TICK_RATE / (currentPathLength || 1000);
-          e.pathProgress = (e.pathProgress || 0) + progressPerSec * dtSec;
+          if (e.treasure) {
+            e.pathProgress = (e.pathProgress || 0) - progressPerSec * dtSec;
+          } else {
+            e.pathProgress = (e.pathProgress || 0) + progressPerSec * dtSec;
+          }
           const pos = getPathPosition(currentPath, e.pathProgress);
           e.x = pos.x;
           e.y = pos.y;
@@ -10564,6 +10662,42 @@
           ctx.fill();
           ctx.globalAlpha = 1;
         }
+      }
+
+      // ── Treasure Goblin Aura (golden glow + coin orbit) ──
+      if (e.treasure) {
+        // Pulsing golden aura
+        const gPulse = 0.5 + 0.3 * Math.sin(t * 0.006);
+        const gAuraR = e.radius + 10 + Math.sin(t * 0.004) * 3;
+        ctx.save();
+        ctx.globalAlpha = gPulse * 0.4;
+        const gGrad = ctx.createRadialGradient(x, y, e.radius * 0.3, x, y, gAuraR);
+        gGrad.addColorStop(0, 'rgba(255,215,0,0.6)');
+        gGrad.addColorStop(0.6, 'rgba(255,180,0,0.2)');
+        gGrad.addColorStop(1, 'rgba(255,150,0,0)');
+        ctx.fillStyle = gGrad;
+        ctx.beginPath();
+        ctx.arc(x, y, gAuraR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        // Orbiting coin sparkles
+        for (let ci = 0; ci < 4; ci++) {
+          const cAngle = (t * 0.004) + ci * (Math.PI / 2);
+          const cR = e.radius + 6;
+          const cx2 = x + Math.cos(cAngle) * cR;
+          const cy2 = y + Math.sin(cAngle) * cR + Math.sin(t * 0.008 + ci) * 2;
+          ctx.fillStyle = `rgba(255,215,0,${0.5 + 0.3 * Math.sin(t * 0.005 + ci)})`;
+          ctx.beginPath();
+          ctx.arc(cx2, cy2, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        // 💰 label above
+        ctx.font = '11px serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = `rgba(255,215,0,${0.6 + 0.3 * Math.sin(t * 0.003)})`;
+        ctx.fillText('💰', x, y - e.radius - 8);
+        ctx.textAlign = 'start';
+        ctx.restore();
       }
 
       // ── Main body ──
