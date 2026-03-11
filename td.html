@@ -390,6 +390,36 @@
       transition: background 0.15s;
     }
     .game-over-overlay .go-restart:hover { background: #c0392b; }
+    .resume-overlay {
+      position: absolute; inset: 0; z-index: 105;
+      display: none; flex-direction: column; justify-content: center; align-items: center;
+      background: rgba(0,0,0,0.85); gap: 12px;
+    }
+    .resume-overlay.active { display: flex; }
+    .resume-overlay .resume-card {
+      background: rgba(20,20,50,0.95); border: 2px solid var(--accent);
+      border-radius: 12px; padding: 24px 32px; text-align: center; max-width: 340px;
+    }
+    .resume-overlay .resume-title {
+      font-size: 22px; font-weight: 900; color: var(--accent); margin-bottom: 8px;
+    }
+    .resume-overlay .resume-info {
+      font-size: 13px; color: #aab; margin-bottom: 16px; line-height: 1.6;
+    }
+    .resume-overlay .resume-info span { color: #fff; font-weight: 700; }
+    .resume-overlay .resume-btns { display: flex; gap: 10px; justify-content: center; }
+    .resume-overlay .resume-btn {
+      padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer;
+      font-size: 14px; font-weight: 700; font-family: inherit;
+    }
+    .resume-overlay .resume-btn.primary {
+      background: linear-gradient(135deg, var(--accent), #1565C0); color: #fff;
+    }
+    .resume-overlay .resume-btn.primary:hover { filter: brightness(1.15); }
+    .resume-overlay .resume-btn.secondary {
+      background: rgba(255,255,255,0.08); color: #aab; border: 1px solid rgba(255,255,255,0.15);
+    }
+    .resume-overlay .resume-btn.secondary:hover { background: rgba(255,255,255,0.15); }
 
     /* ─── Rich Game Over Summary ────────────────── */
     .go-summary { text-align: left; width: 100%; }
@@ -1303,6 +1333,16 @@
         <div class="go-stats" id="goStats">Wave 1 · 0 kills</div>
         <button class="go-restart" id="goRestart">Play Again</button>
       </div>
+      <div class="resume-overlay" id="resumeOverlay">
+        <div class="resume-card">
+          <div class="resume-title">💾 Saved Game Found</div>
+          <div class="resume-info" id="resumeInfo"></div>
+          <div class="resume-btns">
+            <button class="resume-btn primary" id="resumeYes">▶ Resume</button>
+            <button class="resume-btn secondary" id="resumeNo">✕ New Game</button>
+          </div>
+        </div>
+      </div>
       <div class="wave-preview" id="wavePreview">
         <div class="wave-preview-label">INCOMING ENEMIES</div>
       </div>
@@ -1459,6 +1499,10 @@
     let comboLabel = null;
     let comboNum = null;
     let gameOverOverlay = null;
+    let resumeOverlay = null;
+    let resumeInfo = null;
+    let resumeYes = null;
+    let resumeNo = null;
     let gameScreen = null;
     let goRestart = null;
     let goStats = null;
@@ -1538,6 +1582,10 @@
       comboLabel = $('comboLabel');
       comboNum = $('comboNum');
       gameOverOverlay = $('gameOverOverlay');
+      resumeOverlay = $('resumeOverlay');
+      resumeInfo = $('resumeInfo');
+      resumeYes = $('resumeYes');
+      resumeNo = $('resumeNo');
       gameScreen = $('gameScreen');
       goRestart = $('goRestart');
       goStats = $('goStats');
@@ -1601,6 +1649,14 @@
 
     function initListeners() {
       aidBtn.addEventListener('click', callForAid);
+
+      // Resume overlay listeners
+      resumeYes.addEventListener('click', () => {
+        const save = getAutoSave();
+        if (save) resumeFromSave(save);
+        else dismissResume();
+      });
+      resumeNo.addEventListener('click', dismissResume);
 
       achieveBtn.addEventListener('click', () => {
         renderAchievePanel();
@@ -5327,6 +5383,8 @@
         waveState = 'waiting';
         updateBaseHpHUD();
         updateSendNextBtn();
+        // Auto-save between waves
+        autoSaveGame();
         // Show wave summary with grade before next countdown
         showWaveSummary(waveNumber - 1);
         startWaveCountdown();
@@ -5530,6 +5588,7 @@
     }
 
     function showGameOver() {
+      clearAutoSave();
       // Dismiss wave summary if showing
       waveSummaryEl.classList.remove('active');
       if (waveSummaryTimeout) { clearTimeout(waveSummaryTimeout); waveSummaryTimeout = null; }
@@ -5631,8 +5690,122 @@
       }
     }
 
+    // ═══════════════════════════════════════════════════
+    //  Auto-Save / Resume System
+    // ═══════════════════════════════════════════════════
+    function autoSaveGame() {
+      if (!offlineMode) return; // only auto-save in offline/single-player mode
+      const c = cannons[playerId];
+      if (!c || !c.x) return; // no cannon placed yet
+      const save = {
+        version: 1,
+        timestamp: Date.now(),
+        waveNumber,
+        baseHp,
+        totalKills,
+        flyerKills,
+        sessionWavesCleared,
+        sessionKillsByType: Object.assign({}, sessionKillsByType),
+        sessionStartTime,
+        earlySendBonusPct,
+        earlySendCount,
+        cannon: {
+          x: c.x, y: c.y,
+          level: c.level, xp: c.xp, kills: c.kills,
+          path: c.path, spec: c.spec,
+          name: c.name, avatar: c.avatar, emoji: c.emoji
+        },
+        currentPath: currentPath ? currentPath.map(p => ({x: p.x, y: p.y})) : null,
+        personalBestBroken
+      };
+      try {
+        localStorage.setItem('td_autosave', JSON.stringify(save));
+      } catch(e) { /* storage full — ignore */ }
+    }
+
+    function clearAutoSave() {
+      localStorage.removeItem('td_autosave');
+    }
+
+    function getAutoSave() {
+      try {
+        const raw = localStorage.getItem('td_autosave');
+        if (!raw) return null;
+        const save = JSON.parse(raw);
+        // Reject saves older than 24 hours or version mismatch
+        if (!save || save.version !== 1) return null;
+        if (Date.now() - save.timestamp > 24 * 60 * 60 * 1000) {
+          clearAutoSave();
+          return null;
+        }
+        return save;
+      } catch(e) { return null; }
+    }
+
+    function showResumePrompt(save) {
+      const mins = Math.floor((Date.now() - save.timestamp) / 60000);
+      const timeAgo = mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.floor(mins/60)}h ago`;
+      const specName = save.cannon.spec || save.cannon.path || 'Basic';
+      resumeInfo.innerHTML =
+        `Wave <span>${save.waveNumber}</span> · <span>${save.totalKills}</span> kills<br>` +
+        `Lv${save.cannon.level} ${specName} · HP ${save.baseHp}<br>` +
+        `<small style="color:#778">Saved ${timeAgo}</small>`;
+      resumeOverlay.classList.add('active');
+    }
+
+    function resumeFromSave(save) {
+      resumeOverlay.classList.remove('active');
+      clearAutoSave();
+      // Restore state
+      waveNumber = save.waveNumber;
+      baseHp = save.baseHp;
+      totalKills = save.totalKills;
+      flyerKills = save.flyerKills || 0;
+      sessionWavesCleared = save.sessionWavesCleared || 0;
+      sessionKillsByType = save.sessionKillsByType || {};
+      sessionStartTime = save.sessionStartTime || Date.now();
+      earlySendBonusPct = save.earlySendBonusPct || 0;
+      earlySendCount = save.earlySendCount || 0;
+      personalBestBroken = save.personalBestBroken || false;
+      // Restore path
+      if (save.currentPath && save.currentPath.length > 0) {
+        currentPath = save.currentPath;
+        currentPathLength = getPathLength(currentPath);
+      }
+      // Restore cannon
+      const sc = save.cannon;
+      cannons[playerId] = {
+        x: sc.x, y: sc.y,
+        level: sc.level, xp: sc.xp, kills: sc.kills,
+        path: sc.path, spec: sc.spec,
+        name: sc.name || playerName,
+        avatar: sc.avatar || playerAvatar,
+        emoji: sc.emoji || playerEmoji,
+        lastSeen: Date.now()
+      };
+      showPlacementHint = false;
+      // Update all UI
+      updateCannonUI();
+      updateBaseHpHUD();
+      updateSendNextBtn();
+      hudWave.textContent = waveNumber;
+      hudKills.textContent = totalKills;
+      hudEnemies.textContent = 0;
+      // Regenerate terrain hazards for current wave
+      terrainHazards = [];
+      // Start next wave countdown
+      waveState = 'waiting';
+      startWaveCountdown();
+    }
+
+    function dismissResume() {
+      resumeOverlay.classList.remove('active');
+      clearAutoSave();
+    }
+
     function resetGame() {
       gameOverOverlay.classList.remove('active');
+      clearAutoSave();
       resetSessionStats();
       waveNumber = 1;
       baseHp = getEffectiveMaxHp();
@@ -11326,7 +11499,15 @@
       setTimeout(resizeCanvas, 50);
     }
     initFirebase();
-    maybeShowTutorial();
+    // Check for saved game before showing tutorial
+    {
+      const save = getAutoSave();
+      if (save) {
+        showResumePrompt(save);
+      } else {
+        maybeShowTutorial();
+      }
+    }
 
   })();
   </script>

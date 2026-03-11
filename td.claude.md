@@ -1217,3 +1217,36 @@ If it fails, DO NOT commit. Fix the error first.
 - **Implementation:** Single function `drawLeakWarnings()` in Phase 5, called in `drawFrame()` after `drawBossHealthBar()` and before `drawDangerVignette()`. Uses only existing variables (`waveState`, `enemies`, `CANVAS_W`, `CANVAS_H`, `e.pathProgress`, `e.flying`, `e.y`). Zero new state variables, DOM elements, event listeners, or init calls. Zero TDZ risk.
 - **Performance:** One loop through `enemies` array per frame, early-exit for dead and low-progress enemies. One `ctx.save/restore` + one filled triangle + optional text per warning arrow. Negligible cost — typically 0-3 arrows visible at a time.
 - **Design rationale:** The #1 frustration in tower defense games is "I didn't see that enemy leak through." During chaotic late-game waves with 20+ enemies, overlapping visual effects, and multi-phase bosses, it's easy to miss a single fast enemy approaching the base from an unexpected angle. The leak warning system gives you a "radar" for imminent threats. This is a standard pattern in action games (Doom damage direction indicator, Battlefield hit markers, Halo shield direction indicator) adapted for tower defense. The escalating urgency (size + brightness + pulse speed) creates a natural priority system — glance at the arrows and you instantly know which leak is most critical. The 75% threshold gives you enough advance warning to actually react (activate frost/ability, relocate, use early send to overlap waves and get more XP before the leak hits).
+
+### 2026-03-11: Auto-Save & Resume System
+- **Game state auto-saved between waves** — Every time a wave clears, the full game state is saved to localStorage (`td_autosave`). If the page crashes, tab is closed accidentally, or browser restarts, the player can pick up right where they left off.
+- **Resume prompt on load** — If a valid save exists (less than 24 hours old), a centered overlay shows: wave number, kill count, cannon level/spec, HP, and time since save. Two buttons: "▶ Resume" restores the game state, "✕ New Game" starts fresh.
+- **Saved state includes:**
+  - Wave number, base HP, total kills, flyer kills
+  - Session stats (waves cleared, kills by type, start time)
+  - Early send bonus/count
+  - Full cannon data (position, level, XP, kills, path, spec, name, avatar, emoji)
+  - Current path (normalized 0-1 coordinates)
+  - Personal best broken flag
+- **Auto-save cleared on:**
+  - Game over (showGameOver) — your run ended, no save needed
+  - New game (resetGame) — you chose to start fresh
+  - Resume (after state is restored) — save consumed
+  - Dismiss (chose "New Game" on prompt) — player wants fresh start
+- **Resume restores everything:**
+  - All state variables set from save data
+  - Path restored with recalculated length via `getPathLength()`
+  - Cannon recreated with full stats
+  - UI updated (HUD, HP bar, buttons)
+  - Wave countdown starts immediately for the next wave
+- **Offline mode only** — Firebase mode syncs state via the database, so auto-save only activates in offline/single-player mode
+- **Phase compliance:**
+  - CSS: Resume overlay styling (`.resume-overlay`, `.resume-card`, `.resume-btn`)
+  - HTML: Resume overlay div with info area and two buttons
+  - Phase 3 (let declarations): `resumeOverlay`, `resumeInfo`, `resumeYes`, `resumeNo`
+  - Phase 4 (initDOM): DOM bindings for all 4 resume elements
+  - Phase 5 (functions): `autoSaveGame()`, `clearAutoSave()`, `getAutoSave()`, `showResumePrompt()`, `resumeFromSave()`, `dismissResume()`
+  - Phase 6 (initListeners): Click handlers for resumeYes and resumeNo buttons
+  - Phase 7 (init): Check for auto-save before tutorial — shows resume prompt instead of tutorial if save exists
+  - Hooks: `autoSaveGame()` called after wave clear, `clearAutoSave()` called in showGameOver and resetGame
+- **Design rationale:** Ray lost all his game progress due to repeated page crashes during the TDZ fix saga. The game had no way to recover mid-run state — everything was lost on page refresh. Auto-save is the #1 QoL feature for any roguelike/run-based game (Hades auto-saves, Slay the Spire auto-saves, even mobile TD games auto-save). The between-waves save point is ideal because the game is in a clean state (no enemies in flight, no pending damage), making state serialization reliable. The 24-hour expiry prevents stale saves from confusing returning players. The resume prompt gives players explicit choice — some may prefer starting fresh even with a save available.
