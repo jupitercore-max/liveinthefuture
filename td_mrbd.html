@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=600, height=600, initial-scale=1.0">
+  <title>Tower Defense - Hypernova WebApp</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0d0d0d;
+      color: #e8e8e8;
+      width: 600px;
+      height: 600px;
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<canvas id="c" width="600" height="600"></canvas>
+<script>
+(function() {
+  // ═══════════════════════════════════════════════════
+  //  MRBD Tower Defense — Game Boy energy, D-pad only
+  // ═══════════════════════════════════════════════════
+
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var W = 600, H = 600;
+
+  // ── Grid System ──
+  var GRID = 40; // 15x15 grid
+  var COLS = W / GRID; // 15
+  var ROWS = H / GRID; // 15
+
+  // ── Game State ──
+  var STATE_MENU = 0, STATE_PLAY = 1, STATE_PLACE = 2, STATE_SELECT = 3, STATE_GAMEOVER = 4, STATE_PAUSED = 5;
+  var gameState = STATE_MENU;
+  var cursorX = 7, cursorY = 7; // grid coords
+  var wave = 0;
+  var baseHp = 20, baseMaxHp = 20;
+  var kills = 0;
+  var gold = 100;
+  var cannonCost = 50;
+  var enemies = [];
+  var cannons = [];
+  var projectiles = [];
+  var particles = [];
+  var spawnTimer = 0;
+  var spawnCount = 0;
+  var spawnTotal = 0;
+  var waveActive = false;
+  var tickCount = 0;
+  var selectedCannon = null;
+  var announceText = '';
+  var announceTimer = 0;
+  var lastFrameTime = 0;
+  var fps = 0;
+  var totalWaves = 0;
+
+  // ── Path (fixed S-curve for readability on small display) ──
+  // Path defined as grid coords, converted to pixel centers
+  var PATH_NODES = [
+    {x: 2, y: -1},
+    {x: 2, y: 2},
+    {x: 12, y: 2},
+    {x: 12, y: 5},
+    {x: 2, y: 5},
+    {x: 2, y: 8},
+    {x: 12, y: 8},
+    {x: 12, y: 11},
+    {x: 7, y: 11},
+    {x: 7, y: 14},
+    {x: 7, y: 16}
+  ];
+
+  // Convert grid path to pixel path
+  var pathPixels = [];
+  for (var i = 0; i < PATH_NODES.length; i++) {
+    pathPixels.push({ x: PATH_NODES[i].x * GRID + GRID / 2, y: PATH_NODES[i].y * GRID + GRID / 2 });
+  }
+
+  // Path cells — mark grid cells the path passes through
+  var pathCells = {};
+  function markPathCells() {
+    for (var i = 0; i < PATH_NODES.length - 1; i++) {
+      var a = PATH_NODES[i], b = PATH_NODES[i + 1];
+      var steps = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+      for (var s = 0; s <= steps; s++) {
+        var t = steps === 0 ? 0 : s / steps;
+        var cx = Math.round(a.x + (b.x - a.x) * t);
+        var cy = Math.round(a.y + (b.y - a.y) * t);
+        if (cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS) {
+          pathCells[cx + ',' + cy] = true;
+        }
+      }
+    }
+  }
+  markPathCells();
+
+  // Compute total path length in pixels
+  var pathLength = 0;
+  for (var i = 1; i < pathPixels.length; i++) {
+    var dx = pathPixels[i].x - pathPixels[i-1].x;
+    var dy = pathPixels[i].y - pathPixels[i-1].y;
+    pathLength += Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function getPathPos(progress) {
+    var target = progress * pathLength;
+    var traveled = 0;
+    for (var i = 1; i < pathPixels.length; i++) {
+      var dx = pathPixels[i].x - pathPixels[i-1].x;
+      var dy = pathPixels[i].y - pathPixels[i-1].y;
+      var segLen = Math.sqrt(dx * dx + dy * dy);
+      if (traveled + segLen >= target) {
+        var t = segLen === 0 ? 0 : (target - traveled) / segLen;
+        return { x: pathPixels[i-1].x + dx * t, y: pathPixels[i-1].y + dy * t };
+      }
+      traveled += segLen;
+    }
+    return pathPixels[pathPixels.length - 1];
+  }
+
+  // ── Enemy Types ──
+  var ENEMY_DEFS = [
+    { type: 'scout',  wave: 1,  hp: 30,  speed: 1.8, color: '#ff4444', r: 8,  reward: 8 },
+    { type: 'grunt',  wave: 1,  hp: 50,  speed: 1.2, color: '#ff9900', r: 10, reward: 10 },
+    { type: 'tank',   wave: 5,  hp: 180, speed: 0.6, color: '#bb66ff', r: 14, reward: 25 },
+    { type: 'speed',  wave: 8,  hp: 35,  speed: 3.0, color: '#44ff44', r: 7,  reward: 12 },
+    { type: 'boss',   wave: 10, hp: 600, speed: 0.4, color: '#ff0044', r: 18, reward: 100 }
+  ];
+
+  // ── Cannon Specs ──
+  var CANNON_SPECS = [
+    { name: 'Blaster',  color: '#4a9eff', dmg: 10, rate: 3.0, range: 100, cost: 50,  desc: 'Balanced' },
+    { name: 'Sniper',   color: '#ff4466', dmg: 35, rate: 0.8, range: 180, cost: 80,  desc: 'Long range' },
+    { name: 'Rapid',    color: '#44ff88', dmg: 5,  rate: 8.0, range: 70,  cost: 60,  desc: 'Fast fire' }
+  ];
+
+  var placingSpec = 0; // which cannon spec we're placing
+
+  // ── Spawn Wave ──
+  function startWave() {
+    wave++;
+    waveActive = true;
+    spawnTimer = 0;
+    spawnCount = 0;
+    var base = 5 + wave * 2;
+    if (wave % 10 === 0) base = 1; // boss wave
+    spawnTotal = base;
+    announceText = wave % 10 === 0 ? '💀 BOSS WAVE ' + wave : '⚔ WAVE ' + wave;
+    announceTimer = 90;
+    gold += 10 + wave * 2;
+  }
+
+  function spawnEnemy() {
+    var available = [];
+    for (var i = 0; i < ENEMY_DEFS.length; i++) {
+      if (ENEMY_DEFS[i].wave <= wave) available.push(ENEMY_DEFS[i]);
+    }
+    // Boss waves: just spawn the boss
+    if (wave % 10 === 0 && spawnCount === 0) {
+      var bdef = ENEMY_DEFS[4]; // boss
+      var hpScale = 1 + (wave - 10) * 0.5;
+      enemies.push({
+        type: bdef.type, hp: bdef.hp * hpScale, maxHp: bdef.hp * hpScale,
+        speed: bdef.speed, color: bdef.color, r: bdef.r, reward: bdef.reward * (1 + Math.floor(wave / 10)),
+        progress: 0, dead: false, hitFlash: 0
+      });
+      spawnCount++;
+      return;
+    }
+    // Normal waves: pick from available
+    var pick = available[Math.floor(Math.random() * available.length)];
+    var hpScale = 1 + (wave - 1) * 0.15;
+    enemies.push({
+      type: pick.type, hp: pick.hp * hpScale, maxHp: pick.hp * hpScale,
+      speed: pick.speed, color: pick.color, r: pick.r, reward: pick.reward,
+      progress: 0, dead: false, hitFlash: 0
+    });
+    spawnCount++;
+  }
+
+  // ── Simulation ──
+  function simTick() {
+    tickCount++;
+
+    // Spawn
+    if (waveActive && spawnCount < spawnTotal) {
+      spawnTimer--;
+      if (spawnTimer <= 0) {
+        spawnEnemy();
+        spawnTimer = wave % 10 === 0 ? 60 : 15 + Math.floor(Math.random() * 10);
+      }
+    }
+
+    // Move enemies
+    for (var i = enemies.length - 1; i >= 0; i--) {
+      var e = enemies[i];
+      if (e.dead) continue;
+      e.progress += (e.speed * 0.4) / pathLength;
+      e.hitFlash = Math.max(0, e.hitFlash - 1);
+      if (e.progress >= 1) {
+        var dmg = e.type === 'boss' ? 5 : 1;
+        baseHp = Math.max(0, baseHp - dmg);
+        e.dead = true;
+        if (baseHp <= 0) {
+          gameState = STATE_GAMEOVER;
+          totalWaves = wave;
+        }
+      }
+    }
+
+    // Cannon fire
+    for (var ci = 0; ci < cannons.length; ci++) {
+      var c = cannons[ci];
+      c.cooldown = Math.max(0, c.cooldown - 1);
+      if (c.cooldown > 0) continue;
+
+      // Find target
+      var best = null, bestDist = Infinity;
+      for (var ei = 0; ei < enemies.length; ei++) {
+        var e = enemies[ei];
+        if (e.dead) continue;
+        var pos = getPathPos(e.progress);
+        var dx = pos.x - c.px;
+        var dy = pos.y - c.py;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= c.range && dist < bestDist) {
+          best = e;
+          bestDist = dist;
+        }
+      }
+      if (best) {
+        var pos = getPathPos(best.progress);
+        c.cooldown = Math.round(60 / c.rate);
+        c.targetAngle = Math.atan2(pos.y - c.py, pos.x - c.px);
+
+        // XP for shooting
+        var dmg = c.dmg * (1 + c.level * 0.15);
+        // Crit chance
+        var crit = Math.random() < 0.1 + c.level * 0.01;
+        if (crit) dmg *= 2;
+
+        projectiles.push({
+          x: c.px, y: c.py, tx: pos.x, ty: pos.y,
+          dmg: dmg, speed: 8, color: c.color, target: best, crit: crit
+        });
+      }
+    }
+
+    // Move projectiles
+    for (var pi = projectiles.length - 1; pi >= 0; pi--) {
+      var p = projectiles[pi];
+      var dx = p.tx - p.x, dy = p.ty - p.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < p.speed) {
+        // Hit
+        if (p.target && !p.target.dead) {
+          p.target.hp -= p.dmg;
+          p.target.hitFlash = 6;
+          if (p.target.hp <= 0) {
+            p.target.dead = true;
+            kills++;
+            gold += p.target.reward;
+            // XP to cannon that killed it
+            for (var k = 0; k < cannons.length; k++) {
+              var ck = cannons[k];
+              var epos = getPathPos(p.target.progress);
+              var dd = Math.sqrt((epos.x - ck.px) * (epos.x - ck.px) + (epos.y - ck.py) * (epos.y - ck.py));
+              if (dd <= ck.range) {
+                ck.xp += p.target.reward;
+                // Level up
+                var needed = 50 + ck.level * 40;
+                while (ck.xp >= needed) {
+                  ck.xp -= needed;
+                  ck.level++;
+                  needed = 50 + ck.level * 40;
+                  announceText = '⬆ Lv' + ck.level + ' ' + ck.specName;
+                  announceTimer = 50;
+                }
+                break;
+              }
+            }
+            // Death particles
+            var epos2 = getPathPos(p.target.progress);
+            for (var dp = 0; dp < 6; dp++) {
+              particles.push({
+                x: epos2.x, y: epos2.y,
+                vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
+                life: 20, maxLife: 20, color: p.target.color, size: 3
+              });
+            }
+          }
+          // Impact particle
+          particles.push({
+            x: p.tx, y: p.ty,
+            vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2,
+            life: 10, maxLife: 10, color: '#ffffff', size: p.crit ? 5 : 2
+          });
+        }
+        projectiles.splice(pi, 1);
+      } else {
+        p.x += (dx / dist) * p.speed;
+        p.y += (dy / dist) * p.speed;
+      }
+    }
+
+    // Particles
+    for (var i = particles.length - 1; i >= 0; i--) {
+      var pt = particles[i];
+      pt.x += pt.vx;
+      pt.y += pt.vy;
+      pt.vy += 0.1;
+      pt.life--;
+      if (pt.life <= 0) particles.splice(i, 1);
+    }
+
+    // Clean dead enemies
+    for (var i = enemies.length - 1; i >= 0; i--) {
+      if (enemies[i].dead) enemies.splice(i, 1);
+    }
+
+    // Wave complete
+    if (waveActive && spawnCount >= spawnTotal && enemies.length === 0) {
+      waveActive = false;
+      announceText = '✓ WAVE ' + wave + ' CLEAR';
+      announceTimer = 70;
+    }
+
+    // Announce timer
+    if (announceTimer > 0) announceTimer--;
+  }
+
+  // ── Drawing ──
+  function draw() {
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(0, 0, W, H);
+
+    if (gameState === STATE_MENU) {
+      drawMenu();
+      return;
+    }
+    if (gameState === STATE_GAMEOVER) {
+      drawGameOver();
+      return;
+    }
+
+    // Grid (subtle)
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 1;
+    for (var x = 0; x <= W; x += GRID) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (var y = 0; y <= H; y += GRID) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+
+    // Path glow
+    ctx.strokeStyle = '#1a3355';
+    ctx.lineWidth = GRID * 0.8;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(pathPixels[0].x, pathPixels[0].y);
+    for (var i = 1; i < pathPixels.length; i++) {
+      ctx.lineTo(pathPixels[i].x, pathPixels[i].y);
+    }
+    ctx.stroke();
+
+    // Path bright line
+    ctx.strokeStyle = '#2a5588';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(pathPixels[0].x, pathPixels[0].y);
+    for (var i = 1; i < pathPixels.length; i++) {
+      ctx.lineTo(pathPixels[i].x, pathPixels[i].y);
+    }
+    ctx.stroke();
+
+    // Path direction dots
+    var now = tickCount * 0.05;
+    for (var d = 0; d < 8; d++) {
+      var prog = ((d / 8) + now * 0.02) % 1;
+      var dp = getPathPos(prog);
+      ctx.fillStyle = 'rgba(74,158,255,0.3)';
+      ctx.beginPath();
+      ctx.arc(dp.x, dp.y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Base
+    var basePos = pathPixels[pathPixels.length - 2]; // second to last node on screen
+    ctx.fillStyle = baseHp > baseMaxHp * 0.3 ? '#224488' : '#882222';
+    ctx.fillRect(basePos.x - GRID, basePos.y - GRID/2, GRID * 2, GRID);
+    ctx.fillStyle = '#e8e8e8';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🏠 ' + baseHp + '/' + baseMaxHp, basePos.x, basePos.y + 5);
+
+    // Cannons
+    for (var i = 0; i < cannons.length; i++) {
+      var c = cannons[i];
+      // Range circle (if selected)
+      if (selectedCannon === c || (gameState === STATE_SELECT && cannons.indexOf(selectedCannon) === i)) {
+        ctx.strokeStyle = 'rgba(74,158,255,0.2)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(c.px, c.py, c.range, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      // Body
+      ctx.fillStyle = c.color;
+      ctx.beginPath();
+      ctx.arc(c.px, c.py, 14, 0, Math.PI * 2);
+      ctx.fill();
+      // Barrel
+      var angle = c.targetAngle || 0;
+      ctx.strokeStyle = c.color;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(c.px, c.py);
+      ctx.lineTo(c.px + Math.cos(angle) * 18, c.py + Math.sin(angle) * 18);
+      ctx.stroke();
+      // Level
+      if (c.level > 0) {
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(c.level, c.px, c.py - 18);
+      }
+      // Selection highlight
+      if (selectedCannon === c) {
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(c.px, c.py, 18, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    // Enemies
+    for (var i = 0; i < enemies.length; i++) {
+      var e = enemies[i];
+      if (e.dead) continue;
+      var pos = getPathPos(e.progress);
+      // Hit flash
+      if (e.hitFlash > 0) {
+        ctx.fillStyle = '#ffffff';
+      } else {
+        ctx.fillStyle = e.color;
+      }
+      // Shape by type
+      if (e.type === 'boss') {
+        // Octagon
+        ctx.beginPath();
+        for (var s = 0; s < 8; s++) {
+          var a = (s / 8) * Math.PI * 2 - Math.PI / 8;
+          var px = pos.x + Math.cos(a) * e.r;
+          var py = pos.y + Math.sin(a) * e.r;
+          if (s === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        // Glow
+        ctx.shadowColor = e.color;
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      } else if (e.type === 'tank') {
+        // Hexagon
+        ctx.beginPath();
+        for (var s = 0; s < 6; s++) {
+          var a = (s / 6) * Math.PI * 2;
+          var px = pos.x + Math.cos(a) * e.r;
+          var py = pos.y + Math.sin(a) * e.r;
+          if (s === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+      } else if (e.type === 'speed') {
+        // Diamond
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y - e.r);
+        ctx.lineTo(pos.x + e.r, pos.y);
+        ctx.lineTo(pos.x, pos.y + e.r);
+        ctx.lineTo(pos.x - e.r, pos.y);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        // Circle
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, e.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // HP bar
+      var hpPct = e.hp / e.maxHp;
+      if (hpPct < 1) {
+        var bw = e.r * 2.5;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(pos.x - bw/2, pos.y - e.r - 8, bw, 4);
+        ctx.fillStyle = hpPct > 0.5 ? '#44ff44' : hpPct > 0.25 ? '#ffaa00' : '#ff4444';
+        ctx.fillRect(pos.x - bw/2, pos.y - e.r - 8, bw * hpPct, 4);
+      }
+    }
+
+    // Projectiles
+    for (var i = 0; i < projectiles.length; i++) {
+      var p = projectiles[i];
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.crit ? 4 : 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      if (p.crit) {
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 6;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // Particles
+    for (var i = 0; i < particles.length; i++) {
+      var pt = particles[i];
+      var alpha = pt.life / pt.maxLife;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = pt.color;
+      ctx.fillRect(pt.x - pt.size/2, pt.y - pt.size/2, pt.size, pt.size);
+    }
+    ctx.globalAlpha = 1;
+
+    // Cursor (in play/place mode)
+    if (gameState === STATE_PLAY || gameState === STATE_PLACE) {
+      var cx = cursorX * GRID + GRID / 2;
+      var cy = cursorY * GRID + GRID / 2;
+      var onPath = !!pathCells[cursorX + ',' + cursorY];
+      var hasCannon = false;
+      for (var i = 0; i < cannons.length; i++) {
+        if (cannons[i].gx === cursorX && cannons[i].gy === cursorY) { hasCannon = true; break; }
+      }
+      var validPlace = !onPath && !hasCannon && cursorY >= 0 && cursorY < ROWS;
+
+      // Crosshair
+      var pulse = 0.5 + 0.5 * Math.sin(tickCount * 0.15);
+      if (gameState === STATE_PLACE) {
+        // Placement preview
+        if (validPlace) {
+          ctx.strokeStyle = 'rgba(74,255,136,' + (0.4 + 0.3 * pulse) + ')';
+          ctx.fillStyle = 'rgba(74,255,136,0.1)';
+          // Range preview
+          ctx.beginPath();
+          ctx.arc(cx, cy, CANNON_SPECS[placingSpec].range, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          ctx.strokeStyle = 'rgba(255,68,68,' + (0.5 + 0.3 * pulse) + ')';
+        }
+        ctx.lineWidth = 2;
+        ctx.strokeRect(cursorX * GRID + 2, cursorY * GRID + 2, GRID - 4, GRID - 4);
+        // Spec name
+        ctx.fillStyle = validPlace ? '#44ff88' : '#ff4444';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(CANNON_SPECS[placingSpec].name + ' $' + CANNON_SPECS[placingSpec].cost, cx, cy - 22);
+      } else {
+        // Normal cursor
+        ctx.strokeStyle = 'rgba(74,158,255,' + (0.4 + 0.4 * pulse) + ')';
+        ctx.lineWidth = 2;
+        // Crosshair lines
+        ctx.beginPath();
+        ctx.moveTo(cx - 8, cy); ctx.lineTo(cx - 3, cy);
+        ctx.moveTo(cx + 3, cy); ctx.lineTo(cx + 8, cy);
+        ctx.moveTo(cx, cy - 8); ctx.lineTo(cx, cy - 3);
+        ctx.moveTo(cx, cy + 3); ctx.lineTo(cx, cy + 8);
+        ctx.stroke();
+      }
+    }
+
+    // ── HUD ──
+    // Top bar
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, 36);
+    ctx.fillStyle = '#e8e8e8';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('⚔ W' + wave, 10, 25);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = baseHp <= 5 ? '#ff4444' : '#e8e8e8';
+    ctx.fillText('❤ ' + baseHp, W / 2 - 60, 25);
+    ctx.fillStyle = '#ffd700';
+    ctx.fillText('💰 ' + gold, W / 2 + 60, 25);
+    ctx.fillStyle = '#aaaaaa';
+    ctx.textAlign = 'right';
+    ctx.fillText('💀 ' + kills, W - 10, 25);
+
+    // Bottom bar (controls hint)
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, H - 32, W, 32);
+    ctx.fillStyle = '#888';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    if (gameState === STATE_PLAY) {
+      if (!waveActive && enemies.length === 0) {
+        ctx.fillStyle = '#44ff88';
+        ctx.fillText('[ENTER] Start Wave ' + (wave + 1) + '  |  [←→] Spec  |  [P] Place', W / 2, H - 12);
+      } else {
+        ctx.fillText('[P] Place Cannon  |  [ESC] Pause  |  ↑↓←→ Move', W / 2, H - 12);
+      }
+    } else if (gameState === STATE_PLACE) {
+      ctx.fillText('[ENTER] Place $' + CANNON_SPECS[placingSpec].cost + '  |  [←→] Change Spec  |  [ESC] Cancel', W / 2, H - 12);
+    } else if (gameState === STATE_SELECT) {
+      ctx.fillText('[ENTER] Upgrade  |  [DEL] Sell  |  [ESC] Deselect', W / 2, H - 12);
+    } else if (gameState === STATE_PAUSED) {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#e8e8e8';
+      ctx.font = 'bold 32px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⏸ PAUSED', W / 2, H / 2 - 10);
+      ctx.font = '16px sans-serif';
+      ctx.fillStyle = '#888';
+      ctx.fillText('[ESC] Resume', W / 2, H / 2 + 25);
+    }
+
+    // Announcement
+    if (announceTimer > 0) {
+      var alpha = Math.min(1, announceTimer / 20);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#0d0d0d';
+      ctx.fillRect(W / 2 - 150, 50, 300, 40);
+      ctx.strokeStyle = '#4a9eff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(W / 2 - 150, 50, 300, 40);
+      ctx.fillStyle = '#e8e8e8';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(announceText, W / 2, 76);
+      ctx.globalAlpha = 1;
+    }
+
+    // Selected cannon info
+    if (gameState === STATE_SELECT && selectedCannon) {
+      var sc = selectedCannon;
+      ctx.fillStyle = 'rgba(0,0,0,0.85)';
+      ctx.fillRect(W / 2 - 120, H - 100, 240, 65);
+      ctx.strokeStyle = '#4a9eff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(W / 2 - 120, H - 100, 240, 65);
+      ctx.fillStyle = sc.color;
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(sc.specName + ' Lv' + sc.level, W / 2, H - 82);
+      ctx.fillStyle = '#aaa';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('DMG: ' + Math.round(sc.dmg * (1 + sc.level * 0.15)) + '  RATE: ' + sc.rate.toFixed(1) + '  RNG: ' + sc.range, W / 2, H - 66);
+      ctx.fillText('XP: ' + sc.xp + '/' + (50 + sc.level * 40) + '  |  Sell: $' + Math.floor(sc.sellValue), W / 2, H - 50);
+    }
+
+    // Danger vignette
+    if (baseHp <= baseMaxHp * 0.3 && baseHp > 0) {
+      var intensity = 0.15 + 0.1 * Math.sin(tickCount * 0.2);
+      var grad = ctx.createRadialGradient(W/2, H/2, W * 0.3, W/2, H/2, W * 0.7);
+      grad.addColorStop(0, 'rgba(255,0,0,0)');
+      grad.addColorStop(1, 'rgba(255,0,0,' + intensity + ')');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  function drawMenu() {
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(0, 0, W, H);
+
+    // Title
+    ctx.fillStyle = '#4a9eff';
+    ctx.font = 'bold 36px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚔ TOWER DEFENSE', W / 2, 180);
+
+    ctx.fillStyle = '#888';
+    ctx.font = '16px sans-serif';
+    ctx.fillText('Meta Rayban Display Edition', W / 2, 215);
+
+    // Instructions
+    ctx.fillStyle = '#e8e8e8';
+    ctx.font = '18px sans-serif';
+    var lines = [
+      '↑↓←→  Move cursor',
+      'ENTER  Start wave / Place / Select',
+      'P      Place mode',
+      'ESC    Cancel / Pause',
+      '',
+      'Defend your base from enemies!',
+      'Place cannons along the path.',
+    ];
+    for (var i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], W / 2, 280 + i * 28);
+    }
+
+    // Start prompt
+    var pulse = 0.5 + 0.5 * Math.sin(tickCount * 0.1);
+    ctx.fillStyle = 'rgba(74,158,255,' + pulse + ')';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText('[ENTER] START', W / 2, 520);
+  }
+
+  function drawGameOver() {
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#ff4444';
+    ctx.font = 'bold 36px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('💀 GAME OVER', W / 2, 200);
+
+    ctx.fillStyle = '#e8e8e8';
+    ctx.font = '22px sans-serif';
+    ctx.fillText('Wave: ' + totalWaves, W / 2, 270);
+    ctx.fillText('Kills: ' + kills, W / 2, 305);
+    ctx.fillText('Cannons: ' + cannons.length, W / 2, 340);
+
+    // Grade
+    var grade = totalWaves >= 50 ? 'S' : totalWaves >= 30 ? 'A' : totalWaves >= 20 ? 'B' : totalWaves >= 10 ? 'C' : 'D';
+    var gradeColor = grade === 'S' ? '#ffd700' : grade === 'A' ? '#44ff88' : grade === 'B' ? '#4a9eff' : '#ff9900';
+    ctx.fillStyle = gradeColor;
+    ctx.font = 'bold 60px sans-serif';
+    ctx.fillText(grade, W / 2, 430);
+
+    var pulse = 0.5 + 0.5 * Math.sin(tickCount * 0.1);
+    ctx.fillStyle = 'rgba(74,158,255,' + pulse + ')';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText('[ENTER] PLAY AGAIN', W / 2, 520);
+  }
+
+  // ── Input ──
+  function canPlaceAt(gx, gy) {
+    if (gx < 0 || gx >= COLS || gy < 0 || gy >= ROWS) return false;
+    if (pathCells[gx + ',' + gy]) return false;
+    for (var i = 0; i < cannons.length; i++) {
+      if (cannons[i].gx === gx && cannons[i].gy === gy) return false;
+    }
+    return true;
+  }
+
+  function getCannonAt(gx, gy) {
+    for (var i = 0; i < cannons.length; i++) {
+      if (cannons[i].gx === gx && cannons[i].gy === gy) return cannons[i];
+    }
+    return null;
+  }
+
+  document.addEventListener('keydown', function(e) {
+    e.preventDefault();
+
+    if (gameState === STATE_MENU) {
+      if (e.key === 'Enter') {
+        gameState = STATE_PLAY;
+        startWave();
+      }
+      return;
+    }
+
+    if (gameState === STATE_GAMEOVER) {
+      if (e.key === 'Enter') {
+        // Reset
+        wave = 0; baseHp = baseMaxHp; kills = 0; gold = 100;
+        enemies = []; cannons = []; projectiles = []; particles = [];
+        waveActive = false; selectedCannon = null;
+        gameState = STATE_PLAY;
+        startWave();
+      }
+      return;
+    }
+
+    if (gameState === STATE_PAUSED) {
+      if (e.key === 'Escape' || e.key === 'Backspace') {
+        gameState = STATE_PLAY;
+      }
+      return;
+    }
+
+    // Movement (all play states)
+    if (e.key === 'ArrowUp')    { cursorY = Math.max(0, cursorY - 1); return; }
+    if (e.key === 'ArrowDown')  { cursorY = Math.min(ROWS - 1, cursorY + 1); return; }
+    if (e.key === 'ArrowLeft')  { cursorX = Math.max(0, cursorX - 1); return; }
+    if (e.key === 'ArrowRight') { cursorX = Math.min(COLS - 1, cursorX + 1); return; }
+
+    if (gameState === STATE_PLAY) {
+      if (e.key === 'Enter') {
+        // Check if there's a cannon here to select
+        var existing = getCannonAt(cursorX, cursorY);
+        if (existing) {
+          selectedCannon = existing;
+          gameState = STATE_SELECT;
+          return;
+        }
+        // Otherwise start wave if waiting
+        if (!waveActive && enemies.length === 0) {
+          startWave();
+        }
+      }
+      if (e.key === 'p' || e.key === 'P') {
+        gameState = STATE_PLACE;
+      }
+      if (e.key === 'Escape' || e.key === 'Backspace') {
+        gameState = STATE_PAUSED;
+      }
+    }
+
+    else if (gameState === STATE_PLACE) {
+      if (e.key === 'ArrowLeft' || e.key === 'a') {
+        // In place mode, left/right still move cursor (handled above)
+        // Use different keys for spec switching
+      }
+      if (e.key === '[' || e.key === ',') {
+        placingSpec = (placingSpec - 1 + CANNON_SPECS.length) % CANNON_SPECS.length;
+      }
+      if (e.key === ']' || e.key === '.') {
+        placingSpec = (placingSpec + 1) % CANNON_SPECS.length;
+      }
+      if (e.key === 'Enter') {
+        var spec = CANNON_SPECS[placingSpec];
+        if (gold >= spec.cost && canPlaceAt(cursorX, cursorY)) {
+          gold -= spec.cost;
+          cannons.push({
+            gx: cursorX, gy: cursorY,
+            px: cursorX * GRID + GRID / 2,
+            py: cursorY * GRID + GRID / 2,
+            specName: spec.name, color: spec.color,
+            dmg: spec.dmg, rate: spec.rate, range: spec.range,
+            cooldown: 0, targetAngle: 0,
+            level: 0, xp: 0,
+            sellValue: spec.cost * 0.5
+          });
+          announceText = '🔧 ' + spec.name + ' placed!';
+          announceTimer = 40;
+        }
+      }
+      if (e.key === 'Escape' || e.key === 'Backspace') {
+        gameState = STATE_PLAY;
+      }
+    }
+
+    else if (gameState === STATE_SELECT) {
+      if (e.key === 'Escape' || e.key === 'Backspace') {
+        selectedCannon = null;
+        gameState = STATE_PLAY;
+      }
+      if (e.key === 'Delete' || e.key === 'd' || e.key === 'D') {
+        // Sell
+        if (selectedCannon) {
+          gold += Math.floor(selectedCannon.sellValue);
+          var idx = cannons.indexOf(selectedCannon);
+          if (idx !== -1) cannons.splice(idx, 1);
+          announceText = '💰 Sold for $' + Math.floor(selectedCannon.sellValue);
+          announceTimer = 40;
+          selectedCannon = null;
+          gameState = STATE_PLAY;
+        }
+      }
+    }
+  });
+
+  // ── Voice Integration ──
+  function initVoice() {
+    if (typeof MetaGlassSDK === 'undefined' || !MetaGlassSDK.isSupported) return;
+    try {
+      MetaGlassSDK.dictation.addEventListener('result', function(ev) {
+        if (!ev.isFinal) return;
+        var cmd = ev.transcript.toLowerCase().trim();
+        if (cmd.indexOf('place') !== -1) {
+          if (gameState === STATE_PLAY) gameState = STATE_PLACE;
+        } else if (cmd.indexOf('pause') !== -1) {
+          if (gameState === STATE_PLAY) gameState = STATE_PAUSED;
+        } else if (cmd.indexOf('resume') !== -1 || cmd.indexOf('unpause') !== -1) {
+          if (gameState === STATE_PAUSED) gameState = STATE_PLAY;
+        } else if (cmd.indexOf('start') !== -1 || cmd.indexOf('go') !== -1) {
+          if (gameState === STATE_PLAY && !waveActive && enemies.length === 0) startWave();
+          else if (gameState === STATE_MENU) { gameState = STATE_PLAY; startWave(); }
+        } else if (cmd.indexOf('cancel') !== -1 || cmd.indexOf('back') !== -1) {
+          if (gameState === STATE_PLACE || gameState === STATE_SELECT) {
+            selectedCannon = null;
+            gameState = STATE_PLAY;
+          }
+        }
+      });
+      MetaGlassSDK.dictation.start({ silenceTimeout: 3000, maxDuration: 120000, punctuation: 'none' });
+    } catch (ex) { /* SDK not available */ }
+  }
+
+  // ── Main Loop ──
+  function gameLoop(timestamp) {
+    if (!lastFrameTime) lastFrameTime = timestamp;
+    var delta = timestamp - lastFrameTime;
+    lastFrameTime = timestamp;
+    fps = delta > 0 ? Math.round(1000 / delta) : 60;
+
+    if (gameState === STATE_PLAY || gameState === STATE_PLACE || gameState === STATE_SELECT) {
+      simTick();
+    }
+
+    draw();
+    requestAnimationFrame(gameLoop);
+  }
+
+  // ── Init ──
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(function() { initVoice(); requestAnimationFrame(gameLoop); }, 100);
+    });
+  } else {
+    setTimeout(function() { initVoice(); requestAnimationFrame(gameLoop); }, 100);
+  }
+
+})();
+</script>
+</body>
+</html>
