@@ -1290,3 +1290,23 @@ If it fails, DO NOT commit. Fix the error first.
 - **Implementation:** Single block-scoped section inside `drawCannon()` (Phase 5), placed between the spec/path glow aura and the recoil animation. Uses only existing `level`, `baseR`, `x`, `y` variables. No new state, DOM, listeners, or init calls. Zero TDZ risk.
 - **Performance:** 3-8 small arc fills per cannon per frame, each with shadowBlur. With typical 1-4 cannons, that's 3-32 small circles — negligible cost.
 - **Design rationale:** The game has 20 levels with dramatic stat differences, but a level 3 cannon and a level 18 cannon look nearly identical (same shape, same glow aura, slightly different XP ring). The orbiting motes create an immediately readable "power level" — glance at a cannon and you can tell it's high-tier from the particle density and speed. This is the standard "aura/particle" power visualization used in every RPG and MOBA (League of Legends level indicator, Diablo gear glow, WoW enchant effects). The color matching with milestone tiers reinforces the level-up celebration system — you see amber motes and remember "that's the Armor Pierce tier." In multiplayer, it lets you assess teammates' strength at a glance.
+
+### 2026-03-11: Ambient Floating Particles (Atmospheric Dust Motes)
+- **35 floating particles** drift gently across the battlefield — tiny white, blue, and green motes that give the dark canvas a sense of depth and atmosphere. The battlefield was previously a flat dark gradient with grid lines. Now it feels like a living space with particles slowly rising and swaying.
+- **Movement physics:**
+  - Each particle drifts slowly upward (−0.1 to −0.25 px/frame) with slight horizontal drift (±0.15 px/frame)
+  - Sinusoidal horizontal sway adds organic, wind-blown movement — each particle has a unique phase and frequency
+  - Particles wrap around screen edges seamlessly (exit top → re-enter bottom, etc.)
+- **Visual variety:**
+  - 70% white, 15% pale blue (#88ccff), 15% pale green (#aaddaa) — creates subtle color depth
+  - Size ranges from 1-3px (smaller than gameplay elements so they never distract)
+  - Alpha ranges 0.03-0.08 with a gentle pulse overlay — extremely subtle, noticeable only when you're not focused on combat
+- **Lazy initialization** — particles spawn on first `drawAmbientParticles()` call, not in Phase 7. No init code needed. The array fills itself up to TARGET_COUNT each frame until 35 particles exist.
+- **Persistent across game resets** — particles are atmosphere, not gameplay state. They keep drifting through game over, play again, wave transitions. Creates visual continuity.
+- **Implementation:**
+  - Phase 3: `let ambientParticles = []` state variable (line 3847)
+  - Phase 5: `drawAmbientParticles()` function defined before `drawGrid()` — handles lazy spawn, drift physics, and rendering in a single pass
+  - drawFrame: Called right after `drawGrid()` and before the base line
+  - No new DOM elements, event listeners, or init calls. Zero TDZ risk.
+- **Performance:** 35 `arc` fills per frame with no gradients or shadows. ~0.1ms per frame — negligible.
+- **Design rationale:** The #1 visual gap remaining was the dead-feeling background. During combat, the canvas is alive with projectiles, particles, and effects. Between waves, it's a flat dark void. Ambient particles add the same kind of atmospheric life that dust motes give to a sunlit room — you barely notice them consciously, but their absence makes the space feel sterile. This is a standard technique in polished games (Hollow Knight's background particles, Hades' floating embers, Ori's atmospheric dust) that separates "prototype" from "polished." The ultra-low alpha (3-8%) ensures they never compete with gameplay elements for attention.
