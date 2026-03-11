@@ -2197,6 +2197,7 @@
       prestige_max:   { icon: '💎', name: 'Fully Upgraded',   desc: 'Max out a prestige upgrade' },
       fly_swatter:    { icon: '✈️', name: 'Fly Swatter',      desc: 'Kill 10 flying enemies in one game' },
       ricochet_kill:  { icon: '↯', name: 'Ricochet!',        desc: 'Kill an enemy with overkill ricochet' },
+      second_wind:    { icon: '💫', name: 'Second Wind',      desc: 'Revive from death with Second Wind' },
     };
 
 
@@ -2358,6 +2359,12 @@
         desc: 'Start each game with bonus XP on your cannons',
         maxLevel: 3, costs: [3, 6, 10],
         effect: lvl => `+${lvl * 50} starting XP per cannon`
+      },
+      {
+        id: 'second_wind', icon: '💫', name: 'Second Wind',
+        desc: 'Revive once per game when base HP hits 0',
+        maxLevel: 3, costs: [5, 10, 15],
+        effect: lvl => `Revive at ${[30, 50, 75][lvl-1]}% HP, kill ${[50, 75, 100][lvl-1]}% enemies`
       }
     ];
 
@@ -2545,6 +2552,7 @@
     let sessionKillsByType = {}; // { type: count } — per-run kill breakdown
     let sessionStartTime = 0; // timestamp when the first wave starts
     let personalBestBroken = false; // true once we pass lifetimeStats.bestWave this run
+    let secondWindUsed = false; // true once second wind revival triggers this run
     let waveDesperationWarned = false; // true once ⏱ DESPERATION! popup fires this wave
     let runHistory = []; // Array of past game run records
     let targetLockedEnemyId = null; // ID of manually locked target enemy (click-to-focus)
@@ -5684,6 +5692,10 @@
         updateBaseHpHUD();
 
         if (baseHp <= 0) {
+          // Try second wind revival before game over
+          if (triggerSecondWind()) {
+            // Survived! Continue the wave
+          } else {
           waveState = 'gameover';
           triggerScreenShake(true); // heavy shake on game over
           sfxGameOver();
@@ -5693,6 +5705,7 @@
           updateCannonUI();
           writeSnapshot();
           return;
+          }
         }
       }
 
@@ -5924,6 +5937,73 @@
         hudBaseHp.classList.add('damaged');
         setTimeout(() => hudBaseHp.classList.remove('damaged'), 400);
       }
+    }
+
+    function triggerSecondWind() {
+      const lvl = getPrestigeLevel('second_wind');
+      if (lvl <= 0 || secondWindUsed) return false;
+      secondWindUsed = true;
+      unlockAchievement('second_wind');
+      // Restore HP based on tier
+      const hpPct = [0.30, 0.50, 0.75][lvl - 1];
+      baseHp = Math.max(1, Math.floor(getEffectiveMaxHp() * hpPct));
+      // Kill percentage of enemies based on tier
+      const killPct = [0.50, 0.75, 1.00][lvl - 1];
+      const killable = enemies.filter(e => !e.dead && e.hp > 0 && e.type !== 'boss');
+      const toKill = Math.floor(killable.length * killPct);
+      // Sort by path progress descending — kill the ones closest to base first
+      killable.sort((a, b) => (b.pathProgress || 0) - (a.pathProgress || 0));
+      for (let i = 0; i < toKill && i < killable.length; i++) {
+        killable[i].dead = true;
+        killable[i].hp = 0;
+        // Death particles
+        for (let p = 0; p < 6; p++) {
+          particles.push({
+            x: killable[i].x, y: killable[i].y,
+            vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5,
+            life: 18, maxLife: 18,
+            color: '#ffd700', size: 3
+          });
+        }
+      }
+      enemies = enemies.filter(e => !e.dead);
+      // Dramatic announcement
+      streakAnnouncement = { text: '💫 SECOND WIND!', color: '#ffd700', size: 48, timer: 100 };
+      triggerScreenShake(true);
+      // Golden screen flash
+      bossDeathFlash = 15;
+      // Sound — ascending healing arpeggio
+      try {
+        const ac = typeof audioCtx !== 'undefined' ? audioCtx : null;
+        if (ac && !soundMuted) {
+          const now = ac.currentTime;
+          [523, 659, 784, 1047].forEach((freq, i) => {
+            const o = ac.createOscillator();
+            const g = ac.createGain();
+            o.type = 'sine';
+            o.frequency.value = freq;
+            g.gain.setValueAtTime(0.15 * soundVolume, now + i * 0.08);
+            g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.3);
+            o.connect(g); g.connect(ac.destination);
+            o.start(now + i * 0.08);
+            o.stop(now + i * 0.08 + 0.3);
+          });
+        }
+      } catch(e) {}
+      // HUD update
+      updateBaseHpHUD();
+      if (!offlineMode) metaRef.update({ baseHp, totalKills });
+      // Gold burst particles from center
+      for (let i = 0; i < 25; i++) {
+        const angle = (Math.PI * 2 * i) / 25;
+        const speed = 2 + Math.random() * 4;
+        scorePopups.push({
+          text: '✨', x: CANVAS_W / 2, y: CANVAS_H * 0.45,
+          vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+          life: 40, maxLife: 40, color: '#ffd700', size: 12
+        });
+      }
+      return true;
     }
 
     function showGameOver() {
@@ -6164,6 +6244,7 @@
       scorePopups = [];
       streakAnnouncement = null;
       personalBestBroken = false;
+      secondWindUsed = false;
       targetLockedEnemyId = null;
       waveDesperationWarned = false;
       activeSynergyKeys = new Set();
@@ -10018,6 +10099,24 @@
 
       // Low HP danger vignette (pulsing red edges)
       drawDangerVignette();
+
+      // Second Wind indicator (when available)
+      {
+        const swLvl = getPrestigeLevel('second_wind');
+        if (swLvl > 0 && !secondWindUsed && waveState !== 'gameover') {
+          const swNow = Date.now() / 1000;
+          const swAlpha = 0.5 + 0.3 * Math.sin(swNow * 2);
+          ctx.save();
+          ctx.globalAlpha = swAlpha;
+          ctx.font = 'bold 11px ' + getComputedStyle(document.body).fontFamily;
+          ctx.textAlign = 'left';
+          ctx.fillStyle = '#ffd700';
+          ctx.shadowColor = '#ffd700';
+          ctx.shadowBlur = 6;
+          ctx.fillText('💫 SECOND WIND', 8, CANVAS_H - 10);
+          ctx.restore();
+        }
+      }
 
       // Mini-map overlay (bottom-left)
       drawMiniMap();

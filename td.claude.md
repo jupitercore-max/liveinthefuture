@@ -1414,3 +1414,30 @@ If it fails, DO NOT commit. Fix the error first.
   - CSS changes in the existing `<style>` block (not Phase-relevant)
   - Zero TDZ risk — no new declarations or references
 - **Design rationale:** Players had no numeric feedback on cannon performance beyond the XP progress ring. Adding kills+DPS gives immediate build validation ("is my Sniper actually doing more damage than a Gatling?"). The milestone hints create anticipation and short-term goals — you're not just grinding XP, you're working toward a specific unlock. This is a core motivational pattern from RPGs (Diablo's "2 more levels to unlock Whirlwind") applied to the TD upgrade tree.
+
+### 2026-03-11: Prestige Upgrade — Second Wind (Revival System)
+- **New prestige upgrade: 💫 Second Wind** — When your base HP hits 0, instead of game over, the game triggers a dramatic revival. One use per game. This is the first "safety net" mechanic, giving invested prestige players a meaningful late-game insurance policy.
+- **3 tiers** (costs 5/10/15 stars):
+  - **Tier 1**: Revive at 30% HP, kill 50% of non-boss enemies
+  - **Tier 2**: Revive at 50% HP, kill 75% of non-boss enemies
+  - **Tier 3**: Revive at 75% HP, kill 100% of non-boss enemies (full clear except bosses)
+- **On trigger:**
+  - HP restored to tier-based percentage of max
+  - Percentage of non-boss enemies killed (sorted by path progress — kills the ones closest to base first)
+  - "💫 SECOND WIND!" golden announcement (48px, 100 frames)
+  - Heavy screen shake + golden screen flash
+  - 25 golden ✨ sparkle particles burst from center
+  - Ascending C major healing arpeggio (C5-E5-G5-C6)
+  - Gold death particles on each killed enemy
+- **Canvas HUD indicator** — When second wind is available (purchased + not yet used), a pulsing golden "💫 SECOND WIND" text appears in the bottom-left corner of the canvas. Disappears after use.
+- **New achievement: 💫 Second Wind** — "Revive from death with Second Wind"
+- **Once per game** — `secondWindUsed` flag resets on `resetGame()`. Can't be triggered twice.
+- **Boss-safe** — Bosses are excluded from the kill sweep. You still have to deal with them after revival.
+- **Hook location** — Inside the `baseHp <= 0` check in simTick. `triggerSecondWind()` is called first; if it returns true, the game continues instead of entering gameover state.
+- **Phase compliance:**
+  - Phase 2: Added to PRESTIGE_UPGRADES array, ACHIEVEMENTS object
+  - Phase 3: `let secondWindUsed = false`
+  - Phase 5: `triggerSecondWind()` function before `showGameOver()`, canvas indicator in `drawFrame()`
+  - Reset: `secondWindUsed = false` in `resetGame()`
+  - No new DOM elements, event listeners, or init calls. Zero TDZ risk.
+- **Design rationale:** Prestige upgrades have been purely incremental (more HP, more damage, more speed). Second Wind is the first "binary" prestige unlock — it doesn't make you stronger, it gives you a second chance. This is a proven game design pattern (Elden Ring tears of denial, Diablo passive cheat death, League of Legends Guardian Angel, Hades Death Defiance). At Tier 3 (75% HP + full non-boss clear), it's essentially a reset button that lets you continue from a near-death state. The 15-star cost for max tier means it requires significant prestige investment, keeping it as a meaningful late-game reward. Killing enemies sorted by path progress (closest to base first) ensures the most imminent threats are cleared, making the revival feel strategic rather than random.
