@@ -1868,6 +1868,76 @@
 
     ctx.restore();
 
+    // ─── Atmospheric Effects ───────────────────────────────
+    // 1. Star field on the dark side — tiny white dots that twinkle subtly
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(polarCenter, polarCenter, polarRadius, 0, Math.PI * 2);
+    ctx.clip();
+    // Use a seeded pseudo-random for deterministic star positions
+    const starSeed = 42;
+    for (let i = 0; i < 35; i++) {
+      // Simple hash for consistent positions
+      const sx = ((Math.sin(i * 127.1 + starSeed) * 43758.5453) % 1 + 1) % 1;
+      const sy = ((Math.sin(i * 269.5 + starSeed * 1.3) * 28462.1927) % 1 + 1) % 1;
+      const rawX = polarCenter + (sx - 0.5) * polarRadius * 1.8;
+      const rawY = polarCenter + (sy - 0.5) * polarRadius * 1.8;
+      // Check if inside the circle
+      const dFromCenter = Math.hypot(rawX - polarCenter, rawY - polarCenter);
+      if (dFromCenter > polarRadius * 0.92) continue;
+      // Only show in the dark half (positive y in shading-rotated space = night)
+      const nightCheck = (rawX - polarCenter) * Math.sin(-shadingRotation) +
+                         (rawY - polarCenter) * Math.cos(-shadingRotation);
+      if (nightCheck < polarRadius * 0.15) continue;
+      // Twinkle
+      const twinkleS = 0.4 + 0.6 * Math.abs(Math.sin(now / (800 + i * 90) + i * 2.7));
+      const starAlpha = 0.15 + twinkleS * 0.25;
+      const starSize = 0.4 + ((i * 73) % 10) / 20;
+      ctx.beginPath();
+      ctx.arc(rawX, rawY, starSize, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${starAlpha.toFixed(2)})`;
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // 2. Sunrise/sunset band — warm glow along the terminator
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(polarCenter, polarCenter, polarRadius, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.translate(polarCenter, polarCenter);
+    ctx.rotate(shadingRotation);
+    ctx.translate(-polarCenter, -polarCenter);
+    // Horizontal band along the terminator (y = polarCenter = the day/night boundary)
+    const terminatorGrad = ctx.createLinearGradient(
+      polarCenter, polarCenter - polarRadius * 0.15,
+      polarCenter, polarCenter + polarRadius * 0.15
+    );
+    terminatorGrad.addColorStop(0, 'rgba(255, 180, 80, 0)');
+    terminatorGrad.addColorStop(0.3, 'rgba(255, 140, 60, 0.12)');
+    terminatorGrad.addColorStop(0.5, 'rgba(255, 100, 60, 0.18)');
+    terminatorGrad.addColorStop(0.7, 'rgba(200, 80, 120, 0.10)');
+    terminatorGrad.addColorStop(1, 'rgba(100, 50, 120, 0)');
+    ctx.fillStyle = terminatorGrad;
+    ctx.fillRect(polarCenter - polarRadius, polarCenter - polarRadius * 0.15,
+                 polarRadius * 2, polarRadius * 0.30);
+    ctx.restore();
+
+    // 3. Atmospheric limb glow — blue haze ring around the earth's edge
+    const limbGrad = ctx.createRadialGradient(
+      polarCenter, polarCenter, polarRadius * 0.88,
+      polarCenter, polarCenter, polarRadius * 1.02
+    );
+    limbGrad.addColorStop(0, 'rgba(80, 160, 255, 0)');
+    limbGrad.addColorStop(0.5, 'rgba(80, 160, 255, 0.08)');
+    limbGrad.addColorStop(0.75, 'rgba(60, 130, 220, 0.15)');
+    limbGrad.addColorStop(1, 'rgba(40, 100, 200, 0)');
+    ctx.beginPath();
+    ctx.arc(polarCenter, polarCenter, polarRadius * 1.02, 0, Math.PI * 2);
+    ctx.fillStyle = limbGrad;
+    ctx.fill();
+    // ─── End Atmospheric Effects ───────────────────────────
+
     ctx.beginPath();
     ctx.arc(polarCenter, polarCenter, polarRadius, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(0,0,0,0.3)';
