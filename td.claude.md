@@ -1271,3 +1271,22 @@ If it fails, DO NOT commit. Fix the error first.
   - Finishing a low-HP boss instead of letting the cannon switch to minions
   - Locking a phaser before it teleports
   - Targeting a specific splitter to clear one side of a two-wave overlap
+
+### 2026-03-11: Cannon Power Tier — Orbiting Energy Motes
+- **Persistent visual power indicator** — Cannons at level 5+ now have small glowing energy motes orbiting them, making their power level immediately visible at a glance. The number, speed, and color of motes scale with milestone tiers.
+- **6 tiers matching milestone levels:**
+  - **Tier 1 (Lv5):** 3 amber motes, slow orbit — 🛡️ Armor Pierce unlocked
+  - **Tier 2 (Lv8):** 4 red motes, faster orbit — 💥 Splash Unlocked
+  - **Tier 3 (Lv12):** 5 purple motes, medium-fast — ⚡ Heavy Pierce
+  - **Tier 4 (Lv15):** 6 cyan motes, fast orbit — 🧊 All Slow
+  - **Tier 5 (Lv18):** 7 orange motes, very fast — 🔥 Armor Mastery
+  - **Tier 6 (Lv20):** 8 gold motes, fastest orbit + golden inner glow ring — 👑 MAX LEVEL
+- **Visual details:**
+  - Each mote has a slight vertical bob (sinusoidal) for organic movement
+  - Individual mote alpha pulse (each slightly out of phase) prevents uniform blinking
+  - Shadow glow on each mote intensifies with tier (4px at tier 1, 10px at tier 6)
+  - Orbit radius grows with tier (21px → 18px+) so high-level cannons have a wider "power field"
+  - Level 20 gets an extra golden radial gradient glow ring inside the orbit path
+- **Implementation:** Single block-scoped section inside `drawCannon()` (Phase 5), placed between the spec/path glow aura and the recoil animation. Uses only existing `level`, `baseR`, `x`, `y` variables. No new state, DOM, listeners, or init calls. Zero TDZ risk.
+- **Performance:** 3-8 small arc fills per cannon per frame, each with shadowBlur. With typical 1-4 cannons, that's 3-32 small circles — negligible cost.
+- **Design rationale:** The game has 20 levels with dramatic stat differences, but a level 3 cannon and a level 18 cannon look nearly identical (same shape, same glow aura, slightly different XP ring). The orbiting motes create an immediately readable "power level" — glance at a cannon and you can tell it's high-tier from the particle density and speed. This is the standard "aura/particle" power visualization used in every RPG and MOBA (League of Legends level indicator, Diablo gear glow, WoW enchant effects). The color matching with milestone tiers reinforces the level-up celebration system — you see amber motes and remember "that's the Armor Pierce tier." In multiplayer, it lets you assess teammates' strength at a glance.

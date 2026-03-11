@@ -9953,6 +9953,52 @@
         ctx.restore();
       }
 
+      // Cannon Power Tier — orbiting energy motes for leveled cannons (5+)
+      // More particles, faster orbit, brighter glow at each milestone tier
+      {
+        const lvl = level;
+        if (lvl >= 5) {
+          const now = Date.now() * 0.001;
+          // Determine tier: 5→1, 8→2, 12→3, 15→4, 18→5, 20→6
+          const tier = lvl >= 20 ? 6 : lvl >= 18 ? 5 : lvl >= 15 ? 4 : lvl >= 12 ? 3 : lvl >= 8 ? 2 : 1;
+          const moteCount = tier + 2; // 3 at tier1, up to 8 at tier6
+          const orbitR = baseR + 9 + tier * 1.5; // wider orbit at higher tiers
+          const orbitSpeed = 1.2 + tier * 0.3; // faster rotation at higher tiers
+          const tierColors = ['#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#ffd700'];
+          const moteColor = tierColors[tier - 1];
+          const moteSize = 1.2 + tier * 0.25;
+          const moteAlpha = 0.4 + tier * 0.08;
+          ctx.save();
+          for (let i = 0; i < moteCount; i++) {
+            const angle = now * orbitSpeed + (Math.PI * 2 / moteCount) * i;
+            // Slight vertical bob per mote
+            const bob = Math.sin(now * 3 + i * 1.7) * 1.5;
+            const mx = x + Math.cos(angle) * orbitR;
+            const my = y + Math.sin(angle) * orbitR + bob;
+            ctx.globalAlpha = moteAlpha + 0.15 * Math.sin(now * 4 + i * 2);
+            ctx.fillStyle = moteColor;
+            ctx.shadowColor = moteColor;
+            ctx.shadowBlur = 4 + tier;
+            ctx.beginPath();
+            ctx.arc(mx, my, moteSize, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          // At max level (20), add a subtle golden inner glow ring
+          if (tier === 6) {
+            ctx.globalAlpha = 0.08 + 0.04 * Math.sin(now * 2);
+            ctx.shadowBlur = 0;
+            const grad = ctx.createRadialGradient(x, y, baseR, x, y, baseR + 14);
+            grad.addColorStop(0, 'rgba(255,215,0,0.3)');
+            grad.addColorStop(1, 'rgba(255,215,0,0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(x, y, baseR + 14, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+      }
+
       // Cannon recoil animation — shift body backward along barrel angle on fire
       let recoilDist = 0;
       if (c._recoilTime) {
