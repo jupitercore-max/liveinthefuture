@@ -68,6 +68,64 @@
   if (lumeMode) document.body.classList.add('lume-mode');
 
   // ═══════════════════════════════════════════════════
+  // Dial Color Themes — cycle with [D] key or 🎨 button
+  // Inspired by iconic luxury watch colorways
+  // ═══════════════════════════════════════════════════
+  const DIAL_THEMES = [
+    { id: 'default', label: 'Ocean Blue', emoji: '🔵' },
+    { id: 'midnight', label: 'Midnight Black', emoji: '⚫' },
+    { id: 'hulk', label: 'Hulk Green', emoji: '🟢' },
+    { id: 'champagne', label: 'Champagne Gold', emoji: '🟡' },
+    { id: 'burgundy', label: 'Burgundy Red', emoji: '🔴' },
+  ];
+  let dialThemeIndex = 0;
+  const savedTheme = localStorage.getItem('wt_dial_theme');
+  if (savedTheme) {
+    const idx = DIAL_THEMES.findIndex(t => t.id === savedTheme);
+    if (idx >= 0) dialThemeIndex = idx;
+  }
+  let dialThemeToggle = null;
+
+  function applyDialTheme(index) {
+    dialThemeIndex = index % DIAL_THEMES.length;
+    const theme = DIAL_THEMES[dialThemeIndex];
+    if (theme.id === 'default') {
+      document.body.removeAttribute('data-dial');
+    } else {
+      document.body.setAttribute('data-dial', theme.id);
+    }
+    localStorage.setItem('wt_dial_theme', theme.id);
+    if (dialThemeToggle) {
+      dialThemeToggle.textContent = '🎨';
+      dialThemeToggle.title = theme.label;
+    }
+    // Show brief toast with theme name
+    showDialThemeToast(theme);
+  }
+
+  let dialToastEl = null;
+  function showDialThemeToast(theme) {
+    if (!dialToastEl) {
+      dialToastEl = document.createElement('div');
+      dialToastEl.style.cssText = `
+        position:fixed; bottom:100px; left:50%; transform:translateX(-50%);
+        background:rgba(0,0,0,0.75); color:#fff; padding:6px 16px;
+        border-radius:20px; font-size:0.75rem; font-family:var(--font-sans);
+        pointer-events:none; opacity:0; transition:opacity 0.3s ease;
+        z-index:9999; white-space:nowrap; backdrop-filter:blur(4px);
+      `;
+      document.body.appendChild(dialToastEl);
+    }
+    dialToastEl.textContent = theme.emoji + ' ' + theme.label;
+    dialToastEl.style.opacity = '1';
+    clearTimeout(dialToastEl._timer);
+    dialToastEl._timer = setTimeout(() => { dialToastEl.style.opacity = '0'; }, 1500);
+  }
+
+  // Apply saved theme on load
+  applyDialTheme(dialThemeIndex);
+
+  // ═══════════════════════════════════════════════════
   // Dynamic Hand Shadows — light source from crystal
   // reflection position creates realistic depth illusion
   // ═══════════════════════════════════════════════════
@@ -3199,6 +3257,11 @@
           document.body.classList.toggle('lume-mode', lumeMode);
           if (lumeToggle) lumeToggle.textContent = lumeMode ? '☀️' : '🌙';
           break;
+        case 'd':
+          // D = Cycle dial color theme
+          e.preventDefault();
+          applyDialTheme(dialThemeIndex + 1);
+          break;
         case '?':
           // ? = Toggle keyboard shortcut hints
           e.preventDefault();
@@ -3228,6 +3291,7 @@
       '<span><kbd>A</kbd> Alarm</span>',
       '<span><kbd>R</kbd> 🎵 Minute Repeater</span>',
       '<span><kbd>N</kbd> Lume shot mode</span>',
+      '<span><kbd>D</kbd> Cycle dial theme</span>',
       '<span><kbd>Scroll</kbd> Crown winding</span>',
       '<span><kbd>/</kbd> Search cities</span>',
       '<span><kbd>?</kbd> Toggle this help</span>',
@@ -3610,6 +3674,26 @@
     lumeToggle.textContent = lumeMode ? '☀️' : '🌙';
   });
   document.body.appendChild(lumeToggle);
+
+  // Dial Theme toggle button (next to lume)
+  dialThemeToggle = document.createElement('button');
+  dialThemeToggle.className = 'dial-theme-toggle';
+  dialThemeToggle.textContent = '🎨';
+  dialThemeToggle.title = DIAL_THEMES[dialThemeIndex].label + ' (D)';
+  dialThemeToggle.style.cssText = `
+    position:fixed; bottom:16px; left:256px; padding:6px 10px;
+    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
+    border:1px solid var(--border); border-radius:var(--radius);
+    cursor:pointer; z-index:9999; opacity:0.5;
+    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
+    line-height:1; font-family:var(--font-mono);
+  `;
+  dialThemeToggle.addEventListener('mouseenter', function() { dialThemeToggle.style.opacity = '1'; });
+  dialThemeToggle.addEventListener('mouseleave', function() { dialThemeToggle.style.opacity = '0.5'; });
+  dialThemeToggle.addEventListener('click', function() {
+    applyDialTheme(dialThemeIndex + 1);
+  });
+  document.body.appendChild(dialThemeToggle);
 
   // ═══════════════════════════════════════════════════
   // Alarm Bar Wiring
