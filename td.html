@@ -4032,6 +4032,12 @@
     let bossDeathFlash = 0; // bright white screen flash timer (frames)
     let hitstopFrames = 0; // brief freeze on boss kill for impact
     let ambientParticles = []; // floating dust motes / atmosphere particles
+
+    // ── Adaptive Quality (FPS-based) ──
+    let fpsHistory = [];        // last 60 frame times
+    let qualityLevel = 2;       // 0=low, 1=medium, 2=high (default high)
+    let lastQualityCheck = 0;   // timestamp of last quality adjustment
+    let showFPS = false;        // toggle with F key
     let powerups = []; // dropped power-ups on the field
     let ricochetBeams = []; // overkill ricochet visual tracers
     let activePowerupEffects = {}; // type -> {timer, startTime}
@@ -7435,6 +7441,10 @@
       if (e.key === '?') {
         showHelpOverlay = !showHelpOverlay;
       }
+      // F toggles FPS counter + quality indicator
+      if (e.key === 'f' || e.key === 'F') {
+        showFPS = !showFPS;
+      }
     });
 
     function cancelTargeting() {
@@ -7822,10 +7832,38 @@
     // ═══════════════════════════════════════════════════
     const avatarImages = {}; // cache loaded avatar images
 
+    // ═══════════════════════════════════════════════════
+    //  Adaptive Quality — auto-downgrades visuals on slow devices
+    // ═══════════════════════════════════════════════════
+    function updateQuality(now, dt) {
+      if (dt > 0 && dt < 500) fpsHistory.push(dt);
+      if (fpsHistory.length > 60) fpsHistory.shift();
+      // Only adjust every 2 seconds
+      if (now - lastQualityCheck < 2000 || fpsHistory.length < 20) return;
+      lastQualityCheck = now;
+      const avgDt = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
+      const avgFPS = 1000 / avgDt;
+      if (avgFPS < 35 && qualityLevel > 0) {
+        qualityLevel--;
+      } else if (avgFPS > 55 && qualityLevel < 2) {
+        qualityLevel++;
+      }
+    }
+    // Helpers for conditional drawing
+    function qSkipAmbient() { return qualityLevel < 1; }  // skip ambient particles on low
+    function qSkipWeather() { return qualityLevel < 1; }   // skip weather particles on low
+    function qReduceParticles() { return qualityLevel < 2; } // halve death/confetti on medium+low
+    function qSkipTrails() { return qualityLevel < 2; }    // skip speed trails on medium+low
+    function qSkipSynergy() { return qualityLevel < 1; }   // skip synergy lines on low
+    function qSkipMotes() { return qualityLevel < 2; }     // skip orbiting energy motes on medium+low
+
     function renderLoop(now) {
       // Client-side visual projectile generation (all clients)
       const dt = now - lastVisualTick;
       lastVisualTick = now;
+
+      // Adaptive quality check
+      updateQuality(now, dt);
 
       // Non-leader: locally simulate enemy movement between snapshots
       if (!isLeader && waveState === 'active' && dt > 0 && dt < 200 && currentPath) {
@@ -8641,14 +8679,22 @@
     function drawFrame() {
       ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
+      // Adaptive quality: cap particle arrays on low/medium
+      if (qualityLevel < 2) {
+        const cap = qualityLevel === 0 ? 30 : 80;
+        if (particles.length > cap) particles.splice(0, particles.length - cap);
+        if (confettiParticles.length > cap) confettiParticles.splice(0, confettiParticles.length - cap);
+        if (weatherParticles.length > cap * 2) weatherParticles.splice(0, weatherParticles.length - cap * 2);
+      }
+
       // Background grid
       drawGrid();
 
       // Ambient floating particles (atmosphere)
-      drawAmbientParticles();
+      if (!qSkipAmbient()) drawAmbientParticles();
 
       // Weather particle effects (rain, snow, fog, sandstorm)
-      drawWeather();
+      if (!qSkipWeather()) drawWeather();
 
       // Base line
       ctx.strokeStyle = '#1E90FF';
@@ -9194,7 +9240,7 @@
       }
 
       // Draw synergy links between bonded cannons
-      {
+      if (!qSkipSynergy()) {
         const cannonEntries = Object.entries(cannons);
         const drawnPairs = new Set();
         for (const [cid, c] of cannonEntries) {
@@ -10194,6 +10240,21 @@
 
       // Keyboard shortcut help overlay (topmost layer)
       drawHelpOverlay();
+
+      // FPS counter + quality indicator (toggle with F key)
+      if (showFPS && fpsHistory.length > 5) {
+        const avgDt = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
+        const fps = Math.round(1000 / avgDt);
+        const qLabels = ['LOW', 'MED', 'HIGH'];
+        const qColors = ['#ff4444', '#ffaa00', '#44ff44'];
+        ctx.save();
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'right';
+        ctx.fillStyle = qColors[qualityLevel];
+        ctx.globalAlpha = 0.7;
+        ctx.fillText(fps + ' FPS · ' + qLabels[qualityLevel], CANVAS_W - 6, CANVAS_H - 6);
+        ctx.restore();
+      }
     }
 
     // ═══ Wave Difficulty Indicator (drawn during countdown) ═══
@@ -10512,7 +10573,7 @@
       // More particles, faster orbit, brighter glow at each milestone tier
       {
         const lvl = level;
-        if (lvl >= 5) {
+        if (lvl >= 5 && !qSkipMotes()) {
           const now = Date.now() * 0.001;
           // Determine tier: 5→1, 8→2, 12→3, 15→4, 18→5, 20→6
           const tier = lvl >= 20 ? 6 : lvl >= 18 ? 5 : lvl >= 15 ? 4 : lvl >= 12 ? 3 : lvl >= 8 ? 2 : 1;
@@ -10987,7 +11048,7 @@
       // ── Speed Trails ──
       // Motion streaks behind fast enemies — longer/brighter for faster units
       const effectiveSpeed = e.speed * (e.slowTimer > 0 ? 0.5 : 1);
-      if (effectiveSpeed >= 1.2 && currentPath && e.pathProgress > 0.02) {
+      if (effectiveSpeed >= 1.2 && currentPath && e.pathProgress > 0.02 && !qSkipTrails()) {
         const trailCount = Math.min(5, Math.floor(effectiveSpeed * 1.5));
         const stepSize = 0.008 * effectiveSpeed;
         const baseAlpha = Math.min(0.4, effectiveSpeed * 0.1);

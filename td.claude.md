@@ -1476,3 +1476,25 @@ If it fails, DO NOT commit. Fix the error first.
 - **Proposed:** Audit the 12,277-line codebase for latent crash bugs instead of adding features
 - **Challenge:** Is this adding fun? No. But a game that crashes in private browsing is less fun than one that doesn't. The game has 50+ features; it doesn't need 51. The last two user reports were both crashes. A real game designer would mandate a stability pass before any more features.
 - **Verdict:** PROCEED. Found and fixed 12 unprotected localStorage.setItem calls.
+
+### 2026-03-11: Adaptive Quality System (Performance)
+- **FPS-based quality auto-scaling** — The game now monitors frame rate and automatically reduces visual fidelity when performance drops below 35 FPS. Recovers to high quality when FPS exceeds 55.
+- **3 quality tiers:**
+  - **HIGH** (default): All effects enabled — ambient particles, weather, speed trails, orbiting motes, synergy lines
+  - **MEDIUM** (auto on <35 FPS): Particle arrays capped at 80, speed trails and orbiting motes disabled
+  - **LOW** (auto if still <35 FPS): Particle cap drops to 30, ambient particles + weather + synergy lines all disabled
+- **FPS counter**: Press [F] to toggle a small FPS + quality indicator in the bottom-right corner
+- **No gameplay changes** — only visual effects are scaled. Simulation tick, damage, targeting, etc. run identically at all quality levels.
+- **Phase compliance:**
+  - Phase 3: `fpsHistory`, `qualityLevel`, `lastQualityCheck`, `showFPS`
+  - Phase 5: `updateQuality()`, 6 helper predicates (`qSkipAmbient`, `qSkipWeather`, etc.)
+  - Phase 6: [F] key handler added to existing keydown listener block
+  - drawFrame: quality guards on 5 draw calls + particle array capping at top
+  - Zero TDZ risk — no new DOM elements or init calls
+
+## Self-Critique Log
+
+### 2026-03-11: Adaptive Quality (Approved)
+- **Proposed:** FPS monitoring + adaptive quality reduction for performance on lower-end devices
+- **Challenge:** Does this make the game more fun? Not directly — but 1,094 canvas draw calls per frame with no quality adaptation means the game could stutter badly on Chromebooks, older phones, or tabs with many open. Stuttering IS a fun problem. Is it resume-driven? No — nobody brags about quality settings. Would a game designer approve? Yes — this is standard practice before shipping any game with heavy particle effects.
+- **Verdict:** PROCEED. Infrastructure the game needed. Previous two cycles correctly identified stability > features. Performance is stability.
