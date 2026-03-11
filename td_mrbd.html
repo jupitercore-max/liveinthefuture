@@ -43,7 +43,7 @@
   var wave = 0, baseHp = 20, maxHp = 20, kills = 0, gold = 120;
   var enemies = [], cannons = [], bullets = [], particles = [];
   var spawnTimer = 0, spawnCount = 0, spawnTotal = 0, waveActive = false;
-  var tick = 0, selCannon = null, pickSpec = 0;
+  var tick = 0, selCannon = null, pickSpec = 0, autoAdvanceTimer = 0;
   var msg = '', msgTimer = 0;
   var totalWaves = 0;
 
@@ -251,11 +251,19 @@
     for (var i = enemies.length-1; i >= 0; i--) {
       if (enemies[i].dead) enemies.splice(i, 1);
     }
-    // Wave complete
+    // Wave complete — auto-advance after 2s
     if (waveActive && spawnCount >= spawnTotal && enemies.length === 0) {
       waveActive = false;
       announce('✓ WAVE '+wave+' CLEAR', 70);
       state = S_WAVE_READY;
+      autoAdvanceTimer = 120; // 2 seconds at 60fps
+    }
+    // Auto-advance countdown
+    if (state === S_WAVE_READY && autoAdvanceTimer > 0) {
+      autoAdvanceTimer--;
+      if (autoAdvanceTimer <= 0) {
+        startWave();
+      }
     }
     if (msgTimer > 0) msgTimer--;
   }
@@ -471,7 +479,8 @@
     ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
     if (state === S_WAVE_READY) {
       ctx.fillStyle = '#44ff88';
-      ctx.fillText('▶ ENTER: Wave '+(wave+1)+'   ↑↓←→: Move', W/2, H-10);
+      var secs = Math.ceil(autoAdvanceTimer / 60);
+      ctx.fillText('▶ Wave '+(wave+1)+' in '+secs+'s   ENTER: Now   ↑↓←→: Move', W/2, H-10);
     } else if (state === S_PLAY) {
       ctx.fillStyle = '#888';
       ctx.fillText('↑↓←→ Move   ENTER: Place/Select   ◀ Pause', W/2, H-10);
@@ -729,6 +738,11 @@
 
     // ── ENTER (context-sensitive) ──
     if (e.key === 'Enter') {
+      // Between waves? Always start next wave first (highest priority)
+      if (state === S_WAVE_READY) {
+        startWave();
+        return;
+      }
       // On a cannon? Select it
       var existing = cannonAt(curX, curY);
       if (existing) {
@@ -740,11 +754,6 @@
       if (canPlace(curX, curY)) {
         pickSpec = 0;
         state = S_PICK;
-        return;
-      }
-      // Between waves? Start next
-      if (state === S_WAVE_READY) {
-        startWave();
         return;
       }
     }
