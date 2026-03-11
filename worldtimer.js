@@ -68,6 +68,13 @@
   if (lumeMode) document.body.classList.add('lume-mode');
 
   // ═══════════════════════════════════════════════════
+  // Dynamic Hand Shadows — light source from crystal
+  // reflection position creates realistic depth illusion
+  // ═══════════════════════════════════════════════════
+  let lightSourceX = 30; // % across clock face (synced with crystal)
+  let lightSourceY = 22; // % down clock face
+
+  // ═══════════════════════════════════════════════════
   // Alarm Complication (JLC Memovox style)
   // ═══════════════════════════════════════════════════
   let alarmArmed = false;
@@ -920,6 +927,18 @@
   secondHand.id = 'secondHand';
   clockFace.appendChild(secondHand);
 
+  // Shadow clones — inserted BEFORE real hands for correct layering
+  function createShadowHand(refHand, className) {
+    const shadow = document.createElement('div');
+    shadow.className = 'clock-hand-shadow ' + className;
+    // Insert before the alarm hand (behind all real hands)
+    clockFace.insertBefore(shadow, clockFace.querySelector('.clock-hand-alarm') || clockFace.firstChild);
+    return shadow;
+  }
+  const hourShadow = createShadowHand(hourHand, 'shadow-hour');
+  const minuteShadow = createShadowHand(minuteHand, 'shadow-minute');
+  const secondShadow = createShadowHand(secondHand, 'shadow-second');
+
   // Time-lapse animation state
   let isAnimating = false;
   let animationStartTime = null;
@@ -1559,6 +1578,17 @@
     document.getElementById('hourHand').style.transform = `translateX(-50%) rotate(${hourAngle}deg)`;
     document.getElementById('minuteHand').style.transform = `translateX(-50%) rotate(${minuteAngle}deg)`;
     document.getElementById('secondHand').style.transform = `translateX(-50%) rotate(${secondAngle}deg)`;
+
+    // Dynamic hand shadows — offset from light source position
+    // Light at upper-left (30,22) → shadow shifts down-right
+    // Shadow offset is proportional to distance from center (50,50)
+    const shadowDx = (lightSourceX - 50) * -0.06; // px offset, inverted from light
+    const shadowDy = (lightSourceY - 50) * -0.06;
+    const shadowOffX = shadowDx.toFixed(1);
+    const shadowOffY = shadowDy.toFixed(1);
+    hourShadow.style.transform = `translateX(calc(-50% + ${shadowOffX}px)) translateY(${shadowOffY}px) rotate(${hourAngle}deg)`;
+    minuteShadow.style.transform = `translateX(calc(-50% + ${shadowOffX}px)) translateY(${shadowOffY}px) rotate(${minuteAngle}deg)`;
+    secondShadow.style.transform = `translateX(calc(-50% + ${shadowOffX}px)) translateY(${shadowOffY}px) rotate(${secondAngle}deg)`;
 
     // GMT hand: shows LOCAL time on 24h scale when a city is selected
     // This lets you read city time on hour/minute hands + local time on 24h bezel
@@ -3302,6 +3332,10 @@
       clockFace.style.setProperty('--crystal-y', py + '%');
       clockFace.style.setProperty('--crystal-x2', sx + '%');
       clockFace.style.setProperty('--crystal-y2', sy + '%');
+
+      // Sync light source for hand shadows
+      lightSourceX = crystalX;
+      lightSourceY = crystalY;
 
       // Keep animating if still moving
       if (Math.abs(targetX - crystalX) > 0.1 || Math.abs(targetY - crystalY) > 0.1) {
