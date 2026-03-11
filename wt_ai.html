@@ -1,0 +1,2668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>World Timer - rayhe.net</title>
+
+  <!-- Favicons -->
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" sizes="16x16 32x32 64x64" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="196x196" href="/favicon-192.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+  <link rel="apple-touch-icon" href="/favicon-57.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
+
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+
+  <style>
+    :root {
+      --accent: #1E90FF;
+      --accent-hover: #0066CC;
+      --bg: #fafafa;
+      --text: #1a1a1a;
+      --text-muted: #666;
+      --border: #ddd;
+      --card-bg: #fff;
+      --radius: 6px;
+      --font-mono: 'SF Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    }
+
+    html.dark {
+      --accent: #4da6ff;
+      --accent-hover: #80bfff;
+      --bg: #1a1a1a;
+      --text: #e0e0e0;
+      --text-muted: #999;
+      --border: #333;
+      --card-bg: #252525;
+    }
+
+    .theme-toggle {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      padding: 6px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      background: var(--card-bg);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      z-index: 9999;
+      opacity: 0.5;
+      transition: opacity 0.15s, background 0.6s ease, color 0.6s ease, border-color 0.6s ease;
+    }
+    .theme-toggle:hover { opacity: 1; }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-mono);
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      transition: background 0.6s ease, color 0.6s ease;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    a:hover {
+      color: var(--accent-hover);
+    }
+
+    /* World Timer Clock */
+    .world-timer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .clock-container {
+      position: relative;
+      width: 520px;
+      height: 520px;
+      margin-top: 200px;
+      margin-bottom: 200px;
+    }
+
+    .clock-bezel {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 50%, #2a2a2a 100%);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.1);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       Tachymeter Scale — Rolex Daytona / Omega Speedmaster
+       Activates when the chronograph is running
+       ═══════════════════════════════════════════════════ */
+    .tachymeter-scale {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0.35;
+      transition: opacity 0.6s ease;
+    }
+    body.chrono-active .tachymeter-scale {
+      opacity: 1;
+    }
+    .tachymeter-readout {
+      position: absolute;
+      top: 30px; left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--font-mono);
+      font-size: 0.55rem;
+      color: #cc3333;
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(204,51,51,0.3);
+      border-radius: 3px;
+      padding: 1px 7px;
+      z-index: 60;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      text-shadow: 0 0 4px rgba(204,51,51,0.4);
+    }
+    body.chrono-active .tachymeter-readout {
+      opacity: 1;
+    }
+    body.lume-mode .tachymeter-scale {
+      opacity: 0.15;
+    }
+    body.lume-mode.chrono-active .tachymeter-scale {
+      opacity: 0.6;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       Watch Case Lugs & Leather Strap
+       Transforms the floating dial into a full wristwatch
+       ═══════════════════════════════════════════════════ */
+
+    .watch-strap-top,
+    .watch-strap-bottom {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      z-index: -1;
+    }
+
+    .watch-strap-top {
+      bottom: 100%;
+      height: 200px;
+      background: linear-gradient(180deg,
+        #3a2518 0%,
+        #4a3020 20%,
+        #5a3a28 60%,
+        #4a3020 100%);
+      border-radius: 30px 30px 0 0;
+      box-shadow:
+        inset 2px 0 4px rgba(0,0,0,0.3),
+        inset -2px 0 4px rgba(0,0,0,0.3),
+        inset 0 8px 12px rgba(0,0,0,0.2);
+      margin-bottom: -6px;
+    }
+
+    /* Leather texture via repeating gradient */
+    .watch-strap-top::before,
+    .watch-strap-bottom::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: repeating-linear-gradient(
+        90deg,
+        transparent 0px,
+        rgba(0,0,0,0.04) 1px,
+        transparent 2px,
+        transparent 6px
+      );
+    }
+
+    /* Stitching lines on both straps */
+    .watch-strap-top::after,
+    .watch-strap-bottom::after {
+      content: '';
+      position: absolute;
+      top: 10%;
+      bottom: 10%;
+      width: calc(100% - 20px);
+      left: 10px;
+      border-left: 1px dashed rgba(200,180,140,0.35);
+      border-right: 1px dashed rgba(200,180,140,0.35);
+      border-radius: inherit;
+      pointer-events: none;
+    }
+
+    .watch-strap-bottom {
+      top: 100%;
+      height: 200px;
+      background: linear-gradient(0deg,
+        #3a2518 0%,
+        #4a3020 20%,
+        #5a3a28 60%,
+        #4a3020 100%);
+      border-radius: 0 0 30px 30px;
+      box-shadow:
+        inset 2px 0 4px rgba(0,0,0,0.3),
+        inset -2px 0 4px rgba(0,0,0,0.3),
+        inset 0 -8px 12px rgba(0,0,0,0.2);
+      margin-top: -6px;
+    }
+
+    /* Buckle on bottom strap */
+    .watch-strap-bottom .strap-buckle {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 48px;
+      height: 16px;
+      border: 2px solid #888;
+      border-radius: 3px;
+      background: linear-gradient(180deg, #777 0%, #555 50%, #666 100%);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+
+    .watch-strap-bottom .strap-buckle::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 6px;
+      border-radius: 2px;
+      background: linear-gradient(180deg, #999 0%, #666 100%);
+    }
+
+    /* Case Lugs — 4 protruding metal tabs connecting case to strap */
+    .watch-lug {
+      position: absolute;
+      width: 28px;
+      height: 24px;
+      background: linear-gradient(135deg, #3a3a3a 0%, #555 40%, #3a3a3a 80%);
+      z-index: 1;
+      box-shadow:
+        0 2px 4px rgba(0,0,0,0.4),
+        inset 0 1px 1px rgba(255,255,255,0.12);
+    }
+
+    /* Top-left lug */
+    .watch-lug.lug-tl {
+      top: -10px;
+      left: 50%;
+      margin-left: -68px;
+      border-radius: 6px 2px 2px 6px;
+      transform: rotate(-8deg);
+    }
+
+    /* Top-right lug */
+    .watch-lug.lug-tr {
+      top: -10px;
+      left: 50%;
+      margin-left: 40px;
+      border-radius: 2px 6px 6px 2px;
+      transform: rotate(8deg);
+    }
+
+    /* Bottom-left lug */
+    .watch-lug.lug-bl {
+      bottom: -10px;
+      left: 50%;
+      margin-left: -68px;
+      border-radius: 6px 2px 2px 6px;
+      transform: rotate(8deg);
+    }
+
+    /* Bottom-right lug */
+    .watch-lug.lug-br {
+      bottom: -10px;
+      left: 50%;
+      margin-left: 40px;
+      border-radius: 2px 6px 6px 2px;
+      transform: rotate(-8deg);
+    }
+
+    /* Lug spring bar pins — tiny metal cylinders */
+    .watch-lug::after {
+      content: '';
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #888 0%, #444 100%);
+      box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.3);
+    }
+
+    .watch-lug.lug-tl::after,
+    .watch-lug.lug-bl::after {
+      right: 3px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .watch-lug.lug-tr::after,
+    .watch-lug.lug-br::after {
+      left: 3px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    /* Lume mode strap — darker, muted */
+    body.lume-mode .watch-strap-top,
+    body.lume-mode .watch-strap-bottom {
+      background: linear-gradient(180deg, #111 0%, #1a1a1a 50%, #111 100%);
+      box-shadow: inset 2px 0 4px rgba(0,0,0,0.5), inset -2px 0 4px rgba(0,0,0,0.5);
+    }
+
+    body.lume-mode .watch-lug {
+      background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 40%, #1a1a1a 80%);
+    }
+
+    body.lume-mode .watch-strap-bottom .strap-buckle {
+      border-color: #444;
+      background: linear-gradient(180deg, #333 0%, #222 100%);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       Strap Material Themes — cycle with [S] key or ⌚ button
+       4 styles: leather (default), steel bracelet, rubber, NATO
+       ═══════════════════════════════════════════════════ */
+
+    /* Steel Bracelet — Oyster-style brushed links */
+    body[data-strap="steel"] .watch-strap-top,
+    body[data-strap="steel"] .watch-strap-bottom {
+      width: 110px;
+      background:
+        repeating-linear-gradient(0deg,
+          transparent 0px,
+          rgba(255,255,255,0.06) 1px,
+          transparent 2px,
+          transparent 14px),
+        linear-gradient(180deg, #555 0%, #3a3a3a 30%, #4a4a4a 70%, #555 100%);
+      box-shadow:
+        inset 2px 0 6px rgba(0,0,0,0.4),
+        inset -2px 0 6px rgba(0,0,0,0.4),
+        0 2px 8px rgba(0,0,0,0.3);
+    }
+    body[data-strap="steel"] .watch-strap-top { border-radius: 8px 8px 0 0; }
+    body[data-strap="steel"] .watch-strap-bottom { border-radius: 0 0 8px 8px; }
+    /* Hide leather stitching & texture */
+    body[data-strap="steel"] .watch-strap-top::before,
+    body[data-strap="steel"] .watch-strap-bottom::before { background: none; }
+    body[data-strap="steel"] .watch-strap-top::after,
+    body[data-strap="steel"] .watch-strap-bottom::after { border: none; }
+    /* Steel clasp instead of pin buckle */
+    body[data-strap="steel"] .watch-strap-bottom .strap-buckle {
+      width: 60px; height: 12px; bottom: 18px;
+      border-color: #777;
+      background: linear-gradient(180deg, #6a6a6a 0%, #4a4a4a 50%, #5a5a5a 100%);
+      border-radius: 2px;
+    }
+    body[data-strap="steel"] .watch-strap-bottom .strap-buckle::after {
+      width: 30px; height: 4px;
+      background: linear-gradient(180deg, #888 0%, #555 100%);
+    }
+
+    /* Rubber Dive Strap — sporty textured rubber */
+    body[data-strap="rubber"] .watch-strap-top,
+    body[data-strap="rubber"] .watch-strap-bottom {
+      width: 104px;
+      background:
+        repeating-linear-gradient(0deg,
+          transparent 0px,
+          rgba(0,0,0,0.15) 1px,
+          transparent 2px,
+          transparent 8px),
+        linear-gradient(180deg, #1a1a1a 0%, #222 30%, #1e1e1e 70%, #1a1a1a 100%);
+      box-shadow:
+        inset 2px 0 3px rgba(0,0,0,0.5),
+        inset -2px 0 3px rgba(0,0,0,0.5);
+    }
+    body[data-strap="rubber"] .watch-strap-top { border-radius: 20px 20px 0 0; }
+    body[data-strap="rubber"] .watch-strap-bottom { border-radius: 0 0 20px 20px; }
+    body[data-strap="rubber"] .watch-strap-top::before,
+    body[data-strap="rubber"] .watch-strap-bottom::before { background: none; }
+    body[data-strap="rubber"] .watch-strap-top::after,
+    body[data-strap="rubber"] .watch-strap-bottom::after { border: none; }
+    body[data-strap="rubber"] .watch-strap-bottom .strap-buckle {
+      border-color: #555;
+      background: linear-gradient(180deg, #444 0%, #333 100%);
+    }
+
+    /* NATO Nylon Strap — fabric weave with visible hardware */
+    body[data-strap="nato"] .watch-strap-top,
+    body[data-strap="nato"] .watch-strap-bottom {
+      width: 96px;
+      background:
+        repeating-linear-gradient(0deg,
+          transparent 0px,
+          rgba(255,255,255,0.03) 1px,
+          transparent 2px,
+          transparent 4px),
+        repeating-linear-gradient(90deg,
+          transparent 0px,
+          rgba(0,0,0,0.06) 1px,
+          transparent 2px,
+          transparent 4px),
+        linear-gradient(180deg, #2a3a28 0%, #354832 30%, #2e4030 70%, #2a3a28 100%);
+      box-shadow:
+        inset 1px 0 2px rgba(0,0,0,0.3),
+        inset -1px 0 2px rgba(0,0,0,0.3);
+    }
+    body[data-strap="nato"] .watch-strap-top { border-radius: 4px 4px 0 0; }
+    body[data-strap="nato"] .watch-strap-bottom { border-radius: 0 0 4px 4px; }
+    /* Cross-woven fabric texture replaces leather grain */
+    body[data-strap="nato"] .watch-strap-top::before,
+    body[data-strap="nato"] .watch-strap-bottom::before { background: none; }
+    /* NATO keeper rings instead of stitching */
+    body[data-strap="nato"] .watch-strap-top::after {
+      border: none;
+      content: '';
+      position: absolute;
+      top: 30%; bottom: auto;
+      height: 6px; width: 100%; left: 0;
+      background: linear-gradient(180deg, #666 0%, #444 100%);
+      border-top: 1px solid #777;
+      border-bottom: 1px solid #333;
+      border-radius: 0;
+    }
+    body[data-strap="nato"] .watch-strap-bottom::after {
+      border: none;
+      content: '';
+      position: absolute;
+      bottom: 35%; top: auto;
+      height: 6px; width: 100%; left: 0;
+      background: linear-gradient(180deg, #666 0%, #444 100%);
+      border-top: 1px solid #777;
+      border-bottom: 1px solid #333;
+      border-radius: 0;
+    }
+    body[data-strap="nato"] .watch-strap-bottom .strap-buckle {
+      border-color: #666;
+      background: linear-gradient(180deg, #555 0%, #3a3a3a 100%);
+    }
+
+    /* Lume overrides for non-leather straps */
+    body.lume-mode[data-strap="steel"] .watch-strap-top,
+    body.lume-mode[data-strap="steel"] .watch-strap-bottom {
+      background: repeating-linear-gradient(0deg, transparent 0px, rgba(255,255,255,0.03) 1px, transparent 2px, transparent 14px),
+        linear-gradient(180deg, #222 0%, #1a1a1a 50%, #222 100%);
+    }
+    body.lume-mode[data-strap="rubber"] .watch-strap-top,
+    body.lume-mode[data-strap="rubber"] .watch-strap-bottom {
+      background: linear-gradient(180deg, #0a0a0a 0%, #111 50%, #0a0a0a 100%);
+    }
+    body.lume-mode[data-strap="nato"] .watch-strap-top,
+    body.lume-mode[data-strap="nato"] .watch-strap-bottom {
+      background: linear-gradient(180deg, #0f1a0e 0%, #152014 50%, #0f1a0e 100%);
+    }
+
+    /* Watch Crown at 3 o'clock */
+    .watch-crown {
+      position: absolute;
+      right: -18px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 32px;
+      background: linear-gradient(180deg,
+        #4a4a4a 0%, #3a3a3a 15%, #555 30%, #3a3a3a 50%,
+        #555 70%, #3a3a3a 85%, #4a4a4a 100%);
+      border-radius: 0 4px 4px 0;
+      cursor: pointer;
+      z-index: 20;
+      box-shadow:
+        2px 0 4px rgba(0,0,0,0.4),
+        inset 0 1px 0 rgba(255,255,255,0.1),
+        inset 0 -1px 0 rgba(0,0,0,0.3);
+      background-image: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(255,255,255,0.06) 2px,
+        rgba(255,255,255,0.06) 3px,
+        transparent 3px,
+        transparent 4px
+      );
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .watch-crown:hover {
+      transform: translateY(-50%) scaleX(1.15);
+      box-shadow:
+        3px 0 6px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.15),
+        inset 0 -1px 0 rgba(0,0,0,0.3);
+    }
+
+    .watch-crown:active {
+      transform: translateY(-50%) scaleX(0.92);
+    }
+
+    .watch-crown.winding {
+      animation: crownWind 0.12s ease-out;
+    }
+
+    @keyframes crownWind {
+      0%   { transform: translateY(-50%) rotate(0deg); }
+      40%  { transform: translateY(-50%) rotate(15deg); }
+      100% { transform: translateY(-50%) rotate(0deg); }
+    }
+
+    .watch-crown.winding-reverse {
+      animation: crownWindReverse 0.12s ease-out;
+    }
+
+    @keyframes crownWindReverse {
+      0%   { transform: translateY(-50%) rotate(0deg); }
+      40%  { transform: translateY(-50%) rotate(-15deg); }
+      100% { transform: translateY(-50%) rotate(0deg); }
+    }
+
+    .power-wind-flash {
+      position: absolute;
+      bottom: 15%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      color: #4da6ff;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      text-shadow: 0 0 6px rgba(77,166,255,0.6);
+      transition: none;
+    }
+
+    .power-wind-flash.show {
+      animation: windFlash 0.6s ease-out forwards;
+    }
+
+    @keyframes windFlash {
+      0%   { opacity: 1; transform: translateX(-50%) translateY(0); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+    }
+
+    /* Crown stem connecting to case */
+    .watch-crown::before {
+      content: '';
+      position: absolute;
+      left: -3px;
+      top: 8px;
+      width: 3px;
+      height: 16px;
+      background: linear-gradient(180deg, #333 0%, #444 50%, #333 100%);
+      border-radius: 1px 0 0 1px;
+    }
+
+    /* Fluted tip */
+    .watch-crown::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 20px;
+      background: linear-gradient(180deg,
+        #555 0%, #666 30%, #555 50%, #666 70%, #555 100%);
+      border-radius: 0 2px 2px 0;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       Chronograph Pushers — Rolex Daytona / Omega Speedmaster
+       2 o'clock (start/stop) and 4 o'clock (lap/reset)
+       ═══════════════════════════════════════════════════ */
+    .chrono-pusher {
+      position: absolute;
+      width: 10px;
+      height: 22px;
+      background: linear-gradient(180deg,
+        #4a4a4a 0%, #555 20%, #3a3a3a 50%,
+        #555 80%, #4a4a4a 100%);
+      z-index: 20;
+      cursor: pointer;
+      box-shadow:
+        2px 1px 4px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.12),
+        inset 0 -1px 0 rgba(0,0,0,0.3);
+      transition: transform 0.08s ease, box-shadow 0.08s ease;
+    }
+
+    /* Guard collar — the protective ring around the pusher */
+    .chrono-pusher::before {
+      content: '';
+      position: absolute;
+      left: -2px;
+      top: 3px;
+      width: 3px;
+      height: 16px;
+      background: linear-gradient(180deg, #333 0%, #444 50%, #333 100%);
+      border-radius: 1px 0 0 1px;
+    }
+
+    /* Pusher cap — the flattened button tip */
+    .chrono-pusher::after {
+      content: '';
+      position: absolute;
+      right: -1px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 14px;
+      background: linear-gradient(180deg,
+        #555 0%, #666 30%, #555 50%, #666 70%, #555 100%);
+      border-radius: 0 3px 3px 0;
+    }
+
+    /* 2 o'clock — Start/Stop */
+    .chrono-pusher.pusher-2 {
+      right: -14px;
+      top: 18%;
+      transform: rotate(-30deg);
+      transform-origin: left center;
+    }
+
+    .chrono-pusher.pusher-2:hover {
+      transform: rotate(-30deg) scaleX(1.12);
+      box-shadow:
+        3px 1px 6px rgba(0,0,0,0.6),
+        inset 0 1px 0 rgba(255,255,255,0.18),
+        inset 0 -1px 0 rgba(0,0,0,0.3);
+    }
+
+    .chrono-pusher.pusher-2:active,
+    .chrono-pusher.pusher-2.pressed {
+      transform: rotate(-30deg) scaleX(0.85);
+      box-shadow:
+        1px 0 2px rgba(0,0,0,0.4),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    /* Active state — subtle red tint when chrono is running */
+    .chrono-pusher.pusher-2.active {
+      background: linear-gradient(180deg,
+        #5a3030 0%, #6a3535 20%, #4a2828 50%,
+        #6a3535 80%, #5a3030 100%);
+      box-shadow:
+        2px 1px 4px rgba(0,0,0,0.5),
+        0 0 6px rgba(200,50,50,0.2),
+        inset 0 1px 0 rgba(255,100,100,0.12);
+    }
+
+    /* 4 o'clock — Lap/Reset */
+    .chrono-pusher.pusher-4 {
+      right: -14px;
+      bottom: 18%;
+      transform: rotate(30deg);
+      transform-origin: left center;
+    }
+
+    .chrono-pusher.pusher-4:hover {
+      transform: rotate(30deg) scaleX(1.12);
+      box-shadow:
+        3px 1px 6px rgba(0,0,0,0.6),
+        inset 0 1px 0 rgba(255,255,255,0.18),
+        inset 0 -1px 0 rgba(0,0,0,0.3);
+    }
+
+    .chrono-pusher.pusher-4:active,
+    .chrono-pusher.pusher-4.pressed {
+      transform: rotate(30deg) scaleX(0.85);
+      box-shadow:
+        1px 0 2px rgba(0,0,0,0.4),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    /* Lume mode — dim the pushers */
+    body.lume-mode .chrono-pusher {
+      background: linear-gradient(180deg, #1a1a1a 0%, #222 20%, #151515 50%, #222 80%, #1a1a1a 100%);
+      box-shadow: 1px 0 2px rgba(0,0,0,0.6);
+    }
+    body.lume-mode .chrono-pusher::before {
+      background: linear-gradient(180deg, #111 0%, #181818 50%, #111 100%);
+    }
+    body.lume-mode .chrono-pusher::after {
+      background: linear-gradient(180deg, #1a1a1a 0%, #222 50%, #1a1a1a 100%);
+    }
+    body.lume-mode .chrono-pusher.pusher-2.active {
+      box-shadow: 1px 0 2px rgba(0,0,0,0.6), 0 0 4px rgba(200,50,50,0.15);
+    }
+
+    /* City ring */
+    .clock-cities {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      border-radius: 50%;
+      background: #1a1a1a;
+      overflow: visible;
+      z-index: 2;
+    }
+
+    .city-label {
+      position: absolute;
+      font-size: 7px;
+      color: #ccc;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      transform-origin: center center;
+      text-shadow: 0 0 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.6);
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    .city-label.inner-city {
+      font-size: 6.5px;
+      color: #bbb;
+    }
+
+    .city-label.local {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* 24-hour rotating ring */
+    .hour-ring {
+      position: absolute;
+      top: 56px;
+      left: 56px;
+      right: 56px;
+      bottom: 56px;
+      border-radius: 50%;
+      /* Day/night gradient - dynamically set by JS based on location */
+      background: #1a1a1a;
+      border: 1px solid #444;
+      z-index: 4;
+      overflow: visible;
+    }
+
+    .hour-marker {
+      position: absolute;
+      font-size: 12px;
+      font-weight: 700;
+      text-shadow: 0 0 2px rgba(0,0,0,0.5);
+      white-space: nowrap;
+      transform-origin: center center;
+      z-index: 5;
+    }
+
+    .hour-marker.day {
+      color: #1a1a1a;
+    }
+
+    .hour-marker.night {
+      color: #fff;
+    }
+
+    .hour-marker.dawn, .hour-marker.dusk {
+      color: #fff;
+      text-shadow: 0 0 2px rgba(0,0,0,0.8);
+    }
+
+    /* Clock face */
+    .clock-face {
+      position: absolute;
+      top: 88px;
+      left: 88px;
+      right: 88px;
+      bottom: 88px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #4a90c2 0%, #2d6b9e 30%, #1e5a8a 60%, #0d3a5c 100%);
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.3);
+      z-index: 10;
+    }
+
+    .clock-face::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 14px;
+      height: 14px;
+      background: radial-gradient(circle at 40% 40%, #e74c3c 0%, #c0392b 60%, #962d22 100%);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 100;
+      box-shadow: 0 0 3px rgba(0,0,0,0.4), 0 0 6px rgba(231,76,60,0.3);
+    }
+
+    /* Sapphire crystal glass — domed reflection that tracks cursor */
+    .clock-face {
+      --crystal-x: 30%;
+      --crystal-y: 22%;
+      --crystal-x2: 72%;
+      --crystal-y2: 78%;
+    }
+    .clock-face::after {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      border-radius: 50%;
+      background:
+        /* Primary highlight — follows cursor like tilting the watch */
+        radial-gradient(ellipse 55% 45% at var(--crystal-x) var(--crystal-y),
+          rgba(255,255,255,0.22) 0%,
+          rgba(255,255,255,0.08) 40%,
+          transparent 70%),
+        /* Secondary reflection — opposite side, AR coating bounce */
+        radial-gradient(ellipse 35% 25% at var(--crystal-x2) var(--crystal-y2),
+          rgba(255,255,255,0.07) 0%,
+          transparent 50%),
+        /* Edge darkening — crystal meets case */
+        radial-gradient(circle at 50% 50%,
+          transparent 85%,
+          rgba(0,0,0,0.12) 100%);
+      /* Curved edge bevel */
+      box-shadow:
+        inset 0 1px 2px rgba(255,255,255,0.18),
+        inset 0 -1px 2px rgba(0,0,0,0.12),
+        inset 1px 0 1px rgba(255,255,255,0.05),
+        inset -1px 0 1px rgba(0,0,0,0.05);
+      z-index: 300;
+      pointer-events: none;
+    }
+
+    /* Guilloché engine-turned dial pattern — radial sunburst engraving */
+    .guilloche-pattern {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: 50%;
+      z-index: 6;
+      pointer-events: none;
+      /* Radial sunburst — fine lines radiating from center like engine-turning */
+      background:
+        repeating-conic-gradient(
+          from 0deg,
+          rgba(255,255,255,0.04) 0deg,
+          rgba(255,255,255,0.0) 1.5deg,
+          rgba(0,0,0,0.03) 3deg,
+          rgba(255,255,255,0.0) 4.5deg,
+          rgba(255,255,255,0.04) 6deg
+        );
+      /* Mask to keep pattern only in the ring between polar earth and tick marks */
+      -webkit-mask-image: radial-gradient(
+        circle at center,
+        transparent 52%,
+        black 54%,
+        black 92%,
+        transparent 94%
+      );
+      mask-image: radial-gradient(
+        circle at center,
+        transparent 52%,
+        black 54%,
+        black 92%,
+        transparent 94%
+      );
+      opacity: 0.8;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       Dial Typography — brand text printed on the dial
+       Like Rolex "OYSTER PERPETUAL" or Patek "GENÈVE"
+       ═══════════════════════════════════════════════════ */
+    .dial-text {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 7; /* above guilloché (6), below polar earth (5) and hands */
+      pointer-events: none;
+      text-align: center;
+      font-variant: small-caps;
+      letter-spacing: 2.5px;
+      line-height: 1;
+      user-select: none;
+    }
+
+    /* Upper text — brand name between open heart and polar earth */
+    .dial-text-upper {
+      top: 59px;
+      font-size: 7.5px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.65);
+      text-shadow: 0 0.5px 0 rgba(0,0,0,0.3);
+      font-family: 'Georgia', 'Times New Roman', serif;
+      letter-spacing: 3.5px;
+    }
+
+    /* Lower text — model designation between polar earth and power reserve */
+    .dial-text-lower {
+      top: 265px;
+      font-size: 5.5px;
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.45);
+      text-shadow: 0 0.5px 0 rgba(0,0,0,0.2);
+      font-family: var(--font-mono);
+      letter-spacing: 2px;
+    }
+
+    /* Movement type — tiny text below model name */
+    .dial-text-movement {
+      top: 276px;
+      font-size: 4.5px;
+      font-weight: 300;
+      color: rgba(255, 255, 255, 0.3);
+      text-shadow: none;
+      font-family: var(--font-mono);
+      letter-spacing: 1.8px;
+    }
+
+    /* Lume mode — dial text fades to near-invisible */
+    body.lume-mode .dial-text {
+      color: rgba(255, 255, 255, 0.06) !important;
+      text-shadow: none !important;
+    }
+
+    /* Dark mode — slightly brighter for contrast */
+    html.dark .dial-text-upper {
+      color: rgba(255, 255, 255, 0.55);
+    }
+
+    /* Polar Earth view */
+    .polar-earth {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 180px;
+      height: 180px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      overflow: hidden;
+      z-index: 5;
+    }
+
+    .polar-earth canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .clock-tick {
+      position: absolute;
+      top: 6px;
+      left: 50%;
+      width: 1px;
+      height: 8px;
+      background: rgba(255,255,255,0.35);
+      transform-origin: 50% 166px;
+    }
+
+    .clock-tick.quarter {
+      width: 2px;
+      height: 12px;
+      background: rgba(255,255,255,0.55);
+    }
+
+    .clock-tick.major {
+      width: 4px;
+      height: 18px;
+      background: linear-gradient(180deg, #e8f4d8 0%, #d0e0b8 40%, #c5d8a8 100%);
+      border: 1px solid rgba(255,255,255,0.85);
+      border-radius: 1px;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 6px) calc(var(--lume-glow, 0) * 3px) rgba(150, 200, 255, var(--lume-glow, 0));
+      transition: box-shadow 0.5s ease;
+    }
+
+    .clock-hour-num {
+      position: absolute;
+      font-size: 19px;
+      font-weight: 700;
+      color: #fff;
+      transform: translate(-50%, -50%);
+      text-shadow: 0 0 calc(var(--lume-glow, 0) * 5px) rgba(200, 230, 255, var(--lume-glow, 0)),
+                   0 1px 2px rgba(0,0,0,0.4);
+      letter-spacing: -0.5px;
+      font-variant-numeric: tabular-nums;
+      transition: text-shadow 0.5s ease;
+    }
+
+    .clock-hand {
+      position: absolute;
+      left: 50%;
+      transform-origin: 50% 80%;
+      transform: translateX(-50%) rotate(0deg);
+    }
+
+    /* Dynamic hand shadows — blurred dark copies that shift
+       with the light source (crystal reflection position) */
+    .clock-hand-shadow {
+      position: absolute;
+      left: 50%;
+      transform-origin: 50% 80%;
+      pointer-events: none;
+      z-index: 14; /* below all real hands */
+    }
+    .shadow-hour {
+      width: 6px;
+      height: 100px;
+      bottom: calc(50% - 20px);
+      background: rgba(0,0,0,0.18);
+      border-radius: 1px;
+      filter: blur(2.5px);
+    }
+    .shadow-minute {
+      width: 4px;
+      height: 120px;
+      bottom: calc(50% - 24px);
+      background: rgba(0,0,0,0.14);
+      border-radius: 1px;
+      filter: blur(2px);
+    }
+    .shadow-second {
+      width: 1.5px;
+      height: 130px;
+      bottom: calc(50% - 26px);
+      background: rgba(0,0,0,0.10);
+      filter: blur(1.5px);
+    }
+    /* In lume mode, shadows are more dramatic (dark background) */
+    .lume-mode .shadow-hour { background: rgba(0,0,0,0.35); filter: blur(3px); }
+    .lume-mode .shadow-minute { background: rgba(0,0,0,0.28); filter: blur(2.5px); }
+    .lume-mode .shadow-second { background: rgba(0,0,0,0.20); filter: blur(2px); }
+
+    .clock-hand-hour {
+      width: 6px;
+      height: 100px;
+      bottom: calc(50% - 20px);
+      background: linear-gradient(90deg, #c0c0c0 0%, #ffffff 35%, #ffffff 65%, #a0a0a0 100%);
+      z-index: 50;
+      border-radius: 1px;
+      filter: blur(0);
+      transition: filter 0.3s ease;
+    }
+
+    /* Luminous center fill */
+    .clock-hand-hour::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 1px;
+      right: 1px;
+      bottom: 22px;
+      background: linear-gradient(180deg, #e8f4d8 0%, #d4e8c0 50%, #c5d8a8 100%);
+      border-radius: 1px;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 4px) calc(var(--lume-glow, 0) * 2px) rgba(150, 200, 255, var(--lume-glow, 0));
+      transition: box-shadow 0.5s ease;
+    }
+
+    .clock-hand-minute {
+      width: 4px;
+      height: 140px;
+      bottom: calc(50% - 28px);
+      background: linear-gradient(90deg, #c0c0c0 0%, #ffffff 35%, #ffffff 65%, #a0a0a0 100%);
+      z-index: 51;
+      border-radius: 1px;
+      filter: blur(0);
+      transition: filter 0.3s ease;
+    }
+
+    /* Luminous center fill */
+    .clock-hand-minute::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 1px;
+      right: 1px;
+      bottom: 30px;
+      background: linear-gradient(180deg, #e8f4d8 0%, #d4e8c0 50%, #c5d8a8 100%);
+      border-radius: 1px;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 4px) calc(var(--lume-glow, 0) * 2px) rgba(150, 200, 255, var(--lume-glow, 0));
+      transition: box-shadow 0.5s ease;
+    }
+
+    .clock-hand-second {
+      width: 2px;
+      height: 170px;
+      bottom: calc(50% - 34px);
+      background: transparent;
+      z-index: 52;
+      filter: blur(0);
+      transition: filter 0.3s ease;
+    }
+
+    .clock-hand-second.animating {
+      filter: blur(2px);
+    }
+
+    .clock-hand-minute.animating {
+      filter: blur(0.5px);
+    }
+
+    /* Red-accented second hand shaft */
+    .clock-hand-second::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 20px;
+      background: linear-gradient(180deg, #e74c3c 0%, #c0392b 100%);
+      border-radius: 1px 1px 0 0;
+    }
+
+    /* Counterweight circle + tail below center */
+    .clock-hand-second::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 8px;
+      height: 8px;
+      background: #c0392b;
+      border: 1.5px solid #e74c3c;
+      border-radius: 50%;
+      box-shadow: 0 0 calc(var(--lume-glow, 0) * 6px) calc(var(--lume-glow, 0) * 3px) rgba(231, 76, 60, var(--lume-glow, 0));
+      transition: box-shadow 0.5s ease;
+    }
+
+    /* GMT hand — 24-hour, orange, Rolex GMT-Master style */
+    .clock-hand-gmt {
+      width: 4px;
+      height: 120px;
+      bottom: calc(50% - 24px);
+      background: linear-gradient(90deg, #e06000 0%, #ff6b00 40%, #ff6b00 60%, #cc5500 100%);
+      z-index: 49; /* behind hour(50), minute(51), second(52) */
+      border-radius: 2px;
+      opacity: 0;
+      transition: opacity 0.4s ease, filter 0.3s ease;
+      filter: blur(0);
+    }
+    .clock-hand-gmt.visible { opacity: 1; }
+
+    /* Triangle tip — GMT arrow */
+    .clock-hand-gmt::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-bottom: 14px solid #ff6b00;
+      filter: drop-shadow(0 0 2px rgba(255, 107, 0, 0.5));
+    }
+
+    /* Small counterweight circle */
+    .clock-hand-gmt::after {
+      content: '';
+      position: absolute;
+      bottom: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 6px;
+      height: 6px;
+      background: #ff6b00;
+      border-radius: 50%;
+    }
+
+    /* Alarm hand — gold, JLC Memovox style */
+    .clock-hand-alarm {
+      width: 3px;
+      height: 90px;
+      bottom: calc(50% - 18px);
+      background: linear-gradient(90deg, #b8860b 0%, #ffd700 40%, #ffd700 60%, #b8860b 100%);
+      z-index: 48; /* behind GMT(49), hour(50), minute(51), second(52) */
+      border-radius: 2px;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .clock-hand-alarm.visible { opacity: 0.85; }
+    .clock-hand-alarm.ringing {
+      animation: alarm-vibrate 0.08s ease-in-out infinite alternate;
+    }
+    @keyframes alarm-vibrate {
+      0% { transform: translateX(-50%) rotate(var(--alarm-deg)) rotate(-1.5deg); }
+      100% { transform: translateX(-50%) rotate(var(--alarm-deg)) rotate(1.5deg); }
+    }
+    /* Small bell icon at tip */
+    .clock-hand-alarm::before {
+      content: '🔔';
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 8px;
+      filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.6));
+    }
+    /* Counterweight */
+    .clock-hand-alarm::after {
+      content: '';
+      position: absolute;
+      bottom: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 5px;
+      height: 5px;
+      background: #ffd700;
+      border-radius: 50%;
+    }
+
+    /* ── Chronograph sweep hand — orange, Speedmaster-style ── */
+    .clock-hand-chrono {
+      width: 1.5px;
+      height: 160px;
+      bottom: calc(50% - 30px);
+      background: transparent;
+      z-index: 53; /* above second hand(52) */
+      opacity: 0;
+      transition: opacity 0.35s ease;
+      pointer-events: none;
+    }
+    .clock-hand-chrono.active { opacity: 1; }
+    .clock-hand-chrono.stopped { opacity: 0.75; }
+    /* Shaft */
+    .clock-hand-chrono::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 18px;
+      background: linear-gradient(180deg, #ff6b00 0%, #e06000 100%);
+      border-radius: 1px 1px 0 0;
+    }
+    /* Counterweight */
+    .clock-hand-chrono::after {
+      content: '';
+      position: absolute;
+      bottom: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 6px;
+      height: 6px;
+      background: #e06000;
+      border: 1px solid #ff6b00;
+      border-radius: 50%;
+    }
+    /* Lume mode — orange glow */
+    body.lume-mode .clock-hand-chrono::before {
+      box-shadow: 0 0 4px rgba(255, 107, 0, 0.5);
+    }
+    body.lume-mode .clock-hand-chrono::after {
+      box-shadow: 0 0 6px 2px rgba(255, 107, 0, 0.6);
+    }
+
+    /* Alarm set bar */
+    .alarm-bar {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 6px;
+      padding: 6px 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      transition: background 0.6s ease, border-color 0.6s ease;
+    }
+    .alarm-bar.visible { display: flex; }
+    .alarm-bar input[type="time"] {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+    }
+    .alarm-bar button {
+      background: var(--card-bg);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      cursor: pointer;
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+    }
+    .alarm-bar button:hover { color: var(--text); border-color: var(--text-muted); }
+    .alarm-bar .alarm-status {
+      font-size: 0.65rem;
+      opacity: 0.7;
+    }
+    .alarm-bar .alarm-status.armed { color: #ffd700; opacity: 1; }
+
+    /* Local time indicator triangle */
+    .local-indicator {
+      position: absolute;
+      top: 52px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-top: 12px solid var(--accent);
+      z-index: 200;
+    }
+
+    .digital-time {
+      margin-top: 15px;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      transition: color 0.6s ease;
+    }
+
+    .digital-date {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      transition: color 0.6s ease;
+    }
+
+    .timezone-info {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      transition: color 0.6s ease;
+    }
+
+    .sun-info {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+      letter-spacing: 0.03em;
+      opacity: 0.75;
+      transition: color 0.6s ease;
+    }
+    .sun-info .sun-rise { color: #e8a060; }
+    .sun-info .sun-set { color: #c04830; }
+    .sun-info .daylight-rem { color: var(--accent); font-weight: 500; }
+
+    /* Home time dual display — shows local time when viewing a foreign city */
+    .home-time-dual {
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+      letter-spacing: 0.04em;
+      opacity: 0;
+      max-height: 0;
+      overflow: hidden;
+      transition: opacity 0.5s ease, max-height 0.5s ease, margin 0.5s ease;
+    }
+    .home-time-dual.visible {
+      opacity: 0.85;
+      max-height: 24px;
+      margin-top: 3px;
+    }
+    .home-time-dual .home-label {
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .home-time-dual .home-clock {
+      font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+      color: var(--text);
+      opacity: 0.9;
+    }
+    .home-time-dual .home-date {
+      color: var(--text-muted);
+      font-size: 0.6rem;
+      opacity: 0.7;
+    }
+    body.lume-mode .home-time-dual {
+      color: rgba(100, 200, 150, 0.5);
+    }
+    body.lume-mode .home-time-dual .home-label {
+      color: rgba(100, 200, 150, 0.6);
+    }
+    body.lume-mode .home-time-dual .home-clock {
+      color: rgba(100, 200, 150, 0.7);
+    }
+
+    .eot-info {
+      text-align: center;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+      transition: color 0.6s ease, opacity 0.6s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .eot-label { opacity: 0.6; letter-spacing: 0.04em; }
+    .eot-value { font-weight: 600; }
+    .eot-value.fast { color: #e8a060; }
+    .eot-value.slow { color: #6fa8dc; }
+    .eot-value.near-zero { color: var(--text-muted); }
+    .eot-bar {
+      display: inline-flex;
+      align-items: center;
+      width: 80px;
+      height: 8px;
+      background: rgba(128,128,128,0.15);
+      border-radius: 4px;
+      position: relative;
+      overflow: visible;
+    }
+    .eot-bar-center {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: var(--text-muted);
+      opacity: 0.4;
+    }
+    .eot-bar-needle {
+      position: absolute;
+      top: -1px;
+      width: 3px;
+      height: 10px;
+      border-radius: 1.5px;
+      transition: left 1s ease, background 1s ease;
+    }
+    .eot-bar-fill {
+      position: absolute;
+      top: 1px;
+      height: 6px;
+      border-radius: 3px;
+      opacity: 0.35;
+      transition: left 1s ease, width 1s ease, background 1s ease;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       Favorite Timezone Slots — pin up to 3 cities
+       for a persistent multi-timezone dashboard
+       ═══════════════════════════════════════════════════ */
+    .tz-slots {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 6px;
+      min-height: 0;
+      transition: opacity 0.3s ease;
+    }
+    .tz-slots:empty { display: none; }
+    .tz-slot {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 10px 4px;
+      min-width: 100px;
+      position: relative;
+      cursor: default;
+      transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+    }
+    .tz-slot:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 6px rgba(30,144,255,0.15);
+    }
+    .tz-slot-city {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 90px;
+    }
+    .tz-slot-time {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+    .tz-slot-offset {
+      font-size: 0.55rem;
+      color: var(--text-muted);
+      opacity: 0.7;
+    }
+    .tz-slot-remove {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 9px;
+      line-height: 12px;
+      text-align: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s, background 0.15s, color 0.15s;
+    }
+    .tz-slot:hover .tz-slot-remove { opacity: 1; }
+    .tz-slot-remove:hover {
+      background: #c0392b;
+      border-color: #c0392b;
+      color: #fff;
+    }
+    .tz-slot-day { color: #e8a060; font-size: 0.5rem; }
+    .tz-slot-night { color: #6fa8dc; font-size: 0.5rem; }
+
+    /* Pin button in city tooltip */
+    .city-tooltip-pin {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 2px 8px;
+      font-size: 0.6rem;
+      font-family: var(--font-mono);
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .city-tooltip-pin:hover { background: var(--accent-hover); }
+    .city-tooltip-pin.pinned {
+      background: #c0392b;
+    }
+    .city-tooltip-pin.pinned:hover {
+      background: #e74c3c;
+    }
+
+    /* Lume mode for slots */
+    body.lume-mode .tz-slot {
+      background: rgba(0,0,0,0.6);
+      border-color: rgba(50,205,50,0.15);
+    }
+    body.lume-mode .tz-slot-city { color: rgba(50,205,50,0.5); }
+    body.lume-mode .tz-slot-time { color: rgba(50,205,50,0.8); text-shadow: 0 0 4px rgba(50,205,50,0.3); }
+    body.lume-mode .tz-slot-offset { color: rgba(50,205,50,0.4); }
+
+    /* Chronograph Stopwatch */
+    .chrono-bar {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-mono);
+    }
+    .chrono-display {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      min-width: 100px;
+      text-align: center;
+      transition: color 0.6s ease;
+    }
+    .chrono-lap {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      min-width: 80px;
+      text-align: center;
+    }
+    .chrono-buttons {
+      display: flex;
+      gap: 6px;
+    }
+    .chrono-btn {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 4px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .chrono-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .chrono-btn:disabled { opacity: 0.35; cursor: default; }
+    .chrono-btn:disabled:hover { border-color: var(--border); color: var(--text); }
+    .chrono-start.running { background: #c0392b; color: #fff; border-color: #c0392b; }
+    .chrono-start.running:hover { background: #e74c3c; border-color: #e74c3c; }
+
+    /* Chrono mode toggle (⏱/⏳) */
+    .chrono-mode-toggle {
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 2px 6px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .chrono-mode-toggle:hover { border-color: var(--accent); }
+    .chrono-mode-toggle.countdown-mode { background: rgba(230, 126, 34, 0.15); border-color: #e67e22; }
+
+    /* Countdown preset chips */
+    .countdown-presets {
+      display: none;
+      gap: 4px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 4px;
+    }
+    .countdown-presets.visible { display: flex; }
+    .countdown-preset {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      padding: 2px 8px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--card-bg);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .countdown-preset:hover { border-color: #e67e22; color: #e67e22; }
+    .countdown-preset.active { background: #e67e22; color: #fff; border-color: #e67e22; }
+
+    /* Countdown progress bar */
+    .countdown-progress {
+      display: none;
+      width: 100%;
+      max-width: 200px;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+    .countdown-progress.visible { display: block; }
+    .countdown-progress-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #e67e22, #f39c12);
+      border-radius: 2px;
+      transition: width 0.1s linear;
+    }
+    .countdown-progress-fill.critical { background: linear-gradient(90deg, #c0392b, #e74c3c); }
+
+    /* Countdown flash alert */
+    .countdown-flash {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(230, 76, 60, 0.25);
+      z-index: 9999;
+      pointer-events: none;
+      animation: countdownFlash 0.5s ease-out 3;
+    }
+    .countdown-flash.active { display: block; }
+    @keyframes countdownFlash {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* Countdown display color */
+    .chrono-display.countdown-active { color: #e67e22; }
+    .chrono-display.countdown-critical { color: #e74c3c; }
+    .chrono-display.countdown-done { color: #e74c3c; }
+
+    /* City tooltip */
+    .city-tooltip {
+      position: absolute;
+      background: rgba(26, 26, 26, 0.95);
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 11px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, 8px);
+      transition: opacity 0.15s, transform 0.15s;
+      z-index: 1000;
+      min-width: 120px;
+      max-width: 200px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .city-tooltip.visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    .city-tooltip-header {
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #444;
+    }
+
+    .city-tooltip-time {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .city-tooltip-offset {
+      color: #999;
+      margin-bottom: 8px;
+    }
+
+    .city-tooltip-others {
+      color: #bbb;
+      line-height: 1.5;
+    }
+
+    .city-tooltip-others span {
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    /* City label hover effect */
+    .clock-cities text {
+      transition: fill 0.15s, filter 0.15s;
+    }
+
+    .clock-cities text:hover {
+      fill: #fff !important;
+      filter: drop-shadow(0 0 3px rgba(30, 144, 255, 0.6));
+    }
+
+    /* Day-of-week window above date at 3 o'clock */
+    .day-window {
+      position: absolute;
+      top: 50%;
+      right: 38px;
+      transform: translateY(calc(-50% - 20px));
+      width: 34px;
+      height: 14px;
+      background: #fff;
+      border: 1.5px solid #777;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 7.5px;
+      font-weight: 700;
+      color: #c00;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      z-index: 20;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.25), 0 0.5px 0 rgba(255,255,255,0.15);
+      overflow: hidden;
+    }
+
+    .day-text {
+      display: inline-block;
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+    }
+
+    .day-text.flip {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+
+    /* Date window complication at 3 o'clock */
+    .date-window {
+      position: absolute;
+      top: 50%;
+      right: 38px;
+      transform: translateY(-50%);
+      width: 34px;
+      height: 26px;
+      background: #fff;
+      border: 1.5px solid #777;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 700;
+      color: #1a1a1a;
+      z-index: 20;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.3), 0 0.5px 0 rgba(255,255,255,0.15);
+      overflow: hidden;
+    }
+
+    /* Cyclops magnifier lens effect */
+    .date-window::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      right: -4px;
+      bottom: -4px;
+      border: 2px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      background: radial-gradient(ellipse at center, rgba(255,255,255,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .date-num {
+      display: inline-block;
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+    }
+
+    .date-num.flip {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+
+    /* Month window complication below date at 3 o'clock (Annual Calendar) */
+    .month-window {
+      position: absolute;
+      top: 50%;
+      right: 38px;
+      transform: translateY(calc(-50% + 22px));
+      width: 34px;
+      height: 12px;
+      background: #fff;
+      border: 1.5px solid #777;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 6.5px;
+      font-weight: 700;
+      color: #1a6bad;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      z-index: 20;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.25), 0 0.5px 0 rgba(255,255,255,0.15);
+      overflow: hidden;
+    }
+
+    .month-text {
+      display: inline-block;
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+    }
+
+    .month-text.flip {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+
+    /* Leap Year Indicator (Perpetual Calendar) — below month window at 3 o'clock */
+    .leap-indicator {
+      position: absolute;
+      top: 50%;
+      right: 34px;
+      transform: translateY(calc(-50% + 38px));
+      width: 42px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .leap-pip {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(120,120,120,0.3);
+      border: 0.5px solid rgba(150,150,150,0.4);
+      transition: all 0.6s ease;
+    }
+
+    .leap-pip.active {
+      background: #c00;
+      border-color: #e00;
+      box-shadow: 0 0 4px rgba(200,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.3);
+    }
+
+    .leap-pip.leap-year {
+      background: #d4af37;
+      border-color: #e5c040;
+      box-shadow: 0 0 6px rgba(212,175,55,0.6), inset 0 1px 1px rgba(255,255,255,0.4);
+    }
+
+    .leap-label {
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--font-mono);
+      font-size: 4.5px;
+      color: rgba(180,180,180,0.6);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    body.lume-mode .leap-pip {
+      background: rgba(60,80,60,0.3);
+      border-color: rgba(80,100,80,0.3);
+    }
+
+    body.lume-mode .leap-pip.active {
+      background: #2ecc40;
+      border-color: #3ddb50;
+      box-shadow: 0 0 6px rgba(46,204,64,0.6);
+    }
+
+    body.lume-mode .leap-pip.leap-year {
+      background: #ffe066;
+      border-color: #ffeb80;
+      box-shadow: 0 0 8px rgba(255,224,102,0.7);
+    }
+
+    body.lume-mode .leap-label {
+      color: rgba(46,204,64,0.4);
+    }
+
+    /* Moonphase complication at 9 o'clock */
+    .moonphase-window {
+      position: absolute;
+      top: 50%;
+      left: 38px;
+      transform: translateY(-50%);
+      width: 32px;
+      height: 32px;
+      background: #0a0e1a;
+      border: 1.5px solid #777;
+      border-radius: 50%;
+      z-index: 20;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.5), 0 0.5px 0 rgba(255,255,255,0.15);
+      overflow: hidden;
+      cursor: help;
+    }
+
+    .moonphase-window canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .moonphase-tooltip {
+      position: absolute;
+      top: 50%;
+      left: 78px;
+      transform: translateY(-50%);
+      background: rgba(26, 26, 26, 0.95);
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: #fff;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      z-index: 1000;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+    }
+
+    .moonphase-window:hover + .moonphase-tooltip {
+      opacity: 1;
+    }
+
+    /* Power reserve at 6 o'clock */
+    .power-reserve {
+      position: absolute;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 44px;
+      height: 24px;
+      z-index: 20;
+    }
+
+    .power-reserve canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Open Heart balance wheel at 12 o'clock */
+    .open-heart {
+      position: absolute;
+      top: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 32px;
+      height: 32px;
+      background: radial-gradient(circle, #0d1520 0%, #0a1018 70%, #080c12 100%);
+      border: 1.5px solid #555;
+      border-radius: 50%;
+      z-index: 20;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.5), 0 0.5px 0 rgba(255,255,255,0.15);
+      overflow: hidden;
+    }
+
+    .open-heart canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .back-link {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      font-size: 0.85rem;
+      z-index: 100;
+      transition: color 0.6s ease;
+    }
+
+    /* Mobile responsive — scale the whole clock to fit viewport */
+    .clock-container {
+      touch-action: manipulation; /* prevent double-tap zoom on watch */
+    }
+
+    @media (max-width: 580px) {
+      body {
+        align-items: flex-start;
+        padding-top: 12px;
+        min-height: auto;
+        min-height: -webkit-fill-available;
+        overflow-x: hidden;
+      }
+
+      .back-link {
+        top: 8px;
+        left: 8px;
+        font-size: 0.7rem;
+      }
+
+      .theme-toggle {
+        top: 8px;
+        right: 8px;
+        font-size: 0.65rem;
+        padding: 4px 8px;
+      }
+
+      .digital-time {
+        font-size: 0.85rem;
+      }
+
+      .digital-date, .timezone-info {
+        font-size: 0.65rem;
+      }
+
+      .chrono-bar {
+        padding: 6px 0;
+      }
+
+      .chrono-display {
+        font-size: 1.1rem;
+      }
+
+      .chrono-btn {
+        font-size: 0.6rem;
+        padding: 3px 10px;
+      }
+
+      /* Scale down strap on mobile */
+      .watch-strap-top,
+      .watch-strap-bottom {
+        width: 70px;
+        height: 140px;
+      }
+
+      .watch-strap-top {
+        margin-bottom: -4px;
+      }
+
+      .watch-strap-bottom {
+        margin-top: -4px;
+      }
+
+      .watch-lug {
+        width: 20px;
+        height: 18px;
+      }
+
+      .watch-lug.lug-tl { margin-left: -50px; }
+      .watch-lug.lug-tr { margin-left: 30px; }
+      .watch-lug.lug-bl { margin-left: -50px; }
+      .watch-lug.lug-br { margin-left: 30px; }
+
+      .watch-strap-bottom .strap-buckle {
+        width: 36px;
+        height: 12px;
+        bottom: 18px;
+      }
+
+      .chrono-pusher {
+        width: 8px;
+        height: 17px;
+      }
+      .chrono-pusher.pusher-2 { right: -10px; }
+      .chrono-pusher.pusher-4 { right: -10px; }
+    }
+
+    @media (max-height: 640px) {
+      body {
+        align-items: flex-start;
+        padding-top: 8px;
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════
+       Lume Shot Mode — darkness + full lume glow
+       Toggle with 🌙 button or [N] key
+       ═══════════════════════════════════════════════════ */
+
+    /* Smooth transition on everything affected */
+    body,
+    .clock-bezel,
+    .clock-face,
+    .clock-face::after,
+    .hour-ring,
+    .hour-marker,
+    .guilloche-pattern,
+    .clock-hand-hour,
+    .clock-hand-minute,
+    .clock-hand-second,
+    .clock-hand-second::before,
+    .clock-hand-second::after,
+    .clock-hand-hour::after,
+    .clock-hand-minute::after,
+    .clock-tick,
+    .clock-tick.major,
+    .clock-tick.quarter,
+    .clock-hour-num,
+    .watch-crown,
+    .chrono-pusher,
+    .digital-time,
+    .digital-date,
+    .timezone-info,
+    .sun-info,
+    .tz-slots,
+    .chrono-bar,
+    .back-link,
+    .dial-text {
+      transition: background 0.8s ease, color 0.8s ease, opacity 0.8s ease,
+                  box-shadow 0.8s ease, text-shadow 0.8s ease, border-color 0.8s ease,
+                  filter 0.8s ease;
+    }
+
+
+    /* ═══════════════════════════════════════════════════
+       Dial Color Themes — press [D] to cycle
+       Inspired by iconic luxury watch colorways
+       ═══════════════════════════════════════════════════ */
+
+    /* Transition for smooth theme switching */
+    .clock-face,
+    .clock-bezel,
+    .clock-hand-second::before,
+    .clock-hand-second::after,
+    .clock-face::before {
+      transition: background 0.6s ease, box-shadow 0.6s ease, border-color 0.6s ease;
+    }
+
+    /* Theme: Midnight (Submariner black) */
+    body[data-dial="midnight"] .clock-face {
+      background: linear-gradient(180deg, #1a1a1a 0%, #111 30%, #0a0a0a 60%, #050505 100%) !important;
+    }
+    body[data-dial="midnight"] .clock-bezel {
+      background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 50%, #1a1a1a 100%) !important;
+    }
+    body[data-dial="midnight"] .guilloche-pattern {
+      opacity: 0.4 !important;
+    }
+
+    /* Theme: Hulk (Submariner green) */
+    body[data-dial="hulk"] .clock-face {
+      background: linear-gradient(180deg, #2d6b3f 0%, #1e5a30 30%, #145226 60%, #0a3a18 100%) !important;
+    }
+    body[data-dial="hulk"] .clock-bezel {
+      background: linear-gradient(135deg, #1a3a22 0%, #0d2a14 50%, #1a3a22 100%) !important;
+    }
+    body[data-dial="hulk"] .clock-hand-second::before {
+      background: linear-gradient(180deg, #ff6b00 0%, #cc5500 100%) !important;
+    }
+    body[data-dial="hulk"] .clock-hand-second::after {
+      background: #cc5500 !important;
+      border-color: #ff6b00 !important;
+    }
+    body[data-dial="hulk"] .clock-face::before {
+      background: radial-gradient(circle at 40% 40%, #ff6b00 0%, #cc5500 60%, #994400 100%) !important;
+    }
+
+    /* Theme: Champagne (Datejust silver/gold) */
+    body[data-dial="champagne"] .clock-face {
+      background: linear-gradient(180deg, #d4c5a0 0%, #c2b08a 30%, #b09a70 60%, #9a8560 100%) !important;
+    }
+    body[data-dial="champagne"] .clock-bezel {
+      background: linear-gradient(135deg, #8a7a50 0%, #6a5a38 50%, #8a7a50 100%) !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,220,150,0.2) !important;
+    }
+    body[data-dial="champagne"] .clock-hand-second::before {
+      background: linear-gradient(180deg, #1a1a1a 0%, #333 100%) !important;
+    }
+    body[data-dial="champagne"] .clock-hand-second::after {
+      background: #333 !important;
+      border-color: #1a1a1a !important;
+    }
+    body[data-dial="champagne"] .clock-face::before {
+      background: radial-gradient(circle at 40% 40%, #333 0%, #1a1a1a 60%, #111 100%) !important;
+    }
+    body[data-dial="champagne"] .guilloche-pattern {
+      background:
+        repeating-conic-gradient(
+          from 0deg,
+          rgba(0,0,0,0.05) 0deg,
+          rgba(0,0,0,0.0) 1.5deg,
+          rgba(255,255,255,0.04) 3deg,
+          rgba(0,0,0,0.0) 4.5deg,
+          rgba(0,0,0,0.05) 6deg
+        ) !important;
+    }
+    body[data-dial="champagne"] .clock-hour-num {
+      color: rgba(40, 30, 15, 0.9) !important;
+      text-shadow: 0 0 2px rgba(0,0,0,0.3) !important;
+    }
+    body[data-dial="champagne"] .clock-tick.major {
+      background: linear-gradient(180deg, #3a3020 0%, #2a2010 100%) !important;
+    }
+    body[data-dial="champagne"] .clock-tick.major::after {
+      background: linear-gradient(180deg, #4a4030 0%, #3a3020 100%) !important;
+    }
+
+    /* Theme: Burgundy (Grand Seiko / Cartier) */
+    body[data-dial="burgundy"] .clock-face {
+      background: linear-gradient(180deg, #6b2040 0%, #5a1835 30%, #4a1028 60%, #3a0820 100%) !important;
+    }
+    body[data-dial="burgundy"] .clock-bezel {
+      background: linear-gradient(135deg, #3a1828 0%, #2a0c1a 50%, #3a1828 100%) !important;
+    }
+    body[data-dial="burgundy"] .clock-hand-second::before {
+      background: linear-gradient(180deg, #ffd700 0%, #ccaa00 100%) !important;
+    }
+    body[data-dial="burgundy"] .clock-hand-second::after {
+      background: #ccaa00 !important;
+      border-color: #ffd700 !important;
+    }
+    body[data-dial="burgundy"] .clock-face::before {
+      background: radial-gradient(circle at 40% 40%, #ffd700 0%, #ccaa00 60%, #aa8800 100%) !important;
+    }
+    /* Body goes pitch black */
+    body.lume-mode {
+      background: #000 !important;
+    }
+
+    /* Bezel goes very dark */
+    body.lume-mode .clock-bezel {
+      background: linear-gradient(135deg, #0a0a0a 0%, #050505 50%, #0a0a0a 100%) !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.02) !important;
+    }
+
+    /* Dial face goes near-black */
+    body.lume-mode .clock-face {
+      background: linear-gradient(180deg, #0a1520 0%, #060e16 30%, #040a10 60%, #020508 100%) !important;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.8) !important;
+    }
+
+    /* Crystal reflection much subtler in dark */
+    body.lume-mode .clock-face::after {
+      opacity: 0.3;
+    }
+
+    /* Guilloché nearly invisible */
+    body.lume-mode .guilloche-pattern {
+      opacity: 0.1 !important;
+    }
+
+    /* Hour ring labels dim to near-invisible */
+    body.lume-mode .hour-ring {
+      opacity: 0.15;
+    }
+
+    /* Hour markers dim */
+    body.lume-mode .hour-marker {
+      color: rgba(255,255,255,0.08) !important;
+      text-shadow: none !important;
+    }
+
+    /* Non-lume ticks go very dim */
+    body.lume-mode .clock-tick {
+      background: rgba(255,255,255,0.06) !important;
+      box-shadow: none !important;
+    }
+    body.lume-mode .clock-tick.quarter {
+      background: rgba(255,255,255,0.04) !important;
+    }
+
+    /* Lume ticks GLOW — major ticks with lume paint */
+    body.lume-mode .clock-tick.major {
+      background: linear-gradient(180deg, #c8e8a0 0%, #a0d070 40%, #80c050 100%) !important;
+      box-shadow: 0 0 8px 3px rgba(150, 230, 100, 0.7),
+                  0 0 16px 6px rgba(100, 200, 80, 0.3) !important;
+      border-color: rgba(180, 240, 130, 0.6) !important;
+    }
+
+    /* Lume hour numbers GLOW */
+    body.lume-mode .clock-hour-num {
+      color: rgba(200, 240, 180, 0.95) !important;
+      text-shadow: 0 0 8px rgba(150, 230, 100, 0.8),
+                   0 0 16px rgba(100, 200, 80, 0.5),
+                   0 0 24px rgba(80, 180, 60, 0.25) !important;
+    }
+
+    /* Hand metallic parts dim, lume fills glow */
+    body.lume-mode .clock-hand-hour {
+      background: linear-gradient(90deg, #1a1a1a 0%, #2a2a2a 35%, #2a2a2a 65%, #1a1a1a 100%) !important;
+    }
+    body.lume-mode .clock-hand-hour::after {
+      background: linear-gradient(180deg, #c8e8a0 0%, #a0d070 50%, #80c050 100%) !important;
+      box-shadow: 0 0 8px 3px rgba(150, 230, 100, 0.7),
+                  0 0 16px 6px rgba(100, 200, 80, 0.3) !important;
+    }
+    body.lume-mode .clock-hand-minute {
+      background: linear-gradient(90deg, #1a1a1a 0%, #2a2a2a 35%, #2a2a2a 65%, #1a1a1a 100%) !important;
+    }
+    body.lume-mode .clock-hand-minute::after {
+      background: linear-gradient(180deg, #c8e8a0 0%, #a0d070 50%, #80c050 100%) !important;
+      box-shadow: 0 0 8px 3px rgba(150, 230, 100, 0.7),
+                  0 0 16px 6px rgba(100, 200, 80, 0.3) !important;
+    }
+
+    /* Second hand — red lume glow */
+    body.lume-mode .clock-hand-second::before {
+      background: linear-gradient(180deg, #e74c3c 0%, #c0392b 100%) !important;
+      box-shadow: 0 0 6px 2px rgba(231, 76, 60, 0.6) !important;
+    }
+    body.lume-mode .clock-hand-second::after {
+      box-shadow: 0 0 8px 3px rgba(231, 76, 60, 0.7),
+                  0 0 16px 6px rgba(200, 50, 40, 0.3) !important;
+    }
+
+    /* Center hub red glow */
+    body.lume-mode .clock-face::before {
+      box-shadow: 0 0 6px rgba(231,76,60,0.6), 0 0 12px rgba(231,76,60,0.3) !important;
+    }
+
+    /* Watch crown barely visible */
+    body.lume-mode .watch-crown {
+      opacity: 0.15;
+    }
+
+    /* Digital readouts dim green (like vintage radium lume) */
+    body.lume-mode .digital-time,
+    body.lume-mode .digital-date,
+    body.lume-mode .timezone-info {
+      color: rgba(150, 230, 100, 0.6) !important;
+      text-shadow: 0 0 6px rgba(100, 200, 80, 0.3) !important;
+    }
+
+    /* Sun info dim */
+    body.lume-mode .sun-info {
+      opacity: 0.3;
+    }
+    body.lume-mode .eot-info {
+      opacity: 0.3;
+    }
+
+    /* Chrono bar dim */
+    body.lume-mode .chrono-bar {
+      opacity: 0.3;
+    }
+
+    body.lume-mode .month-window,
+    body.lume-mode .day-window,
+    body.lume-mode .leap-indicator .leap-label,
+    body.lume-mode .date-window {
+      background: #111;
+      border-color: #333;
+      opacity: 0.4;
+    }
+
+    body.lume-mode .month-text {
+      color: #556;
+    }
+
+    /* Back link dim */
+    body.lume-mode .back-link {
+      opacity: 0.15;
+    }
+
+    /* ── Bezel Detent Flash ── */
+    /* Brief inner glow on the hour ring when crossing a 15° click position */
+    @keyframes detentFlash {
+      0%   { box-shadow: inset 0 0 8px 2px rgba(100, 180, 255, 0.5), 0 0 4px rgba(100, 180, 255, 0.3); }
+      100% { box-shadow: none; }
+    }
+    .hour-ring.detent-flash {
+      animation: detentFlash 0.2s ease-out;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       Exhibition Caseback — overlay showing the movement
+       Press [B] or click 🔧 button to toggle
+       ═══════════════════════════════════════════════════ */
+    .caseback-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      border-radius: 50%;
+      z-index: 500;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+    }
+    .caseback-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .caseback-overlay canvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+    }
+    /* Brushed steel case ring around caseback */
+    .caseback-overlay::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      border-radius: 50%;
+      border: 12px solid transparent;
+      background: linear-gradient(145deg, #555 0%, #333 45%, #4a4a4a 55%, #555 100%) border-box;
+      -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      z-index: 2;
+      pointer-events: none;
+    }
+    /* Sapphire exhibition crystal reflection */
+    .caseback-overlay::after {
+      content: '';
+      position: absolute;
+      top: 12px; left: 12px; right: 12px; bottom: 12px;
+      border-radius: 50%;
+      background:
+        radial-gradient(ellipse 50% 40% at 35% 28%,
+          rgba(255,255,255,0.12) 0%,
+          rgba(255,255,255,0.04) 40%,
+          transparent 70%),
+        radial-gradient(circle at 50% 50%,
+          transparent 82%,
+          rgba(0,0,0,0.12) 100%);
+      z-index: 3;
+      pointer-events: none;
+    }
+    /* ═══ Unified Control Bar ═══ */
+    .ctrl-btn {
+      padding: 5px 8px;
+      font-size: 1rem;
+      background: transparent;
+      color: var(--text-muted);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 0.15s, background 0.15s;
+      line-height: 1;
+      font-family: var(--font-mono);
+    }
+    .ctrl-btn:hover {
+      opacity: 1;
+      background: rgba(128,128,128,0.15);
+    }
+    .ctrl-btn:active {
+      transform: scale(0.92);
+    }
+    /* Lume mode dims the control bar */
+    body.lume-mode #controlBar {
+      background: rgba(5,10,5,0.85);
+      border-color: rgba(0,255,80,0.15);
+    }
+    body.lume-mode .ctrl-btn {
+      color: rgba(0,255,80,0.5);
+    }
+    body.lume-mode .ctrl-btn:hover {
+      background: rgba(0,255,80,0.1);
+    }
+    /* Responsive: wrap on small screens */
+    @media (max-width: 420px) {
+      #controlBar {
+        max-width: calc(100vw - 24px);
+        flex-wrap: wrap;
+        justify-content: center;
+        border-radius: 14px;
+        padding: 4px 6px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <a href="/" class="back-link">&larr; rayhe.net</a>
+
+  <!-- World Timer Clock -->
+  <div class="world-timer">
+    <div class="clock-container" id="clockContainer">
+      <!-- Leather strap -->
+      <div class="watch-strap-top"></div>
+      <div class="watch-strap-bottom"><div class="strap-buckle"></div></div>
+      <!-- Case lugs -->
+      <div class="watch-lug lug-tl"></div>
+      <div class="watch-lug lug-tr"></div>
+      <div class="watch-lug lug-bl"></div>
+      <div class="watch-lug lug-br"></div>
+      <div class="clock-bezel"></div>
+      <!-- Tachymeter scale — Daytona/Speedmaster-inspired, activates with chronograph -->
+      <canvas class="tachymeter-scale" id="tachymeterCanvas" width="520" height="520"></canvas>
+      <div class="tachymeter-readout" id="tachyReadout">TACHYMETRE</div>
+      <div class="watch-crown" id="watchCrown" title="Click: reset time · Scroll: wind mainspring"></div>
+      <!-- Chronograph pushers — 2 o'clock (start/stop) and 4 o'clock (lap/reset) -->
+      <div class="chrono-pusher pusher-2" id="chronoPusher2" title="Chronograph: Start / Stop"></div>
+      <div class="chrono-pusher pusher-4" id="chronoPusher4" title="Chronograph: Lap / Reset"></div>
+      <div class="clock-cities" id="clockCities">
+        <!-- Cities generated by JS -->
+      </div>
+      <div class="hour-ring" id="hourRing">
+        <!-- 24-hour markers generated by JS -->
+      </div>
+      <div class="local-indicator"></div>
+      <div class="clock-face" id="clockFace">
+        <!-- Guilloché engine-turned dial pattern -->
+        <div class="guilloche-pattern"></div>
+        <!-- Dial typography — brand text printed on the face -->
+        <div class="dial-text dial-text-upper">World Timer</div>
+        <div class="dial-text dial-text-lower">AUTOMATIC</div>
+        <div class="dial-text dial-text-movement">Cal. WT-01 · 28800 BPH</div>
+        <!-- Polar Earth view -->
+        <div class="polar-earth">
+          <canvas id="polarEarthCanvas" width="240" height="240"></canvas>
+        </div>
+        <!-- Ticks and hands generated by JS -->
+        <!-- Open Heart balance wheel at 12 o'clock -->
+        <div class="open-heart"><canvas id="balanceCanvas" width="56" height="56"></canvas></div>
+        <!-- Day-of-week window complication -->
+        <div class="day-window" id="dayWindow"><span class="day-text" id="dayText"></span></div>
+        <!-- Date window complication -->
+        <div class="date-window" id="dateWindow"><span class="date-num" id="dateNum"></span></div>
+        <!-- Month window complication (Annual Calendar) -->
+        <div class="month-window" id="monthWindow"><span class="month-text" id="monthText"></span></div>
+
+        <!-- Leap Year Indicator (Perpetual Calendar) -->
+        <div class="leap-indicator" id="leapIndicator">
+          <div class="leap-pip" data-year="0"></div>
+          <div class="leap-pip" data-year="1"></div>
+          <div class="leap-pip" data-year="2"></div>
+          <div class="leap-pip" data-year="3"></div>
+          <span class="leap-label" id="leapLabel"></span>
+        </div>
+        <!-- Moonphase complication -->
+        <div class="moonphase-window" id="moonphaseWindow"><canvas id="moonCanvas" width="64" height="64"></canvas></div>
+        <div class="moonphase-tooltip" id="moonphaseTooltip"></div>
+        <!-- Power reserve at 6 o'clock -->
+        <div class="power-reserve"><canvas id="powerCanvas" width="88" height="48"></canvas></div>
+        <!-- Power wind flash indicator -->
+        <div class="power-wind-flash" id="powerWindFlash"></div>
+      </div>
+      <!-- Exhibition Caseback overlay -->
+      <div class="caseback-overlay" id="casebackOverlay">
+        <canvas id="casebackCanvas" width="520" height="520"></canvas>
+      </div>
+      <div class="city-tooltip" id="cityTooltip"></div>
+    </div>
+    <div class="digital-time" id="digitalTime">00:00:00</div>
+    <div class="digital-date" id="digitalDate"></div>
+    <div class="timezone-info" id="timezoneInfo"></div>
+    <div class="home-time-dual" id="homeTimeDual"></div>
+    <div class="sun-info" id="sunInfo"></div>
+    <div class="eot-info" id="eotInfo"></div>
+    <div class="tz-slots" id="tzSlots"></div>
+    <div class="alarm-bar" id="alarmBar">
+      <span>⏰</span>
+      <input type="time" id="alarmTimeInput" value="07:00">
+      <button id="alarmSetBtn">Set</button>
+      <button id="alarmClearBtn">Clear</button>
+      <span class="alarm-status" id="alarmStatus">Off</span>
+    </div>
+
+    <!-- Chronograph Stopwatch / Countdown -->
+    <div class="chrono-bar" id="chronoBar">
+      <span class="chrono-mode-toggle" id="chronoModeToggle" title="Switch Stopwatch / Countdown">⏱</span>
+      <div class="chrono-display" id="chronoDisplay">00:00.00</div>
+      <div class="chrono-lap" id="chronoLap"></div>
+      <div class="chrono-buttons">
+        <button class="chrono-btn chrono-start" id="chronoStartStop">Start</button>
+        <button class="chrono-btn chrono-lap-btn" id="chronoLapReset" disabled>Lap</button>
+      </div>
+    </div>
+    <div class="countdown-presets" id="countdownPresets">
+      <span class="countdown-preset" data-secs="60">1m</span>
+      <span class="countdown-preset" data-secs="180">3m</span>
+      <span class="countdown-preset active" data-secs="300">5m</span>
+      <span class="countdown-preset" data-secs="600">10m</span>
+      <span class="countdown-preset" data-secs="900">15m</span>
+      <span class="countdown-preset" data-secs="1800">30m</span>
+    </div>
+    <div class="countdown-progress" id="countdownProgress">
+      <div class="countdown-progress-fill" id="countdownProgressFill"></div>
+    </div>
+    <div class="countdown-flash" id="countdownFlash"></div>
+  </div>
+
+  <script src="worldtimer.js"></script>
+  <script>
+    (function() {
+      var btn = document.createElement('button');
+      btn.className = 'theme-toggle';
+      function label() {
+        var t = localStorage.getItem('theme');
+        btn.textContent = t === 'dark' ? 'dark' : t === 'light' ? 'light' : 'auto';
+      }
+      btn.addEventListener('click', function() {
+        var t = localStorage.getItem('theme');
+        var next = !t ? 'dark' : t === 'dark' ? 'light' : null;
+        if (next) localStorage.setItem('theme', next); else localStorage.removeItem('theme');
+        var isDark = next === 'dark' || (!next && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', isDark);
+        label();
+      });
+      label();
+      document.body.appendChild(btn);
+    })();
+  </script>
+<div style="position:fixed;bottom:12px;right:12px;z-index:9999"><a href="wt.html" style="background:rgba(0,0,0,0.6);color:#fff;padding:6px 14px;border-radius:20px;font:12px/1 sans-serif;text-decoration:none;opacity:0.7;transition:opacity 0.2s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">← Original</a></div>
+</body>
+</html>
