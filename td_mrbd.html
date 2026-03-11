@@ -24,333 +24,277 @@
 <script>
 (function() {
   // ═══════════════════════════════════════════════════
-  //  MRBD Tower Defense — Game Boy energy, D-pad only
+  //  MRBD Tower Defense — D-pad only (5 buttons)
+  //  ArrowUp/Down/Left/Right + Enter + Backspace/Esc
   // ═══════════════════════════════════════════════════
 
   var canvas = document.getElementById('c');
   var ctx = canvas.getContext('2d');
   var W = 600, H = 600;
 
-  // ── Grid System ──
-  var GRID = 40; // 15x15 grid
-  var COLS = W / GRID; // 15
-  var ROWS = H / GRID; // 15
+  // ── Grid ──
+  var GRID = 40;
+  var COLS = 15, ROWS = 15;
 
-  // ── Game State ──
-  var STATE_MENU = 0, STATE_PLAY = 1, STATE_PLACE = 2, STATE_SELECT = 3, STATE_GAMEOVER = 4, STATE_PAUSED = 5;
-  var gameState = STATE_MENU;
-  var cursorX = 7, cursorY = 7; // grid coords
-  var wave = 0;
-  var baseHp = 20, baseMaxHp = 20;
-  var kills = 0;
-  var gold = 100;
-  var cannonCost = 50;
-  var enemies = [];
-  var cannons = [];
-  var projectiles = [];
-  var particles = [];
-  var spawnTimer = 0;
-  var spawnCount = 0;
-  var spawnTotal = 0;
-  var waveActive = false;
-  var tickCount = 0;
-  var selectedCannon = null;
-  var announceText = '';
-  var announceTimer = 0;
-  var lastFrameTime = 0;
-  var fps = 0;
+  // ── States ──
+  var S_MENU = 0, S_PLAY = 1, S_PICK = 2, S_SELECT = 3, S_OVER = 4, S_PAUSE = 5, S_WAVE_READY = 6;
+  var state = S_MENU;
+  var curX = 7, curY = 7;
+  var wave = 0, baseHp = 20, maxHp = 20, kills = 0, gold = 120;
+  var enemies = [], cannons = [], bullets = [], particles = [];
+  var spawnTimer = 0, spawnCount = 0, spawnTotal = 0, waveActive = false;
+  var tick = 0, selCannon = null, pickSpec = 0;
+  var msg = '', msgTimer = 0;
   var totalWaves = 0;
 
-  // ── Path (fixed S-curve for readability on small display) ──
-  // Path defined as grid coords, converted to pixel centers
-  var PATH_NODES = [
-    {x: 2, y: -1},
-    {x: 2, y: 2},
-    {x: 12, y: 2},
-    {x: 12, y: 5},
-    {x: 2, y: 5},
-    {x: 2, y: 8},
-    {x: 12, y: 8},
-    {x: 12, y: 11},
-    {x: 7, y: 11},
-    {x: 7, y: 14},
-    {x: 7, y: 16}
+  // ── Path: S-curve ──
+  var PATH = [
+    {x:2,y:-1},{x:2,y:2},{x:12,y:2},{x:12,y:5},{x:2,y:5},
+    {x:2,y:8},{x:12,y:8},{x:12,y:11},{x:7,y:11},{x:7,y:14},{x:7,y:16}
   ];
-
-  // Convert grid path to pixel path
-  var pathPixels = [];
-  for (var i = 0; i < PATH_NODES.length; i++) {
-    pathPixels.push({ x: PATH_NODES[i].x * GRID + GRID / 2, y: PATH_NODES[i].y * GRID + GRID / 2 });
+  var pathPx = [];
+  for (var i = 0; i < PATH.length; i++) {
+    pathPx.push({x: PATH[i].x * GRID + GRID/2, y: PATH[i].y * GRID + GRID/2});
   }
 
-  // Path cells — mark grid cells the path passes through
+  // Mark path cells
   var pathCells = {};
-  function markPathCells() {
-    for (var i = 0; i < PATH_NODES.length - 1; i++) {
-      var a = PATH_NODES[i], b = PATH_NODES[i + 1];
-      var steps = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y));
-      for (var s = 0; s <= steps; s++) {
-        var t = steps === 0 ? 0 : s / steps;
-        var cx = Math.round(a.x + (b.x - a.x) * t);
-        var cy = Math.round(a.y + (b.y - a.y) * t);
-        if (cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS) {
-          pathCells[cx + ',' + cy] = true;
-        }
-      }
+  for (var i = 0; i < PATH.length - 1; i++) {
+    var a = PATH[i], b = PATH[i+1];
+    var steps = Math.max(Math.abs(b.x-a.x), Math.abs(b.y-a.y));
+    for (var s = 0; s <= steps; s++) {
+      var t = steps === 0 ? 0 : s/steps;
+      var cx = Math.round(a.x + (b.x-a.x)*t);
+      var cy = Math.round(a.y + (b.y-a.y)*t);
+      if (cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS) pathCells[cx+','+cy] = true;
     }
   }
-  markPathCells();
 
-  // Compute total path length in pixels
-  var pathLength = 0;
-  for (var i = 1; i < pathPixels.length; i++) {
-    var dx = pathPixels[i].x - pathPixels[i-1].x;
-    var dy = pathPixels[i].y - pathPixels[i-1].y;
-    pathLength += Math.sqrt(dx * dx + dy * dy);
+  // Path length
+  var pathLen = 0;
+  for (var i = 1; i < pathPx.length; i++) {
+    var dx = pathPx[i].x - pathPx[i-1].x, dy = pathPx[i].y - pathPx[i-1].y;
+    pathLen += Math.sqrt(dx*dx + dy*dy);
   }
 
-  function getPathPos(progress) {
-    var target = progress * pathLength;
-    var traveled = 0;
-    for (var i = 1; i < pathPixels.length; i++) {
-      var dx = pathPixels[i].x - pathPixels[i-1].x;
-      var dy = pathPixels[i].y - pathPixels[i-1].y;
-      var segLen = Math.sqrt(dx * dx + dy * dy);
-      if (traveled + segLen >= target) {
-        var t = segLen === 0 ? 0 : (target - traveled) / segLen;
-        return { x: pathPixels[i-1].x + dx * t, y: pathPixels[i-1].y + dy * t };
+  function pathPos(prog) {
+    var tgt = prog * pathLen, traveled = 0;
+    for (var i = 1; i < pathPx.length; i++) {
+      var dx = pathPx[i].x - pathPx[i-1].x, dy = pathPx[i].y - pathPx[i-1].y;
+      var seg = Math.sqrt(dx*dx + dy*dy);
+      if (traveled + seg >= tgt) {
+        var t = seg === 0 ? 0 : (tgt - traveled) / seg;
+        return {x: pathPx[i-1].x + dx*t, y: pathPx[i-1].y + dy*t};
       }
-      traveled += segLen;
+      traveled += seg;
     }
-    return pathPixels[pathPixels.length - 1];
+    return pathPx[pathPx.length - 1];
   }
 
-  // ── Enemy Types ──
-  var ENEMY_DEFS = [
-    { type: 'scout',  wave: 1,  hp: 30,  speed: 1.8, color: '#ff4444', r: 8,  reward: 8 },
-    { type: 'grunt',  wave: 1,  hp: 50,  speed: 1.2, color: '#ff9900', r: 10, reward: 10 },
-    { type: 'tank',   wave: 5,  hp: 180, speed: 0.6, color: '#bb66ff', r: 14, reward: 25 },
-    { type: 'speed',  wave: 8,  hp: 35,  speed: 3.0, color: '#44ff44', r: 7,  reward: 12 },
-    { type: 'boss',   wave: 10, hp: 600, speed: 0.4, color: '#ff0044', r: 18, reward: 100 }
+  // ── Enemies ──
+  var ETYPES = [
+    {type:'scout', w:1, hp:30, spd:1.8, col:'#ff4444', r:8, gold:8, shape:'circle'},
+    {type:'grunt', w:1, hp:50, spd:1.2, col:'#ff9900', r:10, gold:10, shape:'circle'},
+    {type:'tank',  w:5, hp:180,spd:0.6, col:'#bb66ff', r:14, gold:25, shape:'hex'},
+    {type:'speed', w:8, hp:35, spd:3.0, col:'#44ff44', r:7,  gold:12, shape:'diamond'},
+    {type:'boss',  w:10,hp:600,spd:0.4, col:'#ff0044', r:18, gold:100,shape:'oct'}
   ];
 
-  // ── Cannon Specs ──
-  var CANNON_SPECS = [
-    { name: 'Blaster',  color: '#4a9eff', dmg: 10, rate: 3.0, range: 100, cost: 50,  desc: 'Balanced' },
-    { name: 'Sniper',   color: '#ff4466', dmg: 35, rate: 0.8, range: 180, cost: 80,  desc: 'Long range' },
-    { name: 'Rapid',    color: '#44ff88', dmg: 5,  rate: 8.0, range: 70,  cost: 60,  desc: 'Fast fire' }
+  // ── Cannons ──
+  var SPECS = [
+    {name:'Blaster', col:'#4a9eff', dmg:10, rate:3.0, rng:100, cost:50, ico:'●'},
+    {name:'Sniper',  col:'#ff4466', dmg:35, rate:0.8, rng:180, cost:80, ico:'◆'},
+    {name:'Rapid',   col:'#44ff88', dmg:5,  rate:8.0, rng:70,  cost:60, ico:'▲'}
   ];
 
-  var placingSpec = 0; // which cannon spec we're placing
+  // ── Helpers ──
+  function announce(t, dur) { msg = t; msgTimer = dur || 70; }
+  function canPlace(gx, gy) {
+    if (gx < 0 || gx >= COLS || gy < 0 || gy >= ROWS) return false;
+    if (pathCells[gx+','+gy]) return false;
+    for (var i = 0; i < cannons.length; i++) {
+      if (cannons[i].gx === gx && cannons[i].gy === gy) return false;
+    }
+    return true;
+  }
+  function cannonAt(gx, gy) {
+    for (var i = 0; i < cannons.length; i++) {
+      if (cannons[i].gx === gx && cannons[i].gy === gy) return cannons[i];
+    }
+    return null;
+  }
 
-  // ── Spawn Wave ──
+  // ── Wave System ──
   function startWave() {
     wave++;
     waveActive = true;
-    spawnTimer = 0;
-    spawnCount = 0;
-    var base = 5 + wave * 2;
-    if (wave % 10 === 0) base = 1; // boss wave
-    spawnTotal = base;
-    announceText = wave % 10 === 0 ? '💀 BOSS WAVE ' + wave : '⚔ WAVE ' + wave;
-    announceTimer = 90;
+    spawnTimer = 0; spawnCount = 0;
+    spawnTotal = wave % 10 === 0 ? 1 : 5 + wave * 2;
+    announce(wave % 10 === 0 ? '💀 BOSS WAVE ' + wave : '⚔ WAVE ' + wave, 90);
     gold += 10 + wave * 2;
+    state = S_PLAY;
   }
 
   function spawnEnemy() {
-    var available = [];
-    for (var i = 0; i < ENEMY_DEFS.length; i++) {
-      if (ENEMY_DEFS[i].wave <= wave) available.push(ENEMY_DEFS[i]);
+    var avail = [];
+    for (var i = 0; i < ETYPES.length; i++) {
+      if (ETYPES[i].w <= wave) avail.push(ETYPES[i]);
     }
-    // Boss waves: just spawn the boss
+    var def;
     if (wave % 10 === 0 && spawnCount === 0) {
-      var bdef = ENEMY_DEFS[4]; // boss
-      var hpScale = 1 + (wave - 10) * 0.5;
-      enemies.push({
-        type: bdef.type, hp: bdef.hp * hpScale, maxHp: bdef.hp * hpScale,
-        speed: bdef.speed, color: bdef.color, r: bdef.r, reward: bdef.reward * (1 + Math.floor(wave / 10)),
-        progress: 0, dead: false, hitFlash: 0
-      });
-      spawnCount++;
-      return;
+      def = ETYPES[4]; // boss
+    } else {
+      def = avail[Math.floor(Math.random() * avail.length)];
     }
-    // Normal waves: pick from available
-    var pick = available[Math.floor(Math.random() * available.length)];
-    var hpScale = 1 + (wave - 1) * 0.15;
+    var hpScale = def.type === 'boss' ? 1 + (wave-10)*0.5 : 1 + (wave-1)*0.15;
+    if (hpScale < 1) hpScale = 1;
     enemies.push({
-      type: pick.type, hp: pick.hp * hpScale, maxHp: pick.hp * hpScale,
-      speed: pick.speed, color: pick.color, r: pick.r, reward: pick.reward,
-      progress: 0, dead: false, hitFlash: 0
+      type: def.type, hp: def.hp*hpScale, maxHp: def.hp*hpScale,
+      spd: def.spd, col: def.col, r: def.r, gold: def.gold,
+      shape: def.shape, prog: 0, dead: false, flash: 0
     });
     spawnCount++;
   }
 
   // ── Simulation ──
   function simTick() {
-    tickCount++;
-
+    tick++;
     // Spawn
     if (waveActive && spawnCount < spawnTotal) {
       spawnTimer--;
       if (spawnTimer <= 0) {
         spawnEnemy();
-        spawnTimer = wave % 10 === 0 ? 60 : 15 + Math.floor(Math.random() * 10);
+        spawnTimer = wave % 10 === 0 ? 60 : 15 + Math.floor(Math.random()*10);
       }
     }
-
     // Move enemies
-    for (var i = enemies.length - 1; i >= 0; i--) {
+    for (var i = enemies.length-1; i >= 0; i--) {
       var e = enemies[i];
       if (e.dead) continue;
-      e.progress += (e.speed * 0.4) / pathLength;
-      e.hitFlash = Math.max(0, e.hitFlash - 1);
-      if (e.progress >= 1) {
-        var dmg = e.type === 'boss' ? 5 : 1;
-        baseHp = Math.max(0, baseHp - dmg);
+      e.prog += (e.spd * 0.4) / pathLen;
+      e.flash = Math.max(0, e.flash - 1);
+      if (e.prog >= 1) {
+        baseHp = Math.max(0, baseHp - (e.type === 'boss' ? 5 : 1));
         e.dead = true;
-        if (baseHp <= 0) {
-          gameState = STATE_GAMEOVER;
-          totalWaves = wave;
-        }
+        if (baseHp <= 0) { state = S_OVER; totalWaves = wave; }
       }
     }
-
     // Cannon fire
     for (var ci = 0; ci < cannons.length; ci++) {
       var c = cannons[ci];
-      c.cooldown = Math.max(0, c.cooldown - 1);
-      if (c.cooldown > 0) continue;
-
-      // Find target
-      var best = null, bestDist = Infinity;
+      c.cd = Math.max(0, c.cd - 1);
+      if (c.cd > 0) continue;
+      var best = null, bd = Infinity;
       for (var ei = 0; ei < enemies.length; ei++) {
         var e = enemies[ei];
         if (e.dead) continue;
-        var pos = getPathPos(e.progress);
-        var dx = pos.x - c.px;
-        var dy = pos.y - c.py;
-        var dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist <= c.range && dist < bestDist) {
-          best = e;
-          bestDist = dist;
-        }
+        var p = pathPos(e.prog);
+        var dx = p.x-c.px, dy = p.y-c.py, d = Math.sqrt(dx*dx+dy*dy);
+        if (d <= c.rng && d < bd) { best = e; bd = d; }
       }
       if (best) {
-        var pos = getPathPos(best.progress);
-        c.cooldown = Math.round(60 / c.rate);
-        c.targetAngle = Math.atan2(pos.y - c.py, pos.x - c.px);
-
-        // XP for shooting
-        var dmg = c.dmg * (1 + c.level * 0.15);
-        // Crit chance
-        var crit = Math.random() < 0.1 + c.level * 0.01;
+        var p = pathPos(best.prog);
+        c.cd = Math.round(60/c.rate);
+        c.angle = Math.atan2(p.y-c.py, p.x-c.px);
+        var dmg = c.dmg * (1 + c.lvl*0.15);
+        var crit = Math.random() < 0.1 + c.lvl*0.01;
         if (crit) dmg *= 2;
-
-        projectiles.push({
-          x: c.px, y: c.py, tx: pos.x, ty: pos.y,
-          dmg: dmg, speed: 8, color: c.color, target: best, crit: crit
-        });
+        bullets.push({x:c.px, y:c.py, tx:p.x, ty:p.y, dmg:dmg, spd:8, col:c.col, tgt:best, crit:crit, owner:c});
       }
     }
-
-    // Move projectiles
-    for (var pi = projectiles.length - 1; pi >= 0; pi--) {
-      var p = projectiles[pi];
-      var dx = p.tx - p.x, dy = p.ty - p.y;
-      var dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < p.speed) {
-        // Hit
-        if (p.target && !p.target.dead) {
-          p.target.hp -= p.dmg;
-          p.target.hitFlash = 6;
-          if (p.target.hp <= 0) {
-            p.target.dead = true;
+    // Move bullets
+    for (var i = bullets.length-1; i >= 0; i--) {
+      var b = bullets[i];
+      var dx = b.tx-b.x, dy = b.ty-b.y, d = Math.sqrt(dx*dx+dy*dy);
+      if (d < b.spd) {
+        if (b.tgt && !b.tgt.dead) {
+          b.tgt.hp -= b.dmg;
+          b.tgt.flash = 6;
+          if (b.tgt.hp <= 0) {
+            b.tgt.dead = true;
             kills++;
-            gold += p.target.reward;
-            // XP to cannon that killed it
-            for (var k = 0; k < cannons.length; k++) {
-              var ck = cannons[k];
-              var epos = getPathPos(p.target.progress);
-              var dd = Math.sqrt((epos.x - ck.px) * (epos.x - ck.px) + (epos.y - ck.py) * (epos.y - ck.py));
-              if (dd <= ck.range) {
-                ck.xp += p.target.reward;
-                // Level up
-                var needed = 50 + ck.level * 40;
-                while (ck.xp >= needed) {
-                  ck.xp -= needed;
-                  ck.level++;
-                  needed = 50 + ck.level * 40;
-                  announceText = '⬆ Lv' + ck.level + ' ' + ck.specName;
-                  announceTimer = 50;
-                }
-                break;
+            gold += b.tgt.gold;
+            // XP to owner cannon
+            if (b.owner) {
+              b.owner.xp += b.tgt.gold;
+              var need = 50 + b.owner.lvl*40;
+              while (b.owner.xp >= need) {
+                b.owner.xp -= need;
+                b.owner.lvl++;
+                need = 50 + b.owner.lvl*40;
+                announce('⬆ Lv'+b.owner.lvl+' '+b.owner.name, 50);
               }
             }
             // Death particles
-            var epos2 = getPathPos(p.target.progress);
+            var ep = pathPos(b.tgt.prog);
             for (var dp = 0; dp < 6; dp++) {
-              particles.push({
-                x: epos2.x, y: epos2.y,
-                vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
-                life: 20, maxLife: 20, color: p.target.color, size: 3
-              });
+              particles.push({x:ep.x, y:ep.y, vx:(Math.random()-0.5)*4, vy:(Math.random()-0.5)*4,
+                life:20, max:20, col:b.tgt.col, sz:3});
             }
           }
-          // Impact particle
-          particles.push({
-            x: p.tx, y: p.ty,
-            vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2,
-            life: 10, maxLife: 10, color: '#ffffff', size: p.crit ? 5 : 2
-          });
+          particles.push({x:b.tx, y:b.ty, vx:(Math.random()-0.5)*2, vy:(Math.random()-0.5)*2,
+            life:10, max:10, col:'#fff', sz:b.crit?5:2});
         }
-        projectiles.splice(pi, 1);
+        bullets.splice(i, 1);
       } else {
-        p.x += (dx / dist) * p.speed;
-        p.y += (dy / dist) * p.speed;
+        b.x += (dx/d)*b.spd;
+        b.y += (dy/d)*b.spd;
       }
     }
-
     // Particles
-    for (var i = particles.length - 1; i >= 0; i--) {
-      var pt = particles[i];
-      pt.x += pt.vx;
-      pt.y += pt.vy;
-      pt.vy += 0.1;
-      pt.life--;
-      if (pt.life <= 0) particles.splice(i, 1);
+    for (var i = particles.length-1; i >= 0; i--) {
+      var p = particles[i];
+      p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life--;
+      if (p.life <= 0) particles.splice(i, 1);
     }
-
-    // Clean dead enemies
-    for (var i = enemies.length - 1; i >= 0; i--) {
+    // Remove dead
+    for (var i = enemies.length-1; i >= 0; i--) {
       if (enemies[i].dead) enemies.splice(i, 1);
     }
-
     // Wave complete
     if (waveActive && spawnCount >= spawnTotal && enemies.length === 0) {
       waveActive = false;
-      announceText = '✓ WAVE ' + wave + ' CLEAR';
-      announceTimer = 70;
+      announce('✓ WAVE '+wave+' CLEAR', 70);
+      state = S_WAVE_READY;
     }
-
-    // Announce timer
-    if (announceTimer > 0) announceTimer--;
+    if (msgTimer > 0) msgTimer--;
   }
 
   // ── Drawing ──
+  function drawShape(x, y, r, shape, col) {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    if (shape === 'hex') {
+      for (var s = 0; s < 6; s++) {
+        var a = (s/6)*Math.PI*2;
+        if (s === 0) ctx.moveTo(x+Math.cos(a)*r, y+Math.sin(a)*r);
+        else ctx.lineTo(x+Math.cos(a)*r, y+Math.sin(a)*r);
+      }
+      ctx.closePath();
+    } else if (shape === 'diamond') {
+      ctx.moveTo(x, y-r); ctx.lineTo(x+r, y); ctx.lineTo(x, y+r); ctx.lineTo(x-r, y);
+      ctx.closePath();
+    } else if (shape === 'oct') {
+      for (var s = 0; s < 8; s++) {
+        var a = (s/8)*Math.PI*2 - Math.PI/8;
+        if (s === 0) ctx.moveTo(x+Math.cos(a)*r, y+Math.sin(a)*r);
+        else ctx.lineTo(x+Math.cos(a)*r, y+Math.sin(a)*r);
+      }
+      ctx.closePath();
+    } else {
+      ctx.arc(x, y, r, 0, Math.PI*2);
+    }
+    ctx.fill();
+  }
+
   function draw() {
     ctx.fillStyle = '#0d0d0d';
     ctx.fillRect(0, 0, W, H);
 
-    if (gameState === STATE_MENU) {
-      drawMenu();
-      return;
-    }
-    if (gameState === STATE_GAMEOVER) {
-      drawGameOver();
-      return;
-    }
+    if (state === S_MENU) return drawMenu();
+    if (state === S_OVER) return drawGameOver();
 
-    // Grid (subtle)
+    // Grid
     ctx.strokeStyle = 'rgba(255,255,255,0.03)';
     ctx.lineWidth = 1;
     for (var x = 0; x <= W; x += GRID) {
@@ -362,84 +306,62 @@
 
     // Path glow
     ctx.strokeStyle = '#1a3355';
-    ctx.lineWidth = GRID * 0.8;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    ctx.lineWidth = GRID*0.8;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.beginPath();
-    ctx.moveTo(pathPixels[0].x, pathPixels[0].y);
-    for (var i = 1; i < pathPixels.length; i++) {
-      ctx.lineTo(pathPixels[i].x, pathPixels[i].y);
-    }
+    ctx.moveTo(pathPx[0].x, pathPx[0].y);
+    for (var i = 1; i < pathPx.length; i++) ctx.lineTo(pathPx[i].x, pathPx[i].y);
     ctx.stroke();
 
-    // Path bright line
+    // Path line
     ctx.strokeStyle = '#2a5588';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(pathPixels[0].x, pathPixels[0].y);
-    for (var i = 1; i < pathPixels.length; i++) {
-      ctx.lineTo(pathPixels[i].x, pathPixels[i].y);
-    }
+    ctx.moveTo(pathPx[0].x, pathPx[0].y);
+    for (var i = 1; i < pathPx.length; i++) ctx.lineTo(pathPx[i].x, pathPx[i].y);
     ctx.stroke();
 
-    // Path direction dots
-    var now = tickCount * 0.05;
+    // Flow dots
     for (var d = 0; d < 8; d++) {
-      var prog = ((d / 8) + now * 0.02) % 1;
-      var dp = getPathPos(prog);
+      var prog = ((d/8) + tick*0.001) % 1;
+      var dp = pathPos(prog);
       ctx.fillStyle = 'rgba(74,158,255,0.3)';
-      ctx.beginPath();
-      ctx.arc(dp.x, dp.y, 2, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(dp.x, dp.y, 2, 0, Math.PI*2); ctx.fill();
     }
 
     // Base
-    var basePos = pathPixels[pathPixels.length - 2]; // second to last node on screen
-    ctx.fillStyle = baseHp > baseMaxHp * 0.3 ? '#224488' : '#882222';
-    ctx.fillRect(basePos.x - GRID, basePos.y - GRID/2, GRID * 2, GRID);
-    ctx.fillStyle = '#e8e8e8';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('🏠 ' + baseHp + '/' + baseMaxHp, basePos.x, basePos.y + 5);
+    var bp = pathPx[pathPx.length - 2];
+    ctx.fillStyle = baseHp > maxHp*0.3 ? '#224488' : '#882222';
+    ctx.fillRect(bp.x-GRID, bp.y-GRID/2, GRID*2, GRID);
+    ctx.fillStyle = '#e8e8e8'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('🏠 '+baseHp+'/'+maxHp, bp.x, bp.y+5);
 
     // Cannons
     for (var i = 0; i < cannons.length; i++) {
       var c = cannons[i];
-      // Range circle (if selected)
-      if (selectedCannon === c || (gameState === STATE_SELECT && cannons.indexOf(selectedCannon) === i)) {
+      // Range ring on selected
+      if (selCannon === c) {
         ctx.strokeStyle = 'rgba(74,158,255,0.2)';
         ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(c.px, c.py, c.range, 0, Math.PI * 2);
-        ctx.stroke();
+        ctx.beginPath(); ctx.arc(c.px, c.py, c.rng, 0, Math.PI*2); ctx.stroke();
       }
       // Body
-      ctx.fillStyle = c.color;
-      ctx.beginPath();
-      ctx.arc(c.px, c.py, 14, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillStyle = c.col;
+      ctx.beginPath(); ctx.arc(c.px, c.py, 14, 0, Math.PI*2); ctx.fill();
       // Barrel
-      var angle = c.targetAngle || 0;
-      ctx.strokeStyle = c.color;
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(c.px, c.py);
-      ctx.lineTo(c.px + Math.cos(angle) * 18, c.py + Math.sin(angle) * 18);
-      ctx.stroke();
-      // Level
-      if (c.level > 0) {
-        ctx.fillStyle = '#ffd700';
-        ctx.font = 'bold 10px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(c.level, c.px, c.py - 18);
+      var a = c.angle || 0;
+      ctx.strokeStyle = c.col; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(c.px, c.py);
+      ctx.lineTo(c.px+Math.cos(a)*18, c.py+Math.sin(a)*18); ctx.stroke();
+      // Level badge
+      if (c.lvl > 0) {
+        ctx.fillStyle = '#ffd700'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(c.lvl, c.px, c.py-18);
       }
-      // Selection highlight
-      if (selectedCannon === c) {
-        ctx.strokeStyle = '#ffd700';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(c.px, c.py, 18, 0, Math.PI * 2);
-        ctx.stroke();
+      // Selection ring
+      if (selCannon === c) {
+        ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(c.px, c.py, 18, 0, Math.PI*2); ctx.stroke();
       }
     }
 
@@ -447,475 +369,442 @@
     for (var i = 0; i < enemies.length; i++) {
       var e = enemies[i];
       if (e.dead) continue;
-      var pos = getPathPos(e.progress);
-      // Hit flash
-      if (e.hitFlash > 0) {
-        ctx.fillStyle = '#ffffff';
-      } else {
-        ctx.fillStyle = e.color;
-      }
-      // Shape by type
+      var p = pathPos(e.prog);
+      var col = e.flash > 0 ? '#ffffff' : e.col;
+      drawShape(p.x, p.y, e.r, e.shape, col);
       if (e.type === 'boss') {
-        // Octagon
-        ctx.beginPath();
-        for (var s = 0; s < 8; s++) {
-          var a = (s / 8) * Math.PI * 2 - Math.PI / 8;
-          var px = pos.x + Math.cos(a) * e.r;
-          var py = pos.y + Math.sin(a) * e.r;
-          if (s === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.fill();
-        // Glow
-        ctx.shadowColor = e.color;
-        ctx.shadowBlur = 10;
-        ctx.fill();
+        ctx.shadowColor = e.col; ctx.shadowBlur = 10;
+        drawShape(p.x, p.y, e.r, e.shape, col);
         ctx.shadowBlur = 0;
-      } else if (e.type === 'tank') {
-        // Hexagon
-        ctx.beginPath();
-        for (var s = 0; s < 6; s++) {
-          var a = (s / 6) * Math.PI * 2;
-          var px = pos.x + Math.cos(a) * e.r;
-          var py = pos.y + Math.sin(a) * e.r;
-          if (s === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.fill();
-      } else if (e.type === 'speed') {
-        // Diamond
-        ctx.beginPath();
-        ctx.moveTo(pos.x, pos.y - e.r);
-        ctx.lineTo(pos.x + e.r, pos.y);
-        ctx.lineTo(pos.x, pos.y + e.r);
-        ctx.lineTo(pos.x - e.r, pos.y);
-        ctx.closePath();
-        ctx.fill();
-      } else {
-        // Circle
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, e.r, 0, Math.PI * 2);
-        ctx.fill();
       }
       // HP bar
-      var hpPct = e.hp / e.maxHp;
-      if (hpPct < 1) {
-        var bw = e.r * 2.5;
+      var pct = e.hp / e.maxHp;
+      if (pct < 1) {
+        var bw = e.r*2.5;
         ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(pos.x - bw/2, pos.y - e.r - 8, bw, 4);
-        ctx.fillStyle = hpPct > 0.5 ? '#44ff44' : hpPct > 0.25 ? '#ffaa00' : '#ff4444';
-        ctx.fillRect(pos.x - bw/2, pos.y - e.r - 8, bw * hpPct, 4);
+        ctx.fillRect(p.x-bw/2, p.y-e.r-8, bw, 4);
+        ctx.fillStyle = pct > 0.5 ? '#44ff44' : pct > 0.25 ? '#ffaa00' : '#ff4444';
+        ctx.fillRect(p.x-bw/2, p.y-e.r-8, bw*pct, 4);
       }
     }
 
-    // Projectiles
-    for (var i = 0; i < projectiles.length; i++) {
-      var p = projectiles[i];
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.crit ? 4 : 2.5, 0, Math.PI * 2);
-      ctx.fill();
-      if (p.crit) {
-        ctx.shadowColor = '#ffd700';
-        ctx.shadowBlur = 6;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      }
+    // Bullets
+    for (var i = 0; i < bullets.length; i++) {
+      var b = bullets[i];
+      ctx.fillStyle = b.col;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.crit?4:2.5, 0, Math.PI*2); ctx.fill();
+      if (b.crit) { ctx.shadowColor='#ffd700'; ctx.shadowBlur=6; ctx.fill(); ctx.shadowBlur=0; }
     }
 
     // Particles
     for (var i = 0; i < particles.length; i++) {
-      var pt = particles[i];
-      var alpha = pt.life / pt.maxLife;
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = pt.color;
-      ctx.fillRect(pt.x - pt.size/2, pt.y - pt.size/2, pt.size, pt.size);
+      var p = particles[i];
+      ctx.globalAlpha = p.life / p.max;
+      ctx.fillStyle = p.col;
+      ctx.fillRect(p.x-p.sz/2, p.y-p.sz/2, p.sz, p.sz);
     }
     ctx.globalAlpha = 1;
 
-    // Cursor (in play/place mode)
-    if (gameState === STATE_PLAY || gameState === STATE_PLACE) {
-      var cx = cursorX * GRID + GRID / 2;
-      var cy = cursorY * GRID + GRID / 2;
-      var onPath = !!pathCells[cursorX + ',' + cursorY];
-      var hasCannon = false;
-      for (var i = 0; i < cannons.length; i++) {
-        if (cannons[i].gx === cursorX && cannons[i].gy === cursorY) { hasCannon = true; break; }
-      }
-      var validPlace = !onPath && !hasCannon && cursorY >= 0 && cursorY < ROWS;
+    // Cursor
+    if (state === S_PLAY || state === S_WAVE_READY || state === S_PICK) {
+      var cx = curX*GRID + GRID/2, cy = curY*GRID + GRID/2;
+      var pulse = 0.5 + 0.5*Math.sin(tick*0.15);
 
-      // Crosshair
-      var pulse = 0.5 + 0.5 * Math.sin(tickCount * 0.15);
-      if (gameState === STATE_PLACE) {
-        // Placement preview
-        if (validPlace) {
-          ctx.strokeStyle = 'rgba(74,255,136,' + (0.4 + 0.3 * pulse) + ')';
-          ctx.fillStyle = 'rgba(74,255,136,0.1)';
-          // Range preview
-          ctx.beginPath();
-          ctx.arc(cx, cy, CANNON_SPECS[placingSpec].range, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
+      if (state === S_PICK) {
+        // Placement preview — cursor locked, showing spec picker
+        var spec = SPECS[pickSpec];
+        var valid = canPlace(curX, curY);
+        if (valid) {
+          ctx.strokeStyle = 'rgba(74,255,136,'+(0.4+0.3*pulse)+')';
+          ctx.fillStyle = 'rgba(74,255,136,0.08)';
+          ctx.beginPath(); ctx.arc(cx, cy, spec.rng, 0, Math.PI*2); ctx.fill(); ctx.stroke();
         } else {
-          ctx.strokeStyle = 'rgba(255,68,68,' + (0.5 + 0.3 * pulse) + ')';
+          ctx.strokeStyle = 'rgba(255,68,68,'+(0.5+0.3*pulse)+')';
         }
         ctx.lineWidth = 2;
-        ctx.strokeRect(cursorX * GRID + 2, cursorY * GRID + 2, GRID - 4, GRID - 4);
-        // Spec name
-        ctx.fillStyle = validPlace ? '#44ff88' : '#ff4444';
-        ctx.font = 'bold 14px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(CANNON_SPECS[placingSpec].name + ' $' + CANNON_SPECS[placingSpec].cost, cx, cy - 22);
+        ctx.strokeRect(curX*GRID+2, curY*GRID+2, GRID-4, GRID-4);
+
+        // Spec picker panel
+        drawSpecPicker(cx, cy);
       } else {
-        // Normal cursor
-        ctx.strokeStyle = 'rgba(74,158,255,' + (0.4 + 0.4 * pulse) + ')';
+        // Normal crosshair
+        ctx.strokeStyle = 'rgba(74,158,255,'+(0.4+0.4*pulse)+')';
         ctx.lineWidth = 2;
-        // Crosshair lines
         ctx.beginPath();
-        ctx.moveTo(cx - 8, cy); ctx.lineTo(cx - 3, cy);
-        ctx.moveTo(cx + 3, cy); ctx.lineTo(cx + 8, cy);
-        ctx.moveTo(cx, cy - 8); ctx.lineTo(cx, cy - 3);
-        ctx.moveTo(cx, cy + 3); ctx.lineTo(cx, cy + 8);
+        ctx.moveTo(cx-10, cy); ctx.lineTo(cx-4, cy);
+        ctx.moveTo(cx+4, cy); ctx.lineTo(cx+10, cy);
+        ctx.moveTo(cx, cy-10); ctx.lineTo(cx, cy-4);
+        ctx.moveTo(cx, cy+4); ctx.lineTo(cx, cy+10);
         ctx.stroke();
+
+        // Context hint near cursor
+        var existing = cannonAt(curX, curY);
+        if (existing) {
+          ctx.fillStyle = 'rgba(0,0,0,0.7)';
+          ctx.fillRect(cx-40, cy+20, 80, 18);
+          ctx.fillStyle = existing.col; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+          ctx.fillText(existing.name+' Lv'+existing.lvl, cx, cy+33);
+        } else if (canPlace(curX, curY)) {
+          ctx.fillStyle = 'rgba(74,158,255,0.4)'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+          ctx.fillText('⊕ Place', cx, cy+24);
+        }
       }
     }
 
     // ── HUD ──
     // Top bar
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
     ctx.fillRect(0, 0, W, 36);
-    ctx.fillStyle = '#e8e8e8';
     ctx.font = 'bold 16px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('⚔ W' + wave, 10, 25);
+    ctx.fillStyle = '#e8e8e8'; ctx.fillText('⚔ W'+wave, 10, 25);
     ctx.textAlign = 'center';
     ctx.fillStyle = baseHp <= 5 ? '#ff4444' : '#e8e8e8';
-    ctx.fillText('❤ ' + baseHp, W / 2 - 60, 25);
-    ctx.fillStyle = '#ffd700';
-    ctx.fillText('💰 ' + gold, W / 2 + 60, 25);
-    ctx.fillStyle = '#aaaaaa';
+    ctx.fillText('❤ '+baseHp, W/2-60, 25);
+    ctx.fillStyle = '#ffd700'; ctx.fillText('💰 '+gold, W/2+60, 25);
     ctx.textAlign = 'right';
-    ctx.fillText('💀 ' + kills, W - 10, 25);
+    ctx.fillStyle = '#aaa'; ctx.fillText('💀 '+kills, W-10, 25);
 
-    // Bottom bar (controls hint)
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillRect(0, H - 32, W, 32);
-    ctx.fillStyle = '#888';
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'center';
-    if (gameState === STATE_PLAY) {
-      if (!waveActive && enemies.length === 0) {
-        ctx.fillStyle = '#44ff88';
-        ctx.fillText('[ENTER] Start Wave ' + (wave + 1) + '  |  [←→] Spec  |  [P] Place', W / 2, H - 12);
-      } else {
-        ctx.fillText('[P] Place Cannon  |  [ESC] Pause  |  ↑↓←→ Move', W / 2, H - 12);
-      }
-    } else if (gameState === STATE_PLACE) {
-      ctx.fillText('[ENTER] Place $' + CANNON_SPECS[placingSpec].cost + '  |  [←→] Change Spec  |  [ESC] Cancel', W / 2, H - 12);
-    } else if (gameState === STATE_SELECT) {
-      ctx.fillText('[ENTER] Upgrade  |  [DEL] Sell  |  [ESC] Deselect', W / 2, H - 12);
-    } else if (gameState === STATE_PAUSED) {
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = '#e8e8e8';
-      ctx.font = 'bold 32px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('⏸ PAUSED', W / 2, H / 2 - 10);
-      ctx.font = '16px sans-serif';
+    // Bottom bar
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, H-30, W, 30);
+    ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
+    if (state === S_WAVE_READY) {
+      ctx.fillStyle = '#44ff88';
+      ctx.fillText('▶ ENTER: Wave '+(wave+1)+'   ↑↓←→: Move', W/2, H-10);
+    } else if (state === S_PLAY) {
       ctx.fillStyle = '#888';
-      ctx.fillText('[ESC] Resume', W / 2, H / 2 + 25);
+      ctx.fillText('↑↓←→ Move   ENTER: Place/Select   ◀ Pause', W/2, H-10);
+    } else if (state === S_PICK) {
+      ctx.fillStyle = '#44ff88';
+      ctx.fillText('↑↓ Spec   ENTER: Confirm   ◀ Cancel', W/2, H-10);
+    } else if (state === S_SELECT) {
+      ctx.fillStyle = '#ffd700';
+      ctx.fillText('ENTER: Sell $'+Math.floor(selCannon ? selCannon.sell : 0)+'   ◀ Back', W/2, H-10);
+    } else if (state === S_PAUSE) {
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#e8e8e8'; ctx.font = 'bold 32px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('⏸ PAUSED', W/2, H/2-10);
+      ctx.fillStyle = '#888'; ctx.font = '16px sans-serif';
+      ctx.fillText('ENTER or ◀ to Resume', W/2, H/2+25);
     }
 
     // Announcement
-    if (announceTimer > 0) {
-      var alpha = Math.min(1, announceTimer / 20);
+    if (msgTimer > 0) {
+      var alpha = Math.min(1, msgTimer/20);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = '#0d0d0d';
-      ctx.fillRect(W / 2 - 150, 50, 300, 40);
-      ctx.strokeStyle = '#4a9eff';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(W / 2 - 150, 50, 300, 40);
-      ctx.fillStyle = '#e8e8e8';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(announceText, W / 2, 76);
+      ctx.fillRect(W/2-150, 46, 300, 36);
+      ctx.strokeStyle = '#4a9eff'; ctx.lineWidth = 1;
+      ctx.strokeRect(W/2-150, 46, 300, 36);
+      ctx.fillStyle = '#e8e8e8'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(msg, W/2, 70);
       ctx.globalAlpha = 1;
     }
 
-    // Selected cannon info
-    if (gameState === STATE_SELECT && selectedCannon) {
-      var sc = selectedCannon;
-      ctx.fillStyle = 'rgba(0,0,0,0.85)';
-      ctx.fillRect(W / 2 - 120, H - 100, 240, 65);
-      ctx.strokeStyle = '#4a9eff';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(W / 2 - 120, H - 100, 240, 65);
-      ctx.fillStyle = sc.color;
-      ctx.font = 'bold 14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(sc.specName + ' Lv' + sc.level, W / 2, H - 82);
-      ctx.fillStyle = '#aaa';
-      ctx.font = '12px sans-serif';
-      ctx.fillText('DMG: ' + Math.round(sc.dmg * (1 + sc.level * 0.15)) + '  RATE: ' + sc.rate.toFixed(1) + '  RNG: ' + sc.range, W / 2, H - 66);
-      ctx.fillText('XP: ' + sc.xp + '/' + (50 + sc.level * 40) + '  |  Sell: $' + Math.floor(sc.sellValue), W / 2, H - 50);
+    // Selected cannon info panel
+    if (state === S_SELECT && selCannon) {
+      var sc = selCannon;
+      ctx.fillStyle = 'rgba(0,0,0,0.9)';
+      ctx.fillRect(W/2-130, H-105, 260, 72);
+      ctx.strokeStyle = sc.col; ctx.lineWidth = 1;
+      ctx.strokeRect(W/2-130, H-105, 260, 72);
+      ctx.fillStyle = sc.col; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(sc.name + ' Lv'+sc.lvl, W/2, H-87);
+      ctx.fillStyle = '#ccc'; ctx.font = '12px sans-serif';
+      var eDmg = Math.round(sc.dmg*(1+sc.lvl*0.15));
+      ctx.fillText('DMG:'+eDmg+'  RATE:'+sc.rate.toFixed(1)+'  RNG:'+sc.rng, W/2, H-71);
+      var need = 50+sc.lvl*40;
+      ctx.fillText('XP: '+sc.xp+'/'+need+'  |  Sell: $'+Math.floor(sc.sell), W/2, H-55);
+      // XP bar
+      ctx.fillStyle = '#333';
+      ctx.fillRect(W/2-100, H-48, 200, 6);
+      ctx.fillStyle = '#4a9eff';
+      ctx.fillRect(W/2-100, H-48, 200*(sc.xp/need), 6);
     }
 
     // Danger vignette
-    if (baseHp <= baseMaxHp * 0.3 && baseHp > 0) {
-      var intensity = 0.15 + 0.1 * Math.sin(tickCount * 0.2);
-      var grad = ctx.createRadialGradient(W/2, H/2, W * 0.3, W/2, H/2, W * 0.7);
+    if (baseHp <= maxHp*0.3 && baseHp > 0) {
+      var intensity = 0.15 + 0.1*Math.sin(tick*0.2);
+      var grad = ctx.createRadialGradient(W/2,H/2,W*0.3, W/2,H/2,W*0.7);
       grad.addColorStop(0, 'rgba(255,0,0,0)');
-      grad.addColorStop(1, 'rgba(255,0,0,' + intensity + ')');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, W, H);
+      grad.addColorStop(1, 'rgba(255,0,0,'+intensity+')');
+      ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+    }
+  }
+
+  function drawSpecPicker(cx, cy) {
+    // Compact spec picker panel — shows all 3, highlights current
+    var pw = 180, ph = 100;
+    var px = Math.min(Math.max(cx - pw/2, 5), W - pw - 5);
+    var py = cy + GRID/2 + 8;
+    if (py + ph > H - 35) py = cy - GRID/2 - ph - 8;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.92)';
+    ctx.fillRect(px, py, pw, ph);
+    ctx.strokeStyle = '#4a9eff'; ctx.lineWidth = 1;
+    ctx.strokeRect(px, py, pw, ph);
+
+    ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillStyle = '#888';
+    ctx.fillText('SELECT CANNON ↑↓', px+8, py+14);
+
+    for (var i = 0; i < SPECS.length; i++) {
+      var s = SPECS[i];
+      var ry = py + 20 + i*25;
+      var selected = (i === pickSpec);
+      if (selected) {
+        ctx.fillStyle = 'rgba(74,158,255,0.15)';
+        ctx.fillRect(px+3, ry-2, pw-6, 22);
+        ctx.strokeStyle = '#4a9eff'; ctx.lineWidth = 1;
+        ctx.strokeRect(px+3, ry-2, pw-6, 22);
+      }
+      // Dot
+      ctx.fillStyle = s.col;
+      ctx.beginPath(); ctx.arc(px+16, ry+9, 5, 0, Math.PI*2); ctx.fill();
+      // Name + cost
+      ctx.fillStyle = selected ? '#fff' : '#aaa'; ctx.font = selected ? 'bold 13px sans-serif' : '12px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(s.name, px+28, ry+13);
+      // Cost
+      var affordable = gold >= s.cost;
+      ctx.fillStyle = affordable ? '#ffd700' : '#ff4444';
+      ctx.textAlign = 'right'; ctx.font = '12px sans-serif';
+      ctx.fillText('$'+s.cost, px+pw-8, ry+13);
     }
   }
 
   function drawMenu() {
-    ctx.fillStyle = '#0d0d0d';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#4a9eff'; ctx.font = 'bold 36px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('⚔ TOWER DEFENSE', W/2, 160);
+    ctx.fillStyle = '#666'; ctx.font = '14px sans-serif';
+    ctx.fillText('Meta Rayban Display Edition', W/2, 190);
 
-    // Title
-    ctx.fillStyle = '#4a9eff';
-    ctx.font = 'bold 36px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('⚔ TOWER DEFENSE', W / 2, 180);
-
-    ctx.fillStyle = '#888';
-    ctx.font = '16px sans-serif';
-    ctx.fillText('Meta Rayban Display Edition', W / 2, 215);
-
-    // Instructions
-    ctx.fillStyle = '#e8e8e8';
-    ctx.font = '18px sans-serif';
+    ctx.fillStyle = '#e8e8e8'; ctx.font = '18px sans-serif';
     var lines = [
-      '↑↓←→  Move cursor',
-      'ENTER  Start wave / Place / Select',
-      'P      Place mode',
-      'ESC    Cancel / Pause',
+      '↑↓←→   Move cursor',
+      'ENTER   Place / Select / Start wave',
+      '◀ BACK  Cancel / Pause',
       '',
-      'Defend your base from enemies!',
-      'Place cannons along the path.',
+      'Move to empty cell → ENTER to place',
+      'Move to cannon → ENTER to inspect',
+      'Between waves → ENTER to start',
     ];
     for (var i = 0; i < lines.length; i++) {
-      ctx.fillText(lines[i], W / 2, 280 + i * 28);
+      ctx.fillText(lines[i], W/2, 250 + i*30);
     }
 
-    // Start prompt
-    var pulse = 0.5 + 0.5 * Math.sin(tickCount * 0.1);
-    ctx.fillStyle = 'rgba(74,158,255,' + pulse + ')';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.fillText('[ENTER] START', W / 2, 520);
+    var pulse = 0.5 + 0.5*Math.sin(tick*0.1);
+    ctx.fillStyle = 'rgba(74,158,255,'+pulse+')';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText('[ ENTER ] START', W/2, 520);
   }
 
   function drawGameOver() {
-    ctx.fillStyle = '#0d0d0d';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#ff4444'; ctx.font = 'bold 36px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('💀 GAME OVER', W/2, 180);
 
-    ctx.fillStyle = '#ff4444';
-    ctx.font = 'bold 36px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('💀 GAME OVER', W / 2, 200);
+    ctx.fillStyle = '#e8e8e8'; ctx.font = '22px sans-serif';
+    ctx.fillText('Wave: '+totalWaves, W/2, 250);
+    ctx.fillText('Kills: '+kills, W/2, 285);
+    ctx.fillText('Cannons: '+cannons.length, W/2, 320);
 
-    ctx.fillStyle = '#e8e8e8';
-    ctx.font = '22px sans-serif';
-    ctx.fillText('Wave: ' + totalWaves, W / 2, 270);
-    ctx.fillText('Kills: ' + kills, W / 2, 305);
-    ctx.fillText('Cannons: ' + cannons.length, W / 2, 340);
-
-    // Grade
     var grade = totalWaves >= 50 ? 'S' : totalWaves >= 30 ? 'A' : totalWaves >= 20 ? 'B' : totalWaves >= 10 ? 'C' : 'D';
-    var gradeColor = grade === 'S' ? '#ffd700' : grade === 'A' ? '#44ff88' : grade === 'B' ? '#4a9eff' : '#ff9900';
-    ctx.fillStyle = gradeColor;
-    ctx.font = 'bold 60px sans-serif';
-    ctx.fillText(grade, W / 2, 430);
+    var gc = grade==='S'?'#ffd700':grade==='A'?'#44ff88':grade==='B'?'#4a9eff':'#ff9900';
+    ctx.fillStyle = gc; ctx.font = 'bold 60px sans-serif';
+    ctx.fillText(grade, W/2, 410);
 
-    var pulse = 0.5 + 0.5 * Math.sin(tickCount * 0.1);
-    ctx.fillStyle = 'rgba(74,158,255,' + pulse + ')';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText('[ENTER] PLAY AGAIN', W / 2, 520);
+    var pulse = 0.5 + 0.5*Math.sin(tick*0.1);
+    ctx.fillStyle = 'rgba(74,158,255,'+pulse+')';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText('[ ENTER ] PLAY AGAIN', W/2, 500);
   }
 
-  // ── Input ──
-  function canPlaceAt(gx, gy) {
-    if (gx < 0 || gx >= COLS || gy < 0 || gy >= ROWS) return false;
-    if (pathCells[gx + ',' + gy]) return false;
-    for (var i = 0; i < cannons.length; i++) {
-      if (cannons[i].gx === gx && cannons[i].gy === gy) return false;
-    }
-    return true;
-  }
-
-  function getCannonAt(gx, gy) {
-    for (var i = 0; i < cannons.length; i++) {
-      if (cannons[i].gx === gx && cannons[i].gy === gy) return cannons[i];
-    }
-    return null;
-  }
-
+  // ── Input (D-pad only: 5 buttons) ──
   document.addEventListener('keydown', function(e) {
     e.preventDefault();
 
-    if (gameState === STATE_MENU) {
+    // ── MENU ──
+    if (state === S_MENU) {
+      if (e.key === 'Enter') { state = S_PLAY; startWave(); }
+      return;
+    }
+
+    // ── GAME OVER ──
+    if (state === S_OVER) {
       if (e.key === 'Enter') {
-        gameState = STATE_PLAY;
-        startWave();
+        wave=0; baseHp=maxHp; kills=0; gold=120;
+        enemies=[]; cannons=[]; bullets=[]; particles=[];
+        waveActive=false; selCannon=null;
+        state = S_PLAY; startWave();
       }
       return;
     }
 
-    if (gameState === STATE_GAMEOVER) {
-      if (e.key === 'Enter') {
-        // Reset
-        wave = 0; baseHp = baseMaxHp; kills = 0; gold = 100;
-        enemies = []; cannons = []; projectiles = []; particles = [];
-        waveActive = false; selectedCannon = null;
-        gameState = STATE_PLAY;
-        startWave();
+    // ── PAUSED ──
+    if (state === S_PAUSE) {
+      if (e.key === 'Enter' || e.key === 'Escape' || e.key === 'Backspace') {
+        state = S_PLAY;
       }
       return;
     }
 
-    if (gameState === STATE_PAUSED) {
-      if (e.key === 'Escape' || e.key === 'Backspace') {
-        gameState = STATE_PLAY;
+    // ── SPEC PICKER (cursor locked, up/down cycles specs) ──
+    if (state === S_PICK) {
+      if (e.key === 'ArrowUp') {
+        pickSpec = (pickSpec - 1 + SPECS.length) % SPECS.length;
+        return;
       }
-      return;
-    }
-
-    // Movement (all play states)
-    if (e.key === 'ArrowUp')    { cursorY = Math.max(0, cursorY - 1); return; }
-    if (e.key === 'ArrowDown')  { cursorY = Math.min(ROWS - 1, cursorY + 1); return; }
-    if (e.key === 'ArrowLeft')  { cursorX = Math.max(0, cursorX - 1); return; }
-    if (e.key === 'ArrowRight') { cursorX = Math.min(COLS - 1, cursorX + 1); return; }
-
-    if (gameState === STATE_PLAY) {
-      if (e.key === 'Enter') {
-        // Check if there's a cannon here to select
-        var existing = getCannonAt(cursorX, cursorY);
-        if (existing) {
-          selectedCannon = existing;
-          gameState = STATE_SELECT;
-          return;
-        }
-        // Otherwise start wave if waiting
-        if (!waveActive && enemies.length === 0) {
-          startWave();
-        }
-      }
-      if (e.key === 'p' || e.key === 'P') {
-        gameState = STATE_PLACE;
-      }
-      if (e.key === 'Escape' || e.key === 'Backspace') {
-        gameState = STATE_PAUSED;
-      }
-    }
-
-    else if (gameState === STATE_PLACE) {
-      if (e.key === 'ArrowLeft' || e.key === 'a') {
-        // In place mode, left/right still move cursor (handled above)
-        // Use different keys for spec switching
-      }
-      if (e.key === '[' || e.key === ',') {
-        placingSpec = (placingSpec - 1 + CANNON_SPECS.length) % CANNON_SPECS.length;
-      }
-      if (e.key === ']' || e.key === '.') {
-        placingSpec = (placingSpec + 1) % CANNON_SPECS.length;
+      if (e.key === 'ArrowDown') {
+        pickSpec = (pickSpec + 1) % SPECS.length;
+        return;
       }
       if (e.key === 'Enter') {
-        var spec = CANNON_SPECS[placingSpec];
-        if (gold >= spec.cost && canPlaceAt(cursorX, cursorY)) {
+        var spec = SPECS[pickSpec];
+        if (gold >= spec.cost && canPlace(curX, curY)) {
           gold -= spec.cost;
           cannons.push({
-            gx: cursorX, gy: cursorY,
-            px: cursorX * GRID + GRID / 2,
-            py: cursorY * GRID + GRID / 2,
-            specName: spec.name, color: spec.color,
-            dmg: spec.dmg, rate: spec.rate, range: spec.range,
-            cooldown: 0, targetAngle: 0,
-            level: 0, xp: 0,
-            sellValue: spec.cost * 0.5
+            gx:curX, gy:curY,
+            px:curX*GRID+GRID/2, py:curY*GRID+GRID/2,
+            name:spec.name, col:spec.col,
+            dmg:spec.dmg, rate:spec.rate, rng:spec.rng,
+            cd:0, angle:0, lvl:0, xp:0,
+            sell:spec.cost*0.6
           });
-          announceText = '🔧 ' + spec.name + ' placed!';
-          announceTimer = 40;
+          announce('🔧 '+spec.name+' placed!', 40);
+          state = waveActive ? S_PLAY : S_WAVE_READY;
+        } else if (gold < spec.cost) {
+          announce('❌ Need $'+spec.cost, 40);
         }
+        return;
       }
       if (e.key === 'Escape' || e.key === 'Backspace') {
-        gameState = STATE_PLAY;
+        state = waveActive ? S_PLAY : S_WAVE_READY;
+        return;
+      }
+      // Left/Right move cursor even in pick mode (exit pick first)
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        state = waveActive ? S_PLAY : S_WAVE_READY;
+        // Fall through to cursor movement below
+      } else {
+        return;
       }
     }
 
-    else if (gameState === STATE_SELECT) {
-      if (e.key === 'Escape' || e.key === 'Backspace') {
-        selectedCannon = null;
-        gameState = STATE_PLAY;
-      }
-      if (e.key === 'Delete' || e.key === 'd' || e.key === 'D') {
-        // Sell
-        if (selectedCannon) {
-          gold += Math.floor(selectedCannon.sellValue);
-          var idx = cannons.indexOf(selectedCannon);
+    // ── SELECTED CANNON ──
+    if (state === S_SELECT) {
+      if (e.key === 'Enter') {
+        // Sell cannon
+        if (selCannon) {
+          gold += Math.floor(selCannon.sell);
+          var idx = cannons.indexOf(selCannon);
           if (idx !== -1) cannons.splice(idx, 1);
-          announceText = '💰 Sold for $' + Math.floor(selectedCannon.sellValue);
-          announceTimer = 40;
-          selectedCannon = null;
-          gameState = STATE_PLAY;
+          announce('💰 Sold for $'+Math.floor(selCannon.sell), 40);
+          selCannon = null;
+          state = waveActive ? S_PLAY : S_WAVE_READY;
         }
+        return;
       }
+      if (e.key === 'Escape' || e.key === 'Backspace') {
+        selCannon = null;
+        state = waveActive ? S_PLAY : S_WAVE_READY;
+        return;
+      }
+      // Arrow keys deselect and move
+      if (e.key.indexOf('Arrow') === 0) {
+        selCannon = null;
+        state = waveActive ? S_PLAY : S_WAVE_READY;
+        // Fall through to movement
+      } else {
+        return;
+      }
+    }
+
+    // ── CURSOR MOVEMENT (S_PLAY and S_WAVE_READY) ──
+    if (e.key === 'ArrowUp')    { curY = Math.max(0, curY-1); return; }
+    if (e.key === 'ArrowDown')  { curY = Math.min(ROWS-1, curY+1); return; }
+    if (e.key === 'ArrowLeft')  { curX = Math.max(0, curX-1); return; }
+    if (e.key === 'ArrowRight') { curX = Math.min(COLS-1, curX+1); return; }
+
+    // ── ENTER (context-sensitive) ──
+    if (e.key === 'Enter') {
+      // On a cannon? Select it
+      var existing = cannonAt(curX, curY);
+      if (existing) {
+        selCannon = existing;
+        state = S_SELECT;
+        return;
+      }
+      // On a valid empty cell? Open spec picker
+      if (canPlace(curX, curY)) {
+        pickSpec = 0;
+        state = S_PICK;
+        return;
+      }
+      // Between waves? Start next
+      if (state === S_WAVE_READY) {
+        startWave();
+        return;
+      }
+    }
+
+    // ── PAUSE ──
+    if (e.key === 'Escape' || e.key === 'Backspace') {
+      state = S_PAUSE;
     }
   });
 
-  // ── Voice Integration ──
+  // ── Voice ──
   function initVoice() {
     if (typeof MetaGlassSDK === 'undefined' || !MetaGlassSDK.isSupported) return;
     try {
       MetaGlassSDK.dictation.addEventListener('result', function(ev) {
         if (!ev.isFinal) return;
         var cmd = ev.transcript.toLowerCase().trim();
-        if (cmd.indexOf('place') !== -1) {
-          if (gameState === STATE_PLAY) gameState = STATE_PLACE;
-        } else if (cmd.indexOf('pause') !== -1) {
-          if (gameState === STATE_PLAY) gameState = STATE_PAUSED;
-        } else if (cmd.indexOf('resume') !== -1 || cmd.indexOf('unpause') !== -1) {
-          if (gameState === STATE_PAUSED) gameState = STATE_PLAY;
-        } else if (cmd.indexOf('start') !== -1 || cmd.indexOf('go') !== -1) {
-          if (gameState === STATE_PLAY && !waveActive && enemies.length === 0) startWave();
-          else if (gameState === STATE_MENU) { gameState = STATE_PLAY; startWave(); }
+        if (cmd.indexOf('place') !== -1 && (state===S_PLAY||state===S_WAVE_READY) && canPlace(curX,curY)) {
+          pickSpec = 0; state = S_PICK;
+        } else if (cmd.indexOf('pause') !== -1 && (state===S_PLAY||state===S_WAVE_READY)) {
+          state = S_PAUSE;
+        } else if ((cmd.indexOf('resume') !== -1 || cmd.indexOf('unpause') !== -1) && state===S_PAUSE) {
+          state = S_PLAY;
+        } else if ((cmd.indexOf('start') !== -1 || cmd.indexOf('go') !== -1 || cmd.indexOf('next') !== -1)) {
+          if (state === S_WAVE_READY) startWave();
+          else if (state === S_MENU) { state = S_PLAY; startWave(); }
         } else if (cmd.indexOf('cancel') !== -1 || cmd.indexOf('back') !== -1) {
-          if (gameState === STATE_PLACE || gameState === STATE_SELECT) {
-            selectedCannon = null;
-            gameState = STATE_PLAY;
-          }
-        }
+          if (state === S_PICK) { state = waveActive ? S_PLAY : S_WAVE_READY; }
+          else if (state === S_SELECT) { selCannon = null; state = waveActive ? S_PLAY : S_WAVE_READY; }
+        } else if (cmd.indexOf('sell') !== -1 && state === S_SELECT && selCannon) {
+          gold += Math.floor(selCannon.sell);
+          var idx = cannons.indexOf(selCannon);
+          if (idx !== -1) cannons.splice(idx, 1);
+          announce('💰 Sold!', 40);
+          selCannon = null; state = waveActive ? S_PLAY : S_WAVE_READY;
+        } else if (cmd.indexOf('blaster') !== -1 && state === S_PICK) { pickSpec = 0; }
+        else if (cmd.indexOf('sniper') !== -1 && state === S_PICK) { pickSpec = 1; }
+        else if (cmd.indexOf('rapid') !== -1 && state === S_PICK) { pickSpec = 2; }
       });
-      MetaGlassSDK.dictation.start({ silenceTimeout: 3000, maxDuration: 120000, punctuation: 'none' });
-    } catch (ex) { /* SDK not available */ }
+      MetaGlassSDK.dictation.start({silenceTimeout:3000, maxDuration:120000, punctuation:'none'});
+    } catch(ex) {}
   }
 
-  // ── Main Loop ──
-  function gameLoop(timestamp) {
-    if (!lastFrameTime) lastFrameTime = timestamp;
-    var delta = timestamp - lastFrameTime;
-    lastFrameTime = timestamp;
-    fps = delta > 0 ? Math.round(1000 / delta) : 60;
-
-    if (gameState === STATE_PLAY || gameState === STATE_PLACE || gameState === STATE_SELECT) {
+  // ── Game Loop ──
+  function loop(ts) {
+    if (state === S_PLAY || state === S_PICK || state === S_SELECT || state === S_WAVE_READY) {
       simTick();
     }
-
+    if (state === S_MENU || state === S_OVER) tick++;
     draw();
-    requestAnimationFrame(gameLoop);
+    requestAnimationFrame(loop);
   }
 
-  // ── Init ──
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
-      setTimeout(function() { initVoice(); requestAnimationFrame(gameLoop); }, 100);
+      setTimeout(function() { initVoice(); requestAnimationFrame(loop); }, 100);
     });
   } else {
-    setTimeout(function() { initVoice(); requestAnimationFrame(gameLoop); }, 100);
+    setTimeout(function() { initVoice(); requestAnimationFrame(loop); }, 100);
   }
-
 })();
 </script>
 </body>
