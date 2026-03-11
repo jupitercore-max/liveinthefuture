@@ -4003,109 +4003,74 @@
   chimeToggle.className = 'chime-toggle';
   chimeToggle.textContent = chimeEnabled ? '🔔' : '🔕';
   chimeToggle.title = 'Toggle hour chime (M)';
-  chimeToggle.style.cssText = `
-    position:fixed; bottom:16px; left:16px; padding:6px 10px;
-    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
-    border:1px solid var(--border); border-radius:var(--radius);
-    cursor:pointer; z-index:9999; opacity:0.5;
-    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
-    line-height:1; font-family:var(--font-mono);
-  `;
-  chimeToggle.addEventListener('mouseenter', function() { chimeToggle.style.opacity = '1'; });
-  chimeToggle.addEventListener('mouseleave', function() { chimeToggle.style.opacity = '0.5'; });
+  chimeToggle.className += ' ctrl-btn';
+  // chimeToggle hover handled by controlBar
+  // chimeToggle hover handled by controlBar
   chimeToggle.addEventListener('click', function() {
     chimeEnabled = !chimeEnabled;
     localStorage.setItem('wt_chime', chimeEnabled ? 'on' : 'off');
     chimeToggle.textContent = chimeEnabled ? '🔔' : '🔕';
     if (chimeEnabled) playChimeTone(554.37, 0.8, 0.06, 0);
   });
-  document.body.appendChild(chimeToggle);
+  // chimeToggle → added to controlBar below
 
   // Tick toggle button (next to chime)
   tickToggle = document.createElement('button');
   tickToggle.className = 'tick-toggle';
   tickToggle.textContent = tickEnabled ? '⚙️' : '🔇';
   tickToggle.title = 'Toggle tick sound (T)';
-  tickToggle.style.cssText = `
-    position:fixed; bottom:16px; left:56px; padding:6px 10px;
-    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
-    border:1px solid var(--border); border-radius:var(--radius);
-    cursor:pointer; z-index:9999; opacity:0.5;
-    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
-    line-height:1; font-family:var(--font-mono);
-  `;
-  tickToggle.addEventListener('mouseenter', function() { tickToggle.style.opacity = '1'; });
-  tickToggle.addEventListener('mouseleave', function() { tickToggle.style.opacity = '0.5'; });
+  tickToggle.className += ' ctrl-btn';
+  // tickToggle hover handled by controlBar
+  // tickToggle hover handled by controlBar
   tickToggle.addEventListener('click', function() {
     tickEnabled = !tickEnabled;
     localStorage.setItem('wt_tick', tickEnabled ? 'on' : 'off');
     tickToggle.textContent = tickEnabled ? '⚙️' : '🔇';
     if (tickEnabled) playTickSound();
   });
-  document.body.appendChild(tickToggle);
+  // tickToggle → added to controlBar below
 
   // Lume Shot toggle button (next to tick)
   lumeToggle = document.createElement('button');
   lumeToggle.className = 'lume-toggle';
   lumeToggle.textContent = lumeMode ? '☀️' : '🌙';
   lumeToggle.title = 'Toggle lume shot mode (N)';
-  lumeToggle.style.cssText = `
-    position:fixed; bottom:16px; left:176px; padding:6px 10px;
-    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
-    border:1px solid var(--border); border-radius:var(--radius);
-    cursor:pointer; z-index:9999; opacity:0.5;
-    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
-    line-height:1; font-family:var(--font-mono);
-  `;
-  lumeToggle.addEventListener('mouseenter', function() { lumeToggle.style.opacity = '1'; });
-  lumeToggle.addEventListener('mouseleave', function() { lumeToggle.style.opacity = '0.5'; });
+  lumeToggle.className += ' ctrl-btn';
+  // lumeToggle hover handled by controlBar
+  // lumeToggle hover handled by controlBar
   lumeToggle.addEventListener('click', function() {
     lumeMode = !lumeMode;
     localStorage.setItem('wt_lume', lumeMode ? 'on' : 'off');
     document.body.classList.toggle('lume-mode', lumeMode);
     lumeToggle.textContent = lumeMode ? '☀️' : '🌙';
   });
-  document.body.appendChild(lumeToggle);
+  // lumeToggle → added to controlBar below
 
   // Dial Theme toggle button (next to lume)
   dialThemeToggle = document.createElement('button');
   dialThemeToggle.className = 'dial-theme-toggle';
   dialThemeToggle.textContent = '🎨';
   dialThemeToggle.title = DIAL_THEMES[dialThemeIndex].label + ' (D)';
-  dialThemeToggle.style.cssText = `
-    position:fixed; bottom:16px; left:256px; padding:6px 10px;
-    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
-    border:1px solid var(--border); border-radius:var(--radius);
-    cursor:pointer; z-index:9999; opacity:0.5;
-    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
-    line-height:1; font-family:var(--font-mono);
-  `;
-  dialThemeToggle.addEventListener('mouseenter', function() { dialThemeToggle.style.opacity = '1'; });
-  dialThemeToggle.addEventListener('mouseleave', function() { dialThemeToggle.style.opacity = '0.5'; });
+  dialThemeToggle.className += ' ctrl-btn';
+  // dialThemeToggle hover handled by controlBar
+  // dialThemeToggle hover handled by controlBar
   dialThemeToggle.addEventListener('click', function() {
     applyDialTheme(dialThemeIndex + 1);
   });
-  document.body.appendChild(dialThemeToggle);
+  // dialThemeToggle → added to controlBar below
 
   // Strap theme toggle button (next to dial theme)
   strapThemeToggle = document.createElement('button');
   strapThemeToggle.className = 'strap-theme-toggle';
   strapThemeToggle.textContent = '⌚';
   strapThemeToggle.title = STRAP_THEMES[strapThemeIndex].label + ' (S)';
-  strapThemeToggle.style.cssText = '\
-    position:fixed; bottom:16px; left:296px; padding:6px 10px;\
-    font-size:1rem; background:var(--card-bg); color:var(--text-muted);\
-    border:1px solid var(--border); border-radius:var(--radius);\
-    cursor:pointer; z-index:9999; opacity:0.5;\
-    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;\
-    line-height:1; font-family:var(--font-mono);\
-  ';
-  strapThemeToggle.addEventListener('mouseenter', function() { strapThemeToggle.style.opacity = '1'; });
-  strapThemeToggle.addEventListener('mouseleave', function() { strapThemeToggle.style.opacity = '0.5'; });
+  strapThemeToggle.className += ' ctrl-btn';
+  // strapThemeToggle hover handled by controlBar
+  // strapThemeToggle hover handled by controlBar
   strapThemeToggle.addEventListener('click', function() {
     applyStrapTheme(strapThemeIndex + 1);
   });
-  document.body.appendChild(strapThemeToggle);
+  // strapThemeToggle → added to controlBar below
 
   // ═══════════════════════════════════════════════════
   // Alarm Bar Wiring
@@ -4120,40 +4085,26 @@
   alarmToggle.className = 'alarm-toggle';
   alarmToggle.textContent = alarmArmed ? '⏰' : '🔕';
   alarmToggle.title = 'Toggle alarm (A)';
-  alarmToggle.style.cssText = `
-    position:fixed; bottom:16px; left:96px; padding:6px 10px;
-    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
-    border:1px solid var(--border); border-radius:var(--radius);
-    cursor:pointer; z-index:9999; opacity:0.5;
-    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
-    line-height:1; font-family:var(--font-mono);
-  `;
-  alarmToggle.addEventListener('mouseenter', function() { alarmToggle.style.opacity = '1'; });
-  alarmToggle.addEventListener('mouseleave', function() { alarmToggle.style.opacity = '0.5'; });
+  alarmToggle.className += ' ctrl-btn';
+  // alarmToggle hover handled by controlBar
+  // alarmToggle hover handled by controlBar
   alarmToggle.addEventListener('click', function() {
     if (alarmBar) {
       alarmBar.classList.toggle('visible');
     }
   });
-  document.body.appendChild(alarmToggle);
+  // alarmToggle → added to controlBar below
 
   // Minute Repeater button (next to alarm)
   const repeaterToggle = document.createElement('button');
   repeaterToggle.className = 'repeater-toggle';
   repeaterToggle.textContent = '🎵';
   repeaterToggle.title = 'Minute Repeater — chimes the current time (R)';
-  repeaterToggle.style.cssText = `
-    position:fixed; bottom:16px; left:136px; padding:6px 10px;
-    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
-    border:1px solid var(--border); border-radius:var(--radius);
-    cursor:pointer; z-index:9999; opacity:0.5;
-    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
-    line-height:1; font-family:var(--font-mono);
-  `;
-  repeaterToggle.addEventListener('mouseenter', function() { repeaterToggle.style.opacity = '1'; });
-  repeaterToggle.addEventListener('mouseleave', function() { if (!repeaterPlaying) repeaterToggle.style.opacity = '0.5'; });
+  repeaterToggle.className += ' ctrl-btn';
+  // repeaterToggle hover handled by controlBar
+  // repeaterToggle hover handled by controlBar
   repeaterToggle.addEventListener('click', playMinuteRepeater);
-  document.body.appendChild(repeaterToggle);
+  // repeaterToggle → added to controlBar below
 
   // ═══════════════════════════════════════════════════════════
   // Favorite Timezone Slots — pin up to 3 cities for a
@@ -4448,18 +4399,11 @@
   searchToggle.className = 'search-toggle';
   searchToggle.textContent = '🔍';
   searchToggle.title = 'Search cities (/)';
-  searchToggle.style.cssText = `
-    position:fixed; bottom:16px; left:216px; padding:6px 10px;
-    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
-    border:1px solid var(--border); border-radius:var(--radius);
-    cursor:pointer; z-index:9999; opacity:0.5;
-    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
-    line-height:1; font-family:var(--font-mono);
-  `;
-  searchToggle.addEventListener('mouseenter', function() { searchToggle.style.opacity = '1'; });
-  searchToggle.addEventListener('mouseleave', function() { if (!citySearchOpen) searchToggle.style.opacity = '0.5'; });
+  searchToggle.className += ' ctrl-btn';
+  // searchToggle hover handled by controlBar
+  // searchToggle hover handled by controlBar
   searchToggle.addEventListener('click', toggleCitySearch);
-  document.body.appendChild(searchToggle);
+  // searchToggle → added to controlBar below
 
   // ═══════════════════════════════════════════════════════════
   // Exhibition Caseback — flip the watch to reveal the movement
@@ -4909,18 +4853,49 @@
   casebackToggle.className = 'caseback-toggle';
   casebackToggle.textContent = '🔧';
   casebackToggle.title = 'Exhibition caseback (B)';
-  casebackToggle.style.cssText = `
-    position:fixed; bottom:16px; left:336px; padding:6px 10px;
-    font-size:1rem; background:var(--card-bg); color:var(--text-muted);
-    border:1px solid var(--border); border-radius:var(--radius);
-    cursor:pointer; z-index:9999; opacity:0.5;
-    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;
-    line-height:1; font-family:var(--font-mono);
-  `;
-  casebackToggle.addEventListener('mouseenter', function() { casebackToggle.style.opacity = '1'; });
-  casebackToggle.addEventListener('mouseleave', function() { if (!casebackVisible) casebackToggle.style.opacity = '0.5'; });
+  casebackToggle.className += ' ctrl-btn';
+  // casebackToggle hover handled by controlBar
+  // casebackToggle hover handled by controlBar
   casebackToggle.addEventListener('click', toggleCaseback);
-  document.body.appendChild(casebackToggle);
+  // casebackToggle → added to controlBar below
+
+
+  // ═══════════════════════════════════════════════════════════════
+  // Unified Control Bar — replaces 9 scattered fixed-position buttons
+  // ═══════════════════════════════════════════════════════════════
+  var controlBar = document.createElement('div');
+  controlBar.id = 'controlBar';
+  controlBar.style.cssText = `
+    position:fixed; bottom:12px; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:2px;
+    background:var(--card-bg); border:1px solid var(--border);
+    border-radius:20px; padding:4px 8px;
+    z-index:9999; opacity:0.6;
+    transition: opacity 0.2s ease, background 0.6s ease, border-color 0.6s ease;
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  `;
+  controlBar.addEventListener('mouseenter', function() { controlBar.style.opacity = '1'; });
+  controlBar.addEventListener('mouseleave', function() { controlBar.style.opacity = '0.6'; });
+
+  // Add dividers between logical groups:
+  // Sound: chime, tick, alarm, repeater | Visual: lume, search, dial, strap, caseback
+  function addDivider() {
+    var d = document.createElement('span');
+    d.style.cssText = 'width:1px; height:18px; background:var(--border); margin:0 3px; flex-shrink:0;';
+    controlBar.appendChild(d);
+    return d;
+  }
+  controlBar.appendChild(chimeToggle);
+  controlBar.appendChild(tickToggle);
+  controlBar.appendChild(alarmToggle);
+  controlBar.appendChild(repeaterToggle);
+  addDivider();
+  controlBar.appendChild(lumeToggle);
+  controlBar.appendChild(searchToggle);
+  controlBar.appendChild(dialThemeToggle);
+  controlBar.appendChild(strapThemeToggle);
+  controlBar.appendChild(casebackToggle);
+  document.body.appendChild(controlBar);
 
   if (alarmSetBtn) {
     alarmSetBtn.addEventListener('click', function() {
