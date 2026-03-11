@@ -9982,6 +9982,44 @@
       const isBoss = e.type === 'boss';
       const t = Date.now();
 
+      // ── Spawn Animation ──
+      // Enemies scale up from 0 and fade in over 12 ticks (0.6s) when they first appear
+      {
+        const SPAWN_ANIM_TICKS = 12;
+        const age = (e.spawnTick != null) ? (tickCount - e.spawnTick) : SPAWN_ANIM_TICKS;
+        if (age < SPAWN_ANIM_TICKS) {
+          const progress = age / SPAWN_ANIM_TICKS;
+          // Ease-out cubic for snappy scale-up
+          const eased = 1 - Math.pow(1 - progress, 3);
+          const scale = 0.2 + 0.8 * eased;
+          const alpha = 0.3 + 0.7 * eased;
+
+          // Portal glow ring at spawn location (fades out as enemy materializes)
+          const glowAlpha = (1 - progress) * 0.5;
+          if (glowAlpha > 0.02) {
+            const glowR = e.radius * (1.5 + progress * 1.5);
+            ctx.save();
+            ctx.globalAlpha = glowAlpha;
+            const grd = ctx.createRadialGradient(x, y, 0, x, y, glowR);
+            grd.addColorStop(0, 'rgba(180,120,255,0.6)');
+            grd.addColorStop(0.5, 'rgba(120,80,255,0.2)');
+            grd.addColorStop(1, 'rgba(80,40,200,0)');
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.arc(x, y, glowR, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+
+          // Apply scale + alpha transform for the rest of drawEnemy
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.scale(scale, scale);
+          ctx.translate(-x, -y);
+          ctx.globalAlpha = alpha;
+        }
+      }
+
       // ── Speed Trails ──
       // Motion streaks behind fast enemies — longer/brighter for faster units
       const effectiveSpeed = e.speed * (e.slowTimer > 0 ? 0.5 : 1);
@@ -10588,6 +10626,15 @@
           // Shield shimmer
           ctx.fillStyle = 'rgba(255,255,255,0.2)';
           ctx.fillRect(barX, shieldBarY, barW * shieldPct, 1);
+        }
+      }
+
+      // ── End Spawn Animation transform ──
+      {
+        const SPAWN_ANIM_TICKS = 12;
+        const age = (e.spawnTick != null) ? (tickCount - e.spawnTick) : SPAWN_ANIM_TICKS;
+        if (age < SPAWN_ANIM_TICKS) {
+          ctx.restore();
         }
       }
     }
