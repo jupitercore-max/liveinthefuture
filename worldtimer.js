@@ -3157,6 +3157,168 @@
   }
 
   // ═══════════════════════════════════════════════════
+  //  Tachymeter Scale — Daytona / Speedmaster bezel
+  //  Shows speed in units/hour based on chronograph elapsed time
+  //  Formula: speed = 3600 / elapsed_seconds
+  // ═══════════════════════════════════════════════════
+  const tachyCanvas = document.getElementById('tachymeterCanvas');
+  const tachyReadout = document.getElementById('tachyReadout');
+  let tachyDrawn = false;
+
+  function drawTachymeterScale() {
+    if (!tachyCanvas || tachyDrawn) return;
+    tachyDrawn = true;
+    const tctx = tachyCanvas.getContext('2d');
+    const size = 520;
+    const cx = size / 2;
+    const cy = size / 2;
+
+    // Tachymeter values — standard Daytona scale
+    // Maps elapsed seconds → angle around the bezel (60s = full rotation from 12 o'clock)
+    // Speed = 3600 / seconds
+    const tachyValues = [
+      { seconds: 60,  label: '60' },
+      { seconds: 55,  label: '65' },
+      { seconds: 51.4, label: '70' },
+      { seconds: 48,  label: '75' },
+      { seconds: 45,  label: '80' },
+      { seconds: 42.4, label: '85' },
+      { seconds: 40,  label: '90' },
+      { seconds: 37.9, label: '95' },
+      { seconds: 36,  label: '100' },
+      { seconds: 32.7, label: '110' },
+      { seconds: 30,  label: '120' },
+      { seconds: 27.7, label: '130' },
+      { seconds: 25.7, label: '140' },
+      { seconds: 24,  label: '150' },
+      { seconds: 22.5, label: '160' },
+      { seconds: 21.2, label: '170' },
+      { seconds: 20,  label: '180' },
+      { seconds: 18.9, label: '190' },
+      { seconds: 18,  label: '200' },
+      { seconds: 16.4, label: '220' },
+      { seconds: 15,  label: '240' },
+      { seconds: 13.8, label: '260' },
+      { seconds: 12.9, label: '280' },
+      { seconds: 12,  label: '300' },
+      { seconds: 10.3, label: '350' },
+      { seconds: 9,   label: '400' },
+      { seconds: 8,   label: '450' },
+      { seconds: 7.2, label: '500' },
+    ];
+
+    // Outer/inner radii for the scale (between bezel edge and city ring)
+    const outerR = 250; // just inside the bezel edge
+    const innerR = 238; // tick end
+    const labelR = 228; // text position
+    const tickR = 244;  // minor tick outer
+
+    tctx.save();
+    tctx.translate(cx, cy);
+
+    // "TACHYMETRE" label at the top of the scale
+    tctx.font = 'bold 6.5px sans-serif';
+    tctx.fillStyle = '#cc3333';
+    tctx.textAlign = 'center';
+    tctx.textBaseline = 'middle';
+    // Position at roughly 500 units/hour position (top area)
+    tctx.save();
+    tctx.rotate(-Math.PI / 2 + 0.15); // slightly clockwise from 12
+    tctx.fillText('TACHYMÈTRE', 0, -outerR - 6);
+    tctx.restore();
+
+    // Draw the scale markings
+    tachyValues.forEach((tv, idx) => {
+      // Angle: 0° at 12 o'clock, clockwise
+      // 60 seconds = 360°, so angle = (seconds / 60) * 360° = seconds * 6°
+      const angleDeg = tv.seconds * 6;
+      const angleRad = (angleDeg - 90) * Math.PI / 180;
+
+      // Major or minor tick?
+      const isMajor = ['60','80','100','120','150','200','300','500'].includes(tv.label);
+
+      // Tick line
+      const tickOuter = isMajor ? outerR : tickR;
+      const tickInner = isMajor ? innerR : innerR + 4;
+      const x1 = tickOuter * Math.cos(angleRad);
+      const y1 = tickOuter * Math.sin(angleRad);
+      const x2 = tickInner * Math.cos(angleRad);
+      const y2 = tickInner * Math.sin(angleRad);
+
+      tctx.beginPath();
+      tctx.moveTo(x1, y1);
+      tctx.lineTo(x2, y2);
+      tctx.strokeStyle = isMajor ? 'rgba(204,51,51,0.9)' : 'rgba(204,51,51,0.5)';
+      tctx.lineWidth = isMajor ? 1.5 : 0.8;
+      tctx.stroke();
+
+      // Label for major values
+      if (isMajor || idx % 2 === 0) {
+        const lx = labelR * Math.cos(angleRad);
+        const ly = labelR * Math.sin(angleRad);
+        tctx.save();
+        tctx.translate(lx, ly);
+        // Rotate text to be tangent to the circle
+        let textAngle = angleDeg;
+        // Flip text in bottom half so it reads right
+        if (textAngle > 180 && textAngle < 360) {
+          textAngle += 180;
+        }
+        tctx.rotate((textAngle - 90) * Math.PI / 180);
+        tctx.font = isMajor ? 'bold 7px sans-serif' : '5.5px sans-serif';
+        tctx.fillStyle = isMajor ? 'rgba(204,51,51,0.9)' : 'rgba(204,51,51,0.6)';
+        tctx.textAlign = 'center';
+        tctx.textBaseline = 'middle';
+        tctx.fillText(tv.label, 0, 0);
+        tctx.restore();
+      }
+    });
+
+    // Fill in minor second-by-second ticks for dense areas (60s down to 7s)
+    for (let s = 60; s >= 7; s--) {
+      const angleDeg = s * 6;
+      const angleRad = (angleDeg - 90) * Math.PI / 180;
+      // Skip positions where we already have labeled ticks
+      const hasLabel = tachyValues.some(tv => Math.abs(tv.seconds - s) < 0.3);
+      if (hasLabel) continue;
+
+      const x1 = (tickR - 1) * Math.cos(angleRad);
+      const y1 = (tickR - 1) * Math.sin(angleRad);
+      const x2 = (innerR + 6) * Math.cos(angleRad);
+      const y2 = (innerR + 6) * Math.sin(angleRad);
+
+      tctx.beginPath();
+      tctx.moveTo(x1, y1);
+      tctx.lineTo(x2, y2);
+      tctx.strokeStyle = 'rgba(204,51,51,0.2)';
+      tctx.lineWidth = 0.5;
+      tctx.stroke();
+    }
+
+    tctx.restore();
+  }
+
+  // Draw tachymeter once at init
+  drawTachymeterScale();
+
+  // Update tachymeter readout — called from chronograph display loop
+  function updateTachyReadout(elapsedMs) {
+    if (!tachyReadout) return;
+    if (elapsedMs <= 0) {
+      tachyReadout.textContent = 'TACHYMÈTRE';
+      return;
+    }
+    const elapsedSec = elapsedMs / 1000;
+    if (elapsedSec > 60) {
+      // Beyond scale range
+      tachyReadout.textContent = '< 60 u/h';
+      return;
+    }
+    const speed = Math.round(3600 / elapsedSec);
+    tachyReadout.textContent = speed.toLocaleString() + ' u/h';
+  }
+
+  // ═══════════════════════════════════════════════════
   //  Chronograph Stopwatch + Countdown Timer
   // ═══════════════════════════════════════════════════
   const chronoDisplay = document.getElementById('chronoDisplay');
@@ -3245,6 +3407,8 @@
         }
       } else {
         chronoDisplay.textContent = formatChrono(total);
+        // Update tachymeter readout (stopwatch mode only)
+        updateTachyReadout(total);
       }
 
       if (chronoRunning) {
@@ -3274,6 +3438,8 @@
       chronoLapReset.disabled = true;
       chronoLapEl.textContent = '';
       chronoDisplay.className = 'chrono-display';
+      document.body.classList.remove('chrono-active');
+      updateTachyReadout(0);
 
       if (enabled) {
         chronoDisplay.textContent = formatChrono(countdownDurationMs);
@@ -3341,6 +3507,7 @@
         chronoStartStop.classList.add('running');
         chronoLapReset.disabled = false;
         chronoLapReset.textContent = countdownMode ? 'Reset' : 'Lap';
+        if (!countdownMode) document.body.classList.add('chrono-active');
         updateChronoDisplay();
       } else {
         // Stop
@@ -3350,6 +3517,7 @@
         chronoStartStop.textContent = 'Start';
         chronoStartStop.classList.remove('running');
         chronoLapReset.textContent = 'Reset';
+        // Keep chrono-active while stopped with elapsed time (Daytona-style: scale stays lit until reset)
       }
     });
 
@@ -3369,6 +3537,8 @@
         chronoDisplay.className = 'chrono-display';
         chronoLapEl.textContent = '';
         chronoLapReset.disabled = true;
+        document.body.classList.remove('chrono-active');
+        updateTachyReadout(0);
 
         if (countdownMode) {
           chronoDisplay.textContent = formatChrono(countdownDurationMs);
@@ -3514,6 +3684,7 @@
       '<span><kbd>Scroll</kbd> Crown winding</span>',
       '<span><kbd>/</kbd> Search cities</span>',
       '<span><kbd>B</kbd> Exhibition caseback</span>',
+      '<span><kbd>⏱</kbd> Tachymeter (auto with chrono)</span>',
       '<span><kbd>?</kbd> Toggle this help</span>',
       '<span><kbd>📌</kbd> Pin cities from tooltip / search</span>',
     ].join('');
