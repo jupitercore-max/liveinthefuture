@@ -126,6 +126,59 @@
   applyDialTheme(dialThemeIndex);
 
   // ═══════════════════════════════════════════════════
+  // Strap Material Themes — cycle with [S] key or ⌚ button
+  // 4 styles: leather, steel bracelet, rubber, NATO nylon
+  // ═══════════════════════════════════════════════════
+  const STRAP_THEMES = [
+    { id: 'leather', label: 'Leather', emoji: '🟤' },
+    { id: 'steel',   label: 'Steel Bracelet', emoji: '🔗' },
+    { id: 'rubber',  label: 'Rubber Dive', emoji: '⬛' },
+    { id: 'nato',    label: 'NATO Nylon', emoji: '🟢' },
+  ];
+  let strapThemeIndex = 0;
+  const savedStrap = localStorage.getItem('wt_strap_theme');
+  if (savedStrap) {
+    const idx = STRAP_THEMES.findIndex(function(t) { return t.id === savedStrap; });
+    if (idx >= 0) strapThemeIndex = idx;
+  }
+  let strapThemeToggle = null;
+  let strapToastEl = null;
+
+  function applyStrapTheme(index) {
+    strapThemeIndex = index % STRAP_THEMES.length;
+    var theme = STRAP_THEMES[strapThemeIndex];
+    if (theme.id === 'leather') {
+      document.body.removeAttribute('data-strap');
+    } else {
+      document.body.setAttribute('data-strap', theme.id);
+    }
+    localStorage.setItem('wt_strap_theme', theme.id);
+    if (strapThemeToggle) {
+      strapThemeToggle.title = theme.label + ' (S)';
+    }
+    showStrapToast(theme);
+  }
+
+  function showStrapToast(theme) {
+    if (!strapToastEl) {
+      strapToastEl = document.createElement('div');
+      strapToastEl.style.cssText = 'position:fixed; bottom:130px; left:50%; transform:translateX(-50%);' +
+        'background:rgba(0,0,0,0.75); color:#fff; padding:6px 16px;' +
+        'border-radius:20px; font-size:0.75rem; font-family:var(--font-mono);' +
+        'pointer-events:none; opacity:0; transition:opacity 0.3s ease;' +
+        'z-index:9999; white-space:nowrap; backdrop-filter:blur(4px);';
+      document.body.appendChild(strapToastEl);
+    }
+    strapToastEl.textContent = theme.emoji + ' ' + theme.label;
+    strapToastEl.style.opacity = '1';
+    clearTimeout(strapToastEl._timer);
+    strapToastEl._timer = setTimeout(function() { strapToastEl.style.opacity = '0'; }, 1500);
+  }
+
+  // Apply saved strap on load
+  applyStrapTheme(strapThemeIndex);
+
+  // ═══════════════════════════════════════════════════
   // Dynamic Hand Shadows — light source from crystal
   // reflection position creates realistic depth illusion
   // ═══════════════════════════════════════════════════
@@ -3288,6 +3341,11 @@
           e.preventDefault();
           applyDialTheme(dialThemeIndex + 1);
           break;
+        case 's':
+          // S = Cycle strap material
+          e.preventDefault();
+          applyStrapTheme(strapThemeIndex + 1);
+          break;
         case '?':
           // ? = Toggle keyboard shortcut hints
           e.preventDefault();
@@ -3318,6 +3376,7 @@
       '<span><kbd>R</kbd> 🎵 Minute Repeater</span>',
       '<span><kbd>N</kbd> Lume shot mode</span>',
       '<span><kbd>D</kbd> Cycle dial theme</span>',
+      '<span><kbd>S</kbd> Cycle strap material</span>',
       '<span><kbd>Scroll</kbd> Crown winding</span>',
       '<span><kbd>/</kbd> Search cities</span>',
       '<span><kbd>?</kbd> Toggle this help</span>',
@@ -3721,6 +3780,26 @@
     applyDialTheme(dialThemeIndex + 1);
   });
   document.body.appendChild(dialThemeToggle);
+
+  // Strap theme toggle button (next to dial theme)
+  strapThemeToggle = document.createElement('button');
+  strapThemeToggle.className = 'strap-theme-toggle';
+  strapThemeToggle.textContent = '⌚';
+  strapThemeToggle.title = STRAP_THEMES[strapThemeIndex].label + ' (S)';
+  strapThemeToggle.style.cssText = '\
+    position:fixed; bottom:16px; left:296px; padding:6px 10px;\
+    font-size:1rem; background:var(--card-bg); color:var(--text-muted);\
+    border:1px solid var(--border); border-radius:var(--radius);\
+    cursor:pointer; z-index:9999; opacity:0.5;\
+    transition: opacity 0.15s, background 0.6s ease, border-color 0.6s ease;\
+    line-height:1; font-family:var(--font-mono);\
+  ';
+  strapThemeToggle.addEventListener('mouseenter', function() { strapThemeToggle.style.opacity = '1'; });
+  strapThemeToggle.addEventListener('mouseleave', function() { strapThemeToggle.style.opacity = '0.5'; });
+  strapThemeToggle.addEventListener('click', function() {
+    applyStrapTheme(strapThemeIndex + 1);
+  });
+  document.body.appendChild(strapThemeToggle);
 
   // ═══════════════════════════════════════════════════
   // Alarm Bar Wiring
