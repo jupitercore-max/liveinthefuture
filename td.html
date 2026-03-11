@@ -3347,7 +3347,10 @@
       const mutFR = currentMutator && currentMutator.fireRateMult ? currentMutator.fireRateMult : 1;
       const mutRange = currentMutator && currentMutator.rangeMult ? currentMutator.rangeMult : 1;
       const mutCrit = currentMutator && currentMutator.critBonus ? currentMutator.critBonus : 0;
-      return { dmg: dmg * mutDmg, fireRate: fireRate * mutFR, range: range * mutRange, aoeSplash, pierce, chain, slowPct, armorPierce, critChance: Math.min(critChance + mutCrit, 0.95), critMultiplier };
+      // Apply weather effects
+      const weatherRange = currentWeather ? currentWeather.rangeMult : 1;
+      const weatherCrit = currentWeather ? currentWeather.critMod : 0;
+      return { dmg: dmg * mutDmg, fireRate: fireRate * mutFR, range: range * mutRange * weatherRange, aoeSplash, pierce, chain, slowPct, armorPierce, critChance: Math.min(Math.max(critChance + mutCrit + weatherCrit, 0), 0.95), critMultiplier };
     }
 
     function getCannonColor(path, spec) {
@@ -3629,6 +3632,116 @@
 
     let currentMutator = null; // active mutator for this wave
 
+    // ═══════════════════════════════════════════════════
+    //  Weather System — atmospheric visuals + subtle gameplay
+    // ═══════════════════════════════════════════════════
+    const WEATHER_TYPES = [
+      { id: 'clear',     icon: '☀️', name: 'Clear',     color: '#ffd700', rangeMult: 1, critMod: 0, speedMod: 1 },
+      { id: 'rain',      icon: '🌧️', name: 'Rain',      color: '#5599dd', rangeMult: 0.95, critMod: 0, speedMod: 1 },
+      { id: 'snow',      icon: '❄️', name: 'Snow',      color: '#ccddff', rangeMult: 1, critMod: 0, speedMod: 0.92 },
+      { id: 'fog',       icon: '🌫️', name: 'Fog',       color: '#99aacc', rangeMult: 0.88, critMod: -0.08, speedMod: 1 },
+      { id: 'sandstorm', icon: '🏜️', name: 'Sandstorm', color: '#d4a03c', rangeMult: 0.9, critMod: -0.15, speedMod: 0.96 },
+    ];
+    let currentWeather = WEATHER_TYPES[0]; // default clear
+    let weatherParticles = [];
+
+    function getWaveWeather(waveNum) {
+      const rng = mulberry32(waveNum * 4591);
+      // Boss waves are always clear
+      if (waveNum % 10 === 0) return WEATHER_TYPES[0];
+      // 40% chance of clear, 60% chance of weather
+      if (rng() < 0.4) return WEATHER_TYPES[0];
+      // Pick from non-clear weather
+      const idx = 1 + Math.floor(rng() * (WEATHER_TYPES.length - 1));
+      return WEATHER_TYPES[idx];
+    }
+
+    function spawnWeatherParticles() {
+      weatherParticles = [];
+      if (!currentWeather || currentWeather.id === 'clear') return;
+      const count = currentWeather.id === 'snow' ? 60 : currentWeather.id === 'rain' ? 80 : currentWeather.id === 'fog' ? 25 : 50;
+      for (let i = 0; i < count; i++) {
+        weatherParticles.push({
+          x: Math.random() * (CANVAS_W + 100) - 50,
+          y: Math.random() * CANVAS_H,
+          speed: currentWeather.id === 'rain' ? 4 + Math.random() * 6 : currentWeather.id === 'snow' ? 0.4 + Math.random() * 1 : currentWeather.id === 'sandstorm' ? 2 + Math.random() * 3 : 0.2 + Math.random() * 0.3,
+          size: currentWeather.id === 'rain' ? 1 + Math.random() : currentWeather.id === 'snow' ? 2 + Math.random() * 3 : currentWeather.id === 'sandstorm' ? 1.5 + Math.random() * 2 : 8 + Math.random() * 15,
+          drift: (Math.random() - 0.5) * 0.5,
+          alpha: currentWeather.id === 'fog' ? 0.03 + Math.random() * 0.04 : 0.15 + Math.random() * 0.3,
+          phase: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+
+    function drawWeather() {
+      if (!currentWeather || currentWeather.id === 'clear') return;
+      const now = Date.now() * 0.001;
+      ctx.save();
+      if (currentWeather.id === 'rain') {
+        ctx.strokeStyle = 'rgba(130,180,255,0.35)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < weatherParticles.length; i++) {
+          const p = weatherParticles[i];
+          p.y += p.speed;
+          p.x += p.drift + 0.5; // slight wind
+          if (p.y > CANVAS_H) { p.y = -5; p.x = Math.random() * (CANVAS_W + 60) - 30; }
+          if (p.x > CANVAS_W + 30) p.x = -20;
+          ctx.globalAlpha = p.alpha;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p.x + 0.5, p.y + p.speed * 1.5);
+          ctx.stroke();
+        }
+      } else if (currentWeather.id === 'snow') {
+        for (let i = 0; i < weatherParticles.length; i++) {
+          const p = weatherParticles[i];
+          p.y += p.speed;
+          p.x += Math.sin(now * 0.8 + p.phase) * 0.4 + p.drift;
+          if (p.y > CANVAS_H + 5) { p.y = -5; p.x = Math.random() * CANVAS_W; }
+          if (p.x > CANVAS_W + 10) p.x = -10;
+          if (p.x < -10) p.x = CANVAS_W + 10;
+          ctx.globalAlpha = p.alpha * (0.7 + 0.3 * Math.sin(now + p.phase));
+          ctx.fillStyle = '#e8eeff';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (currentWeather.id === 'fog') {
+        for (let i = 0; i < weatherParticles.length; i++) {
+          const p = weatherParticles[i];
+          p.x += Math.sin(now * 0.3 + p.phase) * 0.3 + 0.15;
+          p.y += Math.cos(now * 0.2 + p.phase * 1.3) * 0.1;
+          if (p.x > CANVAS_W + p.size) { p.x = -p.size; p.y = Math.random() * CANVAS_H; }
+          ctx.globalAlpha = p.alpha * (0.7 + 0.3 * Math.sin(now * 0.5 + p.phase));
+          const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+          grd.addColorStop(0, 'rgba(160,175,200,0.15)');
+          grd.addColorStop(1, 'rgba(160,175,200,0)');
+          ctx.fillStyle = grd;
+          ctx.fillRect(p.x - p.size, p.y - p.size, p.size * 2, p.size * 2);
+        }
+      } else if (currentWeather.id === 'sandstorm') {
+        for (let i = 0; i < weatherParticles.length; i++) {
+          const p = weatherParticles[i];
+          p.x += p.speed;
+          p.y += Math.sin(now * 2 + p.phase) * 0.6 + 0.2;
+          if (p.x > CANVAS_W + 10) { p.x = -10; p.y = Math.random() * CANVAS_H; }
+          if (p.y > CANVAS_H) p.y = 0;
+          if (p.y < 0) p.y = CANVAS_H;
+          ctx.globalAlpha = p.alpha * 0.6;
+          ctx.fillStyle = '#d4a03c';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        // Sandstorm overlay tint
+        ctx.globalAlpha = 0.04;
+        ctx.fillStyle = '#d4a03c';
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      }
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
     function getWaveMutator(waveNum) {
       if (waveNum < 3) return null; // no mutators early
       if (waveNum % 10 === 0) return null; // no mutators on boss waves — boss is enough
@@ -3681,6 +3794,9 @@
 
       // Set wave mutator
       currentMutator = getWaveMutator(waveNum);
+      // Select weather for this wave
+      currentWeather = getWaveWeather(waveNum);
+      spawnWeatherParticles();
 
       const rng = mulberry32(waveNum * 7919);
       const mutHpMult = currentMutator && currentMutator.enemyHpMult ? currentMutator.enemyHpMult : 1;
@@ -4849,6 +4965,10 @@
           speed *= 0.5;
           e.slowTimer--;
         }
+        // Weather speed modifier (snow/sandstorm slow enemies slightly)
+        if (currentWeather && currentWeather.speedMod !== 1) {
+          speed *= currentWeather.speedMod;
+        }
         // Desperation: enemies alive too long speed up (bosses exempt — they have their own enrage)
         if (e.type !== 'boss' && e.spawnTick != null) {
           const aliveTicks = tickCount - e.spawnTick;
@@ -5937,6 +6057,8 @@
       ultimateFlashTimer = 0;
       terrainHazards = [];
       currentMutator = null;
+      currentWeather = WEATHER_TYPES[0]; // reset to clear
+      weatherParticles = [];
       powerups = [];
       activePowerupEffects = {};
       abilityCooldownLeft = 0;
@@ -6227,6 +6349,8 @@
       // Save current mutator and temporarily clear it so stat preview is clean
       const savedMutator = currentMutator;
       currentMutator = null;
+      const savedWeather = currentWeather;
+      currentWeather = WEATHER_TYPES[0]; // temporarily clear for stat preview
 
       if (level >= 3 && !c.path) {
         // Choose path
@@ -6286,6 +6410,7 @@
       }
 
       currentMutator = savedMutator; // restore mutator
+      currentWeather = savedWeather; // restore weather
       upgradeModal.classList.add('active');
     }
 
@@ -8284,6 +8409,9 @@
       // Ambient floating particles (atmosphere)
       drawAmbientParticles();
 
+      // Weather particle effects (rain, snow, fog, sandstorm)
+      drawWeather();
+
       // Base line
       ctx.strokeStyle = '#1E90FF';
       ctx.lineWidth = 2;
@@ -8911,6 +9039,32 @@
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(mutText, mx, my);
+        ctx.restore();
+      }
+
+      // Draw weather indicator badge (top-left, below wave info)
+      if (currentWeather && currentWeather.id !== 'clear' && (waveState === 'active' || waveState === 'countdown')) {
+        ctx.save();
+        const wText = `${currentWeather.icon} ${currentWeather.name}`;
+        ctx.font = 'bold 10px monospace';
+        const wtw = ctx.measureText(wText).width;
+        const wx = 8;
+        const wy = 36;
+        const wpw = wtw + 12;
+        const wph = 18;
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.beginPath();
+        ctx.roundRect(wx, wy - wph / 2, wpw, wph, 3);
+        ctx.fill();
+        ctx.strokeStyle = currentWeather.color + '66';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(wx, wy - wph / 2, wpw, wph, 3);
+        ctx.stroke();
+        ctx.fillStyle = currentWeather.color;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(wText, wx + 6, wy);
         ctx.restore();
       }
 
@@ -11522,6 +11676,29 @@
         mutLabel.textContent = `${mut.icon} MUTATOR: ${mut.name} — ${mut.desc}`;
         mutDiv.appendChild(mutLabel);
         wavePreview.appendChild(mutDiv);
+      }
+
+      // Show weather preview for upcoming wave
+      {
+        const previewWeather = getWaveWeather(waveNum);
+        if (previewWeather && previewWeather.id !== 'clear') {
+          const wxDiv = document.createElement('div');
+          wxDiv.className = 'wave-preview-enemy';
+          wxDiv.style.borderTop = '1px solid rgba(255,255,255,0.08)';
+          wxDiv.style.paddingTop = '3px';
+          wxDiv.style.marginTop = '2px';
+          const wxLabel = document.createElement('span');
+          wxLabel.className = 'wpe-name';
+          wxLabel.style.color = previewWeather.color;
+          wxLabel.style.fontSize = '0.65rem';
+          let wxDesc = `${previewWeather.icon} WEATHER: ${previewWeather.name}`;
+          if (previewWeather.rangeMult < 1) wxDesc += ` — ${Math.round((1 - previewWeather.rangeMult) * 100)}% range`;
+          if (previewWeather.speedMod < 1) wxDesc += ` — enemies ${Math.round((1 - previewWeather.speedMod) * 100)}% slower`;
+          if (previewWeather.critMod < 0) wxDesc += ` — ${Math.round(Math.abs(previewWeather.critMod) * 100)}% crit`;
+          wxLabel.textContent = wxDesc;
+          wxDiv.appendChild(wxLabel);
+          wavePreview.appendChild(wxDiv);
+        }
       }
 
       // Show hazard preview for upcoming wave
