@@ -1077,3 +1077,30 @@ If it fails, DO NOT commit. Fix the error first.
 - **No new DOM elements, event listeners, or init calls.** Zero TDZ risk.
 - **Performance:** One radial gradient per desperate enemy per frame + one conditional check per enemy per tick. Negligible cost.
 - **Strategic impact:** Creates a "DPS check" mechanic — players need sufficient firepower to kill enemies before they speed up. Rewards DPS-focused builds (Sniper, Cannon, Railgun) and punishes pure slow/utility builds. Also makes the late game more tense since high-HP enemies (tanks, armored, shielded) are more likely to survive long enough to trigger desperation. Inspired by enrage timers in MMO boss fights and the "rage mode" mechanic in tower defense games like Kingdom Rush where enemies speed up near the base.
+
+### 2026-03-11: Cannon Synergy Bonuses
+- **Nearby cannons of complementary specs buff each other** — when two cannons with compatible specializations are placed within 200px, both get passive stat bonuses. This adds strategic depth to cannon placement — it's no longer just about path coverage, now you want to group complementary specs together.
+- **6 synergy pairs:**
+  - **❄️🎯 Shatter** (Frost + Sniper): +30% crit chance vs frosted targets
+  - **⚡🔥 Overcharge** (Tesla + Gatling): +25% fire rate for both
+  - **💥🔩 Siege** (Cannon + Railgun): +20% damage for both
+  - **❄️⚡ Ionfreeze** (Frost + Tesla): +40% slow effect & +2 chain targets
+  - **🎯💥 Artillery** (Sniper + Cannon): +50% crit damage multiplier
+  - **🔥🔩 Barrage** (Gatling + Railgun): +2 pierce & +15% fire rate
+- **Visual indicators:**
+  - **Animated dashed energy lines** between bonded cannons, color-matched to synergy type, with flowing dash animation
+  - **Synergy name + emoji** at the midpoint of each link, pulsing gently
+  - **Colored glow rings** around each synergized cannon (one ring per active synergy), dashed and animated
+  - **"SYNERGY!" popup announcement** when a synergy first activates — shows the name, emoji, and bonus description as floating text. Only fires once per unique pair per game to avoid spam.
+- **Implementation:**
+  - Phase 2: `SYNERGY_RADIUS` constant (200px), `CANNON_SYNERGIES` array defining all 6 pairs with specs, names, colors, emojis, and bonus objects
+  - Phase 2/5: `getCannonSynergies(cid, c, cannonEntries)` — checks all other cannons within range for matching partner specs, returns array of active synergies
+  - Phase 5: `applySynergyBonuses(stats, synergies)` — mutates a stats object in place with synergy bonuses
+  - Phase 3: `let activeSynergyKeys = new Set()` — tracks which synergies have been announced
+  - simTick fire loop: After `getCannonStats()`, calls `getCannonSynergies()` and `applySynergyBonuses()`. Fires `scorePopups` announcement for new synergies.
+  - drawFrame: Before drawing cannons, iterates all cannon pairs and draws dashed energy lines between bonded ones with midpoint synergy names.
+  - drawCannon: After XP ring, draws synergy glow rings for each active synergy.
+  - resetGame: Clears `activeSynergyKeys`.
+- **No new DOM elements, event listeners, or init calls.** Zero TDZ risk.
+- **Performance:** `getCannonSynergies()` is O(S × C) per cannon where S = 6 synergy types and C = number of cannons. With typical 2-6 cannons, this is ~12-36 comparisons per cannon per tick. Negligible cost. Visual rendering is 1 line + 1 text + 1 ring per active synergy — all lightweight canvas ops.
+- **Design rationale:** Tower defense games with the deepest strategy have synergy mechanics — Bloons TD 6 has "Monkey Knowledge" buffs for nearby towers, Kingdom Rush has strategic placement bonuses, and Arknights has operator trait synergies. Without synergies, cannon placement in this game was purely about path coverage and range overlap. Now players have a reason to group specific spec pairs together: a Frost + Sniper combo near a chokepoint creates devastating crit chains against slowed targets, while a Tesla + Gatling pair in the middle shreds groups with overcharged fire rate + chain lightning. In multiplayer, this incentivizes coordination — "I'll go Frost if you go Sniper" creates emergent teamwork. The 200px radius is generous enough that cannons don't need to be touching, but tight enough that you can't synergize across the whole map — you have to make placement tradeoffs.

@@ -3237,6 +3237,59 @@
     }
 
     // ═══════════════════════════════════════════════════
+    //  Cannon Synergy System
+    // ═══════════════════════════════════════════════════
+    const SYNERGY_RADIUS = 200; // pixels — cannons must be this close to bond
+    const CANNON_SYNERGIES = [
+      { specs: ['frost', 'sniper'],  name: 'Shatter',    emoji: '❄️🎯', color: '#00ddff',
+        desc: '+30% crit vs frosted', bonuses: { critChance: 0.30 } },
+      { specs: ['tesla', 'gatling'], name: 'Overcharge', emoji: '⚡🔥', color: '#ffdd00',
+        desc: '+25% fire rate',       bonuses: { fireRateMult: 1.25 } },
+      { specs: ['cannon', 'railgun'],name: 'Siege',      emoji: '💥🔩', color: '#ff6600',
+        desc: '+20% damage',          bonuses: { dmgMult: 1.20 } },
+      { specs: ['frost', 'tesla'],   name: 'Ionfreeze',  emoji: '❄️⚡', color: '#88ddff',
+        desc: '+40% slow & +2 chain', bonuses: { slowBonus: 0.4, chainBonus: 2 } },
+      { specs: ['sniper', 'cannon'], name: 'Artillery',  emoji: '🎯💥', color: '#ff4444',
+        desc: '+50% crit mult',       bonuses: { critMultBonus: 0.5 } },
+      { specs: ['gatling', 'railgun'],name: 'Barrage',   emoji: '🔥🔩', color: '#cc88ff',
+        desc: '+2 pierce & +15% rate',bonuses: { pierceBonus: 2, fireRateMult: 1.15 } },
+    ];
+
+    // Returns array of active synergies for a cannon, checking nearby cannons
+    function getCannonSynergies(cid, c, cannonEntries) {
+      if (!c.spec) return [];
+      const result = [];
+      for (const syn of CANNON_SYNERGIES) {
+        if (!syn.specs.includes(c.spec)) continue;
+        const partnerSpec = syn.specs[0] === c.spec ? syn.specs[1] : syn.specs[0];
+        // Check if any other cannon with the partner spec is within range
+        for (const [oid, oc] of cannonEntries) {
+          if (oid === cid || !oc.x || !oc.y || oc.spec !== partnerSpec) continue;
+          const dist = Math.hypot(c.x - oc.x, c.y - oc.y);
+          if (dist <= SYNERGY_RADIUS) {
+            result.push({ ...syn, partnerId: oid, partnerX: oc.x, partnerY: oc.y });
+            break; // one partner per synergy type is enough
+          }
+        }
+      }
+      return result;
+    }
+
+    // Apply synergy bonuses to a stats object (mutates in place)
+    function applySynergyBonuses(stats, synergies) {
+      for (const syn of synergies) {
+        const b = syn.bonuses;
+        if (b.dmgMult) stats.dmg *= b.dmgMult;
+        if (b.fireRateMult) stats.fireRate *= b.fireRateMult;
+        if (b.critChance) stats.critChance = Math.min(stats.critChance + b.critChance, 0.95);
+        if (b.critMultBonus) stats.critMultiplier += b.critMultBonus;
+        if (b.slowBonus) stats.slowPct = Math.min(stats.slowPct + b.slowBonus, 0.95);
+        if (b.chainBonus) stats.chain += b.chainBonus;
+        if (b.pierceBonus) stats.pierce += b.pierceBonus;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
     //  Enemy Type Definitions
     // ═══════════════════════════════════════════════════
     const ENEMY_TYPES = [
@@ -3705,6 +3758,7 @@
     let ultimateFlashTimer = 0;
     const ULTIMATE_BASE_COOLDOWN = 60; // 60 seconds
     let terrainHazards = []; // environmental hazard zones on the path
+    let activeSynergyKeys = new Set(); // track announced synergies to avoid popup spam
     let earlySendBonusPct = 0; // current bonus XP percentage from early sends
     let earlySendCount = 0; // how many consecutive early sends
 
@@ -4833,6 +4887,30 @@
       for (const [cid, c] of cannonList) {
         if (!c.x || !c.y) continue;
         const stats = getCannonStats(c.level || 1, c.path || null, c.spec || null);
+        // Apply cannon synergy bonuses from nearby allies
+        const synergies = getCannonSynergies(cid, c, cannonList);
+        if (synergies.length > 0) {
+          applySynergyBonuses(stats, synergies);
+          // Announce new synergies (once per unique pair)
+          for (const syn of synergies) {
+            const pairKey = [cid, syn.partnerId].sort().join(':') + ':' + syn.name;
+            if (!activeSynergyKeys.has(pairKey)) {
+              activeSynergyKeys.add(pairKey);
+              const mx = (c.x + syn.partnerX) / 2;
+              const my = (c.y + syn.partnerY) / 2;
+              scorePopups.push({
+                x: mx, y: my - 10,
+                text: syn.emoji + ' SYNERGY: ' + syn.name + '!',
+                color: syn.color, life: 60, maxLife: 60, size: 14, vy: -0.8
+              });
+              scorePopups.push({
+                x: mx, y: my + 6,
+                text: syn.desc,
+                color: '#ffffff', life: 50, maxLife: 50, size: 10, vy: -0.6
+              });
+            }
+          }
+        }
         if (!(cid in myCannonFireTimers)) myCannonFireTimers[cid] = 0;
         myCannonFireTimers[cid]++;
         const fireInterval = TICK_RATE / (stats.fireRate * getFireRateMultiplier());
@@ -5439,6 +5517,7 @@
       streakAnnouncement = null;
       personalBestBroken = false;
       waveDesperationWarned = false;
+      activeSynergyKeys = new Set();
       resetDpsMeter();
       abilityZones = [];
       lightningBolts = [];
@@ -8083,6 +8162,48 @@
         }
       }
 
+      // Draw synergy links between bonded cannons
+      {
+        const cannonEntries = Object.entries(cannons);
+        const drawnPairs = new Set();
+        for (const [cid, c] of cannonEntries) {
+          if (!c.x || !c.y || !c.spec) continue;
+          const synergies = getCannonSynergies(cid, c, cannonEntries);
+          for (const syn of synergies) {
+            const pairKey = [cid, syn.partnerId].sort().join(':');
+            if (drawnPairs.has(pairKey)) continue;
+            drawnPairs.add(pairKey);
+            const t = Date.now() / 1000;
+            // Dashed energy line between the two cannons
+            ctx.save();
+            ctx.setLineDash([6, 4]);
+            ctx.lineDashOffset = -t * 30; // animated flow
+            ctx.strokeStyle = syn.color;
+            ctx.globalAlpha = 0.35 + 0.15 * Math.sin(t * 3);
+            ctx.lineWidth = 2;
+            ctx.shadowColor = syn.color;
+            ctx.shadowBlur = 6;
+            ctx.beginPath();
+            ctx.moveTo(c.x, c.y);
+            ctx.lineTo(syn.partnerX, syn.partnerY);
+            ctx.stroke();
+            ctx.restore();
+            // Synergy name at midpoint
+            const mx = (c.x + syn.partnerX) / 2;
+            const my = (c.y + syn.partnerY) / 2;
+            ctx.save();
+            ctx.globalAlpha = 0.7 + 0.2 * Math.sin(t * 2);
+            ctx.font = 'bold 9px ' + getComputedStyle(document.body).fontFamily;
+            ctx.textAlign = 'center';
+            ctx.fillStyle = syn.color;
+            ctx.shadowColor = '#000';
+            ctx.shadowBlur = 3;
+            ctx.fillText(syn.emoji + ' ' + syn.name, mx, my - 6);
+            ctx.restore();
+          }
+        }
+      }
+
       // Draw cannons
       for (const [cid, c] of Object.entries(cannons)) {
         if (!c.x || !c.y) continue;
@@ -9423,6 +9544,31 @@
       ctx.font = '9px ' + getComputedStyle(document.body).fontFamily;
       ctx.textAlign = 'center';
       ctx.fillText(c.name || '???', x, y + 24);
+
+      // Synergy glow ring — show if this cannon has active synergies
+      {
+        const cannonEntries = Object.entries(cannons);
+        const synergies = getCannonSynergies(cid, c, cannonEntries);
+        if (synergies.length > 0) {
+          const t = Date.now() / 1000;
+          for (let si = 0; si < synergies.length; si++) {
+            const syn = synergies[si];
+            const ringR = 22 + si * 4;
+            ctx.save();
+            ctx.globalAlpha = 0.25 + 0.15 * Math.sin(t * 3 + si);
+            ctx.strokeStyle = syn.color;
+            ctx.lineWidth = 1.5;
+            ctx.shadowColor = syn.color;
+            ctx.shadowBlur = 5;
+            ctx.setLineDash([3, 3]);
+            ctx.lineDashOffset = -t * 20;
+            ctx.beginPath();
+            ctx.arc(x, y, ringR, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+      }
 
       // Targeting priority icon (own cannon only, non-default)
       if (isMe && myTargetPriority !== 'smart') {
