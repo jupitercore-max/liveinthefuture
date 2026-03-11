@@ -944,6 +944,8 @@
   let animationStartTime = null;
   let animationStartOffset = 0;
   let secondHandStartAngle = 0;
+  let lastStoppedSecondAngle = null; // tracks where second hand froze when watch stops
+  let lastStoppedCageAngle = null;   // tracks where tourbillon cage froze
   const ANIMATION_DURATION = 10000;
 
   // Click handler for time-lapse
@@ -1540,44 +1542,102 @@
       millis = homeTime.millis;
     }
 
-    // Mechanical movement simulation: 8 beats per second with spring overshoot
-    // Each beat: hand snaps to next 0.75° position, overshoots slightly, settles
-    const BEATS_PER_SEC = 8;
-    const beatIndex = Math.floor((seconds * BEATS_PER_SEC) + (millis / 1000 * BEATS_PER_SEC));
-    const beatFrac = ((seconds * BEATS_PER_SEC) + (millis / 1000 * BEATS_PER_SEC)) % 1;
+    // ── Mainspring Depletion Effects ──────────────────────────
+    // As power reserve drains, the movement degrades like a real watch:
+    //   100-30%: Full performance — crisp 8-beat ticks, full amplitude
+    //   30-10%:  Amplitude loss — beats slow to ~6/sec, overshoot fades,
+    //            occasional irregularity (like a real movement losing amplitude)
+    //   10-3%:   Dying movement — ~4 beats/sec, visible jitter, hand stutters
+    //   <3%:     Watch stops — hands freeze, balance wheel halts
+    const watchStopped = powerLevel < 0.03;
+
+    // Effective beat rate degrades with power
+    let effectiveBPS = 8;
+    let overshootStrength = 1.0; // 0..1, multiplier on the spring overshoot
+    let beatJitter = 0;          // random timing jitter in fractional beats
+    if (powerLevel < 0.30 && powerLevel >= 0.10) {
+      // Gradual degradation: 8 → 6 BPS, overshoot fading
+      const degradePct = 1 - (powerLevel - 0.10) / 0.20; // 0 at 30%, 1 at 10%
+      effectiveBPS = 8 - degradePct * 2; // 8 → 6
+      overshootStrength = 1.0 - degradePct * 0.7; // 1.0 → 0.3
+      beatJitter = degradePct * 0.08; // subtle irregularity
+    } else if (powerLevel < 0.10 && powerLevel >= 0.03) {
+      // Dying: 6 → 4 BPS, heavy jitter, no overshoot
+      const dyingPct = 1 - (powerLevel - 0.03) / 0.07; // 0 at 10%, 1 at 3%
+      effectiveBPS = 6 - dyingPct * 2; // 6 → 4
+      overshootStrength = 0.3 - dyingPct * 0.3; // 0.3 → 0
+      beatJitter = 0.08 + dyingPct * 0.15; // growing jitter
+    }
+
+    // Mechanical movement simulation: beats per second with spring overshoot
+    // Each beat: hand snaps to next position, overshoots slightly, settles
+    const BEATS_PER_SEC = effectiveBPS;
+    const rawBeatPos = (seconds * BEATS_PER_SEC) + (millis / 1000 * BEATS_PER_SEC);
+    const beatIndex = Math.floor(rawBeatPos);
+    const beatFrac = rawBeatPos % 1;
     const baseDeg = (beatIndex / BEATS_PER_SEC) * 6; // 6° per second, divided into beats
 
-    // Trigger tick sound on each new beat
-    if (tickEnabled && beatIndex !== lastTickBeat && !document.hidden) {
+    // Trigger tick sound on each new beat (skip if stopped)
+    if (tickEnabled && beatIndex !== lastTickBeat && !document.hidden && !watchStopped) {
       lastTickBeat = beatIndex;
       playTickSound();
     }
 
     // Spring physics: quick snap with slight overshoot then settle
     let springOffset = 0;
-    if (beatFrac < 0.15) {
-      // Snap phase: accelerate to target + overshoot
-      const t = beatFrac / 0.15;
-      springOffset = (1 + 0.12 * Math.sin(t * Math.PI)) * t;
-      springOffset = Math.min(springOffset, 1.12);
-    } else if (beatFrac < 0.35) {
-      // Settle phase: overshoot decays back
-      const t = (beatFrac - 0.15) / 0.2;
-      springOffset = 1.12 - 0.12 * t;
+    if (watchStopped) {
+      // Watch is dead — freeze at last position
+      springOffset = 0;
     } else {
-      // Rest phase: stationary at target
-      springOffset = 1.0;
+      // Apply jitter: slightly randomize the beat fraction timing
+      let jitteredFrac = beatFrac;
+      if (beatJitter > 0) {
+        // Deterministic jitter from beatIndex so it doesn't flicker
+        const jitterSeed = Math.sin(beatIndex * 127.1) * 43758.5453;
+        const jitterVal = (jitterSeed - Math.floor(jitterSeed)) * 2 - 1; // -1..1
+        jitteredFrac = Math.max(0, Math.min(1, beatFrac + jitterVal * beatJitter));
+      }
+
+      const overshoot = 0.12 * overshootStrength;
+      if (jitteredFrac < 0.15) {
+        // Snap phase: accelerate to target + overshoot
+        const t = jitteredFrac / 0.15;
+        springOffset = (1 + overshoot * Math.sin(t * Math.PI)) * t;
+        springOffset = Math.min(springOffset, 1 + overshoot);
+      } else if (jitteredFrac < 0.35) {
+        // Settle phase: overshoot decays back
+        const t = (jitteredFrac - 0.15) / 0.2;
+        springOffset = (1 + overshoot) - overshoot * t;
+      } else {
+        // Rest phase: stationary at target
+        springOffset = 1.0;
+      }
     }
 
     const nextBeatDeg = 6 / BEATS_PER_SEC; // degrees per beat
-    const secondAngle = baseDeg + springOffset * nextBeatDeg;
+    const secondAngle = watchStopped
+      ? (lastStoppedSecondAngle !== null ? lastStoppedSecondAngle : baseDeg)
+      : baseDeg + springOffset * nextBeatDeg;
+    if (watchStopped && lastStoppedSecondAngle === null) {
+      lastStoppedSecondAngle = baseDeg;
+    } else if (!watchStopped) {
+      lastStoppedSecondAngle = null;
+    }
 
     const minuteAngle = (minutes * 6) + (seconds * 0.1);
     const hourAngle = ((hours % 12) * 30) + (minutes * 0.5);
 
-    document.getElementById('hourHand').style.transform = `translateX(-50%) rotate(${hourAngle}deg)`;
-    document.getElementById('minuteHand').style.transform = `translateX(-50%) rotate(${minuteAngle}deg)`;
-    document.getElementById('secondHand').style.transform = `translateX(-50%) rotate(${secondAngle}deg)`;
+    // When watch is stopped, freeze hands at their last known position
+    const secEl = document.getElementById('secondHand');
+    if (!watchStopped) {
+      document.getElementById('hourHand').style.transform = `translateX(-50%) rotate(${hourAngle}deg)`;
+      document.getElementById('minuteHand').style.transform = `translateX(-50%) rotate(${minuteAngle}deg)`;
+      secEl.style.transform = `translateX(-50%) rotate(${secondAngle}deg)`;
+      // Subtle opacity reduction as power fades
+      secEl.style.opacity = powerLevel < 0.10 ? (0.4 + powerLevel * 6).toFixed(2) : '1';
+    }
+    // Toggle stopped class for potential CSS styling
+    clockFace.classList.toggle('watch-stopped', watchStopped);
 
     // Dynamic hand shadows — offset from light source position
     // Light at upper-left (30,22) → shadow shifts down-right
@@ -1586,9 +1646,11 @@
     const shadowDy = (lightSourceY - 50) * -0.06;
     const shadowOffX = shadowDx.toFixed(1);
     const shadowOffY = shadowDy.toFixed(1);
-    hourShadow.style.transform = `translateX(calc(-50% + ${shadowOffX}px)) translateY(${shadowOffY}px) rotate(${hourAngle}deg)`;
-    minuteShadow.style.transform = `translateX(calc(-50% + ${shadowOffX}px)) translateY(${shadowOffY}px) rotate(${minuteAngle}deg)`;
-    secondShadow.style.transform = `translateX(calc(-50% + ${shadowOffX}px)) translateY(${shadowOffY}px) rotate(${secondAngle}deg)`;
+    if (!watchStopped) {
+      hourShadow.style.transform = `translateX(calc(-50% + ${shadowOffX}px)) translateY(${shadowOffY}px) rotate(${hourAngle}deg)`;
+      minuteShadow.style.transform = `translateX(calc(-50% + ${shadowOffX}px)) translateY(${shadowOffY}px) rotate(${minuteAngle}deg)`;
+      secondShadow.style.transform = `translateX(calc(-50% + ${shadowOffX}px)) translateY(${shadowOffY}px) rotate(${secondAngle}deg)`;
+    }
 
     // GMT hand: shows LOCAL time on 24h scale when a city is selected
     // This lets you read city time on hour/minute hands + local time on 24h bezel
@@ -2378,6 +2440,20 @@
     ctx.fillText('E', cx - r - 2, cy - r + 10);
     ctx.textAlign = 'right';
     ctx.fillText('F', cx + r + 2, cy - r + 10);
+
+    // "WIND" indicator when power is critically low or depleted
+    if (powerLevel < 0.03) {
+      const blinkAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 400);
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 8px ' + getComputedStyle(document.body).fontFamily;
+      ctx.fillStyle = `rgba(239, 83, 80, ${blinkAlpha.toFixed(2)})`;
+      ctx.fillText('WIND', cx, cy - r + 22);
+    } else if (powerLevel < 0.10) {
+      ctx.textAlign = 'center';
+      ctx.font = '6px ' + getComputedStyle(document.body).fontFamily;
+      ctx.fillStyle = 'rgba(255, 167, 38, 0.6)';
+      ctx.fillText('LOW', cx, cy - r + 22);
+    }
   }
 
   updateClock();
@@ -2617,7 +2693,16 @@
 
     // ── Tourbillon cage rotation: 360° per minute ──
     const t = seconds + millis / 1000;
-    const cageAngle = (t / 60) * Math.PI * 2; // full rotation per minute
+    // ── Tourbillon cage rotation: 360° per minute (halts when stopped) ──
+    let cageAngle;
+    if (powerLevel < 0.03) {
+      // Stopped — freeze at last position
+      if (lastStoppedCageAngle === null) lastStoppedCageAngle = (t / 60) * Math.PI * 2;
+      cageAngle = lastStoppedCageAngle;
+    } else {
+      lastStoppedCageAngle = null;
+      cageAngle = (t / 60) * Math.PI * 2;
+    }
 
     // Hairspring — concentric spiral (rotates with cage)
     ctx.save();
@@ -2693,10 +2778,20 @@
     ctx.restore();
 
     // ── Balance wheel oscillation inside the cage ──
-    // 4 Hz = 8 beats/sec, swings ±270°
+    // Amplitude scales with power reserve — real watches lose amplitude as mainspring unwinds
     const FREQ = 4;
+    let balanceAmplitude = 270; // degrees, full power
+    if (powerLevel < 0.30 && powerLevel >= 0.10) {
+      const degradePct = 1 - (powerLevel - 0.10) / 0.20;
+      balanceAmplitude = 270 - degradePct * 90; // 270 → 180
+    } else if (powerLevel < 0.10 && powerLevel >= 0.03) {
+      const dyingPct = 1 - (powerLevel - 0.03) / 0.07;
+      balanceAmplitude = 180 - dyingPct * 120; // 180 → 60
+    } else if (powerLevel < 0.03) {
+      balanceAmplitude = 0; // stopped
+    }
     const phase = t * FREQ * Math.PI * 2;
-    const swing = Math.sin(phase) * 270;
+    const swing = Math.sin(phase) * balanceAmplitude;
 
     ctx.save();
     ctx.translate(cx, cy);
