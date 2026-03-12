@@ -46,6 +46,11 @@
   var tick = 0, selCannon = null, pickSpec = 0, autoAdvanceTimer = 0;
   var msg = '', msgTimer = 0;
   var totalWaves = 0;
+  var deathGhosts = [];
+  var dmgPopups = [];
+  var muzzleFlashes = [];
+  var comboCount = 0, comboTimer = 0;
+  var streakMsg = '', streakTimer = 0, streakSize = 28, streakCol = '#ffd700';
 
   // ── Path: S-curve ──
   var PATH = [
@@ -378,6 +383,9 @@
         if (crit) dmg *= 2;
         bullets.push({x:c.px, y:c.py, tx:p.x, ty:p.y, dmg:dmg, spd:8, col:c.col, tgt:best, crit:crit, owner:c});
         if (shootSoundThrottle <= 0) { sfxShoot(c.specIdx || 0); shootSoundThrottle = 3; }
+        // Muzzle flash
+        var fa = c.angle || 0;
+        muzzleFlashes.push({x:c.px+Math.cos(fa)*18, y:c.py+Math.sin(fa)*18, life:5, max:5, col:c.col, sz: crit?8:5});
       }
     }
     // Move bullets
@@ -389,6 +397,12 @@
           b.tgt.hp -= b.dmg;
           b.tgt.flash = 6;
           if (b.crit) sfxCrit();
+          // Floating damage number
+          var dp = pathPos(b.tgt.prog);
+          var dCol = b.crit ? '#ffd700' : b.dmg > 20 ? '#ffaa44' : '#ffffff';
+          var dSz = b.crit ? 14 : b.dmg > 20 ? 11 : 9;
+          dmgPopups.push({x:dp.x+(Math.random()-0.5)*12, y:dp.y-b.tgt.r-4, vy:-2.2, life:20, max:20,
+            txt: (b.crit?'⚡':'') + Math.round(b.dmg), col:dCol, sz:dSz});
           if (b.tgt.hp <= 0) {
             b.tgt.dead = true;
             kills++;
@@ -412,6 +426,17 @@
               particles.push({x:ep.x, y:ep.y, vx:(Math.random()-0.5)*4, vy:(Math.random()-0.5)*4,
                 life:20, max:20, col:b.tgt.col, sz:3});
             }
+            // Death ghost
+            deathGhosts.push({x:ep.x, y:ep.y, r:b.tgt.r, col:b.tgt.col, shape:b.tgt.shape,
+              life: b.tgt.type==='boss' ? 30 : 18, max: b.tgt.type==='boss' ? 30 : 18,
+              rot: Math.random()*6.28, spin:(Math.random()-0.5)*0.4, isBoss:b.tgt.type==='boss'});
+            // Combo
+            comboCount++;
+            comboTimer = 90; // 1.5s at 60fps
+            if (comboCount === 3) { streakMsg='TRIPLE KILL!'; streakTimer=50; streakSize=28; streakCol='#ffd700'; }
+            else if (comboCount === 5) { streakMsg='RAMPAGE!'; streakTimer=50; streakSize=32; streakCol='#ff8800'; }
+            else if (comboCount === 10) { streakMsg='UNSTOPPABLE!'; streakTimer=60; streakSize=38; streakCol='#ff2222'; }
+            else if (comboCount === 15) { streakMsg='GODLIKE!'; streakTimer=70; streakSize=44; streakCol='#ff00ff'; }
           }
           particles.push({x:b.tx, y:b.ty, vx:(Math.random()-0.5)*2, vy:(Math.random()-0.5)*2,
             life:10, max:10, col:'#fff', sz:b.crit?5:2});
@@ -428,6 +453,26 @@
       p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life--;
       if (p.life <= 0) particles.splice(i, 1);
     }
+    // Death ghosts
+    for (var i = deathGhosts.length-1; i >= 0; i--) {
+      deathGhosts[i].life--;
+      deathGhosts[i].rot += deathGhosts[i].spin;
+      if (deathGhosts[i].life <= 0) deathGhosts.splice(i, 1);
+    }
+    // Damage popups
+    for (var i = dmgPopups.length-1; i >= 0; i--) {
+      dmgPopups[i].y += dmgPopups[i].vy;
+      dmgPopups[i].life--;
+      if (dmgPopups[i].life <= 0) dmgPopups.splice(i, 1);
+    }
+    // Muzzle flashes
+    for (var i = muzzleFlashes.length-1; i >= 0; i--) {
+      muzzleFlashes[i].life--;
+      if (muzzleFlashes[i].life <= 0) muzzleFlashes.splice(i, 1);
+    }
+    // Combo timer
+    if (comboTimer > 0) { comboTimer--; if (comboTimer <= 0) comboCount = 0; }
+    if (streakTimer > 0) streakTimer--;
     // Remove dead
     for (var i = enemies.length-1; i >= 0; i--) {
       if (enemies[i].dead) enemies.splice(i, 1);
@@ -436,9 +481,11 @@
     if (waveActive && spawnCount >= spawnTotal && enemies.length === 0) {
       waveActive = false;
       sfxWaveClear();
-      announce('✓ WAVE '+wave+' CLEAR', 70);
+      baseHp = Math.min(maxHp, baseHp + 1); // +1 HP regen
+      announce('✓ WAVE '+wave+' CLEAR  ❤+1', 70);
       state = S_WAVE_READY;
       autoAdvanceTimer = 120; // 2 seconds at 60fps
+      comboCount = 0; comboTimer = 0;
     }
     // Auto-advance countdown
     if (state === S_WAVE_READY && autoAdvanceTimer > 0) {
@@ -594,6 +641,81 @@
       ctx.fillRect(p.x-p.sz/2, p.y-p.sz/2, p.sz, p.sz);
     }
     ctx.globalAlpha = 1;
+
+    // Death ghosts (shrink + spin + fade)
+    for (var i = 0; i < deathGhosts.length; i++) {
+      var dg = deathGhosts[i];
+      var t = dg.life / dg.max;
+      var sr = dg.r * (0.3 + t * 0.7);
+      ctx.save();
+      ctx.translate(dg.x, dg.y);
+      ctx.rotate(dg.rot);
+      ctx.globalAlpha = t * 0.7;
+      // Flash white at start, then fade to original color
+      var flashPct = (dg.max - dg.life) / dg.max;
+      var col = flashPct < 0.3 ? '#ffffff' : dg.col;
+      drawShape(0, 0, Math.max(0.1, sr), dg.shape, col);
+      // Expanding ring
+      if (flashPct < 0.5) {
+        ctx.strokeStyle = 'rgba(255,255,255,'+(0.6*(1-flashPct*2))+')';
+        ctx.lineWidth = 2;
+        var ringR = dg.r * (1 + flashPct * (dg.isBoss ? 4 : 2));
+        ctx.beginPath(); ctx.arc(0, 0, ringR, 0, Math.PI*2); ctx.stroke();
+      }
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    // Muzzle flashes
+    for (var i = 0; i < muzzleFlashes.length; i++) {
+      var mf = muzzleFlashes[i];
+      var t = mf.life / mf.max;
+      var r = mf.sz * (1 + (1-t)*0.5);
+      ctx.globalAlpha = t * 0.8;
+      var grad = ctx.createRadialGradient(mf.x, mf.y, 0, mf.x, mf.y, Math.max(0.1, r));
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.4, mf.col);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(mf.x, mf.y, Math.max(0.1, r), 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // Floating damage numbers
+    for (var i = 0; i < dmgPopups.length; i++) {
+      var dp = dmgPopups[i];
+      ctx.globalAlpha = Math.max(0, dp.life / dp.max);
+      ctx.fillStyle = dp.col;
+      ctx.font = 'bold '+dp.sz+'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(dp.txt, dp.x, dp.y);
+    }
+    ctx.globalAlpha = 1;
+
+    // Combo counter (top-right)
+    if (comboCount >= 2) {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(W-90, 42, 84, 24);
+      ctx.strokeStyle = comboCount >= 10 ? '#ff2222' : comboCount >= 5 ? '#ff8800' : '#ffd700';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(W-90, 42, 84, 24);
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('🔥 '+comboCount+'× COMBO', W-48, 59);
+    }
+
+    // Streak announcement (centered)
+    if (streakTimer > 0) {
+      var sa = Math.min(1, streakTimer/15);
+      ctx.globalAlpha = sa;
+      ctx.fillStyle = streakCol;
+      ctx.font = 'bold '+streakSize+'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = streakCol; ctx.shadowBlur = 12;
+      ctx.fillText(streakMsg, W/2, H*0.35);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
 
     // Cursor
     if (state === S_PLAY || state === S_WAVE_READY || state === S_PICK) {
@@ -828,6 +950,8 @@
       if (e.key === 'Enter') {
         wave=0; baseHp=maxHp; kills=0; gold=120;
         enemies=[]; cannons=[]; bullets=[]; particles=[];
+        deathGhosts=[]; dmgPopups=[]; muzzleFlashes=[];
+        comboCount=0; comboTimer=0; streakTimer=0;
         waveActive=false; selCannon=null;
         state = S_PLAY; startWave();
       }

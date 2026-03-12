@@ -1559,3 +1559,12 @@ If it fails, DO NOT commit. Fix the error first.
 - **Proposed:** Add procedural Web Audio sound effects to td_mrbd.html
 - **Challenge:** The main game already has these sounds — is this just porting? Yes, but the MRBD version is a separate 820-line file with no sound at all. On the glasses, audio is more important than visuals (small display, bright environment). A silent game feels like a prototype.
 - **Verdict:** PROCEED. Highest-impact single improvement for the MRBD version.
+
+### 2026-03-12: MRBD — Visual Juice Pass (Death Ghosts, Damage Numbers, Combos, Muzzle Flash)
+- **Death ghost animations** — When enemies die, a ghost of their body stays and plays shrink + spin + fade animation. White flash at the start, expanding ring, then colored fade. Bosses get 30-frame animation (longer), regular enemies 18 frames.
+- **Floating damage numbers** — Every hit shows a number above the enemy. White for normal, yellow for big hits (>20 dmg), gold with ⚡ prefix for crits. 20-frame lifetime with upward float.
+- **Muzzle flash** — Radial gradient flash at the barrel tip on every shot. White core fading to cannon color. Crit shots get larger flashes.
+- **Kill combo system** — Kills within 1.5s build a combo counter. Gold combo badge in top-right at 2+. Quake-style streak announcements: TRIPLE KILL (3), RAMPAGE (5), UNSTOPPABLE (10), GODLIKE (15). Each with escalating size and color.
+- **HP regeneration** — +1 HP recovered per wave cleared. Wave clear message shows "❤+1".
+- **State cleanup** — All new arrays (deathGhosts, dmgPopups, muzzleFlashes) and combo state cleared on game reset.
+- **Self-critique:** Approved. The MRBD version was 100% functional but visually flat — enemies popped out of existence, cannon fire was silent lines, hits had no feedback. This pass adds the "juice" that makes every game action feel satisfying. On the glasses, where the screen is small and audio is primary, visual feedback on hits and kills is critical for engagement.
