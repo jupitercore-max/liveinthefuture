@@ -102,7 +102,8 @@
     {type:'grunt', w:1, hp:50, spd:1.2, col:'#ff9900', r:10, gold:10, shape:'circle'},
     {type:'tank',  w:5, hp:180,spd:0.6, col:'#bb66ff', r:14, gold:25, shape:'hex'},
     {type:'speed', w:8, hp:35, spd:3.0, col:'#44ff44', r:7,  gold:12, shape:'diamond'},
-    {type:'boss',  w:10,hp:600,spd:0.4, col:'#ff0044', r:18, gold:100,shape:'oct'}
+    {type:'boss',  w:10,hp:600,spd:0.4, col:'#ff0044', r:18, gold:100,shape:'oct'},
+    {type:'flyer', w:12,hp:40, spd:2.2, col:'#aa66ff', r:9,  gold:15, shape:'tri'}
   ];
 
   // ── Cannons ──
@@ -309,8 +310,10 @@
     waveActive = true;
     spawnTimer = 0; spawnCount = 0;
     spawnTotal = wave % 10 === 0 ? 1 : 5 + wave * 2;
+    var waveMsg = wave % 10 === 0 ? '💀 BOSS WAVE ' + wave : '⚔ WAVE ' + wave;
+    if (wave >= 12 && wave % 10 !== 0) waveMsg += '  ✈ Flyers!';
     sfxWaveStart(wave % 10 === 0);
-    announce(wave % 10 === 0 ? '💀 BOSS WAVE ' + wave : '⚔ WAVE ' + wave, 90);
+    announce(waveMsg, 90);
     gold += 10 + wave * 2;
     state = S_PLAY;
   }
@@ -326,13 +329,43 @@
     } else {
       def = avail[Math.floor(Math.random() * avail.length)];
     }
-    var hpScale = def.type === 'boss' ? 1 + (wave-10)*0.5 : 1 + (wave-1)*0.15;
+    // Quadratic HP scaling: keeps early waves easy, ramps hard later
+    var hpScale;
+    if (def.type === 'boss') {
+      hpScale = 1 + (wave-10)*0.5;
+    } else {
+      hpScale = (1 + wave * 0.15) * (1 + wave * 0.04);
+    }
     if (hpScale < 1) hpScale = 1;
-    enemies.push({
-      type: def.type, hp: def.hp*hpScale, maxHp: def.hp*hpScale,
-      spd: def.spd, col: def.col, r: def.r, gold: def.gold,
-      shape: def.shape, prog: 0, dead: false, flash: 0
-    });
+    // Speed scaling after wave 10: +1.5% per wave, capped at +50%
+    var spdMult = 1;
+    if (wave > 10 && def.type !== 'boss') {
+      spdMult = 1 + Math.min(0.5, (wave - 10) * 0.015);
+    }
+    // Elite chance from wave 12+
+    var isElite = false;
+    if (wave >= 12 && def.type !== 'boss') {
+      var eliteChance = 0.15 + Math.min(0.15, (wave - 12) * 0.01);
+      if (Math.random() < eliteChance) isElite = true;
+    }
+    var hp = def.hp * hpScale * (isElite ? 2.5 : 1);
+    var spd = def.spd * spdMult * (isElite ? 1.1 : 1);
+    var r = def.r * (isElite ? 1.25 : 1);
+    var goldVal = def.gold * (isElite ? 3 : 1);
+    var e = {
+      type: def.type, hp: hp, maxHp: hp,
+      spd: spd, col: isElite ? '#ffd700' : def.col, r: r, gold: goldVal,
+      shape: def.shape, prog: 0, dead: false, flash: 0,
+      elite: isElite, spawnTick: tick
+    };
+    // Flyer: ignore path, fly straight from top to base
+    if (def.type === 'flyer') {
+      e.flying = true;
+      e.flyX = 40 + Math.random() * (W - 80);
+      e.flyY = -10;
+      e.flyTargetX = 40 + Math.random() * (W - 80);
+    }
+    enemies.push(e);
     spawnCount++;
   }
 
@@ -352,13 +385,32 @@
     for (var i = enemies.length-1; i >= 0; i--) {
       var e = enemies[i];
       if (e.dead) continue;
-      e.prog += (e.spd * 0.4) / pathLen;
       e.flash = Math.max(0, e.flash - 1);
-      if (e.prog >= 1) {
-        baseHp = Math.max(0, baseHp - (e.type === 'boss' ? 5 : 1));
-        sfxDamage();
-        e.dead = true;
-        if (baseHp <= 0) { sfxGameOver(); state = S_OVER; totalWaves = wave; }
+      if (e.flying) {
+        // Flyers move straight down toward base
+        var fdx = e.flyTargetX - e.flyX;
+        var fdy = (H + 10) - e.flyY;
+        var fdist = Math.sqrt(fdx*fdx + fdy*fdy);
+        if (fdist > 0) {
+          e.flyX += (fdx/fdist) * e.spd * 0.8;
+          e.flyY += (fdy/fdist) * e.spd * 0.8;
+        }
+        // Flapping wing animation
+        e.wingPhase = (e.wingPhase || 0) + 0.12;
+        if (e.flyY >= H - 30) {
+          baseHp = Math.max(0, baseHp - 1);
+          sfxDamage();
+          e.dead = true;
+          if (baseHp <= 0) { sfxGameOver(); state = S_OVER; totalWaves = wave; }
+        }
+      } else {
+        e.prog += (e.spd * 0.4) / pathLen;
+        if (e.prog >= 1) {
+          baseHp = Math.max(0, baseHp - (e.type === 'boss' ? 5 : 1));
+          sfxDamage();
+          e.dead = true;
+          if (baseHp <= 0) { sfxGameOver(); state = S_OVER; totalWaves = wave; }
+        }
       }
     }
     // Cannon fire
@@ -370,12 +422,12 @@
       for (var ei = 0; ei < enemies.length; ei++) {
         var e = enemies[ei];
         if (e.dead) continue;
-        var p = pathPos(e.prog);
+        var p = e.flying ? {x:e.flyX, y:e.flyY} : pathPos(e.prog);
         var dx = p.x-c.px, dy = p.y-c.py, d = Math.sqrt(dx*dx+dy*dy);
         if (d <= c.rng && d < bd) { best = e; bd = d; }
       }
       if (best) {
-        var p = pathPos(best.prog);
+        var p = best.flying ? {x:best.flyX, y:best.flyY} : pathPos(best.prog);
         c.cd = Math.round(60/c.rate);
         c.angle = Math.atan2(p.y-c.py, p.x-c.px);
         var dmg = c.dmg * (1 + c.lvl*0.15);
@@ -398,7 +450,7 @@
           b.tgt.flash = 6;
           if (b.crit) sfxCrit();
           // Floating damage number
-          var dp = pathPos(b.tgt.prog);
+          var dp = b.tgt.flying ? {x:b.tgt.flyX, y:b.tgt.flyY} : pathPos(b.tgt.prog);
           var dCol = b.crit ? '#ffd700' : b.dmg > 20 ? '#ffaa44' : '#ffffff';
           var dSz = b.crit ? 14 : b.dmg > 20 ? 11 : 9;
           dmgPopups.push({x:dp.x+(Math.random()-0.5)*12, y:dp.y-b.tgt.r-4, vy:-2.2, life:20, max:20,
@@ -421,7 +473,7 @@
               }
             }
             // Death particles
-            var ep = pathPos(b.tgt.prog);
+            var ep = b.tgt.flying ? {x:b.tgt.flyX, y:b.tgt.flyY} : pathPos(b.tgt.prog);
             for (var dp = 0; dp < 6; dp++) {
               particles.push({x:ep.x, y:ep.y, vx:(Math.random()-0.5)*4, vy:(Math.random()-0.5)*4,
                 life:20, max:20, col:b.tgt.col, sz:3});
@@ -518,6 +570,9 @@
         else ctx.lineTo(x+Math.cos(a)*r, y+Math.sin(a)*r);
       }
       ctx.closePath();
+    } else if (shape === 'tri') {
+      ctx.moveTo(x, y+r); ctx.lineTo(x-r*0.8, y-r*0.6); ctx.lineTo(x+r*0.8, y-r*0.6);
+      ctx.closePath();
     } else {
       ctx.arc(x, y, r, 0, Math.PI*2);
     }
@@ -606,14 +661,54 @@
     for (var i = 0; i < enemies.length; i++) {
       var e = enemies[i];
       if (e.dead) continue;
-      var p = pathPos(e.prog);
+      var p = e.flying ? {x:e.flyX, y:e.flyY} : pathPos(e.prog);
       var col = e.flash > 0 ? '#ffffff' : e.col;
-      drawShape(p.x, p.y, e.r, e.shape, col);
+      // Spawn animation (scale up from 20% over 12 ticks)
+      var spawnAge = tick - (e.spawnTick || 0);
+      var spawnScale = spawnAge < 12 ? 0.2 + 0.8 * Math.pow(spawnAge/12, 0.5) : 1;
+      var spawnAlpha = spawnAge < 12 ? 0.3 + 0.7 * (spawnAge/12) : 1;
+      if (spawnAge < 12) ctx.globalAlpha = spawnAlpha;
+      // Flyer: draw wings
+      if (e.flying) {
+        var wingSpread = Math.sin(e.wingPhase || 0) * 6;
+        ctx.fillStyle = 'rgba(170,102,255,0.3)';
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x - e.r*1.5, p.y - wingSpread - 4);
+        ctx.lineTo(p.x - e.r*0.8, p.y);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x + e.r*1.5, p.y - wingSpread - 4);
+        ctx.lineTo(p.x + e.r*0.8, p.y);
+        ctx.fill();
+        // Ground shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath(); ctx.ellipse(p.x, p.y+12, e.r*0.7, 3, 0, 0, Math.PI*2); ctx.fill();
+      }
+      drawShape(p.x, p.y, Math.max(0.1, e.r * spawnScale), e.shape, col);
       if (e.type === 'boss') {
         ctx.shadowColor = e.col; ctx.shadowBlur = 10;
-        drawShape(p.x, p.y, e.r, e.shape, col);
+        drawShape(p.x, p.y, Math.max(0.1, e.r * spawnScale), e.shape, col);
         ctx.shadowBlur = 0;
       }
+      // Elite golden ring
+      if (e.elite) {
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 6;
+        ctx.beginPath(); ctx.arc(p.x, p.y, e.r + 3, 0, Math.PI*2); ctx.stroke();
+        ctx.shadowBlur = 0;
+        // ★ above
+        ctx.fillStyle = '#ffd700'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('★', p.x, p.y - e.r - 10);
+      }
+      // Flyer ✈ label
+      if (e.flying) {
+        ctx.fillStyle = '#aa66ff'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('✈', p.x, p.y - e.r - (e.elite ? 18 : 10));
+      }
+      if (spawnAge < 12) ctx.globalAlpha = 1;
       // HP bar
       var pct = e.hp / e.maxHp;
       if (pct < 1) {
@@ -761,6 +856,28 @@
           ctx.fillText('⊕ Place', cx, cy+24);
         }
       }
+    }
+
+    // ── Low HP Danger Vignette ──
+    if (baseHp > 0 && baseHp / maxHp < 0.5) {
+      var intensity = 1 - (baseHp / maxHp) / 0.5;
+      var pulseSpd = 2 + intensity * 6;
+      var edgeSz = 30 + intensity * 40;
+      var baseAlpha = 0.04 + intensity * 0.12;
+      var pulse = baseAlpha + Math.sin(tick * 0.1 * pulseSpd) * 0.08 * intensity;
+      var grd;
+      grd = ctx.createLinearGradient(0, 0, 0, edgeSz);
+      grd.addColorStop(0, 'rgba(255,30,20,'+pulse+')'); grd.addColorStop(1, 'rgba(255,30,20,0)');
+      ctx.fillStyle = grd; ctx.fillRect(0, 0, W, edgeSz);
+      grd = ctx.createLinearGradient(0, H, 0, H-edgeSz);
+      grd.addColorStop(0, 'rgba(255,30,20,'+pulse+')'); grd.addColorStop(1, 'rgba(255,30,20,0)');
+      ctx.fillStyle = grd; ctx.fillRect(0, H-edgeSz, W, edgeSz);
+      grd = ctx.createLinearGradient(0, 0, edgeSz, 0);
+      grd.addColorStop(0, 'rgba(255,30,20,'+pulse+')'); grd.addColorStop(1, 'rgba(255,30,20,0)');
+      ctx.fillStyle = grd; ctx.fillRect(0, 0, edgeSz, H);
+      grd = ctx.createLinearGradient(W, 0, W-edgeSz, 0);
+      grd.addColorStop(0, 'rgba(255,30,20,'+pulse+')'); grd.addColorStop(1, 'rgba(255,30,20,0)');
+      ctx.fillStyle = grd; ctx.fillRect(W-edgeSz, 0, edgeSz, H);
     }
 
     // ── HUD ──

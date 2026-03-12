@@ -1568,3 +1568,20 @@ If it fails, DO NOT commit. Fix the error first.
 - **HP regeneration** — +1 HP recovered per wave cleared. Wave clear message shows "❤+1".
 - **State cleanup** — All new arrays (deathGhosts, dmgPopups, muzzleFlashes) and combo state cleared on game reset.
 - **Self-critique:** Approved. The MRBD version was 100% functional but visually flat — enemies popped out of existence, cannon fire was silent lines, hits had no feedback. This pass adds the "juice" that makes every game action feel satisfying. On the glasses, where the screen is small and audio is primary, visual feedback on hits and kills is critical for engagement.
+
+### 2026-03-12: MRBD — Difficulty Scaling, Flyers, Elites, Danger Vignette
+- **Quadratic HP scaling** — Enemy HP now scales as `(1 + wave*0.15) * (1 + wave*0.04)` instead of linear `1 + wave*0.15`. Keeps waves 1-8 feeling the same, but wave 20+ enemies are 2-3× tougher than before. Bosses still use linear scaling.
+- **Enemy speed scaling** — After wave 10, non-boss enemies get +1.5% speed per wave, capped at +50%. Makes frost/slow effects increasingly valuable and late-game positioning critical.
+- **Flyer enemy type** (wave 12+) — Purple triangle that ignores the path entirely, flies straight from top to base. Has flapping wing animation + ground shadow + ✈ label. Forces players to position cannons that cover both the path AND the open field.
+- **Elite enemies** (wave 12+) — 15-30% chance (scaling). 2.5× HP, 1.1× speed, 1.25× size, golden color + ★ star + golden ring glow. Award 3× gold (used as XP). Makes individual enemies feel dangerous rather than just increasing quantity.
+- **Spawn animation** — Enemies scale up from 20% to 100% size with fade-in over 12 ticks. Cubic ease-out curve. Makes spawns visible instead of pop-in.
+- **Low HP danger vignette** — Pulsing red edge glow when HP drops below 50%, with intensity/pulse speed increasing as HP drops. Same system as main game. Dramatic urgency signal.
+- **Wave announcements** — Shows "✈ Flyers!" warning on waves 12+ to teach the mechanic.
+- **Net effect:** The game was trivially easy after wave 10 with no difficulty curve. Now it has real scaling pressure that rewards smart cannon placement and spec choices.
+
+## Self-Critique Log
+
+### 2026-03-12: MRBD Difficulty Scaling (Approved)
+- **Proposed:** Add quadratic HP scaling, speed scaling, flyer enemy, elite enemies, danger vignette to td_mrbd.html
+- **Challenge:** Am I just porting main game bloat to MRBD? No — the MRBD has the OPPOSITE problem of the main game. At 1129 lines with only 5 enemy types and flat difficulty, it gets boring fast. The main game has too many features (12,386 lines, 50+ systems). The MRBD needs more depth, not less. Would a game designer approve? Absolutely — flat difficulty curves kill replayability. This is core gameplay, not visual fluff.
+- **Verdict:** PROCEED. The MRBD version needs these fundamental gameplay systems to be a real game, not a demo.
