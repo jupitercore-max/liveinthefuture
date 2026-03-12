@@ -1585,3 +1585,10 @@ If it fails, DO NOT commit. Fix the error first.
 - **Proposed:** Add quadratic HP scaling, speed scaling, flyer enemy, elite enemies, danger vignette to td_mrbd.html
 - **Challenge:** Am I just porting main game bloat to MRBD? No — the MRBD has the OPPOSITE problem of the main game. At 1129 lines with only 5 enemy types and flat difficulty, it gets boring fast. The main game has too many features (12,386 lines, 50+ systems). The MRBD needs more depth, not less. Would a game designer approve? Absolutely — flat difficulty curves kill replayability. This is core gameplay, not visual fluff.
 - **Verdict:** PROCEED. The MRBD version needs these fundamental gameplay systems to be a real game, not a demo.
+
+### 2026-03-12: Cycle Skipped (Self-Critique Gate — Continued)
+- **Proposed:** Audit remaining `createRadialGradient` calls + general stability check
+- **Evaluation:** The `createRadialGradient` bug from the user's error report (line 11075, `e.radius` negative during spawn animation) was already fixed in a previous push (`763cde4` for main game). MRBD version also has the fix (line 694, `Math.max(0.1, ...)`). Verified all 18 `createRadialGradient` calls in the main game — all ones using `e.radius` are properly guarded. The remaining calls use constant offsets (terrain hazards, placement preview, cannon range) that can't go negative.
+- **Main game status:** 12,391 lines, 50+ features, 217+ functions. Last 3 meaningful changes were all stability-focused (localStorage crash protection, adaptive quality, path-aware aids). Multiple consecutive gate-approved skips.
+- **MRBD status:** 1,251 lines. Just received sounds, visual juice, difficulty scaling, flyer enemy, and elites in recent cycles. In good shape.
+- **Verdict:** SKIP. Both versions are stable and feature-rich. The game needs Ray to play it and report what's broken/unfun. Every hour of AI coding without playtesting data is diminishing returns.
