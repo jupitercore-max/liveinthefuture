@@ -107,6 +107,180 @@
     {name:'Rapid',   col:'#44ff88', dmg:5,  rate:8.0, rng:70,  cost:60, ico:'▲'}
   ];
 
+  // ── Audio System ──
+  var audioCtx = null, audioMuted = false;
+  function ensureAudio() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(ex) {}
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function sfxShoot(specIdx) {
+    if (!audioCtx || audioMuted) return;
+    var t = audioCtx.currentTime;
+    var o = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    // Different pitch per cannon type
+    if (specIdx === 1) { // Sniper — long sweep
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(200, t+0.15);
+      g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.15);
+      o.start(t); o.stop(t+0.15);
+    } else if (specIdx === 2) { // Rapid — short burst
+      o.type = 'square'; o.frequency.setValueAtTime(1200, t); o.frequency.exponentialRampToValueAtTime(800, t+0.04);
+      g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.04);
+      o.start(t); o.stop(t+0.05);
+    } else { // Blaster — standard pew
+      o.type = 'square'; o.frequency.setValueAtTime(600, t); o.frequency.exponentialRampToValueAtTime(300, t+0.08);
+      g.gain.setValueAtTime(0.1, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.08);
+      o.start(t); o.stop(t+0.1);
+    }
+  }
+  function sfxHit() {
+    if (!audioCtx || audioMuted) return;
+    var t = audioCtx.currentTime;
+    var o = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type = 'sine'; o.frequency.setValueAtTime(400, t); o.frequency.exponentialRampToValueAtTime(100, t+0.06);
+    g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.06);
+    o.start(t); o.stop(t+0.07);
+  }
+  function sfxCrit() {
+    if (!audioCtx || audioMuted) return;
+    var t = audioCtx.currentTime;
+    var o = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type = 'sine'; o.frequency.setValueAtTime(1800, t); o.frequency.exponentialRampToValueAtTime(2400, t+0.1);
+    g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.12);
+    o.start(t); o.stop(t+0.13);
+  }
+  function sfxDeath(isBoss) {
+    if (!audioCtx || audioMuted) return;
+    var t = audioCtx.currentTime;
+    var o = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    if (isBoss) {
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(30, t+0.4);
+      g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.4);
+      o.start(t); o.stop(t+0.4);
+      // Noise burst for bass
+      var buf = audioCtx.createBuffer(1, audioCtx.sampleRate*0.3, audioCtx.sampleRate);
+      var d = buf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = (Math.random()*2-1)*Math.pow(1-i/d.length, 2);
+      var n = audioCtx.createBufferSource(); n.buffer = buf;
+      var ng = audioCtx.createGain(); n.connect(ng); ng.connect(audioCtx.destination);
+      ng.gain.setValueAtTime(0.15, t); ng.gain.exponentialRampToValueAtTime(0.001, t+0.3);
+      n.start(t); n.stop(t+0.3);
+    } else {
+      o.type = 'sine'; o.frequency.setValueAtTime(300, t); o.frequency.exponentialRampToValueAtTime(60, t+0.1);
+      g.gain.setValueAtTime(0.1, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.1);
+      o.start(t); o.stop(t+0.12);
+    }
+  }
+  function sfxWaveStart(isBoss) {
+    if (!audioCtx || audioMuted) return;
+    var t = audioCtx.currentTime;
+    if (isBoss) {
+      // Ominous low horn
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(80, t); o.frequency.linearRampToValueAtTime(60, t+0.5);
+      g.gain.setValueAtTime(0.15, t); g.gain.linearRampToValueAtTime(0, t+0.6);
+      o.start(t); o.stop(t+0.6);
+    } else {
+      // Ascending 3-note chime
+      var notes = [523, 659, 784]; // C5, E5, G5
+      for (var ni = 0; ni < 3; ni++) {
+        var o = audioCtx.createOscillator();
+        var g = audioCtx.createGain();
+        o.connect(g); g.connect(audioCtx.destination);
+        o.type = 'triangle'; o.frequency.value = notes[ni];
+        var nt = t + ni*0.08;
+        g.gain.setValueAtTime(0.1, nt); g.gain.exponentialRampToValueAtTime(0.001, nt+0.15);
+        o.start(nt); o.stop(nt+0.15);
+      }
+    }
+  }
+  function sfxWaveClear() {
+    if (!audioCtx || audioMuted) return;
+    var t = audioCtx.currentTime;
+    var chord = [523, 659, 784]; // C major
+    for (var ci = 0; ci < 3; ci++) {
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'sine'; o.frequency.value = chord[ci];
+      g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.4);
+      o.start(t); o.stop(t+0.4);
+    }
+  }
+  function sfxPlace() {
+    if (!audioCtx || audioMuted) return;
+    var t = audioCtx.currentTime;
+    var o = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type = 'triangle'; o.frequency.setValueAtTime(400, t); o.frequency.exponentialRampToValueAtTime(800, t+0.08);
+    g.gain.setValueAtTime(0.1, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.1);
+    o.start(t); o.stop(t+0.12);
+  }
+  function sfxSell() {
+    if (!audioCtx || audioMuted) return;
+    var t = audioCtx.currentTime;
+    for (var si = 0; si < 3; si++) {
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'sine'; o.frequency.value = 1200 - si*200;
+      var st = t + si*0.06;
+      g.gain.setValueAtTime(0.08, st); g.gain.exponentialRampToValueAtTime(0.001, st+0.08);
+      o.start(st); o.stop(st+0.09);
+    }
+  }
+  function sfxDamage() {
+    if (!audioCtx || audioMuted) return;
+    var t = audioCtx.currentTime;
+    var o = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type = 'sine'; o.frequency.setValueAtTime(200, t); o.frequency.exponentialRampToValueAtTime(60, t+0.15);
+    g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.15);
+    o.start(t); o.stop(t+0.16);
+  }
+  function sfxGameOver() {
+    if (!audioCtx || audioMuted) return;
+    var t = audioCtx.currentTime;
+    var notes = [392, 349, 330, 262]; // G4→F4→E4→C4 descending
+    for (var gi = 0; gi < 4; gi++) {
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'sawtooth'; o.frequency.value = notes[gi];
+      var gt = t + gi*0.2;
+      g.gain.setValueAtTime(0.1, gt); g.gain.exponentialRampToValueAtTime(0.001, gt+0.25);
+      o.start(gt); o.stop(gt+0.25);
+    }
+  }
+  function sfxLevelUp() {
+    if (!audioCtx || audioMuted) return;
+    var t = audioCtx.currentTime;
+    var notes = [523, 659, 784, 1047]; // C5→E5→G5→C6
+    for (var li = 0; li < 4; li++) {
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'triangle'; o.frequency.value = notes[li];
+      var lt = t + li*0.08;
+      g.gain.setValueAtTime(0.1, lt); g.gain.exponentialRampToValueAtTime(0.001, lt+0.2);
+      o.start(lt); o.stop(lt+0.2);
+    }
+  }
+  var shootSoundThrottle = 0;
+
   // ── Helpers ──
   function announce(t, dur) { msg = t; msgTimer = dur || 70; }
   function canPlace(gx, gy) {
@@ -130,6 +304,7 @@
     waveActive = true;
     spawnTimer = 0; spawnCount = 0;
     spawnTotal = wave % 10 === 0 ? 1 : 5 + wave * 2;
+    sfxWaveStart(wave % 10 === 0);
     announce(wave % 10 === 0 ? '💀 BOSS WAVE ' + wave : '⚔ WAVE ' + wave, 90);
     gold += 10 + wave * 2;
     state = S_PLAY;
@@ -159,6 +334,7 @@
   // ── Simulation ──
   function simTick() {
     tick++;
+    shootSoundThrottle = Math.max(0, shootSoundThrottle - 1);
     // Spawn
     if (waveActive && spawnCount < spawnTotal) {
       spawnTimer--;
@@ -175,8 +351,9 @@
       e.flash = Math.max(0, e.flash - 1);
       if (e.prog >= 1) {
         baseHp = Math.max(0, baseHp - (e.type === 'boss' ? 5 : 1));
+        sfxDamage();
         e.dead = true;
-        if (baseHp <= 0) { state = S_OVER; totalWaves = wave; }
+        if (baseHp <= 0) { sfxGameOver(); state = S_OVER; totalWaves = wave; }
       }
     }
     // Cannon fire
@@ -200,6 +377,7 @@
         var crit = Math.random() < 0.1 + c.lvl*0.01;
         if (crit) dmg *= 2;
         bullets.push({x:c.px, y:c.py, tx:p.x, ty:p.y, dmg:dmg, spd:8, col:c.col, tgt:best, crit:crit, owner:c});
+        if (shootSoundThrottle <= 0) { sfxShoot(c.specIdx || 0); shootSoundThrottle = 3; }
       }
     }
     // Move bullets
@@ -210,10 +388,12 @@
         if (b.tgt && !b.tgt.dead) {
           b.tgt.hp -= b.dmg;
           b.tgt.flash = 6;
+          if (b.crit) sfxCrit();
           if (b.tgt.hp <= 0) {
             b.tgt.dead = true;
             kills++;
             gold += b.tgt.gold;
+            sfxDeath(b.tgt.type === 'boss');
             // XP to owner cannon
             if (b.owner) {
               b.owner.xp += b.tgt.gold;
@@ -222,6 +402,7 @@
                 b.owner.xp -= need;
                 b.owner.lvl++;
                 need = 50 + b.owner.lvl*40;
+                sfxLevelUp();
                 announce('⬆ Lv'+b.owner.lvl+' '+b.owner.name, 50);
               }
             }
@@ -254,6 +435,7 @@
     // Wave complete — auto-advance after 2s
     if (waveActive && spawnCount >= spawnTotal && enemies.length === 0) {
       waveActive = false;
+      sfxWaveClear();
       announce('✓ WAVE '+wave+' CLEAR', 70);
       state = S_WAVE_READY;
       autoAdvanceTimer = 120; // 2 seconds at 60fps
@@ -633,6 +815,7 @@
   // ── Input (D-pad only: 5 buttons) ──
   document.addEventListener('keydown', function(e) {
     e.preventDefault();
+    ensureAudio();
 
     // ── MENU ──
     if (state === S_MENU) {
@@ -679,8 +862,9 @@
             name:spec.name, col:spec.col,
             dmg:spec.dmg, rate:spec.rate, rng:spec.rng,
             cd:0, angle:0, lvl:0, xp:0,
-            sell:spec.cost*0.6
+            sell:spec.cost*0.6, specIdx:pickSpec
           });
+          sfxPlace();
           announce('🔧 '+spec.name+' placed!', 40);
           state = waveActive ? S_PLAY : S_WAVE_READY;
         } else if (gold < spec.cost) {
@@ -709,6 +893,7 @@
           gold += Math.floor(selCannon.sell);
           var idx = cannons.indexOf(selCannon);
           if (idx !== -1) cannons.splice(idx, 1);
+          sfxSell();
           announce('💰 Sold for $'+Math.floor(selCannon.sell), 40);
           selCannon = null;
           state = waveActive ? S_PLAY : S_WAVE_READY;

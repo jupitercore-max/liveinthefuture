@@ -1534,3 +1534,28 @@ If it fails, DO NOT commit. Fix the error first.
 - **Proposed:** Move 7 meta/info buttons behind a "⋯" More menu to reduce controls bar clutter from 20 visible buttons to 12.
 - **Challenge:** Does this make the game more fun? Indirectly yes — players can find combat buttons faster during hectic waves instead of scanning 20 undifferentiated buttons. Is this resume-driven? No — hiding buttons behind a menu is the opposite of impressive. Could this break anything? Low risk — buttons are just relocated in the DOM, all event handlers still wire correctly, keyboard shortcuts bypass the menu. Would a real game designer approve? Absolutely — a 20-button flat toolbar with no grouping is a UX red flag in any game.
 - **Verdict:** PROCEED. UX improvement, not new feature bloat. The game has enough features — it needs better organization of what already exists.
+
+### 2026-03-12: MRBD — Procedural Sound Effects System
+- **Complete Web Audio API sound system for td_mrbd.html** — The glasses version was 100% silent. Every game event now has a procedural sound effect matching the main game's audio design:
+  - **Cannon fire** — Different pitch per spec: Blaster (square wave pew), Sniper (long sawtooth sweep), Rapid (short high burst)
+  - **Enemy death** — Pop for regular enemies, bass explosion + noise burst for bosses
+  - **Crit hit** — Sharp metallic ascending ping (sine 1800→2400Hz)
+  - **Wave start** — Ascending C-E-G chime for normal waves, ominous low horn for boss waves
+  - **Wave clear** — C major chord (C5+E5+G5) sustained 0.4s
+  - **Cannon placement** — Rising triangle wave confirmation ding
+  - **Sell cannon** — Descending coin-clink pings (3 notes)
+  - **Base damage** — Low thud (sine sweep down from 200→60Hz)
+  - **Game over** — 4-note descending sawtooth (G4→F4→E4→C4)
+  - **Level up** — Triumphant C major arpeggio (C5→E5→G5→C6)
+- **Sound throttling** — Shoot sounds limited to 1 per 3 ticks to prevent audio overload from Rapid cannon's 8.0 fire rate
+- **AudioContext init** — Created on first keypress for browser autoplay compliance
+- **`var` only** — MRBD compatible, no `let`/`const`
+- **820 → 1005 lines** — 185 lines of pure audio code, zero external dependencies
+- **Self-critique:** Approved. A silent game feels broken. This is the single highest-impact improvement for the MRBD version — every hit, death, and wave transition was a non-event without audio. On the glasses, audio through the bone-conduction speakers is the primary feedback channel since visual fidelity is limited.
+
+## Self-Critique Log
+
+### 2026-03-12: MRBD Sound Effects (Approved)
+- **Proposed:** Add procedural Web Audio sound effects to td_mrbd.html
+- **Challenge:** The main game already has these sounds — is this just porting? Yes, but the MRBD version is a separate 820-line file with no sound at all. On the glasses, audio is more important than visuals (small display, bright environment). A silent game feels like a prototype.
+- **Verdict:** PROCEED. Highest-impact single improvement for the MRBD version.
