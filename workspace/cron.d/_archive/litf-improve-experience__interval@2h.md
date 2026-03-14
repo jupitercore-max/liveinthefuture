@@ -38,14 +38,15 @@ Trigger Moment, 5-Second Hook, Glasses Advantage, Return Visits, D-Pad Fit, Audi
 - **Craft** — Is there a design moment that feels genuinely inspired?
 
 ### Tier Thresholds (/100)
-- S-tier (90-100): Would genuinely recommend to a stranger. Exceptional.
-- A-tier (76-89): Ship proudly
-- B-tier (60-75): Solid but has weaknesses
-- C-tier (40-59): Cut candidate
+- S-tier (90-100): Requires human playtest — AI CANNOT assign this tier
+- A-tier (76-88): Ship proudly
+- B-tier (60-74): Solid but has weaknesses
+- C-tier (40-58): Cut candidate
 - F-tier (<40): Remove
 
-## Scoring Honestly
-Score every experience on its actual merits. Be rigorous — a 90 should feel meaningfully better than an 88. Think Metacritic: very few experiences deserve 90+.
+## AI Evaluation Cap
+**You are an AI. You CANNOT give any experience a score above 88/100.**
+If it deserves S-tier, score it 88/100 and note: "S-tier candidate — requires Ray's confirmation."
 
 ## Priority Order (every cycle, pick the FIRST applicable)
 
@@ -65,8 +66,8 @@ Read source, identify biggest weakness, make ONE focused improvement.
 ### 4. Improve B-tier experiences
 Pick the B-tier experience with the most potential. Target weakest NEW dimension.
 
-### 5. Polish A-tier experiences toward S-tier
-Pick the A-tier experience closest to 90. Make ONE refinement targeting the weakest dimension. If an experience honestly deserves 90+, give it 90+. But be rigorous — think Metacritic, not grade inflation.
+### 5. Polish A-tier experiences
+Pick the A-tier experience closest to 88. Make ONE refinement. Cannot promote above 88.
 
 ### 6. Create a new experience (only when all existing are B+ and drafts/ is empty)
 - PM validate (who/when/why/better-than-phone)
@@ -75,7 +76,7 @@ Pick the A-tier experience closest to 90. Make ONE refinement targeting the weak
 
 ## Gallery Ordering
 `experiences/index.html` ordered by score (highest first).
-Score color coding: 90+=gold, 76-89=blue, 60-75=gray.
+Score color coding: 88=gold, 76-87=blue, 60-75=gray.
 
 ## Rules
 - MRBD: 600×600, D-pad only, dark #0d0d0d, Web Audio, system fonts

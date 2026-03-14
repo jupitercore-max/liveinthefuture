@@ -5,7 +5,7 @@ mode: task
 schedule:
   kind: interval
   timezone: UTC
-  at: 2026-03-14T06:00:00Z
+  at: 2026-03-14T00:00:00Z
   every: 2h
 execution:
   target: isolated
@@ -24,7 +24,7 @@ cd ~/workspace/liveinthefuture && git pull origin main
 
 ## Read First
 - `QUALITY.md` — quality rankings and tier definitions
-- `EVALUATE.md` — scoring rubric (10 dimensions, /100 display), genre benchmarks, and lessons learned
+- `EVALUATE.md` — scoring rubric (10 dimensions, /100 display) and lessons learned
 
 ## Scoring System (10 dimensions × 5 = 50 raw, displayed as /100)
 
@@ -44,22 +44,6 @@ Trigger Moment, 5-Second Hook, Glasses Advantage, Return Visits, D-Pad Fit, Audi
 - C-tier (40-59): Cut candidate. 2 cycles or remove.
 - F-tier (<40): Remove.
 
-## Genre Benchmark Calibration (REQUIRED)
-Before scoring any game, check its genre benchmark in EVALUATE.md. Ask: "If someone who loves [benchmark] played this for 10 minutes, would they respect it?"
-
-Key benchmarks:
-- **dungeon-crawl** → NetHack / Brogue (40 years of development, 100+ enemy types, deep inventory)
-- **sonar-sub** → Subnautica (hundreds of hours, genuine terror, resource management)
-- **fisher** → Stardew Valley fishing / Fishing Planet (hundreds of fish, weather/seasons, gear progression)
-- **trader** → Offworld Trading Company (AI opponents, complex supply/demand, campaign modes)
-- **stalk** → Metal Gear Solid / Mark of the Ninja (patrol routes, multiple approaches, gadgets)
-- **terraform** → SimCity / Dwarf Fortress (emergent complexity, years of discovery)
-- **hex-collapse** → Tetris (simple rules + emergent depth, "one more game" loop)
-
-**95+ means the game does something its benchmark CAN'T** — something only possible on glasses with bone conduction and a mic. Not just "checks all boxes."
-
-A score of 100 is effectively unreachable. These are 600×600 D-pad minigames, not AAA titles. Think Metacritic: The Witcher 3 got 92. You have not built The Witcher 3.
-
 ## Scoring Honestly
 Score every game on its actual merits. The old pattern of "add rank progression → max score" is dead. Rank progression helps Return Visits but doesn't improve Session Variance, Strategic Depth, Surprise, or Craft. Be rigorous — a 90 should feel meaningfully better than an 88. Think Metacritic: very few games deserve 90+.
 
@@ -68,7 +52,7 @@ Score every game on its actual merits. The old pattern of "add rank progression 
 ### 1. Evaluate unrated items
 If any game in `QUALITY.md` has no score, evaluate it:
 - Actually READ the game's HTML source code
-- Score all 10 dimensions honestly, calibrated against genre benchmark
+- Score all 10 dimensions honestly
 - Display score as /100 (raw × 2)
 - Update `QUALITY.md` and `EVALUATE.md`
 - Evaluate 2-3 games per cycle max
@@ -90,7 +74,7 @@ If any game is C-tier (40-58/100):
 Pick the B-tier game with the most potential. Make ONE improvement targeting the weakest NEW dimension (Session Variance, Strategic Depth, Surprise, or Craft). Re-evaluate.
 
 ### 5. Polish A-tier games toward S-tier
-Pick the A-tier game closest to 90. Make ONE refinement targeting the weakest dimension. If a game honestly deserves 90+, give it 90+. But be brutally honest — compare against the genre benchmark. Would a NetHack player be impressed by dungeon-crawl? Would a Tetris player respect hex-collapse?
+Pick the A-tier game closest to 90. Make ONE refinement targeting the weakest dimension. If a game honestly deserves 90+, give it 90+. But be rigorous — think Metacritic, not grade inflation.
 
 ### 6. Create a new game (only when all existing games are B+ and drafts/ is empty)
 - Check `games/` — never duplicate a genre
@@ -103,9 +87,9 @@ Pick the A-tier game closest to 90. Make ONE refinement targeting the weakest di
 ## Gallery Ordering
 `games/index.html` must be ordered by score (highest first).
 Each card shows the /100 score with color coding:
-- 90+ = gold (#facc15) — S-tier
-- 76-89 = blue (#4a9eff) — A-tier
-- 60-75 = gray (#9ca3af) — B-tier
+- 88 = gold (#facc15)
+- 76-87 = blue (#4a9eff)
+- 60-75 = gray (#9ca3af)
 No C or F tier games should be in the gallery.
 
 ## Rules
