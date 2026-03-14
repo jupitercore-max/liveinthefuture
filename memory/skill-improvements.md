@@ -14,3 +14,8 @@
 - Audited: Resend API — key is send-only, can't manage domains via API. Ray needs to add domains through Resend dashboard or create a full-access key.
 - Found: polymarket skill could feed AGI policy research with prediction market odds on AI regulation
 - Note: e-nonmanagers post references "Meta planning sweeping layoffs as AI costs mount" — external article, not surfacing at 11pm Friday
+
+## 2026-03-14
+- Audited: strava (linked, working), wide-research (useful for multi-target lookups), polymarket (linked, useful for AGI policy prediction markets)
+- Found: Strava is connected — could use for fitness summaries if Ray asks. Polymarket could enhance AGI policy research with prediction market data on AI regulation outcomes. Wide-research pattern is perfect for multi-site validation runs.
+- Proposed: Could integrate Polymarket prediction data into LITF AGI policy articles (what do markets think about AI regulation timelines?)
