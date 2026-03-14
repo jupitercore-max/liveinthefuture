@@ -5,12 +5,12 @@ mode: task
 schedule:
   kind: interval
   timezone: UTC
-  at: 2026-03-14T00:20:00Z
+  at: 2026-03-14T09:20:00Z
   every: 2h
 execution:
   target: isolated
 ---
-# LITF Experiences — Quality-First Improvement (MRBD)
+# LITF Experiences — One Per Cycle
 
 ## Setup
 ```bash
@@ -22,63 +22,27 @@ git config --global user.email "hatch@rayhe.github.io"
 cd ~/workspace/liveinthefuture && git pull origin main
 ```
 
-## Read First
-- `QUALITY.md` — quality rankings and tier definitions
-- `EVALUATE.md` — scoring rubric (10 dimensions, /100 display) and lessons learned
+## Read QUALITY.md to find your target
 
-## Scoring System (10 dimensions × 5 = 50 raw, displayed as /100)
+Pick ONE experience to work on. Priority:
+1. Any C-tier (below 60) — improve or cut
+2. Lowest B-tier — improve toward A
+3. Lowest A-tier — polish toward S
 
-### Original 6 Dimensions
-Trigger Moment, 5-Second Hook, Glasses Advantage, Return Visits, D-Pad Fit, Audio/Context Use
+## Do ONE thing
 
-### 4 New Dimensions (added March 2026)
-- **Session Variance** — How different is each use? Rank progression does NOT count.
-- **Strategic Depth** — Meaningful decisions with tradeoffs.
-- **Surprise / Discovery** — Does the experience reveal new things over time?
-- **Craft** — Is there a design moment that feels genuinely inspired?
+Read the experience's HTML source. Identify its single weakest dimension from the 10-dimension rubric (Trigger, Hook, Glasses Advantage, Return, D-Pad Fit, Audio, Session Variance, Strategic Depth, Surprise, Craft).
 
-### Tier Thresholds (/100)
-- S-tier (90-100): Would genuinely recommend to a stranger. Exceptional.
-- A-tier (76-89): Ship proudly
-- B-tier (60-75): Solid but has weaknesses
-- C-tier (40-59): Cut candidate
-- F-tier (<40): Remove
+Make ONE focused improvement targeting that dimension. Keep it small and testable.
 
-## Scoring Honestly
-Score every experience on its actual merits. Be rigorous — a 90 should feel meaningfully better than an 88. Think Metacritic: very few experiences deserve 90+.
+## Score honestly
 
-## Priority Order (every cycle, pick the FIRST applicable)
+Re-score all 10 dimensions after the change. Display as /100 (raw × 2). Update QUALITY.md with new score and brief note on what changed. Update experiences/index.html score if it changed.
 
-### 1. Evaluate unrated items
-If any experience in `QUALITY.md` has no score, evaluate it:
-- Actually READ the experience's HTML source code
-- Score all 10 dimensions honestly
-- Display score as /100 (raw × 2)
-- Update `QUALITY.md` and `EVALUATE.md`
+Think Metacritic — 90+ means genuinely exceptional. Don't inflate.
 
-### 2. Cut F-tier experiences
-Remove, log in QUALITY.md Trim Log.
-
-### 3. Improve C-tier experiences (2 attempts, then cut)
-Read source, identify biggest weakness, make ONE focused improvement.
-
-### 4. Improve B-tier experiences
-Pick the B-tier experience with the most potential. Target weakest NEW dimension.
-
-### 5. Polish A-tier experiences toward S-tier
-Pick the A-tier experience closest to 90. Make ONE refinement targeting the weakest dimension. If an experience honestly deserves 90+, give it 90+. But be rigorous — think Metacritic, not grade inflation.
-
-### 6. Create a new experience (only when all existing are B+ and drafts/ is empty)
-- PM validate (who/when/why/better-than-phone)
-- Score with rubric — need 60/100+ to start drafting
-- Publish only when honestly 76/100 (A-tier) or above.
-
-## Gallery Ordering
-`experiences/index.html` ordered by score (highest first).
-Score color coding: 90+=gold, 76-89=blue, 60-75=gray.
-
-## Rules
-- MRBD: 600×600, D-pad only, dark #0d0d0d, Web Audio, system fonts
-- 🎤 Mic: Use where applicable. micFailed=true BEFORE getUserMedia, try/catch, smooth (lerp), graceful fallback
-- Update QUALITY.md and EVALUATE.md after every change
-- Self-critique gate: Propose → Challenge → Verdict (skip if marginal)
+## Constraints
+- MRBD: 600×600, D-pad only (←→↑↓ + Enter), dark #0d0d0d, Web Audio, system fonts
+- Mic: micFailed=true BEFORE getUserMedia, try/catch, smooth lerp, graceful fallback
+- ONE experience per cycle. Don't try to do everything.
+- Push to main when done.
