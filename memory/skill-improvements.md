@@ -31,3 +31,11 @@
   - `tessie` — Tesla vehicle integration, probably not relevant unless Ray has a Tesla
 - Proposed: Consider connecting Oura/Withings if Ray uses those devices. Polymarket is immediately usable for research.
 - No changes made — audit only
+
+### Heartbeat 09:50 UTC (2:50 AM PT)
+- Email: 10 unread — all Workplace notifications, adidas account, Seiko meeting logistics, Win Hwangbo zoom, Anne Kornblut FW. Nothing urgent at 2:50 AM.
+- Calendar: No meetings in next 2h. Sanchez Torres birthday today.
+- Updated MEMORY.md — was nearly empty, now has full curated state (preferences, services, pipeline, scoring, pending items, active crons)
+- Updated USER.md — was blank template, now has Ray's info and context
+- Created heartbeat-state.json for check tracking
+- Audited: self-awareness skill — solid design, references/extensions.md has dashboard capability. IDENTITY.md still unfilled.
