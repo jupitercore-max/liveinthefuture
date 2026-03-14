@@ -20,6 +20,7 @@ Use this file for durable, curated memory that should persist across sessions.
 - "Don't add all that complexity" — fun > feature count, especially with D-pad + 2 buttons
 - Scholarly rigor matters — novel contribution, limitations, strongest counterargument, verifiable claims
 - Proactive skill improvement during idle time
+- When building cool skills/tools/infrastructure, write it up as a LITF article (full 6-critic pipeline)
 
 ## Connected Services
 - Gmail (rhe@meta.com), Google Calendar, WhatsApp, GitHub
