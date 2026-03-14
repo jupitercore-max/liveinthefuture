@@ -19,3 +19,15 @@
 - Audited: strava (linked, working), wide-research (useful for multi-target lookups), polymarket (linked, useful for AGI policy prediction markets)
 - Found: Strava is connected — could use for fitness summaries if Ray asks. Polymarket could enhance AGI policy research with prediction market data on AI regulation outcomes. Wide-research pattern is perfect for multi-site validation runs.
 - Proposed: Could integrate Polymarket prediction data into LITF AGI policy articles (what do markets think about AI regulation timelines?)
+
+## 2026-03-14
+- Audited: wide-research, strava, oura, withings, tessie, polymarket
+- Found: 
+  - `wide-research` skill exists — perfect for 6-critic parallel evaluation in article pipeline
+  - `polymarket` — public API, no auth needed. Useful for AGI research articles (prediction market odds on AI timelines, regulation)
+  - `oura` — CLI installed but not connected (needs OAuth config). Could auto-report sleep/readiness
+  - `withings` — CLI installed but not connected (needs OAuth config). Could auto-report health metrics
+  - `strava` — SKILL.md exists but CLI may need auth. Could track activity data
+  - `tessie` — Tesla vehicle integration, probably not relevant unless Ray has a Tesla
+- Proposed: Consider connecting Oura/Withings if Ray uses those devices. Polymarket is immediately usable for research.
+- No changes made — audit only
