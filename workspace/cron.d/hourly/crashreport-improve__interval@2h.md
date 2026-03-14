@@ -10,7 +10,7 @@ schedule:
 execution:
   target: isolated
 ---
-# Crash Report (Vehicle Safety) — Quality-First Improvement
+# Crash Report (Vehicle Safety) — Phased Pipeline
 
 ## Setup
 ```bash
@@ -20,93 +20,199 @@ chmod 600 ~/.git-credentials
 git config --global user.name "Hatch"
 git config --global user.email "hatch@rayhe.github.io"
 cd ~/workspace/vehicle-safety && git pull origin main
+mkdir -p drafts
 ```
 
-## ⚠️ ONE ARTICLE PER DAY — HARD LIMIT ⚠️
+## How This Works
 
-Before doing ANYTHING, run:
+Each cron cycle (every 2h) advances ONE phase of the article pipeline. Don't try to do everything at once. Wear one hat per cycle. State lives in `drafts/status.json`.
+
+```
+RESEARCH → DRAFT → CRITIQUE → SHIP → QA → DONE
+   2h        2h     2-6h      2h    2h
+```
+
+An article takes 5-7 cycles (10-14 hours) from idea to live — that's intentional. Quality over speed.
+
+---
+
+## Step 0: Read State
+
 ```bash
 cd ~/workspace/vehicle-safety
-TODAY=$(date -u +%Y-%m-%d)
-PUBLISHED_TODAY=$(git log --since="$TODAY" --oneline --grep="Publish" | wc -l)
-echo "Articles published today: $PUBLISHED_TODAY"
+cat drafts/status.json 2>/dev/null || echo '{"current": null}'
 ```
 
-**If PUBLISHED_TODAY >= 1: DO NOT PUBLISH.** You may only:
-- Improve existing drafts in `drafts/`
-- Run critique rounds on drafts
-- Fix validation issues (images, meta tags, missing hero images)
-- Site improvements (CSS, nav, SEO)
+If `current` is null or `phase` is `DONE`: start a new article at Phase 1.
+If `current` exists: continue from whatever phase it's in.
 
-**If PUBLISHED_TODAY == 0: You may publish ONE article** if it scores 8.5+/10 across all 6 critics.
+Also check for pre-existing drafts:
+```bash
+ls drafts/*.html 2>/dev/null
+```
+If yes, treat as Phase 3 (CRITIQUE).
 
-## Read First
-- `scripts/validate.sh` — must pass before any push
-- Check existing articles to avoid topic duplication
+---
 
-## 6-Critic System (required for publishing)
-Every article must pass all 6 critics at 8.5+ before publishing:
-1. **General Editor** — structure, flow, contribution
-2. **Voice Coach** — anti-AI detection (em dashes <5, "The" starters <10, no banned phrases)
-3. **Ethics** — honesty, FARS data accuracy, not sensationalizing deaths
-4. **Social/Share** — would anyone share this? Pull quote power?
-5. **Legal** — data citation accuracy, FARS methodology caveats
-6. **Research Rigor** — novel contribution, limitations, strongest counterargument, primary sources
+## Phase 1: RESEARCH — "Is this the right story?"
 
-## Scholarly Standards
-- Cite FARS dataset years and query methodology explicitly
-- Include limitations (FARS captures fatalities only, not all crashes)
-- Address strongest counterargument
-- Primary sources: FARS, IIHS, NHTSA reports — not summaries
-- Transparent methodology: what we queried, how we filtered
+**Cognitive mode: Founder/CEO.** You are deciding what to write, not writing.
 
-## Priority Order
-1. **Fix validation failures** — run `bash scripts/validate.sh`, fix missing hero images (11), missing og:image (14), missing twitter:card (5), missing image files (3)
-2. **Revise active drafts** — if `drafts/` has a working article, improve it toward 8.5+
-3. **Start a new draft** — FARS-based research, write to `drafts/`, do NOT publish same cycle
-4. **Site improvements** — broken links, missing images, SEO
+1. Check existing articles to avoid topic duplication
+2. Search FARS data, IIHS reports, NHTSA publications for an angle
+3. Challenge yourself:
+   - **10-star test:** What's the version of this story that makes a car enthusiast stop scrolling?
+   - **Novel contribution:** Has anyone else run this specific FARS query or cross-tabulation?
+   - **Strongest counterargument:** Could this data be explained by confounding factors?
+   - **Primary sources:** At least 3 from FARS, IIHS, NHTSA, manufacturer data, or academic papers
+   - **Kill test:** If we can't find 3 primary sources, KILL the topic
 
-## Anti-AI Voice Rules
-- No "crucial," "vital," "comprehensive," "cutting-edge," "paradigm"
-- Em dashes: fewer than 5 per article
-- "The" sentence starters: fewer than 10 per article
-- No thesis-statement announces
-- Site voice: irreverent, data-driven, uses car culture language
+4. Write research notes to `drafts/{slug}-research.md`:
+   - Thesis (1 sentence)
+   - FARS query methodology (years, filters, cross-tabs)
+   - 3-5 primary sources with URLs
+   - Strongest counterargument
+   - Proposed journalist persona
 
-## Publishing Checklist (only when PUBLISHED_TODAY == 0)
-- [ ] 8.5+/10 from all 6 critics
-- [ ] Hero image generated and embedded
-- [ ] og:image and twitter:card meta tags
-- [ ] Added to index.html
-- [ ] Added to sitemap.xml
-- [ ] `bash scripts/validate.sh` passes clean
-- [ ] Article count updated
+5. Update `drafts/status.json`:
+```json
+{
+  "current": {
+    "slug": "{slug}",
+    "phase": "DRAFT",
+    "journalist": "{name}",
+    "started": "{ISO timestamp}",
+    "scores": {}
+  }
+}
+```
+
+6. Commit: `git add drafts/ && git commit -m "Research: {headline}" && git push origin main`
+
+**EXIT → Phase 2 next cycle.**
+
+---
+
+## Phase 2: DRAFT — "Build it right"
+
+**Cognitive mode: Engineer.** Build the article from research.
+
+1. Read `drafts/{slug}-research.md`
+2. Write full article to `drafts/{slug}.html`:
+   - Full HTML structure matching existing site articles
+   - Journalist byline and date
+   - Hero image (generate one)
+   - og:image and twitter:card meta tags
+   - Inline FARS citations with methodology notes
+   - Limitations (FARS captures fatalities only, not all crashes; exposure data gaps)
+
+3. Apply anti-AI voice rules DURING writing:
+   - No "crucial," "vital," "comprehensive," "cutting-edge," "paradigm"
+   - Em dashes: fewer than 5
+   - "The" sentence starters: fewer than 10
+   - No thesis-statement announces
+   - Site voice: irreverent, data-driven, car culture language
+
+4. Quick self-score. Update status.json:
+```json
+{
+  "current": { ..., "phase": "CRITIQUE", "round": 0, "self_score": 7.0 }
+}
+```
+
+5. Commit: `git add drafts/ && git commit -m "Draft: {headline}" && git push origin main`
+
+**EXIT → Phase 3 next cycle.**
+
+---
+
+## Phase 3: CRITIQUE — "What can still break?"
+
+**Cognitive mode: Paranoid reviewer.** Find problems.
+
+1. Read `drafts/{slug}.html`
+2. Increment round counter
+3. Run ALL 6 critics:
+
+   **Critic 1 — General Editor:** Structure, flow, pacing. Score /10.
+   **Critic 2 — Voice Coach:** Em dashes, "The" starters, banned phrases, paired antithesis (<3). Score /10.
+   **Critic 3 — Ethics:** Not sensationalizing deaths. FARS data presented responsibly. Real people died — is that respected? Score /10.
+   **Critic 4 — Social/Share:** 3 best pull quotes. "Holy shit" stat? Score /10.
+   **Critic 5 — Legal:** FARS query accuracy. Statistical methodology caveats. Score /10.
+   **Critic 6 — Research Rigor:** Novel FARS cross-tabulation? Limitations? Strongest counterargument engaged? Score /10.
+
+4. Write scores to status.json
+5. **Decision gate:**
+   - ALL 6 at 8.5+? → phase = `SHIP`
+   - ANY below 8.5? → Revise draft, stay in CRITIQUE
+   - Round 3 and still below 8.5? → phase = `PARKED`
+
+6. Commit: `git add drafts/ && git commit -m "Critique round {N}: {headline} ({avg})" && git push origin main`
+
+**EXIT → Phase 4 (if all 8.5+) or repeat Phase 3.**
+
+---
+
+## Phase 4: SHIP — "Land it clean"
+
+**Cognitive mode: Release engineer.** No editing. Ship discipline only.
+
+1. Check 1/day limit:
+```bash
+TODAY=$(date -u +%Y-%m-%d)
+PUBLISHED_TODAY=$(git log --since="$TODAY" --oneline --grep="Publish" | wc -l)
+```
+   If >= 1: stay in SHIP, exit. Try next cycle.
+
+2. Validate: `bash scripts/validate.sh` — fix issues if needed, but don't publish yet.
+3. Move `drafts/{slug}.html` → `stories/{slug}.html`
+4. Add to index.html, sitemap.xml
+5. Update article count
+6. Commit: `git add -A && git commit -m "Publish: {headline}" && git push origin main`
+7. Phase → `QA`
+
+8. Newsletter:
+```bash
+SUBS=$(curl -s "https://rayhenet-default-rtdb.firebaseio.com/newsletters/vehicle-safety/subscribers.json")
+curl -X POST https://api.resend.com/emails \
+  -H "Authorization: Bearer re_6xFJoFPt_8s3YZRGZiTvYp96pa7jyLkuX" \
+  -H "Content-Type: application/json" \
+  -d '{"from":"The Crash Report <newsletter@vehicle-safety.org>","to":"{email}","subject":"New: {title}","html":"..."}'
+```
+
+**EXIT → Phase 5 next cycle.**
+
+---
+
+## Phase 5: QA — "Did it actually work?"
+
+**Cognitive mode: QA engineer.** Verify the live site.
+
+1. Check live article:
+```bash
+curl -s -o /dev/null -w "%{http_code}" "https://vehicle-safety.org/stories/{slug}.html"
+curl -s -o /dev/null -w "%{http_code}" "https://vehicle-safety.org/images/{slug}.jpg"
+curl -s "https://vehicle-safety.org/stories/{slug}.html" | grep -o 'og:image.*content="[^"]*"'
+curl -s "https://vehicle-safety.org/" | grep -c "{slug}"
+curl -s "https://vehicle-safety.org/sitemap.xml" | grep -c "{slug}"
+```
+
+2. If failures: fix and push. Stay in QA.
+3. If all pass: clean up draft artifacts, set `current: null` in status.json
+4. Commit: `git add drafts/ && git commit -m "QA passed: {slug}" && git push origin main`
+
+**EXIT → Phase 1 next cycle (new article).**
+
+---
+
+## Idle Cycle Work
+If blocked (SHIP waiting for 1/day limit): fix validation failures, site improvements. Don't start a new article.
 
 ## 6 Journalist Personas
 Rotate writers. Each has a distinct beat and voice.
 
-## Newsletter — Send on Publish
-When publishing an article, also send a newsletter to all subscribers via Resend:
-
-```bash
-# 1. Get subscribers from Firebase RTDB
-SUBS=$(curl -s "https://rayhenet-default-rtdb.firebaseio.com/newsletters/vehicle-safety/subscribers.json")
-
-# 2. For each subscriber email, send via Resend API
-curl -X POST https://api.resend.com/emails \
-  -H "Authorization: Bearer re_6xFJoFPt_8s3YZRGZiTvYp96pa7jyLkuX" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "from": "The Crash Report <newsletter@vehicle-safety.org>",
-    "to": "subscriber@example.com",
-    "subject": "New from The Crash Report: [Article Title]",
-    "html": "<h2>[Title]</h2><p>[First 2 paragraphs]</p><p><a href=\"https://vehicle-safety.org/stories/[slug].html\">Read the full article →</a></p><hr><p style=\"font-size:12px;color:#666;\"><a href=\"https://vehicle-safety.org/unsubscribe.html?id=[sub-id]&site=vehicle-safety\">Unsubscribe</a></p>"
-  }'
-```
-NOTE: Resend requires verified domain. Domain verification needed before emails actually send.
-
 ## Rules
-- Push to main only after validation passes
-- One article per day MAXIMUM
-- Draft daily, improve hourly, publish only when ready
-- Quality over quantity — always
+- ONE phase per cycle. Don't rush.
+- ONE article per day maximum.
+- Quality over speed — always.
+- Push to main only after validation passes.
