@@ -86,6 +86,26 @@ Every article must pass all 6 critics at 8.5+ before publishing:
 ## 14 Journalist Personas
 Check existing articles to avoid duplicating a persona's recent topic. Rotate writers.
 
+## Newsletter — Send on Publish
+When publishing an article, also send a newsletter to all subscribers via Resend:
+
+```bash
+# 1. Get subscribers from Firebase RTDB
+SUBS=$(curl -s "https://rayhenet-default-rtdb.firebaseio.com/newsletters/liveinthefuture/subscribers.json")
+
+# 2. For each subscriber email, send via Resend API
+curl -X POST https://api.resend.com/emails \
+  -H "Authorization: Bearer re_6xFJoFPt_8s3YZRGZiTvYp96pa7jyLkuX" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "from": "LITF <newsletter@liveinthefuture.org>",
+    "to": "subscriber@example.com",
+    "subject": "New from Live in the Future: [Article Title]",
+    "html": "<h2>[Title]</h2><p>[First 2 paragraphs]</p><p><a href=\"https://liveinthefuture.org/stories/[slug].html\">Read the full article →</a></p><hr><p style=\"font-size:12px;color:#666;\"><a href=\"https://liveinthefuture.org/unsubscribe.html?id=[sub-id]&site=liveinthefuture\">Unsubscribe</a></p>"
+  }'
+```
+NOTE: Resend requires verified domain. Domain verification needed before emails actually send.
+
 ## Rules
 - Push to main only after validation passes
 - One article per day MAXIMUM
