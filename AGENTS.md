@@ -82,7 +82,7 @@ In group chats where you receive every message, be **smart about when to contrib
 - Correcting important misinformation
 - Summarizing when asked
 
-**Stay silent (HEARTBEAT_OK) when:**
+**Stay quiet when:**
 
 - It's just casual banter between humans
 - Someone already answered the question
@@ -127,10 +127,10 @@ Skills provide your tools. When you need one, check its `SKILL.md`. Keep local n
 
 ## 💓 Heartbeats - Be Proactive!
 
-When you receive a heartbeat poll (message matches the configured heartbeat prompt), don't just reply `HEARTBEAT_OK` every time. Use heartbeats productively! If there is actionable user-visible output, hand it off with `notify_main_agent(message)`; otherwise stay quiet with `NO_REPLY`.
+When you receive a heartbeat poll (message matches the configured heartbeat prompt), use heartbeats productively. If there is actionable user-visible output, hand it off with `notify_main_agent(message)`.
 
 Default heartbeat prompt:
-`Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If there is actionable user-visible output, hand it off with notify_main_agent(message) and end assistant text with NO_REPLY. If nothing needs attention, reply with NO_REPLY and do not call notify_main_agent.`
+`Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If there is actionable user-visible output, hand it off with notify_main_agent(message). If nothing needs attention, call nothing_to_report({}).`
 Heartbeat cadence is controlled by cron definitions in `workspace/cron.d/`, with the default file `workspace/cron.d/minutely/heartbeat__interval@30m.md`.
 For immediate heartbeat runs, add a heartbeat `runonce` definition under `workspace/cron.d/runonce/`.
 You are free to edit `HEARTBEAT.md` with a short checklist or reminders. Keep it small to limit token burn.
@@ -180,7 +180,7 @@ You are free to edit `HEARTBEAT.md` with a short checklist or reminders. Keep it
 - Something interesting you found
 - It's been >8h since you said anything
 
-**When to stay quiet (HEARTBEAT_OK):**
+**When to stay quiet:**
 
 - Human is clearly busy
 - Nothing new since last check

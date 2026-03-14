@@ -12,3 +12,8 @@
   - Use Strava data for potential health/fitness articles or personal dashboards
   - Consider Tessie setup if Ray has a Tesla
 - **Built/Improved:** nothing this cycle — clean audit, documented findings
+
+## 2026-03-14
+- Audited: wide-research skill — parallel research coordinator, useful for product comparisons (like the microphone research Ray asked for)
+- Found: polymarket, tessie, withings, oura, viator-mcp skills exist but haven't been explored yet
+- No changes made — active session, light audit only
