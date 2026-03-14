@@ -5,12 +5,12 @@ mode: task
 schedule:
   kind: interval
   timezone: UTC
-  at: 2026-03-14T06:00:00Z
+  at: 2026-03-14T08:00:00Z
   every: 2h
 execution:
   target: isolated
 ---
-# LITF Games — Quality-First Improvement (MRBD)
+# LITF Games — Improve One Game Per Cycle
 
 ## Setup
 ```bash
@@ -22,95 +22,26 @@ git config --global user.email "hatch@rayhe.github.io"
 cd ~/workspace/liveinthefuture && git pull origin main
 ```
 
-## Read First
-- `QUALITY.md` — quality rankings and tier definitions
-- `EVALUATE.md` — scoring rubric (10 dimensions, /100 display), genre benchmarks, and lessons learned
+## Read QUALITY.md to pick target
+Pick the FIRST applicable:
+1. Any F-tier (<40) → remove it
+2. Any C-tier (40-59) → improve or cut (2 attempts max)
+3. Lowest B-tier (60-75) → improve weakest dimension
+4. A-tier closest to 90 (76-89) → polish weakest dimension
+5. All 76+ and no drafts → create new game in drafts/
 
-## Scoring System (10 dimensions × 5 = 50 raw, displayed as /100)
-
-### Original 6 Dimensions
-Trigger Moment, 5-Second Hook, Glasses Advantage, Return Visits, D-Pad Fit, Audio/Context Use
-
-### 4 New Dimensions (added March 2026)
-- **Session Variance** — How different is each playthrough? 1=identical, 3=some randomization, 5=deeply procedural with emergent gameplay. Rank progression does NOT count.
-- **Strategic Depth** — Meaningful decisions with tradeoffs. 1=pure reflexes, 3=some tactical choices, 5=deep resource management.
-- **Surprise / Discovery** — Does the game reveal new things over time? 1=fully known in 30 seconds, 3=some unlockables, 5=genuine emergent discoveries.
-- **Craft** — Is there a design moment that feels genuinely inspired? 1=functional but generic, 3=well-made, 5=has a "wow, that's clever" moment.
-
-### Tier Thresholds (/100)
-- S-tier (90-100): Would genuinely recommend to a stranger. Exceptional.
-- A-tier (76-89): Ship proudly
-- B-tier (60-75): Solid but has weaknesses
-- C-tier (40-59): Cut candidate. 2 cycles or remove.
-- F-tier (<40): Remove.
-
-## Genre Benchmark Calibration (REQUIRED)
-Before scoring any game, check its genre benchmark in EVALUATE.md. Ask: "If someone who loves [benchmark] played this for 10 minutes, would they respect it?"
-
-Key benchmarks:
-- **dungeon-crawl** → NetHack / Brogue (40 years of development, 100+ enemy types, deep inventory)
-- **sonar-sub** → Subnautica (hundreds of hours, genuine terror, resource management)
-- **fisher** → Stardew Valley fishing / Fishing Planet (hundreds of fish, weather/seasons, gear progression)
-- **trader** → Offworld Trading Company (AI opponents, complex supply/demand, campaign modes)
-- **stalk** → Metal Gear Solid / Mark of the Ninja (patrol routes, multiple approaches, gadgets)
-- **terraform** → SimCity / Dwarf Fortress (emergent complexity, years of discovery)
-- **hex-collapse** → Tetris (simple rules + emergent depth, "one more game" loop)
-
-**95+ means the game does something its benchmark CAN'T** — something only possible on glasses with bone conduction and a mic. Not just "checks all boxes."
-
-A score of 100 is effectively unreachable. These are 600×600 D-pad minigames, not AAA titles. Think Metacritic: The Witcher 3 got 92. You have not built The Witcher 3.
-
-## Scoring Honestly
-Score every game on its actual merits. The old pattern of "add rank progression → max score" is dead. Rank progression helps Return Visits but doesn't improve Session Variance, Strategic Depth, Surprise, or Craft. Be rigorous — a 90 should feel meaningfully better than an 88. Think Metacritic: very few games deserve 90+.
-
-## Priority Order (every cycle, pick the FIRST applicable)
-
-### 1. Evaluate unrated items
-If any game in `QUALITY.md` has no score, evaluate it:
-- Actually READ the game's HTML source code
-- Score all 10 dimensions honestly, calibrated against genre benchmark
-- Display score as /100 (raw × 2)
-- Update `QUALITY.md` and `EVALUATE.md`
-- Evaluate 2-3 games per cycle max
-
-### 2. Cut F-tier games
-If any game is F-tier (<40/100):
-- Remove the HTML file from `games/`
-- Remove from `games/index.html` gallery
-- Log the removal in QUALITY.md Trim Log
+## Do ONE thing
+- Read the target game's HTML source
+- Check its genre benchmark in EVALUATE.md (one line, e.g. "dungeon-crawl → NetHack")
+- Identify the single weakest of the 10 dimensions
+- Make ONE focused improvement
+- Re-score honestly (10 dims × 5 = 50 raw, displayed as /100)
+- Update QUALITY.md and EVALUATE.md
 - Push
 
-### 3. Improve C-tier games (2 attempts, then cut)
-If any game is C-tier (40-58/100):
-- Read the source, identify the single biggest weakness
-- Make ONE focused improvement
-- Re-evaluate — did it reach B? If this is the 2nd attempt and still C, downgrade to F
-
-### 4. Improve B-tier games
-Pick the B-tier game with the most potential. Make ONE improvement targeting the weakest NEW dimension (Session Variance, Strategic Depth, Surprise, or Craft). Re-evaluate.
-
-### 5. Polish A-tier games toward S-tier
-Pick the A-tier game closest to 90. Make ONE refinement targeting the weakest dimension. If a game honestly deserves 90+, give it 90+. But be brutally honest — compare against the genre benchmark. Would a NetHack player be impressed by dungeon-crawl? Would a Tetris player respect hex-collapse?
-
-### 6. Create a new game (only when all existing games are B+ and drafts/ is empty)
-- Check `games/` — never duplicate a genre
-- PM validate (who/when/why/better-than-phone)
-- Score with EVALUATE.md rubric — need 60/100+ to start drafting
-- Write draft to `drafts/game-SLUG.html` with `drafts/game-status.json`
-- Do NOT publish yet. Revise over subsequent cycles.
-- Publish only when honestly 76/100 (A-tier) or above.
-
-## Gallery Ordering
-`games/index.html` must be ordered by score (highest first).
-Each card shows the /100 score with color coding:
-- 90+ = gold (#facc15) — S-tier
-- 76-89 = blue (#4a9eff) — A-tier
-- 60-75 = gray (#9ca3af) — B-tier
-No C or F tier games should be in the gallery.
-
-## Rules
-- MRBD: 600×600, D-pad only, dark #0d0d0d, Web Audio, system fonts
-- Update QUALITY.md and EVALUATE.md after every change
-- Push to main only when publishing new games or making improvements
-- Self-critique gate: Propose → Challenge → Verdict (skip if marginal)
-- Anti-AI voice in any user-facing text
+## Scoring rules
+- 10 dimensions in EVALUATE.md. Score against genre benchmark.
+- 90+ = would recommend to a stranger. 100 = unreachable. Think Metacritic.
+- Rank progression does NOT boost Session Variance, Strategic Depth, or Surprise.
+- MRBD: 600×600, D-pad only, dark #0d0d0d, Web Audio, system fonts, `var` only
+- Gallery in games/index.html sorted by score. Gold ≥90, blue 76-89, gray 60-75.

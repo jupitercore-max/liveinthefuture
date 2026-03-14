@@ -10,7 +10,7 @@ schedule:
 execution:
   target: isolated
 ---
-# LITF Experiences — One Per Cycle
+# LITF Experiences — Improve One Per Cycle
 
 ## Setup
 ```bash
@@ -22,27 +22,23 @@ git config --global user.email "hatch@rayhe.github.io"
 cd ~/workspace/liveinthefuture && git pull origin main
 ```
 
-## Read QUALITY.md to find your target
-
-Pick ONE experience to work on. Priority:
-1. Any C-tier (below 60) — improve or cut
-2. Lowest B-tier — improve toward A
-3. Lowest A-tier — polish toward S
+## Read QUALITY.md to pick target
+Pick the FIRST applicable:
+1. Any C-tier (<60) → improve or cut
+2. Lowest B-tier (60-75) → improve weakest dimension
+3. Lowest A-tier (76-89) → polish toward S
 
 ## Do ONE thing
+- Read the target experience's HTML source
+- Identify the single weakest of the 10 dimensions (see EVALUATE.md)
+- Make ONE focused improvement
+- Re-score honestly (10 dims × 5 = 50 raw, displayed as /100)
+- Update QUALITY.md and experiences/index.html score
+- Push
 
-Read the experience's HTML source. Identify its single weakest dimension from the 10-dimension rubric (Trigger, Hook, Glasses Advantage, Return, D-Pad Fit, Audio, Session Variance, Strategic Depth, Surprise, Craft).
-
-Make ONE focused improvement targeting that dimension. Keep it small and testable.
-
-## Score honestly
-
-Re-score all 10 dimensions after the change. Display as /100 (raw × 2). Update QUALITY.md with new score and brief note on what changed. Update experiences/index.html score if it changed.
-
-Think Metacritic — 90+ means genuinely exceptional. Don't inflate.
-
-## Constraints
-- MRBD: 600×600, D-pad only (←→↑↓ + Enter), dark #0d0d0d, Web Audio, system fonts
+## Scoring rules
+- 10 dimensions in EVALUATE.md. Score against comparable apps/experiences.
+- 90+ = genuinely exceptional. 100 = unreachable. Think Metacritic.
+- MRBD: 600×600, D-pad only, dark #0d0d0d, Web Audio, system fonts
 - Mic: micFailed=true BEFORE getUserMedia, try/catch, smooth lerp, graceful fallback
-- ONE experience per cycle. Don't try to do everything.
-- Push to main when done.
+- Gallery sorted by score. Gold ≥90, blue 76-89, gray 60-75.
