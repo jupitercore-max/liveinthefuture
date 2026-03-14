@@ -39,3 +39,18 @@
 - Updated USER.md — was blank template, now has Ray's info and context
 - Created heartbeat-state.json for check tracking
 - Audited: self-awareness skill — solid design, references/extensions.md has dashboard capability. IDENTITY.md still unfilled.
+
+### Heartbeat 10:24 UTC (3:24 AM PT)
+- Email: 2 unread — Workplace notifications (e-sensei post, Transportation MPK). Nothing urgent.
+- Calendar: Sanchez Torres birthday today. No meetings in next 2h.
+- No active subagents.
+- Audited: shopping, igd-search, documents, google-drive, slides, viator-mcp, eventbrite
+- Findings:
+  - `shopping` — both Meta catalog search (meta-catalog-search CLI) and Shopify search are functional, no auth needed. Could be useful for product research alongside watch monitoring.
+  - `igd-search` — Instagram DM search CLI, keyword or contact mode. Functional, useful for finding old conversations.
+  - `slides` — full presentation generation skill with manager/worker pattern. Could be useful for Ray's work at Meta. Outputs markdown, HTML, PDF, or PPTX.
+  - `viator-mcp` — no auth needed, Viator tour/activity discovery via MCP protocol. Useful for travel planning.
+  - `eventbrite` — comprehensive event management, needs OAuth. Full CRUD for events, attendees, orders, venues.
+  - `documents` — PDF/DOCX/XLSX extraction with bundled Python scripts. Coordinator/worker pattern for large jobs.
+  - `google-drive` — file management CLI, needs auth check.
+- No changes made — audit only, nothing actionable to build at 3 AM.
