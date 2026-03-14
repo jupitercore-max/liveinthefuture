@@ -17,3 +17,9 @@
 - Audited: wide-research skill — parallel research coordinator, useful for product comparisons (like the microphone research Ray asked for)
 - Found: polymarket, tessie, withings, oura, viator-mcp skills exist but haven't been explored yet
 - No changes made — active session, light audit only
+
+## 2026-03-14
+- Audited: polymarket, wide-research, strava, gmail, google-calendar
+- Found: all functional, no errors. wide-research is useful for batch parallel tasks (could use for watch searches across multiple groups). polymarket could be interesting for tracking prediction markets on AI/tech topics Ray covers.
+- Built/Improved: nothing this cycle — clean audit, late Friday night
+- Proposed: Consider using polymarket skill to add prediction market odds to LITF articles about AI workforce displacement (real-time odds on policy outcomes would be a novel data source)
