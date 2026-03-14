@@ -35,6 +35,29 @@ Things like:
 
 Skills are shared. Your setup is yours. Keeping them apart means you can update skills without losing your notes, and share skills without leaking your infrastructure.
 
+## API Keys & Credentials
+
+### Resend (Email)
+- API Key: `re_6xFJoFPt_8s3YZRGZiTvYp96pa7jyLkuX`
+- Used for newsletter sends from all 3 sites
+- Free tier: 100 emails/day
+
+### Firebase (Realtime Database)
+- Project: `rayhenet`
+- DB URL: `https://rayhenet-default-rtdb.firebaseio.com`
+- Auth domain: `rayhenet.firebaseapp.com`
+- Storage bucket: `rayhenet.firebasestorage.app`
+- Messaging sender: `275180023647`
+- App ID: `1:275180023647:web:ccd78a4ac15d3f6f2290ea`
+- Shared config: `new.rayhe.net/firebase-shared.js`
+- Used for: presence, leaderboards, newsletter subscribers
+
+### GitHub
+- PAT: stored in `~/.git-credentials`
+
+### SSH
+- Mac Mini proxy: `ssh -F ~/workspace/.ssh/config macmini`
+
 ---
 
 Add whatever helps you do your job. This is your cheat sheet.
