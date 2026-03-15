@@ -206,19 +206,20 @@ PUBLISHED_TODAY=$(git log --since="$TODAY" --oneline --grep="Publish" | wc -l)
 7. Commit: `git add -A && git commit -m "Publish: {headline}" && git push origin main`
 8. Update status.json phase to `QA`
 
-9. Newsletter (if domain verified):
+9. Newsletter — send to all subscribers:
 ```bash
-SUBS=$(curl -s "https://rayhenet-default-rtdb.firebaseio.com/newsletters/liveinthefuture/subscribers.json")
-# For each subscriber, send via Resend
-curl -X POST https://api.resend.com/emails \
-  -H "Authorization: Bearer re_6xFJoFPt_8s3YZRGZiTvYp96pa7jyLkuX" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "from": "LITF <newsletter@liveinthefuture.org>",
-    "to": "{email}",
-    "subject": "New: {title}",
-    "html": "<h2>{title}</h2><p>{summary}</p><p><a href=\"https://liveinthefuture.org/stories/{slug}.html\">Read →</a></p><hr><p style=\"font-size:12px\"><a href=\"https://liveinthefuture.org/unsubscribe.html?id={id}&site=liveinthefuture\">Unsubscribe</a></p>"
-  }'
+SUBS=$(curl -s "https://rayhenet-default-rtdb.firebaseio.com/newsletters/litf/subscribers.json")
+# Parse JSON, for each subscriber extract email and id, send via Resend:
+# curl -X POST https://api.resend.com/emails \
+#   -H "Authorization: Bearer re_6xFJoFPt_8s3YZRGZiTvYp96pa7jyLkuX" \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "from": "Live in the Future <newsletter@liveinthefuture.org>",
+#     "to": "{email}",
+#     "subject": "New on LITF: {title}",
+#     "html": "<h2>{title}</h2><p>{deck}</p><p><a href=\"https://liveinthefuture.org/stories/{slug}.html\">Read the full article →</a></p><hr><p style=\"font-size:12px;color:#888\"><a href=\"https://liveinthefuture.org/unsubscribe.html?id={id}&site=litf\">Unsubscribe</a></p>"
+#   }'
+# Skip if SUBS is "null" or empty (no subscribers yet)
 ```
 
 **EXIT → Phase 5 next dispatch.**

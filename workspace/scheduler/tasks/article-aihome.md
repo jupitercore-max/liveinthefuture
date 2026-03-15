@@ -159,13 +159,21 @@ PUBLISHED_TODAY=$(git log --since="$TODAY" --oneline --grep="Publish" | wc -l)
 6. Commit: `git add -A && git commit -m "Publish: {headline}" && git push origin main`
 7. Phase → `QA`
 
-8. Newsletter:
+8. Newsletter — send to all subscribers:
 ```bash
-SUBS=$(curl -s "https://rayhenet-default-rtdb.firebaseio.com/newsletters/aihomebuilding/subscribers.json")
-curl -X POST https://api.resend.com/emails \
-  -H "Authorization: Bearer re_6xFJoFPt_8s3YZRGZiTvYp96pa7jyLkuX" \
-  -H "Content-Type: application/json" \
-  -d '{"from":"AI Home Building <newsletter@aihomebuilding.com>","to":"{email}","subject":"New: {title}","html":"..."}'
+SUBS=$(curl -s "https://rayhenet-default-rtdb.firebaseio.com/newsletters/aihome/subscribers.json")
+# Parse JSON, for each subscriber extract email and id, send via Resend:
+# curl -X POST https://api.resend.com/emails \
+#   -H "Authorization: Bearer re_6xFJoFPt_8s3YZRGZiTvYp96pa7jyLkuX" \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "from": "onboarding@resend.dev",
+#     "to": "{email}",
+#     "subject": "New on AI Home Building: {title}",
+#     "html": "<h2>{title}</h2><p>{deck}</p><p><a href=\"https://rayhe.github.io/aihomebuilding/articles/{slug}.html\">Read the full article →</a></p><hr><p style=\"font-size:12px;color:#888\"><a href=\"https://rayhe.github.io/aihomebuilding/unsubscribe.html?id={id}&site=aihome\">Unsubscribe</a></p>"
+#   }'
+# Skip if SUBS is "null" or empty (no subscribers yet)
+# Note: using onboarding@resend.dev until aihomebuilding.com domain is verified with Resend
 ```
 
 **EXIT → Phase 5 next dispatch.**
