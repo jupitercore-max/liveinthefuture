@@ -305,3 +305,4 @@
 - Concurrency limits: max 1 CRITIQUE, max 2 DRAFT, max 3 RESEARCH (src: memory/2026-03-14.md:73)
 - Heartbeat (30min) is now the single dispatcher with priority classes (P0-P3) (src: memory/2026-03-14.md:72)
 - Replaced 5 independent crons (3 article + 2 game/experience) with one unified scheduler (src: memory/2026-03-14.md:71)
+- When building cool skills, tools, or infrastructure: write it up as a LITF article (full 6-critic pipeline) (src: memory/2026-03-14.md:82)
