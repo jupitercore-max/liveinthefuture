@@ -15,7 +15,7 @@ from datetime import datetime
 
 RESEND_API_KEY = "re_6xFJoFPt_8s3YZRGZiTvYp96pa7jyLkuX"
 ALERT_EMAIL = "rayche@gmail.com"
-FROM_EMAIL = "scanner@liveinthefuture.org"
+FROM_EMAIL = "newsletter@liveinthefuture.org"
 
 FIREBASE_URL = "https://rayhenet-default-rtdb.firebaseio.com/scanner/calls.json"
 STATE_FILE = os.path.expanduser("~/workspace/scanner-alert/state.json")
