@@ -26,27 +26,51 @@ LOG_FILE = os.path.expanduser("~/workspace/scanner-alert/poller.log")
 HIGH_PRIORITY = [
     r'\bstolen\b', r'\bburglary\b', r'\bburglaries\b', r'\bbreaking\s+and\s+entering\b',
     r'\bb\s*&\s*e\b', r'\bbreak[\s-]?in\b', r'\bhot\s+plate\b',
-    r'\bstolen\s+(vehicle|car|plate|license)\b',
-    r'\barmed\b', r'\bgunshot\b', r'\bshots?\s+fired\b', r'\brobbery\b',
-    r'\bcarjack\b', r'\bhome\s+invasion\b',
-    r'\b459\b', r'\b211\b', r'\b10-?851\b',
+    r'\bstolen\s+(vehicle|car|plate|license)\b', r'\bstolen\s+plate\b',
+    r'\bhome\s+invasion\b', r'\bkick\w*\s+in\s+(the\s+)?door\b',
+    r'\bforced\s+entry\b', r'\bpried\s+open\b',
+    r'\b459\b',  # burglary code
 ]
 
-# Only alert on MEDIUM if transcript also mentions a NEARBY location
 MEDIUM_PRIORITY = [
     r'\bsuspicious\b', r'\bprowler\b', r'\btrespass\b', r'\bvandal\b',
     r'\bpackage\s+theft\b', r'\bcatalytic\b',
-    r'\b602\b', r'\b594\b',
+    r'\barmed\b', r'\bgunshot\b', r'\bshots?\s+fired\b', r'\brobbery\b',
+    r'\bcarjack\b',
+    r'\b211\b', r'\b602\b', r'\b594\b', r'\b10-?851\b',
 ]
 
-# Location must match one of these for MEDIUM alerts to fire.
-# HIGH alerts with a nearby location get bumped in the email subject.
-NEARBY_LOCATIONS = [
-    r'\bmenlo\s*park\b', r'\batherton\b', r'\bcolby\b', r'\bmenlo\s*oaks\b',
-    r'\bwoodside\b', r'\bsharon\s*heights\b', r'\blindenwood\b',
-    r'\bfelton\b', r'\bvalparaiso\b', r'\bsan\s*mateo\s*county\b',
-    r'\bmiddle\b.*\bave\b', r'\bsanta\s*cruz\s*ave\b', r'\bel\s*camino\b',
-    r'\bsand\s*hill\b', r'\balpine\b.*\brd\b', r'\balamedas?\b',
+# ~1 mile radius from Colby Ave & Menlo Oaks Dr, Menlo Park
+WITHIN_1_MILE = [
+    r'\bcolby\b', r'\bmenlo\s*oaks\b', r'\bsharon\s*(rd|road|heights)?\b',
+    r'\baltschul\b', r'\boakdell\b', r'\bringwood\b', r'\bolive\b.*\b(ln|lane)\b',
+    r'\bfelton\b', r'\bcloud\b', r'\bavy\b', r'\bcedro\b',
+    r'\blindenwood\b', r'\bsherwood\b', r'\bvalparaiso\b',
+    r'\balameda\s*(de\s*las\s*pulgas)?\b', r'\bsand\s*hill\b',
+    r'\bmanzanita\b', r'\blaurel\b.*\bmenlo\b', r'\bcoleman\b',
+    r'\bsharon\s*park\b', r'\bsharon\s*heights\b',
+    r'\b(oak|willow)\s*ct\b.*\bmenlo\b',
+    r'\bsanta\s*cruz\s*ave\b.*\b(university|johnson|curtis)\b',
+]
+
+# ~2 mile radius — includes above plus broader Menlo Park / Atherton / near Woodside
+WITHIN_2_MILES = WITHIN_1_MILE + [
+    r'\bmenlo\s*park\b', r'\batherton\b',
+    r'\bsanta\s*cruz\s*ave\b', r'\bel\s*camino\b.*\bmenlo\b',
+    r'\bmiddlefield\b.*\bmenlo\b', r'\bwillow\b.*\bmenlo\b',
+    r'\bravenswood\b', r'\bglenwood\b', r'\bfremont\b.*\bmenlo\b',
+    r'\bmarket\s*pl\b', r'\bcrane\b.*\bmenlo\b',
+    r'\bencinal\b', r'\bfair\s*oaks\b.*\b(menlo|atherton)\b',
+    r'\bwoodside\b.*\b(rd|road)\b', r'\balpine\b.*\b(rd|road)\b',
+    r'\bstockbridge\b', r'\bbarry\b.*\batherton\b',
+    r'\bselby\b', r'\bwalnut\b.*\batherton\b',
+    r'\bel\s*camino\b.*\batherton\b', r'\bfletch\w*\b.*\batherton\b',
+    r'\bpark\s*ln\b.*\batherton\b', r'\bdinkelspiel\b',
+    r'\bmcCormick\b', r'\bpartridge\b.*\batherton\b',
+    r'\bmarsh\b.*\bmenlo\b', r'\bhamilton\b.*\bmenlo\b',
+    r'\barboretum\b', r'\boak\s*grove\b.*\bmenlo\b',
+    r'\buniversity\s*ave\b.*\bmenlo\b', r'\bchestnut\b.*\bmenlo\b',
+    r'\blive\s*oak\b.*\bmenlo\b', r'\bhobbs\b', r'\bpark\s*forest\b',
 ]
 
 # Talkgroups to SKIP entirely (EMS, fire dispatch, medical)
@@ -99,17 +123,18 @@ def check_keywords(text, talkgroup_tag=""):
         if re.search(mp, text_lower):
             return None, []
 
-    # Check if transcript mentions a nearby location
-    is_nearby = any(re.search(loc, text_lower) for loc in NEARBY_LOCATIONS)
+    # Check location proximity
+    within_1mi = any(re.search(loc, text_lower) for loc in WITHIN_1_MILE)
+    within_2mi = within_1mi or any(re.search(loc, text_lower) for loc in WITHIN_2_MILES)
 
-    # HIGH priority — always alert, but note if nearby
+    # HIGH: break-ins, stolen plates/vehicles, home invasion — only within 1 mile
     high_matches = [p for p in HIGH_PRIORITY if re.search(p, text_lower)]
-    if high_matches:
+    if high_matches and within_1mi:
         return "HIGH", high_matches
 
-    # MEDIUM priority — ONLY alert if also mentions a nearby location
+    # MEDIUM: suspicious, prowler, armed, robbery, etc — within 2 miles
     med_matches = [p for p in MEDIUM_PRIORITY if re.search(p, text_lower)]
-    if med_matches and is_nearby:
+    if med_matches and within_2mi:
         return "MEDIUM", med_matches
 
     return None, []
