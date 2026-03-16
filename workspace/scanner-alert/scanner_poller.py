@@ -29,15 +29,30 @@ HIGH_PRIORITY = [
     r'\bstolen\s+(vehicle|car|plate|license)\b',
     r'\barmed\b', r'\bgunshot\b', r'\bshots?\s+fired\b', r'\brobbery\b',
     r'\bcarjack\b', r'\bhome\s+invasion\b',
-    r'\b459\b', r'\b211\b', r'\b10-?851\b', r'\b484\b',
+    r'\b459\b', r'\b211\b', r'\b10-?851\b',
 ]
 
+# Only alert on MEDIUM if transcript also mentions a NEARBY location
 MEDIUM_PRIORITY = [
     r'\bsuspicious\b', r'\bprowler\b', r'\btrespass\b', r'\bvandal\b',
-    r'\bpackage\s+theft\b', r'\bcatalytic\b', r'\balarm\b',
+    r'\bpackage\s+theft\b', r'\bcatalytic\b',
     r'\b602\b', r'\b594\b',
-    r'\bmenlo\s*park\b', r'\batherton\b', r'\bpalo\s*alto\b',
-    r'\bcolby\b', r'\bmenlo\s*oaks\b', r'\bwoodside\b',
+]
+
+# Location must match one of these for MEDIUM alerts to fire.
+# HIGH alerts with a nearby location get bumped in the email subject.
+NEARBY_LOCATIONS = [
+    r'\bmenlo\s*park\b', r'\batherton\b', r'\bcolby\b', r'\bmenlo\s*oaks\b',
+    r'\bwoodside\b', r'\bsharon\s*heights\b', r'\blindenwood\b',
+    r'\bfelton\b', r'\bvalparaiso\b', r'\bsan\s*mateo\s*county\b',
+    r'\bmiddle\b.*\bave\b', r'\bsanta\s*cruz\s*ave\b', r'\bel\s*camino\b',
+    r'\bsand\s*hill\b', r'\balpine\b.*\brd\b', r'\balamedas?\b',
+]
+
+# Talkgroups to SKIP entirely (EMS, fire dispatch, medical)
+SKIP_TALKGROUPS = [
+    r'ems', r'medic', r'ambulance', r'fire\s*dispatch', r'medical',
+    r'calfire', r'hospital',
 ]
 
 os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
@@ -65,17 +80,36 @@ def save_state(state):
         json.dump(state, f, indent=2)
 
 
-def check_keywords(text):
+def check_keywords(text, talkgroup_tag=""):
     if not text:
         return None, []
     text_lower = text.lower()
+    tag_lower = talkgroup_tag.lower()
 
+    # Skip EMS/medical/fire talkgroups entirely
+    for skip in SKIP_TALKGROUPS:
+        if re.search(skip, tag_lower):
+            return None, []
+
+    # Also skip if transcript is clearly medical
+    medical_phrases = [r'\bmedic\s*\d', r'\bambulance\b', r'\bpatient\b', r'\bcpr\b',
+                       r'\bchest\s*pain\b', r'\bdifficulty\s*breathing\b', r'\bmedical\s*alarm\b',
+                       r'\b(?:year|yr)[\s-]*old\s+(?:fe)?male\b.*\b(?:fall|pain|breath|conscious)\b']
+    for mp in medical_phrases:
+        if re.search(mp, text_lower):
+            return None, []
+
+    # Check if transcript mentions a nearby location
+    is_nearby = any(re.search(loc, text_lower) for loc in NEARBY_LOCATIONS)
+
+    # HIGH priority — always alert, but note if nearby
     high_matches = [p for p in HIGH_PRIORITY if re.search(p, text_lower)]
     if high_matches:
         return "HIGH", high_matches
 
+    # MEDIUM priority — ONLY alert if also mentions a nearby location
     med_matches = [p for p in MEDIUM_PRIORITY if re.search(p, text_lower)]
-    if med_matches:
+    if med_matches and is_nearby:
         return "MEDIUM", med_matches
 
     return None, []
@@ -168,10 +202,10 @@ def main():
             continue
 
         transcript = call.get("transcript", "")
-        priority, matches = check_keywords(transcript)
+        tag = call.get("talkgroup_tag", f"TG {call.get('talkgroup', '?')}")
+        priority, matches = check_keywords(transcript, tag)
 
         if priority:
-            tag = call.get("talkgroup_tag", f"TG {call.get('talkgroup', '?')}")
             alert = {
                 "key": key,
                 "timestamp": datetime.now().isoformat(),
