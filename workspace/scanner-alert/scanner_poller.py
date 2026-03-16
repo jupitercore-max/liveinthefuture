@@ -195,8 +195,8 @@ def main():
 
         log(f"Wrote {len(alerts)} new alerts ({len(existing)} total pending)")
 
-    # Update state with all current keys
-    state["last_seen_keys"] = list(calls.keys())[-500:]  # keep last 500 to avoid unbounded growth
+    # Update state with all current keys — keep enough to cover the full call window
+    state["last_seen_keys"] = list(calls.keys())[-2000:]  # keep last 2000 to cover full Firebase window
     save_state(state)
 
 
