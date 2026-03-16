@@ -13,6 +13,10 @@ import sys
 import urllib.request
 from datetime import datetime
 
+RESEND_API_KEY = "re_6xFJoFPt_8s3YZRGZiTvYp96pa7jyLkuX"
+ALERT_EMAIL = "rayche@gmail.com"
+FROM_EMAIL = "scanner@liveinthefuture.org"
+
 FIREBASE_URL = "https://rayhenet-default-rtdb.firebaseio.com/scanner/calls.json"
 STATE_FILE = os.path.expanduser("~/workspace/scanner-alert/state.json")
 ALERT_FILE = os.path.expanduser("~/workspace/scanner-alert/pending_alerts.json")
@@ -89,6 +93,55 @@ def fetch_calls():
         return {}
 
 
+def send_alert_email(alert):
+    """Send alert via Resend API."""
+    priority = alert["priority"]
+    tag = alert["talkgroup_tag"]
+    transcript = alert["transcript"]
+    matches = ", ".join(alert["matches"])
+    timestamp = alert.get("start_time", alert["timestamp"])
+
+    subject = f"🚨 {priority} Scanner Alert: {tag}"
+    html = f"""
+    <div style="font-family: -apple-system, sans-serif; max-width: 600px;">
+        <div style="background: {'#dc2626' if priority == 'HIGH' else '#f59e0b'}; color: white; padding: 12px 16px; border-radius: 8px 8px 0 0;">
+            <strong>{priority} PRIORITY</strong> — {tag}
+        </div>
+        <div style="border: 1px solid #e5e7eb; padding: 16px; border-radius: 0 0 8px 8px;">
+            <p style="font-size: 15px; line-height: 1.6; margin: 0 0 12px 0;">{transcript}</p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 12px 0;">
+            <p style="font-size: 12px; color: #6b7280; margin: 0;">
+                <strong>Matched:</strong> {matches}<br>
+                <strong>Time:</strong> {timestamp}<br>
+                <strong>Source:</strong> OpenMHz → Firebase → Scanner Poller
+            </p>
+        </div>
+    </div>
+    """
+
+    payload = json.dumps({
+        "from": FROM_EMAIL,
+        "to": [ALERT_EMAIL],
+        "subject": subject,
+        "html": html,
+    }).encode()
+
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {RESEND_API_KEY}",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result = json.loads(resp.read().decode())
+            log(f"📧 Email sent to {ALERT_EMAIL}: {result.get('id', '?')}")
+    except Exception as e:
+        log(f"📧 Email failed: {e}")
+
+
 def main():
     state = load_state()
     seen_keys = set(state.get("last_seen_keys", []))
@@ -124,6 +177,7 @@ def main():
             }
             alerts.append(alert)
             log(f"🚨 {priority}: [{tag}] {transcript[:100]}")
+            send_alert_email(alert)
 
     # Write pending alerts for heartbeat to pick up
     if alerts:
