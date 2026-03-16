@@ -132,6 +132,7 @@ def send_alert_email(alert):
         headers={
             "Authorization": f"Bearer {RESEND_API_KEY}",
             "Content-Type": "application/json",
+            "User-Agent": "ScannerAlert/1.0",
         },
     )
     try:
