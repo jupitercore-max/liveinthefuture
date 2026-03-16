@@ -146,6 +146,8 @@ def send_alert_email(alert):
 def main():
     state = load_state()
     seen_keys = set(state.get("last_seen_keys", []))
+    # Separate set of keys we've already sent emails for — never email twice
+    alerted_keys = set(state.get("alerted_keys", []))
 
     calls = fetch_calls()
     if not calls:
@@ -159,6 +161,10 @@ def main():
     alerts = []
     for key, call in new_calls.items():
         if not isinstance(call, dict):
+            continue
+
+        # Skip if we already emailed about this call
+        if key in alerted_keys:
             continue
 
         transcript = call.get("transcript", "")
@@ -177,6 +183,7 @@ def main():
                 "audio_url": call.get("audio_url", call.get("url", "")),
             }
             alerts.append(alert)
+            alerted_keys.add(key)
             log(f"🚨 {priority}: [{tag}] {transcript[:100]}")
             send_alert_email(alert)
 
@@ -197,6 +204,8 @@ def main():
 
     # Update state with all current keys — keep enough to cover the full call window
     state["last_seen_keys"] = list(calls.keys())[-2000:]  # keep last 2000 to cover full Firebase window
+    # Keep alerted keys forever (they're small) — prevents duplicate emails even if seen_keys rolls over
+    state["alerted_keys"] = list(alerted_keys)[-5000:]
     save_state(state)
 
 
