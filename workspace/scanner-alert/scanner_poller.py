@@ -262,7 +262,8 @@ def main():
         log(f"Wrote {len(alerts)} new alerts ({len(existing)} total pending)")
 
     # Update state with all current keys — keep enough to cover the full call window
-    state["last_seen_keys"] = list(calls.keys())[-2000:]  # keep last 2000 to cover full Firebase window
+    # Use ALL current Firebase keys as the seen set — no truncation
+    state["last_seen_keys"] = list(calls.keys())
     # Keep alerted keys forever (they're small) — prevents duplicate emails even if seen_keys rolls over
     state["alerted_keys"] = list(alerted_keys)[-5000:]
     save_state(state)
