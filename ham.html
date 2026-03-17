@@ -870,24 +870,43 @@ function renderStudy() {
 function renderFlash() {
   if (state.questions.length === 0) return;
   const q = state.questions[state.currentQ];
+  const labels = ['A', 'B', 'C', 'D'];
 
   let html = `<div class="question-area">
     <div class="q-header">
       <span class="q-num">Card ${state.currentQ + 1} of ${state.questions.length}</span>
       <span class="q-id">${q.id}</span>
-    </div>
-    <div class="flash-card" onclick="flipCard()">`;
+    </div>`;
 
   if (state.flashSide === 'question') {
-    html += `<div class="face">${escHtml(q.question)}</div>
-      <div class="reveal-hint">Click or press Enter to reveal answer</div>`;
+    html += `<div class="q-text">${escHtml(q.question)}
+      ${q.refs ? '<div class="q-ref">Ref: ' + escHtml(q.refs) + '</div>' : ''}
+    </div>
+    <div class="answers">`;
+    for (let i = 0; i < q.answers.length; i++) {
+      html += `<div class="answer-btn" style="cursor:default">
+        <span class="key">${labels[i]}</span>
+        <span>${escHtml(q.answers[i])}</span>
+      </div>`;
+    }
+    html += `</div>
+    <div class="reveal-hint" onclick="flipCard()" style="cursor:pointer;margin-top:12px;text-align:center;color:var(--accent)">Click or press Enter to reveal answer</div>`;
   } else {
-    const labels = ['A', 'B', 'C', 'D'];
-    html += `<div class="face answer-face">${labels[q.correct]}: ${escHtml(q.answers[q.correct])}</div>
-      <div class="reveal-hint">Click or press Enter for next card</div>`;
+    html += `<div class="q-text" style="color:var(--text-dim)">${escHtml(q.question)}</div>
+    <div class="answers">`;
+    for (let i = 0; i < q.answers.length; i++) {
+      let cls = 'answer-btn locked';
+      if (i === q.correct) cls += ' correct';
+      html += `<div class="${cls}" style="cursor:default">
+        <span class="key">${labels[i]}</span>
+        <span>${escHtml(q.answers[i])}</span>
+      </div>`;
+    }
+    html += `</div>
+    <div class="reveal-hint" onclick="nextFlash()" style="cursor:pointer;margin-top:12px;text-align:center;color:var(--correct)">✅ ${labels[q.correct]}: ${escHtml(q.answers[q.correct])} — Click or press Enter for next card</div>`;
   }
 
-  html += `</div>
+  html += `
     <div class="nav-buttons">
       <button class="nav-btn secondary" onclick="prevFlash()" ${state.currentQ === 0 ? 'disabled' : ''}>← Previous</button>
       <button class="nav-btn secondary" onclick="shuffleFlash()">🔀 Shuffle</button>
