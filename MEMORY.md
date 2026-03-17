@@ -30,10 +30,10 @@ Use this file for durable, curated memory that should persist across sessions.
 - Facebook search works for Moda Watch Club (558871041349029) but NOT 10k & Under group (150223938977815)
 
 ## Websites & Article Counts
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 76 articles, 14 journalists, 17 games, 24+ experiences. AIPM eval platform at /aipm.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 76 articles, 14 journalists, 17 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16.
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 83 articles, 7 journalists. FARS death rate data, IIHS ratings.
 - **rayhe.github.io/aihomebuilding** — GitHub Pages from rayhe/aihomebuilding. 85 articles, 6 journalists.
-- **new.rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool (1,440 questions).
+- **new.rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool (1,440 questions, 3 license classes, 4 study modes, MRBD-ready via ?mrbd=1).
 
 ## Content Pipeline (gstack-inspired 5-phase)
 1. RESEARCH — "Is this the right story?" Kill test, 3+ primary sources, novel contribution check
@@ -56,9 +56,14 @@ State tracked in `drafts/status.json`.
 - Hublot Square Bang Unico Titanium Rainbow ref 821.NX.0117.LR.0999 (42mm, titanium, rainbow baguette bezel)
 - Monitoring Moda Watch Club (group 558871041349029) every 30 min
 
+## Facebook Ads Access
+- Token: `EAATZCL8nUH5gBQ...` (long user token with ads_read)
+- Ad accounts: `act_1085562438866780` (RBM Global, main), plus DGEN OOM Vayner, RBM Global Test, US, UK
+- Key findings (2026-03-17): US core profitable (1.84x ROAS), international bleeding, TestSandbox at 3.67x ROAS is the standout, Vayner TOF at 0.17% CTR is broken, funnel is bottom-heavy (72% BOF vs recommended 40-55%)
+
 ## Pending (Ray needs to do)
 1. Firebase RTDB rules — add `newsletters` path write permissions
-2. Resend domain verification — add liveinthefuture.org, vehicle-safety.org, aihomebuilding.com at resend.com/domains
+2. Resend domain verification — add vehicle-safety.org, aihomebuilding.com at resend.com/domains (LITF verified)
 3. Play Tower Defense — 50+ features, 40+ self-critique skips waiting for human feedback
 
 ## Active Crons (as of 2026-03-17)
@@ -68,5 +73,15 @@ State tracked in `drafts/status.json`.
 
 ## Ongoing Commitments
 - Newsletter system wired (Firebase + Resend) but blocked on Ray's Firebase rules + domain verification
-- Microphone research requested (multi-mic, <$300, outdoor, 6000 sqft) — subagent dispatched
 - "Technically Legal" novel concept exists at workspace/technically-legal/concepts.md — never built, Ray has asked multiple times
+
+## Dungeon Crawl Game
+- Full roguelike with 3 classes (Warrior/Rogue/Wizard), 9 wands, shrines, shops, minibosses
+- Per-level class abilities added 2026-03-16: War Cry, Smoke Bomb, Shadow Step, Arcane Blast, Teleport, etc.
+- Meaningful summons: class-typed (Warrior shields, Rogue assassins, Wizard casters), scale with level, cap at 3, spirit buffs on death
+- Environmental objects (barrels, shrines, chests, scrolls) render fix — were only drawn in genMap(), not drawGame()
+- Auto-pickup all items on tile (was only grabbing first)
+- S-tier score: 90/100
+
+## S-Tier Games (90+)
+- Dungeon Crawl 90, Stalk 90, Gravity Sling 90, Sonar Sub 90, Trader 92
