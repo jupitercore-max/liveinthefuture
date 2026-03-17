@@ -30,10 +30,10 @@ Use this file for durable, curated memory that should persist across sessions.
 - Facebook search works for Moda Watch Club (558871041349029) but NOT 10k & Under group (150223938977815)
 
 ## Websites & Article Counts
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 63+ articles, 14 journalists, 16 games, 22+ experiences. AIPM eval platform at /aipm.
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 75+ articles, 6 journalists. FARS death rate data, IIHS ratings.
-- **rayhe.github.io/aihomebuilding** — GitHub Pages from rayhe/aihomebuilding. 80+ articles, 6 journalists.
-- **new.rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 76+ articles, 14 journalists, 17 games, 24+ experiences. AIPM eval platform at /aipm.
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 83+ articles, 7 journalists. FARS death rate data, IIHS ratings.
+- **rayhe.github.io/aihomebuilding** — GitHub Pages from rayhe/aihomebuilding. 84+ articles, 6 journalists.
+- **new.rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool (1,440 questions).
 
 ## Content Pipeline (gstack-inspired 5-phase)
 1. RESEARCH — "Is this the right story?" Kill test, 3+ primary sources, novel contribution check
@@ -61,12 +61,10 @@ State tracked in `drafts/status.json`.
 2. Resend domain verification — add liveinthefuture.org, vehicle-safety.org, aihomebuilding.com at resend.com/domains
 3. Play Tower Defense — 50+ features, 40+ self-critique skips waiting for human feedback
 
-## Active Crons (as of 2026-03-14)
-- 3 article crons (LITF, Crash Report, AI Home Building) — 2h intervals, 5-phase pipeline
-- 2 game/experience crons — 2h intervals, 10-dimension scoring
-- moda-omega-monitor — every 30 min
-- scanner-monitor — daily 7am PT
-- aipm-update — weekly Sun 11am PT
+## Active Crons (as of 2026-03-17)
+- Unified scheduler via heartbeat (30min) — single dispatcher, priority classes P0-P3
+- scanner-poller — every 5 min, polls Firebase RTDB for police scanner transcripts, emails alerts to rayche@gmail.com
+- moda-watch-monitor — every 30 min, searches Moda Watch Club for 4 target watches, emails via watches@liveinthefuture.org
 
 ## Ongoing Commitments
 - Newsletter system wired (Firebase + Resend) but blocked on Ray's Firebase rules + domain verification
