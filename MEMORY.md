@@ -53,6 +53,7 @@ State tracked in `drafts/status.json`.
 - Omega Seamaster Diver 300M Chronograph ref 210.60.44.51.03.001 (blue dial, sedna gold/titanium/tantalum, cal 9900)
 - Rolex Yacht-Master II ref 116689 (18K white gold/platinum)
 - Hublot Square Bang Unico Magic Gold ref 821.MX.0130.RX (42mm, Magic Gold case, limited 200 pieces)
+- Hublot Square Bang Unico Titanium Rainbow ref 821.NX.0117.LR.0999 (42mm, titanium, rainbow baguette bezel)
 - Monitoring Moda Watch Club (group 558871041349029) every 30 min
 
 ## Pending (Ray needs to do)
