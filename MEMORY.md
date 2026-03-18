@@ -30,7 +30,7 @@ Use this file for durable, curated memory that should persist across sessions.
 - Facebook search works for Moda Watch Club (558871041349029) but NOT 10k & Under group (150223938977815)
 
 ## Websites & Article Counts
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 78 articles, 14 journalists, 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 79 articles, 14 journalists, 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16.
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 84 articles, 7 journalists. FARS death rate data, IIHS ratings.
 - **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 86 articles, 6 journalists.
 - **new.rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool (1,440 questions, 3 license classes, 4 study modes, MRBD-ready via ?mrbd=1).
