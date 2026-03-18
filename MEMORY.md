@@ -84,4 +84,4 @@ State tracked in `drafts/status.json`.
 - S-tier score: 90/100
 
 ## S-Tier Games (90+)
-- Dungeon Crawl 90, Stalk 90, Gravity Sling 90, Sonar Sub 90, Trader 92
+- Dungeon Crawl 90, Stalk 90, Gravity Sling 90, Sonar Sub 90, Terraform 90, Trader 92
