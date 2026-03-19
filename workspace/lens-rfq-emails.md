@@ -22,7 +22,7 @@ We are sourcing a custom plano lens for a sport eyewear project and would like t
 **Lens Specification:**
 - Power: Plano (0.00)
 - Type: Photochromic — red/rose base tint
-- VLT: Approximately 25% in the activated (darkened) state; clear/light state VLT to be confirmed
+- VLT: Approximately 75% in the clear (non-activated) state; approximately 25% in the activated (darkened) state
 - Coating: Front and back multi-layer anti-reflective coating with hydrophobic/oleophobic top coat
 - Material: Please quote in both polycarbonate and NXT/Trivex if available
 - Shape: Cut to our frame template (DXF file to follow upon engagement)
@@ -64,7 +64,7 @@ rhe@meta.com
 **镜片规格：**
 - 度数：平光（0.00）
 - 类型：变色镜片 — 红色/玫瑰红底色
-- 透光率（VLT）：变色激活（变深）状态下约25%；浅色/室内状态透光率待确认
+- 透光率（VLT）：未激活（室内/浅色）状态下约75%；变色激活（变深）状态下约25%
 - 镀膜：正面和背面双面多层抗反射镀膜（AR），外加超疏水/疏油顶层涂层
 - 材质：请分别报价聚碳酸酯（PC）和NXT/Trivex（如有）
 - 形状：按我方镜框模板切割（DXF文件将在合作确认后提供）
