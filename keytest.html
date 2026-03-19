@@ -22,27 +22,59 @@
 <script>
 var log = document.getElementById('log');
 var count = 0;
-function logEvent(e) {
+function addEntry(html) {
   count++;
   var div = document.createElement('div');
   div.className = 'entry';
-  div.innerHTML = '<span class="type">' + e.type + '</span> | ' +
+  div.innerHTML = html;
+  log.insertBefore(div, log.firstChild);
+  if (count > 100) log.removeChild(log.lastChild);
+}
+function logKey(e) {
+  addEntry('<span class="type">' + e.type + '</span> | ' +
     'key: <span class="key">"' + e.key + '"</span> | ' +
     'code: <span class="code">"' + e.code + '"</span> | ' +
     'keyCode: <span class="kc">' + e.keyCode + '</span> | ' +
-    'which: ' + e.which;
-  log.insertBefore(div, log.firstChild);
-  if (count > 50) log.removeChild(log.lastChild);
+    'which: ' + e.which + ' | charCode: ' + e.charCode +
+    ' | repeat: ' + e.repeat + ' | location: ' + e.location);
 }
-document.addEventListener('keydown', logEvent);
-document.addEventListener('keyup', logEvent);
-document.addEventListener('keypress', logEvent);
-// Also catch click/touch in case DPAD_CENTER triggers click instead
-document.addEventListener('click', function(e) {
-  var div = document.createElement('div');
-  div.className = 'entry';
-  div.innerHTML = '<span class="type">click</span> | target: ' + e.target.tagName + ' | x:' + e.clientX + ' y:' + e.clientY;
-  log.insertBefore(div, log.firstChild);
+['keydown','keyup','keypress'].forEach(function(t) { document.addEventListener(t, logKey); });
+['click','mousedown','mouseup','touchstart','touchend','pointerdown','pointerup'].forEach(function(t) {
+  document.addEventListener(t, function(e) {
+    addEntry('<span class="type">' + e.type + '</span> | target: ' + e.target.tagName +
+      ' | x:' + (e.clientX||'?') + ' y:' + (e.clientY||'?') +
+      ' | button: ' + (e.button !== undefined ? e.button : 'N/A') +
+      (e.touches ? ' | touches:' + e.touches.length : ''));
+  });
+});
+['focus','blur','focusin','focusout'].forEach(function(t) {
+  document.addEventListener(t, function(e) {
+    addEntry('<span class="type">' + e.type + '</span> | target: ' + e.target.tagName);
+  });
+});
+// Gamepad API in case D-pad is a gamepad
+function pollGamepad() {
+  var gps = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (var i = 0; i < gps.length; i++) {
+    if (gps[i]) {
+      var gp = gps[i];
+      for (var b = 0; b < gp.buttons.length; b++) {
+        if (gp.buttons[b].pressed) {
+          addEntry('<span class="type">gamepad</span> | pad:' + i + ' button:' + b + ' value:' + gp.buttons[b].value);
+        }
+      }
+      for (var a = 0; a < gp.axes.length; a++) {
+        if (Math.abs(gp.axes[a]) > 0.5) {
+          addEntry('<span class="type">gamepad</span> | pad:' + i + ' axis:' + a + ' value:' + gp.axes[a].toFixed(2));
+        }
+      }
+    }
+  }
+  requestAnimationFrame(pollGamepad);
+}
+window.addEventListener('gamepadconnected', function(e) {
+  addEntry('<span class="type">gamepadconnected</span> | id: ' + e.gamepad.id + ' buttons: ' + e.gamepad.buttons.length);
+  pollGamepad();
 });
 </script>
 </body></html>
