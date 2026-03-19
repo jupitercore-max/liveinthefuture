@@ -7,7 +7,6 @@
 - Cut to frame template (DXF to be provided)
 - Quantity: 1,000 lenses
 - Base curve: 6 (comfortable, moderate wrap)
-- Quantity: TBD (specify when sending)
 
 ---
 
