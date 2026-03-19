@@ -6,7 +6,8 @@
 - Front and back multi-layer AR coating + hydrophobic top coat
 - Cut to frame template (DXF to be provided)
 - Quantity: 1,000 lenses
-- Base curve: TBD (specify when sending)
+- Base curve: 6 (comfortable, moderate wrap)
+- Quantity: TBD (specify when sending)
 
 ---
 
@@ -25,7 +26,7 @@ We are sourcing a custom plano lens for a sport eyewear project and would like t
 - Coating: Front and back multi-layer anti-reflective coating with hydrophobic/oleophobic top coat
 - Material: Please quote in both polycarbonate and NXT/Trivex if available
 - Shape: Cut to our frame template (DXF file to follow upon engagement)
-- Base curve: [TO BE SPECIFIED]
+- Base curve: 6 (comfortable, moderate wrap)
 - Quantity: 1,000 pieces (initial order; potential for recurring orders)
 
 **Additional requirements:**
@@ -67,7 +68,7 @@ rhe@meta.com
 - 镀膜：正面和背面双面多层抗反射镀膜（AR），外加超疏水/疏油顶层涂层
 - 材质：请分别报价聚碳酸酯（PC）和NXT/Trivex（如有）
 - 形状：按我方镜框模板切割（DXF文件将在合作确认后提供）
-- 弯度（基弧）：[待确定]
+- 弯度（基弧）：6弧（舒适佩戴，适度弯曲）
 - 数量：1,000片（首单；后续有持续返单可能）
 
 **其他要求：**
