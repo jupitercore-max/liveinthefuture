@@ -30,9 +30,9 @@ Use this file for durable, curated memory that should persist across sessions.
 - Facebook search works for Moda Watch Club (558871041349029) but NOT 10k & Under group (150223938977815)
 
 ## Websites & Article Counts
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 83 articles, 14 journalists, 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16.
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 85 articles, 7 journalists. FARS death rate data, IIHS ratings.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 86 articles, 6 journalists.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 86 articles, 15 journalists, 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16.
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 87 articles, 7 journalists. FARS death rate data, IIHS ratings.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 87 articles, 6 journalists.
 - **new.rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool (1,440 questions, 3 license classes, 4 study modes, MRBD-ready via ?mrbd=1).
 
 ## Content Pipeline (gstack-inspired 5-phase)
@@ -85,3 +85,8 @@ State tracked in `drafts/status.json`.
 
 ## S-Tier Games (90+)
 - Dungeon Crawl 90, Stalk 90, Gravity Sling 90, Sonar Sub 90, Terraform 90, Fisher 90, Trader 92
+
+## Infrastructure Lessons Learned
+- **Imagine skill outputs PNG regardless of .jpg extension** — all hero images across 275 articles were PNG-as-JPG. Fixed 2026-03-18 by batch-converting with PIL. generate.md now includes JPEG magic byte validation.
+- **Cache busting** — Cloudflare Pages caches images for 7 days (max-age=604800). Added `?v={md5[:8]}` hash to image references in publish step. No Cloudflare API token available for manual purges.
+- **Hero image validation** added to all 3 generate.md files: existence check + JPEG format check + cache buster hash.
