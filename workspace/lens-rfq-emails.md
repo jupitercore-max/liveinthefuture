@@ -26,7 +26,7 @@ We are sourcing a custom plano lens for a sport eyewear project and would like t
 - Material: Please quote in both polycarbonate and NXT/Trivex if available
 - Shape: Cut to our frame template (DXF file to follow upon engagement)
 - Base curve: 6 (comfortable, moderate wrap)
-- Quantity: 1,000 pieces (initial order; potential for recurring orders)
+- Quantity: 1,000 pieces (target production order; requesting samples first)
 
 **Additional requirements:**
 - 100% UV protection (UVA + UVB)
@@ -68,7 +68,7 @@ rhe@meta.com
 - 材质：请分别报价聚碳酸酯（PC）和NXT/Trivex（如有）
 - 形状：按我方镜框模板切割（DXF文件将在合作确认后提供）
 - 弯度（基弧）：6弧（舒适佩戴，适度弯曲）
-- 数量：1,000片（首单；后续有持续返单可能）
+- 数量：目标量产订单1,000片（现阶段先请样品）
 
 **其他要求：**
 - 100% UV防护（UVA + UVB）
