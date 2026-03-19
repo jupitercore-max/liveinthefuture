@@ -7,8 +7,6 @@ schedule:
   timezone: UTC
   at: 2026-03-17T03:00:00Z
   every: 30m
-execution:
-  target: isolated
 ---
 ## Moda Watch Club Monitor
 

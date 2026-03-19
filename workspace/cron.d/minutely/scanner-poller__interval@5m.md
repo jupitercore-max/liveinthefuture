@@ -7,8 +7,6 @@ schedule:
   timezone: UTC
   at: 2026-03-16T05:05:00Z
   every: 5m
-execution:
-  target: isolated
 ---
 Poll the scanner for security alerts.
 

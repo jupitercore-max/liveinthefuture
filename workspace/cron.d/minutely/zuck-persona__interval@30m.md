@@ -7,8 +7,6 @@ schedule:
   timezone: UTC
   at: 2026-03-19T02:45:00Z
   every: 30m
-execution:
-  target: isolated
 ---
 Read `workspace/markzuckerberg_persona.md`. This is an iteratively-improving persona document for simulating Mark Zuckerberg's decision-making.
 
