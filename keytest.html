@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=600,height=600,user-scalable=no">
+<title>MRBD Key Test</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d0d0d; color: #e0e0e0; font-family: monospace; font-size: 18px; padding: 20px; width: 600px; height: 600px; overflow: hidden; }
+  h1 { font-size: 22px; color: #6c5ce7; margin-bottom: 16px; text-align: center; }
+  .hint { text-align: center; color: #888; margin-bottom: 20px; font-size: 14px; }
+  #log { height: 480px; overflow-y: auto; }
+  .entry { padding: 6px 8px; border-bottom: 1px solid #222; }
+  .entry .key { color: #00cec9; font-weight: bold; }
+  .entry .code { color: #fdcb6e; }
+  .entry .kc { color: #ff7675; }
+  .entry .type { color: #a29bfe; }
+</style>
+</head><body>
+<h1>🎮 MRBD Key Event Logger</h1>
+<p class="hint">Press any D-pad button. All events logged below.</p>
+<div id="log"></div>
+<script>
+var log = document.getElementById('log');
+var count = 0;
+function logEvent(e) {
+  count++;
+  var div = document.createElement('div');
+  div.className = 'entry';
+  div.innerHTML = '<span class="type">' + e.type + '</span> | ' +
+    'key: <span class="key">"' + e.key + '"</span> | ' +
+    'code: <span class="code">"' + e.code + '"</span> | ' +
+    'keyCode: <span class="kc">' + e.keyCode + '</span> | ' +
+    'which: ' + e.which;
+  log.insertBefore(div, log.firstChild);
+  if (count > 50) log.removeChild(log.lastChild);
+}
+document.addEventListener('keydown', logEvent);
+document.addEventListener('keyup', logEvent);
+document.addEventListener('keypress', logEvent);
+// Also catch click/touch in case DPAD_CENTER triggers click instead
+document.addEventListener('click', function(e) {
+  var div = document.createElement('div');
+  div.className = 'entry';
+  div.innerHTML = '<span class="type">click</span> | target: ' + e.target.tagName + ' | x:' + e.clientX + ' y:' + e.clientY;
+  log.insertBefore(div, log.firstChild);
+});
+</script>
+</body></html>
