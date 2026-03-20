@@ -64,6 +64,21 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 - Used for: Pages deployments (technically-legal, etc.)
 - Deploy command: `CLOUDFLARE_API_TOKEN=<token> CLOUDFLARE_ACCOUNT_ID=<id> npx wrangler pages deploy <dir> --project-name=<project>`
 
+### Hydrawise (Irrigation)
+- API Key: `C8C6-E879-64F8-40B0`
+- Controller: "Menlo Oaks" (ID 1612066, serial 03d047712e)
+- 9 zones, 3-day cycle starting 5:00 AM
+- API base: `https://api.hydrawise.com/api/v1/`
+- Dashboard: irrigation.rayhe.net (Cloudflare Pages)
+
+### Tempest WeatherFlow
+- Token: `0fa6c2fe-5ad2-463a-b4c6-6ba72a4c9729`
+- Station ID: 164725 ("Menlo Oaks")
+- Device ID: 393322 (ST-00138602, outdoor Tempest)
+- Hub ID: 393319 (HB-00143541)
+- API base: `https://swd.weatherflow.com/swd/rest/`
+- Public page: https://tempestwx.com/station/164725/
+
 ---
 
 Add whatever helps you do your job. This is your cheat sheet.
