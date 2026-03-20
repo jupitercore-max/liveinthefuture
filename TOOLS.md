@@ -58,6 +58,12 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 ### SSH
 - Mac Mini proxy: `ssh -F ~/workspace/.ssh/config macmini`
 
+### Cloudflare
+- API Token: `cfut_DZZGEVoJ3LahoWCnYJHShpoSjJGJUXEixNQfdjic3e3ab97b`
+- Account ID: `8e3c98e0066c695c28e22a7c09615b70`
+- Used for: Pages deployments (technically-legal, etc.)
+- Deploy command: `CLOUDFLARE_API_TOKEN=<token> CLOUDFLARE_ACCOUNT_ID=<id> npx wrangler pages deploy <dir> --project-name=<project>`
+
 ---
 
 Add whatever helps you do your job. This is your cheat sheet.
