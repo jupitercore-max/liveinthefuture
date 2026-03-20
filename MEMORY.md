@@ -34,7 +34,7 @@ Use this file for durable, curated memory that should persist across sessions.
 
 ## Websites & Article Counts
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 86 articles, 15 journalists, 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 94 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16.
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 87 articles, 7 journalists. FARS death rate data, IIHS ratings.
 - **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 87 articles, 6 journalists.
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool (1,440 questions, 3 license classes, 4 study modes, MRBD-ready via ?mrbd=1).
@@ -75,16 +75,31 @@ State tracked in `drafts/status.json`.
 2. Resend domain verification — add vehicle-safety.org, aihomebuilding.com at resend.com/domains (LITF verified)
 3. Play Tower Defense — 50+ features, 40+ self-critique skips waiting for human feedback
 
-## Active Crons (as of 2026-03-17)
+## Active Crons (as of 2026-03-20)
 
-- Unified scheduler via heartbeat (30min) — single dispatcher, priority classes P0-P3
-- scanner-poller — every 5 min, polls Firebase RTDB for police scanner transcripts, emails alerts to rayche@gmail.com
-- moda-watch-monitor — every 30 min, searches Moda Watch Club for 4 target watches, emails via watches@liveinthefuture.org
+- Heartbeat — 30min interval, P0 checks + lightweight maintenance only (no article dispatching)
+- `article-litf` — 2h interval, autonomous article worker for LITF
+- `article-crashreport` — 2h interval (offset 30m), autonomous for vehicle-safety
+- `article-aihome` — 2h interval (offset 1h), autonomous for aihomebuilding
+- `technically-legal-iterate` — 1h interval, chapter writing for technically.legal novel
+- `moltbook-litf-scan` — daily 7am PT, scans Moltbook for LITF article ideas
+- scanner-poller — every 5 min, polls Firebase RTDB for police scanner transcripts
+- moda-watch-monitor — every 30 min, searches Moda Watch Club for 4 target watches
 
 ## Ongoing Commitments
 
 - Newsletter system wired (Firebase + Resend) but blocked on Ray's Firebase rules + domain verification
-- "Technically Legal" novel concept exists at workspace/technically-legal/concepts.md — never built, Ray has asked multiple times
+- **"Technically Legal" novel** — techno-thriller at technically.legal, Cloudflare Pages (direct upload). 3 volumes, 18 chapters. Ch 1-2 published, hourly cron iterating more. Dark dossier aesthetic, 6-critic panel (8.5+ to publish).
+
+## Technically Legal
+
+- **Domain:** technically.legal (Cloudflare Pages, direct upload)
+- **Repo:** rayhe/technically-legal
+- **Concept:** Legal economic warfare — "The Consortium" runs 6 operations (MINOTAUR patent, SIREN HFT, GOLEM litigation, BASILISK regulatory capture, HYDRA debt, CHIMERA real estate), 46K agents, $69.3B annual damage, all legal
+- **Protagonist:** Elena Marsh (FinCEN forensic accountant)
+- **Antagonist:** Martin Kessler — started as penetration tester of American law, machine outgrew the test, now trapped
+- **Deploy:** `echo "y" | CLOUDFLARE_API_TOKEN=... wrangler pages deploy public --project-name=technically-legal`
+- **Status:** Ch 1 (8.6) and Ch 2 (8.6) published, hourly cron iterating Ch 3+
 
 ## Dungeon Crawl Game
 
