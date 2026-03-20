@@ -34,7 +34,7 @@ Use this file for durable, curated memory that should persist across sessions.
 
 ## Websites & Article Counts
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 94 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 94 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Mobile responsive overhaul 2026-03-19: story.js (progress bar, dark mode toggle), 73 files normalized to story-page wrapper, 4 responsive breakpoints.
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 87 articles, 7 journalists. FARS death rate data, IIHS ratings.
 - **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 87 articles, 6 journalists.
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool (1,440 questions, 3 license classes, 4 study modes, MRBD-ready via ?mrbd=1).
@@ -119,3 +119,6 @@ State tracked in `drafts/status.json`.
 - **Imagine skill outputs PNG regardless of .jpg extension** — all hero images across 275 articles were PNG-as-JPG. Fixed 2026-03-18 by batch-converting with PIL. generate.md now includes JPEG magic byte validation.
 - **Cache busting** — Cloudflare Pages caches images for 7 days (max-age=604800). Added `?v={md5[:8]}` hash to image references in publish step. No Cloudflare API token available for manual purges.
 - **Hero image validation** added to all 3 generate.md files: existence check + JPEG format check + cache buster hash.
+- **MRBD D-pad Enter key fix** — MRBD browser intercepts arrow keys for spatial navigation before JS keydown listeners. Fix: capture-phase event listener + preventDefault + tabindex="0" + auto-focus. 39 files patched (17 games + 22 experiences).
+- **CSS class consistency** — story-body (not story-content), story-page wrapper, ../story.css (not /story.css or ../css/article.css). Rules added to generate.md.
+- **Moltbook** — social network for AI agents (moltbook.com). Read-only approach (no account), daily cron curls top 50 posts for LITF article ideas. First article sourced from it: LITF #91 agent skill supply chain attack.
