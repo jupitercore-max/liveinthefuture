@@ -11,19 +11,82 @@ metadata:
 ---
 ## Daily Moltbook → LITF Article Scan
 
-Every morning at 7 AM PT:
+Every morning at 7 AM PT. You are the worker — do ALL the work yourself, do NOT spawn subagents.
 
-1. Fetch top Moltbook posts from the last 24 hours (no auth, read-only): `curl -s "https://www.moltbook.com/api/v1/posts?sort=top&limit=50"`
-2. Read through the posts and identify the single most interesting observation, trend, or discussion that:
-   - LITF hasn't covered yet, OR
-   - Updates/challenges something LITF has already published
-   - Has real substance (data, technical insight, novel framing) — not just vibes or poetry
-3. Research the topic further with web searches to get hard data and sources
-4. Write a full LITF article through the standard pipeline (RESEARCH → DRAFT → CRITIQUE → SHIP → QA)
-5. The article should credit the Moltbook discussion as a source/inspiration where appropriate
-6. Follow all LITF voice rules, anti-AI-slop guidelines, and the 6-critic system
+### CRITICAL: You must complete ALL steps in a single run. Do not exit early.
 
-Key files:
-- LITF repo: workspace/liveinthefuture/
-- Pipeline config: workspace/liveinthefuture/drafts/
-- LITF generate.md: workspace/liveinthefuture/generate.md
+### Step 1: Fetch Moltbook Feed
+Try the API first:
+```bash
+curl -s "https://www.moltbook.com/api/v1/posts?sort=top&limit=50"
+```
+If that returns empty/error, scrape the homepage:
+```bash
+curl -s "https://www.moltbook.com/"
+```
+Extract post titles, authors, scores, and content snippets.
+
+If BOTH fail, log the error and exit:
+```bash
+echo "$(date -Iseconds) FETCH FAILED" >> ~/workspace/liveinthefuture/drafts/moltbook-errors.log
+```
+
+### Step 2: Pick the Best Story
+Read through posts. Find the ONE most interesting observation that:
+- LITF hasn't covered (check `~/workspace/liveinthefuture/QUALITY.md` and recent `stories/` filenames)
+- Has real substance — data, technical insight, novel framing
+- Would make someone stop scrolling
+
+### Step 3: Research
+- Web search for 3+ primary sources to back the Moltbook observation
+- Kill test: can we add something beyond what Moltbook said?
+- Write `~/workspace/liveinthefuture/drafts/{slug}-research.md`
+
+### Step 4: Draft
+- Read `~/workspace/liveinthefuture/STORY_GUIDE.md` and `~/workspace/liveinthefuture/generate.md`
+- Read `~/workspace/liveinthefuture/JOURNALISTS.md` — pick the best journalist for the topic
+- Write full HTML article to `~/workspace/liveinthefuture/drafts/{slug}.html`
+- Structure: `class="story-page"` wrapper, `class="story-body"` content div
+- Link `../story.css` and `../story.js`
+- Generate hero image using the imagine skill, validate it's actual JPEG (check magic bytes)
+- Credit Moltbook as inspiration source
+
+### Step 5: Critique (do it yourself, 6 critics inline)
+Score each dimension 1-10:
+1. General/Narrative — pacing, hook, structure
+2. Voice/Style — em dashes (<5), banned phrases (0), sentence rhythm
+3. Ethics — fair representation, not alarmist
+4. Social — shareable, engaging title
+5. Legal — claims defensible
+6. Research Rigor — citations real, novel contribution
+
+ALL 6 must average 8.5+ → proceed to Ship.
+Below 8.5 → revise and re-score. Max 3 rounds.
+
+### Step 6: Ship
+- Check `drafts/status.json` — if `last_completed.date` is today, STOP (1/day limit). Note: Moltbook articles count toward LITF's 1/day limit.
+- Move HTML to `~/workspace/liveinthefuture/stories/{slug}.html`
+- Move hero image to `~/workspace/liveinthefuture/stories/{slug}.jpg`
+- Update `~/workspace/liveinthefuture/index.html`: increment article count, add card to grid
+- Update `~/workspace/liveinthefuture/sitemap.xml`
+- Commit: `git add -A && git commit -m "Publish #N: {headline} — {journalist} [moltbook-sourced]"`
+- Push: `git push origin main`
+
+### Step 7: QA
+- Verify the story URL resolves (curl the live URL)
+- Update `drafts/status.json`: set `current` to null, update `last_completed`
+
+### Voice Rules (STRICT):
+- Zero banned phrases (see STORY_GUIDE.md)
+- Em dashes fewer than 5
+- "The" sentence starters fewer than 10
+- `class="story-body"` NOT `story-content`
+- Hero image must be actual JPEG (check magic bytes: first 2 bytes = FF D8)
+- Add cache bust hash to image references: `?v={first 8 chars of md5sum}`
+
+### Error Handling:
+If ANY step fails, log to `~/workspace/liveinthefuture/drafts/moltbook-errors.log`:
+```bash
+echo "$(date -Iseconds) STEP {N} FAILED: {description}" >> ~/workspace/liveinthefuture/drafts/moltbook-errors.log
+```
+Then continue to the next feasible step if possible, or exit cleanly.
