@@ -34,7 +34,7 @@ Use this file for durable, curated memory that should persist across sessions.
 
 ## Websites & Article Counts
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 98 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Mobile responsive overhaul 2026-03-19: story.js (progress bar, dark mode toggle), 73 files normalized to story-page wrapper, 4 responsive breakpoints.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 99 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Mobile responsive overhaul 2026-03-19: story.js (progress bar, dark mode toggle), 73 files normalized to story-page wrapper, 4 responsive breakpoints.
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 92 articles, 7 journalists. FARS death rate data, IIHS ratings.
 - **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 93 articles, 6 journalists.
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool (1,440 questions, 3 license classes, 4 study modes, MRBD-ready via ?mrbd=1).
@@ -106,7 +106,8 @@ State tracked in `drafts/status.json`.
 
 - File: `workspace/markzuckerberg_persona.md` — deep psychological profile/simulation
 - Iteration 13 (2026-03-21): Added Avocado Justification Arc (narrative metabolism in real-time), advance hedging behavior, performative unity management (Wang selfie on Threads), infrastructure-as-narrative ($600B data centers), Watermelon succession narrative
-- Predictive: Wang departure within 18 months (~Dec 2026), Gemini licensing framed as "partnership," "trajectory" becomes permanent eval frame, Watermelon absorbs Avocado shortcomings
+- Iteration 14-15 (2026-03-21): Added investor skepticism processing ($135B capex defense, asymmetric fear structure, layoffs as pressure valve, monetization bridge), ecosystem trust dynamics (serial trust extraction across 5 stakeholder classes, "trust as renewable resource" blind spot, four-phase trust cycle, Llama 4 benchmark controversy, Meta "fear culture," covenantal trust impossibility)
+- Predictive: Wang departure within 18 months (~Dec 2026), Gemini licensing framed as "partnership," "trajectory" becomes permanent eval frame, Watermelon absorbs Avocado shortcomings, Zuckerberg will never use "trust" as named strategic variable
 
 ## Dungeon Crawl Game
 
