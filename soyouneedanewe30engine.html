@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>So You Need a New E30 Engine</title>
+<meta name="description" content="A mid-race engine swap decision guide for 24 Hours of Lemons BMW E30 teams who make bad life choices.">
+<meta property="og:title" content="So You Need a New E30 Engine">
+<meta property="og:description" content="10 engine swap options rated on 5 metrics. Some serious. Some terrible. All real.">
+<style>
+@keyframes flicker { 0%,100%{opacity:1} 50%{opacity:0.97} }
+@keyframes slideUp { from{transform:translateY(30px);opacity:0} to{transform:translateY(0);opacity:1} }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.02)} }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Courier New',monospace;background:#0a0a0a;color:#ddd;min-height:100vh}
+::selection{background:#ff4444;color:#000}
+
+/* Header */
+.hero{text-align:center;padding:60px 20px 40px;background:linear-gradient(180deg,#1a0a0a 0%,#0a0a0a 100%);border-bottom:2px solid #222}
+.hero h1{font-size:clamp(1.8rem,5vw,3.5rem);color:#fff;text-transform:uppercase;letter-spacing:3px;margin-bottom:8px;text-shadow:0 0 40px rgba(255,68,68,0.3)}
+.hero .subtitle{color:#888;font-size:clamp(0.8rem,2vw,1.1rem);max-width:600px;margin:0 auto 24px;line-height:1.5}
+.hero .rip{display:inline-block;background:#ff4444;color:#000;padding:6px 16px;font-weight:bold;font-size:0.85rem;letter-spacing:2px;margin-bottom:20px}
+.hero .context{color:#666;font-size:0.85rem;max-width:500px;margin:0 auto;line-height:1.4}
+
+/* Controls */
+.controls{position:sticky;top:0;z-index:100;background:#0a0a0aee;backdrop-filter:blur(10px);border-bottom:1px solid #222;padding:12px 20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;align-items:center}
+.controls button{background:#1a1a1a;border:1px solid #333;color:#aaa;padding:8px 16px;cursor:pointer;font-family:inherit;font-size:0.8rem;transition:all 0.15s;border-radius:4px}
+.controls button:hover{border-color:#666;color:#fff}
+.controls button.active{border-color:#ff4444;color:#ff4444;background:#1a0a0a}
+.controls button.active-green{border-color:#3ddc84;color:#3ddc84;background:#0a1a0f}
+.tell-me{background:#ff4444!important;color:#000!important;border-color:#ff4444!important;font-weight:bold;animation:pulse 2s infinite;letter-spacing:1px}
+.tell-me:hover{background:#ff6666!important}
+
+/* Cards */
+.cards{max-width:900px;margin:0 auto;padding:20px}
+.section-header{font-size:1.4rem;color:#fff;padding:30px 0 15px;border-bottom:1px solid #222;margin-bottom:20px;letter-spacing:2px}
+.section-header.serious{color:#3ddc84;border-color:#3ddc8433}
+.section-header.terrible{color:#ff4444;border-color:#ff444433}
+
+.swap-card{background:#111;border:1px solid #222;border-radius:8px;margin-bottom:20px;overflow:hidden;animation:slideUp 0.4s ease;transition:all 0.2s}
+.swap-card:hover{border-color:#444;transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,0.4)}
+.swap-card[data-category="terrible"]{border-left:3px solid #ff4444}
+.swap-card[data-category="serious"]{border-left:3px solid #3ddc84}
+
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;padding:16px 20px;border-bottom:1px solid #1a1a1a}
+.card-title-block h3{font-size:1.1rem;color:#fff;margin:4px 0}
+.nickname{color:#888;font-size:0.85rem;font-style:italic}
+.card-hp{font-size:2rem;color:#fff;font-weight:bold;line-height:1;white-space:nowrap}
+.card-hp span{font-size:0.7rem;color:#666;display:block;text-align:right}
+
+.badge-serious{background:#3ddc8422;color:#3ddc84;padding:2px 8px;font-size:0.65rem;letter-spacing:2px;border:1px solid #3ddc8444;border-radius:3px}
+.badge-terrible{background:#ff444422;color:#ff4444;padding:2px 8px;font-size:0.65rem;letter-spacing:2px;border:1px solid #ff444444;border-radius:3px}
+
+.card-body{display:flex;padding:16px 20px;gap:20px}
+.card-left{flex:1;min-width:0}
+.card-right{width:180px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px}
+
+.swap-desc{color:#bbb;font-size:0.85rem;line-height:1.6;margin-bottom:10px}
+.swap-quote{color:#ff4444;font-size:0.8rem;font-style:italic;margin-bottom:12px;padding-left:10px;border-left:2px solid #ff444444}
+.swap-card[data-category="serious"] .swap-quote{color:#3ddc84;border-color:#3ddc8444}
+.swap-meta{font-size:0.75rem;color:#777;display:flex;flex-direction:column;gap:3px}
+.swap-meta strong{color:#999}
+
+.radar{width:140px;height:140px}
+.bars-view{display:none;width:100%}
+.metric-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:0.7rem}
+.metric-label{width:60px;color:#888;text-align:right;flex-shrink:0}
+.metric-bar{flex:1;height:6px;background:#1a1a1a;border-radius:3px;overflow:hidden}
+.metric-fill{height:100%;border-radius:3px;transition:width 0.5s ease}
+.metric-val{width:16px;color:#aaa;text-align:right}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;justify-content:center;align-items:center}
+.modal-overlay.show{display:flex}
+.modal{background:#111;border:2px solid #3ddc84;border-radius:12px;padding:30px;max-width:500px;margin:20px;text-align:center;animation:slideUp 0.3s ease}
+.modal h2{color:#3ddc84;font-size:1.5rem;margin-bottom:12px}
+.modal p{color:#bbb;font-size:0.9rem;line-height:1.6;margin-bottom:8px}
+.modal .pick{font-size:1.8rem;color:#fff;margin:16px 0}
+.modal button{background:#3ddc84;color:#000;border:none;padding:10px 24px;font-family:inherit;font-weight:bold;cursor:pointer;border-radius:4px;margin-top:12px}
+
+/* Geo easter egg */
+.geo-egg{display:none;background:#ff4444;color:#000;padding:16px;margin-top:10px;border-radius:6px;font-weight:bold;text-align:center;animation:slideUp 0.3s}
+
+/* Footer */
+.footer{text-align:center;padding:40px 20px;color:#444;font-size:0.75rem;border-top:1px solid #1a1a1a;margin-top:40px}
+.footer a{color:#666}
+
+/* Sonoma parts section */
+.parts-section{max-width:900px;margin:0 auto;padding:20px}
+.parts-card{background:#111;border:1px solid #222;border-left:3px solid #38bdf8;border-radius:8px;padding:16px 20px;margin-bottom:12px}
+.parts-card h4{color:#38bdf8;font-size:0.95rem;margin-bottom:4px}
+.parts-card p{color:#999;font-size:0.8rem;line-height:1.5}
+.parts-card .parts-meta{display:flex;gap:16px;margin-top:6px;font-size:0.75rem;color:#666}
+.parts-card .parts-meta span{display:inline-flex;align-items:center;gap:4px}
+
+/* Responsive */
+@media(max-width:640px){
+    .card-body{flex-direction:column}
+    .card-right{width:100%;flex-direction:row;justify-content:center}
+    .radar{width:120px;height:120px}
+    .hero h1{letter-spacing:1px}
+    .controls{gap:6px}
+    .controls button{padding:6px 10px;font-size:0.7rem}
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+    <div class="rip">R.I.P. YOUR M20 &mdash; DIED MID-RACE 2026</div>
+    <h1>So You Need a New E30 Engine</h1>
+    <p class="subtitle">A mid-race decision-making guide for people who make bad life choices</p>
+    <p class="context">Your friend's E30 just died at Lemons. The engine is toast. The race is tomorrow.<br>Here are your options, rated on 5 critical metrics.</p>
+</div>
+
+<div class="controls">
+    <button onclick="filterAll()" class="active" id="btn-all">ALL (10)</button>
+    <button onclick="filterCat('serious')" id="btn-serious">SERIOUS (5)</button>
+    <button onclick="filterCat('terrible')" id="btn-terrible">TERRIBLE (5)</button>
+    <button onclick="sortBy(0)" title="Sort by junkyard availability">🔧</button>
+    <button onclick="sortBy(1)" title="Sort by budget">💰</button>
+    <button onclick="sortBy(2)" title="Sort by difficulty">🤬</button>
+    <button onclick="sortBy(3)" title="Sort by race competitiveness">🏁</button>
+    <button onclick="sortBy(4)" title="Sort by paddock clout">😂</button>
+    <button onclick="showModal()" class="tell-me">JUST TELL ME WHAT TO DO</button>
+</div>
+
+<div class="cards" id="cards-container">
+    <h2 class="section-header serious" id="header-serious">&#9881; SERIOUS OPTIONS</h2>
+    <div class="swap-card" data-category="serious" data-scores="9,10,2,7,2" data-total="30">
+        <div class="card-header">
+            <div class="card-title-block">
+                <span class="badge-serious">SERIOUS</span>
+                <h3>#1. M20B25</h3>
+                <p class="nickname">"Another One"</p>
+            </div>
+            <div class="card-hp">170<span>hp</span></div>
+        </div>
+        <div class="card-body">
+            <div class="card-left">
+                <p class="swap-desc">The obvious answer. Bolt-in, weekend job, back on track Monday. Your crew chief will thank you. The paddock will not remember your name.</p>
+                <p class="swap-quote">"It's not exciting, but neither is winning."</p>
+                <div class="swap-meta">
+                    <div><strong>Source:</strong> Every E30 325i at the yard</div>
+                    <div><strong>Engine cost:</strong> $200–400</div>
+                    <div><strong>Total swap:</strong> ~$700</div>
+                </div>
+            </div>
+            <div class="card-right">
+                <svg viewBox="0 0 140 140" class="radar">
+<polygon points="70.0,56.2 56.9,65.8 61.9,81.1 78.1,81.1 83.1,65.8" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,42.5 43.8,61.5 53.8,92.2 86.2,92.2 96.2,61.5" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,28.8 30.8,57.3 45.8,103.4 94.2,103.4 109.2,57.3" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,15.0 17.7,53.0 37.7,114.5 102.3,114.5 122.3,53.0" fill="none" stroke="#333" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="70.0" y2="15.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="17.7" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="37.7" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="102.3" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="122.3" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<polygon points="70.0,20.5 17.7,53.0 63.5,78.9 92.6,101.1 80.5,66.6" fill="#3ddc84" fill-opacity="0.25" stroke="#3ddc84" stroke-width="2"/>
+<circle cx="70.0" cy="20.5" r="3" fill="#3ddc84"/>
+<text x="70.0" y="3.0" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">9</text>
+<circle cx="17.7" cy="53.0" r="3" fill="#3ddc84"/>
+<text x="6.3" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">10</text>
+<circle cx="63.5" cy="78.9" r="3" fill="#3ddc84"/>
+<text x="30.6" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">2</text>
+<circle cx="92.6" cy="101.1" r="3" fill="#3ddc84"/>
+<text x="109.4" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">7</text>
+<circle cx="80.5" cy="66.6" r="3" fill="#3ddc84"/>
+<text x="133.7" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">2</text>
+</svg>
+                <div class="bars-view"><div class="metric-row">
+            <span class="metric-label">🔧 Junkyard</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:90%;background:#3ddc84"></div></div>
+            <span class="metric-val">9</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">💰 Budget</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:100%;background:#3ddc84"></div></div>
+            <span class="metric-val">10</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🤬 Difficulty</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:20%;background:#3ddc84"></div></div>
+            <span class="metric-val">2</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🏁 Race</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:70%;background:#3ddc84"></div></div>
+            <span class="metric-val">7</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">😂 Clout</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:20%;background:#3ddc84"></div></div>
+            <span class="metric-val">2</span>
+        </div>
+</div>
+            </div>
+        </div>
+    </div>
+<div class="swap-card" data-category="serious" data-scores="7,9,3,5,3" data-total="27">
+        <div class="card-header">
+            <div class="card-title-block">
+                <span class="badge-serious">SERIOUS</span>
+                <h3>#2. M42B18</h3>
+                <p class="nickname">"The Overachiever's Four-Banger"</p>
+            </div>
+            <div class="card-hp">134<span>hp</span></div>
+        </div>
+        <div class="card-body">
+            <div class="card-left">
+                <p class="swap-desc">DOHC 4-cylinder that revs like it has somewhere to be. Lighter than the six, so your E30 finally rotates properly. 134hp doesn't sound like much until you remember the car weighs less than your excuses.</p>
+                <p class="swap-quote">"It's not about horsepower. It's about power-to-excuse ratio."</p>
+                <div class="swap-meta">
+                    <div><strong>Source:</strong> 318is (E30/E36)</div>
+                    <div><strong>Engine cost:</strong> $300–500</div>
+                    <div><strong>Total swap:</strong> ~$1,700</div>
+                </div>
+            </div>
+            <div class="card-right">
+                <svg viewBox="0 0 140 140" class="radar">
+<polygon points="70.0,56.2 56.9,65.8 61.9,81.1 78.1,81.1 83.1,65.8" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,42.5 43.8,61.5 53.8,92.2 86.2,92.2 96.2,61.5" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,28.8 30.8,57.3 45.8,103.4 94.2,103.4 109.2,57.3" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,15.0 17.7,53.0 37.7,114.5 102.3,114.5 122.3,53.0" fill="none" stroke="#333" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="70.0" y2="15.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="17.7" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="37.7" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="102.3" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="122.3" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<polygon points="70.0,31.5 22.9,54.7 60.3,83.3 86.2,92.2 85.7,64.9" fill="#3ddc84" fill-opacity="0.25" stroke="#3ddc84" stroke-width="2"/>
+<circle cx="70.0" cy="31.5" r="3" fill="#3ddc84"/>
+<text x="70.0" y="3.0" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">7</text>
+<circle cx="22.9" cy="54.7" r="3" fill="#3ddc84"/>
+<text x="6.3" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">9</text>
+<circle cx="60.3" cy="83.3" r="3" fill="#3ddc84"/>
+<text x="30.6" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">3</text>
+<circle cx="86.2" cy="92.2" r="3" fill="#3ddc84"/>
+<text x="109.4" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">5</text>
+<circle cx="85.7" cy="64.9" r="3" fill="#3ddc84"/>
+<text x="133.7" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">3</text>
+</svg>
+                <div class="bars-view"><div class="metric-row">
+            <span class="metric-label">🔧 Junkyard</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:70%;background:#3ddc84"></div></div>
+            <span class="metric-val">7</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">💰 Budget</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:90%;background:#3ddc84"></div></div>
+            <span class="metric-val">9</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🤬 Difficulty</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:30%;background:#3ddc84"></div></div>
+            <span class="metric-val">3</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🏁 Race</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:50%;background:#3ddc84"></div></div>
+            <span class="metric-val">5</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">😂 Clout</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:30%;background:#3ddc84"></div></div>
+            <span class="metric-val">3</span>
+        </div>
+</div>
+            </div>
+        </div>
+    </div>
+<div class="swap-card" data-category="serious" data-scores="8,7,5,8,6" data-total="34">
+        <div class="card-header">
+            <div class="card-title-block">
+                <span class="badge-serious">SERIOUS</span>
+                <h3>#3. M50B25 / M52B28</h3>
+                <p class="nickname">"The Correct Answer"</p>
+            </div>
+            <div class="card-hp">189–193<span>hp</span></div>
+        </div>
+        <div class="card-body">
+            <div class="card-left">
+                <p class="swap-desc">Twin-cam six from the E36. Bolts to E30 mounts. 189-193hp of smooth, reliable power. Need a wiring harness adapter and about 4 hours of swearing at Deutsch connectors. This is what forum elders recommend while stroking their beards.</p>
+                <p class="swap-quote">"If you're reading this guide and you're not in a hurry, this is the one. You are in a hurry? Still this one."</p>
+                <div class="swap-meta">
+                    <div><strong>Source:</strong> E36 325i/328i — absolutely everywhere</div>
+                    <div><strong>Engine cost:</strong> $300–600</div>
+                    <div><strong>Total swap:</strong> ~$1,500–2,000</div>
+                </div>
+            </div>
+            <div class="card-right">
+                <svg viewBox="0 0 140 140" class="radar">
+<polygon points="70.0,56.2 56.9,65.8 61.9,81.1 78.1,81.1 83.1,65.8" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,42.5 43.8,61.5 53.8,92.2 86.2,92.2 96.2,61.5" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,28.8 30.8,57.3 45.8,103.4 94.2,103.4 109.2,57.3" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,15.0 17.7,53.0 37.7,114.5 102.3,114.5 122.3,53.0" fill="none" stroke="#333" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="70.0" y2="15.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="17.7" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="37.7" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="102.3" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="122.3" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<polygon points="70.0,26.0 33.4,58.1 53.8,92.2 95.9,105.6 101.4,59.8" fill="#3ddc84" fill-opacity="0.25" stroke="#3ddc84" stroke-width="2"/>
+<circle cx="70.0" cy="26.0" r="3" fill="#3ddc84"/>
+<text x="70.0" y="3.0" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">8</text>
+<circle cx="33.4" cy="58.1" r="3" fill="#3ddc84"/>
+<text x="6.3" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">7</text>
+<circle cx="53.8" cy="92.2" r="3" fill="#3ddc84"/>
+<text x="30.6" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">5</text>
+<circle cx="95.9" cy="105.6" r="3" fill="#3ddc84"/>
+<text x="109.4" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">8</text>
+<circle cx="101.4" cy="59.8" r="3" fill="#3ddc84"/>
+<text x="133.7" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">6</text>
+</svg>
+                <div class="bars-view"><div class="metric-row">
+            <span class="metric-label">🔧 Junkyard</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:80%;background:#3ddc84"></div></div>
+            <span class="metric-val">8</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">💰 Budget</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:70%;background:#3ddc84"></div></div>
+            <span class="metric-val">7</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🤬 Difficulty</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:50%;background:#3ddc84"></div></div>
+            <span class="metric-val">5</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🏁 Race</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:80%;background:#3ddc84"></div></div>
+            <span class="metric-val">8</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">😂 Clout</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:60%;background:#3ddc84"></div></div>
+            <span class="metric-val">6</span>
+        </div>
+</div>
+            </div>
+        </div>
+    </div>
+<div class="swap-card" data-category="serious" data-scores="5,10,1,3,1" data-total="20">
+        <div class="card-header">
+            <div class="card-title-block">
+                <span class="badge-serious">SERIOUS</span>
+                <h3>#4. M10B18</h3>
+                <p class="nickname">"The Saddest Possible Choice"</p>
+            </div>
+            <div class="card-hp">100<span>hp</span></div>
+        </div>
+        <div class="card-body">
+            <div class="card-left">
+                <p class="swap-desc">Find another M10. Swap the blocks. You know the drill because you've done this before. And before that. And you'll do it again. This is your life now. 100hp of pure acceptance.</p>
+                <p class="swap-quote">"Insanity is doing the same M10 swap and expecting different results."</p>
+                <div class="swap-meta">
+                    <div><strong>Source:</strong> Other dead E30s at the yard</div>
+                    <div><strong>Engine cost:</strong> $200–300</div>
+                    <div><strong>Total swap:</strong> ~$500</div>
+                </div>
+            </div>
+            <div class="card-right">
+                <svg viewBox="0 0 140 140" class="radar">
+<polygon points="70.0,56.2 56.9,65.8 61.9,81.1 78.1,81.1 83.1,65.8" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,42.5 43.8,61.5 53.8,92.2 86.2,92.2 96.2,61.5" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,28.8 30.8,57.3 45.8,103.4 94.2,103.4 109.2,57.3" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,15.0 17.7,53.0 37.7,114.5 102.3,114.5 122.3,53.0" fill="none" stroke="#333" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="70.0" y2="15.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="17.7" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="37.7" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="102.3" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="122.3" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<polygon points="70.0,42.5 17.7,53.0 66.8,74.4 79.7,83.3 75.2,68.3" fill="#3ddc84" fill-opacity="0.25" stroke="#3ddc84" stroke-width="2"/>
+<circle cx="70.0" cy="42.5" r="3" fill="#3ddc84"/>
+<text x="70.0" y="3.0" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">5</text>
+<circle cx="17.7" cy="53.0" r="3" fill="#3ddc84"/>
+<text x="6.3" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">10</text>
+<circle cx="66.8" cy="74.4" r="3" fill="#3ddc84"/>
+<text x="30.6" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">1</text>
+<circle cx="79.7" cy="83.3" r="3" fill="#3ddc84"/>
+<text x="109.4" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">3</text>
+<circle cx="75.2" cy="68.3" r="3" fill="#3ddc84"/>
+<text x="133.7" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">1</text>
+</svg>
+                <div class="bars-view"><div class="metric-row">
+            <span class="metric-label">🔧 Junkyard</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:50%;background:#3ddc84"></div></div>
+            <span class="metric-val">5</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">💰 Budget</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:100%;background:#3ddc84"></div></div>
+            <span class="metric-val">10</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🤬 Difficulty</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:10%;background:#3ddc84"></div></div>
+            <span class="metric-val">1</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🏁 Race</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:30%;background:#3ddc84"></div></div>
+            <span class="metric-val">3</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">😂 Clout</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:10%;background:#3ddc84"></div></div>
+            <span class="metric-val">1</span>
+        </div>
+</div>
+            </div>
+        </div>
+    </div>
+<div class="swap-card" data-category="serious" data-scores="10,2,8,9,8" data-total="37">
+        <div class="card-header">
+            <div class="card-title-block">
+                <span class="badge-serious">SERIOUS</span>
+                <h3>#5. Honda K24</h3>
+                <p class="nickname">"The Betrayal"</p>
+            </div>
+            <div class="card-hp">197<span>hp</span></div>
+        </div>
+        <div class="card-body">
+            <div class="card-left">
+                <p class="swap-desc">197hp, bulletproof, VTEC kicks in yo. The engine is $400. The swap kit from Garagistic or KPower is $3-5K. The wiring harness will make you question whether electricity was a mistake. BMW purists will disown you. Honda bros will finally respect you.</p>
+                <p class="swap-quote">"VTEC just kicked in and so did my credit card statement."</p>
+                <div class="swap-meta">
+                    <div><strong>Source:</strong> Accord, CR-V, TSX — literally every other car at Pick-n-Pull</div>
+                    <div><strong>Engine cost:</strong> $300–500 engine</div>
+                    <div><strong>Total swap:</strong> $4,000–6,000</div>
+                </div>
+            </div>
+            <div class="card-right">
+                <svg viewBox="0 0 140 140" class="radar">
+<polygon points="70.0,56.2 56.9,65.8 61.9,81.1 78.1,81.1 83.1,65.8" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,42.5 43.8,61.5 53.8,92.2 86.2,92.2 96.2,61.5" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,28.8 30.8,57.3 45.8,103.4 94.2,103.4 109.2,57.3" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,15.0 17.7,53.0 37.7,114.5 102.3,114.5 122.3,53.0" fill="none" stroke="#333" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="70.0" y2="15.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="17.7" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="37.7" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="102.3" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="122.3" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<polygon points="70.0,15.0 59.5,66.6 44.1,105.6 99.1,110.0 111.8,56.4" fill="#3ddc84" fill-opacity="0.25" stroke="#3ddc84" stroke-width="2"/>
+<circle cx="70.0" cy="15.0" r="3" fill="#3ddc84"/>
+<text x="70.0" y="3.0" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">10</text>
+<circle cx="59.5" cy="66.6" r="3" fill="#3ddc84"/>
+<text x="6.3" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">2</text>
+<circle cx="44.1" cy="105.6" r="3" fill="#3ddc84"/>
+<text x="30.6" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">8</text>
+<circle cx="99.1" cy="110.0" r="3" fill="#3ddc84"/>
+<text x="109.4" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">9</text>
+<circle cx="111.8" cy="56.4" r="3" fill="#3ddc84"/>
+<text x="133.7" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">8</text>
+</svg>
+                <div class="bars-view"><div class="metric-row">
+            <span class="metric-label">🔧 Junkyard</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:100%;background:#3ddc84"></div></div>
+            <span class="metric-val">10</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">💰 Budget</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:20%;background:#3ddc84"></div></div>
+            <span class="metric-val">2</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🤬 Difficulty</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:80%;background:#3ddc84"></div></div>
+            <span class="metric-val">8</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🏁 Race</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:90%;background:#3ddc84"></div></div>
+            <span class="metric-val">9</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">😂 Clout</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:80%;background:#3ddc84"></div></div>
+            <span class="metric-val">8</span>
+        </div>
+</div>
+            </div>
+        </div>
+    </div>
+    <h2 class="section-header terrible" id="header-terrible">&#128293; TERRIBLE IDEAS</h2>
+<div class="swap-card" data-category="terrible" data-scores="9,1,9,6,10" data-total="35">
+        <div class="card-header">
+            <div class="card-title-block">
+                <span class="badge-terrible">TERRIBLE IDEA</span>
+                <h3>#6. LS1 / LS3 V8</h3>
+                <p class="nickname">"The Nuclear Option"</p>
+            </div>
+            <div class="card-hp">350–500<span>hp</span></div>
+        </div>
+        <div class="card-body">
+            <div class="card-left">
+                <p class="swap-desc">Because nothing says 'budget racing' like cramming a 400hp Corvette motor into a car with trailing arm rear suspension. The engine costs less than the swap kit. The swap kit costs less than the diff you'll destroy in 3 laps. Your E30 becomes a terrifying, tail-happy, lead-tipped arrow that smells like freedom and burnt rubber.</p>
+                <p class="swap-quote">"The LS swap: for when you want your E30 to identify as a Corvette."</p>
+                <div class="swap-meta">
+                    <div><strong>Source:</strong> Camaro, Corvette, Silverado — America's engine</div>
+                    <div><strong>Engine cost:</strong> $500–1,000 engine</div>
+                    <div><strong>Total swap:</strong> $4,000–8,000</div>
+                </div>
+            </div>
+            <div class="card-right">
+                <svg viewBox="0 0 140 140" class="radar">
+<polygon points="70.0,56.2 56.9,65.8 61.9,81.1 78.1,81.1 83.1,65.8" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,42.5 43.8,61.5 53.8,92.2 86.2,92.2 96.2,61.5" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,28.8 30.8,57.3 45.8,103.4 94.2,103.4 109.2,57.3" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,15.0 17.7,53.0 37.7,114.5 102.3,114.5 122.3,53.0" fill="none" stroke="#333" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="70.0" y2="15.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="17.7" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="37.7" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="102.3" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="122.3" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<polygon points="70.0,20.5 64.8,68.3 40.9,110.0 89.4,96.7 122.3,53.0" fill="#ff4444" fill-opacity="0.25" stroke="#ff4444" stroke-width="2"/>
+<circle cx="70.0" cy="20.5" r="3" fill="#ff4444"/>
+<text x="70.0" y="3.0" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">9</text>
+<circle cx="64.8" cy="68.3" r="3" fill="#ff4444"/>
+<text x="6.3" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">1</text>
+<circle cx="40.9" cy="110.0" r="3" fill="#ff4444"/>
+<text x="30.6" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">9</text>
+<circle cx="89.4" cy="96.7" r="3" fill="#ff4444"/>
+<text x="109.4" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">6</text>
+<circle cx="122.3" cy="53.0" r="3" fill="#ff4444"/>
+<text x="133.7" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">10</text>
+</svg>
+                <div class="bars-view"><div class="metric-row">
+            <span class="metric-label">🔧 Junkyard</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:90%;background:#ff4444"></div></div>
+            <span class="metric-val">9</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">💰 Budget</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:10%;background:#ff4444"></div></div>
+            <span class="metric-val">1</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🤬 Difficulty</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:90%;background:#ff4444"></div></div>
+            <span class="metric-val">9</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🏁 Race</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:60%;background:#ff4444"></div></div>
+            <span class="metric-val">6</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">😂 Clout</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:100%;background:#ff4444"></div></div>
+            <span class="metric-val">10</span>
+        </div>
+</div>
+            </div>
+        </div>
+    </div>
+<div class="swap-card" data-category="terrible" data-scores="1,0,10,10,10" data-total="31">
+        <div class="card-header">
+            <div class="card-title-block">
+                <span class="badge-terrible">TERRIBLE IDEA</span>
+                <h3>#7. S38B36 (E34 M5)</h3>
+                <p class="nickname">"God Mode (Bankruptcy DLC)"</p>
+            </div>
+            <div class="card-hp">311<span>hp</span></div>
+        </div>
+        <div class="card-body">
+            <div class="card-left">
+                <p class="swap-desc">The legendary twin-cam inline-6 from the E34 M5. 311hp of Bavarian fury. Costs more than the car, the trailer, your race entry, and your divorce lawyer combined. Doesn't fit without removing A/C, power steering, and your will to live. Length-wise there is literally no room. You will need to relocate the radiator to another zip code.</p>
+                <p class="swap-quote">"I spent my kid's college fund on an engine for a Lemons car and I'd do it again."</p>
+                <div class="swap-meta">
+                    <div><strong>Source:</strong> Unobtanium — check BaT and weep</div>
+                    <div><strong>Engine cost:</strong> $3,000–8,000 engine</div>
+                    <div><strong>Total swap:</strong> $10,000–15,000</div>
+                </div>
+            </div>
+            <div class="card-right">
+                <svg viewBox="0 0 140 140" class="radar">
+<polygon points="70.0,56.2 56.9,65.8 61.9,81.1 78.1,81.1 83.1,65.8" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,42.5 43.8,61.5 53.8,92.2 86.2,92.2 96.2,61.5" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,28.8 30.8,57.3 45.8,103.4 94.2,103.4 109.2,57.3" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,15.0 17.7,53.0 37.7,114.5 102.3,114.5 122.3,53.0" fill="none" stroke="#333" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="70.0" y2="15.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="17.7" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="37.7" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="102.3" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="122.3" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<polygon points="70.0,64.5 70.0,70.0 37.7,114.5 102.3,114.5 122.3,53.0" fill="#ff4444" fill-opacity="0.25" stroke="#ff4444" stroke-width="2"/>
+<circle cx="70.0" cy="64.5" r="3" fill="#ff4444"/>
+<text x="70.0" y="3.0" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">1</text>
+<circle cx="70.0" cy="70.0" r="3" fill="#ff4444"/>
+<text x="6.3" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">0</text>
+<circle cx="37.7" cy="114.5" r="3" fill="#ff4444"/>
+<text x="30.6" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">10</text>
+<circle cx="102.3" cy="114.5" r="3" fill="#ff4444"/>
+<text x="109.4" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">10</text>
+<circle cx="122.3" cy="53.0" r="3" fill="#ff4444"/>
+<text x="133.7" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">10</text>
+</svg>
+                <div class="bars-view"><div class="metric-row">
+            <span class="metric-label">🔧 Junkyard</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:10%;background:#ff4444"></div></div>
+            <span class="metric-val">1</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">💰 Budget</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:0%;background:#ff4444"></div></div>
+            <span class="metric-val">0</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🤬 Difficulty</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:100%;background:#ff4444"></div></div>
+            <span class="metric-val">10</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🏁 Race</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:100%;background:#ff4444"></div></div>
+            <span class="metric-val">10</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">😂 Clout</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:100%;background:#ff4444"></div></div>
+            <span class="metric-val">10</span>
+        </div>
+</div>
+            </div>
+        </div>
+    </div>
+<div class="swap-card" data-category="terrible" data-scores="10,8,7,1,9" data-total="35">
+        <div class="card-header">
+            <div class="card-title-block">
+                <span class="badge-terrible">TERRIBLE IDEA</span>
+                <h3>#8. VW 1.9 TDI</h3>
+                <p class="nickname">"The Ultimate Troll Car"</p>
+            </div>
+            <div class="card-hp">90–110<span>hp</span></div>
+        </div>
+        <div class="card-body">
+            <div class="card-left">
+                <p class="swap-desc">Because what Lemons really needs is a diesel E30 that does 45mph down the straight while getting 60mpg. It will never die. It will also never win. You'll be lapped by Miatas. You'll be lapped by minivans. You'll outlast them all. At the 23-hour mark, when every other engine has grenaded, you'll still be clattering along at 4,200rpm, sipping fuel like a European grandma.</p>
+                <p class="swap-quote">"We didn't come here to win. We came here to make a point. We're not sure what point, but we're making it."</p>
+                <div class="swap-meta">
+                    <div><strong>Source:</strong> Every Jetta/Golf TDI at the yard (there are hundreds)</div>
+                    <div><strong>Engine cost:</strong> $200–400</div>
+                    <div><strong>Total swap:</strong> ~$2,000</div>
+                </div>
+            </div>
+            <div class="card-right">
+                <svg viewBox="0 0 140 140" class="radar">
+<polygon points="70.0,56.2 56.9,65.8 61.9,81.1 78.1,81.1 83.1,65.8" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,42.5 43.8,61.5 53.8,92.2 86.2,92.2 96.2,61.5" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,28.8 30.8,57.3 45.8,103.4 94.2,103.4 109.2,57.3" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,15.0 17.7,53.0 37.7,114.5 102.3,114.5 122.3,53.0" fill="none" stroke="#333" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="70.0" y2="15.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="17.7" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="37.7" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="102.3" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="122.3" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<polygon points="70.0,15.0 28.2,56.4 47.4,101.1 73.2,74.4 117.1,54.7" fill="#ff4444" fill-opacity="0.25" stroke="#ff4444" stroke-width="2"/>
+<circle cx="70.0" cy="15.0" r="3" fill="#ff4444"/>
+<text x="70.0" y="3.0" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">10</text>
+<circle cx="28.2" cy="56.4" r="3" fill="#ff4444"/>
+<text x="6.3" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">8</text>
+<circle cx="47.4" cy="101.1" r="3" fill="#ff4444"/>
+<text x="30.6" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">7</text>
+<circle cx="73.2" cy="74.4" r="3" fill="#ff4444"/>
+<text x="109.4" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">1</text>
+<circle cx="117.1" cy="54.7" r="3" fill="#ff4444"/>
+<text x="133.7" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">9</text>
+</svg>
+                <div class="bars-view"><div class="metric-row">
+            <span class="metric-label">🔧 Junkyard</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:100%;background:#ff4444"></div></div>
+            <span class="metric-val">10</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">💰 Budget</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:80%;background:#ff4444"></div></div>
+            <span class="metric-val">8</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🤬 Difficulty</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:70%;background:#ff4444"></div></div>
+            <span class="metric-val">7</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🏁 Race</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:10%;background:#ff4444"></div></div>
+            <span class="metric-val">1</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">😂 Clout</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:90%;background:#ff4444"></div></div>
+            <span class="metric-val">9</span>
+        </div>
+</div>
+            </div>
+        </div>
+    </div>
+<div class="swap-card" data-category="terrible" data-scores="4,4,10,5,10" data-total="33">
+        <div class="card-header">
+            <div class="card-title-block">
+                <span class="badge-terrible">TERRIBLE IDEA</span>
+                <h3>#9. Mazda 13B Rotary</h3>
+                <p class="nickname">"Brap Brap Brap"</p>
+            </div>
+            <div class="card-hp">160–255<span>hp</span></div>
+        </div>
+        <div class="card-body">
+            <div class="card-left">
+                <p class="swap-desc">For when you want your E30 to sound like an angry swarm of bees huffing nitrous through a kazoo. The Dorito engine. Revs to 9,000. Burns through apex seals like your team burns through friendships. It will either be the most glorious thing at the track or a $2,000 paperweight by lap 12. There is no middle ground.</p>
+                <p class="swap-quote">"Triangles are the strongest shape. Except as an engine. Then they're the most fragile shape."</p>
+                <div class="swap-meta">
+                    <div><strong>Source:</strong> RX-7 (FC/FD) — if you can find one that hasn't been hoarded</div>
+                    <div><strong>Engine cost:</strong> $400–800</div>
+                    <div><strong>Total swap:</strong> $3,000–5,000</div>
+                </div>
+            </div>
+            <div class="card-right">
+                <svg viewBox="0 0 140 140" class="radar">
+<polygon points="70.0,56.2 56.9,65.8 61.9,81.1 78.1,81.1 83.1,65.8" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,42.5 43.8,61.5 53.8,92.2 86.2,92.2 96.2,61.5" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,28.8 30.8,57.3 45.8,103.4 94.2,103.4 109.2,57.3" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,15.0 17.7,53.0 37.7,114.5 102.3,114.5 122.3,53.0" fill="none" stroke="#333" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="70.0" y2="15.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="17.7" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="37.7" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="102.3" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="122.3" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<polygon points="70.0,48.0 49.1,63.2 37.7,114.5 86.2,92.2 122.3,53.0" fill="#ff4444" fill-opacity="0.25" stroke="#ff4444" stroke-width="2"/>
+<circle cx="70.0" cy="48.0" r="3" fill="#ff4444"/>
+<text x="70.0" y="3.0" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">4</text>
+<circle cx="49.1" cy="63.2" r="3" fill="#ff4444"/>
+<text x="6.3" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">4</text>
+<circle cx="37.7" cy="114.5" r="3" fill="#ff4444"/>
+<text x="30.6" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">10</text>
+<circle cx="86.2" cy="92.2" r="3" fill="#ff4444"/>
+<text x="109.4" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">5</text>
+<circle cx="122.3" cy="53.0" r="3" fill="#ff4444"/>
+<text x="133.7" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">10</text>
+</svg>
+                <div class="bars-view"><div class="metric-row">
+            <span class="metric-label">🔧 Junkyard</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:40%;background:#ff4444"></div></div>
+            <span class="metric-val">4</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">💰 Budget</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:40%;background:#ff4444"></div></div>
+            <span class="metric-val">4</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🤬 Difficulty</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:100%;background:#ff4444"></div></div>
+            <span class="metric-val">10</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🏁 Race</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:50%;background:#ff4444"></div></div>
+            <span class="metric-val">5</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">😂 Clout</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:100%;background:#ff4444"></div></div>
+            <span class="metric-val">10</span>
+        </div>
+</div>
+            </div>
+        </div>
+    </div>
+<div class="swap-card" data-category="terrible" data-scores="6,10,6,0,11" data-total="32" id="geo-metro-card" onclick="geoClick()">
+        <div class="card-header">
+            <div class="card-title-block">
+                <span class="badge-terrible">TERRIBLE IDEA</span>
+                <h3>#10. Geo Metro 1.0L 3-cyl</h3>
+                <p class="nickname">"Peak Lemons Energy"</p>
+            </div>
+            <div class="card-hp">55<span>hp</span></div>
+        </div>
+        <div class="card-body">
+            <div class="card-left">
+                <p class="swap-desc">55 horsepower of pure, uncut chaos. Three cylinders of "why." You'll be slower than the Miatas, slower than the minivans, slower than the pace car. You will be slower than some people walking. But you will FINISH, and you'll do it while burning less fuel than everyone else's generator. The judges will either give you the Index of Effluency or have you committed.</p>
+                <p class="swap-quote">"We spent $50 on the engine and $400 on the 'SEND IT' livery. Priorities."</p>
+                <div class="swap-meta">
+                    <div><strong>Source:</strong> The saddest corner of any junkyard</div>
+                    <div><strong>Engine cost:</strong> $50–150</div>
+                    <div><strong>Total swap:</strong> ~$800</div>
+                </div>
+            </div>
+            <div class="card-right">
+                <svg viewBox="0 0 140 140" class="radar">
+<polygon points="70.0,56.2 56.9,65.8 61.9,81.1 78.1,81.1 83.1,65.8" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,42.5 43.8,61.5 53.8,92.2 86.2,92.2 96.2,61.5" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,28.8 30.8,57.3 45.8,103.4 94.2,103.4 109.2,57.3" fill="none" stroke="#333" stroke-width="0.5"/>
+<polygon points="70.0,15.0 17.7,53.0 37.7,114.5 102.3,114.5 122.3,53.0" fill="none" stroke="#333" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="70.0" y2="15.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="17.7" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="37.7" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="102.3" y2="114.5" stroke="#444" stroke-width="0.5"/>
+<line x1="70" y1="70" x2="122.3" y2="53.0" stroke="#444" stroke-width="0.5"/>
+<polygon points="70.0,37.0 17.7,53.0 50.6,96.7 70.0,70.0 122.3,53.0" fill="#ff4444" fill-opacity="0.25" stroke="#ff4444" stroke-width="2"/>
+<circle cx="70.0" cy="37.0" r="3" fill="#ff4444"/>
+<text x="70.0" y="3.0" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">6</text>
+<circle cx="17.7" cy="53.0" r="3" fill="#ff4444"/>
+<text x="6.3" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">10</text>
+<circle cx="50.6" cy="96.7" r="3" fill="#ff4444"/>
+<text x="30.6" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">6</text>
+<circle cx="70.0" cy="70.0" r="3" fill="#ff4444"/>
+<text x="109.4" y="124.2" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">0</text>
+<circle cx="122.3" cy="53.0" r="3" fill="#ff4444"/>
+<text x="133.7" y="49.3" text-anchor="middle" dominant-baseline="central" fill="#888" font-size="9">11</text>
+</svg>
+                <div class="bars-view"><div class="metric-row">
+            <span class="metric-label">🔧 Junkyard</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:60%;background:#ff4444"></div></div>
+            <span class="metric-val">6</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">💰 Budget</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:100%;background:#ff4444"></div></div>
+            <span class="metric-val">10</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🤬 Difficulty</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:60%;background:#ff4444"></div></div>
+            <span class="metric-val">6</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">🏁 Race</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:0%;background:#ff4444"></div></div>
+            <span class="metric-val">0</span>
+        </div>
+<div class="metric-row">
+            <span class="metric-label">😂 Clout</span>
+            <div class="metric-bar"><div class="metric-fill" style="width:100%;background:#ff4444"></div></div>
+            <span class="metric-val">11</span>
+        </div>
+</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="parts-section" id="sonoma-parts">
+    <h2 class="section-header" style="color:#38bdf8;border-color:#38bdf833" id="parts-header">&#128663; SONOMA AREA PARTS</h2>
+    <p style="color:#888;font-size:0.85rem;margin-bottom:16px">Places near Sonoma Raceway to source your swap engine. Call ahead &mdash; BMW parts go fast.</p>
+    <div id="parts-cards">
+        <div class="parts-card">
+            <h4>Pick-n-Pull — Vallejo</h4>
+            <p>Self-service junkyard, huge BMW inventory. Closest Pick-n-Pull to Sonoma Raceway. Bring your own tools, get dirty, save money.</p>
+            <div class="parts-meta">
+                <span>📍 1095 Laurel St, Vallejo, CA</span>
+                <span>📞 (707) 552-1260</span>
+                <span>🕐 Open 9-5 daily</span>
+            </div>
+        </div>
+        <div class="parts-card">
+            <h4>Pick-n-Pull — American Canyon</h4>
+            <p>Another solid self-service yard right off Highway 29. Sometimes has better Euro selection than Vallejo. Check their online inventory first.</p>
+            <div class="parts-meta">
+                <span>📍 5509 Broadway, American Canyon, CA</span>
+                <span>📞 (707) 643-1185</span>
+                <span>🕐 Open 9-5 daily</span>
+            </div>
+        </div>
+        <div class="parts-card">
+            <h4>Pick-n-Pull — Santa Rosa</h4>
+            <p>Larger yard, more inventory. Worth the 30-min drive from Sonoma if the closer yards are picked clean. Good E36 donor car selection.</p>
+            <div class="parts-meta">
+                <span>📍 1600 Copperhill Pkwy, Santa Rosa, CA</span>
+                <span>📞 (707) 585-7622</span>
+                <span>🕐 Open 9-5 daily</span>
+            </div>
+        </div>
+        <div class="parts-card">
+            <h4>BMW Dismantler — Rancho BMW Recycling (Rancho Cordova)</h4>
+            <p>BMW-only dismantler. They know the part numbers. They have the weird brackets. They speak E30. About 90 min from Sonoma but worth it for hard-to-find parts. Can ship overnight.</p>
+            <div class="parts-meta">
+                <span>📍 3153 Sunrise Blvd, Rancho Cordova, CA</span>
+                <span>📞 (916) 638-2880</span>
+                <span>💰 More expensive than Pick-n-Pull, but they pull it for you</span>
+            </div>
+        </div>
+        <div class="parts-card">
+            <h4>Bavarian Otto's (Berkeley)</h4>
+            <p>Legendary Bay Area BMW specialist. Used parts, rebuilt engines, decades of E30 knowledge. Call Otto, tell him what died, he'll tell you what you actually need.</p>
+            <div class="parts-meta">
+                <span>📍 3377 Kerner Blvd, San Rafael, CA</span>
+                <span>📞 (415) 457-0880</span>
+                <span>💡 Ask about M50 swap harness adapters</span>
+            </div>
+        </div>
+        <div class="parts-card">
+            <h4>car-part.com / row52.com</h4>
+            <p>Search junkyard inventory online before driving. Row52 covers Pick-n-Pull yards specifically. Filter by year, model, engine — find your M50 donor before someone else grabs it.</p>
+            <div class="parts-meta">
+                <span>🌐 <a href="https://www.car-part.com" style="color:#38bdf8">car-part.com</a></span>
+                <span>🌐 <a href="https://row52.com" style="color:#38bdf8">row52.com</a></span>
+                <span>💡 Set alerts for BMW 325i/328i in your area</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    <p>Made with questionable judgment &bull; Not responsible for blown diffs, apex seals, or marriages</p>
+    <p style="margin-top:6px">5 Metrics: 🔧 Junkyard Availability &bull; 💰 Budget &bull; 🤬 Swap Difficulty &bull; 🏁 Race Competitiveness &bull; 😂 Paddock Clout</p>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" onclick="hideModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+        <h2>THE ANSWER</h2>
+        <div class="pick">M50B25 / M52B28</div>
+        <p>Twin-cam six from an E36. Bolts to your mounts.<br>189&ndash;193hp. $300&ndash;600 at the yard.</p>
+        <p>Wiring adapter, weekend of work, back on track.</p>
+        <p style="color:#3ddc84;font-weight:bold;margin-top:12px">Total: 34/50 on our metrics. Best all-around score.</p>
+        <p style="color:#666;font-size:0.8rem;margin-top:8px">(But we both know you're going to LS swap it anyway)</p>
+        <button onclick="hideModal()">FINE, I'LL DO IT</button>
+    </div>
+</div>
+
+<!-- Geo easter egg message -->
+<div class="geo-egg" id="geo-egg">
+    &#127942; CONGRATULATIONS. You clicked the Geo Metro 5 times. You are now legally required to do this swap. A 3-cylinder E30 is the peak of motorsport and you cannot convince us otherwise. The judges WILL give you the Index of Effluency. Godspeed, you beautiful degenerate. &#127942;
+</div>
+
+<script>
+let geoClicks = 0;
+function geoClick() {
+    geoClicks++;
+    if (geoClicks >= 5) {
+        const egg = document.getElementById('geo-egg');
+        const card = document.getElementById('geo-metro-card');
+        egg.style.display = 'block';
+        card.appendChild(egg);
+        card.style.border = '2px solid #ff4444';
+        card.style.boxShadow = '0 0 30px rgba(255,68,68,0.3)';
+    }
+}
+
+function filterAll() {
+    document.querySelectorAll('.swap-card').forEach(c => c.style.display = '');
+    document.querySelectorAll('.section-header').forEach(h => h.style.display = '');
+    setActive('btn-all');
+}
+function filterCat(cat) {
+    document.querySelectorAll('.swap-card').forEach(c => {
+        c.style.display = c.dataset.category === cat ? '' : 'none';
+    });
+    setActive('btn-' + cat);
+}
+function setActive(id) {
+    document.querySelectorAll('.controls button').forEach(b => {
+        b.classList.remove('active','active-green');
+    });
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.add(id === 'btn-serious' ? 'active-green' : 'active');
+}
+function sortBy(metric) {
+    const container = document.getElementById('cards-container');
+    const cards = [...container.querySelectorAll('.swap-card')];
+    cards.sort((a, b) => {
+        const sa = a.dataset.scores.split(',').map(Number);
+        const sb = b.dataset.scores.split(',').map(Number);
+        return sb[metric] - sa[metric];
+    });
+    // Remove section headers for sorted view
+    container.querySelectorAll('.section-header').forEach(h => h.style.display = 'none');
+    cards.forEach(c => container.appendChild(c));
+}
+function showModal() { document.getElementById('modal').classList.add('show'); }
+function hideModal() { document.getElementById('modal').classList.remove('show'); }
+document.addEventListener('keydown', e => { if(e.key==='Escape') hideModal(); });
+
+// Animate bars on scroll
+const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+        if (e.isIntersecting) {
+            e.target.querySelectorAll('.metric-fill').forEach(f => {
+                f.style.width = f.style.width; // trigger reflow
+            });
+        }
+    });
+}, { threshold: 0.2 });
+document.querySelectorAll('.swap-card').forEach(c => observer.observe(c));
+</script>
+</body>
+</html>
