@@ -34,9 +34,9 @@ Use this file for durable, curated memory that should persist across sessions.
 
 ## Websites & Article Counts
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 95 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Mobile responsive overhaul 2026-03-19: story.js (progress bar, dark mode toggle), 73 files normalized to story-page wrapper, 4 responsive breakpoints.
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 89 articles, 7 journalists. FARS death rate data, IIHS ratings.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 88 articles, 6 journalists.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 98 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Mobile responsive overhaul 2026-03-19: story.js (progress bar, dark mode toggle), 73 files normalized to story-page wrapper, 4 responsive breakpoints.
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 92 articles, 7 journalists. FARS death rate data, IIHS ratings.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 93 articles, 6 journalists.
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool (1,440 questions, 3 license classes, 4 study modes, MRBD-ready via ?mrbd=1).
 
 ## Content Pipeline (gstack-inspired 5-phase)
@@ -101,6 +101,12 @@ State tracked in `drafts/status.json`.
 - **Deploy:** `echo "y" | CLOUDFLARE_API_TOKEN=... wrangler pages deploy public --project-name=technically-legal` (serves from repo root)
 - **Project docs:** README.md (pipeline bible), STATUS.md (chapter tracker), reader.js (scroll progress, reading time, keyboard nav, resume via localStorage)
 - **Status:** Ch 1 (8.6) and Ch 2 (8.6) published, hourly cron iterating Ch 3+
+
+## Zuckerberg Persona Project
+
+- File: `workspace/markzuckerberg_persona.md` — deep psychological profile/simulation
+- Iteration 13 (2026-03-21): Added Avocado Justification Arc (narrative metabolism in real-time), advance hedging behavior, performative unity management (Wang selfie on Threads), infrastructure-as-narrative ($600B data centers), Watermelon succession narrative
+- Predictive: Wang departure within 18 months (~Dec 2026), Gemini licensing framed as "partnership," "trajectory" becomes permanent eval frame, Watermelon absorbs Avocado shortcomings
 
 ## Dungeon Crawl Game
 
