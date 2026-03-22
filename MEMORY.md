@@ -34,9 +34,9 @@ Use this file for durable, curated memory that should persist across sessions.
 
 ## Websites & Article Counts
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 100 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Mobile responsive overhaul 2026-03-19: story.js (progress bar, dark mode toggle), 73 files normalized to story-page wrapper, 4 responsive breakpoints.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 100+ articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Mobile responsive overhaul 2026-03-19: story.js (progress bar, dark mode toggle), 73 files normalized to story-page wrapper, 4 responsive breakpoints.
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 93 articles, 7 journalists. FARS death rate data, IIHS ratings.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 95 articles, 6 journalists.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 96 articles, 6 journalists.
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool (1,440 questions, 3 license classes, 4 study modes, MRBD-ready via ?mrbd=1).
 
 ## Content Pipeline (gstack-inspired 5-phase)
@@ -81,7 +81,7 @@ State tracked in `drafts/status.json`.
 - `article-litf` — 2h interval, autonomous article worker for LITF
 - `article-crashreport` — 2h interval (offset 30m), autonomous for vehicle-safety
 - `article-aihome` — 2h interval (offset 1h), autonomous for aihomebuilding
-- `technically-legal-iterate` — 1h interval, chapter writing for technically.legal novel
+- `technically-legal-iterate` — daily 2 PM PT, chapter writing for technically.legal novel
 - `moltbook-litf-scan` — daily 7am PT, scans Moltbook for LITF article ideas
 - scanner-poller — every 5 min, polls Firebase RTDB for police scanner transcripts
 - moda-watch-monitor — every 30 min, searches Moda Watch Club for 4 target watches
@@ -155,3 +155,10 @@ State tracked in `drafts/status.json`.
 - Ray interested in controlling home automation from Hatch
 - Recommended Home Assistant on Mac Mini via Docker (REST API, SSH tunnel accessible)
 - No action taken yet — need to discover his existing gear (Hue? Lutron? Ecobee? etc.)
+
+## Notable Artifacts (2026-03-21)
+
+- **E30 Engine Swap Guide** — deployed at rayhe.net/soyouneedanewe30engine, 10 engine swaps with SVG radar charts, Sonoma junkyard section. For Ray's friend's E30 that died mid-race at Lemons.
+- **Siteplan Tree Overlay** — 250 Acorn Hill Rd, Olivebridge NY, 5-layer interactive map, 75.1% canopy coverage
+- **Glen's Hat Guide** — "Big Head Energy", 16 hats across 6 categories
+- **Bay Area Parent Survey** — 10-category time investment survey with parenting style classification
