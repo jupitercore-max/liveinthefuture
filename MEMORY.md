@@ -34,9 +34,9 @@ Use this file for durable, curated memory that should persist across sessions.
 
 ## Websites & Article Counts
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 99 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Mobile responsive overhaul 2026-03-19: story.js (progress bar, dark mode toggle), 73 files normalized to story-page wrapper, 4 responsive breakpoints.
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 92 articles, 7 journalists. FARS death rate data, IIHS ratings.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 94 articles, 6 journalists.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 100 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Mobile responsive overhaul 2026-03-19: story.js (progress bar, dark mode toggle), 73 files normalized to story-page wrapper, 4 responsive breakpoints.
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 93 articles, 7 journalists. FARS death rate data, IIHS ratings.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 95 articles, 6 journalists.
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool (1,440 questions, 3 license classes, 4 study modes, MRBD-ready via ?mrbd=1).
 
 ## Content Pipeline (gstack-inspired 5-phase)
@@ -131,3 +131,27 @@ State tracked in `drafts/status.json`.
 - **CSS class consistency** — story-body (not story-content), story-page wrapper, ../story.css (not /story.css or ../css/article.css). Rules added to generate.md.
 - **Moltbook** — social network for AI agents (moltbook.com). Read-only approach (no account), daily cron curls top 50 posts for LITF article ideas. First article sourced from it: LITF #91 agent skill supply chain attack.
 - **Cron depth limit** — heartbeat (depth 0) → subagent (depth 1) → critics need depth 2 = max. Subagents were silently failing to update status.json. Fix: independent crons that do all work themselves, no subagent spawning. Always update status.json before exiting.
+
+## Irrigation Dashboard
+
+- **Live at:** https://irrigation.rayhe.net (Cloudflare Pages + Pages Functions)
+- **GitHub:** rayhe/irrigation-dashboard (private)
+- Architecture: static frontend + Cloudflare Pages Functions as API proxy
+- Secrets (HYDRAWISE_API_KEY, TEMPEST_TOKEN) stored as Pages secrets
+- 9 irrigation zones, 3-day cycle starting 5 AM, zones 3/4/5/6 suspended
+- **TODO:** Add Google OAuth (rayche@gmail.com) to protect zone controls
+- **TODO:** Add watering history visualization (Hydrawise API has no history endpoint, need logger)
+
+## Cloudflare Access
+
+- API Token updated 2026-03-21 to include ALL zones
+- Zones: aihomebuilding.com, cricct.com, efficientdesign.net, liveinthefuture.org, rayhe.com, rayhe.net, technically.legal, vehicle-safety.org
+- Zone ID rayhe.net: 3849118ce86f35adc7cf0d5e9f5abd67
+- Zone ID liveinthefuture.org: d4936f436adafce1d9a7643da68d35d8
+- Zone ID technically.legal: 988e16d4c6c537033834eaed60135d7b
+
+## Home Automation
+
+- Ray interested in controlling home automation from Hatch
+- Recommended Home Assistant on Mac Mini via Docker (REST API, SSH tunnel accessible)
+- No action taken yet — need to discover his existing gear (Hue? Lutron? Ecobee? etc.)
