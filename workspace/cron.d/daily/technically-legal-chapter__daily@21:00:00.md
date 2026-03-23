@@ -61,10 +61,10 @@ Mark chapter as PUBLISHED with score and date.
 - **ZERO banned phrases:** "Dance of," "Tapestry of," "It's not just," "It's a testament," "A bold move," "In a world where," "not just...but," "serves as a," "what sets...apart," "In the rapidly," "Buckle up," "not for the faint"
 - Max 3 "The" sentence starters per page
 - Characters must sound distinct:
-  - Elena Chen: analytical, controlled, sees systems — "She didn't feel anger. She felt pattern recognition."
-  - Marcus Webb: visceral, ground-level — short sentences under pressure
-  - Alexander Kessler: systems-level, philosophical — speaks in frameworks
-  - Diane Marchetti: institutional, measured — thinks in precedent and jurisdiction
+  - Elena Marsh: analytical, controlled, sees systems — "She didn't feel anger. She felt pattern recognition."
+  - Marcus Cole: visceral, ground-level — short sentences under pressure
+  - Martin Kessler: systems-level, philosophical — speaks in frameworks
+  - David Kim: institutional, measured — thinks in precedent and jurisdiction
 - Clinical, precise prose. "A forensic report that accidentally became literature."
 - Every legal citation must be real and Googleable.
 
