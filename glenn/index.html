@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Emperor Protects — For Glenn</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; color: #d4af37; font-family: 'Georgia', serif; overflow: hidden; }
+  #info {
+    position: absolute; top: 20px; left: 0; right: 0; text-align: center; z-index: 10;
+    pointer-events: none;
+  }
+  #info h1 {
+    font-size: 2rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: #d4af37; text-shadow: 0 0 20px rgba(212,175,55,0.5);
+  }
+  #info p { font-size: 0.85rem; color: #888; margin-top: 0.5rem; letter-spacing: 0.1em; }
+  #download-btn {
+    position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 10;
+    background: linear-gradient(135deg, #d4af37, #b8860b); color: #0a0a0a;
+    border: none; padding: 14px 32px; font-size: 1rem; font-weight: bold;
+    letter-spacing: 0.1em; cursor: pointer; text-transform: uppercase;
+    font-family: 'Georgia', serif; transition: all 0.3s;
+    box-shadow: 0 0 20px rgba(212,175,55,0.3);
+  }
+  #download-btn:hover {
+    box-shadow: 0 0 40px rgba(212,175,55,0.6); transform: translateX(-50%) scale(1.05);
+  }
+  #controls-hint {
+    position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 10;
+    font-size: 0.75rem; color: #555; text-align: center; pointer-events: none;
+  }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+
+<div id="info">
+  <h1>The Emperor Protects</h1>
+  <p>For Glenn</p>
+</div>
+
+<div id="controls-hint">Drag to rotate · Scroll to zoom · Right-drag to pan</div>
+<button id="download-btn" onclick="exportSTL()">⬇ Download STL</button>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLExporter } from 'three/addons/exporters/STLExporter.js';
+
+// === SCENE SETUP ===
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a0a);
+scene.fog = new THREE.FogExp2(0x0a0a0a, 0.015);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 3, 8);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.target.set(0, 2.5, 0);
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.8;
+controls.maxPolarAngle = Math.PI * 0.85;
+controls.minDistance = 3;
+controls.maxDistance = 15;
+
+// === MATERIALS ===
+const goldMat = new THREE.MeshStandardMaterial({
+  color: 0xd4af37, metalness: 0.9, roughness: 0.25,
+  emissive: 0x332200, emissiveIntensity: 0.1
+});
+const darkGoldMat = new THREE.MeshStandardMaterial({
+  color: 0xb8860b, metalness: 0.85, roughness: 0.35,
+  emissive: 0x221100, emissiveIntensity: 0.05
+});
+const capeMat = new THREE.MeshStandardMaterial({
+  color: 0x555566, metalness: 0.0, roughness: 0.8, side: THREE.DoubleSide
+});
+const clothMat = new THREE.MeshStandardMaterial({
+  color: 0xccccbb, metalness: 0.0, roughness: 0.9, side: THREE.DoubleSide
+});
+const swordMat = new THREE.MeshStandardMaterial({
+  color: 0xcccccc, metalness: 0.95, roughness: 0.1
+});
+const gemMat = new THREE.MeshStandardMaterial({
+  color: 0x00ddaa, metalness: 0.3, roughness: 0.1, emissive: 0x00aa88, emissiveIntensity: 0.5
+});
+
+// Group for exportable model
+const modelGroup = new THREE.Group();
+scene.add(modelGroup);
+
+// === BODY / TORSO ===
+// Main torso
+const torsoGeo = new THREE.CylinderGeometry(0.7, 0.55, 1.6, 12);
+const torso = new THREE.Mesh(torsoGeo, goldMat);
+torso.position.set(0, 2.8, 0);
+modelGroup.add(torso);
+
+// Chest plate (front)
+const chestGeo = new THREE.BoxGeometry(1.2, 1.0, 0.4);
+const chest = new THREE.Mesh(chestGeo, goldMat);
+chest.position.set(0, 3.0, 0.35);
+modelGroup.add(chest);
+
+// Abdominal plates
+for (let i = 0; i < 4; i++) {
+  const abGeo = new THREE.BoxGeometry(0.9 - i * 0.08, 0.18, 0.25);
+  const ab = new THREE.Mesh(abGeo, darkGoldMat);
+  ab.position.set(0, 2.45 - i * 0.22, 0.3);
+  modelGroup.add(ab);
+}
+
+// === AQUILA (CHEST EAGLE) ===
+function createWing(side) {
+  const wingGroup = new THREE.Group();
+  for (let i = 0; i < 6; i++) {
+    const featherGeo = new THREE.BoxGeometry(0.08, 0.35 - i * 0.03, 0.05);
+    const feather = new THREE.Mesh(featherGeo, goldMat);
+    feather.position.set(side * (0.1 + i * 0.08), 0.05 + i * 0.04, 0);
+    feather.rotation.z = side * (i * 0.15);
+    wingGroup.add(feather);
+  }
+  return wingGroup;
+}
+const aquilaGroup = new THREE.Group();
+// Eagle body
+const eagleBodyGeo = new THREE.SphereGeometry(0.1, 8, 8);
+const eagleBody = new THREE.Mesh(eagleBodyGeo, goldMat);
+aquilaGroup.add(eagleBody);
+// Eagle heads (double-headed)
+for (let side of [-1, 1]) {
+  const headGeo = new THREE.SphereGeometry(0.06, 6, 6);
+  const head = new THREE.Mesh(headGeo, goldMat);
+  head.position.set(side * 0.12, 0.08, 0.02);
+  aquilaGroup.add(head);
+  // Beak
+  const beakGeo = new THREE.ConeGeometry(0.025, 0.06, 4);
+  const beak = new THREE.Mesh(beakGeo, darkGoldMat);
+  beak.position.set(side * 0.17, 0.07, 0.04);
+  beak.rotation.z = side * -0.5;
+  beak.rotation.x = -0.3;
+  aquilaGroup.add(beak);
+}
+aquilaGroup.add(createWing(1));
+aquilaGroup.add(createWing(-1));
+aquilaGroup.position.set(0, 3.15, 0.6);
+aquilaGroup.scale.set(1.2, 1.2, 1.2);
+modelGroup.add(aquilaGroup);
+
+// === BELT / WAIST ===
+const beltGeo = new THREE.CylinderGeometry(0.6, 0.55, 0.25, 12);
+const belt = new THREE.Mesh(beltGeo, darkGoldMat);
+belt.position.set(0, 2.0, 0);
+modelGroup.add(belt);
+
+// Belt buckle eagle
+const buckleGeo = new THREE.BoxGeometry(0.3, 0.2, 0.1);
+const buckle = new THREE.Mesh(buckleGeo, goldMat);
+buckle.position.set(0, 2.0, 0.55);
+modelGroup.add(buckle);
+
+// Belt gem
+const buckleGemGeo = new THREE.SphereGeometry(0.05, 8, 8);
+const buckleGem = new THREE.Mesh(buckleGemGeo, gemMat);
+buckleGem.position.set(0, 2.0, 0.62);
+modelGroup.add(buckleGem);
+
+// === LEGS ===
+for (let side of [-1, 1]) {
+  // Upper leg armor
+  const thighGeo = new THREE.CylinderGeometry(0.3, 0.25, 0.9, 8);
+  const thigh = new THREE.Mesh(thighGeo, goldMat);
+  thigh.position.set(side * 0.3, 1.4, 0);
+  modelGroup.add(thigh);
+
+  // Knee plate
+  const kneeGeo = new THREE.SphereGeometry(0.18, 8, 8);
+  const knee = new THREE.Mesh(kneeGeo, darkGoldMat);
+  knee.position.set(side * 0.3, 0.95, 0.1);
+  knee.scale.set(1, 0.7, 0.8);
+  modelGroup.add(knee);
+
+  // Knee ornament
+  const kneeSkullGeo = new THREE.SphereGeometry(0.07, 6, 6);
+  const kneeSkull = new THREE.Mesh(kneeSkullGeo, goldMat);
+  kneeSkull.position.set(side * 0.3, 0.95, 0.22);
+  modelGroup.add(kneeSkull);
+
+  // Lower leg
+  const shinGeo = new THREE.CylinderGeometry(0.22, 0.2, 0.8, 8);
+  const shin = new THREE.Mesh(shinGeo, goldMat);
+  shin.position.set(side * 0.3, 0.5, 0);
+  modelGroup.add(shin);
+
+  // Boot
+  const bootGeo = new THREE.BoxGeometry(0.3, 0.2, 0.45);
+  const boot = new THREE.Mesh(bootGeo, darkGoldMat);
+  boot.position.set(side * 0.3, 0.1, 0.05);
+  modelGroup.add(boot);
+}
+
+// === LOINCLOTH ===
+const clothShape = new THREE.Shape();
+clothShape.moveTo(-0.3, 0);
+clothShape.lineTo(0.3, 0);
+clothShape.lineTo(0.2, -1.0);
+clothShape.lineTo(-0.2, -1.0);
+clothShape.closePath();
+const clothGeo = new THREE.ExtrudeGeometry(clothShape, { depth: 0.02, bevelEnabled: false });
+const loincloth = new THREE.Mesh(clothGeo, clothMat);
+loincloth.position.set(0, 2.0, 0.45);
+modelGroup.add(loincloth);
+
+// === PAULDRONS (SHOULDER ARMOR) ===
+for (let side of [-1, 1]) {
+  const paulGroup = new THREE.Group();
+
+  // Main shoulder dome
+  const shoulderGeo = new THREE.SphereGeometry(0.45, 10, 10, 0, Math.PI * 2, 0, Math.PI * 0.6);
+  const shoulder = new THREE.Mesh(shoulderGeo, goldMat);
+  paulGroup.add(shoulder);
+
+  // Rim
+  const rimGeo = new THREE.TorusGeometry(0.38, 0.04, 6, 16, Math.PI);
+  const rim = new THREE.Mesh(rimGeo, darkGoldMat);
+  rim.rotation.x = Math.PI * 0.5;
+  rim.position.y = -0.12;
+  paulGroup.add(rim);
+
+  // Wing decorations on pauldron
+  for (let i = 0; i < 3; i++) {
+    const wingDecGeo = new THREE.BoxGeometry(0.04, 0.2 - i * 0.04, 0.08);
+    const wingDec = new THREE.Mesh(wingDecGeo, darkGoldMat);
+    wingDec.position.set(side * (0.05 + i * 0.1), 0.1, 0.3);
+    wingDec.rotation.z = side * (i * 0.2);
+    paulGroup.add(wingDec);
+  }
+
+  // Skull on pauldron center
+  const skullGeo = new THREE.SphereGeometry(0.08, 6, 6);
+  const skull = new THREE.Mesh(skullGeo, goldMat);
+  skull.position.set(0, 0.05, 0.38);
+  skull.scale.set(1, 1.2, 0.8);
+  paulGroup.add(skull);
+
+  paulGroup.position.set(side * 0.9, 3.4, 0);
+  paulGroup.rotation.z = side * 0.2;
+  modelGroup.add(paulGroup);
+}
+
+// === ARMS ===
+for (let side of [-1, 1]) {
+  // Upper arm
+  const upperArmGeo = new THREE.CylinderGeometry(0.2, 0.18, 0.7, 8);
+  const upperArm = new THREE.Mesh(upperArmGeo, goldMat);
+  upperArm.position.set(side * 0.85, 2.9, 0);
+  modelGroup.add(upperArm);
+
+  // Elbow
+  const elbowGeo = new THREE.SphereGeometry(0.15, 8, 8);
+  const elbow = new THREE.Mesh(elbowGeo, darkGoldMat);
+  elbow.position.set(side * 0.85, 2.5, 0);
+  modelGroup.add(elbow);
+
+  // Forearm
+  const forearmGeo = new THREE.CylinderGeometry(0.18, 0.15, 0.65, 8);
+  const forearm = new THREE.Mesh(forearmGeo, goldMat);
+
+  if (side === 1) {
+    // Right arm: holding sword, angled down
+    forearm.position.set(0.85, 2.1, 0.2);
+    forearm.rotation.x = 0.3;
+  } else {
+    // Left arm: raised, lightning hand
+    forearm.position.set(-0.85, 2.6, 0.5);
+    forearm.rotation.x = -0.8;
+  }
+  modelGroup.add(forearm);
+
+  // Gauntlet / Hand
+  const handGeo = new THREE.BoxGeometry(0.15, 0.2, 0.15);
+  const hand = new THREE.Mesh(handGeo, goldMat);
+  if (side === 1) {
+    hand.position.set(0.85, 1.72, 0.35);
+  } else {
+    hand.position.set(-0.85, 2.75, 0.85);
+  }
+  modelGroup.add(hand);
+
+  // Finger details
+  for (let f = 0; f < 4; f++) {
+    const fingerGeo = new THREE.CylinderGeometry(0.02, 0.015, 0.12, 4);
+    const finger = new THREE.Mesh(fingerGeo, goldMat);
+    if (side === 1) {
+      finger.position.set(0.8 + f * 0.035, 1.62, 0.35);
+    } else {
+      finger.position.set(-0.8 - f * 0.035 + 0.05, 2.82, 0.92);
+      finger.rotation.x = -0.5;
+    }
+    modelGroup.add(finger);
+  }
+}
+
+// === HEAD ===
+const headGeo = new THREE.SphereGeometry(0.32, 12, 12);
+const headMat = new THREE.MeshStandardMaterial({
+  color: 0xe8c090, metalness: 0.1, roughness: 0.6
+});
+const head = new THREE.Mesh(headGeo, headMat);
+head.position.set(0, 3.95, 0.1);
+head.scale.set(1, 1.1, 1);
+modelGroup.add(head);
+
+// Neck armor
+const neckGeo = new THREE.CylinderGeometry(0.35, 0.4, 0.3, 10);
+const neck = new THREE.Mesh(neckGeo, goldMat);
+neck.position.set(0, 3.55, 0);
+modelGroup.add(neck);
+
+// Collar / gorget
+const collarGeo = new THREE.TorusGeometry(0.4, 0.08, 6, 16);
+const collar = new THREE.Mesh(collarGeo, goldMat);
+collar.position.set(0, 3.55, 0);
+collar.rotation.x = Math.PI / 2;
+modelGroup.add(collar);
+
+// Hair
+const hairGeo = new THREE.SphereGeometry(0.3, 10, 10, 0, Math.PI * 2, 0, Math.PI * 0.55);
+const hairMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+const hair = new THREE.Mesh(hairGeo, hairMat);
+hair.position.set(0, 4.05, -0.05);
+modelGroup.add(hair);
+
+// Eyes (subtle glow)
+for (let side of [-1, 1]) {
+  const eyeGeo = new THREE.SphereGeometry(0.035, 6, 6);
+  const eyeMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff, emissive: 0xffeedd, emissiveIntensity: 0.3
+  });
+  const eye = new THREE.Mesh(eyeGeo, eyeMat);
+  eye.position.set(side * 0.1, 3.97, 0.32);
+  modelGroup.add(eye);
+}
+
+// Smile
+const smileGeo = new THREE.TorusGeometry(0.08, 0.015, 4, 12, Math.PI);
+const smileMat = new THREE.MeshStandardMaterial({ color: 0xcc8866 });
+const smile = new THREE.Mesh(smileGeo, smileMat);
+smile.position.set(0, 3.88, 0.32);
+smile.rotation.x = Math.PI;
+modelGroup.add(smile);
+
+// === LAUREL WREATH ===
+const wreathGroup = new THREE.Group();
+for (let i = 0; i < 14; i++) {
+  const angle = (i / 14) * Math.PI * 1.4 - Math.PI * 0.2;
+  const leafGeo = new THREE.BoxGeometry(0.03, 0.12, 0.02);
+  const leaf = new THREE.Mesh(leafGeo, goldMat);
+  leaf.position.set(Math.sin(angle) * 0.35, Math.cos(angle) * 0.35, 0);
+  leaf.rotation.z = -angle;
+  wreathGroup.add(leaf);
+}
+wreathGroup.position.set(0, 4.05, 0.1);
+modelGroup.add(wreathGroup);
+
+// === FLAMING SWORD ===
+const swordGroup = new THREE.Group();
+
+// Blade
+const bladeGeo = new THREE.BoxGeometry(0.08, 2.0, 0.03);
+const blade = new THREE.Mesh(bladeGeo, swordMat);
+blade.position.y = -0.5;
+swordGroup.add(blade);
+
+// Blade edge taper
+const edgeGeo = new THREE.ConeGeometry(0.04, 0.3, 4);
+const edge = new THREE.Mesh(edgeGeo, swordMat);
+edge.position.y = -1.55;
+edge.rotation.z = Math.PI;
+swordGroup.add(edge);
+
+// Cross guard
+const guardGeo = new THREE.BoxGeometry(0.35, 0.06, 0.06);
+const guard = new THREE.Mesh(guardGeo, goldMat);
+guard.position.y = 0.45;
+swordGroup.add(guard);
+
+// Guard eagle wings
+for (let side of [-1, 1]) {
+  const gWingGeo = new THREE.BoxGeometry(0.15, 0.04, 0.04);
+  const gWing = new THREE.Mesh(gWingGeo, goldMat);
+  gWing.position.set(side * 0.2, 0.5, 0);
+  gWing.rotation.z = side * 0.3;
+  swordGroup.add(gWing);
+}
+
+// Grip
+const gripGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.3, 6);
+const grip = new THREE.Mesh(gripGeo, darkGoldMat);
+grip.position.y = 0.65;
+swordGroup.add(grip);
+
+// Pommel gem
+const pommelGeo = new THREE.SphereGeometry(0.06, 8, 8);
+const pommel = new THREE.Mesh(pommelGeo, gemMat);
+pommel.position.y = 0.82;
+swordGroup.add(pommel);
+
+swordGroup.position.set(0.85, 1.5, 0.35);
+swordGroup.rotation.x = 0.1;
+swordGroup.rotation.z = 0.05;
+modelGroup.add(swordGroup);
+
+// === CAPE ===
+const capeShape = new THREE.Shape();
+capeShape.moveTo(-0.6, 0);
+capeShape.bezierCurveTo(-0.7, -0.5, -0.8, -1.5, -0.5, -2.5);
+capeShape.lineTo(0.5, -2.5);
+capeShape.bezierCurveTo(0.8, -1.5, 0.7, -0.5, 0.6, 0);
+capeShape.closePath();
+const capeGeo = new THREE.ExtrudeGeometry(capeShape, { depth: 0.03, bevelEnabled: false });
+const cape = new THREE.Mesh(capeGeo, capeMat);
+cape.position.set(0, 3.5, -0.5);
+cape.rotation.x = 0.15;
+modelGroup.add(cape);
+
+// === SUN HALO ===
+const haloGroup = new THREE.Group();
+
+// Main ring
+const ringGeo = new THREE.TorusGeometry(1.0, 0.04, 8, 48);
+const haloMat = new THREE.MeshStandardMaterial({
+  color: 0xffdd44, emissive: 0xffaa00, emissiveIntensity: 1.5,
+  metalness: 0.8, roughness: 0.2
+});
+const ring = new THREE.Mesh(ringGeo, haloMat);
+haloGroup.add(ring);
+
+// Sun rays
+for (let i = 0; i < 24; i++) {
+  const angle = (i / 24) * Math.PI * 2;
+  const rayLen = (i % 2 === 0) ? 0.5 : 0.3;
+  const rayGeo = new THREE.BoxGeometry(0.03, rayLen, 0.01);
+  const rayMat = new THREE.MeshStandardMaterial({
+    color: 0xffdd44, emissive: 0xffaa00, emissiveIntensity: 1.0
+  });
+  const ray = new THREE.Mesh(rayGeo, rayMat);
+  ray.position.set(Math.cos(angle) * (1.0 + rayLen / 2), Math.sin(angle) * (1.0 + rayLen / 2), 0);
+  ray.rotation.z = angle - Math.PI / 2;
+  haloGroup.add(ray);
+}
+
+haloGroup.position.set(0, 4.2, -0.3);
+modelGroup.add(haloGroup);
+
+// === LIGHTING ===
+const ambientLight = new THREE.AmbientLight(0x222222, 0.5);
+scene.add(ambientLight);
+
+const mainLight = new THREE.DirectionalLight(0xfff5e0, 2.0);
+mainLight.position.set(3, 8, 5);
+mainLight.castShadow = true;
+scene.add(mainLight);
+
+const fillLight = new THREE.DirectionalLight(0x8888ff, 0.3);
+fillLight.position.set(-3, 4, -2);
+scene.add(fillLight);
+
+const haloLight = new THREE.PointLight(0xffaa00, 3, 8);
+haloLight.position.set(0, 4.5, -0.2);
+scene.add(haloLight);
+
+const swordLight = new THREE.PointLight(0xff4400, 2, 5);
+swordLight.position.set(0.85, 0.5, 0.5);
+scene.add(swordLight);
+
+const lightningLight = new THREE.PointLight(0x4488ff, 2, 5);
+lightningLight.position.set(-0.85, 2.8, 1.0);
+scene.add(lightningLight);
+
+// Ground reference
+const groundGeo = new THREE.CircleGeometry(4, 32);
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.5, roughness: 0.8 });
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// === FIRE PARTICLES ===
+const fireCount = 200;
+const fireGeo2 = new THREE.BufferGeometry();
+const firePositions = new Float32Array(fireCount * 3);
+const fireSizes = new Float32Array(fireCount);
+const fireVelocities = [];
+
+for (let i = 0; i < fireCount; i++) {
+  firePositions[i * 3] = 0.85 + (Math.random() - 0.5) * 0.15;
+  firePositions[i * 3 + 1] = 0.5 + Math.random() * 1.5;
+  firePositions[i * 3 + 2] = 0.35 + (Math.random() - 0.5) * 0.15;
+  fireSizes[i] = Math.random() * 3 + 1;
+  fireVelocities.push({
+    x: (Math.random() - 0.5) * 0.01,
+    y: Math.random() * 0.03 + 0.01,
+    z: (Math.random() - 0.5) * 0.01
+  });
+}
+fireGeo2.setAttribute('position', new THREE.BufferAttribute(firePositions, 3));
+fireGeo2.setAttribute('size', new THREE.BufferAttribute(fireSizes, 1));
+
+const fireMat2 = new THREE.PointsMaterial({
+  color: 0xff6600, size: 0.06, transparent: true, opacity: 0.8,
+  blending: THREE.AdditiveBlending, depthWrite: false
+});
+const fireParticles = new THREE.Points(fireGeo2, fireMat2);
+scene.add(fireParticles);
+
+// === LIGHTNING BOLTS ===
+const lightningGroup = new THREE.Group();
+scene.add(lightningGroup);
+
+function createLightning() {
+  while (lightningGroup.children.length > 0) {
+    const c = lightningGroup.children[0];
+    c.geometry.dispose();
+    c.material.dispose();
+    lightningGroup.remove(c);
+  }
+
+  for (let b = 0; b < 3; b++) {
+    const points = [];
+    let x = -0.85, y = 2.8, z = 0.95;
+    points.push(new THREE.Vector3(x, y, z));
+    const segments = 6 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < segments; i++) {
+      x += (Math.random() - 0.5) * 0.4;
+      y += (Math.random() - 0.3) * 0.3;
+      z += (Math.random() - 0.5) * 0.3;
+      points.push(new THREE.Vector3(x, y, z));
+    }
+    const lGeo = new THREE.BufferGeometry().setFromPoints(points);
+    const lMat = new THREE.LineBasicMaterial({
+      color: 0x6699ff, transparent: true, opacity: 0.7 + Math.random() * 0.3,
+      linewidth: 2
+    });
+    lightningGroup.add(new THREE.Line(lGeo, lMat));
+  }
+}
+createLightning();
+
+// === DUST PARTICLES ===
+const dustCount = 500;
+const dustGeo = new THREE.BufferGeometry();
+const dustPos = new Float32Array(dustCount * 3);
+for (let i = 0; i < dustCount; i++) {
+  dustPos[i * 3] = (Math.random() - 0.5) * 20;
+  dustPos[i * 3 + 1] = Math.random() * 10;
+  dustPos[i * 3 + 2] = (Math.random() - 0.5) * 20;
+}
+dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+const dustMat = new THREE.PointsMaterial({
+  color: 0xd4af37, size: 0.02, transparent: true, opacity: 0.4,
+  blending: THREE.AdditiveBlending, depthWrite: false
+});
+const dust = new THREE.Points(dustGeo, dustMat);
+scene.add(dust);
+
+// === ANIMATION ===
+let lastLightning = 0;
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  // Rotate halo
+  haloGroup.rotation.z = t * 0.2;
+
+  // Pulse halo glow
+  haloLight.intensity = 3 + Math.sin(t * 2) * 1;
+
+  // Fire particles
+  const fp = fireParticles.geometry.attributes.position.array;
+  for (let i = 0; i < fireCount; i++) {
+    fp[i * 3] += fireVelocities[i].x;
+    fp[i * 3 + 1] += fireVelocities[i].y;
+    fp[i * 3 + 2] += fireVelocities[i].z;
+    // Reset when too high
+    if (fp[i * 3 + 1] > 2.2) {
+      fp[i * 3] = 0.85 + (Math.random() - 0.5) * 0.15;
+      fp[i * 3 + 1] = 0.3 + Math.random() * 0.5;
+      fp[i * 3 + 2] = 0.35 + (Math.random() - 0.5) * 0.15;
+    }
+  }
+  fireParticles.geometry.attributes.position.needsUpdate = true;
+
+  // Flicker sword light
+  swordLight.intensity = 2 + Math.sin(t * 8) * 0.5 + Math.sin(t * 13) * 0.3;
+
+  // Lightning refresh
+  if (t - lastLightning > 0.15) {
+    createLightning();
+    lastLightning = t;
+    lightningLight.intensity = 1.5 + Math.random() * 2;
+  }
+
+  // Dust drift
+  const dp = dust.geometry.attributes.position.array;
+  for (let i = 0; i < dustCount; i++) {
+    dp[i * 3 + 1] += 0.002;
+    dp[i * 3] += Math.sin(t + i) * 0.001;
+    if (dp[i * 3 + 1] > 10) dp[i * 3 + 1] = 0;
+  }
+  dust.geometry.attributes.position.needsUpdate = true;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// === STL EXPORT ===
+window.exportSTL = function() {
+  const exporter = new STLExporter();
+  const stlString = exporter.parse(modelGroup, { binary: true });
+  const blob = new Blob([stlString], { type: 'application/octet-stream' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'emperor-glenn.stl';
+  link.click();
+  URL.revokeObjectURL(link.href);
+};
+
+// === RESIZE ===
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
