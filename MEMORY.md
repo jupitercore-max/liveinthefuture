@@ -34,9 +34,10 @@ Use this file for durable, curated memory that should persist across sessions.
 
 ## Websites & Article Counts
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 111 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Mobile responsive overhaul 2026-03-19: story.js (progress bar, dark mode toggle), 73 files normalized to story-page wrapper, 4 responsive breakpoints.
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 97 articles, 7 journalists. FARS death rate data, IIHS ratings.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 101 articles, 6 journalists.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 115 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Mobile responsive overhaul 2026-03-19: story.js (progress bar, dark mode toggle), 73 files normalized to story-page wrapper, 4 responsive breakpoints.
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 99 articles, 7 journalists. FARS death rate data, IIHS ratings.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 105 articles, 6 journalists.
+- **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, 3 articles. Age switcher (Preschool→Adult), 5 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce.
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool (1,440 questions, 3 license classes, 4 study modes, MRBD-ready via ?mrbd=1).
 
 ## Content Pipeline (gstack-inspired 5-phase)
@@ -75,6 +76,10 @@ State tracked in `drafts/status.json`.
 2. Resend domain verification — add vehicle-safety.org, aihomebuilding.com at resend.com/domains (LITF verified)
 3. Play Tower Defense — 50+ features, 40+ self-critique skips waiting for human feedback
 
+## Upcoming
+
+- **Fri Mar 27 lunch** — Brent Brown and Rich, near Menlo Oaks. Calendar: free 11:00-12:15, break 12:15-1:15, Avegant 1:35-2. Suggested Café Borrone or Left Bank — awaiting Ray's pick. No emails, only phone numbers.
+
 ## Active Crons (as of 2026-03-22)
 
 - Heartbeat — 30min interval, P0 checks + lightweight maintenance only (no article dispatching)
@@ -101,13 +106,17 @@ State tracked in `drafts/status.json`.
 - **Antagonist:** Martin Kessler — started as penetration tester of American law, machine outgrew the test, now trapped
 - **Deploy:** `echo "y" | CLOUDFLARE_API_TOKEN=... wrangler pages deploy public --project-name=technically-legal` (serves from repo root)
 - **Project docs:** README.md (pipeline bible), STATUS.md (chapter tracker), reader.js (scroll progress, reading time, keyboard nav, resume via localStorage)
-- **Status:** Ch 1 (8.6) and Ch 2 (8.6) published, hourly cron iterating Ch 3+
+- **Status:** Ch 1 (8.6) and Ch 2 (8.6) published. Cron timing out at 600s limit — too short for full chapter pipeline. Ch 3-18 still TODO.
 
 ## Zuckerberg Persona Project
 
 - File: `workspace/markzuckerberg_persona.md` — deep psychological profile/simulation
 - Iteration 13 (2026-03-21): Added Avocado Justification Arc (narrative metabolism in real-time), advance hedging behavior, performative unity management (Wang selfie on Threads), infrastructure-as-narrative ($600B data centers), Watermelon succession narrative
 - Iteration 14-15 (2026-03-21): Added investor skepticism processing ($135B capex defense, asymmetric fear structure, layoffs as pressure valve, monetization bridge), ecosystem trust dynamics (serial trust extraction across 5 stakeholder classes, "trust as renewable resource" blind spot, four-phase trust cycle, Llama 4 benchmark controversy, Meta "fear culture," covenantal trust impossibility)
+- Iteration 19 (2026-03-23): Section 6 "Specific Product Intuition: The Product Evaluation Framework" — three shipping philosophy eras, dual-evaluation (data + feel, qualitative wins when they conflict), subtraction instinct, Lockdown competitive sprint pattern, 20-year product timeline, hardware bar > software bar. File ~3,500+ lines.
+- Iteration 21 (2026-03-23): Section 5r "Cultural Sensitivity & the International Calculus" — how Zuckerberg processes non-US markets through fundamentally different decision framework than domestic. Five case studies: India (Free Basics defeat, Modi courtship, Ankhi Das BJP bias), Myanmar (genocide complicity, "dozens" of moderators, NGOs dismissed), China (Mandarin learning, Xi Jinping baby naming, censorship tool, Guo Wengui suppression, Georgetown reversal), EU (€1.2B fine, AI training delay, Zuckerberg/Ek letter, "institutionalizing censorship"), Global South moderation gap (87% counter-misinfo funds on English for 9% of users, Ethiopia 2/100 languages, WhatsApp India lynchings, Vietnam 95% censorship compliance). Four-mode operating model: philanthropic framing, market access compliance, regulatory confrontation, strategic abandonment. "Free expression" as contingent Layer 2 conviction. Simulation #21 (Ethiopian civil conflict brief). File ~3,833 lines.
+- Iteration 22 (2026-03-23): Section 5s "Fatherhood as Decision Architecture: The Daughters Paradox" — how raising three daughters (Maxima, August, Aurelia) interacts with personal risk tolerance, "masculine energy" corporate rebrand, child safety politics, and builder-father identity fusion. Five sub-analyses: builder-father fusion (Dear Max letter, Sleep Box, coding at 3, cattle rancher confusion, Taylor Swift/August anecdote), MMA-fatherhood risk paradox (SEC 10-K "risk of death" filing, ACL tear, Priscilla encouraging return, risk as identity maintenance), daughters-masculine energy tension (Rogan comments, compartmentalization mechanism, Facemash shadow, hedge-as-inoculation), child safety paradox (January 2024 Senate apology to parents, $24.4M lobbying to kill KOSA, "done apologizing" shift 8 months later, screen time contradiction, whistleblower allegations), women-in-family surround pattern (three sisters + three daughters + Priscilla all accomplished, yet "masculine energy" advocacy derived from competitive/political identity not personal experience). Simulation #22 (Priscilla raises masculine energy contradiction in kitchen conversation — tests compartmentalization). Key findings: fatherhood doesn't alter corporate philosophy; child safety is only domain where personal and corporate cannot be compartmentalized; MMA risk accepted by family system; "girl dad" persona deployed selectively as humanizing content but never in connection with child safety policy. File ~4,008 lines.
+- Iteration 20 (2026-03-23): Section 5q "Relationship with the Board: The Architecture of Performative Governance" — dual-class voting control (61% via Class B), board as advisory not governing, complete composition timeline (Thiel/Andreessen inner circle → IPO professionalization → Thiel/Sandberg exits → three expansion waves: infrastructure Feb 2024, political Jan 2025, operational Apr 2025), board from 10→15 in 14 months, $190M privacy settlement as governance failure case study, "board as strategic accessory" (domain expertise, political signaling, legitimacy theater, social network), shareholder revolt pattern (68%/83%/92% overridden), isolation dynamics (no accountability mechanism, confirmation bias, Augustus parallel deepened). File ~3,645 lines.
 - Predictive: Wang departure within 18 months (~Dec 2026), Gemini licensing framed as "partnership," "trajectory" becomes permanent eval frame, Watermelon absorbs Avocado shortcomings, Zuckerberg will never use "trust" as named strategic variable
 
 ## Dungeon Crawl Game
