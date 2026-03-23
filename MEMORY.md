@@ -36,7 +36,7 @@ Use this file for durable, curated memory that should persist across sessions.
 
 - **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 111 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Mobile responsive overhaul 2026-03-19: story.js (progress bar, dark mode toggle), 73 files normalized to story-page wrapper, 4 responsive breakpoints.
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 97 articles, 7 journalists. FARS death rate data, IIHS ratings.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 106 articles, 6 journalists.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 101 articles, 6 journalists.
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool (1,440 questions, 3 license classes, 4 study modes, MRBD-ready via ?mrbd=1).
 
 ## Content Pipeline (gstack-inspired 5-phase)
@@ -75,7 +75,7 @@ State tracked in `drafts/status.json`.
 2. Resend domain verification — add vehicle-safety.org, aihomebuilding.com at resend.com/domains (LITF verified)
 3. Play Tower Defense — 50+ features, 40+ self-critique skips waiting for human feedback
 
-## Active Crons (as of 2026-03-20)
+## Active Crons (as of 2026-03-22)
 
 - Heartbeat — 30min interval, P0 checks + lightweight maintenance only (no article dispatching)
 - `article-litf` — 2h interval, autonomous article worker for LITF
@@ -85,6 +85,7 @@ State tracked in `drafts/status.json`.
 - `moltbook-litf-scan` — daily 7am PT, scans Moltbook for LITF article ideas
 - scanner-poller — every 5 min, polls Firebase RTDB for police scanner transcripts
 - moda-watch-monitor — every 30 min, searches Moda Watch Club for 4 target watches
+- `weekly-ai-roundup` — Mon 1:00 UTC (Sun 6pm PT), "Biggest Things in AI This Week" article for LITF
 
 ## Ongoing Commitments
 
@@ -162,3 +163,23 @@ State tracked in `drafts/status.json`.
 - **Siteplan Tree Overlay** — 250 Acorn Hill Rd, Olivebridge NY, 5-layer interactive map, 75.1% canopy coverage
 - **Glen's Hat Guide** — "Big Head Energy", 16 hats across 6 categories
 - **Bay Area Parent Survey** — 10-category time investment survey with parenting style classification
+
+## Cookie Club (news.eaiz.net) — Kids News Site
+
+- Created 2026-03-22, chosen name by Ray's kids
+- Theme: Blue (#4A90D9), Pink (#E88BA7), cookie motifs
+- Age switcher: Preschool → Kindergarten → Elementary → Middle School → High School → Adult
+- 3 initial articles: Saturn's Rings, Octopus, Bridges — all with 5 reading levels
+- Repo: rayhe/eaiz (PRIVATE), deployed on Cloudflare Pages
+- Domain: eaiz.net, Zone ID 8d22bf605857df93b0224a3c358e81ce
+- Editorial docs: generate.md, evaluate.md, claude.md
+
+## Glenn Emperor 3D Model
+
+- Three.js interactive viewer + STL download at rayhe.net/glenn/
+- Warhammer 40K God-Emperor style: golden armor, fire sword, lightning hand, sun halo
+
+## Email Routing TODO
+
+- Need to set up catch-all forwarding to rayche@gmail.com on ALL domains (eaiz.net, liveinthefuture.org, vehicle-safety.org, aihomebuilding.com, technically.legal, rayhe.net, rayhe.com) — none have it configured
+- Cloudflare API token lacks email routing permissions
