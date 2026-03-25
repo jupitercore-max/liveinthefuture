@@ -37,7 +37,7 @@ Use this file for durable, curated memory that should persist across sessions.
 
 - **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 123 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Mobile responsive overhaul 2026-03-19: story.js (progress bar, dark mode toggle), 73 files normalized to story-page wrapper, 4 responsive breakpoints.
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 104 articles, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 milestone on 2026-03-23.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 113 articles, 6 journalists.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 114 articles, 6 journalists.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, 6 articles (Saturn's Rings, Octopus, Bridges, Balloons, Periodic Table, Marie Curie). Age switcher (Preschool→Adult), 6 reading levels per article. 18 age-adaptive hero images. 7-year-old editor's note: "This chronicle is made by children." Zone ID 8d22bf605857df93b0224a3c358e81ce.
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool (1,440 questions, 3 license classes, 4 study modes, MRBD-ready via ?mrbd=1).
 
@@ -109,7 +109,7 @@ State tracked in `drafts/status.json`.
 - **Antagonist:** Martin Kessler — started as penetration tester of American law, machine outgrew the test, now trapped
 - **Deploy:** `echo "y" | CLOUDFLARE_API_TOKEN=... wrangler pages deploy public --project-name=technically-legal` (serves from repo root)
 - **Project docs:** README.md (pipeline bible), STATUS.md (chapter tracker), reader.js (scroll progress, reading time, keyboard nav, resume via localStorage)
-- **Status:** Ch 1 (8.6) and Ch 2 (8.6) and Ch 3 (8.7 "The Revolving Door") published. Ch 3 published 2026-03-23: Sarah Park MINOTAUR patent troll, Elena discovers GOLEM, "One organism. Six organs." Cron timing out at 600s limit — too short for full chapter pipeline. Ch 4-18 still TODO.
+- **Status:** Ch 1 (8.6) and Ch 2 (8.6) and Ch 3 (8.7 "The Revolving Door") and Ch 4 (8.8 "Legal Architecture") published. Ch 4 published 2026-03-25: Elena meets James Okafor (ProPublica), Kessler strategy meeting reveals all 6 portfolio managers, "compliance engineering" named, GOLEM activates against James with 3 suits in 3 states. Ch 4-18 still TODO.
 
 ## Zuckerberg Persona Project
 
