@@ -147,6 +147,7 @@ def strip_ansi(text: str) -> str:
 
 class BotState(Enum):
     CONNECTING = auto()
+    LOGIN_ANSI = auto()
     LOGIN_NAME = auto()
     LOGIN_PASSWORD = auto()
     LOGIN_CONFIRM_NAME = auto()
@@ -269,7 +270,7 @@ class StormgateBot:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.settimeout(RECV_TIMEOUT)
         self.sock.connect((self.host, self.port))
-        self.state = BotState.LOGIN_NAME
+        self.state = BotState.LOGIN_ANSI
         self.last_activity_time = time.time()
         self.log.info("Connected!")
 
@@ -547,25 +548,39 @@ class StormgateBot:
     def handle_login(self, text: str):
         """Handle the character creation / login flow."""
         text_lower = text.lower()
+        self.log.debug(f"LOGIN STATE={self.state.name} | text={text[:200]}")
 
         # Detect prompts and respond
-        if self.state == BotState.LOGIN_NAME:
+        if self.state == BotState.LOGIN_ANSI:
+            # GMCP negotiation auto-skips ANSI on this MUD (comm.c checks
+            # CON_GET_ANSI during IAC processing). Don't send "yes" — just
+            # wait for the name prompt which comes after GMCP handshake.
+            if "by what name" in text_lower or "shall you be known" in text_lower:
+                self.send(CHAR_NAME)
+                self.state = BotState.LOGIN_PASSWORD
+            elif "ansi" in text_lower and "gmcp" not in text_lower:
+                # Only answer ANSI if GMCP didn't auto-skip it
+                if not self.gmcp_enabled:
+                    self.send("yes")
+                self.state = BotState.LOGIN_NAME
+
+        elif self.state == BotState.LOGIN_NAME:
             if "by what name" in text_lower or "your name" in text_lower or \
-               "character name" in text_lower or "login" in text_lower or \
-               "welcome" in text_lower:
+               "character name" in text_lower or "login" in text_lower:
                 self.send(CHAR_NAME)
                 self.state = BotState.LOGIN_PASSWORD
 
         elif self.state == BotState.LOGIN_PASSWORD:
-            if "password" in text_lower:
-                if "new character" in text_lower or "did i get" in text_lower or \
-                   "confirm" in text_lower:
-                    # New character — confirm name first
+            if "did i get that right" in text_lower:
+                self.send("y")
+                # Stay in LOGIN_PASSWORD — next prompt will be password or new char
+            elif "password" in text_lower:
+                if "new character" in text_lower or "new to" in text_lower or \
+                   "give me a password" in text_lower or "new password" in text_lower:
                     self.is_new_character = True
-                    self.state = BotState.LOGIN_CONFIRM_NAME
-                    self.send("y")
+                    self.send(CHAR_PASSWORD)
+                    self.state = BotState.LOGIN_NEW_PASSWORD
                 else:
-                    # Existing character
                     self.send(CHAR_PASSWORD)
                     self.state = BotState.PLAYING
 
@@ -580,27 +595,40 @@ class StormgateBot:
                 self.state = BotState.LOGIN_RACE
 
         elif self.state == BotState.LOGIN_RACE:
-            if "race" in text_lower or "what race" in text_lower:
-                self.send(CHAR_RACE)
+            if "press return" in text_lower or "press enter" in text_lower or \
+               "continue" in text_lower:
+                self.send("")
+            elif "are you sure" in text_lower:
+                self.send("y")
                 self.state = BotState.LOGIN_SEX
+            elif "not a race" in text_lower or "what is your race" in text_lower:
+                self.send("Giant")  # Try exact casing
+            elif "race" in text_lower or "select" in text_lower:
+                self.send("Giant")
+                # Don't advance state yet — wait for "are you sure"
 
         elif self.state == BotState.LOGIN_SEX:
-            if "sex" in text_lower or "gender" in text_lower:
-                self.send(CHAR_SEX)
+            if "sex" in text_lower or "gender" in text_lower or "(m/f/n)" in text_lower:
+                self.send("m")
                 self.state = BotState.LOGIN_CLASS
+            elif "press return" in text_lower or "continue" in text_lower:
+                self.send("")
 
         elif self.state == BotState.LOGIN_CLASS:
-            if "class" in text_lower or "what is your class" in text_lower:
-                self.send(CHAR_CLASS)
-                self.state = BotState.LOGIN_CONFIRM_CLASS
-
-        elif self.state == BotState.LOGIN_CONFIRM_CLASS:
-            if "is this the class" in text_lower:
+            if "press return" in text_lower or "continue" in text_lower:
+                self.send("")
+            elif "are you sure" in text_lower or "is this the class" in text_lower:
                 self.send("y")
                 self.state = BotState.LOGIN_MULTICLASS_CHOICE
+            elif "not a class" in text_lower:
+                self.send("Warrior")
+            elif "class" in text_lower or "select" in text_lower or "profession" in text_lower:
+                self.send("Warrior")
 
         elif self.state == BotState.LOGIN_MULTICLASS_CHOICE:
-            if "multiclass" in text_lower and "?" in text:
+            if "press return" in text_lower or "continue" in text_lower:
+                self.send("")
+            elif "multiclass" in text_lower or "dual" in text_lower:
                 if CHAR_MULTICLASS:
                     self.send("y")
                     self.state = BotState.LOGIN_MULTICLASS_SELECT
@@ -609,35 +637,65 @@ class StormgateBot:
                     self.state = BotState.LOGIN_RELIGION
 
         elif self.state == BotState.LOGIN_MULTICLASS_SELECT:
-            if "select" in text_lower or "chose" in text_lower or "choose" in text_lower:
-                self.send(CHAR_MULTICLASS)
-                self.state = BotState.LOGIN_CONFIRM_MULTICLASS
-
-        elif self.state == BotState.LOGIN_CONFIRM_MULTICLASS:
-            if "is this the class" in text_lower:
+            if "press return" in text_lower or "continue" in text_lower:
+                self.send("")
+            elif "are you sure" in text_lower or "is this the class" in text_lower:
                 self.send("y")
                 self.state = BotState.LOGIN_RELIGION
+            elif "not a class" in text_lower:
+                self.send("Cleric")
+            elif "select" in text_lower or "chose" in text_lower or \
+                 "choose" in text_lower or "class" in text_lower:
+                self.send("Cleric")
 
         elif self.state == BotState.LOGIN_RELIGION:
-            if "religion" in text_lower or "deity" in text_lower or "god" in text_lower:
+            if "press return" in text_lower or "continue" in text_lower:
+                self.send("")
+            elif "religion" in text_lower or "deity" in text_lower or "god" in text_lower or \
+                 "worship" in text_lower or "faith" in text_lower:
                 if CHAR_RELIGION:
                     self.send(CHAR_RELIGION)
                 else:
-                    self.send("1")  # Pick first religion
+                    self.send("a")  # Pick first religion (letter-based)
                 self.state = BotState.LOGIN_CONFIRM_RELIGION
+            elif "welcome" in text_lower or "you are standing" in text_lower or \
+                 "exits:" in text_lower:
+                self.state = BotState.PLAYING
+                self.log.info("✅ Logged in and playing!")
 
         elif self.state == BotState.LOGIN_CONFIRM_RELIGION:
-            if "is this" in text_lower or "confirm" in text_lower:
+            if "not a religion" in text_lower or "what is your religion" in text_lower:
+                self.send("a")
+            elif "are you sure" in text_lower or "is this" in text_lower or "confirm" in text_lower:
                 self.send("y")
                 self.state = BotState.LOGIN_MOTD
+            elif "press return" in text_lower or "continue" in text_lower:
+                self.send("")
+            elif "welcome" in text_lower or "exits:" in text_lower or \
+                 "motd" in text_lower or "you are standing" in text_lower:
+                self.state = BotState.PLAYING
+                self.log.info("✅ Logged in and playing!")
 
         elif self.state == BotState.LOGIN_MOTD:
-            pass  # Will transition to PLAYING below
+            if "press return" in text_lower or "continue" in text_lower:
+                self.send("")
+            elif "strength" in text_lower and ("|a" in text_lower or "|b" in text_lower):
+                # Stat roll selection — pick highest STR column
+                self.send("c")
+            elif "attributes you desire" in text_lower:
+                self.send("y")
+            elif "pkill" in text_lower or "player killer" in text_lower or \
+                 "pk " in text_lower:
+                self.send("n")  # No PK for solo grinder
+            elif "peaceful" in text_lower:
+                self.send("y")  # Yes, confirm peaceful
+            elif "welcome" in text_lower or "exits:" in text_lower or \
+                 "you are standing" in text_lower:
+                self.state = BotState.PLAYING
+                self.log.info("✅ Logged in and playing!")
+            # Will transition to PLAYING via prompt detection below
 
         # Generic: detect when we're in the game
-        if "press return" in text_lower or "hit return" in text_lower:
-            self.send("")
-
         if "motd" in text_lower or "message of the day" in text_lower:
             self.send("")
             self.state = BotState.LOGIN_MOTD
