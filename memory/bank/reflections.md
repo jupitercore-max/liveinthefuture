@@ -887,3 +887,8 @@
 - Group Research supergroup chat_id: -1003803468720, added to allowlist (src: memory/2026-03-24.md:58)
 - Telegram enabled in home.yaml, DM + group support (src: memory/2026-03-24.md:57)
 - Created Telegram bot @FactoryFactoryBot via BotFather (src: memory/2026-03-24.md:54)
+- AIH: ai-scheduling article in SHIP phase, gated (already published today) (src: memory/2026-03-25.md:10)
+- LITF: mRNA cancer vaccine article in CRITIQUE phase (src: memory/2026-03-25.md:9)
+- **AIH #112:** "Your Grading Sub Needs 47 Days to Hire an Operator. The Robot Needs 6 Hours to Set Up." — Jake Kowalski, avg 8.75 (src: memory/2026-03-25.md:6)
+- **VS #104:** "FSD Is Trying to Replace the Safest Drivers in America" — Mia Crumplezone, published 14:30 UTC (src: memory/2026-03-25.md:5)
+- **LITF #122:** "2 Million Drone Deliveries, Zero Fatalities: Autonomous Aviation Arrived Before Autonomous Driving" — Priya Desai, avg 8.83 (src: memory/2026-03-25.md:4)
