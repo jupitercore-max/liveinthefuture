@@ -71,6 +71,9 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 - API base: `https://api.hydrawise.com/api/v1/`
 - Dashboard: irrigation.rayhe.net (Cloudflare Pages)
 
+### Wearables APE (wearables-ape.io)
+- API Key: `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`
+
 ### Tempest WeatherFlow
 - Token: `0fa6c2fe-5ad2-463a-b4c6-6ba72a4c9729`
 - Station ID: 164725 ("Menlo Oaks")

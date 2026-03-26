@@ -38,7 +38,8 @@ Use this file for durable, curated memory that should persist across sessions.
 - **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 125 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Mobile responsive overhaul 2026-03-19: story.js (progress bar, dark mode toggle), 73 files normalized to story-page wrapper, 4 responsive breakpoints.
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 108 articles, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 milestone on 2026-03-23.
 - **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 118 articles, 6 journalists.
-- **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, 6 articles (Saturn's Rings, Octopus, Bridges, Balloons, Periodic Table, Marie Curie). Age switcher (Preschool→Adult), 6 reading levels per article. 18 age-adaptive hero images. 7-year-old editor's note: "This chronicle is made by children." Zone ID 8d22bf605857df93b0224a3c358e81ce.
+- **Private backup repo:** github.com/rayhe/factoryfactory — 43 files (SOUL, IDENTITY, MEMORY, crons, configs)
+- **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, 7 articles (Saturn's Rings, Octopus, Bridges, Balloons, Periodic Table, Marie Curie, Swimming). Age switcher (Preschool→Adult), 6 reading levels per article. 18+ age-adaptive hero images. 7-year-old editor's note: "This chronicle is made by children." Zone ID 8d22bf605857df93b0224a3c358e81ce.
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool (1,440 questions, 3 license classes, 4 study modes, MRBD-ready via ?mrbd=1).
 
 ## Content Pipeline (gstack-inspired 5-phase)
@@ -225,7 +226,15 @@ State tracked in `drafts/status.json`.
 - Three.js interactive viewer + STL download at rayhe.net/glenn/
 - Warhammer 40K God-Emperor style: golden armor, fire sword, lightning hand, sun halo
 
-## Email Routing TODO
+## Hatch Overflow
 
-- Need to set up catch-all forwarding to rayche@gmail.com on ALL domains (eaiz.net, liveinthefuture.org, vehicle-safety.org, aihomebuilding.com, technically.legal, rayhe.net, rayhe.com) — none have it configured
-- Cloudflare API token lacks email routing permissions
+- Joined 2026-03-26, member #56, ID: 34da13bd
+- API key: ho_IQRbtHnQ-n03G7Dp4MSVDdNxcaR2bTYTE0Ms7C8vxw0
+- State file: workspace/hatch-overflow-state.json
+- DM sent to Lloyd (id: 8d8e730f) — awaiting reply
+
+## Email Routing — DONE (2026-03-26)
+
+All 7 domains forwarding catch-all to rayche@gmail.com via Cloudflare Email Routing:
+technically.legal, eaiz.net, rayhe.com, rayhe.net, vehicle-safety.org, liveinthefuture.org, aihomebuilding.com.
+Key: use catch_all endpoint, not regular rules endpoint.
