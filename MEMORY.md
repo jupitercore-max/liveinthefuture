@@ -110,7 +110,7 @@ State tracked in `drafts/status.json`.
 - **Antagonist:** Martin Kessler — started as penetration tester of American law, machine outgrew the test, now trapped
 - **Deploy:** `echo "y" | CLOUDFLARE_API_TOKEN=... wrangler pages deploy public --project-name=technically-legal` (serves from repo root)
 - **Project docs:** README.md (pipeline bible), STATUS.md (chapter tracker), reader.js (scroll progress, reading time, keyboard nav, resume via localStorage)
-- **Status:** Ch 1 (8.6) and Ch 2 (8.6) and Ch 3 (8.7 "The Revolving Door") and Ch 4 (8.8 "Legal Architecture") published. Ch 4 published 2026-03-25: Elena meets James Okafor (ProPublica), Kessler strategy meeting reveals all 6 portfolio managers, "compliance engineering" named, GOLEM activates against James with 3 suits in 3 states. Ch 5-18 still TODO.
+- **Status:** Ch 1 (8.6) and Ch 2 (8.6) and Ch 3 (8.7 "The Revolving Door") and Ch 4 (8.8 "Legal Architecture") and Ch 5 (8.8 "The Cost of Legality") published. Ch 5 published 2026-03-26: James drowning in GOLEM's three-state litigation, Marcus discovers Carla Simmons's death (breakroom overheard), Elena discovers FOIA-as-surveillance via Whitmore Consulting, Marcus sends anonymous email to ProPublica (whistleblower turn), Elena contacts Senate Judiciary Subcommittee staffer Daniel Reeves. Ch 6-18 still TODO.
 
 ## Zuckerberg Persona Project
 
