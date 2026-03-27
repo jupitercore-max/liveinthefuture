@@ -82,7 +82,7 @@ State tracked in `drafts/status.json`.
 2. Resend domain verification — add vehicle-safety.org, aihomebuilding.com at resend.com/domains
 3. Play Tower Defense — 50+ features, 40+ self-critique skips waiting for human feedback
 4. Best Buy Totaltech laptop screen claim — kids damaged screen, covers accidental damage, $49-$99 deductible
-5. Fix CSS on vehicle-safety.org/stories/hi-vis-invisible-to-aeb (Ray flagged)
+5. Sign Davey Tree Service contract — tussock moth treatment, 6 live oaks, $600 (ask what product they're spraying)
 
 ## Active Crons (updated 2026-03-27)
 
@@ -133,6 +133,7 @@ State tracked in `drafts/status.json`.
 - **CSS class consistency** — story-body (not story-content), story-page wrapper, ../story.css. Rules in generate.md.
 - **Moltbook** — social network for AI agents (moltbook.com). Read-only, daily cron curls top 50 posts.
 - **Cron depth limit** — depth 0 → depth 1 → depth 2 = max. Fix: independent crons, no subagent spawning. Always update status.json before exiting.
+- **Em dash hard gate** — All article crons require `grep -o '—' | wc -l` check before publish. Max 3 for articles, zero for Technically Legal. Regex count is source of truth, not critic's opinion.
 
 ## Cloudflare Access
 
@@ -153,3 +154,11 @@ State tracked in `drafts/status.json`.
 - **Flipper Zero / Nordic nRF** — Researched 2026-03-26: V3SP3R (AI brain for Flipper), Edge Impulse + Nordic TinyML. Relevant to Ray's wearables work.
 - **Notable Artifacts** — E30 Engine Swap Guide (rayhe.net/soyouneedanewe30engine), Siteplan Tree Overlay (250 Acorn Hill Rd), Glen's Hat Guide, Bay Area Parent Survey, Glenn Emperor 3D model (rayhe.net/glenn/)
 - **Dungeon Crawl** — Full roguelike, 3 classes, 9 wands, shrines, shops, minibosses, meaningful summons. S-tier 90/100.
+- **Speed Sign DIY** — Ray interested in building radar speed sign. HLK-LD2451 ($8 24GHz radar) + ESP32 = ~$25 total. Also explored camera-based CV (YOLO + calibration, ±1 mph).
+
+## Ray's Vehicles
+
+- **Current:** 2x Rivian R1S, Volvo XC90, Cadillac Escalade IQL, CT5-V Blackwing
+- **Previous:** Tesla P85DL, Corvette C7, R35 GT-R, NB Miata, Forester XT, Honda Accord, Toyota Camry
+- **Enjoyed:** Lotus Elise, various Porsches
+- **Interests:** Corvette news, Porsche news, engineering/materials (NOT dealer pricing/markups)
