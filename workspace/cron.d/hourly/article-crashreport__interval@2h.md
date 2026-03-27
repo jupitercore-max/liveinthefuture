@@ -38,17 +38,30 @@ cat drafts/status.json 2>/dev/null || echo '{"current": null}'
 **If phase=DRAFT:**
 1. Read research notes, STORY_GUIDE.md, generate.md
 2. Write full article HTML to `drafts/{slug}.html`
-3. Must use `class="story-page"` wrapper, `class="story-body"` content, link `../story.css`
+3. **CORRECT HTML STRUCTURE (CRITICAL):**
+   - Link `../style.css` (NOT `../story.css`)
+   - Wrap in `<div class="container"><header><a href="../" class="back">&larr; The Crash Report</a></header>`
+   - Use `<article class="story">` (NOT `story-page` or `story-detail` or `story-content`)
+   - Content goes inside `<div class="story-body">` 
+   - Use `<div class="story-kicker">`, `<div class="byline">`, `<div class="dateline">`
+   - Pull stats: `<div class="pull-stat">` + `<div class="pull-label">`
+   - Close with `</article><footer class="site-footer">...</footer></div>`
+   - Include theme script and Google Fonts (Inter) in head
 4. Generate hero image, validate JPEG format (real JPEG, not PNG)
 5. Update status.json: phase=CRITIQUE, round=0
 6. Commit + push, then continue to CRITIQUE
 
 **If phase=CRITIQUE:**
 1. Run 6 critics (General, Voice, Ethics, Social, Legal, Rigor) — score each /10
-2. ALL 6 at 8.5+ → phase=SHIP
-3. ANY below 8.5 → revise, increment round, re-score
-4. Max 3 rounds → PARKED if still failing
-5. Commit + push
+2. **HARD GATES (auto-fail, no exceptions):**
+   - **Em dashes: MAX 3 in article body text.** Count all `—` and `&mdash;` between `<article>` and `</article>`, excluding title, footer, and reference section. If >3, replace extras with periods, commas, or parentheses. This is the #1 voice rule.
+   - **Banned phrases:** "Here's the thing", "The kicker", "paradigm shift", "game-changer", "deep dive", "unpack"
+   - **"The" sentence starters: MAX 15%** of all sentences may start with "The"
+   - **CSS class check:** Article must use `class="story"` NOT `story-detail`/`story-content`/`story-page`, and link `../style.css` NOT `../story.css`
+3. ALL 6 critics at 8.5+ AND all hard gates pass → phase=SHIP
+4. ANY below 8.5 OR hard gate fail → revise, increment round, re-score
+5. Max 3 rounds → PARKED if still failing
+6. Commit + push
 
 **If phase=SHIP:**
 1. Check 1/day: `git log --since="$(date -u +%Y-%m-%d)" --oneline --grep="Publish #" | wc -l`
