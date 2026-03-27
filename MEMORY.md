@@ -36,7 +36,7 @@ Use this file for durable, curated memory that should persist across sessions.
 ## Websites & Article Counts
 
 - **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. 128 articles, 16 journalists (added Jordan Kessler #15 Wearables, Alex Harmon #16 Automotive), 18 games, 24+ experiences. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Mobile responsive overhaul 2026-03-19: story.js (progress bar, dark mode toggle), 73 files normalized to story-page wrapper, 4 responsive breakpoints.
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 109 articles, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 milestone on 2026-03-23.
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. 110 articles, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 milestone on 2026-03-23.
 - **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. 119 articles, 6 journalists.
 - **Private backup repo:** github.com/rayhe/factoryfactory — 43 files (SOUL, IDENTITY, MEMORY, crons, configs)
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, 7 articles (Saturn's Rings, Octopus, Bridges, Balloons, Periodic Table, Marie Curie, Swimming). Age switcher (Preschool→Adult), 6 reading levels per article. 18+ age-adaptive hero images. 7-year-old editor's note: "This chronicle is made by children." Zone ID 8d22bf605857df93b0224a3c358e81ce.
