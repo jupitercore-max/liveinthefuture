@@ -54,7 +54,7 @@ cat drafts/status.json 2>/dev/null || echo '{"current": null}'
 **If phase=CRITIQUE:**
 1. Run 6 critics (General, Voice, Ethics, Social, Legal, Rigor) — score each /10
 2. **HARD GATES (auto-fail, no exceptions):**
-   - **Em dashes: MAX 3 in article body text.** Count all `—` and `&mdash;` between `<article>` and `</article>`, excluding title, footer, and reference section. If >3, replace extras with periods, commas, or parentheses. This is the #1 voice rule.
+   - **Em dashes: MAX 3 in article body text.** Run `grep -o '—' drafts/{slug}.html | wc -l` — if >3, STOP and replace extras. Do NOT rely on critic opinion; the regex count is the source of truth. Articles have shipped with 25+ em dashes because critics scored them 8.9 while ignoring this rule.
    - **Banned phrases:** "Here's the thing", "The kicker", "paradigm shift", "game-changer", "deep dive", "unpack"
    - **"The" sentence starters: MAX 15%** of all sentences may start with "The"
    - **CSS class check:** Article must use `class="story"` NOT `story-detail`/`story-content`/`story-page`, and link `../style.css` NOT `../story.css`

@@ -32,7 +32,8 @@ Write and publish a LITF weekly AI roundup article — "The Biggest Things in AI
 3. **CRITIQUE** — Run 3 rounds of self-critique targeting 8.5+. Focus on:
    - Are the picks actually the biggest stories? Did we miss something obvious?
    - Is the analysis adding value or just summarizing?
-   - Voice: no AI slop, no em dashes, no banned phrases
+   - Voice: no AI slop, no banned phrases
+   - **EM DASH HARD GATE:** Before publishing, run `grep -o '—' {article-file} | wc -l` — if >3, STOP and replace. Regex count is source of truth.
    - Research rigor: specific numbers, dates, sources for every claim
 
 4. **SHIP** — Follow generate.md rules:

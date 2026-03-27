@@ -15,7 +15,8 @@ Autonomous article worker for efficientdesign.net (watches + cars blog).
 1. Check ~/repos/efficientdesign/drafts/status.json for pipeline state
 2. If idle: research a new topic (rotate between watches and cars, prioritize recent news)
 3. Run full 5-phase pipeline: RESEARCH → DRAFT → CRITIQUE (6 critics, 8.5+ threshold) → SHIP → QA
-4. Max 3 em dashes per article. No AI slop phrases. Max 15% sentences starting with "The"
+4. **EM DASH HARD GATE (MANDATORY):** Before SHIP, run `grep -o '—' drafts/{slug}.html | wc -l` — if >3, STOP. Replace extras with periods, commas, or "and". The regex count is the source of truth, not the critic's opinion.
+5. Max 15% sentences starting with "The". No AI slop phrases ("Here's the thing", "paradigm shift", "game-changer", "deep dive", "unpack")
 5. Generate hero image (editorial macro photography, warm tones, validate JPEG)
 6. 1 article/day max — if already published today, skip
 7. Commit, push, deploy to Cloudflare Pages

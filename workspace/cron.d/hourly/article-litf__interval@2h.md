@@ -67,10 +67,18 @@ cat drafts/status.json 2>/dev/null || echo '{"current": null}'
 
 ### Voice Rules (STRICT):
 - Zero banned phrases (see STORY_GUIDE.md)
-- Em dashes fewer than 5
-- "The" starters fewer than 10
 - `class="story-body"` NOT `story-content`
 - Hero image must be actual JPEG (check magic bytes)
 - Cache bust: `?v={md5[:8]}` on image references
+
+### EM DASH HARD GATE (MANDATORY — DO NOT SKIP):
+Before SHIP phase, run this exact check:
+```bash
+grep -o '—' drafts/{slug}.html | wc -l
+```
+If the count is MORE THAN 3: **STOP. Do not publish.** Go back and replace em dashes with periods, commas, or "and". Recount. Only proceed to SHIP when count ≤ 3.
+This is not a suggestion. Articles have shipped with 25+ em dashes because the critique "scored 8.9" while ignoring this rule. The regex count is the source of truth, not the critic's opinion.
+
+Also verify: "The" sentence starters < 15% of total sentences. Count them.
 
 ### ALWAYS update status.json before exiting. This is the #1 rule.

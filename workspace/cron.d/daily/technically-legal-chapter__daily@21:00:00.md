@@ -58,6 +58,7 @@ Mark chapter as PUBLISHED with score and date.
 
 ### Voice Rules (STRICT — from README.md):
 - **ZERO em dashes.** Not one. Use commas, periods, semicolons, "and"/"but" connectors.
+- **EM DASH HARD GATE:** Before publishing, run `grep -o '—' {chapter-file} | wc -l` — if >0, STOP. The regex count is the source of truth, not the critic's opinion.
 - **ZERO banned phrases:** "Dance of," "Tapestry of," "It's not just," "It's a testament," "A bold move," "In a world where," "not just...but," "serves as a," "what sets...apart," "In the rapidly," "Buckle up," "not for the faint"
 - Max 3 "The" sentence starters per page
 - Characters must sound distinct:
