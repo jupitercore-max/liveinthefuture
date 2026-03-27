@@ -114,7 +114,7 @@ State tracked in `drafts/status.json`.
 - **Concept:** Legal economic warfare — "The Consortium" runs 6 operations (MINOTAUR patent, SIREN HFT, GOLEM litigation, BASILISK regulatory capture, HYDRA debt, CHIMERA real estate), 46K agents, $69.3B annual damage, all legal
 - **Protagonist:** Elena Marsh (FinCEN), **Antagonist:** Martin Kessler (penetration tester of American law)
 - **Deploy:** `echo "y" | CLOUDFLARE_API_TOKEN=... wrangler pages deploy public --project-name=technically-legal`
-- **Status (2026-03-27):** Ch 1 (8.6), Ch 2 (8.6), Ch 3 (8.7), Ch 4 (8.8), Ch 5 (8.8) published. Ch 6 "Testimony" next (final chapter of Volume I). 3 volumes, 18 chapters total.
+- **Status (2026-03-27):** Ch 1 (8.6), Ch 2 (8.6), Ch 3 (8.7), Ch 4 (8.8), Ch 5 (8.8), Ch 6 (9.0) published. Volume I "The Machine" complete. Ch 7 "The Invitation" next (first chapter of Volume II). 3 volumes, 18 chapters total.
 - **Key craft rules:** Zero em dashes, zero banned phrases, 6-critic panel (8.5+ to publish)
 
 ## Zuckerberg Persona Project
