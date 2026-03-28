@@ -34,11 +34,11 @@ Use this file for durable, curated memory that should persist across sessions.
 - Facebook search works for Moda Watch Club (558871041349029) but NOT 10k & Under group (150223938977815)
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
-## Websites & Article Counts (updated 2026-03-27)
+## Websites & Article Counts (updated 2026-03-28)
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **130 articles, 19 games, 24 experiences**, 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16.
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **111 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **119 articles**, 6 journalists.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **131 articles, 19 games, 24 experiences**, 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16.
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **112 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **120 articles**, 6 journalists.
 - **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **12 articles**, writer Marcus Thorne. First autonomous cron article 2026-03-27 (Breitling Navitimer Titanium F1, scored 8.73). Deploy requires `nvm use 20`.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **7 articles**. Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce.
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
@@ -114,7 +114,7 @@ State tracked in `drafts/status.json`.
 - **Concept:** Legal economic warfare — "The Consortium" runs 6 operations (MINOTAUR patent, SIREN HFT, GOLEM litigation, BASILISK regulatory capture, HYDRA debt, CHIMERA real estate), 46K agents, $69.3B annual damage, all legal
 - **Protagonist:** Elena Marsh (FinCEN), **Antagonist:** Martin Kessler (penetration tester of American law)
 - **Deploy:** `echo "y" | CLOUDFLARE_API_TOKEN=... wrangler pages deploy public --project-name=technically-legal`
-- **Status (2026-03-27):** Ch 1 (8.6), Ch 2 (8.6), Ch 3 (8.7), Ch 4 (8.8), Ch 5 (8.8), Ch 6 (9.0) published. Volume I "The Machine" complete. Ch 7 "The Invitation" next (first chapter of Volume II). 3 volumes, 18 chapters total.
+- **Status (2026-03-28):** Ch 1 (8.6), Ch 2 (8.6), Ch 3 (8.7), Ch 4 (8.8), Ch 5 (8.8), Ch 6 (9.0) published. Volume I "The Machine" complete. Ch 7 "The Invitation" next (first chapter of Volume II). 3 volumes, 18 chapters total.
 - **Key craft rules:** Zero em dashes, zero banned phrases, 6-critic panel (8.5+ to publish)
 
 ## Zuckerberg Persona Project
