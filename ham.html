@@ -832,6 +832,7 @@ function renderExam() {
       ${escHtml(q.question)}
       ${q.refs ? '<div class="q-ref">Ref: ' + escHtml(q.refs) + '</div>' : ''}
     </div>
+    ${getFigureHtml(q.question)}
     <div class="answers">`;
 
   const labels = ['A', 'B', 'C', 'D'];
@@ -915,6 +916,7 @@ function renderFlash() {
     html += `<div class="q-text">${escHtml(q.question)}
       ${q.refs ? '<div class="q-ref">Ref: ' + escHtml(q.refs) + '</div>' : ''}
     </div>
+    ${getFigureHtml(q.question)}
     <div class="answers">`;
     for (let i = 0; i < q.answers.length; i++) {
       html += `<div class="answer-btn" style="cursor:default">
@@ -928,6 +930,7 @@ function renderFlash() {
     html += `<div class="q-text">${escHtml(q.question)}
       ${q.refs ? '<div class="q-ref">Ref: ' + escHtml(q.refs) + '</div>' : ''}
     </div>
+    ${getFigureHtml(q.question)}
     <div class="answers">`;
     for (let i = 0; i < q.answers.length; i++) {
       let cls = 'answer-btn locked';
@@ -1356,6 +1359,744 @@ document.addEventListener('keydown', (e) => {
     else prevQuestion();
   }
 });
+
+// ═══════════════════════════════════════════
+// FIGURE DIAGRAMS FOR EXAM QUESTIONS
+// ═══════════════════════════════════════════
+function getFigureHtml(questionText) {
+  var m = questionText.match(/[Ff]igure\s+((?:[TGE]\d*)-\d+)/);
+  if (!m) return '';
+  var figId = m[1];
+  var svg = FIGURE_SVGS[figId];
+  if (!svg) return '';
+  return '<div class="figure-container" style="margin:12px 0;padding:16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center"><div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">Figure ' + figId + '</div>' + svg + '</div>';
+}
+
+var FIGURE_SVGS = {};
+
+// ============================================================
+// FIGURE T-1: Basic circuit with numbered components
+// Component 1 = Resistor, 2 = Transistor, 3 = Lamp, 4 = Battery
+// ============================================================
+FIGURE_SVGS['T-1'] = '<svg viewBox="0 0 400 280" style="max-width:400px;width:100%" xmlns="http://www.w3.org/2000/svg">' +
+  '<style>text{fill:#e0e0e8;font:12px sans-serif}line,path,rect,circle,ellipse{stroke:#e0e0e8;fill:none;stroke-width:1.5}.lbl{fill:#6366f1;font:bold 14px sans-serif}</style>' +
+  // Wires - circuit loop
+  '<line x1="50" y1="60" x2="130" y2="60"/>' +
+  '<line x1="190" y1="60" x2="280" y2="60"/>' +
+  '<line x1="280" y1="60" x2="280" y2="100"/>' +
+  '<line x1="280" y1="170" x2="280" y2="220"/>' +
+  '<line x1="280" y1="220" x2="200" y2="220"/>' +
+  '<line x1="130" y1="220" x2="50" y2="220"/>' +
+  '<line x1="50" y1="220" x2="50" y2="60"/>' +
+  // Component 1: Resistor (top, horizontal)
+  '<path d="M130,60 l10,-12 l10,24 l10,-24 l10,24 l10,-24 l10,12" />' +
+  '<text class="lbl" x="155" y="45">1</text>' +
+  // Component 2: Transistor (NPN) on right side
+  '<circle cx="280" cy="135" r="25" />' +
+  '<line x1="255" y1="120" x2="255" y2="150"/>' + // base vertical
+  '<line x1="255" y1="125" x2="280" y2="100"/>' + // collector
+  '<line x1="255" y1="145" x2="280" y2="170"/>' + // emitter
+  '<line x1="240" y1="135" x2="255" y2="135"/>' + // base lead
+  // arrow on emitter
+  '<polygon points="274,162 280,170 272,166" fill="#e0e0e8"/>' +
+  '<text class="lbl" x="310" y="140">2</text>' +
+  // Component 3: Lamp (bottom, between battery and transistor)
+  '<circle cx="240" cy="220" r="12"/>' +
+  '<line x1="233" y1="213" x2="247" y2="227"/>' +
+  '<line x1="247" y1="213" x2="233" y2="227"/>' +
+  '<text class="lbl" x="235" y="250">3</text>' +
+  // Component 4: Battery (left-bottom)
+  '<line x1="130" y1="220" x2="150" y2="220"/>' +
+  '<line x1="150" y1="205" x2="150" y2="235"/>' + // long plate (+)
+  '<line x1="158" y1="212" x2="158" y2="228"/>' + // short plate (-)
+  '<line x1="166" y1="205" x2="166" y2="235"/>' + // long plate
+  '<line x1="174" y1="212" x2="174" y2="228"/>' + // short plate
+  '<line x1="174" y1="220" x2="200" y2="220"/>' +
+  '<text x="145" y="200">+</text><text x="170" y="200">-</text>' +
+  '<text class="lbl" x="155" y="258">4</text>' +
+  '</svg>';
+
+// ============================================================
+// FIGURE T-2: Complex circuit with 9+ numbered components
+// 3=SPST switch, 4=Transformer, 6=Capacitor, 8=LED, 9=Variable resistor
+// ============================================================
+FIGURE_SVGS['T-2'] = '<svg viewBox="0 0 500 360" style="max-width:500px;width:100%" xmlns="http://www.w3.org/2000/svg">' +
+  '<style>text{fill:#e0e0e8;font:12px sans-serif}line,path,rect,circle,ellipse,polyline{stroke:#e0e0e8;fill:none;stroke-width:1.5}.lbl{fill:#6366f1;font:bold 14px sans-serif}</style>' +
+  // Component 1: Resistor (top-left)
+  '<line x1="30" y1="40" x2="50" y2="40"/>' +
+  '<path d="M50,40 l5,-10 l10,20 l10,-20 l10,20 l10,-20 l5,10"/>' +
+  '<line x1="100" y1="40" x2="120" y2="40"/>' +
+  '<text class="lbl" x="70" y="28">1</text>' +
+  // Component 2: Inductor (top-center)
+  '<line x1="140" y1="40" x2="155" y2="40"/>' +
+  '<path d="M155,40 a6,6 0 0,1 12,0 a6,6 0 0,1 12,0 a6,6 0 0,1 12,0 a6,6 0 0,1 12,0"/>' +
+  '<line x1="203" y1="40" x2="220" y2="40"/>' +
+  '<text class="lbl" x="175" y="28">2</text>' +
+  // Component 3: SPST Switch
+  '<line x1="240" y1="40" x2="260" y2="40"/>' +
+  '<circle cx="262" cy="40" r="3" fill="#e0e0e8"/>' +
+  '<line x1="262" y1="40" x2="290" y2="25"/>' + // switch arm
+  '<circle cx="300" cy="40" r="3" fill="#e0e0e8"/>' +
+  '<line x1="300" y1="40" x2="320" y2="40"/>' +
+  '<text class="lbl" x="275" y="18">3</text>' +
+  // Component 4: Transformer
+  '<line x1="140" y1="100" x2="140" y2="110"/>' +
+  '<path d="M140,110 a6,6 0 0,1 0,12 a6,6 0 0,1 0,12 a6,6 0 0,1 0,12 a6,6 0 0,1 0,12"/>' +
+  '<line x1="140" y1="158" x2="140" y2="170"/>' +
+  '<line x1="152" y1="108" x2="152" y2="172"/>' + // core line 1
+  '<line x1="158" y1="108" x2="158" y2="172"/>' + // core line 2
+  '<line x1="170" y1="100" x2="170" y2="110"/>' +
+  '<path d="M170,110 a6,6 0 0,0 0,12 a6,6 0 0,0 0,12 a6,6 0 0,0 0,12 a6,6 0 0,0 0,12"/>' +
+  '<line x1="170" y1="158" x2="170" y2="170"/>' +
+  '<text class="lbl" x="145" y="92">4</text>' +
+  // Component 5: Inductor (iron core)
+  '<line x1="240" y1="100" x2="240" y2="115"/>' +
+  '<path d="M240,115 a6,6 0 0,1 0,12 a6,6 0 0,1 0,12 a6,6 0 0,1 0,12"/>' +
+  '<line x1="240" y1="151" x2="240" y2="170"/>' +
+  '<line x1="247" y1="113" x2="247" y2="155"/>' + // core
+  '<text class="lbl" x="255" y="140">5</text>' +
+  // Component 6: Capacitor
+  '<line x1="320" y1="100" x2="320" y2="125"/>' +
+  '<line x1="308" y1="125" x2="332" y2="125"/>' + // plate 1
+  '<line x1="308" y1="135" x2="332" y2="135"/>' + // plate 2
+  '<line x1="320" y1="135" x2="320" y2="170"/>' +
+  '<text class="lbl" x="335" y="135">6</text>' +
+  // Component 7: Variable capacitor
+  '<line x1="400" y1="100" x2="400" y2="125"/>' +
+  '<line x1="388" y1="125" x2="412" y2="125"/>' +
+  '<line x1="388" y1="135" x2="412" y2="135"/>' +
+  '<line x1="400" y1="135" x2="400" y2="170"/>' +
+  '<line x1="380" y1="145" x2="420" y2="115" stroke-dasharray="none"/>' + // arrow through
+  '<polygon points="417,116 420,115 418,120" fill="#e0e0e8"/>' +
+  '<text class="lbl" x="425" y="135">7</text>' +
+  // Component 8: LED
+  '<line x1="50" y1="200" x2="50" y2="220"/>' +
+  '<polygon points="38,220 62,220 50,245" fill="none" stroke="#e0e0e8"/>' + // triangle
+  '<line x1="38" y1="245" x2="62" y2="245"/>' + // cathode bar
+  '<line x1="50" y1="245" x2="50" y2="260"/>' +
+  // LED arrows (light emission)
+  '<line x1="62" y1="228" x2="72" y2="218"/><polygon points="70,218 72,218 72,222" fill="#e0e0e8"/>' +
+  '<line x1="62" y1="238" x2="72" y2="228"/><polygon points="70,228 72,228 72,232" fill="#e0e0e8"/>' +
+  '<text class="lbl" x="75" y="240">8</text>' +
+  // Component 9: Variable resistor (potentiometer)
+  '<line x1="140" y1="200" x2="140" y2="215"/>' +
+  '<rect x="130" y="215" width="20" height="40" rx="0"/>' +
+  '<line x1="140" y1="255" x2="140" y2="270"/>' +
+  '<line x1="120" y1="245" x2="130" y2="235"/>' + // arrow
+  '<polygon points="128,237 130,235 130,240" fill="#e0e0e8"/>' +
+  '<text class="lbl" x="155" y="240">9</text>' +
+  '</svg>';
+
+// ============================================================
+// FIGURE T-3: Antenna system with feedline
+// 3=Variable inductor (tuner), 4=Antenna
+// ============================================================
+FIGURE_SVGS['T-3'] = '<svg viewBox="0 0 400 250" style="max-width:400px;width:100%" xmlns="http://www.w3.org/2000/svg">' +
+  '<style>text{fill:#e0e0e8;font:12px sans-serif}line,path,rect,circle,ellipse{stroke:#e0e0e8;fill:none;stroke-width:1.5}.lbl{fill:#6366f1;font:bold 14px sans-serif}</style>' +
+  // Component 1: Transceiver box
+  '<rect x="20" y="90" width="80" height="50" rx="4"/>' +
+  '<text x="35" y="120" style="fill:#e0e0e8;font:11px sans-serif">XCVR</text>' +
+  '<text class="lbl" x="50" y="82">1</text>' +
+  // Component 2: Feedline (coax) from transceiver to tuner
+  '<line x1="100" y1="115" x2="150" y2="115"/>' +
+  '<line x1="100" y1="110" x2="150" y2="110"/>' +
+  '<text class="lbl" x="115" y="100">2</text>' +
+  // Component 3: Variable inductor (antenna tuner)
+  '<line x1="150" y1="112" x2="165" y2="112"/>' +
+  '<path d="M165,112 a7,7 0 0,1 14,0 a7,7 0 0,1 14,0 a7,7 0 0,1 14,0"/>' +
+  '<line x1="207" y1="112" x2="220" y2="112"/>' +
+  // arrow through inductor (variable)
+  '<line x1="175" y1="130" x2="200" y2="95"/>' +
+  '<polygon points="198,97 200,95 198,100" fill="#e0e0e8"/>' +
+  '<text class="lbl" x="180" y="145">3</text>' +
+  // Component 4: Antenna
+  '<line x1="220" y1="112" x2="280" y2="112"/>' + // horizontal to base
+  '<line x1="280" y1="112" x2="280" y2="40"/>' + // vertical mast
+  '<line x1="280" y1="40" x2="240" y2="20"/>' + // left element
+  '<line x1="280" y1="40" x2="320" y2="20"/>' + // right element
+  // radiation lines
+  '<path d="M300,55 a30,30 0 0,1 0,40" stroke-dasharray="4,3"/>' +
+  '<path d="M315,50 a40,40 0 0,1 0,50" stroke-dasharray="4,3"/>' +
+  '<text class="lbl" x="335" y="60">4</text>' +
+  '</svg>';
+
+// ============================================================
+// FIGURE G7-1: Electronic schematic symbols (numbered 1-11)
+// 1=FET, 2=NPN transistor, 5=Zener diode, 6=Solid core transformer, 7=Tapped inductor, 11=referenced
+// ============================================================
+FIGURE_SVGS['G7-1'] = '<svg viewBox="0 0 500 400" style="max-width:500px;width:100%" xmlns="http://www.w3.org/2000/svg">' +
+  '<style>text{fill:#e0e0e8;font:12px sans-serif}line,path,rect,circle,ellipse,polyline{stroke:#e0e0e8;fill:none;stroke-width:1.5}.lbl{fill:#6366f1;font:bold 13px sans-serif}</style>' +
+  // Symbol 1: FET (JFET N-channel)
+  '<line x1="40" y1="30" x2="40" y2="80"/>' + // channel
+  '<line x1="40" y1="40" x2="70" y2="40"/>' + // drain
+  '<line x1="40" y1="70" x2="70" y2="70"/>' + // source
+  '<line x1="25" y1="55" x2="40" y2="55"/>' + // gate
+  '<polygon points="36,55 40,52 40,58" fill="#e0e0e8"/>' + // gate arrow
+  '<text class="lbl" x="45" y="95">1</text>' +
+  // Symbol 2: NPN transistor
+  '<circle cx="145" cy="55" r="22"/>' +
+  '<line x1="123" y1="42" x2="123" y2="68"/>' + // base bar
+  '<line x1="108" y1="55" x2="123" y2="55"/>' + // base lead
+  '<line x1="123" y1="45" x2="145" y2="30"/>' + // collector
+  '<line x1="123" y1="65" x2="145" y2="80"/>' + // emitter
+  '<polygon points="140,74 145,80 138,78" fill="#e0e0e8"/>' + // emitter arrow
+  '<text class="lbl" x="138" y="110">2</text>' +
+  // Symbol 3: PNP transistor
+  '<circle cx="245" cy="55" r="22"/>' +
+  '<line x1="223" y1="42" x2="223" y2="68"/>' +
+  '<line x1="208" y1="55" x2="223" y2="55"/>' +
+  '<line x1="223" y1="45" x2="245" y2="30"/>' +
+  '<line x1="223" y1="65" x2="245" y2="80"/>' +
+  '<polygon points="228,62 223,65 228,68" fill="#e0e0e8"/>' + // arrow toward base
+  '<text class="lbl" x="238" y="110">3</text>' +
+  // Symbol 4: Diode (standard)
+  '<line x1="320" y1="55" x2="340" y2="55"/>' +
+  '<polygon points="340,55 360,42 360,68" fill="none" stroke="#e0e0e8"/>' +
+  '<line x1="360" y1="42" x2="360" y2="68"/>' + // cathode bar
+  '<line x1="360" y1="55" x2="380" y2="55"/>' +
+  '<text class="lbl" x="348" y="85">4</text>' +
+  // Symbol 5: Zener diode
+  '<line x1="420" y1="55" x2="440" y2="55"/>' +
+  '<polygon points="440,55 460,42 460,68" fill="none" stroke="#e0e0e8"/>' +
+  '<line x1="455" y1="38" x2="460" y2="42"/>' + // zener bend top
+  '<line x1="460" y1="42" x2="460" y2="68"/>' +
+  '<line x1="460" y1="68" x2="465" y2="72"/>' + // zener bend bottom
+  '<line x1="460" y1="55" x2="480" y2="55"/>' +
+  '<text class="lbl" x="448" y="85">5</text>' +
+  // Symbol 6: Solid core transformer
+  '<line x1="30" y1="150" x2="30" y2="160"/>' +
+  '<path d="M30,160 a7,7 0 0,1 0,14 a7,7 0 0,1 0,14 a7,7 0 0,1 0,14"/>' +
+  '<line x1="30" y1="202" x2="30" y2="215"/>' +
+  '<line x1="42" y1="155" x2="42" y2="218"/>' + // core 1
+  '<line x1="48" y1="155" x2="48" y2="218"/>' + // core 2
+  '<line x1="60" y1="150" x2="60" y2="160"/>' +
+  '<path d="M60,160 a7,7 0 0,0 0,14 a7,7 0 0,0 0,14 a7,7 0 0,0 0,14"/>' +
+  '<line x1="60" y1="202" x2="60" y2="215"/>' +
+  '<text class="lbl" x="35" y="235">6</text>' +
+  // Symbol 7: Tapped inductor
+  '<line x1="120" y1="150" x2="120" y2="165"/>' +
+  '<path d="M120,165 a7,7 0 0,1 0,14 a7,7 0 0,1 0,14 a7,7 0 0,1 0,14 a7,7 0 0,1 0,14"/>' +
+  '<line x1="120" y1="221" x2="120" y2="235"/>' +
+  '<line x1="120" y1="193" x2="145" y2="193"/>' + // tap
+  '<circle cx="120" cy="193" r="2" fill="#e0e0e8"/>' + // tap dot
+  '<text class="lbl" x="113" y="255">7</text>' +
+  // Symbol 8: Capacitor (fixed)
+  '<line x1="200" y1="150" x2="200" y2="178"/>' +
+  '<line x1="185" y1="178" x2="215" y2="178"/>' +
+  '<line x1="185" y1="188" x2="215" y2="188"/>' +
+  '<line x1="200" y1="188" x2="200" y2="215"/>' +
+  '<text class="lbl" x="193" y="235">8</text>' +
+  // Symbol 9: Resistor
+  '<line x1="270" y1="150" x2="270" y2="165"/>' +
+  '<path d="M270,165 l-10,5 l20,10 l-20,10 l20,10 l-10,5"/>' +
+  '<line x1="270" y1="205" x2="270" y2="220"/>' +
+  '<text class="lbl" x="263" y="240">9</text>' +
+  // Symbol 10: Variable resistor
+  '<line x1="340" y1="150" x2="340" y2="165"/>' +
+  '<path d="M340,165 l-10,5 l20,10 l-20,10 l20,10 l-10,5"/>' +
+  '<line x1="340" y1="205" x2="340" y2="220"/>' +
+  '<line x1="320" y1="210" x2="360" y2="170"/>' +
+  '<polygon points="357,172 360,170 358,175" fill="#e0e0e8"/>' +
+  '<text class="lbl" x="330" y="240">10</text>' +
+  // Symbol 11: Air core transformer
+  '<line x1="410" y1="150" x2="410" y2="160"/>' +
+  '<path d="M410,160 a7,7 0 0,1 0,14 a7,7 0 0,1 0,14 a7,7 0 0,1 0,14"/>' +
+  '<line x1="410" y1="202" x2="410" y2="215"/>' +
+  '<line x1="430" y1="150" x2="430" y2="160"/>' +
+  '<path d="M430,160 a7,7 0 0,0 0,14 a7,7 0 0,0 0,14 a7,7 0 0,0 0,14"/>' +
+  '<line x1="430" y1="202" x2="430" y2="215"/>' +
+  '<text class="lbl" x="413" y="235">11</text>' +
+  '</svg>';
+
+// ============================================================
+// FIGURE E5-1: Impedance/Reactance coordinate system with labeled points
+// Rectangular plot: X-axis = Resistance (R), Y-axis = Reactance (X)
+// Points positioned so answers match:
+// Point 1: ~300R, -300X (capacitive) -> E5C12 correct
+// Point 2: ~100R, +200X
+// Point 3: ~300R, +400X (inductive) -> E5C11 correct
+// Point 4: ~400R, -300X (capacitive) -> E5C10 correct
+// Point 5: ~100R, -100X
+// Point 6: ~500R, +100X
+// Point 7: ~100R, -400X
+// Point 8: ~500R, +400X
+// ============================================================
+FIGURE_SVGS['E5-1'] = '<svg viewBox="0 0 440 440" style="max-width:440px;width:100%" xmlns="http://www.w3.org/2000/svg">' +
+  '<style>text{fill:#e0e0e8;font:11px sans-serif}line,path{stroke:#e0e0e8;fill:none;stroke-width:1}.lbl{fill:#6366f1;font:bold 13px sans-serif}.ax{stroke:#8888aa;stroke-width:0.5;stroke-dasharray:3,3}.dot{fill:#f59e0b;stroke:none}</style>' +
+  // Axes
+  '<line x1="60" y1="220" x2="420" y2="220" stroke-width="1.5"/>' + // X axis (R)
+  '<line x1="60" y1="20" x2="60" y2="420" stroke-width="1.5"/>' + // Y axis (X)
+  // Axis labels
+  '<text x="420" y="238" style="font:bold 12px sans-serif">R (ohms)</text>' +
+  '<text x="10" y="25" style="font:bold 12px sans-serif">+jX</text>' +
+  '<text x="10" y="418" style="font:bold 12px sans-serif">-jX</text>' +
+  // Grid lines and labels
+  '<line class="ax" x1="132" y1="20" x2="132" y2="420"/><text x="125" y="238">100</text>' +
+  '<line class="ax" x1="204" y1="20" x2="204" y2="420"/><text x="197" y="238">200</text>' +
+  '<line class="ax" x1="276" y1="20" x2="276" y2="420"/><text x="269" y="238">300</text>' +
+  '<line class="ax" x1="348" y1="20" x2="348" y2="420"/><text x="341" y="238">400</text>' +
+  '<line class="ax" x1="60" y1="76" x2="420" y2="76"/><text x="28" y="80">400</text>' +
+  '<line class="ax" x1="60" y1="148" x2="420" y2="148"/><text x="28" y="152">200</text>' +
+  '<line class="ax" x1="60" y1="292" x2="420" y2="292"/><text x="22" y="296">-200</text>' +
+  '<line class="ax" x1="60" y1="364" x2="420" y2="364"/><text x="22" y="368">-400</text>' +
+  // Points
+  '<circle class="dot" cx="276" cy="292" r="5"/><text class="lbl" x="284" y="300">1</text>' + // 300R, -200X
+  '<circle class="dot" cx="132" cy="148" r="5"/><text class="lbl" x="140" y="156">2</text>' + // 100R, +200X
+  '<circle class="dot" cx="276" cy="76" r="5"/><text class="lbl" x="284" y="84">3</text>' +   // 300R, +400X
+  '<circle class="dot" cx="348" cy="292" r="5"/><text class="lbl" x="356" y="300">4</text>' + // 400R, -200X
+  '<circle class="dot" cx="132" cy="256" r="5"/><text class="lbl" x="140" y="264">5</text>' + // 100R, -100X
+  '<circle class="dot" cx="384" cy="184" r="5"/><text class="lbl" x="392" y="192">6</text>' + // 500R, +100X
+  '<circle class="dot" cx="132" cy="364" r="5"/><text class="lbl" x="140" y="372">7</text>' + // 100R, -400X
+  '<circle class="dot" cx="384" cy="76" r="5"/><text class="lbl" x="392" y="84">8</text>' +   // 500R, +400X
+  '</svg>';
+
+// ============================================================
+// FIGURE E6-1: FET Symbols (6 numbered symbols)
+// 1=P-channel JFET, 2=N-channel JFET, 3=P-channel MOSFET (enhancement),
+// 4=N-channel dual-gate MOSFET, 5=N-channel MOSFET (depletion), 6=P-channel MOSFET (depletion)
+// ============================================================
+FIGURE_SVGS['E6-1'] = '<svg viewBox="0 0 480 260" style="max-width:480px;width:100%" xmlns="http://www.w3.org/2000/svg">' +
+  '<style>text{fill:#e0e0e8;font:11px sans-serif}line,path,circle{stroke:#e0e0e8;fill:none;stroke-width:1.5}.lbl{fill:#6366f1;font:bold 13px sans-serif}</style>' +
+  // Symbol 1: P-channel JFET
+  '<g transform="translate(20,20)">' +
+  '<line x1="30" y1="0" x2="30" y2="20"/>' + // drain
+  '<line x1="30" y1="80" x2="30" y2="100"/>' + // source
+  '<line x1="30" y1="20" x2="30" y2="80"/>' + // channel
+  '<line x1="30" y1="30" x2="55" y2="30"/>' + // drain tap
+  '<line x1="30" y1="70" x2="55" y2="70"/>' + // source tap
+  '<line x1="10" y1="50" x2="30" y2="50"/>' + // gate
+  '<polygon points="20,47 14,50 20,53" fill="#e0e0e8"/>' + // arrow away from channel (P-ch)
+  '<text x="40" y="55">D</text><text x="40" y="35">S</text><text x="2" y="45">G</text>' +
+  '<text class="lbl" x="22" y="120">1</text>' +
+  '</g>' +
+  // Symbol 2: N-channel JFET
+  '<g transform="translate(100,20)">' +
+  '<line x1="30" y1="0" x2="30" y2="20"/>' +
+  '<line x1="30" y1="80" x2="30" y2="100"/>' +
+  '<line x1="30" y1="20" x2="30" y2="80"/>' +
+  '<line x1="30" y1="30" x2="55" y2="30"/>' +
+  '<line x1="30" y1="70" x2="55" y2="70"/>' +
+  '<line x1="10" y1="50" x2="30" y2="50"/>' +
+  '<polygon points="24,47 30,50 24,53" fill="#e0e0e8"/>' + // arrow toward channel (N-ch)
+  '<text class="lbl" x="22" y="120">2</text>' +
+  '</g>' +
+  // Symbol 3: P-channel enhancement MOSFET
+  '<g transform="translate(180,20)">' +
+  '<line x1="30" y1="0" x2="30" y2="25"/>' +
+  '<line x1="30" y1="75" x2="30" y2="100"/>' +
+  '<line x1="22" y1="25" x2="22" y2="35"/>' + // body segments (broken)
+  '<line x1="22" y1="42" x2="22" y2="58"/>' +
+  '<line x1="22" y1="65" x2="22" y2="75"/>' +
+  '<line x1="22" y1="30" x2="30" y2="30"/>' +
+  '<line x1="22" y1="50" x2="15" y2="50"/>' + // gate
+  '<line x1="22" y1="70" x2="30" y2="70"/>' +
+  '<line x1="15" y1="25" x2="15" y2="75"/>' + // gate plate
+  '<line x1="5" y1="50" x2="15" y2="50"/>' +
+  '<polygon points="28,70 22,67 22,73" fill="#e0e0e8"/>' + // arrow (P-ch: away)
+  '<text class="lbl" x="22" y="120">3</text>' +
+  '</g>' +
+  // Symbol 4: N-channel dual-gate MOSFET
+  '<g transform="translate(260,20)">' +
+  '<line x1="30" y1="0" x2="30" y2="25"/>' +
+  '<line x1="30" y1="75" x2="30" y2="100"/>' +
+  '<line x1="22" y1="25" x2="22" y2="75"/>' + // body (solid - depletion)
+  '<line x1="22" y1="30" x2="30" y2="30"/>' +
+  '<line x1="22" y1="70" x2="30" y2="70"/>' +
+  '<line x1="15" y1="25" x2="15" y2="45"/>' + // gate 1 plate
+  '<line x1="5" y1="35" x2="15" y2="35"/>' + // G1
+  '<line x1="15" y1="55" x2="15" y2="75"/>' + // gate 2 plate
+  '<line x1="5" y1="65" x2="15" y2="65"/>' + // G2
+  '<polygon points="24,70 30,67 30,73" fill="#e0e0e8"/>' + // arrow (N-ch: toward)
+  '<text x="0" y="32">G1</text><text x="0" y="72">G2</text>' +
+  '<text class="lbl" x="22" y="120">4</text>' +
+  '</g>' +
+  // Symbol 5: N-channel depletion MOSFET
+  '<g transform="translate(340,20)">' +
+  '<line x1="30" y1="0" x2="30" y2="25"/>' +
+  '<line x1="30" y1="75" x2="30" y2="100"/>' +
+  '<line x1="22" y1="25" x2="22" y2="75"/>' + // body (solid)
+  '<line x1="22" y1="30" x2="30" y2="30"/>' +
+  '<line x1="22" y1="50" x2="30" y2="50"/>' + // body tap
+  '<line x1="22" y1="70" x2="30" y2="70"/>' +
+  '<line x1="15" y1="25" x2="15" y2="75"/>' + // gate plate
+  '<line x1="5" y1="50" x2="15" y2="50"/>' +
+  '<polygon points="24,70 30,67 30,73" fill="#e0e0e8"/>' + // N-ch arrow
+  '<text class="lbl" x="22" y="120">5</text>' +
+  '</g>' +
+  // Symbol 6: P-channel depletion MOSFET
+  '<g transform="translate(420,20)">' +
+  '<line x1="30" y1="0" x2="30" y2="25"/>' +
+  '<line x1="30" y1="75" x2="30" y2="100"/>' +
+  '<line x1="22" y1="25" x2="22" y2="75"/>' +
+  '<line x1="22" y1="30" x2="30" y2="30"/>' +
+  '<line x1="22" y1="50" x2="30" y2="50"/>' +
+  '<line x1="22" y1="70" x2="30" y2="70"/>' +
+  '<line x1="15" y1="25" x2="15" y2="75"/>' +
+  '<line x1="5" y1="50" x2="15" y2="50"/>' +
+  '<polygon points="28,70 22,67 22,73" fill="#e0e0e8"/>' + // P-ch arrow
+  '<text class="lbl" x="22" y="120">6</text>' +
+  '</g>' +
+  '</svg>';
+
+// ============================================================
+// FIGURE E6-2: Diode symbols (6 numbered)
+// 1=Standard diode, 2=Varactor, 3=Tunnel diode, 4=LED, 5=Zener, 6=Schottky
+// ============================================================
+FIGURE_SVGS['E6-2'] = '<svg viewBox="0 0 480 120" style="max-width:480px;width:100%" xmlns="http://www.w3.org/2000/svg">' +
+  '<style>text{fill:#e0e0e8;font:11px sans-serif}line,polygon,path{stroke:#e0e0e8;fill:none;stroke-width:1.5}.lbl{fill:#6366f1;font:bold 13px sans-serif}</style>' +
+  // Symbol 1: Standard diode
+  '<g transform="translate(5,20)">' +
+  '<line x1="0" y1="30" x2="20" y2="30"/>' +
+  '<polygon points="20,30 40,18 40,42" />' +
+  '<line x1="40" y1="18" x2="40" y2="42"/>' +
+  '<line x1="40" y1="30" x2="60" y2="30"/>' +
+  '<text class="lbl" x="22" y="65">1</text></g>' +
+  // Symbol 2: Varactor
+  '<g transform="translate(85,20)">' +
+  '<line x1="0" y1="30" x2="20" y2="30"/>' +
+  '<polygon points="20,30 40,18 40,42" />' +
+  '<line x1="40" y1="18" x2="40" y2="42"/>' +
+  '<line x1="44" y1="18" x2="44" y2="42"/>' + // double bar
+  '<line x1="44" y1="30" x2="60" y2="30"/>' +
+  '<text class="lbl" x="22" y="65">2</text></g>' +
+  // Symbol 3: Tunnel diode
+  '<g transform="translate(165,20)">' +
+  '<line x1="0" y1="30" x2="20" y2="30"/>' +
+  '<polygon points="20,30 40,18 40,42" />' +
+  '<line x1="40" y1="18" x2="40" y2="42"/>' +
+  '<line x1="36" y1="18" x2="40" y2="18"/>' + // top hook
+  '<line x1="40" y1="42" x2="44" y2="42"/>' + // bottom hook
+  '<line x1="40" y1="30" x2="60" y2="30"/>' +
+  '<text class="lbl" x="22" y="65">3</text></g>' +
+  // Symbol 4: LED
+  '<g transform="translate(245,20)">' +
+  '<line x1="0" y1="30" x2="20" y2="30"/>' +
+  '<polygon points="20,30 40,18 40,42" />' +
+  '<line x1="40" y1="18" x2="40" y2="42"/>' +
+  '<line x1="40" y1="30" x2="60" y2="30"/>' +
+  '<line x1="38" y1="12" x2="48" y2="2"/><polygon points="45,3 48,2 47,6" fill="#e0e0e8"/>' +
+  '<line x1="44" y1="14" x2="54" y2="4"/><polygon points="51,5 54,4 53,8" fill="#e0e0e8"/>' +
+  '<text class="lbl" x="22" y="65">4</text></g>' +
+  // Symbol 5: Zener diode
+  '<g transform="translate(325,20)">' +
+  '<line x1="0" y1="30" x2="20" y2="30"/>' +
+  '<polygon points="20,30 40,18 40,42" />' +
+  '<line x1="36" y1="14" x2="40" y2="18"/>' +
+  '<line x1="40" y1="18" x2="40" y2="42"/>' +
+  '<line x1="40" y1="42" x2="44" y2="46"/>' +
+  '<line x1="40" y1="30" x2="60" y2="30"/>' +
+  '<text class="lbl" x="22" y="65">5</text></g>' +
+  // Symbol 6: Schottky diode
+  '<g transform="translate(405,20)">' +
+  '<line x1="0" y1="30" x2="20" y2="30"/>' +
+  '<polygon points="20,30 40,18 40,42" />' +
+  '<line x1="40" y1="18" x2="40" y2="42"/>' +
+  '<line x1="36" y1="18" x2="40" y2="18"/><line x1="36" y1="18" x2="36" y2="23"/>' + // S-shape top
+  '<line x1="40" y1="42" x2="44" y2="42"/><line x1="44" y1="42" x2="44" y2="37"/>' + // S-shape bottom
+  '<line x1="40" y1="30" x2="60" y2="30"/>' +
+  '<text class="lbl" x="22" y="65">6</text></g>' +
+  '</svg>';
+
+// ============================================================
+// FIGURE E6-3: Logic gate symbols (5 numbered)
+// 1=OR gate, 2=NAND gate, 3=AND gate, 4=NOR gate, 5=NOT (inverter)
+// ============================================================
+FIGURE_SVGS['E6-3'] = '<svg viewBox="0 0 500 120" style="max-width:500px;width:100%" xmlns="http://www.w3.org/2000/svg">' +
+  '<style>text{fill:#e0e0e8;font:11px sans-serif}line,path,circle{stroke:#e0e0e8;fill:none;stroke-width:1.5}.lbl{fill:#6366f1;font:bold 13px sans-serif}</style>' +
+  // Symbol 1: OR gate
+  '<g transform="translate(5,15)">' +
+  '<line x1="0" y1="20" x2="15" y2="20"/><line x1="0" y1="50" x2="15" y2="50"/>' +
+  '<path d="M10,10 Q25,10 40,0 Q60,35 40,70 Q25,60 10,60 Q20,35 10,10 Z"/>' +
+  '<line x1="60" y1="35" x2="75" y2="35"/>' +
+  '<text class="lbl" x="30" y="90">1</text></g>' +
+  // Symbol 2: NAND gate
+  '<g transform="translate(100,15)">' +
+  '<line x1="0" y1="20" x2="15" y2="20"/><line x1="0" y1="50" x2="15" y2="50"/>' +
+  '<path d="M15,10 L15,60 L40,60 A25,25 0 0,0 40,10 Z"/>' +
+  '<circle cx="67" cy="35" r="4"/>' +
+  '<line x1="71" y1="35" x2="85" y2="35"/>' +
+  '<text class="lbl" x="35" y="90">2</text></g>' +
+  // Symbol 3: AND gate
+  '<g transform="translate(200,15)">' +
+  '<line x1="0" y1="20" x2="15" y2="20"/><line x1="0" y1="50" x2="15" y2="50"/>' +
+  '<path d="M15,10 L15,60 L40,60 A25,25 0 0,0 40,10 Z"/>' +
+  '<line x1="65" y1="35" x2="80" y2="35"/>' +
+  '<text class="lbl" x="35" y="90">3</text></g>' +
+  // Symbol 4: NOR gate
+  '<g transform="translate(300,15)">' +
+  '<line x1="0" y1="20" x2="15" y2="20"/><line x1="0" y1="50" x2="15" y2="50"/>' +
+  '<path d="M10,10 Q25,10 40,0 Q60,35 40,70 Q25,60 10,60 Q20,35 10,10 Z"/>' +
+  '<circle cx="62" cy="35" r="4"/>' +
+  '<line x1="66" y1="35" x2="80" y2="35"/>' +
+  '<text class="lbl" x="30" y="90">4</text></g>' +
+  // Symbol 5: NOT gate (inverter / triangle + bubble)
+  '<g transform="translate(400,15)">' +
+  '<line x1="0" y1="35" x2="15" y2="35"/>' +
+  '<polygon points="15,10 15,60 55,35"/>' +
+  '<circle cx="59" cy="35" r="4"/>' +
+  '<line x1="63" y1="35" x2="78" y2="35"/>' +
+  '<text class="lbl" x="30" y="90">5</text></g>' +
+  '</svg>';
+
+// ============================================================
+// FIGURE E7-1: Common emitter amplifier
+// R1, R2 = voltage divider bias, R3 = self bias (emitter resistor)
+// ============================================================
+FIGURE_SVGS['E7-1'] = '<svg viewBox="0 0 360 320" style="max-width:360px;width:100%" xmlns="http://www.w3.org/2000/svg">' +
+  '<style>text{fill:#e0e0e8;font:11px sans-serif}line,path,circle,rect{stroke:#e0e0e8;fill:none;stroke-width:1.5}.lbl{fill:#6366f1;font:bold 12px sans-serif}.cmp{fill:#f59e0b;font:bold 11px sans-serif}</style>' +
+  // Vcc rail
+  '<line x1="180" y1="15" x2="180" y2="40"/>' +
+  '<text x="170" y="12">Vcc</text>' +
+  // R4 (collector load)
+  '<path d="M180,40 l-8,5 l16,10 l-16,10 l16,10 l-8,5"/>' +
+  '<line x1="180" y1="80" x2="180" y2="100"/>' +
+  '<text class="cmp" x="200" y="65">R4</text>' +
+  // Output
+  '<line x1="180" y1="90" x2="250" y2="90"/>' +
+  '<text x="255" y="94">Output</text>' +
+  // Transistor Q1
+  '<circle cx="180" cy="135" r="25"/>' +
+  '<line x1="155" y1="120" x2="155" y2="150"/>' +
+  '<line x1="130" y1="135" x2="155" y2="135"/>' +
+  '<line x1="155" y1="123" x2="180" y2="100"/>' +
+  '<line x1="155" y1="147" x2="180" y2="170"/>' +
+  '<polygon points="174,163 180,170 173,168" fill="#e0e0e8"/>' +
+  '<text class="cmp" x="195" y="140">Q1</text>' +
+  // R1 (top of voltage divider)
+  '<line x1="130" y1="135" x2="90" y2="135"/>' +
+  '<line x1="90" y1="135" x2="90" y2="95"/>' +
+  '<path d="M90,95 l-8,-5 l16,-10 l-16,-10 l16,-10 l-8,-5"/>' +
+  '<line x1="90" y1="55" x2="90" y2="15"/>' +
+  '<line x1="90" y1="15" x2="180" y2="15"/>' +
+  '<text class="cmp" x="100" y="80">R1</text>' +
+  // R2 (bottom of voltage divider)
+  '<line x1="90" y1="135" x2="90" y2="175"/>' +
+  '<path d="M90,175 l-8,5 l16,10 l-16,10 l16,10 l-8,5"/>' +
+  '<line x1="90" y1="215" x2="90" y2="280"/>' +
+  '<text class="cmp" x="100" y="200">R2</text>' +
+  // R3 (emitter resistor - self bias)
+  '<line x1="180" y1="170" x2="180" y2="195"/>' +
+  '<path d="M180,195 l-8,5 l16,10 l-16,10 l16,10 l-8,5"/>' +
+  '<line x1="180" y1="235" x2="180" y2="280"/>' +
+  '<text class="cmp" x="200" y="220">R3</text>' +
+  // C1 input coupling cap
+  '<line x1="30" y1="135" x2="60" y2="135"/>' +
+  '<line x1="60" y1="120" x2="60" y2="150"/>' +
+  '<line x1="68" y1="120" x2="68" y2="150"/>' +
+  '<line x1="68" y1="135" x2="90" y2="135"/>' +
+  '<text x="10" y="139">Input</text>' +
+  '<text class="cmp" x="58" y="115">C1</text>' +
+  // Ground
+  '<line x1="90" y1="280" x2="180" y2="280"/>' +
+  '<line x1="120" y1="280" x2="120" y2="290"/>' +
+  '<line x1="110" y1="290" x2="130" y2="290"/>' +
+  '<line x1="114" y1="295" x2="126" y2="295"/>' +
+  '<line x1="118" y1="300" x2="122" y2="300"/>' +
+  '</svg>';
+
+// ============================================================
+// FIGURE E7-2: Linear voltage regulator
+// Q1 = series pass transistor (controls current), C2 = input ripple bypass, D1 = zener reference
+// ============================================================
+FIGURE_SVGS['E7-2'] = '<svg viewBox="0 0 400 280" style="max-width:400px;width:100%" xmlns="http://www.w3.org/2000/svg">' +
+  '<style>text{fill:#e0e0e8;font:11px sans-serif}line,path,circle,polygon{stroke:#e0e0e8;fill:none;stroke-width:1.5}.cmp{fill:#f59e0b;font:bold 11px sans-serif}</style>' +
+  // Input
+  '<text x="5" y="55">Unreg DC</text>' +
+  '<line x1="70" y1="50" x2="120" y2="50"/>' +
+  // C2 (input filter cap - bypasses ripple around D1)
+  '<line x1="100" y1="50" x2="100" y2="70"/>' +
+  '<line x1="88" y1="70" x2="112" y2="70"/>' +
+  '<line x1="88" y1="78" x2="112" y2="78"/>' +
+  '<line x1="100" y1="78" x2="100" y2="230"/>' +
+  '<text class="cmp" x="115" y="78">C2</text>' +
+  // Q1 (series pass transistor - NPN emitter follower)
+  '<line x1="120" y1="50" x2="180" y2="50"/>' +
+  '<circle cx="200" cy="80" r="22"/>' +
+  '<line x1="180" y1="65" x2="180" y2="95"/>' +
+  '<line x1="180" y1="70" x2="200" y2="50"/>' + // collector -> output
+  '<line x1="180" y1="90" x2="200" y2="110"/>' + // emitter
+  '<polygon points="195,104 200,110 193,108" fill="#e0e0e8"/>' +
+  '<text class="cmp" x="210" y="85">Q1</text>' +
+  // Output from Q1
+  '<line x1="200" y1="50" x2="340" y2="50"/>' +
+  '<text x="345" y="55">Reg Out</text>' +
+  // R1 (in base circuit)
+  '<line x1="200" y1="110" x2="200" y2="130"/>' +
+  '<path d="M200,130 l-8,5 l16,10 l-16,10 l16,10 l-8,5"/>' +
+  '<line x1="200" y1="170" x2="200" y2="190"/>' +
+  '<text class="cmp" x="218" y="155">R1</text>' +
+  // D1 (Zener - voltage reference)
+  '<line x1="200" y1="190" x2="200" y2="200"/>' +
+  '<polygon points="188,200 212,200 200,218" />' +
+  '<line x1="185" y1="218" x2="188" y2="218"/><line x1="188" y1="218" x2="212" y2="218"/><line x1="212" y1="218" x2="215" y2="215"/>' +
+  '<line x1="200" y1="218" x2="200" y2="230"/>' +
+  '<text class="cmp" x="218" y="212">D1</text>' +
+  // C3 (output cap)
+  '<line x1="310" y1="50" x2="310" y2="80"/>' +
+  '<line x1="298" y1="80" x2="322" y2="80"/>' +
+  '<line x1="298" y1="88" x2="322" y2="88"/>' +
+  '<line x1="310" y1="88" x2="310" y2="230"/>' +
+  '<text class="cmp" x="325" y="88">C3</text>' +
+  // Ground rail
+  '<line x1="100" y1="230" x2="310" y2="230"/>' +
+  '<line x1="190" y1="230" x2="190" y2="240"/>' +
+  '<line x1="180" y1="240" x2="200" y2="240"/>' +
+  '<line x1="184" y1="245" x2="196" y2="245"/>' +
+  '<line x1="188" y1="250" x2="192" y2="250"/>' +
+  // Base drive connection
+  '<line x1="160" y1="80" x2="180" y2="80"/>' +
+  '<line x1="160" y1="80" x2="160" y2="150"/>' +
+  '<line x1="160" y1="150" x2="200" y2="150"/>' +
+  '</svg>';
+
+// ============================================================
+// FIGURE E7-3: Inverting op-amp circuit
+// Gain = -RF/R1
+// ============================================================
+FIGURE_SVGS['E7-3'] = '<svg viewBox="0 0 360 220" style="max-width:360px;width:100%" xmlns="http://www.w3.org/2000/svg">' +
+  '<style>text{fill:#e0e0e8;font:11px sans-serif}line,path,polygon{stroke:#e0e0e8;fill:none;stroke-width:1.5}.cmp{fill:#f59e0b;font:bold 11px sans-serif}</style>' +
+  // Input
+  '<text x="5" y="78">Input</text>' +
+  '<line x1="45" y1="75" x2="70" y2="75"/>' +
+  // R1
+  '<path d="M70,75 l5,-8 l10,16 l10,-16 l10,16 l10,-16 l5,8"/>' +
+  '<line x1="120" y1="75" x2="150" y2="75"/>' +
+  '<text class="cmp" x="85" y="63">R1</text>' +
+  // Op-amp triangle
+  '<polygon points="150,50 150,130 240,90"/>' +
+  '<text x="157" y="82" style="font:bold 14px sans-serif">-</text>' +
+  '<text x="157" y="112" style="font:bold 14px sans-serif">+</text>' +
+  // Non-inverting input to ground
+  '<line x1="150" y1="105" x2="130" y2="105"/>' +
+  '<line x1="130" y1="105" x2="130" y2="150"/>' +
+  '<line x1="120" y1="150" x2="140" y2="150"/>' +
+  '<line x1="124" y1="155" x2="136" y2="155"/>' +
+  '<line x1="128" y1="160" x2="132" y2="160"/>' +
+  // RF (feedback resistor)
+  '<line x1="150" y1="75" x2="150" y2="35"/>' +
+  '<line x1="150" y1="35" x2="160" y2="35"/>' +
+  '<path d="M160,35 l5,-8 l10,16 l10,-16 l10,16 l10,-16 l5,8"/>' +
+  '<line x1="210" y1="35" x2="240" y2="35"/>' +
+  '<line x1="240" y1="35" x2="240" y2="90"/>' +
+  '<text class="cmp" x="175" y="25">RF</text>' +
+  // Output
+  '<line x1="240" y1="90" x2="310" y2="90"/>' +
+  '<text x="315" y="94">Output</text>' +
+  '</svg>';
+
+// ============================================================
+// FIGURE E9-1: Azimuthal antenna pattern (directional, like a Yagi)
+// 3dB beamwidth = 50°, front-to-back = 18dB, front-to-side = 14dB
+// ============================================================
+FIGURE_SVGS['E9-1'] = '<svg viewBox="0 0 400 400" style="max-width:400px;width:100%" xmlns="http://www.w3.org/2000/svg">' +
+  '<style>text{fill:#e0e0e8;font:11px sans-serif}circle,line,path{stroke:#e0e0e8;fill:none;stroke-width:0.8}.ring{stroke:#333;stroke-width:0.5}</style>' +
+  // Concentric rings (dB scale: 0, -10, -20, -30)
+  '<circle class="ring" cx="200" cy="200" r="160"/>' +
+  '<circle class="ring" cx="200" cy="200" r="120"/>' +
+  '<circle class="ring" cx="200" cy="200" r="80"/>' +
+  '<circle class="ring" cx="200" cy="200" r="40"/>' +
+  // dB labels
+  '<text x="205" y="45">0 dB</text>' +
+  '<text x="205" y="85">-10</text>' +
+  '<text x="205" y="125">-20</text>' +
+  '<text x="205" y="165">-30</text>' +
+  // Cross hairs
+  '<line x1="200" y1="20" x2="200" y2="380" stroke="#444"/>' +
+  '<line x1="20" y1="200" x2="380" y2="200" stroke="#444"/>' +
+  // Angle labels
+  '<text x="195" y="18">0°</text><text x="195" y="395">180°</text>' +
+  '<text x="2" y="205">270°</text><text x="365" y="205">90°</text>' +
+  // Main lobe (pointing up/0°): strong, about 50° wide at -3dB
+  // Front = 0dB at 0°, -3dB at ±25°, drops to ~-14dB at 90°, ~-18dB at 180°
+  '<path d="M200,40 Q230,60 225,100 Q245,135 238,165 Q260,190 230,200 Q245,230 225,260 Q215,290 200,312 Q185,290 175,260 Q155,230 170,200 Q140,190 162,165 Q155,135 175,100 Q170,60 200,40 Z" stroke="#6366f1" stroke-width="2" fill="rgba(99,102,241,0.15)"/>' +
+  // Small back lobe (~-18dB from peak, so about 40px radius)
+  '<path d="M200,312 Q210,330 208,345 Q205,360 200,365 Q195,360 192,345 Q190,330 200,312 Z" stroke="#6366f1" stroke-width="1.5" fill="rgba(99,102,241,0.1)"/>' +
+  // -3dB markers
+  '<circle cx="213" cy="80" r="3" fill="#f59e0b" stroke="none"/>' +
+  '<circle cx="187" cy="80" r="3" fill="#f59e0b" stroke="none"/>' +
+  '<text x="220" y="78" style="fill:#f59e0b;font:10px sans-serif">-3dB</text>' +
+  '</svg>';
+
+// ============================================================
+// FIGURE E9-2: Elevation pattern
+// front-to-back = 28dB, elevation peak = 7.5°, type = elevation pattern
+// ============================================================
+FIGURE_SVGS['E9-2'] = '<svg viewBox="0 0 400 220" style="max-width:400px;width:100%" xmlns="http://www.w3.org/2000/svg">' +
+  '<style>text{fill:#e0e0e8;font:11px sans-serif}line,path{stroke:#e0e0e8;fill:none;stroke-width:0.8}</style>' +
+  // Ground line
+  '<line x1="20" y1="190" x2="380" y2="190" stroke-width="1.5"/>' +
+  '<text x="170" y="210">Ground</text>' +
+  // Concentric arcs (above ground)
+  '<path d="M20,190 A180,180 0 0,1 380,190" stroke="#333" stroke-width="0.5"/>' +
+  '<path d="M60,190 A140,140 0 0,1 340,190" stroke="#333" stroke-width="0.5"/>' +
+  '<path d="M100,190 A100,100 0 0,1 300,190" stroke="#333" stroke-width="0.5"/>' +
+  '<path d="M140,190 A60,60 0 0,1 260,190" stroke="#333" stroke-width="0.5"/>' +
+  // Angle lines from center
+  '<line x1="200" y1="190" x2="200" y2="10" stroke="#444" stroke-width="0.5"/>' + // 90°
+  '<line x1="200" y1="190" x2="50" y2="60" stroke="#444" stroke-width="0.5"/>' + // left
+  '<line x1="200" y1="190" x2="350" y2="60" stroke="#444" stroke-width="0.5"/>' + // right
+  // Angle labels
+  '<text x="195" y="8">90°</text>' +
+  '<text x="345" y="205">0°</text>' +
+  '<text x="10" y="205">0°</text>' +
+  '<text x="40" y="55">45°</text>' +
+  '<text x="340" y="55">45°</text>' +
+  // dB scale
+  '<text x="205" y="18">0 dB</text>' +
+  '<text x="205" y="55">-10</text>' +
+  '<text x="205" y="95">-20</text>' +
+  '<text x="205" y="135">-30</text>' +
+  // Main lobe (low angle ~7.5° from horizon, pointing right)
+  // Peak at about 7.5° elevation = very close to ground line, far right
+  '<path d="M200,190 Q300,170 350,183 Q370,186 375,190 Z" stroke="#6366f1" stroke-width="2" fill="rgba(99,102,241,0.15)"/>' +
+  // Mirror lobe to the left
+  '<path d="M200,190 Q100,170 50,183 Q30,186 25,190 Z" stroke="#6366f1" stroke-width="2" fill="rgba(99,102,241,0.15)"/>' +
+  // Secondary lobe at higher angle (smaller)
+  '<path d="M200,190 Q250,140 270,120 Q280,100 260,90 Q240,100 230,120 Q220,140 200,190 Z" stroke="#6366f1" stroke-width="1" fill="rgba(99,102,241,0.08)"/>' +
+  '<path d="M200,190 Q150,140 130,120 Q120,100 140,90 Q160,100 170,120 Q180,140 200,190 Z" stroke="#6366f1" stroke-width="1" fill="rgba(99,102,241,0.08)"/>' +
+  // Tiny back lobe (28dB down = very small)
+  // Peak angle marker
+  '<line x1="355" y1="185" x2="370" y2="175" stroke="#f59e0b" stroke-width="1"/>' +
+  '<text x="355" y="172" style="fill:#f59e0b;font:10px sans-serif">7.5°</text>' +
+  '</svg>';
+
+// ============================================================
+// FIGURE E9-3: Smith chart
+// Outer circle = reactance axis, only straight line = resistance axis
+// ============================================================
+FIGURE_SVGS['E9-3'] = '<svg viewBox="0 0 400 400" style="max-width:400px;width:100%" xmlns="http://www.w3.org/2000/svg">' +
+  '<style>text{fill:#e0e0e8;font:11px sans-serif}circle,line,path{stroke:#e0e0e8;fill:none;stroke-width:0.8}</style>' +
+  // Outer circle (reactance axis)
+  '<circle cx="200" cy="200" r="170" stroke-width="2"/>' +
+  '<text x="200" y="20" style="fill:#f59e0b;font:10px sans-serif;text-anchor:middle">Reactance Axis (outer circle)</text>' +
+  // Resistance axis (horizontal line - the only straight line)
+  '<line x1="30" y1="200" x2="370" y2="200" stroke-width="2" stroke="#f59e0b"/>' +
+  '<text x="30" y="218" style="fill:#f59e0b;font:10px sans-serif">Resistance Axis (only straight line)</text>' +
+  // Constant resistance circles
+  '<circle cx="285" cy="200" r="85"/>' +  // R = 1
+  '<circle cx="327" cy="200" r="43"/>' +  // R = 2
+  '<circle cx="353" cy="200" r="17"/>' +  // R = 5
+  '<circle cx="243" cy="200" r="127"/>' + // R = 0.5
+  '<circle cx="158" cy="200" r="170"/>' + // R = 0.2 (clipped)
+  // Constant reactance arcs (top = +jX, bottom = -jX)
+  '<path d="M370,200 A170,170 0 0,0 200,30" stroke-width="0.6"/>' +  // +j1
+  '<path d="M370,200 A85,85 0 0,0 285,115" stroke-width="0.6"/>' +   // +j2
+  '<path d="M370,200 A340,340 0 0,0 62,42" stroke-width="0.6"/>' +   // +j0.5
+  '<path d="M370,200 A170,170 0 0,1 200,370" stroke-width="0.6"/>' + // -j1
+  '<path d="M370,200 A85,85 0 0,1 285,285" stroke-width="0.6"/>' +   // -j2
+  '<path d="M370,200 A340,340 0 0,1 62,358" stroke-width="0.6"/>' +  // -j0.5
+  // Labels
+  '<text x="32" y="198">0</text>' +
+  '<text x="195" y="198">1</text>' +
+  '<text x="280" y="198">2</text>' +
+  '<text x="360" y="198">∞</text>' +
+  '<text x="205" y="35">+j1</text>' +
+  '<text x="205" y="378">-j1</text>' +
+  '<text x="290" y="120">+j2</text>' +
+  '<text x="290" y="290">-j2</text>' +
+  '</svg>';
+
+
 
 // ═══════════════════════════════════════════
 // UTILITIES
