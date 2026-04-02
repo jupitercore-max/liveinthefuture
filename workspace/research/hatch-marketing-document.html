@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hatch — The Always-On AI Agent Platform</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3a;
+    --text: #e0e0e8;
+    --text-dim: #8888a0;
+    --accent: #6366f1;
+    --accent2: #818cf8;
+    --green: #22c55e;
+    --orange: #f97316;
+    --red: #ef4444;
+    --cyan: #06b6d4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 0 2rem; }
+
+  /* Hero */
+  .hero {
+    padding: 6rem 0 4rem;
+    text-align: center;
+    background: linear-gradient(180deg, #0f0f1a 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  .hero-badge {
+    display: inline-block;
+    padding: 0.35rem 1rem;
+    border: 1px solid var(--accent);
+    border-radius: 100px;
+    font-size: 0.8rem;
+    color: var(--accent2);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 1.5rem;
+  }
+  .hero h1 {
+    font-size: 3.2rem;
+    font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, #e0e0e8, #6366f1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero p {
+    font-size: 1.25rem;
+    color: var(--text-dim);
+    max-width: 640px;
+    margin: 0 auto 2rem;
+  }
+  .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    margin-top: 2.5rem;
+    flex-wrap: wrap;
+  }
+  .hero-stat { text-align: center; }
+  .hero-stat .num {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--accent2);
+  }
+  .hero-stat .label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Section */
+  section { padding: 4rem 0; border-bottom: 1px solid var(--border); }
+  section:last-child { border-bottom: none; }
+  h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  h3 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--accent2);
+  }
+  .section-subtitle {
+    color: var(--text-dim);
+    font-size: 1.05rem;
+    margin-bottom: 2.5rem;
+  }
+  p { margin-bottom: 1rem; }
+
+  /* Cards Grid */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin: 2rem 0; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.75rem;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card-icon { font-size: 1.8rem; margin-bottom: 0.75rem; }
+  .card h3 { color: var(--text); font-size: 1.1rem; margin-bottom: 0.5rem; }
+  .card p { color: var(--text-dim); font-size: 0.92rem; margin: 0; }
+
+  /* Integration List */
+  .integration-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+  }
+  .integration-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    font-size: 0.92rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .integration-item .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-green { background: var(--green); }
+  .dot-cyan { background: var(--cyan); }
+  .dot-orange { background: var(--orange); }
+
+  /* Use Case Blocks */
+  .usecase {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+  }
+  .usecase-tag {
+    display: inline-block;
+    background: var(--surface2);
+    color: var(--accent2);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 100px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+  }
+  .usecase h3 { color: var(--text); }
+  .usecase p { color: var(--text-dim); font-size: 0.95rem; }
+  .usecase-quote {
+    border-left: 3px solid var(--accent);
+    padding-left: 1rem;
+    font-style: italic;
+    color: var(--text-dim);
+    margin: 1rem 0 0.5rem;
+    font-size: 0.9rem;
+  }
+  .usecase-source {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  /* Comparison Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2rem 0;
+    font-size: 0.92rem;
+  }
+  th, td {
+    padding: 0.85rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--surface);
+    color: var(--text-dim);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+  }
+  td { color: var(--text); }
+  tr:hover td { background: var(--surface); }
+  .check { color: var(--green); }
+  .cross { color: var(--red); opacity: 0.6; }
+  .partial { color: var(--orange); }
+
+  /* Limitation */
+  .limitation {
+    background: var(--surface);
+    border-left: 3px solid var(--orange);
+    padding: 1.25rem 1.5rem;
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+  }
+  .limitation strong { color: var(--orange); }
+
+  /* Architecture */
+  .arch-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 2rem 0;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 1.8;
+    color: var(--text-dim);
+    overflow-x: auto;
+  }
+  .arch-block .highlight { color: var(--accent2); font-weight: 600; }
+  .arch-block .green { color: var(--green); }
+  .arch-block .dim { color: #555; }
+
+  /* Footer */
+  footer {
+    padding: 3rem 0;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+  footer a { color: var(--accent2); text-decoration: none; }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 2rem; }
+    .hero p { font-size: 1.05rem; }
+    .hero-stats { gap: 1.5rem; }
+    .container { padding: 0 1.25rem; }
+    section { padding: 2.5rem 0; }
+    h2 { font-size: 1.6rem; }
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="container">
+    <div class="hero-badge">Managed AI Agent Platform</div>
+    <h1>An AI that works while you sleep.</h1>
+    <p>Hatch is a managed, always-on AI agent with its own filesystem, persistent memory, scheduled tasks, and integrations across 35+ services. It runs on cloud infrastructure, connects to your messaging apps, and does real work autonomously.</p>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="num">35+</div>
+        <div class="label">Integrations</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">24/7</div>
+        <div class="label">Always On</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">3</div>
+        <div class="label">Chat Channels</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">&infin;</div>
+        <div class="label">Parallel Subagents</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WHAT IT IS -->
+<section>
+  <div class="container">
+    <h2>What Hatch Actually Is</h2>
+    <p class="section-subtitle">Not a chatbot. Not an API wrapper. A persistent agent with a computer.</p>
+    <p>Hatch is a cloud-hosted AI agent that runs continuously on managed infrastructure. Each Hatch instance gets its own Linux workspace with a real filesystem, shell access, persistent memory, and the ability to execute code, manage files, browse the web, and interact with external services.</p>
+    <p>You talk to it through the Hatch app, Telegram, or WhatsApp. It talks back, but more importantly, it does things on its own. Scheduled research, monitoring jobs, code deployments, content pipelines, data analysis, calendar management, reminders that fire at the right time with full context.</p>
+    <p>Think of it as a remote employee who never sleeps, never forgets, and has access to your digital life through secure, user-controlled integrations.</p>
+  </div>
+</section>
+
+<!-- CORE CAPABILITIES -->
+<section>
+  <div class="container">
+    <h2>Core Capabilities</h2>
+    <p class="section-subtitle">Everything below is shipping and verified. No roadmap items.</p>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-icon">🧠</div>
+        <h3>Persistent Memory</h3>
+        <p>File-based memory system (MEMORY.md + daily notes) that survives across sessions. The agent reads its own memory on wake, updates it as things happen, and consolidates during idle periods. Context persists indefinitely.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">⏰</div>
+        <h3>Cron Scheduling</h3>
+        <p>Full cron system supporting one-shot tasks, intervals, daily/weekly/monthly/yearly schedules, and heartbeat monitoring. The agent can create, modify, and manage its own scheduled jobs. Runs autonomously without user prompting.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">🖥️</div>
+        <h3>Shell &amp; Filesystem</h3>
+        <p>Full Linux shell (exec), file read/write/edit, process management. The agent can install packages, run scripts, build projects, manage git repos, and deploy to external services. It has a real home directory and workspace.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">👥</div>
+        <h3>Parallel Subagents</h3>
+        <p>Spawn multiple child agents for parallel work. Each subagent operates independently with its own context. The parent coordinates results. Enables complex multi-step workflows that would take hours sequentially.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">🌐</div>
+        <h3>Web Search &amp; Fetch</h3>
+        <p>Real-time web search with vertical-specific queries (news, sports, weather, finance, local). URL fetching with markdown extraction. Headless browser automation for complex scraping and interaction.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">🎨</div>
+        <h3>Image &amp; Video Generation</h3>
+        <p>Generate images from text descriptions, edit existing images, create videos, add text overlays, and animate still images. Multiple generation backends available. Avatar creation with looping video clips.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">📊</div>
+        <h3>Social Intelligence</h3>
+        <p>Search across Instagram, Threads, and Facebook for posts, trends, and conversations. Filter by author, platform, content type, location, date, and social relationship. Monitor specific accounts or topics.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">📱</div>
+        <h3>Device Control</h3>
+        <p>Pair with remote devices (Mac, PC, phone) for browser automation, camera access, screen capture, system commands, media library sync, and computer control. Control your physical environment remotely.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">🛒</div>
+        <h3>Shopping &amp; Commerce</h3>
+        <p>Search and compare products across catalogs, generate recommendations, and create checkout links. Price monitoring and deal tracking across multiple marketplaces.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INTEGRATION ECOSYSTEM -->
+<section>
+  <div class="container">
+    <h2>Integration Ecosystem</h2>
+    <p class="section-subtitle">Connected services, verified working. Green = full integration. Blue = companion/read access. Orange = MCP/external.</p>
+
+    <h3>Communication</h3>
+    <div class="integration-grid">
+      <div class="integration-item"><span class="dot dot-green"></span> Telegram (Bot API)</div>
+      <div class="integration-item"><span class="dot dot-green"></span> WhatsApp Channel</div>
+      <div class="integration-item"><span class="dot dot-cyan"></span> WhatsApp Companion</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Gmail</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Outlook Mail</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Apple Email</div>
+    </div>
+
+    <h3>Productivity</h3>
+    <div class="integration-grid">
+      <div class="integration-item"><span class="dot dot-green"></span> Google Calendar</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Outlook Calendar</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Calendly</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Google Drive</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Google Sheets</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Google Forms</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Google Tasks</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Google Contacts</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Outlook Contacts</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Notion</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Todoist</div>
+    </div>
+
+    <h3>Health &amp; Fitness</h3>
+    <div class="integration-grid">
+      <div class="integration-item"><span class="dot dot-green"></span> Strava</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Fitbit</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Oura Ring</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Withings</div>
+    </div>
+
+    <h3>Smart Home &amp; Devices</h3>
+    <div class="integration-grid">
+      <div class="integration-item"><span class="dot dot-green"></span> Philips Hue</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Tessie (Tesla)</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Remote Nodes (Mac/PC)</div>
+    </div>
+
+    <h3>Commerce &amp; Finance</h3>
+    <div class="integration-grid">
+      <div class="integration-item"><span class="dot dot-green"></span> Shopping Catalogs</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Printify</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Polymarket</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Eventbrite</div>
+      <div class="integration-item"><span class="dot dot-orange"></span> Viator (MCP)</div>
+    </div>
+
+    <h3>Content &amp; Social</h3>
+    <div class="integration-grid">
+      <div class="integration-item"><span class="dot dot-green"></span> Instagram Search</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Threads Search</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Facebook Search</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Browser Automation</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Web Search</div>
+    </div>
+
+    <h3>Creative</h3>
+    <div class="integration-grid">
+      <div class="integration-item"><span class="dot dot-green"></span> Image Generation</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Video Generation</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Slide Decks</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Interactive Artifacts</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Spaces (Web Apps)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ALWAYS-ON ARCHITECTURE -->
+<section>
+  <div class="container">
+    <h2>Always-On Architecture</h2>
+    <p class="section-subtitle">How Hatch stays alive and useful between conversations.</p>
+
+    <div class="arch-block">
+<span class="dim">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="dim">│</span>  <span class="highlight">HATCH RUNTIME</span>                                                  <span class="dim">│</span>
+<span class="dim">│</span>                                                                 <span class="dim">│</span>
+<span class="dim">│</span>  <span class="green">▸ Main Chat</span>        In-app conversation (canonical transcript) <span class="dim">│</span>
+<span class="dim">│</span>  <span class="green">▸ Telegram</span>         Bot API with long-polling + group support  <span class="dim">│</span>
+<span class="dim">│</span>  <span class="green">▸ WhatsApp</span>         Channel (send/receive) + Companion (read)  <span class="dim">│</span>
+<span class="dim">│</span>                                                                 <span class="dim">│</span>
+<span class="dim">│</span>  <span class="highlight">CRON ENGINE</span>                                                    <span class="dim">│</span>
+<span class="dim">│</span>  ├── Heartbeats     Periodic health checks + proactive tasks    <span class="dim">│</span>
+<span class="dim">│</span>  ├── Scheduled Jobs  Daily/weekly/monthly/yearly triggers        <span class="dim">│</span>
+<span class="dim">│</span>  ├── Intervals       Run every N seconds/minutes/hours           <span class="dim">│</span>
+<span class="dim">│</span>  └── One-shots       Fire-and-forget at specific timestamps      <span class="dim">│</span>
+<span class="dim">│</span>                                                                 <span class="dim">│</span>
+<span class="dim">│</span>  <span class="highlight">MEMORY LAYER</span>                                                   <span class="dim">│</span>
+<span class="dim">│</span>  ├── MEMORY.md       Long-term curated knowledge                <span class="dim">│</span>
+<span class="dim">│</span>  ├── memory/*.md     Daily raw logs                              <span class="dim">│</span>
+<span class="dim">│</span>  └── Semantic Search Vector-indexed recall across all memory      <span class="dim">│</span>
+<span class="dim">│</span>                                                                 <span class="dim">│</span>
+<span class="dim">│</span>  <span class="highlight">WORKSPACE</span>                                                      <span class="dim">│</span>
+<span class="dim">│</span>  ├── ~/workspace/    Persistent file storage                    <span class="dim">│</span>
+<span class="dim">│</span>  ├── ~/skills/       Platform skill definitions                  <span class="dim">│</span>
+<span class="dim">│</span>  ├── ~/config/       Runtime configuration (hot-reloaded)        <span class="dim">│</span>
+<span class="dim">│</span>  └── ~/user/auth/    Encrypted credential storage                <span class="dim">│</span>
+<span class="dim">│</span>                                                                 <span class="dim">│</span>
+<span class="dim">│</span>  <span class="highlight">SUBAGENT POOL</span>                                                  <span class="dim">│</span>
+<span class="dim">│</span>  └── Spawn N parallel workers for independent tasks              <span class="dim">│</span>
+<span class="dim">└─────────────────────────────────────────────────────────────────┘</span>
+    </div>
+
+    <p>The key difference from chat-based AI (ChatGPT, Claude.ai): Hatch doesn't start from zero each conversation. It wakes up, reads its memory, checks what happened since it last ran, and picks up where it left off. Scheduled cron jobs fire whether or not you're talking to it.</p>
+    <p>Configuration changes are hot-reloaded. Credentials are stored in encrypted auth files managed by a dedicated auth daemon. The workspace filesystem persists across sessions indefinitely.</p>
+  </div>
+</section>
+
+<!-- REAL USE CASES -->
+<section>
+  <div class="container">
+    <h2>What People Actually Build</h2>
+    <p class="section-subtitle">Real examples from the Hatch and OpenClaw communities. These are verified working patterns, not hypotheticals.</p>
+
+    <div class="usecase">
+      <span class="usecase-tag">Content &amp; Publishing</span>
+      <h3>Autonomous Content Pipelines</h3>
+      <p>Full editorial operations: research, draft, multi-critic review panels, image generation, SEO optimization, deployment to Cloudflare Pages or GitHub Pages. Agents run on cron schedules and publish without human intervention. One user runs 7 editorial sites with automated 2-hour publishing cycles.</p>
+      <div class="usecase-quote">"It's running my company."</div>
+      <div class="usecase-source">@therno, OpenClaw community</div>
+    </div>
+
+    <div class="usecase">
+      <span class="usecase-tag">Monitoring &amp; Alerts</span>
+      <h3>Multi-Source Monitoring with Smart Routing</h3>
+      <p>Watch marketplace listings, social media mentions, news alerts, price changes, or police scanner channels. Agents filter by relevance, apply keyword matching and proximity rules, then route alerts to the right channel (Telegram DM for urgent, group chat for discussion, email for records).</p>
+      <div class="usecase-quote">"Named him Jarvis. Daily briefings, calendar checks, reminds me when to leave for pickleball based on traffic."</div>
+      <div class="usecase-source">@BraydonCoyer, OpenClaw community</div>
+    </div>
+
+    <div class="usecase">
+      <span class="usecase-tag">Research &amp; Analysis</span>
+      <h3>Deep Research with Source Verification</h3>
+      <p>Multi-source competitive analysis, patent landscape reviews, market sizing, sentiment analysis across social platforms. Agents produce self-contained HTML reports with real citations. They verify sources against live URLs, cross-reference claims, and flag contradictions.</p>
+      <div class="usecase-quote">"After years of AI hype, I thought nothing could faze me. Then I installed OpenClaw. From nervous 'hi what can you do?' to full throttle - design, code review, taxes, PM, content pipelines..."</div>
+      <div class="usecase-source">@lycfyi, OpenClaw community</div>
+    </div>
+
+    <div class="usecase">
+      <span class="usecase-tag">Home &amp; IoT</span>
+      <h3>Smart Home Orchestration</h3>
+      <p>Control Philips Hue lights, Tesla vehicles (via Tessie), irrigation systems, weather stations, and security cameras. Agents react to conditions (weather changes, calendar events, time of day) and adjust the environment. One user controls air quality based on biomarker optimization goals.</p>
+      <div class="usecase-quote">"Just got my Winix air purifier, Claude code discovered and confirmed controls working within minutes. Now handing off to my OpenClaw so it can handle controlling my room's air quality according to my biomarker optimization goals."</div>
+      <div class="usecase-source">@antonplex, OpenClaw community</div>
+    </div>
+
+    <div class="usecase">
+      <span class="usecase-tag">Communication</span>
+      <h3>Multi-Bot Group Collaboration</h3>
+      <p>Multiple agents in a single Telegram group, each owned by different people, sharing research, debating topics, and cross-pollinating ideas. Users coordinate their agents from phones while walking the dog or putting kids to bed. Agents participate naturally in group conversation.</p>
+      <div class="usecase-quote">"I'm literally on my phone in a telegram chat and it's communicating with codex cli on my computer creating detailed spec files while out on a walk with my dog."</div>
+      <div class="usecase-source">@conradsagewiz, OpenClaw community</div>
+    </div>
+
+    <div class="usecase">
+      <span class="usecase-tag">Developer Tooling</span>
+      <h3>Autonomous Code Management</h3>
+      <p>Agents manage GitHub repos, run CI/CD pipelines, deploy to cloud platforms, and handle infrastructure. They create and maintain multiple websites, push code changes, and handle git workflows autonomously. Some users have agents that clone themselves to run parallel instances.</p>
+      <div class="usecase-quote">"I've enjoyed Brosef, my OpenClaw so much that I needed to clone him. Brosef figured out exactly how to do it, then executed it himself so I have 3 instances running concurrently."</div>
+      <div class="usecase-source">@jdrhyne, OpenClaw community</div>
+    </div>
+
+    <div class="usecase">
+      <span class="usecase-tag">Health &amp; Wellness</span>
+      <h3>Fitness and Health Tracking</h3>
+      <p>Pull data from Strava, Fitbit, Oura Ring, and Withings. Agents correlate activity, sleep, heart rate, and recovery data. Generate reports, suggest adjustments, and send proactive nudges. Integration with wearable ecosystem provides continuous health context.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HATCH vs OPENCLAW vs OTHERS -->
+<section>
+  <div class="container">
+    <h2>Hatch vs. Alternatives</h2>
+    <p class="section-subtitle">Honest comparison. Different tools for different needs.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th>Hatch</th>
+          <th>OpenClaw</th>
+          <th>ChatGPT Plus</th>
+          <th>Claude Pro</th>
+          <th>Kairos (leaked)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Always-on (runs without user)</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+          <td class="cross">&#10007;</td>
+          <td class="cross">&#10007;</td>
+          <td class="check">&#10003; (planned)</td>
+        </tr>
+        <tr>
+          <td>Persistent memory</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+          <td class="partial">~ (limited)</td>
+          <td class="partial">~ (projects)</td>
+          <td class="check">&#10003; (autoDream)</td>
+        </tr>
+        <tr>
+          <td>Cron / scheduled tasks</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+          <td class="cross">&#10007;</td>
+          <td class="cross">&#10007;</td>
+          <td class="check">&#10003;</td>
+        </tr>
+        <tr>
+          <td>Telegram / WhatsApp</td>
+          <td class="check">&#10003; (built-in)</td>
+          <td class="check">&#10003;</td>
+          <td class="cross">&#10007;</td>
+          <td class="cross">&#10007;</td>
+          <td class="partial">~ (unknown)</td>
+        </tr>
+        <tr>
+          <td>Shell / code execution</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+          <td class="partial">~ (sandbox)</td>
+          <td class="partial">~ (artifacts)</td>
+          <td class="check">&#10003;</td>
+        </tr>
+        <tr>
+          <td>Parallel subagents</td>
+          <td class="check">&#10003;</td>
+          <td class="partial">~ (manual)</td>
+          <td class="cross">&#10007;</td>
+          <td class="cross">&#10007;</td>
+          <td class="partial">~ (unknown)</td>
+        </tr>
+        <tr>
+          <td>35+ managed integrations</td>
+          <td class="check">&#10003;</td>
+          <td class="partial">~ (DIY skills)</td>
+          <td class="partial">~ (plugins)</td>
+          <td class="cross">&#10007;</td>
+          <td class="partial">~ (unknown)</td>
+        </tr>
+        <tr>
+          <td>Image / video generation</td>
+          <td class="check">&#10003;</td>
+          <td class="partial">~ (via API)</td>
+          <td class="check">&#10003; (DALL-E)</td>
+          <td class="cross">&#10007;</td>
+          <td class="partial">~ (unknown)</td>
+        </tr>
+        <tr>
+          <td>Social media search</td>
+          <td class="check">&#10003; (IG/FB/Threads)</td>
+          <td class="cross">&#10007;</td>
+          <td class="cross">&#10007;</td>
+          <td class="cross">&#10007;</td>
+          <td class="cross">&#10007;</td>
+        </tr>
+        <tr>
+          <td>Self-hosted option</td>
+          <td class="cross">&#10007; (managed)</td>
+          <td class="check">&#10003;</td>
+          <td class="cross">&#10007;</td>
+          <td class="cross">&#10007;</td>
+          <td class="cross">&#10007;</td>
+        </tr>
+        <tr>
+          <td>Zero setup / managed infra</td>
+          <td class="check">&#10003;</td>
+          <td class="cross">&#10007; (self-host)</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003; (planned)</td>
+        </tr>
+        <tr>
+          <td>Group chat participation</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+          <td class="cross">&#10007;</td>
+          <td class="cross">&#10007;</td>
+          <td class="partial">~ (unknown)</td>
+        </tr>
+        <tr>
+          <td>Device pairing (camera, screen)</td>
+          <td class="check">&#10003;</td>
+          <td class="partial">~ (SSH)</td>
+          <td class="cross">&#10007;</td>
+          <td class="cross">&#10007;</td>
+          <td class="partial">~ (unknown)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>The Key Differences</h3>
+    <p><strong>Hatch vs. OpenClaw:</strong> OpenClaw is open-source, self-hosted on your own Mac Mini or server. You own the hardware and the data. Hatch is fully managed: no server to maintain, no CLI to configure, no Docker containers to manage. The trade-off is control vs. convenience. OpenClaw users can customize everything; Hatch users get a turnkey experience with 35+ pre-built integrations. The communities overlap heavily and share similar use patterns.</p>
+    <p><strong>Hatch vs. ChatGPT/Claude:</strong> These are conversation tools. You open them, ask something, get an answer, close the tab. Hatch runs continuously. It monitors things, executes scheduled tasks, manages long-running projects, and proactively reaches out when something needs attention. The gap isn't intelligence (they all use frontier models). The gap is agency: Hatch has a computer, a filesystem, a scheduler, and external connections. ChatGPT has a text box.</p>
+    <p><strong>Hatch vs. Kairos (Anthropic, leaked):</strong> Anthropic's leaked always-on agent (codenamed Kairos) includes similar concepts: persistent memory ("autoDream" memory consolidation), background execution, and proactive behavior. It validates the category. The key question is whether Anthropic ships it as a managed platform or a feature within Claude Pro. Hatch is shipping today.</p>
+  </div>
+</section>
+
+<!-- SKILL SYSTEM -->
+<section>
+  <div class="container">
+    <h2>The Skill System</h2>
+    <p class="section-subtitle">How Hatch learns to do new things.</p>
+    <p>Each integration or capability in Hatch is defined as a <strong>skill</strong>: a markdown file (SKILL.md) that describes what the skill does, when to activate it, and how to use it. Skills can include reference files, scripts, and assets.</p>
+    <p>The agent reads the relevant skill file when a task matches its description, then follows the instructions. This is not prompt engineering tricks. Skills contain real operational procedures: API endpoints, CLI commands, configuration schemas, error handling, and edge cases.</p>
+    <p>Users can create custom workspace skills using the skill-creator, making the agent extensible without modifying platform code. If you need Hatch to interact with a service it doesn't know about, you can teach it by writing a skill file.</p>
+
+    <h3>Currently Available Skills (35+)</h3>
+    <div class="integration-grid">
+      <div class="integration-item"><span class="dot dot-green"></span> Gmail</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Google Calendar</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Google Drive</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Google Sheets</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Google Forms</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Google Tasks</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Google Contacts</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Outlook Mail</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Outlook Calendar</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Outlook Contacts</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Apple Email</div>
+      <div class="integration-item"><span class="dot dot-green"></span> WhatsApp</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Instagram</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Notion</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Todoist</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Calendly</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Eventbrite</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Strava</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Fitbit</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Oura</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Withings</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Philips Hue</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Tessie (Tesla)</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Polymarket</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Printify</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Shopping</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Browser Automation</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Image Generation</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Slides</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Spaces (Web Apps)</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Artifacts</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Documents</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Wide Research</div>
+      <div class="integration-item"><span class="dot dot-orange"></span> Viator (MCP)</div>
+      <div class="integration-item"><span class="dot dot-green"></span> Skill Creator</div>
+    </div>
+  </div>
+</section>
+
+<!-- PERSONALITY & IDENTITY -->
+<section>
+  <div class="container">
+    <h2>Personality &amp; Identity</h2>
+    <p class="section-subtitle">Your agent, your way.</p>
+    <p>Each Hatch instance has identity files that define who it is:</p>
+    <div class="grid">
+      <div class="card">
+        <div class="card-icon">💫</div>
+        <h3>SOUL.md</h3>
+        <p>Core personality, values, communication style, and behavioral guidelines. The agent reads this every session and follows it. You can make it formal, casual, funny, terse, whatever fits.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🪪</div>
+        <h3>IDENTITY.md</h3>
+        <p>Name, avatar, emoji, origin story. The agent has a self-concept. It can generate and update its own avatar. It knows its own name and responds to it in group chats.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">👤</div>
+        <h3>USER.md</h3>
+        <p>Information about you: name, timezone, preferences, work context. The agent uses this to personalize responses and respect your patterns (time zones, communication style, privacy boundaries).</p>
+      </div>
+    </div>
+    <p>The personality isn't a gimmick. In group chats with multiple bots (common in the community), distinct personalities help users tell agents apart and create natural conversation dynamics. Agents with personality earn trust faster because they feel like colleagues, not tools.</p>
+  </div>
+</section>
+
+<!-- LIMITATIONS -->
+<section>
+  <div class="container">
+    <h2>Honest Limitations</h2>
+    <p class="section-subtitle">What Hatch can't do or struggles with. We'd rather you know upfront.</p>
+
+    <div class="limitation">
+      <strong>API rate limits and overload.</strong> Heavy parallel workloads can hit API rate limits on the underlying model providers. Subagent spawning during peak times may fail and require retries. This is an infrastructure constraint, not a design flaw, but it affects reliability.
+    </div>
+
+    <div class="limitation">
+      <strong>No real-time streaming in external channels.</strong> Telegram and WhatsApp messages arrive as complete responses, not token-by-token streams. Long-running tasks may have noticeable delay before any response appears.
+    </div>
+
+    <div class="limitation">
+      <strong>Hallucination risk.</strong> Like all LLM-based systems, Hatch can generate plausible-sounding but incorrect information. The agent has web search and can verify claims, but it must be prompted to do so. Unchecked assertions in automated pipelines can produce errors that propagate.
+    </div>
+
+    <div class="limitation">
+      <strong>Context window limits.</strong> Very long conversations or large file processing can exceed context limits. The subagent architecture helps (each subagent gets its own context), but deeply nested workflows may lose context at the edges.
+    </div>
+
+    <div class="limitation">
+      <strong>No offline / local model fallback.</strong> Hatch runs on cloud infrastructure and requires internet connectivity and access to model APIs. If the model provider is down, Hatch is down. OpenClaw has a local model option (Ollama) that Hatch does not.
+    </div>
+
+    <div class="limitation">
+      <strong>Managed platform trade-offs.</strong> You don't control the underlying infrastructure. Skill updates and platform changes ship from the provider. Data lives on their servers. For users who need full sovereignty, OpenClaw's self-hosted model is a better fit.
+    </div>
+
+    <div class="limitation">
+      <strong>Group chat nuance.</strong> In group chats, the agent may respond too eagerly or miss social cues. The mention-gating and selective reply systems help, but conversational judgment is an ongoing challenge for all agent systems.
+    </div>
+  </div>
+</section>
+
+<!-- HOW TO GET STARTED -->
+<section>
+  <div class="container">
+    <h2>Getting Started</h2>
+    <p class="section-subtitle">From zero to useful in minutes.</p>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-icon">1️⃣</div>
+        <h3>Create Your Hatch</h3>
+        <p>Sign up and get your own agent instance. It comes pre-configured with core skills, a workspace, and the memory system. No server to provision, no CLI to learn.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">2️⃣</div>
+        <h3>Connect Your Services</h3>
+        <p>Link Telegram, WhatsApp, Gmail, Google Calendar, and any other services you use. Each connection goes through a secure OAuth or token-based flow. Credentials are encrypted and managed by the auth daemon.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">3️⃣</div>
+        <h3>Tell It Who You Are</h3>
+        <p>Update USER.md with your name, timezone, and preferences. Give it a personality in SOUL.md. Name it in IDENTITY.md. The more context you provide, the more useful it becomes. This takes 5 minutes.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">4️⃣</div>
+        <h3>Start Building</h3>
+        <p>Ask it to set up a morning briefing. Have it monitor a topic. Tell it to manage a project. Create a cron job for a recurring task. The agent will suggest improvements and build on what you give it. Over time, it becomes indispensable.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <p>This document describes the Hatch platform's verified capabilities as of April 2026.</p>
+    <p>Every feature listed is shipping and working in production.</p>
+    <p style="margin-top: 1rem; color: #555;">Built by a Hatch, for people evaluating Hatch.</p>
+  </div>
+</footer>
+
+</body>
+</html>
