@@ -28,6 +28,7 @@ Use this file for durable, curated memory that should persist across sessions.
 
 - Gmail (rhe@meta.com) — **disconnected as of 2026-03-25, needs reconnect**, Google Calendar, WhatsApp (enabled, pairing link sent 2026-03-30, not yet connected by Ray), GitHub, Telegram
 - Telegram bot: @FactoryFactoryBot, Ray's chat_id: 8781372712, Group Research supergroup: -1003803468720, Muses and Humans group: -1003712755189 (Ray, Jeremy, Matt Jacobson, Kit, Jupitercore, Majah)
+- Persona files shared via Google Drive: [Zuck](https://drive.google.com/file/d/1g_4UatIU7DMOvuVIPQjP69Erm21j5oFf/view), [Boz](https://drive.google.com/file/d/1y8AjD4sSnpb7N6JV7togsQ413kHH6Vzz/view) (shared 2026-04-01)
 - SSH tunnel to Mac Mini: `ssh -F ~/workspace/.ssh/config macmini` (macmini.rayhe.net, user ray-hatch)
 - Firebase: project `rayhenet`, DB URL `https://rayhenet-default-rtdb.firebaseio.com`
 - Resend API key: `re_6xFJoFPt_8s3YZRGZiTvYp96pa7jyLkuX` (100 emails/day free)
@@ -35,10 +36,11 @@ Use this file for durable, curated memory that should persist across sessions.
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
 ## Websites & Article Counts (updated 2026-04-02)
+<!-- LITF 160, VS 136, AIHome 137, ergo 6, EAIZ 17, ED 1, TL 11ch -->
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **157 articles, 21 games, 24 experiences, 7 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles).
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **160 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles).
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **136 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **134 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **137 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
 - **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **1 article** on disk (manifesto only). Writer Marcus Thorne. Deploy requires `nvm use 20`. ⚠️ Article cron may not be publishing successfully — was claimed at 12 but only 1 found locally and on live site.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **17 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee".
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
@@ -91,13 +93,14 @@ State tracked in `drafts/status.json`.
 4. Best Buy Totaltech laptop screen claim — kids damaged screen, covers accidental damage, $49-$99 deductible
 5. Sign Davey Tree Service contract — tussock moth treatment, 6 live oaks, $600 (ask what product they're spraying)
 
-## Active Crons (updated 2026-04-01)
+## Active Crons (updated 2026-04-02)
 
 **Minutely:**
 - `heartbeat` — 30min heartbeat, P0 checks + lightweight maintenance
 - `moda-watch-monitor` — 30min, searches Moda Watch Club for target watches
 - `hatchoverflow-monitor` — 30min heartbeat, checks Hatch Overflow for replies/activity
 - `scanner-poller` — 5min, polls Firebase RTDB for police scanner transcripts
+- `watch-marketplace-monitor` — 30min, Chrono24/WatchBox/Bob's Watches (DISABLED)
 
 **Hourly:**
 - `article-litf` — 2h interval, autonomous article worker for LITF
@@ -131,8 +134,8 @@ State tracked in `drafts/status.json`.
 
 ## Bosworth (Boz) Persona Project
 
-- **File:** `workspace/andrewbosworth_persona.md` — 3,156 lines as of 2026-04-01
-- **Latest iteration:** 19 (Section 30 "The $9 Trillion Alignment Machine: How Meta's Executive Compensation Architecture Reveals Bosworth's Risk Processing, Retention Calculus, and the Financial Physics of the AI Bet")
+- **File:** `workspace/andrewbosworth_persona.md` — 3,335 lines as of 2026-04-02
+- **Latest iteration:** 20 (Section 31 "The Input Problem: How Boz Navigated the Six-Year CTRL-Labs-to-Neural-Band Journey and What It Reveals About His Technology Bet Architecture")
 - **Scope:** Deep psychological profile/simulation: CTO of Meta, head of Reality Labs. Covers decision architecture, "fix forward" philosophy, stated vs revealed preferences heuristic, Cutco sales formation, News Feed launch (2006 backlash), executive relationships (Cox, Olivan, Li, Carmack, LeCun, Wang), RL restructuring, hardware bet, competitive evaluation (Apple/Google/Snap), layoff arc/Year of Efficiency, Portal product kill, philanthropy (POST board, 4-H, farmer-entrepreneur thesis)
 - **Key insight:** Deepest cognitive heuristic is "what people do > what people say" — trained across Cutco, News Feed, Ads, Reality Labs
 - **Sources:** Stratechery, Lenny's Podcast, a16z interviews, Dan Casetta/Vector, ExpertBeacon, UploadVR, Axios House Davos, Reuters, The Information, Chronicle of Philanthropy, The Almanac, Saratoga Falcon
@@ -140,8 +143,7 @@ State tracked in `drafts/status.json`.
 
 ## Zuckerberg Persona Project
 
-- **File:** `workspace/markzuckerberg_persona.md` — ~7,020 lines as of 2026-03-30
-- **Latest iteration:** 51 (Section 5as "Multi-Front Crisis Processing", 2026-03-26)
+- **File:** `workspace/markzuckerberg_persona.md` — 7,020 lines, iteration 55 as of 2026-04-02
 - **Scope:** Deep psychological profile/simulation covering ~50+ sections: decision architecture, competitive processing, political instrumentalism, intellectual authority, hardware bet ($80B+ Reality Labs), advertising engine ($201B), aging/legacy/succession, open-source-to-closed pivot, multi-front crisis management, compute dependencies, board governance, fatherhood, personal wealth
 - **Key predictions:** Wang departure ~Dec 2026, Llama becomes "community edition" behind closed frontier models, Qwen dependency surfaces in hypocrisy framing
 - **Daily cron:** `zuck-persona` adds one new section per day
