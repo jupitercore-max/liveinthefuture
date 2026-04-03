@@ -38,12 +38,12 @@ Use this file for durable, curated memory that should persist across sessions.
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
 ## Websites & Article Counts (updated 2026-04-03)
-<!-- LITF 166, VS 138, AIHome 141, ergo 7, ED 19, EAIZ 17, TL 11ch -->
+<!-- LITF 167, VS 137, AIHome 142, ergo 7, ED 18, EAIZ 17, TL 11ch -->
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **166 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles).
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **138 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **141 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
-- **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **19 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **167 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles).
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **137 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **142 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
+- **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **18 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **17 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee".
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
 - **technically.legal** — Cloudflare Pages (direct upload), repo rayhe/technically-legal. See Technically Legal section below.
