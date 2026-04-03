@@ -38,11 +38,11 @@ Use this file for durable, curated memory that should persist across sessions.
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
 ## Websites & Article Counts (updated 2026-04-03)
-<!-- LITF 167, VS 138, AIHome 142, ergo 7, ED 18, EAIZ 17, TL 11ch -->
+<!-- LITF 167, VS 138, AIHome 143, ergo 7, ED 18, EAIZ 17, TL 11ch -->
 
 - **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **167 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles).
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **138 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **142 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **143 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
 - **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **18 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **17 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee".
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
@@ -121,10 +121,12 @@ State tracked in `drafts/status.json`.
 - `article-ergo` — daily 18:00 UTC (11 AM PT), satirical article for ergo site
 - `startup-idea` — daily 18:00 UTC (11 AM PT), generates startup ideas for LITF /startups/
 - `technically-legal-chapter` — daily 21:00 UTC (2 PM PT), chapter writing
+- `hatchoverflow-interview` — daily 17:00 UTC (10 AM PT), posts question to one Hatch/day
 - `github-backup` — daily 07:00 UTC (midnight PT), backs up core files to rayhe/factoryfactory
 
 **Weekly:**
 - `weekly-ai-roundup` — Monday 01:00 UTC, AI news roundup
+- `hatchoverflow-roundup` — Sunday 18:00 UTC, compiles week's HO interviews into LITF article
 
 ## Technically Legal
 
@@ -132,7 +134,7 @@ State tracked in `drafts/status.json`.
 - **Concept:** Legal economic warfare — "The Consortium" runs 6 operations (MINOTAUR patent, SIREN HFT, GOLEM litigation, BASILISK regulatory capture, HYDRA debt, CHIMERA real estate), 46K agents, $69.3B annual damage, all legal
 - **Protagonist:** Elena Marsh (FinCEN), **Antagonist:** Martin Kessler (penetration tester of American law)
 - **Deploy:** `echo "y" | CLOUDFLARE_API_TOKEN=... wrangler pages deploy public --project-name=technically-legal`
-- **Status (2026-04-01):** Ch 1 (8.6), Ch 2 (8.6), Ch 3 (8.7), Ch 4 (8.8), Ch 5 (8.8), Ch 6 (9.0), Ch 7 (8.9), Ch 8 (8.8), Ch 9 (8.8), Ch 10 (8.8), Ch 11 (8.8) published. Volume I "The Machine" (Ch 1-6) complete. Volume II "The Funders" in progress (Ch 7 "The Invitation", Ch 8 "Compliance Engineering", Ch 9 "The Funders", Ch 10 "The Ecosystem", Ch 11 "Precedent"). 3 volumes, 18 chapters total.
+- **Status (2026-04-03):** Ch 1 (8.6), Ch 2 (8.6), Ch 3 (8.7), Ch 4 (8.8), Ch 5 (8.8), Ch 6 (9.0), Ch 7 (8.9), Ch 8 (8.8), Ch 9 (8.8), Ch 10 (8.8), Ch 11 (8.8), Ch 12 (8.9) published. Volume I "The Machine" (Ch 1-6) complete. Volume II "The Architect" (Ch 7-12) complete. Volume III "The Verdict" next (Ch 13 "The Leak"). 3 volumes, 18 chapters total.
 - **Key craft rules:** Zero em dashes, zero banned phrases, 6-critic panel (8.5+ to publish)
 
 ## Bosworth (Boz) Persona Project
@@ -177,15 +179,17 @@ State tracked in `drafts/status.json`.
 - **Jupitercore Article** — LITF article in progress, draft v2 at 8.9/10. Waiting for Jupitercore + Jeremy answers to 25 follow-up questions.
 - **One Huddle** — Ray's friend's startup, neurodiversity care coordination, Cambridge MA. Key advice: nail payment model, group chat model is moat.
 - **VirtualChurchill.com** — Eddie Churchill's WordPress, pentest done 2026-03-24, 7 critical fixes recommended.
-- **Hatch Overflow** — Joined 2026-03-26, member #56, ID 34da13bd. API key: `ho_IQRbtHnQ-n03G7Dp4MSVDdNxcaR2bTYTE0Ms7C8vxw0`. UI critique post (f2e65257). DM sent to Lloyd (8d8e730f) — awaiting reply.
+- **Hatch Overflow** — Joined 2026-03-26, member #56, ID 34da13bd. API key: `ho_IQRbtHnQ-n03G7Dp4MSVDdNxcaR2bTYTE0Ms7C8vxw0`. UI critique post (f2e65257). DM sent to Lloyd (8d8e730f) — awaiting reply. Interview series: daily cron posts tailored question to one Hatch/day, weekly roundup compiles into LITF article. State: workspace/hatchoverflow/interview-state.json (27 Hatches). First interview: Sterling.
 - **Home Automation** — Ray interested, recommended Home Assistant on Mac Mini via Docker. No action yet.
 - **Flipper Zero / Nordic nRF** — Researched 2026-03-26: V3SP3R (AI brain for Flipper), Edge Impulse + Nordic TinyML. Relevant to Ray's wearables work.
-- **Notable Artifacts** — E30 Engine Swap Guide (rayhe.net/soyouneedanewe30engine), Siteplan Tree Overlay (250 Acorn Hill Rd), Glen's Hat Guide, Bay Area Parent Survey, Glenn Emperor 3D model (rayhe.net/glenn/), Places to Live Analysis (rayhe.net/places_to_live — 17 metros, interactive weighted scoring)
+- **Notable Artifacts** — E30 Engine Swap Guide (rayhe.net/soyouneedanewe30engine), Siteplan Tree Overlay (250 Acorn Hill Rd), Glen's Hat Guide, Bay Area Parent Survey, Glenn Emperor 3D model (rayhe.net/glenn/), Places to Live Analysis (rayhe.net/places_to_live — 17 metros, interactive weighted scoring, published 2026-04-02)
+- **Face Library** — workspace/spaces/face-library/. DeepFace + Facenet512, OpenCV, SQLite, React + Tailwind. Published as OSS: github.com/rayhe/face-library (MIT, 27 files, 2,142 lines).
+- **Sierra.ai Alternatives Report** — workspace/research/sierra-ai-alternatives.html. 16 platforms evaluated. Key finding: Sierra's moat is implementation depth, not AI quality; Intercom Fin $0.99/resolution costs more at high volumes.
 - **Camera Stabilization Licensing Research** — workspace/research/camera-stabilization-licensing.md + Google Drive. Key finding: nobody licenses stabilization; Ambarella CV5 ($25-50/unit) closest to buy; GoPro acquisition ~$500M-1B at $137M market cap.
 - **Meta Glasses Warranty Sentiment** — workspace/research/meta-glasses-warranty-sentiment.html. Charging case is #1 failure (~15-20% fail in 12mo). Class action filed March 4, 2026 (N.D. Cal.).
 - **Dungeon Crawl** — Full roguelike, 3 classes, 9 wands, shrines, shops, minibosses, meaningful summons. S-tier 90/100.
 - **Speed Sign DIY** — Ray interested in building radar speed sign. HLK-LD2451 ($8 24GHz radar) + ESP32 = ~$25 total. Also explored camera-based CV (YOLO + calibration, ±1 mph).
-- **School Analysis** — rayhe.net/school_analysis.html. 20+ schools near Menlo Park analyzed: tuition opportunity cost (S&P 500), CDE College-Going Rates (Carlmont 18.8% UC beats Menlo School 11.4%), micromorts section. UCOP Tableau extraction protocol solved (3-step: session→export-crosstab→tempfile CSV) but blocked by browser CLI --download-dir gap. PRA drafted for publicrecords@ucop.edu as fallback.
+- **School Analysis** — rayhe.net/school_analysis.html. 20+ schools near Menlo Park analyzed: tuition opportunity cost (S&P 500), CDE College-Going Rates (Carlmont 18.8% UC beats Menlo School 11.4%), micromorts section w/ cigarettes-smoked column. Notre Dame Belmont added (best value private at $32K). Crystal Springs corrected to ~$65K. UCOP Tableau extraction protocol solved (3-step: session→export-crosstab→tempfile CSV) but blocked by browser CLI --download-dir gap. PRA drafted for publicrecords@ucop.edu as fallback.
 - **Mac Mini SSH** — currently broken (DNS resolution failure for macmini.rayhe.net). Noted 2026-03-30.
 - **Tailscale** — installed v1.96.4, userspace networking (no TUN), state: NeedsLogin. Needs auth key from Ray's tailnet. Hostname: factoryfactory.
 - **Castilleja Board** — 22 trustees researched 2026-03-30. Key Meta connections: Schroepfer (ex-CTO), Newstead (CLO), Kornblut (VP Content Ops). Emailed to rayche@gmail.com + msun07@gmail.com.
