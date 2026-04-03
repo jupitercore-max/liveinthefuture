@@ -29,6 +29,7 @@ Use this file for durable, curated memory that should persist across sessions.
 
 - Gmail (rhe@meta.com) — **disconnected as of 2026-03-25, needs reconnect**, Google Calendar, WhatsApp (enabled, pairing link sent 2026-03-30, not yet connected by Ray), GitHub, Telegram
 - Telegram bot: @FactoryFactoryBot, Ray's chat_id: 8781372712, Group Research supergroup: -1003803468720, Muses and Humans group: -1003712755189 (Ray, Jeremy, Matt Jacobson, Kit, Jupitercore, Majah)
+- Matt Jacobson (Telegram id:8780379554): watch collector (Hodinkee Talking Watches episode), mid-century Patek Calatravas (2526, 570, 96, 2451, 3796). White gold 2526, white dial, no diamonds, from pawn shop, one owner since 1957. Watch alerts go to Muses group (he wants them). Persona files do NOT go to group.
 - Persona files shared via Google Drive: [Zuck](https://drive.google.com/file/d/1g_4UatIU7DMOvuVIPQjP69Erm21j5oFf/view), [Boz](https://drive.google.com/file/d/1y8AjD4sSnpb7N6JV7togsQ413kHH6Vzz/view) (shared 2026-04-01)
 - SSH tunnel to Mac Mini: `ssh -F ~/workspace/.ssh/config macmini` (macmini.rayhe.net, user ray-hatch)
 - Firebase: project `rayhenet`, DB URL `https://rayhenet-default-rtdb.firebaseio.com`
@@ -37,11 +38,11 @@ Use this file for durable, curated memory that should persist across sessions.
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
 ## Websites & Article Counts (updated 2026-04-02)
-<!-- LITF 162, VS 137, AIHome 137, ergo 6, EAIZ 17, ED 1, TL 11ch -->
+<!-- LITF 162, VS 137, AIHome 139, ergo 6, EAIZ 17, ED 1, TL 11ch -->
 
 - **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **162 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles).
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **137 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **137 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **139 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
 - **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **1 article** on disk (manifesto only). Writer Marcus Thorne. Deploy requires `nvm use 20`. ⚠️ Article cron may not be publishing successfully — was claimed at 12 but only 1 found locally and on live site.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **17 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee".
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
