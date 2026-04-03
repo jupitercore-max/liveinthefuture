@@ -38,9 +38,9 @@ Use this file for durable, curated memory that should persist across sessions.
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
 ## Websites & Article Counts (updated 2026-04-02)
-<!-- LITF 162, VS 137, AIHome 139, ergo 6, EAIZ 17, ED 1, TL 11ch -->
+<!-- LITF 163, VS 137, AIHome 139, ergo 6, EAIZ 17, ED 1, TL 11ch -->
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **162 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles).
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **163 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles).
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **137 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
 - **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **139 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
 - **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **1 article** on disk (manifesto only). Writer Marcus Thorne. Deploy requires `nvm use 20`. ⚠️ Article cron may not be publishing successfully — was claimed at 12 but only 1 found locally and on live site.
