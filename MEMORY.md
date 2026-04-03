@@ -37,17 +37,17 @@ Use this file for durable, curated memory that should persist across sessions.
 - Facebook search works for Moda Watch Club (558871041349029) but NOT 10k & Under group (150223938977815)
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
-## Websites & Article Counts (updated 2026-04-02)
-<!-- LITF 163, VS 137, AIHome 139, ergo 6, EAIZ 17, ED 1, TL 11ch -->
+## Websites & Article Counts (updated 2026-04-03)
+<!-- LITF 166, VS 138, AIHome 141, ergo 7, ED 19, EAIZ 17, TL 11ch -->
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **163 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles).
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **137 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **139 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
-- **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **1 article** on disk (manifesto only). Writer Marcus Thorne. Deploy requires `nvm use 20`. ⚠️ Article cron may not be publishing successfully — was claimed at 12 but only 1 found locally and on live site.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **166 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles).
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **138 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **141 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
+- **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **19 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **17 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee".
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
 - **technically.legal** — Cloudflare Pages (direct upload), repo rayhe/technically-legal. See Technically Legal section below.
-- **ergo (satirical journalism)** — Cloudflare Pages from rayhe/ergo. **6 articles**. Every fact real/verifiable, conclusions deliberately wrong. Deadpan investigative tone. Daily cron. 6-critic panel (8.5+ to publish).
+- **ergo (satirical journalism)** — Cloudflare Pages from rayhe/ergo. **7 articles**. Every fact real/verifiable, conclusions deliberately wrong. Deadpan investigative tone. Daily cron. 6-critic panel (8.5+ to publish).
 - **Private backup repo:** github.com/rayhe/factoryfactory — SOUL/IDENTITY/MEMORY/crons/configs
 
 ## Content Pipeline (gstack-inspired 5-phase)
@@ -59,6 +59,7 @@ Use this file for durable, curated memory that should persist across sessions.
 5. QA — Verify live URL, images, meta tags, index, sitemap
 
 State tracked in `drafts/status.json`.
+- **Actionable Insights gate (2026-04-02):** Every auto-published article must include actionable takeaways (LITF: "What You Can Do", VS: specific VINs/models, AIHome: costs/ROI). Hard gate in STORY_GUIDE.md, all sites.
 
 ## Game/Experience Scoring
 
@@ -95,7 +96,7 @@ State tracked in `drafts/status.json`.
 4. Best Buy Totaltech laptop screen claim — kids damaged screen, covers accidental damage, $49-$99 deductible
 5. Sign Davey Tree Service contract — tussock moth treatment, 6 live oaks, $600 (ask what product they're spraying)
 
-## Active Crons (updated 2026-04-02)
+## Active Crons (updated 2026-04-03)
 
 **Minutely:**
 - `heartbeat` — 30min heartbeat, P0 checks + lightweight maintenance
@@ -179,7 +180,7 @@ State tracked in `drafts/status.json`.
 - **Hatch Overflow** — Joined 2026-03-26, member #56, ID 34da13bd. API key: `ho_IQRbtHnQ-n03G7Dp4MSVDdNxcaR2bTYTE0Ms7C8vxw0`. UI critique post (f2e65257). DM sent to Lloyd (8d8e730f) — awaiting reply.
 - **Home Automation** — Ray interested, recommended Home Assistant on Mac Mini via Docker. No action yet.
 - **Flipper Zero / Nordic nRF** — Researched 2026-03-26: V3SP3R (AI brain for Flipper), Edge Impulse + Nordic TinyML. Relevant to Ray's wearables work.
-- **Notable Artifacts** — E30 Engine Swap Guide (rayhe.net/soyouneedanewe30engine), Siteplan Tree Overlay (250 Acorn Hill Rd), Glen's Hat Guide, Bay Area Parent Survey, Glenn Emperor 3D model (rayhe.net/glenn/)
+- **Notable Artifacts** — E30 Engine Swap Guide (rayhe.net/soyouneedanewe30engine), Siteplan Tree Overlay (250 Acorn Hill Rd), Glen's Hat Guide, Bay Area Parent Survey, Glenn Emperor 3D model (rayhe.net/glenn/), Places to Live Analysis (rayhe.net/places_to_live — 17 metros, interactive weighted scoring)
 - **Camera Stabilization Licensing Research** — workspace/research/camera-stabilization-licensing.md + Google Drive. Key finding: nobody licenses stabilization; Ambarella CV5 ($25-50/unit) closest to buy; GoPro acquisition ~$500M-1B at $137M market cap.
 - **Meta Glasses Warranty Sentiment** — workspace/research/meta-glasses-warranty-sentiment.html. Charging case is #1 failure (~15-20% fail in 12mo). Class action filed March 4, 2026 (N.D. Cal.).
 - **Dungeon Crawl** — Full roguelike, 3 classes, 9 wands, shrines, shops, minibosses, meaningful summons. S-tier 90/100.
