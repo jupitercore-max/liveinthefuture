@@ -41,12 +41,12 @@ Use this file for durable, curated memory that should persist across sessions.
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
 ## Websites & Article Counts (updated 2026-04-04)
-<!-- LITF 171, VS 140, AIHome 145, ergo 7, ED 19, EAIZ 18, TL 12ch -->
+<!-- LITF 176, VS 140, AIHome 145, ergo 7, ED 18, EAIZ 18, TL 12ch -->
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **171 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles).
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **176 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04.
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **140 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
 - **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **145 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
-- **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **19 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
+- **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **18 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **18 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee".
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
 - **technically.legal** — Cloudflare Pages (direct upload), repo rayhe/technically-legal. See Technically Legal section below.
@@ -201,6 +201,7 @@ State tracked in `drafts/status.json`.
 - **Research Data Hub** — ~/workspace/research/, 475MB across 7 sources: UC Admissions, College Scorecard, IPEDS, CSU, BLS OEWS, CA EDD, Census ACS.
 - **Counterfactual Site Concept** — data-driven life decisions website. Ray brainstorming names (Counterfactual, Life Alpha, Base Rate, etc.). No decision yet.
 - **BTECH GMRS-50 PRO** — Ray's base station. SO-239 connector (UHF female), needs PL-259 male. N-type adapter recommended for better performance.
+- **Baofeng radios** — Ray has Baofeng handhelds. Programming data in `rayhe/baofeng-san-mateo` GitHub repo (cloned to repos/baofeng-san-mateo). 128 channels: PD dispatch, fire, CalFire, GMRS repeaters, FRS, MURS, NOAA WX, interop. 7 GMRS repeaters programmed (CP650 Woodside, GNET SF/SJ, Kabalikat Daly City, 7A Open SF, AVCERT San Jose, Bear Santa Cruz, Menlo Oaks). REP-MO (Ch 51, 462.550 MHz) is Ray's OWN repeater at his house. When Ray asks about radios, ALWAYS check out the baofeng repo first.
 
 ## Ray's Vehicles
 
