@@ -40,11 +40,11 @@ Use this file for durable, curated memory that should persist across sessions.
 - Facebook search works for Moda Watch Club (558871041349029) but NOT 10k & Under group (150223938977815)
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
-## Websites & Article Counts (updated 2026-04-03)
-<!-- LITF 171, VS 140, AIHome 145, ergo 7, ED 18, EAIZ 17, TL 12ch -->
+## Websites & Article Counts (updated 2026-04-04)
+<!-- LITF 171, VS 138, AIHome 145, ergo 7, ED 18, EAIZ 17, TL 12ch -->
 
 - **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **171 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles).
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **140 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **138 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
 - **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **145 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
 - **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **18 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **17 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee".
@@ -99,7 +99,7 @@ State tracked in `drafts/status.json`.
 4. Best Buy Totaltech laptop screen claim — kids damaged screen, covers accidental damage, $49-$99 deductible
 5. Sign Davey Tree Service contract — tussock moth treatment, 6 live oaks, $600 (ask what product they're spraying)
 
-## Active Crons (updated 2026-04-03)
+## Active Crons (updated 2026-04-04)
 
 **Minutely:**
 - `heartbeat` — 30min heartbeat, P0 checks + lightweight maintenance
@@ -118,18 +118,20 @@ State tracked in `drafts/status.json`.
 
 **Daily:**
 - `zuck-persona` — daily 09:00 UTC (2 AM PT), Zuckerberg persona iteration
-- `boz-persona` — daily 09:30 UTC (2:30 AM PT), Bosworth persona iteration (switched from 30min after gaps nearly exhausted)
+- `boz-persona` — daily 09:30 UTC (2:30 AM PT), Bosworth persona iteration
 - `memory-dream` — daily 10:00 UTC (3 AM PT), memory consolidation
+- `personalized-recommendations` — daily 13:25 UTC (system-created)
+- `personalized-recommendations-proactive` — daily 14:21 UTC (system-created)
 - `moltbook-litf-scan` — daily 14:00 UTC (7 AM PT), scans Moltbook for LITF ideas
+- `ho-daily-interview` — daily 17:00 UTC (10 AM PT), posts question to one Hatch/day
 - `article-ergo` — daily 18:00 UTC (11 AM PT), satirical article for ergo site
 - `startup-idea` — daily 18:00 UTC (11 AM PT), generates startup ideas for LITF /startups/
 - `technically-legal-chapter` — daily 21:00 UTC (2 PM PT), chapter writing
-- `hatchoverflow-interview` — daily 17:00 UTC (10 AM PT), posts question to one Hatch/day
 - `github-backup` — daily 07:00 UTC (midnight PT), backs up core files to rayhe/factoryfactory
 
 **Weekly:**
 - `weekly-ai-roundup` — Monday 01:00 UTC, AI news roundup
-- `hatchoverflow-roundup` — Sunday 18:00 UTC, compiles week's HO interviews into LITF article
+- `ho-weekly-roundup` — Sunday 18:00 UTC, compiles week's HO interviews into LITF article
 
 ## Technically Legal
 
@@ -145,9 +147,9 @@ State tracked in `drafts/status.json`.
 - **File:** `workspace/andrewbosworth_persona.md` — 3,335 lines as of 2026-04-02
 - **Latest iteration:** 20 (Section 31 "The Input Problem: How Boz Navigated the Six-Year CTRL-Labs-to-Neural-Band Journey and What It Reveals About His Technology Bet Architecture")
 - **Scope:** Deep psychological profile/simulation: CTO of Meta, head of Reality Labs. Covers decision architecture, "fix forward" philosophy, stated vs revealed preferences heuristic, Cutco sales formation, News Feed launch (2006 backlash), executive relationships (Cox, Olivan, Li, Carmack, LeCun, Wang), RL restructuring, hardware bet, competitive evaluation (Apple/Google/Snap), layoff arc/Year of Efficiency, Portal product kill, philanthropy (POST board, 4-H, farmer-entrepreneur thesis)
-- **Key insight:** Deepest cognitive heuristic is "what people do > what people say" — trained across Cutco, News Feed, Ads, Reality Labs
-- **Sources:** Stratechery, Lenny's Podcast, a16z interviews, Dan Casetta/Vector, ExpertBeacon, UploadVR, Axios House Davos, Reuters, The Information, Chronicle of Philanthropy, The Almanac, Saratoga Falcon
-- **Gaps nearly empty** — only 1 remaining (Threads posts). Recommend switching cron to daily.
+- **Key insight:** Deepest cognitive heuristic is "what people do > what people say"
+- **Sources:** Stratechery, Lenny's Podcast, a16z, Dan Casetta/Vector, ExpertBeacon, UploadVR, Axios, Reuters, The Information, Chronicle of Philanthropy
+- **Gaps nearly empty** — only 1 remaining (Threads posts)
 
 ## Zuckerberg Persona Project
 
