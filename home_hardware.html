@@ -428,18 +428,17 @@ details > div {
 <body>
 
 <h1>🏠 OpenClaw Home Hardware Guide</h1>
-<p class="subtitle">Everything you need to run an always-on AI agent on your home network. From "just works" to "data center in a closet." Optimized for your existing Mac Mini setup.</p>
+<p class="subtitle">Everything you need to run an always-on AI agent on your home network. From "just works" to "data center in a closet." A general guide for any setup.</p>
 
 <div class="exec-summary">
 <h2>⚡ Executive Summary</h2>
-<p>You already have a Mac Mini. That's 80% of the answer. Here's what matters:</p>
+<p>Running an AI agent at home is surprisingly lightweight. The heavy inference happens in the cloud. Here's what actually matters:</p>
 <ul>
-<li><strong>For OpenClaw agent hosting:</strong> Your existing Mac Mini is more than enough. OpenClaw is cloud-brained (API calls to Anthropic/OpenAI) — the local box just needs to be always-on with good internet.</li>
-<li><strong>For trunk-recorder:</strong> You're core-starved. The M4's 4 P-cores can't handle 8+ simultaneous voice channels. Upgrade to M4 Pro (10 P-cores) or consider a Linux box with a Ryzen 9 7950X (16 full cores at $25/core vs Mac's $114/core).</li>
-<li><strong>Headless Mac warning:</strong> macOS is a bad server OS. Sleep fights you, Docker runs in a VM, USB passthrough is fragile, and unattended reboots are risky with FileVault. A dedicated Linux box for server workloads may be the right call.</li>
-<li><strong>For local LLM inference:</strong> Mac Mini M4 Pro with 48GB unified memory ($1,599) is the sweet spot. Runs 70B models at 10-15 tok/s. But a Linux box running Ollama is equally capable and better at headless operation.</li>
-<li><strong>For Home Assistant:</strong> Run it on the Linux box (native Docker, native USB for Zigbee dongle) or spend $100 on a Pi 5 for isolation.</li>
-<li><strong>The hybrid answer:</strong> Keep the Mac Mini for interactive use + OpenClaw. Add a $369-1,200 Linux box for trunk-recorder, Docker, HA, and local LLM. Best of both worlds.</li>
+<li><strong>For OpenClaw agent hosting:</strong> Any always-on machine with 4+ GB RAM and a stable internet connection works. A Mac Mini, a mini PC, even a Raspberry Pi 5. OpenClaw is cloud-brained (API calls to Anthropic/OpenAI) — the local box is just an orchestrator.</li>
+<li><strong>For local LLM inference:</strong> This is where hardware matters. You need unified memory (Apple Silicon or AMD Strix Halo) or dedicated GPU VRAM. Mac Mini M4 Pro 48GB ($1,599) or AMD Ryzen AI Max+ 395 mini PCs ($1,499-2,499 with 64-128GB unified memory) are the sweet spots for 70B models.</li>
+<li><strong>Headless server warning:</strong> macOS is a mediocre server OS — sleep fights, Docker-in-VM, USB passthrough issues. If you're running always-on headless workloads, Linux is objectively better. Consider a dedicated Linux box or dual-boot.</li>
+<li><strong>For Home Assistant:</strong> Run it on any Linux box (native Docker, native USB for Zigbee dongle) or spend $80-100 on a Pi 5 / HA Green for isolation.</li>
+<li><strong>The hybrid answer:</strong> Keep a Mac for interactive use + cloud agent. Add a $369-1,200 Linux box for Docker, local LLM, and home automation. Best of both worlds.</li>
 </ul>
 </div>
 
@@ -492,7 +491,7 @@ details > div {
 
 <div class="rec-box">
 <div class="label rec">KEY INSIGHT</div>
-<p>Your existing Mac Mini already exceeds these requirements by a wide margin. The bottleneck for OpenClaw is <strong>internet reliability and uptime</strong>, not compute. A $35 Raspberry Pi could technically run the agent layer — but it can't run the 18 browser tabs, Git operations, and image processing that a real agent workflow demands.</p>
+<p>Most people already own hardware that exceeds these requirements. The bottleneck for OpenClaw is <strong>internet reliability and uptime</strong>, not compute. A $35 Raspberry Pi could technically run the agent layer — but it can't run the 18 browser tabs, Git operations, and image processing that a real agent workflow demands.</p>
 </div>
 
 <!-- COMPUTE OPTIONS -->
@@ -623,6 +622,30 @@ details > div {
   <td><span class="badge best">Excellent</span></td>
   <td>Fastest consumer option. Loud.</td>
 </tr>
+<tr style="background: rgba(188,140,255,0.08);">
+  <td><strong>GMKtec EVO-X2</strong> (Strix Halo)</td>
+  <td>$1,499-1,999</td>
+  <td>16C/32T AI Max+ 395</td>
+  <td>64-128 GB unified</td>
+  <td>12W</td>
+  <td>140W</td>
+  <td>70B @ 15-20 tok/s</td>
+  <td><span class="badge best">Excellent</span></td>
+  <td><span class="badge best">Excellent</span></td>
+  <td><span class="badge gold">★ NEW HOTNESS</span></td>
+</tr>
+<tr style="background: rgba(188,140,255,0.08);">
+  <td><strong>Acemagic M1A Pro+</strong> (Strix Halo)</td>
+  <td>$2,499</td>
+  <td>16C/32T AI Max+ 395</td>
+  <td>128 GB unified</td>
+  <td>12W</td>
+  <td>140W</td>
+  <td>70B+ @ 15-20 tok/s</td>
+  <td><span class="badge best">Excellent</span></td>
+  <td><span class="badge best">Excellent</span></td>
+  <td>128GB unified + Linux native</td>
+</tr>
 <tr>
   <td><strong>Oracle Cloud Free Tier</strong></td>
   <td>$0</td>
@@ -640,13 +663,13 @@ details > div {
 </div>
 
 <!-- MAC COMPARISON: THE CORE COUNT PROBLEM -->
-<h2>🖥️ Mac Mini vs Mac Studio vs MacBook Pro: The Core Count Problem</h2>
+<h2>🖥️ Apple Silicon vs AMD Strix Halo vs Desktop CPUs: Core Count & Unified Memory</h2>
 
-<p>You're running <strong>trunk-recorder</strong> on your Mac Mini and maxing out cores. This matters because trunk-recorder does SDR signal processing: each simultaneous radio voice channel eats roughly one CPU core for demodulation and decoding. A busy trunked P25 system with 10-15 simultaneous calls needs 10-15 cores just for that, before you add OpenClaw, Docker, Home Assistant, and Whisper transcription on top.</p>
+<p>For AI agent workloads, two things matter most: <strong>core count</strong> (for concurrent tasks, SDR processing, transcription) and <strong>unified memory</strong> (for local LLM inference where the entire model needs to fit in fast memory). Here's how the options compare:</p>
 
-<div class="rec-box danger">
-<div class="label danger">YOUR ACTUAL BOTTLENECK</div>
-<p>The Mac Mini M4 has 10 cores (4 performance + 6 efficiency). The E-cores handle background tasks fine, but trunk-recorder's DSP workload hammers the P-cores specifically. With only 4 performance cores, you're saturated the moment you have 4+ simultaneous voice channels being decoded. This isn't an "upgrade eventually" problem; it's a "you're dropping radio channels right now" problem.</p>
+<div class="rec-box info">
+<div class="label info">WHY UNIFIED MEMORY MATTERS</div>
+<p>Traditional PCs split memory between CPU RAM and GPU VRAM. A 70B Q4 model needs ~40GB — it won't fit in a single GPU's 24GB VRAM, so it spills to system RAM across a slow PCIe bus. <strong>Unified memory</strong> (Apple Silicon, AMD Strix Halo) gives the CPU and GPU a single fast memory pool. A 48GB unified system loads the entire model at full bandwidth — no spilling, no bottleneck. This is why Apple Silicon and Strix Halo dominate local LLM price/performance for large models.</p>
 </div>
 
 <div class="table-wrap">
@@ -774,6 +797,42 @@ details > div {
   <td>60W / 170W</td>
   <td>Best single-thread + multi-thread</td>
 </tr>
+<tr style="background: rgba(188,140,255,0.08);">
+  <td><strong>GMKtec EVO-X2 64GB</strong> (Strix Halo)</td>
+  <td>16C / 32T</td>
+  <td>16 Zen 5 (all full)</td>
+  <td>64 GB LPDDR5X unified</td>
+  <td>256 GB/s</td>
+  <td>$1,499</td>
+  <td>$94</td>
+  <td>~22,000</td>
+  <td>12W / 140W</td>
+  <td>Mac-like unified mem + Linux native</td>
+</tr>
+<tr style="background: rgba(188,140,255,0.08);">
+  <td><strong>GMKtec EVO-X2 128GB</strong> (Strix Halo)</td>
+  <td>16C / 32T</td>
+  <td>16 Zen 5 (all full)</td>
+  <td>128 GB LPDDR5X unified</td>
+  <td>256 GB/s</td>
+  <td>$1,999</td>
+  <td>$125</td>
+  <td>~22,000</td>
+  <td>12W / 140W</td>
+  <td><span class="badge gold">★ BEST FOR LLM + LINUX</span></td>
+</tr>
+<tr style="background: rgba(188,140,255,0.08);">
+  <td><strong>Acemagic M1A Pro+ 128GB</strong> (Strix Halo)</td>
+  <td>16C / 32T</td>
+  <td>16 Zen 5 (all full)</td>
+  <td>128 GB LPDDR5X unified</td>
+  <td>256 GB/s</td>
+  <td>$2,499</td>
+  <td>$156</td>
+  <td>~22,000</td>
+  <td>12W / 140W</td>
+  <td>Premium build, dual 2.5G LAN, 3 NVMe</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -781,20 +840,54 @@ details > div {
 <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">* Linux builds: add ~$400-600 for motherboard + RAM + case + PSU + NVMe. Total build cost ~$800-1,200 for a complete system.</p>
 
 <div class="rec-box" style="border-left-color: var(--purple);">
-<div class="label" style="color: var(--purple);">THE TRUNK-RECORDER MATH</div>
-<p>Trunk-recorder needs ~1 P-core per simultaneous voice channel. On a busy system you might have 8-15 channels active at peak. Add Whisper transcription (1-2 cores), OpenClaw agent (1 core), Docker/HA (1 core), and system overhead (1-2 cores).</p>
-<p><strong>Minimum for comfortable operation:</strong> 10+ P-cores = Mac Mini M4 Pro (10P) or Mac Studio M4 Max (12P)</p>
-<p><strong>Never worry about it again:</strong> Ryzen 9 7950X (16 full P-cores, 32 threads) at <strong>$25/core</strong> vs Mac's $114-125/core. That's 5x better value per core.</p>
+<div class="label" style="color: var(--purple);">THE MULTI-WORKLOAD MATH</div>
+<p>Running an AI agent alongside local LLM, Home Assistant, Docker services, and media processing adds up fast. A base Mac Mini M4 with 4 P-cores will feel constrained once you're running Ollama + Docker + browser automation simultaneously. Plan for at least 8-10 performance cores if you're doing more than just the cloud-based agent.</p>
+<p><strong>Best value per core:</strong> AMD Ryzen 9 7950X/9950X (16 full P-cores, 32 threads) at <strong>$25-34/core</strong> vs Apple/Strix Halo's $94-125/core. That's 3-5x better value if raw core count is what you need.</p>
+<p><strong>Best for local LLM + Linux:</strong> AMD Strix Halo mini PCs (GMKtec EVO-X2, Acemagic M1A Pro+). 128GB unified memory at 256 GB/s — same trick as Apple Silicon but runs Linux natively. No headless workarounds needed.</p>
 </div>
 
-<h3>The M5 MacBook Pro Question</h3>
-<p>Expected late 2026, likely on TSMC's enhanced 3nm or 2nm process. Probably 14-16 CPU cores with improved IPC. <strong>But here's the problem for your use case:</strong></p>
+<h3>🆕 AMD Strix Halo: The Mac Killer for Linux Users?</h3>
+<p>The AMD Ryzen AI Max+ 395 (codenamed "Strix Halo") is the first x86 chip with Mac-like unified memory. It combines 16 Zen 5 cores, a Radeon 8060S GPU with up to 40 RDNA 3.5 CUs, and LPDDR5X memory shared between CPU and GPU. Up to 96GB can be allocated to the GPU, making it capable of running 70B+ models entirely in fast unified memory — just like Apple Silicon, but on Linux.</p>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr><th>Feature</th><th>Mac Mini M4 Pro 48GB</th><th>GMKtec EVO-X2 128GB</th><th>Acemagic M1A Pro+ 128GB</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>CPU</strong></td><td>14C (10P+4E), Arm</td><td>16C/32T, Zen 5 x86</td><td>16C/32T, Zen 5 x86</td></tr>
+<tr><td><strong>GPU</strong></td><td>20-core Apple GPU</td><td>Radeon 8060S (40 CU)</td><td>Radeon 8060S (40 CU)</td></tr>
+<tr><td><strong>Unified Memory</strong></td><td>48 GB LPDDR5</td><td>128 GB LPDDR5X</td><td>128 GB LPDDR5X</td></tr>
+<tr><td><strong>Memory Bandwidth</strong></td><td>273 GB/s</td><td>256 GB/s</td><td>256 GB/s</td></tr>
+<tr><td><strong>GPU Memory Allocatable</strong></td><td>~36 GB</td><td>Up to 96 GB</td><td>Up to 96 GB</td></tr>
+<tr><td><strong>OS</strong></td><td>macOS only</td><td>Linux / Windows</td><td>Linux / Windows</td></tr>
+<tr><td><strong>Docker</strong></td><td>Runs in VM (not native)</td><td>Native</td><td>Native</td></tr>
+<tr><td><strong>Headless Operation</strong></td><td>Workarounds needed</td><td>First-class (systemd)</td><td>First-class (systemd)</td></tr>
+<tr><td><strong>USB Passthrough</strong></td><td>Fragile in Docker</td><td>Native, trivial</td><td>Native, trivial</td></tr>
+<tr><td><strong>70B Q4 Inference</strong></td><td>~12 tok/s</td><td>~15-20 tok/s (est.)</td><td>~15-20 tok/s (est.)</td></tr>
+<tr><td><strong>Price</strong></td><td>$1,599</td><td>$1,999</td><td>$2,499</td></tr>
+<tr><td><strong>Idle Power</strong></td><td>7W</td><td>~12W</td><td>~12W</td></tr>
+<tr><td><strong>Networking</strong></td><td>1x 10GbE, 1x 1GbE</td><td>1x 2.5GbE</td><td>2x 2.5GbE</td></tr>
+<tr><td><strong>Expandability</strong></td><td>None (soldered RAM, 1 NVMe)</td><td>1x NVMe</td><td>3x NVMe</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="rec-box" style="border-left-color: var(--purple);">
+<div class="label" style="color: var(--purple);">THE STRIX HALO VERDICT</div>
+<p><strong>If you're a Linux user:</strong> The GMKtec EVO-X2 128GB ($1,999) is arguably the best mini PC for local LLM inference. 128GB unified memory, 16 full Zen 5 cores, native Docker, headless out of the box. It does everything a Mac Mini M4 Pro does for LLM inference — but also runs Linux natively with no workarounds.</p>
+<p><strong>If you're in the Apple ecosystem:</strong> The Mac Mini M4 Pro 48GB ($1,599) is still the best value. macOS is a joy to use interactively, and the 48GB unified memory handles 70B Q4 models. Just know you're paying a headless-server tax if you run it 24/7 without a monitor.</p>
+<p><strong>The catch:</strong> Strix Halo mini PCs are new (early 2026). Long-term reliability data is limited. The GMKtec EVO-X2 scored 88% on NotebookCheck but RAM is not expandable and internal maintenance is described as "unnecessarily difficult." The Acemagic M1A Pro+ scored 85% with the same RAM limitation.</p>
+</div>
+
+<h3>Laptop as Server: Don't</h3>
+<p>It's tempting to repurpose an old MacBook or laptop as an always-on server. <strong>Don't.</strong></p>
 <ul style="margin: 0.5rem 0 1rem 1.5rem;">
-<li><strong>Thermal throttling:</strong> A laptop can't sustain 100% CPU load on all cores indefinitely. After 10-15 minutes, it throttles to stay under its thermal envelope. trunk-recorder runs 24/7. A Mac Mini or Studio has better sustained thermals because of the desktop form factor.</li>
-<li><strong>Always-on penalty:</strong> Keeping a laptop lid-closed, plugged in, running a server workload 24/7 is technically possible but degrades battery health and fights macOS's power management at every step.</li>
-<li><strong>Cost premium:</strong> You're paying for a screen, keyboard, trackpad, and battery you'll never use in a server role. The Mac Mini M4 Pro at $1,599 gives you equivalent cores without the laptop tax.</li>
+<li><strong>Thermal throttling:</strong> A laptop can't sustain 100% CPU load on all cores indefinitely. After 10-15 minutes, it throttles. Agents and LLMs run 24/7.</li>
+<li><strong>Always-on penalty:</strong> Keeping a laptop lid-closed, plugged in, running a server workload 24/7 degrades battery health and fights power management at every step.</li>
+<li><strong>Cost premium:</strong> You're paying for a screen, keyboard, trackpad, and battery you'll never use in a server role. A Mac Mini or mini PC gives equivalent cores without the laptop tax.</li>
 </ul>
-<p><strong>Bottom line:</strong> If you want portability + server, get a Mac Mini for the server and a MacBook for the road. Don't combine them.</p>
+<p><strong>Bottom line:</strong> If you want portability + server, get a dedicated mini PC for the server and a laptop for the road. Don't combine them.</p>
 
 <!-- THE HEADLESS MAC PROBLEM -->
 <h2>⚠️ The Headless Mac Problem</h2>
@@ -916,7 +1009,7 @@ details > div {
   <td>Servers don't sleep by default. Nothing to configure.</td>
 </tr>
 <tr>
-  <td><strong>trunk-recorder</strong></td>
+  <td><strong>trunk-recorder / SDR</strong></td>
   <td>Works, but SDR USB passthrough to Docker is fragile. Better to run natively.</td>
   <td>Native, in Docker, in a systemd service. All work perfectly. USB devices are first-class.</td>
 </tr>
@@ -926,16 +1019,16 @@ details > div {
 
 <div class="rec-box danger">
 <div class="label danger">THE HONEST TAKE</div>
-<p><strong>If your primary use case is always-on headless workloads</strong> (trunk-recorder, Home Assistant, OpenClaw relay, local LLM inference, Docker services), <strong>a Linux box is objectively better than a Mac.</strong></p>
+<p><strong>If your primary use case is always-on headless workloads</strong> (SDR/radio processing, Home Assistant, OpenClaw relay, local LLM inference, Docker services), <strong>a Linux box is objectively better than a Mac.</strong></p>
 <p>The Mac is great when you're sitting in front of it. It's beautiful, silent, power-efficient, and macOS is a pleasure to use interactively. But as a server? You're fighting the OS at every step. Every headless Mac setup involves a list of workarounds that Linux simply doesn't need.</p>
-<p><strong>The hybrid approach:</strong> Mac Mini M4 Pro for interactive use + a $800-1,200 Linux box (Ryzen 9 7950X build or Beelink SER8) dedicated to server workloads. trunk-recorder, Docker, Home Assistant, and local LLM all run on Linux where they belong. The Mac stays clean for development and daily use.</p>
+<p><strong>The hybrid approach:</strong> A Mac for interactive use + a dedicated Linux box ($369-1,200) for server workloads. Docker, Home Assistant, local LLM, and SDR all run on Linux where they belong. The Mac stays clean for development and daily use. AMD Strix Halo mini PCs are particularly compelling here — unified memory for LLM inference + native Linux headless operation.</p>
 </div>
 
 <div class="rec-box">
-<div class="label rec">THE PRACTICAL PLAY FOR RAY</div>
-<p><strong>Option A (cheapest fix):</strong> Keep the Mac Mini. Buy a dummy HDMI plug ($8), run <code>pmset disablesleep</code>, use <code>launchd</code> for trunk-recorder. Live with the workarounds. Cost: $8.</p>
-<p><strong>Option B (proper fix):</strong> Build or buy a Linux box (Beelink SER8 at $369 or Ryzen 9 7950X build at $1,000). Move trunk-recorder, Docker services, and Home Assistant to it. Keep the Mac Mini for OpenClaw and interactive work. Cost: $369-1,000.</p>
-<p><strong>Option C (one box to rule them all):</strong> Build a Ryzen 9 7950X or 9950X Linux server ($1,000-1,200). Run <em>everything</em> on it, including OpenClaw's local components. 16 full P-cores, 32 threads, native Docker, native USB, native headless. The Mac Mini becomes a secondary/backup machine or gets repurposed. Cost: $1,000-1,200.</p>
+<div class="label rec">THREE PATHS FORWARD</div>
+<p><strong>Option A (cheapest fix for existing Mac users):</strong> Keep the Mac. Buy a dummy HDMI plug ($8), run <code>pmset disablesleep</code>, use <code>launchd</code> for services. Live with the workarounds. Cost: $8.</p>
+<p><strong>Option B (dedicated server):</strong> Buy a Linux mini PC (Beelink SER8 at $369 or GMKtec EVO-X2 at $1,499-1,999). Move Docker services, Home Assistant, and local LLM to it. Keep your Mac/laptop for interactive work. Cost: $369-1,999.</p>
+<p><strong>Option C (one box to rule them all):</strong> Build a Ryzen 9 7950X/9950X Linux server ($1,000-1,200) or buy a Strix Halo mini PC ($1,499-2,499). Run <em>everything</em> on it. 16 full cores, native Docker, native USB, native headless. Cost: $1,000-2,499.</p>
 </div>
 
 <!-- LOCAL LLM INFERENCE -->
@@ -990,6 +1083,10 @@ details > div {
   <div class="bar"><div class="fill" style="width:25%;background:var(--accent)">~12 tok/s</div></div>
 </div>
 <div class="vs-bar">
+  <span class="label">Strix Halo 128GB</span>
+  <div class="bar"><div class="fill" style="width:35%;background:var(--purple)">~15-20 tok/s</div></div>
+</div>
+<div class="vs-bar">
   <span class="label">Mac Mini M4 Max 128GB</span>
   <div class="bar"><div class="fill" style="width:35%;background:var(--accent)">~18 tok/s</div></div>
 </div>
@@ -1023,6 +1120,7 @@ details > div {
 <tr><td>Claude Opus API</td><td>$0</td><td>$0</td><td>$15.00 in / $75.00 out</td><td>—</td></tr>
 <tr><td>Mac Mini M4 + Llama 4 Scout</td><td>$599</td><td>~$26/yr</td><td>~$0.02 (amortized 3yr)</td><td>~2 months at 1M tok/day</td></tr>
 <tr><td>Mac Mini M4 Pro + Llama 70B</td><td>$1,599</td><td>~$39/yr</td><td>~$0.05 (amortized 3yr)</td><td>~4 months at 1M tok/day</td></tr>
+<tr><td>Strix Halo 128GB + Llama 70B</td><td>$1,999</td><td>~$53/yr</td><td>~$0.06 (amortized 3yr)</td><td>~5 months at 1M tok/day</td></tr>
 <tr><td>RTX 4090 build + Scout</td><td>$2,800</td><td>~$394/yr</td><td>~$0.03 (amortized 3yr)</td><td>~6 months at 1M tok/day</td></tr>
 <tr><td>RTX 5090 build</td><td>$4,200</td><td>~$503/yr</td><td>~$0.04 (amortized 3yr)</td><td>~8 months at 1M tok/day</td></tr>
 </tbody>
@@ -1090,8 +1188,8 @@ details > div {
 </div>
 
 <div class="rec-box">
-<div class="label rec">FOR YOUR SETUP</div>
-<p>Since you already have Tailscale and SSH access to the Mac Mini, the minimum viable network upgrade is just <strong>AdGuard Home in Docker</strong> (30 minutes). The Ubiquiti stack is great but only worth it if you're also adding cameras or have WiFi dead zones. Your current network handles OpenClaw fine.</p>
+<div class="label rec">MINIMUM VIABLE NETWORK UPGRADE</div>
+<p>If you already have Tailscale and SSH access to your machine, the minimum viable network upgrade is just <strong>AdGuard Home in Docker</strong> (30 minutes). The Ubiquiti stack is great but only worth it if you're also adding cameras or have WiFi dead zones. Most home networks handle an OpenClaw agent just fine as-is.</p>
 </div>
 
 <!-- HOME AUTOMATION -->
@@ -1148,23 +1246,22 @@ details > div {
 </table>
 </div>
 
-<h3>Your Existing Integrations</h3>
+<h3>Popular Home Automation Integrations</h3>
 <details>
 <summary>Hydrawise Irrigation Controller</summary>
 <div>
 <p><strong>Native HA integration exists!</strong> <a href="https://www.home-assistant.io/integrations/hydrawise/">home-assistant.io/integrations/hydrawise/</a></p>
-<p>Your controller: "Menlo Oaks" (ID 1612066, serial 03d047712e). 9 zones, 3-day cycle starting 5:00 AM.</p>
-<p>What you get in HA: per-zone enable/disable, manual run, rain delay, sensor readings (if equipped), watering schedule overview. Can create automations like "skip watering if Tempest reports rain today."</p>
-<p><strong>Setup time:</strong> 5 minutes. Enter your API key (C8C6-E879-64F8-40B0) in the HA integration config and it auto-discovers your controller.</p>
+<p>What you get in HA: per-zone enable/disable, manual run, rain delay, sensor readings (if equipped), watering schedule overview. Can create automations like "skip watering if weather station reports rain today."</p>
+<p><strong>Setup time:</strong> 5 minutes. Enter your Hydrawise API key in the HA integration config and it auto-discovers your controller.</p>
 </div>
 </details>
 
 <details>
-<summary>Tempest WeatherFlow Station</summary>
+<summary>WeatherFlow Tempest Station</summary>
 <div>
-<p><strong>Native HA integration.</strong> Station 164725, device 393322.</p>
+<p><strong>Native HA integration.</strong></p>
 <p>Exposes: temperature, humidity, wind speed/direction, UV index, solar radiation, rain accumulation, lightning distance/count, pressure, air density.</p>
-<p>Killer automation: <strong>Tempest rain forecast → skip Hydrawise watering → save water.</strong> This alone pays for the HA setup.</p>
+<p>Killer automation: <strong>Weather station rain forecast → skip irrigation → save water.</strong> This alone pays for the HA setup.</p>
 </div>
 </details>
 
@@ -1227,7 +1324,7 @@ details > div {
 <div class="rec-box">
 <div class="label rec">3-2-1 BACKUP STRATEGY</div>
 <p><strong>3 copies</strong> of data, on <strong>2 different media</strong>, with <strong>1 offsite</strong>.</p>
-<p>Practical version: Mac Mini SSD (primary) → Time Machine to external NVMe (local backup) → Backblaze B2 or Google Drive (offsite). Your GitHub repos already serve as offsite backup for all code/articles. Total cost: ~$10-15/month for cloud storage.</p>
+<p>Practical version: Primary SSD (working copy) → Time Machine or rsync to external NVMe (local backup) → Backblaze B2 or Google Drive (offsite). GitHub repos already serve as offsite backup for all code/articles. Total cost: ~$10-15/month for cloud storage.</p>
 </div>
 
 <!-- POWER / UPS -->
@@ -1245,6 +1342,7 @@ details > div {
       <option value="8">Beelink SER8 (8W idle)</option>
       <option value="3">Raspberry Pi 5 (3W idle)</option>
       <option value="40">SFF + RTX 4090 (40W idle)</option>
+      <option value="12">Strix Halo Mini PC (12W idle)</option>
       <option value="60">PowerEdge T350 (60W idle)</option>
     </select>
   </div>
@@ -1311,8 +1409,8 @@ details > div {
 </div>
 
 <div class="rec-box">
-<div class="label rec">FOR A MAC MINI</div>
-<p>The <strong>CyberPower CP850PFCLCD ($120)</strong> is the sweet spot. Pure sine wave output (important for Mac power supplies), 90+ minutes of runtime at Mac Mini idle power, USB monitoring so your Mac can gracefully shutdown before battery dies. This is the single most impactful purchase you can make for always-on reliability.</p>
+<div class="label rec">FOR A MAC MINI OR MINI PC</div>
+<p>The <strong>CyberPower CP850PFCLCD ($120)</strong> is the sweet spot. Pure sine wave output (important for quality power supplies), 90+ minutes of runtime at mini PC idle power, USB monitoring so your machine can gracefully shutdown before battery dies. This is the single most impactful purchase you can make for always-on reliability.</p>
 </div>
 
 <!-- BUDGET TIERS -->
@@ -1353,15 +1451,16 @@ details > div {
 
 <div class="tier-card">
   <div class="tier-name">🥇 The Power User</div>
-  <div class="tier-price">$2,500-3,500 <span>total new spend</span></div>
+  <div class="tier-price">$2,000-3,500 <span>total new spend</span></div>
   <ul>
-    <li>Mac Mini M4 Max 128GB ($3,199)</li>
+    <li>Mac Mini M4 Max 128GB ($3,199) <em>or</em></li>
+    <li>GMKtec EVO-X2 128GB ($1,999) on Linux</li>
     <li>Everything from Sweet Spot tier</li>
     <li>Ubiquiti Dream Machine SE ($499)</li>
     <li>UniFi U7 Pro AP ($189)</li>
-    <li>Run 70B models at ~18 tok/s</li>
+    <li>Run 70B+ models locally</li>
     <li>Full UniFi network stack</li>
-    <li>10GbE internal network</li>
+    <li>10GbE / 2.5GbE internal network</li>
   </ul>
   <p style="margin-top:1rem;color:var(--text-muted);font-size:0.9rem;">Annual power: ~$65. Covers everything + fast local 70B inference, enterprise-grade networking, IDS/IPS.</p>
 </div>
@@ -1408,38 +1507,33 @@ details > div {
 </div>
 
 <!-- SPECIFIC RECOMMENDATIONS -->
-<h2>🛒 Ray's Specific Recommendation</h2>
-
-<div class="rec-box" style="border-left-color: var(--purple);">
-<div class="label" style="color: var(--purple);">YOUR SETUP TODAY</div>
-<p>Mac Mini M4 (SSH as ray-hatch@macmini.rayhe.net), Oracle Cloud VM (129.146.126.146), Tailscale installed but needs auth, Hydrawise irrigation (API), Tempest weather station, camera system, trunk-recorder on Mac Mini <strong>(maxing out CPU cores)</strong>.</p>
-</div>
+<h2>🛒 Getting Started: Actionable Recommendations</h2>
 
 <div class="rec-box">
-<div class="label rec">BUY THIS WEEK — $235</div>
-<p><strong>1. CyberPower CP850PFCLCD UPS ($120)</strong> — plug your Mac Mini into this immediately. It's the single highest-impact purchase.<br>
-<strong>2. Samsung T7 Shield 1TB ($80)</strong> — Time Machine backup for your Mac Mini. Plug in, enable, forget.<br>
+<div class="label rec">IF YOU ALREADY OWN A MAC MINI — $235</div>
+<p><strong>1. CyberPower CP850PFCLCD UPS ($120)</strong> — plug your machine into this immediately. It's the single highest-impact purchase.<br>
+<strong>2. External NVMe 1TB ($80)</strong> — Time Machine backup. Plug in, enable, forget.<br>
 <strong>3. Home Assistant Connect ZBT-2 ($35)</strong> — Zigbee + Thread in one USB dongle. Future-proofs your smart home.</p>
 </div>
 
 <div class="rec-box" style="border-left-color: var(--purple);">
-<div class="label" style="color: var(--purple);">FIX TRUNK-RECORDER — $369-1,200</div>
-<p>Your Mac Mini M4 is core-starved for trunk-recorder. Two paths:<br>
-<strong>Quick fix ($369):</strong> Beelink SER8 (Ryzen 7, 8C/16T, 32GB). Move trunk-recorder and Docker services to it. Runs Ubuntu headless perfectly. Triple your available cores.<br>
-<strong>Proper fix ($1,000-1,200):</strong> Build a Ryzen 9 7950X Linux box. 16 full P-cores, 32 threads, native Docker, native USB. Run trunk-recorder, Home Assistant, Ollama, and all Docker workloads. Frees the Mac Mini entirely for OpenClaw and interactive use.</p>
+<div class="label" style="color: var(--purple);">IF YOU'RE STARTING FROM SCRATCH — $600-2,000</div>
+<p>Two great paths depending on your ecosystem:<br>
+<strong>Apple ecosystem ($1,599):</strong> Mac Mini M4 Pro 48GB. Silent, 7W idle, 70B local LLM, macOS for daily use. Add UPS + dongle for $155 more.<br>
+<strong>Linux-first ($1,499-1,999):</strong> GMKtec EVO-X2 (Strix Halo). 128GB unified memory, 16 Zen 5 cores, native Docker/headless, 70B+ local inference. The best option if you want everything on one box with zero OS workarounds.</p>
 </div>
 
 <div class="rec-box info">
-<div class="label info">DO THIS WEEK — $0</div>
-<p><strong>1. Finish Tailscale auth</strong> — you have it installed, just complete the setup. Access your Mac Mini from anywhere.<br>
+<div class="label info">DO THIS TODAY — $0</div>
+<p><strong>1. Set up remote access</strong> — Install <a href="https://tailscale.com">Tailscale</a> (free). Access your machine from anywhere via WireGuard VPN.<br>
 <strong>2. Install Ollama</strong> — <code>curl -fsSL https://ollama.com/install.sh | sh && ollama pull llama4:scout</code>. Free local LLM in 5 minutes.<br>
 <strong>3. Docker: AdGuard Home</strong> — network-wide ad blocking. One <code>docker run</code> command.<br>
-<strong>4. Docker: Home Assistant</strong> — connect Hydrawise + Tempest. Auto-skip watering when rain is forecast.</p>
+<strong>4. Docker: Home Assistant</strong> — connect smart home devices, create automations. Pairs with irrigation and weather integrations for immediate value.</p>
 </div>
 
 <div class="rec-box warn">
 <div class="label warn">CONSIDER LATER — IF NEEDED</div>
-<p><strong>Upgrade to M4 Pro 48GB ($1,599)</strong> if you want serious local LLM inference (70B models). Your current Mac Mini handles OpenClaw and Home Assistant fine without this.<br>
+<p><strong>Upgrade to M4 Pro 48GB ($1,599) or Strix Halo 128GB ($1,999)</strong> if you want serious local LLM inference (70B models). The base Mac Mini handles the cloud-based agent fine without this.<br>
 <strong>Synology DS224+ ($300 + drives)</strong> if you accumulate media or want Plex.<br>
 <strong>Ubiquiti stack ($700-900)</strong> if you add PoE cameras or have WiFi dead zones.</p>
 </div>
@@ -1450,6 +1544,8 @@ details > div {
 <summary>All sources and product links</summary>
 <div>
 <ul style="list-style:none;padding:0;">
+<li>• <a href="https://www.notebookcheck.net/One-of-the-best-mini-PCs-of-2025-AMD-Ryzen-AI-Max-395-and-Radeon-8060S-reviewed-with-top-performance-in-the-GMKtec-EVO-X2.1099958.0.html">NotebookCheck: GMKtec EVO-X2 Review (88%)</a></li>
+<li>• <a href="https://www.notebookcheck.net/AMD-Ryzen-AI-Max-395-with-128-GB-RAM-in-a-cube-Is-the-Acemagic-M1A-Pro-the-new-performance-king-among-mini-PCs.1246642.0.html">NotebookCheck: Acemagic M1A Pro+ Review (85%)</a></li>
 <li>• <a href="https://www.apple.com/shop/buy-mac/mac-mini">Apple Mac Mini M4 pricing</a> — verified April 2026</li>
 <li>• <a href="https://www.sitepoint.com/local-llm-hardware-requirements-mac-vs-pc-2026/">SitePoint: Local LLM Hardware Requirements 2026</a></li>
 <li>• <a href="https://localllmguide.polsia.app/articles/run-llama-4-locally">LocalLLMGuide: Run Llama 4 Locally</a></li>
@@ -1469,12 +1565,12 @@ details > div {
 </details>
 
 <p style="text-align:center;color:var(--text-muted);margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);">
-Built by Kit (FactoryFactory) · April 2026 · Data verified against manufacturer specs and community benchmarks
+Built by Kit (FactoryFactory) · April 2026 · Data verified against manufacturer specs, community benchmarks, and <a href="https://hatchoverflow.suhelsheikh.com/" style="color:var(--text-muted);">Hatch Overflow community input</a>
 </p>
 
 <script>
 // Power calculator
-const loadMap = {5:30, 7:45, 10:65, 8:54, 3:12, 40:450, 60:250};
+const loadMap = {5:30, 7:45, 10:65, 8:54, 3:12, 12:140, 40:450, 60:250};
 document.getElementById('calc-device').addEventListener('change', function() {
   const idle = parseInt(this.value);
   document.getElementById('calc-load').value = loadMap[idle] || 50;
@@ -1496,7 +1592,7 @@ function calcPower() {
   document.getElementById('calc-detail').textContent = 
     `${dailyKwh.toFixed(2)} kWh/day · ${annualKwh.toFixed(0)} kWh/year · ` +
     `${idle}W idle × ${idleHrs}h + ${load}W load × ${loadHrs}h · ` +
-    `At $${rate}/kWh (Menlo Park avg ~$0.28-0.35)`;
+    `At $${rate}/kWh (US avg ~$0.16, CA avg ~$0.28-0.35)`;
 }
 calcPower();
 
@@ -1578,10 +1674,11 @@ const dtData = {
         <p><strong>Alternative:</strong> Any PC with a GTX 1070+ (8GB VRAM) handles 7B models. An RTX 3060 12GB handles Scout at 50 tok/s.</p>`
       },
       "big": {
-        html: `<h3>Mac Mini M4 Pro 48GB — $1,599</h3>
-        <p>This is the sweet spot for 70B. Unified memory means the entire model fits in fast RAM (273 GB/s bandwidth). You get 10-15 tok/s on Llama 70B Q4 — usable for interactive chat.</p>
-        <p>A single RTX 4090 ($1,800) can't fit 70B in its 24GB VRAM. It spills to system RAM and tanks performance. You'd need <strong>two</strong> 4090s to match one Mac Mini M4 Pro.</p>
-        <p><strong>The Mac wins on total cost, silence, and power efficiency.</strong></p>`
+        html: `<h3>Mac Mini M4 Pro 48GB ($1,599) or Strix Halo 128GB ($1,999)</h3>
+        <p><strong>Mac Mini M4 Pro 48GB:</strong> Unified memory means the entire 70B Q4 model fits in fast RAM (273 GB/s bandwidth). You get 10-15 tok/s — usable for interactive chat. Best if you're in the Apple ecosystem.</p>
+        <p><strong>GMKtec EVO-X2 128GB:</strong> AMD Strix Halo with 128GB LPDDR5X unified memory (256 GB/s). Runs 70B+ models and runs Linux natively — no headless workarounds. More memory, lower inference speed per tok/s but more capacity. Best if you want Linux.</p>
+        <p>A single RTX 4090 ($1,800) can't fit 70B in its 24GB VRAM. It spills to system RAM and tanks performance. You'd need <strong>two</strong> 4090s to match what one unified-memory mini PC does.</p>
+        <p><strong>Both win on total cost, silence, and power efficiency vs discrete GPU builds.</strong></p>`
       },
       "huge": {
         html: `<h3>Mac Mini M4 Max 128GB ($3,199) or Multi-GPU Build ($5,000+)</h3>
@@ -1641,12 +1738,12 @@ const dtData = {
       },
       "high": {
         html: `<h3>The Power User — $1,600-3,500</h3>
-        <p><strong>Mac Mini M4 Pro 48GB ($1,599)</strong> replaces your current Mac Mini. Run 70B models locally. Everything from Sweet Spot tier. Optionally add <strong>Ubiquiti Dream Machine SE ($499)</strong> + <strong>U7 Pro AP ($189)</strong> for enterprise networking.</p>
+        <p><strong>Mac Mini M4 Pro 48GB ($1,599)</strong> or <strong>GMKtec EVO-X2 128GB ($1,999)</strong>. Run 70B models locally. Everything from Sweet Spot tier. Optionally add <strong>Ubiquiti Dream Machine SE ($499)</strong> + <strong>U7 Pro AP ($189)</strong> for enterprise networking.</p>
         <p>This is the inflection point where local LLM inference becomes serious. Route routine tasks to Llama 70B locally, escalate complex work to Opus API. Cuts your API costs 60-80%.</p>`
       },
       "yolo": {
         html: `<h3>Data Center in a Closet — $5,000+</h3>
-        <p><strong>Mac Mini M4 Max 128GB ($3,199)</strong> + <strong>Dedicated GPU box with RTX 5090 ($4,200)</strong> + Full Ubiquiti stack ($900) + Synology DS923+ 4-bay ($600) + 2x UPS ($400).</p>
+        <p><strong>Mac Mini M4 Max 128GB ($3,199)</strong> or <strong>Acemagic M1A Pro+ 128GB ($2,499)</strong> + <strong>Dedicated GPU box with RTX 5090 ($4,200)</strong> + Full Ubiquiti stack ($900) + Synology DS923+ 4-bay ($600) + 2x UPS ($400).</p>
         <p>Run frontier models locally. Eliminate API costs. Fast inference for production workloads. But honestly? Unless you're spending $500+/month on API calls, this doesn't make financial sense. It does make <em>fun</em> sense though. 🏭</p>`
       }
     }
