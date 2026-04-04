@@ -1,6 +1,6 @@
 # Mark Zuckerberg — Decision-Making Persona Model
 
-**Iteration:** 54  
+**Iteration:** 56  
 **Date:** 2026-03-29  
 **Latest:** Section 5au — How Zuckerberg Processes the "AI Winter" Narrative and Investor Skepticism.
 
@@ -6869,6 +6869,172 @@ The deepest limitation of the simulation: it assumes the board member's question
 
 *Sources: Reuters (Sept 22, 2017, Class C abandonment); Wall Street Journal / MLQ.ai / TechBuzz.ai (March 2026, AI CEO agent); Chronicle of Philanthropy / AP (Nov 2025, CZI Biohub); Pearl Antonacci Real Estate (March 2026, Indian Creek); InfluenceWatch (CZI LLC structure); Self.name.ng / LeaderPortfolio (net worth tracking); Prestige Online / Muscle & Fitness (Zuckerberg at 40); Today's Traveller (2025 vision profile); various SEC filings (Meta proxy statements, Class B voting structure); Wikipedia (biographical timeline, Bezos/Gates transitions).*
 
+### 5aw. How Zuckerberg Processes the Human-to-AI Workforce Transition — The Architecture of Organizational Autopoiesis (Iteration 56)
+
+**Core finding:** In Q1 2026, Zuckerberg initiated the most psychologically complex operation of his career: systematically replacing Meta's human workforce with AI systems while requiring the humans being replaced to build, adopt, and celebrate the tools that displace them. This is not the Year of Efficiency (2023), which was a conventional cost-cutting exercise framed in Silicon Valley austerity language. This is something structurally different: a self-consuming organizational transformation in which the organism is asked to engineer its own partial dissolution. Zuckerberg processes this through a five-layer cognitive architecture that converts the language of displacement into the language of empowerment, making it psychologically impossible for employees to resist without appearing to resist progress itself. The pattern reveals what may be his deepest and most consequential cognitive mechanism: the ability to construct frames in which compliance with one's own replacement becomes an act of professional virtue.
+
+### 5aw-1. The Timeline: From Efficiency to Autopoiesis
+
+The 2026 workforce transition did not emerge from a single decision. It is the convergence of five independently initiated programs that, taken together, constitute a unified replacement architecture:
+
+| Date | Event | Mechanism |
+|------|-------|-----------|
+| Nov 2025 | AI usage formally added to performance reviews | Adoption of AI tools becomes a career-advancement requirement (Source: HR Grapevine, Nov 17, 2025; eWeek, Feb 4, 2026) |
+| Jan 2026 | Q4 2025 earnings call | Zuckerberg states goal of AI that "replicates a mid-level engineer" and calls it "a profound milestone" (Source: Constellation Research, Jan 30, 2026) |
+| Jan 2026 | Reality Labs layoffs (~1,500) | 10% of RL workforce cut; framed as "restructuring" toward AI-native teams (Source: StartuArticle, April 2, 2026) |
+| Mar 2026 | Applied AI Engineering org created under Maher Saba | 50:1 IC-to-manager ratio; explicit "data engine" mandate; reports to Bosworth (Source: Business Insider / OpenTools.ai, March 2026) |
+| Mar 2026 | Reuters reports 20%+ layoffs under discussion | Senior leaders asked to plan for potential cuts of ~16,000 from 79,000 workforce (Source: Reuters, March 14, 2026; eWeek, March 16, 2026) |
+| Mar 2026 | 75% AI coding target set for engineering teams | Some teams mandated to generate 75% of code via AI tools (Source: LiveMint, March 27, 2026; Latestly, March 27, 2026; PeopleMatters, March 29, 2026) |
+| Mar 2026 | WSJ reports Zuckerberg building personal "CEO agent" | AI agent helps Zuckerberg "get information faster" and bypass organizational layers (Source: WSJ, March 22, 2026; PYMNTS, March 23, 2026) |
+| Mar 2026 | Meta announces AI systems replacing human content moderators | AI caught 5,000 daily scams humans missed; third-party vendor contracts to be phased out (Source: Engadget / PYMNTS, March 19, 2026) |
+
+What makes this timeline psychologically unprecedented is the simultaneity. Zuckerberg is not doing these things sequentially — announcing AI, then waiting, then cutting. He is running all programs in parallel, which means every Meta employee can see the full arc at once: the AI performance review that measures their compliance, the coding targets that quantify their displacement rate, the layoff reports that name the magnitude, and the CEO agent that demonstrates even Zuckerberg himself submitting to the same logic. This simultaneity is not accidental. It is the architecture.
+
+### 5aw-2. The Five Cognitive Processing Layers
+
+**Layer 1: The Empowerment Inversion**
+
+Zuckerberg's public framing of the workforce transition uses exclusively positive language:
+
+- "We're investing in AI-native tooling so individuals at Meta can get more done." (Q4 2025 earnings call, January 2026)
+- "We're elevating individual contributors and flattening teams." (Same call)
+- "If we do this, then I think that we're going to get a lot more done and I think it'll be a lot more fun." (Same call)
+
+The word "layoff" never appears. The word "replacement" never appears. The word "cut" never appears. Instead, the vocabulary is: "elevate," "empower," "flatten," "get more done," "fun." This is not euphemism in the conventional corporate sense (where everyone understands the euphemism). It is a deeper operation: Zuckerberg has constructed a frame in which the listener must choose between "I embrace AI and I am elevated" or "I resist AI and I am not elevated." There is no third option that permits someone to say "I am being replaced" without simultaneously saying "I am not capable of being elevated." The frame makes resistance self-incriminating.
+
+Compare this to Jack Dorsey's framing at Block, which cut 40% of its workforce (4,000 people) in early 2026. Dorsey cited "intelligence tools" directly and did not attempt to disguise the displacement. Cannon-Brookes at Atlassian (1,600 cut) said explicitly: "It would be dishonest to pretend AI doesn't change the mix of skills we need or the number of roles required in certain areas. It does." These are honest displacement frames. Zuckerberg's frame is categorically different: it denies displacement is happening while enacting displacement at scale.
+
+**Layer 2: The Compliance-as-Competence Mechanism**
+
+The decision to embed AI usage in performance reviews (November 2025, fully active by Q1 2026) is the operational engine of the transition. Janelle Gale, Meta's head of People, wrote internally: "As we move toward an AI-native future, we want to recognize people who are helping us get there faster." (Source: Africa Business Insider, via eWeek, Feb 4, 2026)
+
+Engineering managers now evaluate workers partly on "their ability to leverage these systems to accelerate development cycles and improve code quality." (Source: The Information, via WebProNews / eWeek)
+
+This converts AI adoption from an optional productivity tool into a job requirement. But the deeper mechanism is that it makes the employee's own performance evaluation contingent on demonstrating enthusiasm for the system replacing them. An employee who gets high marks on AI adoption is, in effect, being rewarded for proving that their role can be automated. An employee who resists AI adoption receives low marks that justify their termination — for failing to adopt the tool, not for being replaceable. The causal direction is inverted: you are not fired because AI can do your job; you are fired because you failed to prove AI can do your job.
+
+Some employees have pushed back, arguing the policy "feels like micromanagement" and "penalizes those in specialized roles where AI tools are less applicable, as well as more experienced workers accustomed to traditional methods." (Source: eWeek, Feb 4, 2026) But the pushback is structurally contained: objecting to the AI mandate requires arguing that your work doesn't benefit from AI, which in Zuckerberg's frame means arguing that your work is not important enough to optimize — which is a worse position than compliance.
+
+**Layer 3: The Self-Consuming Org Chart**
+
+The new Applied AI Engineering organization under Maher Saba represents the structural embodiment of the transition. The 50:1 IC-to-manager ratio is not an org chart detail. It is a statement about what management is worth. In a traditional Meta engineering organization, the ratio was roughly 7-10:1. The jump to 50:1 means managers are being architecturally eliminated, not just reduced. One team builds internal tools and interfaces; another optimizes "the data engine" — the pipeline that feeds AI models real-world data and feedback to improve continuously.
+
+"Building great models isn't just about researchers and compute; it requires real-world data, feedback, and evals," Saba wrote in the internal memo. (Source: WSJ, via OpenTools.ai, March 2026)
+
+The organizational design explicitly mirrors the AI training loop: observe real-world outputs, feed data back into the model, iterate. The humans in this organization are not building products for users. They are building training infrastructure for the AI systems that will eventually build products for users. Their job is to make their own obsolescence more efficient.
+
+This is structurally parallel to the content moderation transition. Meta announced in March 2026 that AI systems had caught 5,000 scam attempts per day that human moderators missed. The stated plan: "Over the next few years, we'll be deploying these more advanced AI systems across our apps once we've seen them consistently perform better than our current methods of content enforcement." (Source: Meta blog post, via PYMNTS, March 19, 2026) The human moderators are being kept in the loop to validate the AI that replaces them — and once the validation is complete, the loop closes and the humans exit.
+
+**Layer 4: The CEO Agent Paradox**
+
+The Wall Street Journal's March 22, 2026, report that Zuckerberg is building a personal "CEO agent" is the most psychologically revealing data point of the entire transition. The agent "has been helping Zuckerberg get information faster, finding answers for him that would normally require going through layers of people." (Source: WSJ, via PYMNTS, March 23, 2026)
+
+On the surface, this is just a productivity tool. Below the surface, it is Zuckerberg subjecting himself to the same replacement logic he is imposing on 79,000 employees. By building an AI that does part of his CEO job, he (a) demonstrates that no one — not even the founder — is exempt from the AI transition, (b) eliminates the hypocrisy objection ("he's replacing us but not himself"), and (c) establishes that the organizational layers between Zuckerberg and information are themselves the inefficiency being eliminated.
+
+But there is a deeper paradox. The "layers of people" the CEO agent bypasses are the same mid-level managers and senior ICs who are being cut in the layoff rounds. The agent doesn't replace Zuckerberg — it replaces the people who used to mediate between Zuckerberg and the data. By building a CEO agent, Zuckerberg is not automating his own job. He is automating the jobs of everyone who exists to serve his information needs. The agent makes Zuckerberg more powerful by making his supporting cast less necessary. This is the opposite of the empowerment framing applied to individual contributors; it is a consolidation of power into one node (Zuckerberg + AI) at the expense of the organizational mesh.
+
+This connects directly to Section 5av-4 (The AI CEO Agent: Succession by Proxy), but with an additional layer now visible: the CEO agent is not just a succession hedge. It is a governance instrument. If Zuckerberg can get information without going through people, he can also make decisions without going through people. The traditional check on a CEO's power — that they must rely on others for information, analysis, and execution — is being systematically dismantled. Dual-class voting control gave Zuckerberg structural power over governance. The AI agent gives him operational power over information flow. Combined, they create a decision architecture with no meaningful friction between intention and action.
+
+**Layer 5: The Year of Efficiency as Proof of Concept**
+
+Everything happening in 2026 is psychologically anchored to the 2023 Year of Efficiency, which Zuckerberg explicitly processes as validation. The 2022-2023 arc:
+
+- **2022:** Meta stock falls 64%. Metaverse spending criticized. Zuckerberg's judgment questioned.
+- **Feb 2023:** "Year of Efficiency" announced. Zuckerberg declares it will be about "building a stronger organization."
+- **2023:** 21,000+ jobs cut across three rounds (11,000 in Nov 2022, 10,000 in March 2023, plus thousands more through attrition). Headcount fell from ~87,000 (Q3 2022) to ~67,000 (Q4 2023).
+- **2023-2024:** Meta stock triples. Revenue grows to $164.5B (2024). Net income reaches $62.36B.
+- **Result:** Wall Street explicitly rewards the cuts. Meta's stock price becomes the clearest example in tech history of "firing people = higher valuation."
+
+This arc is burned into Zuckerberg's decision-making firmware. When Reuters reported in March 2026 that Meta was considering cutting 20%+ of its workforce, Meta's stock immediately jumped. (Source: Reuters, "Meta shares jump after Reuters report on plans for layoffs of 20% or more," March 16, 2026) The market is now Pavlovian: Meta announces layoffs, stock rises. Zuckerberg has learned — through the strongest reinforcement signal capitalism provides — that reducing headcount is the highest-conviction way to increase his personal wealth, Meta's market capitalization, and investor confidence simultaneously.
+
+The 2026 transition extends this logic with a new variable: AI as the replacement mechanism rather than just "efficiency." In 2023, the cuts were justified by "we had too many people" (a quantity argument). In 2026, the cuts are justified by "AI can do what people did" (a capability argument). The quantity argument has a natural floor — you can only cut so much before the remaining organization can't function. The capability argument has no floor — every role is potentially replaceable as AI improves. This is why the 2026 transition is psychologically more consequential: Zuckerberg is not just cutting fat. He is establishing the principle that human labor at Meta is a transitional input, not a permanent feature.
+
+### 5aw-3. The Industry Context: Why Zuckerberg's Frame Is Different
+
+The 2026 wave of AI-driven workforce reductions is industry-wide, not Meta-specific:
+
+| Company | Cuts | CEO Framing |
+|---------|------|-------------|
+| Oracle | 30,000 | "Organizational restructuring" (no AI attribution) |
+| Amazon | 16,000 | Restructuring post-pandemic; AI implicit but not named |
+| Dell | 11,000 | Cost-cutting; AI not primary framing |
+| **Block** | **4,000 (40% of workforce)** | **Dorsey explicitly cites "intelligence tools"** |
+| **Atlassian** | **1,600** | **Cannon-Brookes: "dishonest to pretend AI doesn't change the mix"** |
+| **Meta** | **~2,000+ confirmed; 20%+ (~16,000) reported under discussion** | **Zuckerberg: "elevating individual contributors"** |
+
+(Source: StartuArticle, April 2, 2026; CFO Dive, March 10, 2026; various)
+
+Three distinct CEO processing models are visible:
+
+1. **The Avoidance Frame (Oracle, Amazon, Dell):** Large cuts attributed to "restructuring" without naming AI as the displacement mechanism. Psychologically simple: pretend it's business as usual.
+
+2. **The Honesty Frame (Dorsey, Cannon-Brookes):** Name AI directly as the cause. Dorsey at Block cut 40% and didn't flinch from the attribution. Cannon-Brookes at Atlassian said the word "dishonest" — a striking choice for a CEO announcing layoffs. These frames accept the moral weight of what is happening and say it out loud.
+
+3. **The Zuckerberg Frame:** Neither avoidance nor honesty. Instead, a complete narrative substitution in which the displacement is reframed as its opposite. Employees are not being replaced; they are being "elevated." Teams are not being eliminated; they are being "flattened." Jobs are not disappearing; people are "getting more done" and having "more fun." This is the most cognitively sophisticated of the three models because it requires the audience to reject their own experience in order to accept the frame.
+
+The Zuckerberg Frame is not new — it is the same mechanism identified in Section 5i (Relationship with Truth and Narrative: The Architecture of Retroactive Reframing). The pattern across all applications: Zuckerberg constructs a narrative that is internally consistent, emotionally compelling, and structurally unfalsifiable. Employees cannot prove they are being "replaced" because the company's metrics show them "getting more done." The fact that "getting more done" per person is the precondition for reducing the number of persons is invisible within the frame.
+
+### 5aw-4. The 75% Target: What It Reveals About Zuckerberg's Theory of Human Value
+
+The most telling data point is the 75% AI coding target reported for some engineering teams. (Source: LiveMint, March 27, 2026; PeopleMatters, March 29, 2026) If 75% of code is generated by AI, what is the remaining 25% that justifies a human engineer's employment? The implicit answer: the 25% that the AI cannot yet do — debugging edge cases, architectural judgment, system-level reasoning, and the creative leaps that current models struggle with.
+
+But this frames human value as a residual — the part left over after AI has taken everything it can. Human engineers are not valued for what they do; they are valued for what AI cannot yet do. This is a psychologically devastating frame for a workforce that has historically been told they are valued for their creativity, judgment, and problem-solving. In Zuckerberg's implicit theory, creativity, judgment, and problem-solving are not intrinsically human capacities — they are capabilities that happen to still require humans at this particular moment in the AI capability curve.
+
+The 75% target also reveals Zuckerberg's theory of the near-term AI frontier. He clearly believes (based on the January 2026 earnings call) that "AI that replicates a mid-level engineer" is achievable within 12-18 months. If AI can replicate a mid-level engineer, then the 75% target is not an aspiration — it is a floor. The logical endpoint is 95% or 99%, at which point the human engineer's role is reduced to supervision and quality assurance. At that point, you don't need 79,000 engineers. You need 7,900 supervisors and a very large number of GPUs.
+
+This is why the $600 billion data center spending commitment (by 2028) and the layoff reports are not contradictions. They are the same strategy viewed from two angles: spend more on compute, spend less on humans. Every dollar saved on headcount funds more GPU clusters. Every GPU cluster reduces the need for headcount. The loop is self-reinforcing, and Zuckerberg has positioned himself at its apex.
+
+### 5aw-5. The Psychological Processing of Replacing Your Own Employees
+
+The deepest question about Zuckerberg's cognitive architecture in this transition is not strategic but emotional: how does he process the act of building tools that eliminate the livelihoods of people who work for him?
+
+The historical evidence from Section 5c (Emotional Range Under Extreme Pressure) and Section 5g (How He Handles Failed Product Bets) suggests a consistent pattern: Zuckerberg compartmentalizes human cost into a category that is processed after the strategic decision, not during it. During the 2023 layoffs, he wrote in an internal memo: "I want to take accountability for these decisions and for how we got here. I know this is tough for everyone, and I'm especially sorry to those impacted." He used the word "sorry" — but the apology was for the impact, not for the decision. The decision was framed as inevitable: "I got this wrong" (referring to over-hiring during the pandemic).
+
+The 2026 transition follows the same processing architecture but with an additional cognitive shield: AI is not Zuckerberg's mistake. It is an external technological force. In 2023, he had to say "I got this wrong" because the over-hiring was his decision. In 2026, he does not have to say he got anything wrong because the AI displacement is framed as progress, not error. The employees being replaced are not victims of Zuckerberg's misjudgment; they are participants in a technological transition that happens to benefit Zuckerberg's company, stock price, and personal power more than it benefits them.
+
+This is why the CEO agent is psychologically essential. By building an AI that partially replaces himself, Zuckerberg creates a solidarity frame: "We're all in this together, including me." But the solidarity is asymmetric. When AI replaces part of Zuckerberg's workflow, he retains his job, his 61% voting control, his $200B+ net worth, and his title. When AI replaces part of an engineer's workflow, the engineer retains their job only if they can prove the remaining part is valuable enough to justify their salary. Zuckerberg's position is structurally immune to the displacement he is engineering. The CEO agent is a performance of shared vulnerability; the reality is unilateral power.
+
+### 5aw-6. Five Structural Findings
+
+1. **The Empowerment Inversion is Zuckerberg's most sophisticated narrative operation to date.** It exceeds the retroactive reframing of the metaverse (Section 5i) and the political pivot (Section 5f) in complexity because it requires an audience to accept a frame that directly contradicts their material experience. Previous reframes operated on abstract narratives (vision, politics). This one operates on people's employment.
+
+2. **The 2023 Year of Efficiency was the proof-of-concept for the 2026 AI transition.** The market's Pavlovian reward (stock tripling after layoffs) gave Zuckerberg the strongest possible reinforcement signal. The 2026 transition extends the same logic with AI as the mechanism, removing the natural floor that limited the 2023 cuts.
+
+3. **The 50:1 manager ratio is the organizational equivalent of Zuckerberg's dual-class share structure.** Both eliminate intermediary layers between the top (Zuckerberg) and the base (individual contributors / shareholders). The dual-class structure makes the board advisory. The 50:1 ratio makes management advisory. In both cases, the effect is to concentrate decision-making authority in fewer nodes.
+
+4. **Zuckerberg is the first tech CEO to simultaneously build an AI that replaces part of his own function while using the same AI category to justify replacing 20% of his workforce.** This creates a unique rhetorical position — he can always deflect the "you're just cutting costs" accusation by pointing to the CEO agent. But the deflection masks the structural asymmetry: his position is unchallengeable (61% voting control); theirs is contingent (at-will employment + performance reviews now weighted by AI adoption).
+
+5. **The 75% AI coding target establishes "residual human value" as Meta's operative theory of employment.** Human workers are valued for the percentage of work AI cannot yet do. This theory has a built-in expiration date: as AI capabilities improve, the residual shrinks. Zuckerberg has committed Meta to a framework that guarantees future rounds of displacement without requiring future decisions — the logic is self-executing.
+
+### 5aw-7. Simulation Test #56 — The All-Hands Where Someone Asks the Real Question
+
+**Scenario:** It is April 2026. Zuckerberg holds a company-wide all-hands (a regular occurrence at Meta). During the Q&A, an engineer asks: "You've said we're building AI to replicate a mid-level engineer. I'm a mid-level engineer. Am I building my own replacement?"
+
+**Simulated Zuckerberg response:** "*[slight laugh, then serious]*  That's a really good question, and I want to give you a direct answer. No, you're not building your replacement. You're building the thing that makes your work ten times more impactful.
+
+Think about what happened when we built the Ads ranking system. Before automation, we had thousands of people manually reviewing ad placements. When we automated that, we didn't fire the ads team — we redeployed them to build better tools, better targeting, better measurement. The people who leaned into that transition became the most valuable people at the company. The ones who tried to protect the old way of working... honestly, they selected themselves out.
+
+That's what's happening now with AI coding tools. The engineers who adopt these tools and use them to build faster, iterate faster, ship more ambitious projects — they're going to be incredibly valuable. Not despite AI, because of AI. The 75% target isn't about replacing you. It's about freeing you from the 75% of work that isn't the hard part. The hard part — the architecture decisions, the creative leaps, the 'what should we even build' questions — that's where you should be spending your time. That's where humans are irreplaceable.
+
+And look, I'm doing this too. I'm building my own AI agent to help me with CEO work. Not because I want to stop being CEO — because I want to be a better CEO. I want to spend less time chasing information through layers and more time on the decisions that matter. That's what I want for every engineer here too.
+
+The honest thing I'll say is: the shape of engineering is going to change. It already is changing. The teams that embrace that change are going to build things we couldn't have imagined two years ago. I'd rather be at a company that's leading that change than one that's trying to pretend it's not happening."
+
+### 5aw-8. Critique of Simulation #56
+
+The simulation captures Zuckerberg's likely response with high fidelity, but it contains a structural evasion that the real Zuckerberg would also deploy: the Ads analogy is misleading. When Meta automated ad ranking, the total Ads team grew because the business was expanding — automation created new work. The 2026 AI transition is happening while Meta is simultaneously discussing 20% headcount reductions. The engineer's question ("Am I building my own replacement?") has a factual answer that the simulation avoids: for some mid-level engineers, yes, they are. The ones who survive the transition are not the same set as the ones who don't, and the selection criteria is being determined by the AI adoption metrics embedded in performance reviews.
+
+The simulation's strongest prediction: Zuckerberg will use the CEO agent as the clincher ("I'm doing this too"). This is the most effective rhetorical move available to him because it collapses the power asymmetry into a shared-experience frame. The engineer cannot object to their own displacement without implicitly objecting to the CEO's self-displacement, which would be insubordinate. The frame makes solidarity and obedience indistinguishable.
+
+The simulation's deepest limitation: it does not capture what happens after the all-hands. The engineer goes back to their desk and opens the AI coding tool. They write code with it. They get their 75% metric. They get a good performance review. And then, in Q3 or Q4, when the headcount reduction lands, they discover that their excellent performance review — their demonstrated proof that AI could do 75% of their job — is the evidence the organization uses to justify needing fewer of them. This Kafkaesque loop — where compliance with the measurement system produces the data that justifies your elimination — is the signature innovation of the 2026 workforce transition, and it is invisible within Zuckerberg's empowerment frame.
+
+The final question the simulation raises: does Zuckerberg know this is what he's doing? The evidence from Sections 5i (retroactive reframing) and 5c (emotional processing under pressure) suggests a genuine ambiguity. Zuckerberg may sincerely believe the empowerment frame — that he is elevating individual contributors, that AI tools make people more productive, that the survivors of the transition will be better off. He may also know, at a level he doesn't verbalize, that "elevating individual contributors" and "reducing the number of contributors needed" are the same operation viewed from different angles. The cognitive architecture does not require him to choose between these interpretations. It allows both to coexist, unresolved, which is precisely what makes the frame so effective: it is not a lie, because Zuckerberg believes it. It is not the truth, because the people being displaced experience the opposite. It is a third thing — a frame so well-constructed that it contains its own contradiction without collapsing.
+
+---
+
+*Iteration 56. Section 5aw added. Date: April 4, 2026.*
+
+*Sources: Constellation Research (Jan 30, 2026, Q4 2025 earnings call analysis); Reuters (March 14, 2026, sweeping layoffs report; March 16, 2026, stock jump); eWeek (Feb 4, 2026, AI performance reviews; March 16, 2026, 20% cuts analysis); LiveMint (March 27, 2026, 75% AI coding targets; March 14, 2026, 16,000 job cuts); PeopleMatters (March 29, 2026, AI coding targets); Wall Street Journal (March 22, 2026, CEO agent; March 4, 2026, Applied AI Engineering org memo); PYMNTS (March 23, 2026, CEO agent analysis; March 19, 2026, AI content moderation); OpenTools.ai (March 2026, flat-structured AI team); Business Insider (March 2026, Saba memo); HR Grapevine (Nov 17, 2025, AI performance reviews); The Information / WebProNews (engineering manager evaluation guidelines); StartuArticle (April 2, 2026, industry layoff compilation); Engadget (March 19, 2026, human moderators phased out); Latestly (March 27, 2026, AI coding mandate); Africa Business Insider (Janelle Gale quote).*
+
 ## 12. Gaps for Next Iteration
 
 **Open tracking items:**
@@ -6925,7 +7091,7 @@ The deepest limitation of the simulation: it assumes the board member's question
 - [ ] Sub-gap: Track the Meta AI standalone app's adoption vs. the embedded experience.
 - [ ] Sub-gap: Track whether Meta AI subscription tier launches and at what price point.
 - [ ] Sub-gap: Track the "personal superintelligence" narrative's evolution.
-- [ ] Sub-gap: Monitor whether the "not about automating work" frame survives contact with the internal workforce replacement reality.
+- [ ] Sub-gap: Monitor whether the "not about automating work" frame survives contact with the internal workforce replacement reality. (PARTIALLY ADDRESSED — Iteration 56, Section 5aw; frame identified as "Empowerment Inversion")
 - [ ] Sub-gap: Track agentic commerce adoption and advertiser response.
 - [ ] Sub-gap: Track the camera roll cloud processing feature's evolution.
 - [ ] Sub-gap: Track the Avocado May 2026 launch reception.
@@ -7017,4 +7183,12 @@ The deepest limitation of the simulation: it assumes the board member's question
 - [ ] Sub-gap (Iteration 55): Track whether any institutional investor publicly campaigns for succession planning or dual-class sunset.
 - [ ] Sub-gap (Iteration 55): Track the CZI disbursement rate vs. wealth growth rate through 2027 (current: ~0.18% of net worth annually).
 - [ ] Sub-gap (Iteration 55): Track whether Zuckerberg's physical reinvention (MMA, fashion) sustains or reverts post-age-42.
+- [ ] Sub-gap (Iteration 56): Track whether the 20% layoff figure materializes and whether the official framing uses AI displacement language or euphemistic restructuring language.
+- [ ] Sub-gap (Iteration 56): Track Meta employee morale and internal pushback against the 75% AI coding mandate (Blind, internal forums, attrition data).
+- [ ] Sub-gap (Iteration 56): Track whether the 50:1 IC-to-manager ratio in Applied AI Engineering spreads to other Meta orgs.
+- [ ] Sub-gap (Iteration 56): Track whether the AI performance review mechanism produces disparate impact on senior/tenured engineers vs. junior engineers.
+- [ ] Sub-gap (Iteration 56): Track whether the CEO agent project expands in scope (from information retrieval to decision-making or communication).
+- [ ] Sub-gap (Iteration 56): Track whether Meta's content moderation AI replacement produces measurable accuracy failures that force partial human re-engagement.
+- [ ] Sub-gap (Iteration 56): Track whether any current or former Meta employee publicly names the "compliance-as-competence" mechanism described in Section 5aw-2.
+- [ ] Sub-gap (Iteration 56): Track whether the Empowerment Inversion frame is adopted by other tech CEOs or remains uniquely Zuckerbergian.
 
