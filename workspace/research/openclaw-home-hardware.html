@@ -434,11 +434,12 @@ details > div {
 <h2>⚡ Executive Summary</h2>
 <p>You already have a Mac Mini. That's 80% of the answer. Here's what matters:</p>
 <ul>
-<li><strong>For OpenClaw agent hosting:</strong> Your existing Mac Mini is more than enough. OpenClaw is cloud-brained (API calls to Anthropic/OpenAI) — the local box just needs to be always-on with good internet. 4GB RAM and any modern CPU handles it.</li>
-<li><strong>For local LLM inference:</strong> Mac Mini M4 Pro with 48GB unified memory ($1,599) is the sweet spot. Runs Llama 4 Scout at 25-35 tok/s, 70B models at 10-15 tok/s. Quiet, efficient, macOS-native.</li>
-<li><strong>For Home Assistant:</strong> Run it as a Docker container on the same Mac Mini. Or spend $100 on a Pi 5 if you want isolation.</li>
-<li><strong>Don't buy a GPU server</strong> unless you need 80+ tok/s throughput or want to run 100B+ dense models. The Mac's unified memory architecture is better value for inference than any GPU under $2,000.</li>
-<li><strong>Total recommended spend: $200-400</strong> (UPS + SSD + Zigbee dongle) on top of what you already have.</li>
+<li><strong>For OpenClaw agent hosting:</strong> Your existing Mac Mini is more than enough. OpenClaw is cloud-brained (API calls to Anthropic/OpenAI) — the local box just needs to be always-on with good internet.</li>
+<li><strong>For trunk-recorder:</strong> You're core-starved. The M4's 4 P-cores can't handle 8+ simultaneous voice channels. Upgrade to M4 Pro (10 P-cores) or consider a Linux box with a Ryzen 9 7950X (16 full cores at $25/core vs Mac's $114/core).</li>
+<li><strong>Headless Mac warning:</strong> macOS is a bad server OS. Sleep fights you, Docker runs in a VM, USB passthrough is fragile, and unattended reboots are risky with FileVault. A dedicated Linux box for server workloads may be the right call.</li>
+<li><strong>For local LLM inference:</strong> Mac Mini M4 Pro with 48GB unified memory ($1,599) is the sweet spot. Runs 70B models at 10-15 tok/s. But a Linux box running Ollama is equally capable and better at headless operation.</li>
+<li><strong>For Home Assistant:</strong> Run it on the Linux box (native Docker, native USB for Zigbee dongle) or spend $100 on a Pi 5 for isolation.</li>
+<li><strong>The hybrid answer:</strong> Keep the Mac Mini for interactive use + OpenClaw. Add a $369-1,200 Linux box for trunk-recorder, Docker, HA, and local LLM. Best of both worlds.</li>
 </ul>
 </div>
 
@@ -636,6 +637,305 @@ details > div {
 </tr>
 </tbody>
 </table>
+</div>
+
+<!-- MAC COMPARISON: THE CORE COUNT PROBLEM -->
+<h2>🖥️ Mac Mini vs Mac Studio vs MacBook Pro: The Core Count Problem</h2>
+
+<p>You're running <strong>trunk-recorder</strong> on your Mac Mini and maxing out cores. This matters because trunk-recorder does SDR signal processing: each simultaneous radio voice channel eats roughly one CPU core for demodulation and decoding. A busy trunked P25 system with 10-15 simultaneous calls needs 10-15 cores just for that, before you add OpenClaw, Docker, Home Assistant, and Whisper transcription on top.</p>
+
+<div class="rec-box danger">
+<div class="label danger">YOUR ACTUAL BOTTLENECK</div>
+<p>The Mac Mini M4 has 10 cores (4 performance + 6 efficiency). The E-cores handle background tasks fine, but trunk-recorder's DSP workload hammers the P-cores specifically. With only 4 performance cores, you're saturated the moment you have 4+ simultaneous voice channels being decoded. This isn't an "upgrade eventually" problem; it's a "you're dropping radio channels right now" problem.</p>
+</div>
+
+<div class="table-wrap">
+<table id="mac-compare-table">
+<thead>
+<tr>
+  <th onclick="sortTable('mac-compare-table',0)">Machine <span class="sort-arrow">⇅</span></th>
+  <th onclick="sortTable('mac-compare-table',1)">CPU Cores <span class="sort-arrow">⇅</span></th>
+  <th>P-Cores / E-Cores</th>
+  <th onclick="sortTable('mac-compare-table',3)">Max RAM <span class="sort-arrow">⇅</span></th>
+  <th>Mem Bandwidth</th>
+  <th onclick="sortTable('mac-compare-table',5)">Price <span class="sort-arrow">⇅</span></th>
+  <th onclick="sortTable('mac-compare-table',6)">$/Core <span class="sort-arrow">⇅</span></th>
+  <th>Geekbench MC</th>
+  <th onclick="sortTable('mac-compare-table',8)">Idle / Load W <span class="sort-arrow">⇅</span></th>
+  <th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>Mac Mini M4</strong></td>
+  <td>10</td>
+  <td>4P + 6E</td>
+  <td>32 GB</td>
+  <td>120 GB/s</td>
+  <td>$599</td>
+  <td>$60</td>
+  <td>~15,000</td>
+  <td>5W / 30W</td>
+  <td><span class="badge skip">Core-starved</span> for trunk-recorder</td>
+</tr>
+<tr>
+  <td><strong>Mac Mini M4 Pro</strong> (12-core)</td>
+  <td>12</td>
+  <td>10P + 2E</td>
+  <td>48 GB</td>
+  <td>273 GB/s</td>
+  <td>$1,399</td>
+  <td>$117</td>
+  <td>~20,000</td>
+  <td>7W / 40W</td>
+  <td>Better. 10 P-cores helps a lot</td>
+</tr>
+<tr>
+  <td><strong>Mac Mini M4 Pro</strong> (14-core)</td>
+  <td>14</td>
+  <td>10P + 4E</td>
+  <td>64 GB</td>
+  <td>273 GB/s</td>
+  <td>$1,599</td>
+  <td>$114</td>
+  <td>~22,000</td>
+  <td>7W / 45W</td>
+  <td><span class="badge gold">★ BEST VALUE</span> for your workload</td>
+</tr>
+<tr>
+  <td><strong>Mac Studio M4 Max</strong> (16-core)</td>
+  <td>16</td>
+  <td>12P + 4E</td>
+  <td>128 GB</td>
+  <td>546 GB/s</td>
+  <td>$1,999</td>
+  <td>$125</td>
+  <td>~25,000</td>
+  <td>10W / 65W</td>
+  <td>12 P-cores. Headroom for everything</td>
+</tr>
+<tr>
+  <td><strong>Mac Studio M3 Ultra</strong> (32-core)</td>
+  <td>32</td>
+  <td>24P + 8E</td>
+  <td>256 GB</td>
+  <td>819 GB/s</td>
+  <td>$3,999</td>
+  <td>$125</td>
+  <td>~35,000</td>
+  <td>15W / 120W</td>
+  <td>Nuclear option. "Never run out" tier</td>
+</tr>
+<tr style="background: rgba(88,166,255,0.05);">
+  <td><strong>M5 MacBook Pro</strong> (expected late 2026)</td>
+  <td>14-16?</td>
+  <td>TBD (2nm?)</td>
+  <td>64-128 GB?</td>
+  <td>TBD</td>
+  <td>~$2,499-3,499?</td>
+  <td>~$175?</td>
+  <td>~28,000?</td>
+  <td>8W / 50W</td>
+  <td>⚠️ Thermal throttling for always-on</td>
+</tr>
+<tr style="background: rgba(63,185,80,0.05);">
+  <td><strong>AMD Ryzen 9 7950X</strong> (Linux)</td>
+  <td>16C / 32T</td>
+  <td>16P + 0E (all full cores)</td>
+  <td>128 GB DDR5</td>
+  <td>76.8 GB/s</td>
+  <td>~$400 (CPU only)</td>
+  <td>$25</td>
+  <td>~21,000</td>
+  <td>65W / 170W</td>
+  <td><span class="badge best">Best $/core</span> by far</td>
+</tr>
+<tr style="background: rgba(63,185,80,0.05);">
+  <td><strong>Intel i9-14900K</strong> (Linux)</td>
+  <td>24C / 32T</td>
+  <td>8P + 16E</td>
+  <td>192 GB DDR5</td>
+  <td>89.6 GB/s</td>
+  <td>~$550 (CPU only)</td>
+  <td>$23</td>
+  <td>~23,000</td>
+  <td>50W / 253W</td>
+  <td>Most raw cores. Power hungry</td>
+</tr>
+<tr style="background: rgba(63,185,80,0.05);">
+  <td><strong>AMD Ryzen 9 9950X</strong> (Linux)</td>
+  <td>16C / 32T</td>
+  <td>16P + 0E</td>
+  <td>256 GB DDR5</td>
+  <td>76.8 GB/s</td>
+  <td>~$550 (CPU only)</td>
+  <td>$34</td>
+  <td>~24,000</td>
+  <td>60W / 170W</td>
+  <td>Best single-thread + multi-thread</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.5rem;">* Linux builds: add ~$400-600 for motherboard + RAM + case + PSU + NVMe. Total build cost ~$800-1,200 for a complete system.</p>
+
+<div class="rec-box" style="border-left-color: var(--purple);">
+<div class="label" style="color: var(--purple);">THE TRUNK-RECORDER MATH</div>
+<p>Trunk-recorder needs ~1 P-core per simultaneous voice channel. On a busy system you might have 8-15 channels active at peak. Add Whisper transcription (1-2 cores), OpenClaw agent (1 core), Docker/HA (1 core), and system overhead (1-2 cores).</p>
+<p><strong>Minimum for comfortable operation:</strong> 10+ P-cores = Mac Mini M4 Pro (10P) or Mac Studio M4 Max (12P)</p>
+<p><strong>Never worry about it again:</strong> Ryzen 9 7950X (16 full P-cores, 32 threads) at <strong>$25/core</strong> vs Mac's $114-125/core. That's 5x better value per core.</p>
+</div>
+
+<h3>The M5 MacBook Pro Question</h3>
+<p>Expected late 2026, likely on TSMC's enhanced 3nm or 2nm process. Probably 14-16 CPU cores with improved IPC. <strong>But here's the problem for your use case:</strong></p>
+<ul style="margin: 0.5rem 0 1rem 1.5rem;">
+<li><strong>Thermal throttling:</strong> A laptop can't sustain 100% CPU load on all cores indefinitely. After 10-15 minutes, it throttles to stay under its thermal envelope. trunk-recorder runs 24/7. A Mac Mini or Studio has better sustained thermals because of the desktop form factor.</li>
+<li><strong>Always-on penalty:</strong> Keeping a laptop lid-closed, plugged in, running a server workload 24/7 is technically possible but degrades battery health and fights macOS's power management at every step.</li>
+<li><strong>Cost premium:</strong> You're paying for a screen, keyboard, trackpad, and battery you'll never use in a server role. The Mac Mini M4 Pro at $1,599 gives you equivalent cores without the laptop tax.</li>
+</ul>
+<p><strong>Bottom line:</strong> If you want portability + server, get a Mac Mini for the server and a MacBook for the road. Don't combine them.</p>
+
+<!-- THE HEADLESS MAC PROBLEM -->
+<h2>⚠️ The Headless Mac Problem</h2>
+
+<p>Here's the dirty secret Apple doesn't advertise: <strong>macOS is a terrible server OS.</strong> It assumes a human is sitting in front of a display, logged in, with a GUI session. When you try to run it headless (no monitor, SSH only), things get weird fast.</p>
+
+<h3>What Breaks Without a GUI Session</h3>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr><th>Problem</th><th>Symptom</th><th>Workaround</th><th>Annoyance Level</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>No WindowServer</strong></td>
+  <td>Apps that need a display context crash or refuse to start. Some CLI tools silently fail.</td>
+  <td>Dummy HDMI plug ($8 on Amazon) tricks macOS into thinking a display is connected</td>
+  <td><span class="badge ok">Medium</span></td>
+</tr>
+<tr>
+  <td><strong>Sleep/hibernation</strong></td>
+  <td>Mac goes to sleep despite running services. SSH drops. Crons stop.</td>
+  <td><code>sudo pmset -a disablesleep 1; caffeinate -s &</code></td>
+  <td><span class="badge best">Easy fix</span></td>
+</tr>
+<tr>
+  <td><strong>Login items vs launchd</strong></td>
+  <td>GUI "Login Items" only run when a user is graphically logged in. Not on boot.</td>
+  <td>Use <code>launchd</code> plists in <code>/Library/LaunchDaemons/</code> instead</td>
+  <td><span class="badge ok">Medium</span></td>
+</tr>
+<tr>
+  <td><strong>Keychain access</strong></td>
+  <td>SSH sessions can't unlock the login keychain. Apps that store creds in Keychain fail.</td>
+  <td><code>security unlock-keychain</code> in your shell profile, or don't use Keychain for server creds</td>
+  <td><span class="badge ok">Medium</span></td>
+</tr>
+<tr>
+  <td><strong>Screen sharing session trick</strong></td>
+  <td>Some services only work if VNC/Screen Sharing is active (creates a virtual display)</td>
+  <td>Enable Screen Sharing in System Settings, keep it running</td>
+  <td><span class="badge skip">Annoying</span></td>
+</tr>
+<tr>
+  <td><strong>Docker on macOS</strong></td>
+  <td>Docker Desktop runs in a VM (not native). Extra RAM overhead, slightly slower I/O, USB passthrough is painful.</td>
+  <td>Use <code>colima</code> instead of Docker Desktop (lighter VM, CLI-only, free)</td>
+  <td><span class="badge skip">Structural</span></td>
+</tr>
+<tr>
+  <td><strong>USB device passthrough</strong></td>
+  <td>SDR dongles and Zigbee sticks need USB passthrough into Docker VMs. macOS makes this hard.</td>
+  <td>Run trunk-recorder natively (not in Docker) on macOS, or use Linux</td>
+  <td><span class="badge skip">Structural</span></td>
+</tr>
+<tr>
+  <td><strong>macOS updates</strong></td>
+  <td>Automatic updates reboot the machine. Sometimes require clicking "Agree" on a GUI dialog.</td>
+  <td>Disable auto-updates: <code>sudo softwareupdate --schedule off</code></td>
+  <td><span class="badge ok">Medium</span></td>
+</tr>
+<tr>
+  <td><strong>FileVault</strong></td>
+  <td>If enabled, Mac won't boot past login screen without physical keyboard input after a power loss.</td>
+  <td>Disable FileVault for server Macs, or use the recovery key in a UPS-shutdown script</td>
+  <td><span class="badge skip">Deal-breaker</span> for unattended restarts</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<h3>Linux Server: What "Just Works" Headless Looks Like</h3>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr><th>Capability</th><th>macOS (headless)</th><th>Linux (Ubuntu/Debian)</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>Service management</strong></td>
+  <td><code>launchd</code> plists (XML, verbose, poorly documented)</td>
+  <td><code>systemd</code> units (simple, well-documented, dependency-aware)</td>
+</tr>
+<tr>
+  <td><strong>Boot-to-service</strong></td>
+  <td>Works with LaunchDaemons, but login items need GUI session</td>
+  <td>systemd services start before any user logs in. First-class.</td>
+</tr>
+<tr>
+  <td><strong>Docker</strong></td>
+  <td>Runs in a VM (Docker Desktop or colima). ~1-2GB overhead. No native cgroups.</td>
+  <td>Native. Zero overhead. cgroups, namespaces, overlayfs. This is where Docker was built to run.</td>
+</tr>
+<tr>
+  <td><strong>USB device access</strong></td>
+  <td>Native apps: fine. Docker: painful passthrough via VM.</td>
+  <td>Native everywhere. <code>/dev/ttyUSB0</code> just works. Docker <code>--device</code> flag, done.</td>
+</tr>
+<tr>
+  <td><strong>Remote management</strong></td>
+  <td>SSH works. Some things need VNC. <code>pmset</code>/<code>caffeinate</code> dance.</td>
+  <td>SSH is everything. <code>systemctl</code>, <code>journalctl</code>, <code>htop</code>. No GUI needed, ever.</td>
+</tr>
+<tr>
+  <td><strong>Package management</strong></td>
+  <td>Homebrew (works but not system-native)</td>
+  <td><code>apt</code>/<code>dnf</code>/<code>pacman</code>. System-native, dependency-resolved, auto-updating.</td>
+</tr>
+<tr>
+  <td><strong>Unattended reboot recovery</strong></td>
+  <td>Mostly works, unless FileVault or update dialogs block. Risky.</td>
+  <td>Boots to running services in 15 seconds. Zero interaction needed.</td>
+</tr>
+<tr>
+  <td><strong>Power management</strong></td>
+  <td>Fights you. Sleep, Power Nap, display sleep, hibernate. Must disable everything.</td>
+  <td>Servers don't sleep by default. Nothing to configure.</td>
+</tr>
+<tr>
+  <td><strong>trunk-recorder</strong></td>
+  <td>Works, but SDR USB passthrough to Docker is fragile. Better to run natively.</td>
+  <td>Native, in Docker, in a systemd service. All work perfectly. USB devices are first-class.</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<div class="rec-box danger">
+<div class="label danger">THE HONEST TAKE</div>
+<p><strong>If your primary use case is always-on headless workloads</strong> (trunk-recorder, Home Assistant, OpenClaw relay, local LLM inference, Docker services), <strong>a Linux box is objectively better than a Mac.</strong></p>
+<p>The Mac is great when you're sitting in front of it. It's beautiful, silent, power-efficient, and macOS is a pleasure to use interactively. But as a server? You're fighting the OS at every step. Every headless Mac setup involves a list of workarounds that Linux simply doesn't need.</p>
+<p><strong>The hybrid approach:</strong> Mac Mini M4 Pro for interactive use + a $800-1,200 Linux box (Ryzen 9 7950X build or Beelink SER8) dedicated to server workloads. trunk-recorder, Docker, Home Assistant, and local LLM all run on Linux where they belong. The Mac stays clean for development and daily use.</p>
+</div>
+
+<div class="rec-box">
+<div class="label rec">THE PRACTICAL PLAY FOR RAY</div>
+<p><strong>Option A (cheapest fix):</strong> Keep the Mac Mini. Buy a dummy HDMI plug ($8), run <code>pmset disablesleep</code>, use <code>launchd</code> for trunk-recorder. Live with the workarounds. Cost: $8.</p>
+<p><strong>Option B (proper fix):</strong> Build or buy a Linux box (Beelink SER8 at $369 or Ryzen 9 7950X build at $1,000). Move trunk-recorder, Docker services, and Home Assistant to it. Keep the Mac Mini for OpenClaw and interactive work. Cost: $369-1,000.</p>
+<p><strong>Option C (one box to rule them all):</strong> Build a Ryzen 9 7950X or 9950X Linux server ($1,000-1,200). Run <em>everything</em> on it, including OpenClaw's local components. 16 full P-cores, 32 threads, native Docker, native USB, native headless. The Mac Mini becomes a secondary/backup machine or gets repurposed. Cost: $1,000-1,200.</p>
 </div>
 
 <!-- LOCAL LLM INFERENCE -->
@@ -1112,7 +1412,7 @@ details > div {
 
 <div class="rec-box" style="border-left-color: var(--purple);">
 <div class="label" style="color: var(--purple);">YOUR SETUP TODAY</div>
-<p>Mac Mini (SSH as ray-hatch@macmini.rayhe.net), Oracle Cloud VM (129.146.126.146), Tailscale installed but needs auth, Hydrawise irrigation (API), Tempest weather station, camera system, trunk-recorder on Mac Mini.</p>
+<p>Mac Mini M4 (SSH as ray-hatch@macmini.rayhe.net), Oracle Cloud VM (129.146.126.146), Tailscale installed but needs auth, Hydrawise irrigation (API), Tempest weather station, camera system, trunk-recorder on Mac Mini <strong>(maxing out CPU cores)</strong>.</p>
 </div>
 
 <div class="rec-box">
@@ -1120,6 +1420,13 @@ details > div {
 <p><strong>1. CyberPower CP850PFCLCD UPS ($120)</strong> — plug your Mac Mini into this immediately. It's the single highest-impact purchase.<br>
 <strong>2. Samsung T7 Shield 1TB ($80)</strong> — Time Machine backup for your Mac Mini. Plug in, enable, forget.<br>
 <strong>3. Home Assistant Connect ZBT-2 ($35)</strong> — Zigbee + Thread in one USB dongle. Future-proofs your smart home.</p>
+</div>
+
+<div class="rec-box" style="border-left-color: var(--purple);">
+<div class="label" style="color: var(--purple);">FIX TRUNK-RECORDER — $369-1,200</div>
+<p>Your Mac Mini M4 is core-starved for trunk-recorder. Two paths:<br>
+<strong>Quick fix ($369):</strong> Beelink SER8 (Ryzen 7, 8C/16T, 32GB). Move trunk-recorder and Docker services to it. Runs Ubuntu headless perfectly. Triple your available cores.<br>
+<strong>Proper fix ($1,000-1,200):</strong> Build a Ryzen 9 7950X Linux box. 16 full P-cores, 32 threads, native Docker, native USB. Run trunk-recorder, Home Assistant, Ollama, and all Docker workloads. Frees the Mac Mini entirely for OpenClaw and interactive use.</p>
 </div>
 
 <div class="rec-box info">
