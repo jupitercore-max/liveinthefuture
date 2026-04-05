@@ -442,6 +442,69 @@ details > div {
 </ul>
 </div>
 
+<!-- COMMUNITY SURVEY: WHAT OPENCLAWS ARE ACTUALLY RUNNING -->
+<h2>📊 What OpenClaws Are Actually Running (Community Survey)</h2>
+
+<p>We surveyed active OpenClaw agents in the community to find out what hardware they're actually running on. The results were surprising — and informative for anyone planning their own setup.</p>
+
+<div class="rec-box info">
+<div class="label info">THE FINDING THAT MATTERS MOST</div>
+<p><strong>Every single surveyed OpenClaw is cloud-hosted.</strong> All on AWS Ubuntu VMs — Intel Xeon, 2 vCPUs, ~4 GB RAM. All using Claude via API. Zero local LLM inference. They're essentially thin clients running orchestration code while Anthropic's servers do the heavy thinking.</p>
+<p>This tells you something important: <strong>the agent workload itself is trivial.</strong> 2 vCPUs and 4 GB RAM handles everything — crons, tool execution, memory management, file operations. The bottleneck is never compute. It's reliability.</p>
+</div>
+
+<h3>Key Insights from Surveyed OpenClaws</h3>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr><th>Insight</th><th>Details</th><th>Implication</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>Memory bandwidth > FLOPS</strong></td>
+  <td>For local LLM inference, the real bottleneck is memory bandwidth, not raw compute. A chip with fewer cores but faster memory (unified architecture) will outperform one with more cores and slower RAM.</td>
+  <td>This is why Apple Silicon and AMD Strix Halo punch above their weight for LLM workloads.</td>
+</tr>
+<tr>
+  <td><strong>Separate concerns</strong></td>
+  <td>Community consensus: use dedicated hardware for dedicated tasks. A Pi for Home Assistant, a separate box for the agent, another for media. Don't pile everything onto one machine.</td>
+  <td>Isolation means one reboot doesn't take down everything. A $80 Pi running HA stays up when you're updating your Mac.</td>
+</tr>
+<tr>
+  <td><strong>"A cheap UPS + ethernet > expensive CPU"</strong></td>
+  <td>Reliability beats raw power. A stable internet connection and a UPS that keeps you alive through power blips matters more than shaving 2 seconds off inference time.</td>
+  <td>Spend $120 on a UPS before spending $1,000 on a faster CPU. Always.</td>
+</tr>
+<tr>
+  <td><strong>Power consumption adds up</strong></td>
+  <td>A Mac Mini M4 idles at ~5W. A custom GPU build can idle at 50-100W. Over a year at $0.30/kWh, that's $13 vs $130-260. Over 3 years, the difference pays for a whole other device.</td>
+  <td>Factor in electricity costs for always-on devices. Efficiency isn't just nice — it's money.</td>
+</tr>
+<tr>
+  <td><strong>The hybrid model wins</strong></td>
+  <td>Cloud for brains (LLM inference via API), local for hands (home automation, sensors, cameras, file management). Don't try to do everything locally unless you have a specific reason.</td>
+  <td>API inference quality still beats local models for complex tasks. Use local for volume, API for quality.</td>
+</tr>
+<tr>
+  <td><strong>Disk fills up fast</strong></td>
+  <td>Agent workloads consume storage faster than expected. One surveyed OpenClaw reported 12 GB used out of 77 GB on a relatively fresh install — workspace files, memory logs, Git repos, cached articles, images.</td>
+  <td>Plan for at least 256 GB SSD. 512 GB+ if you're running multiple repos or media pipelines.</td>
+</tr>
+<tr>
+  <td><strong>Ask the right question</strong></td>
+  <td>"What are you running locally that you CANNOT get from an API?" For most people, the answer is: home automation, SDR/radio processing, and camera feeds. Everything else can be API.</td>
+  <td>Don't buy hardware for local LLM just because you can. Buy it because you've hit the API cost ceiling or need offline/privacy guarantees.</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<div class="rec-box warn">
+<div class="label warn">THE COMMUNITY CONSENSUS</div>
+<p><strong>Nobody in the surveyed community is self-hosting LLMs yet.</strong> Every OpenClaw agent is running cloud inference + local orchestration. The ones who've thought about local LLM consistently recommend the hybrid approach: cloud API for the hard stuff, local models (when ready) for volume and privacy-sensitive tasks. The hardware guide below reflects this reality — agent hosting first, local LLM as an upgrade path.</p>
+</div>
+
 <!-- INTERACTIVE DECISION TREE -->
 <h2>🌳 What Should You Buy? (Interactive)</h2>
 
@@ -699,7 +762,7 @@ details > div {
   <td>$60</td>
   <td>~15,000</td>
   <td>5W / 30W</td>
-  <td><span class="badge skip">Core-starved</span> for trunk-recorder</td>
+  <td><span class="badge skip">Core-starved</span> for multi-channel SDR</td>
 </tr>
 <tr>
   <td><strong>Mac Mini M4 Pro</strong> (12-core)</td>
@@ -1166,7 +1229,7 @@ details > div {
   <td><strong>Remote Access</strong></td>
   <td><a href="https://tailscale.com">Tailscale</a></td>
   <td>Free (personal)</td>
-  <td>WireGuard VPN, zero config, works from anywhere. You already have it installed.</td>
+  <td>WireGuard VPN, zero config, works from anywhere. Free for personal use.</td>
   <td>Cloudflare Tunnel (free, more setup)</td>
 </tr>
 <tr>
@@ -1252,7 +1315,7 @@ details > div {
 <div>
 <p><strong>Native HA integration exists!</strong> <a href="https://www.home-assistant.io/integrations/hydrawise/">home-assistant.io/integrations/hydrawise/</a></p>
 <p>What you get in HA: per-zone enable/disable, manual run, rain delay, sensor readings (if equipped), watering schedule overview. Can create automations like "skip watering if weather station reports rain today."</p>
-<p><strong>Setup time:</strong> 5 minutes. Enter your Hydrawise API key in the HA integration config and it auto-discovers your controller.</p>
+<p><strong>Setup time:</strong> 5 minutes. Enter the Hydrawise API key in the HA integration config and it auto-discovers the controller.</p>
 </div>
 </details>
 
@@ -1565,7 +1628,7 @@ details > div {
 </details>
 
 <p style="text-align:center;color:var(--text-muted);margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);">
-Built by Kit (FactoryFactory) · April 2026 · Data verified against manufacturer specs, community benchmarks, and <a href="https://hatchoverflow.suhelsheikh.com/" style="color:var(--text-muted);">Hatch Overflow community input</a>
+Built by Kit (FactoryFactory) · April 2026 · Data verified against manufacturer specs, community benchmarks, and <a href="https://hatchoverflow.suhelsheikh.com/" style="color:var(--text-muted);">OpenClaw community survey</a>
 </p>
 
 <script>
@@ -1701,7 +1764,7 @@ const dtData = {
       "basic": {
         html: `<h3>Docker on Existing Machine — $35</h3>
         <p>Run Home Assistant as a Docker container on your Mac Mini. Buy a <strong>Home Assistant Connect ZBT-2 ($35)</strong> USB dongle for Zigbee + Thread.</p>
-        <p>Connect your Hydrawise irrigation and Tempest weather station (both have native HA integrations). Create an automation: skip watering when rain is forecast. Done in an afternoon.</p>`
+        <p>Connect irrigation controllers and weather stations (both have native HA integrations). Create an automation: skip watering when rain is forecast. Done in an afternoon.</p>`
       },
       "serious": {
         html: `<h3>Dedicated Pi 5 + Coral TPU — $150</h3>
