@@ -2,9 +2,11 @@
 import sqlite3
 import time
 
+from pathlib import Path
+
 from pydantic import BaseModel
 
-from spaces.actions import run_action
+from spaces.actions import ActionContext, run_action
 
 
 class Request(BaseModel):
@@ -29,8 +31,8 @@ class Response(BaseModel):
     point_count: int
 
 
-def init_db(db_path: str) -> None:
-    conn = sqlite3.connect(db_path)
+def init_db(db_path: Path | str) -> None:
+    conn = sqlite3.connect(str(db_path))
     conn.execute("""
         CREATE TABLE IF NOT EXISTS metrics_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,14 +56,14 @@ def init_db(db_path: str) -> None:
     conn.close()
 
 
-async def main(ctx: object, request: Request) -> Response:
+async def main(ctx: ActionContext, request: Request) -> Response:
     db_path = ctx.app_db_path()
     init_db(db_path)
 
     now_ms = int(time.time() * 1000)
     cutoff = now_ms - (request.range_hours * 60 * 60 * 1000)
 
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     rows = conn.execute("""
         SELECT ts, cpu_percent, mem_percent, disk_percent,

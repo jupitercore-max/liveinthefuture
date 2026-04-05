@@ -230,9 +230,12 @@ async def parse_processes() -> tuple[list[ProcessInfo], list[ProcessInfo]]:
     return by_cpu, by_mem
 
 
-def init_db(db_path: str) -> None:
+from pathlib import Path
+
+
+def init_db(db_path: Path | str) -> None:
     """Initialize the metrics_history table if it doesn't exist."""
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(str(db_path))
     conn.execute("""
         CREATE TABLE IF NOT EXISTS metrics_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -256,10 +259,10 @@ def init_db(db_path: str) -> None:
     conn.close()
 
 
-def store_metric(db_path: str, cpu: CpuInfo, memory: MemoryInfo,
+def store_metric(db_path: Path | str, cpu: CpuInfo, memory: MemoryInfo,
                  disks: list[DiskInfo], network: list[NetworkInfo]) -> None:
     """Store a single metric snapshot in app.db."""
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(str(db_path))
     ts = int(time.time() * 1000)
 
     # Max disk usage across all mounts
@@ -287,6 +290,7 @@ def store_metric(db_path: str, cpu: CpuInfo, memory: MemoryInfo,
 
 
 async def main(ctx: ActionContext, request: Request) -> Response:
+    uptime_secs, uptime_human = parse_uptime()
     cpu = parse_cpu()
     memory = parse_memory()
     disks = await parse_disks()

@@ -1,5 +1,6 @@
 export async function handleAction(ctx) {
-  const { actionName } = ctx;
+  const { actionName, params } = ctx;
+
   if (actionName === "get_system_metrics") {
     return {
       uptime_seconds: 123456.78,
@@ -63,6 +64,34 @@ export async function handleAction(ctx) {
       health: "healthy",
     };
   }
+
+  if (actionName === "get_history") {
+    const rangeHours = params?.range_hours ?? 1;
+    const now = Date.now();
+    const rangeMs = rangeHours * 60 * 60 * 1000;
+    const points = [];
+    const numPoints = 30;
+    for (let i = 0; i < numPoints; i++) {
+      const ts = now - rangeMs + (i * rangeMs / numPoints);
+      points.push({
+        ts: Math.floor(ts),
+        cpu: 20 + Math.sin(i * 0.3) * 15 + Math.random() * 5,
+        mem: 35 + Math.sin(i * 0.2) * 8 + Math.random() * 3,
+        disk: 44 + Math.sin(i * 0.1) * 2,
+        net_rx: 1073741824 + i * 1048576 * 10,
+        net_tx: 536870912 + i * 524288 * 10,
+        load_1m: 1.0 + Math.sin(i * 0.3) * 0.5,
+        load_5m: 1.2 + Math.sin(i * 0.2) * 0.3,
+        load_15m: 1.1 + Math.sin(i * 0.1) * 0.2,
+      });
+    }
+    return {
+      points,
+      range_hours: rangeHours,
+      point_count: points.length,
+    };
+  }
+
   return {};
 }
 
@@ -70,7 +99,7 @@ export async function verify(ctx) {
   const { page, assert } = ctx;
 
   // Wait for the dashboard to load
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(2500);
 
   // Check that the title is present
   const title = await page.locator("h1").first().textContent();
@@ -92,15 +121,28 @@ export async function verify(ctx) {
   const memLabel = await page.getByText("MEMORY").first().isVisible();
   assert(memLabel, "Memory section should be visible");
 
-  // Check Disk section exists
-  const diskLabel = await page.getByText("DISK").first().isVisible();
-  assert(diskLabel, "Disk section should be visible");
+  // Check time range toggle exists
+  const oneHourBtn = await page.getByText("1h").first().isVisible();
+  assert(oneHourBtn, "Time range 1h toggle should be visible");
 
-  // Check that process tables are rendered
-  const pidHeaders = await page.getByText("PID").count();
-  assert(pidHeaders >= 2, "Should have at least 2 process tables with PID column");
+  const sixHourBtn = await page.getByText("6h").first().isVisible();
+  assert(sixHourBtn, "Time range 6h toggle should be visible");
 
-  // Check that numeric data is rendered (CPU percentage from mock)
+  const twentyFourBtn = await page.getByText("24h").first().isVisible();
+  assert(twentyFourBtn, "Time range 24h toggle should be visible");
+
+  // Check historical chart sections exist
+  const cpuMemChart = await page.getByText("CPU & Memory Over Time").first().isVisible();
+  assert(cpuMemChart, "CPU & Memory history chart should be visible");
+
+  const loadChart = await page.getByText("Load Average").first().isVisible();
+  assert(loadChart, "Load Average history chart should be visible");
+
+  // Check that numeric data is rendered
   const cpuPercent = await page.getByText("34.5").first().isVisible();
   assert(cpuPercent, "CPU usage percent should be displayed");
+
+  // Check process tables
+  const pidHeaders = await page.getByText("PID").count();
+  assert(pidHeaders >= 2, "Should have at least 2 process tables with PID column");
 }
