@@ -2,12 +2,56 @@
 
 import { executeAction, executeActionStream } from "@hatch/sdk";
 
-export type GetSystemMetricsRequest = {
-  dummy?: string;
-};
+export type GetSystemMetricsRequest = Record<string, unknown>;
 
 export type GetSystemMetricsResponse = {
-  dummy: string;
+  cpu: {
+  cpu_count: number;
+  load_15m: number;
+  load_1m: number;
+  load_5m: number;
+  usage_percent: number;
+};
+  disks: Array<{
+  available: string;
+  filesystem: string;
+  mount: string;
+  size: string;
+  usage_percent: number;
+  used: string;
+}>;
+  health: string;
+  memory: {
+  buffers_gb: number;
+  cached_gb: number;
+  free_gb: number;
+  total_gb: number;
+  usage_percent: number;
+  used_gb: number;
+};
+  network: Array<{
+  interface: string;
+  rx_bytes: number;
+  rx_mb: number;
+  tx_bytes: number;
+  tx_mb: number;
+}>;
+  top_cpu_processes: Array<{
+  command: string;
+  cpu_percent: number;
+  mem_percent: number;
+  pid: number;
+  user: string;
+}>;
+  top_mem_processes: Array<{
+  command: string;
+  cpu_percent: number;
+  mem_percent: number;
+  pid: number;
+  user: string;
+}>;
+  uptime_human: string;
+  uptime_seconds: number;
 };
 
 export class Space {
