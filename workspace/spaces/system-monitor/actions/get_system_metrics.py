@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import asyncio
 import os
+import sqlite3
+import time
 
 from pydantic import BaseModel
 
-from spaces.actions import run_action
+from spaces.actions import ActionContext, run_action
 
 
 class Request(BaseModel):
@@ -228,8 +230,63 @@ async def parse_processes() -> tuple[list[ProcessInfo], list[ProcessInfo]]:
     return by_cpu, by_mem
 
 
-async def main(ctx: object, request: Request) -> Response:
-    uptime_secs, uptime_human = parse_uptime()
+def init_db(db_path: str) -> None:
+    """Initialize the metrics_history table if it doesn't exist."""
+    conn = sqlite3.connect(db_path)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS metrics_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts INTEGER NOT NULL,
+            cpu_percent REAL NOT NULL,
+            mem_percent REAL NOT NULL,
+            mem_used_gb REAL NOT NULL,
+            mem_total_gb REAL NOT NULL,
+            disk_percent REAL NOT NULL,
+            net_rx_bytes INTEGER NOT NULL DEFAULT 0,
+            net_tx_bytes INTEGER NOT NULL DEFAULT 0,
+            load_1m REAL NOT NULL DEFAULT 0,
+            load_5m REAL NOT NULL DEFAULT 0,
+            load_15m REAL NOT NULL DEFAULT 0
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_metrics_ts ON metrics_history(ts)
+    """)
+    conn.commit()
+    conn.close()
+
+
+def store_metric(db_path: str, cpu: CpuInfo, memory: MemoryInfo,
+                 disks: list[DiskInfo], network: list[NetworkInfo]) -> None:
+    """Store a single metric snapshot in app.db."""
+    conn = sqlite3.connect(db_path)
+    ts = int(time.time() * 1000)
+
+    # Max disk usage across all mounts
+    disk_pct = max((d.usage_percent for d in disks), default=0.0)
+
+    # Sum network across all interfaces
+    total_rx = sum(n.rx_bytes for n in network)
+    total_tx = sum(n.tx_bytes for n in network)
+
+    conn.execute("""
+        INSERT INTO metrics_history (ts, cpu_percent, mem_percent, mem_used_gb,
+            mem_total_gb, disk_percent, net_rx_bytes, net_tx_bytes,
+            load_1m, load_5m, load_15m)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (ts, cpu.usage_percent, memory.usage_percent, memory.used_gb,
+          memory.total_gb, disk_pct, total_rx, total_tx,
+          cpu.load_1m, cpu.load_5m, cpu.load_15m))
+
+    # Prune entries older than 24 hours
+    cutoff = ts - (24 * 60 * 60 * 1000)
+    conn.execute("DELETE FROM metrics_history WHERE ts < ?", (cutoff,))
+
+    conn.commit()
+    conn.close()
+
+
+async def main(ctx: ActionContext, request: Request) -> Response:
     cpu = parse_cpu()
     memory = parse_memory()
     disks = await parse_disks()
@@ -246,6 +303,11 @@ async def main(ctx: object, request: Request) -> Response:
             health = "critical"
         elif d.usage_percent > 85 and health != "critical":
             health = "warning"
+
+    # Store metric to history
+    db_path = ctx.app_db_path()
+    init_db(db_path)
+    store_metric(db_path, cpu, memory, disks, network)
 
     return Response(
         uptime_seconds=uptime_secs,

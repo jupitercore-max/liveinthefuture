@@ -2,6 +2,26 @@
 
 import { executeAction, executeActionStream } from "@hatch/sdk";
 
+export type GetHistoryRequest = {
+  range_hours?: number;
+};
+
+export type GetHistoryResponse = {
+  point_count: number;
+  points: Array<{
+  cpu: number;
+  disk: number;
+  load_15m: number;
+  load_1m: number;
+  load_5m: number;
+  mem: number;
+  net_rx: number;
+  net_tx: number;
+  ts: number;
+}>;
+  range_hours: number;
+};
+
 export type GetSystemMetricsRequest = Record<string, unknown>;
 
 export type GetSystemMetricsResponse = {
@@ -55,6 +75,14 @@ export type GetSystemMetricsResponse = {
 };
 
 export class Space {
+  static getHistory(request: GetHistoryRequest): Promise<GetHistoryResponse> {
+    return executeAction<GetHistoryResponse>("get_history", request);
+  }
+
+  static getHistoryStream(request: GetHistoryRequest): AsyncIterable<GetHistoryResponse> {
+    return executeActionStream<GetHistoryResponse>("get_history", request);
+  }
+
   static getSystemMetrics(request: GetSystemMetricsRequest): Promise<GetSystemMetricsResponse> {
     return executeAction<GetSystemMetricsResponse>("get_system_metrics", request);
   }
