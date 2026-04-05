@@ -28,6 +28,12 @@ Use this file for durable, curated memory that should persist across sessions.
 - Proactive skill improvement during idle time
 - When building cool skills/tools/infrastructure, write it up as a LITF article (full 6-critic pipeline)
 
+## Model Evaluation (2026-04-04)
+- Blind eval: 175 API calls, 7 models, 350 judgments, $2.09 total
+- **Sonnet 4 (8.1/10, $0.13) tied GPT-4o (8.1/10, $0.11) for #1.** Haiku 4.5 (8.0/10, $0.03) nearly identical at 96% cheaper. Opus #6 (7.5/10, $0.76). GPT-5 broken (4.8/10). Free Llama 4 Maverick (7.7/10) beat Opus and GPT-5.
+- Opus still only model scoring 10.0 on hard reasoning — specialist not generalist
+- Report: workspace/research/model-blind-eval.html
+
 ## Connected Services
 
 - Gmail (rhe@meta.com) — **disconnected as of 2026-03-25, needs reconnect**, Google Calendar, WhatsApp (enabled, pairing link sent 2026-03-30, not yet connected by Ray), GitHub, Telegram
@@ -37,6 +43,7 @@ Use this file for durable, curated memory that should persist across sessions.
 - SSH tunnel to Mac Mini: `ssh -F ~/workspace/.ssh/config macmini` (macmini.rayhe.net, user ray-hatch)
 - Firebase: project `rayhenet`, DB URL `https://rayhenet-default-rtdb.firebaseio.com`
 - Resend API key: `re_6xFJoFPt_8s3YZRGZiTvYp96pa7jyLkuX` (100 emails/day free)
+- **LITF Social Media:** @litf.ai Instagram (Professional, ID 17841438809671808), Facebook Page (61574311053457). IG posting blocked — needs `instagram_content_publish` scope token. 177-article queue ready in litf-ig-queue.json.
 - Facebook search works for Moda Watch Club (558871041349029) but NOT 10k & Under group (150223938977815)
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
