@@ -25,6 +25,7 @@ Use this file for durable, curated memory that should persist across sessions.
 - Prefers /100 scores with hover breakdowns, not tier labels
 - "Don't add all that complexity" — fun > feature count, especially with D-pad + 2 buttons
 - Scholarly rigor matters — novel contribution, limitations, strongest counterargument, verifiable claims
+- **NO AI disclosure in article bylines** — hard rule. No "AI-generated composite journalist" or any AI disclaimer in content. Writers/About page is for curious readers. Bylines are editorial voices, not birth certificates.
 - Proactive skill improvement during idle time
 - When building cool skills/tools/infrastructure, write it up as a LITF article (full 6-critic pipeline)
 
@@ -48,10 +49,10 @@ Use this file for durable, curated memory that should persist across sessions.
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
 ## Websites & Article Counts (updated 2026-04-06)
-<!-- LITF 185, VS 145, AIHome 151, ED 18, ergo 8, EAIZ 18, TL 12ch -->
+<!-- LITF 185, VS 146, AIHome 151, ED 18, ergo 8, EAIZ 18, TL 12ch -->
 
 - **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **185 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04.
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **145 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **146 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
 - **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **151 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
 - **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **18 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **18 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee", "Ballerina". **Deploy is manual**: `npx wrangler pages deploy . --project-name=eaiz` (does NOT auto-deploy from git push).
@@ -92,6 +93,8 @@ State tracked in `drafts/status.json`.
 - Patek Philippe titanium — alert Ray on ALL channels if Patek announces anything in titanium (Jeremy's suggestion 2026-04-01)
 - Monitoring: Moda Watch Club (30min cron) + Chrono24, WatchBox, Bob's Watches (expanded 2026-04-01)
 - Watch alerts deliver on ALL channels: main + Telegram + WhatsApp + email
+- **Watches & Wonders 2026:** April 14-18, Geneva. Nautilus 50th anniversary, possible Patek titanium announcement. HIGH ALERT.
+- **Bulgari Serpenti Tubogas Tadao Ando** — Ray bought limited edition preowned $15K from Moda (Susana Di). Visible scratching disputes "mint" claim. Fair delta $2K-2.5K. Ask $3K, settle $2K-2.5K.
 
 ## Facebook Ads Access
 
@@ -201,7 +204,7 @@ State tracked in `drafts/status.json`.
 - **Jupitercore Article** — LITF article in progress, draft v2 at 8.9/10. Waiting for Jupitercore + Jeremy answers to 25 follow-up questions.
 - **One Huddle** — Ray's friend's startup, neurodiversity care coordination, Cambridge MA. Key advice: nail payment model, group chat model is moat.
 - **VirtualChurchill.com** — Eddie Churchill's WordPress, pentest done 2026-03-24, 7 critical fixes recommended.
-- **Hatch Overflow** — Joined 2026-03-26, member #56, ID 34da13bd. API key: `ho_IQRbtHnQ-n03G7Dp4MSVDdNxcaR2bTYTE0Ms7C8vxw0`. UI critique post (f2e65257). DM sent to Lloyd (8d8e730f) — awaiting reply. Interview series: daily cron posts tailored question to one Hatch/day, weekly roundup compiles into LITF article. State: workspace/hatchoverflow/interview-state.json (27 Hatches). First interview: Sterling.
+- **Hatch Overflow** — Joined 2026-03-26, member #56, ID 34da13bd. API key: `ho_IQRbtHnQ-n03G7Dp4MSVDdNxcaR2bTYTE0Ms7C8vxw0`. UI critique post (f2e65257). DM sent to Lloyd (8d8e730f) — awaiting reply. Interview series: daily cron posts tailored question to one Hatch/day, weekly roundup compiles into LITF article. State: workspace/hatchoverflow/interview-state.json (27 Hatches). 4 interviews done (Sterling, Koda, Zen, Hibiki), 23 pending.
 - **Home Automation** — Ray interested, recommended Home Assistant on Mac Mini via Docker. No action yet.
 - **Flipper Zero / Nordic nRF** — Researched 2026-03-26: V3SP3R (AI brain for Flipper), Edge Impulse + Nordic TinyML. Relevant to Ray's wearables work.
 - **Notable Artifacts** — E30 Engine Swap Guide (rayhe.net/soyouneedanewe30engine), Siteplan Tree Overlay (250 Acorn Hill Rd), Glen's Hat Guide, Bay Area Parent Survey, Glenn Emperor 3D model (rayhe.net/glenn/), Places to Live Analysis (rayhe.net/places_to_live — 17 metros, interactive weighted scoring, published 2026-04-02)
