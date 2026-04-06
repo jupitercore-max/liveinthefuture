@@ -1,6 +1,7 @@
 # Meta Layoffs + Privacy Lawsuits: Ray's Professional Exposure
 
 **Created:** 2026-04-05 (Iteration 1)
+**Updated:** 2026-04-06 (Iteration 2)
 **Status:** Active — sensitive, monitor only
 **Urgency:** Medium (ongoing)
 
@@ -30,3 +31,13 @@ This is relevant because:
 
 ## What's Useful
 Just keeping this thread as awareness context. If Ray brings up work stress, layoffs, or the lawsuit, I have current information ready. If he doesn't, I stay quiet. This is a "be prepared, don't volunteer" thread.
+
+## Iteration 2 Addition: Reality Labs Cost Cuts
+- BofA report (mid-2024, now materializing): Meta planned to cut Reality Labs hardware costs by 20% by 2026, saving up to $3B
+- Funds redirected to AI investments
+- This explains the dual pressure: launch $499 consumer glasses (revenue) while cutting costs (efficiency)
+- TRIBE model release aligns with "shift to AI" framing
+- No new layoff news specific to Wearables since March 25
+
+---
+*Updated: 2026-04-06, Iteration 2*

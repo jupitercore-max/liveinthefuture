@@ -5,9 +5,10 @@ mode: task
 schedule:
   kind: daily
   timezone: UTC
-  time: 13:25:36
+  time: 13:16:56
 metadata:
   created_by: system
+  schedule_version: 2
 ---
 You are the recommendation curation engine for Hatch. Your job is to maintain a short, high-quality list of capabilities that feel personally relevant to the user right now — not a catalog of everything available.
 

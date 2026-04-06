@@ -1,29 +1,29 @@
 # Personalized Recommendations
 
-### Weather-Aware Irrigation Optimizer
-Use when: managing yard watering, planning landscape maintenance, or wanting to reduce water waste during dry or rainy spells
-Suggested follow-up: Can you combine my Tempest weather station data with my Hydrawise irrigation schedule and suggest zone adjustments based on this week's forecast?
+### Automated Bedtime Story Series
+Use when: looking for a creative way to engage your kids at bedtime, or wanting to build a nightly ritual that runs itself with continuity and illustrations
+Suggested follow-up: Set up a nightly bedtime story cron for my kids — use their pen names (Eliza, Icee, Ballerina) as characters, generate illustrations in a consistent style, and have each chapter pick up where the last left off
 
-### Persona Strategy Sandbox
-Use when: preparing for a meeting, pitch, or strategic decision where understanding how a specific executive thinks would give you an edge
-Suggested follow-up: Using the Boz persona, simulate how he'd react to a pitch for a new wearables feature that trades battery life for always-on AI processing
+### Smart Home Procedural Game Generator
+Use when: exploring home automation ideas, wanting a creative use for connected device inventories, or looking for game concepts that blend real-world data with procedural generation
+Suggested follow-up: Can you build a game that reads my Hydrawise zones, Tempest weather station, and any other connected devices, then generates a playable tower-defense scenario where real device states drive gameplay?
 
-### Cross-Site Content Analytics
-Use when: wanting to understand which topics, formats, or journalists are performing best across your content portfolio
-Suggested follow-up: Analyze my 6 sites and tell me which article topics get the most engagement — are there patterns I should double down on or gaps I'm missing?
+### Strava Street Coverage Map
+Use when: wanting to visualize your running or cycling history, discover new routes in your neighborhood, or gamify exploring every street near you
+Suggested follow-up: Pull my Strava history and map which streets around Menlo Park I've covered versus missed — then suggest a 5-mile route that fills in the biggest gaps
 
-### Tailscale Mesh Network Setup
-Use when: needing secure remote access to home devices, fixing SSH connectivity, or connecting machines across networks without port forwarding
-Suggested follow-up: Help me finish setting up Tailscale so I can fix my Mac Mini SSH connection and access home devices from anywhere
+### Restaurant Reservation Sniper
+Use when: trying to book a hard-to-get restaurant in the Bay Area, or wanting to automate the process of checking for openings at popular spots
+Suggested follow-up: Set up reservation sniping for a 4-person dinner at a hard-to-book Peninsula restaurant — monitor availability and grab a Friday or Saturday slot the moment one opens
 
-### DIY Radar Speed Sign
-Use when: wanting to build hardware projects, monitor neighborhood traffic, or experiment with radar and microcontroller platforms
-Suggested follow-up: Spec out a complete parts list and wiring diagram for the HLK-LD2451 + ESP32 speed sign — what's the total cost and build time?
+### Nightly Backpack Checklist
+Use when: managing school and activity logistics for your kids, or wanting a daily reminder that cross-references calendar events with what needs to go in each bag
+Suggested follow-up: Build a nightly cron that checks tomorrow's calendar for school, sports, and activities, then sends me a packing checklist by 8:30 PM so nothing gets forgotten
 
-### Ad Campaign Drift Monitor
-Use when: running paid campaigns and wanting to catch performance drops, budget burns, or creative fatigue before they waste spend
-Suggested follow-up: Set up a weekly cron that pulls my Meta ad account metrics and alerts me if any campaign's ROAS drops below 1.0x or spend pacing is off
+### Home Repair Photo Diagnosis
+Use when: something breaks around the house and you want an instant assessment of what's wrong, what parts to buy, and a calendar block to fix it
+Suggested follow-up: Next time something breaks, I'll send you a photo — tell me what failed, what I need from the hardware store, and find a 2-hour window on my calendar this weekend to fix it
 
-### Watch Collection Valuation Tracker
-Use when: tracking the value of watches you own, considering selling or trading, or monitoring market trends for pieces in your collection
-Suggested follow-up: Build a tracker that monitors current market prices for my Omega Seamaster Diver 300M Chrono and flags if any of my watchlist pieces hit a price threshold
+### Friends' Drive Docs as Restaurant Guides
+Use when: planning a trip or dinner out and wanting to mine your Google Drive for restaurant recommendations friends have shared over the years
+Suggested follow-up: Search my Google Drive for any shared docs or spreadsheets with restaurant recommendations — organize them by city and cuisine so I have a personal guide next time I travel

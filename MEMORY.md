@@ -47,14 +47,14 @@ Use this file for durable, curated memory that should persist across sessions.
 - Facebook search works for Moda Watch Club (558871041349029) but NOT 10k & Under group (150223938977815)
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
-## Websites & Article Counts (updated 2026-04-05)
-<!-- LITF 184, VS 145, AIHome 150, ED 20, ergo 8, EAIZ 19, TL 12ch -->
+## Websites & Article Counts (updated 2026-04-06)
+<!-- LITF 185, VS 145, AIHome 151, ED 18, ergo 8, EAIZ 18, TL 12ch -->
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **184 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **185 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04.
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **145 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **150 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
-- **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **20 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
-- **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **19 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee", "Ballerina". **Deploy is manual**: `npx wrangler pages deploy . --project-name=eaiz` (does NOT auto-deploy from git push).
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **151 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
+- **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **18 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
+- **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **18 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee", "Ballerina". **Deploy is manual**: `npx wrangler pages deploy . --project-name=eaiz` (does NOT auto-deploy from git push).
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
 - **technically.legal** — Cloudflare Pages (direct upload), repo rayhe/technically-legal. See Technically Legal section below.
 - **ergo (satirical journalism)** — Cloudflare Pages from rayhe/ergo. **8 articles**. Every fact real/verifiable, conclusions deliberately wrong. Deadpan investigative tone. Daily cron. 6-critic panel (8.5+ to publish).
@@ -107,7 +107,7 @@ State tracked in `drafts/status.json`.
 4. Best Buy Totaltech laptop screen claim — kids damaged screen, covers accidental damage, $49-$99 deductible
 5. Sign Davey Tree Service contract — tussock moth treatment, 6 live oaks, $600 (ask what product they're spraying)
 
-## Active Crons (updated 2026-04-05)
+## Active Crons (updated 2026-04-06)
 
 **Secondly:**
 - `sysmon-collect` — 60s heartbeat, system monitoring metrics
@@ -148,7 +148,7 @@ State tracked in `drafts/status.json`.
 - `ho-weekly-roundup` — Sunday 16:00 UTC, compiles week's HO interviews into LITF article
 
 **Runonce (scheduled):**
-- 18 `holiday-ergo-*` crons for holidays through end of 2026
+- 22 `holiday-ergo-*` crons for holidays through end of 2026
 
 ## Technically Legal
 
@@ -170,7 +170,7 @@ State tracked in `drafts/status.json`.
 
 ## Zuckerberg Persona Project
 
-- **File:** `workspace/markzuckerberg_persona.md` — 7,194 lines, iteration 56 as of 2026-04-04
+- **File:** `workspace/markzuckerberg_persona.md` — 7,363 lines, iteration 57 as of 2026-04-06
 - **Scope:** Deep psychological profile/simulation covering ~50+ sections: decision architecture, competitive processing, political instrumentalism, intellectual authority, hardware bet ($80B+ Reality Labs), advertising engine ($201B), aging/legacy/succession, open-source-to-closed pivot, multi-front crisis management, compute dependencies, board governance, fatherhood, personal wealth
 - **Key predictions:** Wang departure ~Dec 2026, Llama becomes "community edition" behind closed frontier models, Qwen dependency surfaces in hypocrisy framing
 - **Daily cron:** `zuck-persona` adds one new section per day

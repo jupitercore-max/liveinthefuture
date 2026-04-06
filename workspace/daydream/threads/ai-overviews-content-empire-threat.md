@@ -1,39 +1,50 @@
 # AI Overviews Are Coming for Ray's Content Empire
 
 **Created:** 2026-04-05 (Iteration 1)
-**Status:** Active — needs Ray's attention
-**Urgency:** High (slow-moving but structural)
+**Updated:** 2026-04-06 (Iteration 2)
+**Status:** Active — structural threat, needs strategy
+**Urgency:** High (slow-moving but existential)
 
-## The Problem Ray Hasn't Articulated
+## Updated Data (April 2026)
 
-Ray has 500+ articles across 8 sites, all built on the assumption that organic search traffic = readers. But Google AI Overviews now appear on **25% of all searches** (up sharply YoY), and when they do, **93% of AI Mode sessions result in zero outbound clicks**. Even in regular search, 60% of queries now produce no click.
+Fresh numbers from multiple sources confirm the trend is accelerating:
+- **42% drop in search clicks** where AI Overviews appear (Khalid SEO, March 2026)
+- **70% traffic drops** reported by some publishers (lawsuit-level impacts documented)
+- "Zero-click future" now mainstream framing — Entrepreneur, Medium, SEO industry consensus
+- AI bot crawlers now represent a **significant chunk of web traffic** — Human Security's 2026 State of AI Traffic report treats it as a cyberthreat vector
 
-Ray's entire publishing pipeline — the 6-critic panel, the 1/day gate, the scholarly rigor — assumes someone eventually lands on the page. If Google synthesizes the answer at the top of the SERP, nobody does.
+## The Specific Threat to Ray's Sites
 
-## Which Sites Are Most Exposed?
+**Total content:** ~500+ articles across 8 sites. Zero structured data. Zero Schema.org markup. Zero explicit AIO optimization.
 
-**Most vulnerable:**
-- **liveinthefuture.org** — Commentary and analysis. AI Overviews can synthesize hot takes about AI policy, propaganda, governance. LITF's value-add (opinionated framing, human voice) gets compressed into a citation footnote.
-- **aihomebuilding.com** — How-to and cost/ROI content. This is EXACTLY the kind of query AI Overviews target ("how much does X cost," "should I use Y material").
-- **efficientdesign.net** — Watch reviews compete against Chrono24, Hodinkee, established players with stronger E-E-A-T signals.
+### New Insight: The "AI Citation" Game
 
-**Best positioned:**
-- **vehicle-safety.org** — Has PRIMARY data (FARS death rates, IIHS ratings, specific VINs). Hard to synthesize from nothing. Google's AI Overview needs to cite a source for "which 2024 SUVs have the highest fatality rates" — VS could be that source.
-- **technically.legal** — Fiction. AI Overviews don't summarize novels.
-- **news.eaiz.net** — Niche kids content, not the kind of query that triggers AIO.
+A new cottage industry is emerging around "AI Citation Optimization" (ACO) — getting your content cited BY AI Overviews rather than just ranked below them. Key strategies from 2026 research:
 
-## What Ray Should Consider
+1. **Structured data is table stakes.** Schema.org Article, FAQ, HowTo markup. Sites without it are invisible to AIO citation algorithms.
+2. **Unique data products win.** VS's FARS death rates are exactly the kind of primary data AIO needs to cite. LITF's model eval ($2.09 blind test) is another.
+3. **The "first to define" advantage.** When Ray publishes original analysis (propaganda machine article, governance failure model), those become the cited source for future AI answers on those topics.
+4. **Newsletter/RSS as insurance.** Every subscriber is a guaranteed reader regardless of search. The Resend pipeline exists but domain verification is STILL pending (#2 on Ray's to-do list).
 
-1. **Structured data everywhere.** Schema.org Article, FAQ, HowTo markup. AIO citations favor structured sources. None of Ray's sites have this.
-2. **Become the cited source, not the clicked result.** VS already does this with FARS data. LITF needs original data products (the model eval, the propaganda machine analysis) not just commentary.
-3. **Build direct audience channels.** Newsletter subscribers don't care about Google. The Resend/newsletter pipeline exists but domain verification is still pending for VS and AIHome (item #2 on pending list).
-4. **Consider RSS/feed readers revival.** The privacy-conscious, anti-AI-slop audience Ray targets is exactly the demographic using RSS readers again in 2026.
-5. **AI search citation optimization is emerging as a field.** Sources cited in AI Overviews see CTR increase from 0.6% to ~1.08%. Not great, but better than zero.
+### What's Changed Since Iteration 1
 
-## The Irony
+- The Zero-Click Economy framing has gone from SEO niche concern to mainstream business discussion
+- Smart founders are reportedly treating "AI search visibility" as important as "Google search visibility"
+- Publisher lawsuits against Google are mounting (verbatim copying documented)
 
-Ray's own LITF article "We Accidentally Built a Propaganda Machine" describes exactly this dynamic — AI-assisted content at scale. Google's response is to make AI the intermediary, stripping the need for users to visit ANY content site. The machine Ray built to publish is being outflanked by a bigger machine built to consume.
+## Concrete Next Steps (If Ray Wants Them)
 
-## Article Seed Potential
+1. **Schema.org markup sprint:** Add Article structured data to all 8 sites. This is a one-day project for Kit — loop through all HTML files, inject JSON-LD in <head>. Minimal effort, maximum AIO citation potential.
+2. **Finish newsletter domain verification.** Resend is sitting there ready. VS and AIHome need domain verification. This is literally a DNS record.
+3. **RSS feeds.** Add atom.xml/feed.xml to each site. The anti-slop audience loves RSS. Again, a one-day project.
+4. **Track the data.** We have no visibility into actual search traffic. If Ray connects Google Search Console or Cloudflare Web Analytics, we could ground this entire thread in real data.
 
-**Strong.** "500 Articles, Zero Readers: How AI Overviews Will Kill Independent Publishing" — original data from Ray's own sites (traffic analytics before/after AIO expansion), cross-referenced with the TechRT statistics. The self-aware angle (we built the thing, the bigger thing ate us) is exactly LITF's brand.
+## Article Seed (Still Strong)
+
+"AI Overviews Are Killing Independent Publishing — And Here's What the Data Says" (LITF)
+- Primary sources: 42% click drop data, publisher lawsuit filings, verbatim copying evidence
+- Original contribution: analyze Ray's own 500-article corpus — which articles would survive a zero-click world, which wouldn't
+- Meta-narrative: "We built an AI-assisted publishing empire. Now AI-assisted search is trying to kill it."
+
+---
+*Updated: 2026-04-06, Iteration 2 — Added fresh 42% click drop data, ACO strategies, concrete next steps*
