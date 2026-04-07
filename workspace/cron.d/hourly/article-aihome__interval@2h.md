@@ -44,11 +44,11 @@ cat drafts/status.json 2>/dev/null || echo '{"current": null}'
 6. Commit + push, then continue to CRITIQUE
 
 **If phase=CRITIQUE:**
-1. Run 6 critics (General, Voice, Ethics, Social, Legal, Rigor) — score each /10
+1. Run 7 critics (General, Voice, Ethics, Social, Legal, Rigor, Data Presentation) — score each /10
 2. **EM DASH HARD GATE (MANDATORY):** Run `grep -o '—' drafts/{slug}.html | wc -l` — if >3, STOP. Replace extras with periods, commas, or "and". Do NOT rely on critic opinion; the regex count is the source of truth. Articles have shipped with 25+ em dashes because critics scored them 8.9 while ignoring this rule.
 3. **"The" starters:** Count sentences starting with "The" — must be < 15% of total.
 4. **Banned phrases:** "Here's the thing", "The kicker", "paradigm shift", "game-changer", "deep dive", "unpack"
-5. ALL 6 at 8.5+ AND all hard gates pass → phase=SHIP
+5. ALL 7 at 8.5+ AND all hard gates pass → phase=SHIP
 6. ANY below 8.5 OR hard gate fail → revise, increment round, re-score
 7. Max 3 rounds → PARKED if still failing
 8. Commit + push

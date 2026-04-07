@@ -45,7 +45,7 @@ cat drafts/status.json 2>/dev/null || echo '{"current": null}'
 6. Commit + push, then continue to CRITIQUE immediately
 
 **If phase=CRITIQUE:**
-1. Run 6 critics yourself (General, Voice, Ethics, Social, Legal, Rigor) — score each /10
+1. Run 7 critics yourself (General, Voice, Ethics, Social, Legal, Rigor, Data Presentation) — score each /10
 2. If ALL 6 at 8.5+ → update phase=SHIP, commit + push
 3. If ANY below 8.5 → revise the draft addressing feedback, increment round, re-score
 4. Max 3 rounds. If still below 8.5 → phase=PARKED
