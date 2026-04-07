@@ -1,9 +1,9 @@
 # Meta Layoffs + Privacy Lawsuits: Ray's Professional Exposure
 
 **Created:** 2026-04-05 (Iteration 1)
-**Updated:** 2026-04-06 (Iteration 2)
-**Status:** Active — sensitive, monitor only
-**Urgency:** Medium (ongoing)
+**Updated:** 2026-04-07 (Iteration 3)
+**Status:** DORMANT — no new info in 2 iterations, sensitive monitor-only
+**Urgency:** Low (background monitoring)
 
 ## What Happened
 - **March 16:** Reuters reported Meta planning layoffs of "20% or more." Stock jumped on the news (classic Wall Street: headcount reduction = efficiency = buy signal).

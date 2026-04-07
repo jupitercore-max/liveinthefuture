@@ -1,8 +1,8 @@
 # CT5-V Blackwing: Future Collectible + Corvette ZR1X Zora News
 
 **Created:** 2026-04-05 (Iteration 1)
-**Updated:** 2026-04-06 (Iteration 2)
-**Status:** Background — low urgency, interesting context
+**Updated:** 2026-04-07 (Iteration 3)
+**Status:** DORMANT — no new info in 2 iterations, monitoring only
 **Urgency:** Low
 
 ## Blackwing Update

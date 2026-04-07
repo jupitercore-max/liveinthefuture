@@ -56,5 +56,21 @@ This raises the question: **does Ray actually need to pay $600 for chemical trea
 
 The city notice confirms caterpillars are active NOW (March 30). Btk works best on early instars. If Ray waits another week, the treatment window may close. April is the critical month.
 
+## Iteration 3 Update (April 7)
+
+No new information from Menlo Park city or Davey Tree since Iteration 2.
+
+### Treatment Window Assessment
+- City notice was March 30 — 8 days ago
+- Caterpillars are NOW at or approaching mid-instar based on "recent warm weather has accelerated their activity"
+- **If Ray is going to act (Davey or DIY), it needs to happen THIS WEEK.** By mid-April, larvae may be pupating, making Btk ineffective.
+- If no action by April 14, the treatment window has likely closed for this season.
+
+### Connection to Meshtastic Thread (NEW)
+The new Meshtastic mesh network thread includes placing a sensor node near the oaks. Temperature + humidity data would help predict caterpillar lifecycle timing in future seasons. This is a long-term play but connects the threads.
+
+### Thread Status
+This thread has been stable for 2 iterations with no new external information. If Ray hasn't signed the Davey contract by Iteration 4, marking dormant — the window will have passed.
+
 ---
-*Updated: 2026-04-06, Iteration 2 — Added Menlo Park city confirmation, upgraded urgency, added hybrid option*
+*Updated: 2026-04-07, Iteration 3 — Window closing, no new info*

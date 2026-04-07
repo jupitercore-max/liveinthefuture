@@ -47,5 +47,42 @@ Everyone can make glasses. The question is: who has the best way to CONTROL them
 
 **Ray's team's moat is the Neural Band.** Everything else (cameras, speakers, displays) is commoditizable. The input problem is the hard part.
 
+## Iteration 3 Updates (April 7)
+
+### Industry Landscape (Glass Almanac, April 2026)
+The competitive field is now formally mapped at 6 products with price points:
+
+| Product | Price | Key Differentiator |
+|---------|-------|--------------------|
+| Meta Ray-Ban Blayzer/Scriber | $499 | Prescription-ready, AI (food tracking, translation) |
+| Xreal 1S | $449 | Portable cinema, gaming (Steam Deck) |
+| Xreal One Pro | $649 | 3DoF anchored virtual screens |
+| Viture Beast | $550 | Best contrast/optics |
+| Asus ROG + Xreal 240Hz | TBD | Pro gaming refresh rates |
+| Nothing AI Glasses | 2027 | AI-first, no display (Carl Pei) |
+
+### Nothing's Strategic Split (TechTimes, GSMArena — March 31)
+- Carl Pei reportedly going all-in on AI glasses for 2027
+- **Key strategic choice:** AI assistant first, AR display later
+- This is the OPPOSITE of Meta's approach (display first, AI added)
+- Signals an industry split: **display camp** (Meta, Xreal, Viture) vs **AI camp** (Nothing, potentially Amazon)
+- Nothing's approach is cheaper (no display) and more socially acceptable (looks like normal glasses)
+
+### Amazon's "Meta-Bounds Display" (Glass Almanac)
+- Amazon reportedly using "Meta-Bounds Display" technology for their AR glasses effort
+- If Amazon enters with Alexa integration + retail distribution, that's a significant competitive move
+- Amazon has the retail/smart home ecosystem that Meta lacks
+
+### Updated Thesis
+The competitive axis is bifurcating:
+1. **Display glasses** (Meta, Xreal, Viture) — expensive, requires optical expertise, form factor challenges
+2. **AI-only glasses** (Nothing 2027, Amazon?) — cheaper, looks normal, voice/AI-first
+3. **Neural input** (Meta Neural Band) — still unique moat, no competitor has a viable neural input story
+
+Meta's advantage is being the ONLY player in both camps #1 AND #3. But Nothing's "AI first, display later" could be a faster route to mass adoption if people just want a smart assistant on their face, not a screen.
+
+### Thread Status
+This thread is mature. The competitive landscape is well-mapped. Closing this as a standalone thread after Iteration 3 — future competitive updates will be folded into the tariff thread or W&W thread as relevant.
+
 ---
-*Updated: 2026-04-06, Iteration 2 — Added tariff impact, TRIBE connection, neurotech competition, input-layer thesis*
+*Updated: 2026-04-07, Iteration 3 — Added 6-product landscape, Nothing strategy, Amazon entry, bifurcation thesis*

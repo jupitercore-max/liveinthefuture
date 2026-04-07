@@ -49,11 +49,11 @@ Use this file for durable, curated memory that should persist across sessions.
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
 ## Websites & Article Counts (updated 2026-04-07)
-<!-- LITF 190, VS 148, AIHome 152, ED 21, ergo 8, EAIZ 20, TL 13ch -->
+<!-- LITF 190, VS 149, AIHome 153, ED 21, ergo 8, EAIZ 20, TL 13ch -->
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **190 articles, 19 games, 22 experiences, 7 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04.
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **148 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **152 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **190 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04.
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **149 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **153 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
 - **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **21 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **20 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee", "Ballerina". **Deploy is manual**: `npx wrangler pages deploy . --project-name=eaiz` (does NOT auto-deploy from git push).
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
@@ -94,7 +94,14 @@ State tracked in `drafts/status.json`.
 - Monitoring: Moda Watch Club (30min cron) + Chrono24, WatchBox, Bob's Watches (expanded 2026-04-01)
 - Watch alerts deliver on ALL channels: main + Telegram + WhatsApp + email
 - **Watches & Wonders 2026:** April 14-18, Geneva. Nautilus 50th anniversary, possible Patek titanium announcement. HIGH ALERT.
-- **Bulgari Serpenti Tubogas Tadao Ando** — Ray bought limited edition preowned $15K from Moda (Susana Di). Visible scratching disputes "mint" claim. Fair delta $2K-2.5K. Ask $3K, settle $2K-2.5K.
+- **Bulgari Serpenti Tubogas Tadao Ando** — Ray bought limited edition preowned $15K from Moda (Susana Di). Visible scratching disputes "mint" claim. Susana offered $500 credit; Ray countered $2K ("if listed Very Good I'd have offered ~$13K"). Collaborative fair zone $1.5K-2K. Awaiting her response.
+
+## Tom Siebel BLV Glasses Non-Profit
+- Wishlist: Pedestrian Nav, Obstacle Detection (Aria 2), Facial Recognition + Nametags, Airport Nav with Delta
+- Self-funded (Siebel is billionaire, C3.ai founder). Money not the constraint.
+- Project plan: workspace/research/blv-glasses-project-plan.md
+- Staffing: 2-person minimum recommended (14mo, $480-720K). Obstacle detection needs parallel safety validation.
+- Sequencing: Nametags first → Pedestrian Nav → Airport Nav → Obstacle Detection last
 
 ## Facebook Ads Access
 
@@ -110,7 +117,7 @@ State tracked in `drafts/status.json`.
 4. Best Buy Totaltech laptop screen claim — kids damaged screen, covers accidental damage, $49-$99 deductible
 5. Sign Davey Tree Service contract — tussock moth treatment, 6 live oaks, $600 (ask what product they're spraying)
 
-## Active Crons (updated 2026-04-06)
+## Active Crons (updated 2026-04-07)
 
 **Secondly:**
 - `sysmon-collect` — 60s heartbeat, system monitoring metrics
@@ -137,8 +144,8 @@ State tracked in `drafts/status.json`.
 - `zuck-persona` — daily 09:00 UTC (2 AM PT), Zuckerberg persona iteration
 - `boz-persona` — daily 09:30 UTC (2:30 AM PT), Bosworth persona iteration
 - `memory-dream` — daily 10:00 UTC (3 AM PT), memory consolidation
-- `personalized-recommendations` — daily 13:25 UTC (system-created)
-- `personalized-recommendations-proactive` — daily 14:21 UTC (system-created)
+- `personalized-recommendations` — daily 14:19 UTC (system-created)
+- `personalized-recommendations-proactive` — daily 20:45 UTC (system-created)
 - `moltbook-litf-scan` — daily 14:00 UTC (7 AM PT), scans Moltbook for LITF ideas
 - `ho-daily-interview` — daily 17:00 UTC (10 AM PT), posts question to one Hatch/day
 - `article-ergo` — daily 16:00 UTC (9 AM PT), satirical article for ergo site
@@ -164,8 +171,8 @@ State tracked in `drafts/status.json`.
 
 ## Bosworth (Boz) Persona Project
 
-- **File:** `workspace/andrewbosworth_persona.md` — 3,335 lines as of 2026-04-02
-- **Latest iteration:** 20 (Section 31 "The Input Problem: How Boz Navigated the Six-Year CTRL-Labs-to-Neural-Band Journey and What It Reveals About His Technology Bet Architecture")
+- **File:** `workspace/andrewbosworth_persona.md` — 3,456 lines as of 2026-04-07
+- **Latest iteration:** 21 (Section 32 "The AI-Native Organization" — Config 2025 design philosophy mapped to AI-for-Work mandate, AI Builder/Pod Lead/Org Lead roles)
 - **Scope:** Deep psychological profile/simulation: CTO of Meta, head of Reality Labs. Covers decision architecture, "fix forward" philosophy, stated vs revealed preferences heuristic, Cutco sales formation, News Feed launch (2006 backlash), executive relationships (Cox, Olivan, Li, Carmack, LeCun, Wang), RL restructuring, hardware bet, competitive evaluation (Apple/Google/Snap), layoff arc/Year of Efficiency, Portal product kill, philanthropy (POST board, 4-H, farmer-entrepreneur thesis)
 - **Key insight:** Deepest cognitive heuristic is "what people do > what people say"
 - **Sources:** Stratechery, Lenny's Podcast, a16z, Dan Casetta/Vector, ExpertBeacon, UploadVR, Axios, Reuters, The Information, Chronicle of Philanthropy

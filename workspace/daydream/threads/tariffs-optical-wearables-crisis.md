@@ -47,5 +47,28 @@ The $499 Blayzer/Scriber launch (April 14) was priced BEFORE the full tariff reg
 ## Article Seed
 Strong LITF candidate: "The $499 Smart Glasses That Just Got More Expensive: How Tariffs Are Reshaping the Race to Put AI on Your Face" — trace the supply chain of a single pair of Ray-Ban Meta glasses from component to retail, show where tariffs hit.
 
+## Iteration 3 Update (April 7)
+
+### Fresh Data: J.P. Morgan Tariff Assessment
+- **Average effective US tariff rate: 15.8%** (up from 2.3% at end of 2024)
+- ~6 percentage points LOWER than the 22% recorded on "Liberation Day"
+- **Expected to reach 18-20%** as sectoral tariffs are imposed later this year
+- "Observed tariff rate (based on actual customs duties) is likely to level off slightly higher than 15%"
+- Consumer electronics are NOT explicitly exempted (unlike April 2025 temporary smartphone exemption)
+
+### Impact on Consumer Behavior (Ramp Research)
+- Retailers are **freezing or drawing down ad spend** in response to tariff anxiety
+- Consumer spending behavior shifting toward pre-buying (stockpiling before price increases)
+- This could create a SHORT-TERM demand surge for the Blayzer/Scriber launch (buy before prices rise) followed by a demand cliff
+
+### What's Changed Since Iteration 2
+- Tariff rate stabilized lower than "Liberation Day" peak — some pressure relief
+- But sectoral tariffs still incoming → could hit optical/wearable specifically
+- No exemption for consumer electronics/optical devices
+- The $499 price point is under pressure but may hold through initial launch — the question is Q3/Q4 sustainability
+
+### Thread Status
+This thread is producing insight but not an immediate action for Ray. Evolving into a structural monitoring thread. Will close if tariff situation stabilizes or becomes fully priced in.
+
 ---
-*Updated: 2026-04-06, Iteration 2*
+*Updated: 2026-04-07, Iteration 3*
