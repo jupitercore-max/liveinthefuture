@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="canonical" href="https://new.rayhe.net/td.html" />
+  <link rel="canonical" href="https://rayhe.net/td.html" />
   <meta property="og:title" content="Tower Defense — rayhe.net" />
-  <meta property="og:url" content="https://new.rayhe.net/td.html" />
-  <meta property="og:site_name" content="new.rayhe.net" />
+  <meta property="og:url" content="https://rayhe.net/td.html" />
+  <meta property="og:site_name" content="rayhe.net" />
   <meta name="twitter:card" content="summary" />
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -4305,9 +4305,8 @@
       canvas.addEventListener('mousemove', onCanvasMouseMove);
       canvas.addEventListener('mouseleave', onCanvasMouseLeave);
 
-      // Start render + sim loops
+      // Start sim loop (render loop already started at init)
       lastVisualTick = performance.now();
-      requestAnimationFrame(renderLoop);
       if (!simTimer) {
         simTimer = setInterval(simTick, TICK_MS / gameSpeed);
       }
@@ -4508,9 +4507,8 @@
       canvas.addEventListener('mousemove', onCanvasMouseMove);
       canvas.addEventListener('mouseleave', onCanvasMouseLeave);
 
-      // Start render loop
+      // Render loop already started at init — just reset visual tick
       lastVisualTick = performance.now();
-      requestAnimationFrame(renderLoop);
 
       // Load meta to init wave
       metaRef.once('value', snap => {
@@ -12373,6 +12371,9 @@
     } else {
       setTimeout(resizeCanvas, 50);
     }
+    // Start render loop immediately so the canvas isn't blank while Firebase loads
+    lastVisualTick = performance.now();
+    requestAnimationFrame(renderLoop);
     initFirebase();
     // Check for saved game before showing tutorial
     {

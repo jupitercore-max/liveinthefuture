@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Emperor Protects — For Glenn</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #080808; color: #d4af37; font-family: 'Georgia', serif; overflow: hidden; }
+  #info {
+    position: absolute; top: 20px; left: 0; right: 0; text-align: center; z-index: 10;
+    pointer-events: none;
+  }
+  #info h1 {
+    font-size: 2.2rem; letter-spacing: 0.25em; text-transform: uppercase;
+    color: #d4af37; text-shadow: 0 0 30px rgba(212,175,55,0.6), 0 0 60px rgba(212,175,55,0.3);
+  }
+  #info p { font-size: 0.85rem; color: #777; margin-top: 0.5rem; letter-spacing: 0.15em; }
+  #download-btn {
+    position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 10;
+    background: linear-gradient(135deg, #d4af37, #b8860b); color: #080808;
+    border: 2px solid #d4af37; padding: 14px 36px; font-size: 1rem; font-weight: bold;
+    letter-spacing: 0.15em; cursor: pointer; text-transform: uppercase;
+    font-family: 'Georgia', serif; transition: all 0.3s;
+    box-shadow: 0 0 25px rgba(212,175,55,0.4);
+  }
+  #download-btn:hover {
+    box-shadow: 0 0 50px rgba(212,175,55,0.7); transform: translateX(-50%) scale(1.05);
+    background: linear-gradient(135deg, #e8c547, #d4af37);
+  }
+  #controls-hint {
+    position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 10;
+    font-size: 0.72rem; color: #444; text-align: center; pointer-events: none;
+  }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+
+<div id="info">
+  <h1>⚔ The Emperor Protects ⚔</h1>
+  <p>For Glenn</p>
+</div>
+
+<div id="controls-hint">Drag to rotate · Scroll to zoom · Right-drag to pan</div>
+<button id="download-btn" onclick="exportSTL()">⬇ Download STL</button>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLExporter } from 'three/addons/exporters/STLExporter.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+// === SCENE ===
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x080808);
+scene.fog = new THREE.FogExp2(0x080808, 0.012);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 200);
+camera.position.set(0, 3.5, 9);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+// Post-processing bloom
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.6, 0.4, 0.85);
+composer.addPass(bloom);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.target.set(0, 3.0, 0);
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.6;
+controls.maxPolarAngle = Math.PI * 0.85;
+controls.minDistance = 4;
+controls.maxDistance = 16;
+
+// === PROCEDURAL TEXTURES ===
+function createGoldTexture(size) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  // Base gold
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, '#d4af37');
+  grad.addColorStop(0.3, '#f0d060');
+  grad.addColorStop(0.5, '#b8860b');
+  grad.addColorStop(0.7, '#f0d060');
+  grad.addColorStop(1, '#d4af37');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  // Scratches and battle damage
+  ctx.globalAlpha = 0.15;
+  for (let i = 0; i < 80; i++) {
+    ctx.strokeStyle = Math.random() > 0.5 ? '#8B6914' : '#FFE680';
+    ctx.lineWidth = Math.random() * 2;
+    ctx.beginPath();
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (Math.random()-0.5)*40, y + (Math.random()-0.5)*40);
+    ctx.stroke();
+  }
+  // Rivets
+  ctx.globalAlpha = 0.3;
+  for (let i = 0; i < 30; i++) {
+    const rx = Math.random() * size, ry = Math.random() * size;
+    ctx.beginPath();
+    ctx.arc(rx, ry, 2 + Math.random()*3, 0, Math.PI*2);
+    ctx.fillStyle = '#FFE680';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(rx+1, ry+1, 1, 0, Math.PI*2);
+    ctx.fillStyle = '#8B6914';
+    ctx.fill();
+  }
+  return new THREE.CanvasTexture(c);
+}
+
+function createNormalMap(size) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#8080ff'; // Neutral normal
+  ctx.fillRect(0, 0, size, size);
+  // Engravings / filigree patterns
+  ctx.globalAlpha = 0.6;
+  for (let i = 0; i < 20; i++) {
+    const cx = Math.random() * size, cy = Math.random() * size;
+    const r = 10 + Math.random() * 30;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = '#6060ff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Inner detail
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.6, 0, Math.PI * 2);
+    ctx.strokeStyle = '#a0a0ff';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  // Scroll/vine patterns
+  for (let i = 0; i < 15; i++) {
+    ctx.beginPath();
+    const sx = Math.random() * size;
+    const sy = Math.random() * size;
+    ctx.moveTo(sx, sy);
+    for (let j = 0; j < 8; j++) {
+      ctx.quadraticCurveTo(
+        sx + (Math.random()-0.5)*60, sy + j*10 + Math.random()*20,
+        sx + (Math.random()-0.5)*40, sy + j*15
+      );
+    }
+    ctx.strokeStyle = '#7070ff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+  return new THREE.CanvasTexture(c);
+}
+
+const goldTex = createGoldTexture(512);
+const normalTex = createNormalMap(512);
+
+// === MATERIALS ===
+const goldMat = new THREE.MeshStandardMaterial({
+  map: goldTex, normalMap: normalTex, normalScale: new THREE.Vector2(0.8, 0.8),
+  metalness: 0.92, roughness: 0.2, emissive: 0x332200, emissiveIntensity: 0.08
+});
+const darkGoldMat = new THREE.MeshStandardMaterial({
+  map: goldTex, normalMap: normalTex, normalScale: new THREE.Vector2(0.5, 0.5),
+  color: 0xb8860b, metalness: 0.88, roughness: 0.3, emissive: 0x221100, emissiveIntensity: 0.05
+});
+const brightGoldMat = new THREE.MeshStandardMaterial({
+  color: 0xf0d060, metalness: 0.95, roughness: 0.15,
+  emissive: 0x554400, emissiveIntensity: 0.15
+});
+const capeMat = new THREE.MeshStandardMaterial({
+  color: 0x444455, metalness: 0.0, roughness: 0.85, side: THREE.DoubleSide
+});
+const clothMat = new THREE.MeshStandardMaterial({
+  color: 0xccccbb, metalness: 0.0, roughness: 0.9, side: THREE.DoubleSide
+});
+const swordMat = new THREE.MeshStandardMaterial({
+  color: 0xdddddd, metalness: 0.95, roughness: 0.08, emissive: 0x221100, emissiveIntensity: 0.1
+});
+const gemMat = new THREE.MeshStandardMaterial({
+  color: 0x00eebb, metalness: 0.3, roughness: 0.05, emissive: 0x00aa88, emissiveIntensity: 0.8
+});
+const skinMat = new THREE.MeshStandardMaterial({ color: 0xe8c090, metalness: 0.05, roughness: 0.65 });
+const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+
+const modelGroup = new THREE.Group();
+scene.add(modelGroup);
+
+// === HELPER: Lathe shape for armor curves ===
+function makeLathe(points, segments, phiStart, phiLen) {
+  const vecs = points.map(p => new THREE.Vector2(p[0], p[1]));
+  return new THREE.LatheGeometry(vecs, segments || 24, phiStart || 0, phiLen || Math.PI*2);
+}
+
+
+// =============================================
+// TORSO — Wider, more imposing, layered plates
+// =============================================
+// Main torso core (barrel chest)
+const torsoGeo = new THREE.CylinderGeometry(0.75, 0.6, 1.8, 16);
+const torso = new THREE.Mesh(torsoGeo, goldMat);
+torso.position.set(0, 2.9, 0);
+modelGroup.add(torso);
+
+// Upper chest plate — raised, angled forward
+const chestGeo = new THREE.BoxGeometry(1.4, 1.1, 0.5);
+const chest = new THREE.Mesh(chestGeo, goldMat);
+chest.position.set(0, 3.1, 0.35);
+chest.rotation.x = -0.05;
+modelGroup.add(chest);
+
+// Chest center ridge
+const ridgeGeo = new THREE.BoxGeometry(0.1, 1.0, 0.15);
+const ridge = new THREE.Mesh(ridgeGeo, brightGoldMat);
+ridge.position.set(0, 3.1, 0.65);
+modelGroup.add(ridge);
+
+// Abdominal segmented plates (6 of them)
+for (let i = 0; i < 6; i++) {
+  const w = 1.0 - i * 0.06;
+  const abGeo = new THREE.BoxGeometry(w, 0.14, 0.28);
+  const ab = new THREE.Mesh(abGeo, i % 2 === 0 ? goldMat : darkGoldMat);
+  ab.position.set(0, 2.35 - i * 0.17, 0.32);
+  modelGroup.add(ab);
+  // Side trim
+  for (let s of [-1, 1]) {
+    const trimGeo = new THREE.BoxGeometry(0.04, 0.14, 0.12);
+    const trim = new THREE.Mesh(trimGeo, brightGoldMat);
+    trim.position.set(s * w * 0.52, 2.35 - i * 0.17, 0.38);
+    modelGroup.add(trim);
+  }
+}
+
+// =============================================
+// AQUILA — Detailed double-headed eagle
+// =============================================
+const aquilaGroup = new THREE.Group();
+
+// Eagle central body
+const eagleBodyGeo = new THREE.SphereGeometry(0.12, 10, 10);
+eagleBodyGeo.scale(1, 0.8, 0.5);
+const eagleBody = new THREE.Mesh(eagleBodyGeo, brightGoldMat);
+aquilaGroup.add(eagleBody);
+
+// Two eagle heads
+for (let side of [-1, 1]) {
+  const neckGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.15, 6);
+  const neck = new THREE.Mesh(neckGeo, brightGoldMat);
+  neck.position.set(side * 0.1, 0.08, 0.02);
+  neck.rotation.z = side * 0.3;
+  aquilaGroup.add(neck);
+
+  const headGeo = new THREE.SphereGeometry(0.06, 8, 8);
+  const head = new THREE.Mesh(headGeo, brightGoldMat);
+  head.position.set(side * 0.16, 0.14, 0.03);
+  aquilaGroup.add(head);
+
+  // Beak
+  const beakGeo = new THREE.ConeGeometry(0.025, 0.07, 4);
+  const beak = new THREE.Mesh(beakGeo, darkGoldMat);
+  beak.position.set(side * 0.21, 0.13, 0.06);
+  beak.rotation.z = side * -0.6;
+  beak.rotation.x = -0.4;
+  aquilaGroup.add(beak);
+
+  // Eye gem
+  const eyeGeo = new THREE.SphereGeometry(0.015, 6, 6);
+  const eye = new THREE.Mesh(eyeGeo, gemMat);
+  eye.position.set(side * 0.17, 0.16, 0.07);
+  aquilaGroup.add(eye);
+}
+
+// Wing feathers — much more detailed, 10 feathers per wing
+for (let side of [-1, 1]) {
+  for (let i = 0; i < 10; i++) {
+    const fLen = 0.25 + (i < 5 ? i * 0.06 : (9-i) * 0.06);
+    const fW = 0.04 - i * 0.002;
+    const featherGeo = new THREE.BoxGeometry(fW, fLen, 0.02);
+    const feather = new THREE.Mesh(featherGeo, i % 3 === 0 ? brightGoldMat : goldMat);
+    const angle = side * (0.2 + i * 0.12);
+    feather.position.set(
+      side * (0.15 + i * 0.06),
+      -0.02 + Math.sin(i * 0.3) * 0.05,
+      -0.01
+    );
+    feather.rotation.z = angle;
+    aquilaGroup.add(feather);
+  }
+}
+
+aquilaGroup.position.set(0, 3.25, 0.68);
+aquilaGroup.scale.set(1.4, 1.4, 1.4);
+modelGroup.add(aquilaGroup);
+
+// =============================================
+// BELT with eagle buckle and hanging tassets
+// =============================================
+const beltGeo = new THREE.CylinderGeometry(0.62, 0.58, 0.28, 16);
+const belt = new THREE.Mesh(beltGeo, darkGoldMat);
+belt.position.set(0, 1.95, 0);
+modelGroup.add(belt);
+
+// Buckle — mini Aquila
+const buckleGeo = new THREE.BoxGeometry(0.35, 0.25, 0.12);
+const buckle = new THREE.Mesh(buckleGeo, brightGoldMat);
+buckle.position.set(0, 1.95, 0.58);
+modelGroup.add(buckle);
+
+// Buckle gem
+const bgGeo = new THREE.SphereGeometry(0.06, 8, 8);
+const bg = new THREE.Mesh(bgGeo, gemMat);
+bg.position.set(0, 1.95, 0.66);
+modelGroup.add(bg);
+
+// Tassets (hanging armor plates from belt)
+for (let side of [-1, 1]) {
+  for (let i = 0; i < 2; i++) {
+    const tGeo = new THREE.BoxGeometry(0.25, 0.5, 0.06);
+    const t = new THREE.Mesh(tGeo, goldMat);
+    t.position.set(side * (0.2 + i * 0.25), 1.5, 0.3);
+    t.rotation.x = 0.1;
+    modelGroup.add(t);
+    // Bottom trim
+    const ttGeo = new THREE.BoxGeometry(0.27, 0.04, 0.08);
+    const tt = new THREE.Mesh(ttGeo, brightGoldMat);
+    tt.position.set(side * (0.2 + i * 0.25), 1.26, 0.3);
+    modelGroup.add(tt);
+  }
+}
+
+// Loincloth (center, longer)
+const loinShape = new THREE.Shape();
+loinShape.moveTo(-0.22, 0);
+loinShape.lineTo(0.22, 0);
+loinShape.lineTo(0.15, -1.2);
+loinShape.lineTo(-0.15, -1.2);
+loinShape.closePath();
+const loinGeo = new THREE.ExtrudeGeometry(loinShape, { depth: 0.025, bevelEnabled: false });
+const loin = new THREE.Mesh(loinGeo, clothMat);
+loin.position.set(0, 1.95, 0.48);
+modelGroup.add(loin);
+
+// =============================================
+// PAULDRONS — MASSIVE, layered, ornate
+// =============================================
+for (let side of [-1, 1]) {
+  const pGroup = new THREE.Group();
+
+  // Main dome — large sphere cap
+  const mainGeo = new THREE.SphereGeometry(0.65, 16, 12, 0, Math.PI*2, 0, Math.PI*0.55);
+  const main = new THREE.Mesh(mainGeo, goldMat);
+  pGroup.add(main);
+
+  // Second layer — slightly smaller, offset
+  const layer2Geo = new THREE.SphereGeometry(0.58, 14, 10, 0, Math.PI*2, 0, Math.PI*0.45);
+  const layer2 = new THREE.Mesh(layer2Geo, darkGoldMat);
+  layer2.position.y = -0.08;
+  pGroup.add(layer2);
+
+  // Rim — thick torus
+  const rimGeo = new THREE.TorusGeometry(0.55, 0.06, 8, 24);
+  const rim = new THREE.Mesh(rimGeo, brightGoldMat);
+  rim.rotation.x = Math.PI * 0.5;
+  rim.position.y = -0.22;
+  pGroup.add(rim);
+
+  // Second rim
+  const rim2Geo = new THREE.TorusGeometry(0.48, 0.04, 6, 20);
+  const rim2 = new THREE.Mesh(rim2Geo, goldMat);
+  rim2.rotation.x = Math.PI * 0.5;
+  rim2.position.y = -0.15;
+  pGroup.add(rim2);
+
+  // Eagle wings on pauldron face
+  for (let w = 0; w < 7; w++) {
+    const wLen = 0.18 + (w < 4 ? w * 0.04 : (6-w) * 0.04);
+    const wGeo = new THREE.BoxGeometry(0.035, wLen, 0.04);
+    const wMesh = new THREE.Mesh(wGeo, brightGoldMat);
+    wMesh.position.set(side * (0.05 + w * 0.055), 0.05 + w * 0.02, 0.5);
+    wMesh.rotation.z = side * w * 0.12;
+    pGroup.add(wMesh);
+  }
+
+  // Center skull
+  const skullGeo = new THREE.SphereGeometry(0.1, 8, 8);
+  const skull = new THREE.Mesh(skullGeo, brightGoldMat);
+  skull.position.set(0, 0, 0.52);
+  skull.scale.set(0.9, 1.15, 0.7);
+  pGroup.add(skull);
+
+  // Skull eye sockets
+  for (let es of [-1, 1]) {
+    const socketGeo = new THREE.SphereGeometry(0.025, 6, 6);
+    const socket = new THREE.Mesh(socketGeo, blackMat);
+    socket.position.set(es * 0.035, 0.02, 0.56);
+    pGroup.add(socket);
+  }
+
+  // Skull jaw
+  const jawGeo = new THREE.BoxGeometry(0.06, 0.03, 0.03);
+  const jaw = new THREE.Mesh(jawGeo, brightGoldMat);
+  jaw.position.set(0, -0.06, 0.55);
+  pGroup.add(jaw);
+
+  // Medallion/roundel at joint
+  const medalGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.05, 16);
+  const medal = new THREE.Mesh(medalGeo, brightGoldMat);
+  medal.position.set(0, -0.3, 0.2);
+  medal.rotation.x = Math.PI * 0.5;
+  pGroup.add(medal);
+
+  // Medallion gem
+  const mGemGeo = new THREE.SphereGeometry(0.04, 8, 8);
+  const mGem = new THREE.Mesh(mGemGeo, gemMat);
+  mGem.position.set(0, -0.3, 0.26);
+  pGroup.add(mGem);
+
+  pGroup.position.set(side * 1.05, 3.55, 0);
+  pGroup.rotation.z = side * 0.15;
+  modelGroup.add(pGroup);
+}
+
+
+// =============================================
+// ARMS — Bulkier, armored
+// =============================================
+for (let side of [-1, 1]) {
+  // Upper arm armor
+  const uaGeo = new THREE.CylinderGeometry(0.24, 0.2, 0.75, 10);
+  const ua = new THREE.Mesh(uaGeo, goldMat);
+  ua.position.set(side * 0.95, 2.95, 0);
+  modelGroup.add(ua);
+
+  // Elbow joint — ornate
+  const elbGeo = new THREE.SphereGeometry(0.18, 10, 10);
+  const elb = new THREE.Mesh(elbGeo, darkGoldMat);
+  elb.position.set(side * 0.95, 2.52, 0.05);
+  modelGroup.add(elb);
+
+  // Elbow fan guard
+  for (let f = 0; f < 3; f++) {
+    const fGeo = new THREE.BoxGeometry(0.03, 0.15, 0.08);
+    const fMesh = new THREE.Mesh(fGeo, brightGoldMat);
+    fMesh.position.set(side * 0.95, 2.52 - 0.05, -0.1 - f * 0.05);
+    fMesh.rotation.x = f * 0.2;
+    modelGroup.add(fMesh);
+  }
+
+  // Forearm
+  const faGeo = new THREE.CylinderGeometry(0.2, 0.17, 0.7, 10);
+  const fa = new THREE.Mesh(faGeo, goldMat);
+
+  // Gauntlet
+  const gGeo = new THREE.BoxGeometry(0.2, 0.22, 0.2);
+  const g = new THREE.Mesh(gGeo, brightGoldMat);
+
+  if (side === 1) {
+    // Right arm — sword arm, angled down
+    fa.position.set(0.95, 2.1, 0.2);
+    fa.rotation.x = 0.25;
+    g.position.set(0.95, 1.7, 0.35);
+  } else {
+    // Left arm — raised, lightning
+    fa.position.set(-0.95, 2.7, 0.55);
+    fa.rotation.x = -0.9;
+    fa.rotation.z = 0.1;
+    g.position.set(-0.95, 2.9, 0.95);
+  }
+  modelGroup.add(fa);
+  modelGroup.add(g);
+
+  // Finger armored tips
+  for (let f = 0; f < 5; f++) {
+    const fGeo = new THREE.CylinderGeometry(0.022, 0.015, 0.14, 5);
+    const fMesh = new THREE.Mesh(fGeo, goldMat);
+    if (side === 1) {
+      fMesh.position.set(0.88 + f * 0.035, 1.58, 0.38);
+      fMesh.rotation.x = 0.3;
+    } else {
+      fMesh.position.set(-0.88 - f * 0.035 + 0.07, 2.98, 1.05);
+      fMesh.rotation.x = -0.7;
+    }
+    modelGroup.add(fMesh);
+  }
+
+  // Vambrace trim
+  const vtGeo = new THREE.TorusGeometry(0.19, 0.025, 6, 12);
+  const vt = new THREE.Mesh(vtGeo, brightGoldMat);
+  if (side === 1) {
+    vt.position.set(0.95, 2.3, 0.1);
+  } else {
+    vt.position.set(-0.95, 2.55, 0.35);
+  }
+  vt.rotation.x = Math.PI * 0.5;
+  modelGroup.add(vt);
+}
+
+// =============================================
+// LEGS — Armored greaves and sabatons
+// =============================================
+for (let side of [-1, 1]) {
+  // Thigh armor
+  const thGeo = new THREE.CylinderGeometry(0.32, 0.27, 0.95, 10);
+  const th = new THREE.Mesh(thGeo, goldMat);
+  th.position.set(side * 0.32, 1.35, 0);
+  modelGroup.add(th);
+
+  // Thigh plate overlay
+  const tpGeo = new THREE.BoxGeometry(0.28, 0.7, 0.15);
+  const tp = new THREE.Mesh(tpGeo, darkGoldMat);
+  tp.position.set(side * 0.32, 1.35, 0.18);
+  modelGroup.add(tp);
+
+  // Knee — large, ornate with skull
+  const knGeo = new THREE.SphereGeometry(0.2, 10, 10);
+  const kn = new THREE.Mesh(knGeo, brightGoldMat);
+  kn.position.set(side * 0.32, 0.88, 0.12);
+  kn.scale.set(1, 0.75, 0.85);
+  modelGroup.add(kn);
+
+  // Knee skull
+  const ksGeo = new THREE.SphereGeometry(0.08, 8, 8);
+  const ks = new THREE.Mesh(ksGeo, brightGoldMat);
+  ks.position.set(side * 0.32, 0.88, 0.26);
+  ks.scale.set(0.9, 1.1, 0.7);
+  modelGroup.add(ks);
+
+  // Shin greave
+  const sgGeo = new THREE.CylinderGeometry(0.24, 0.22, 0.85, 10);
+  const sg = new THREE.Mesh(sgGeo, goldMat);
+  sg.position.set(side * 0.32, 0.42, 0);
+  modelGroup.add(sg);
+
+  // Shin front plate
+  const sfGeo = new THREE.BoxGeometry(0.18, 0.7, 0.1);
+  const sf = new THREE.Mesh(sfGeo, darkGoldMat);
+  sf.position.set(side * 0.32, 0.42, 0.16);
+  modelGroup.add(sf);
+
+  // Sabaton (boot)
+  const bootGeo = new THREE.BoxGeometry(0.32, 0.22, 0.48);
+  const boot = new THREE.Mesh(bootGeo, goldMat);
+  boot.position.set(side * 0.32, 0.05, 0.06);
+  modelGroup.add(boot);
+
+  // Boot toe cap
+  const toeGeo = new THREE.SphereGeometry(0.12, 8, 6, 0, Math.PI*2, 0, Math.PI*0.5);
+  const toe = new THREE.Mesh(toeGeo, darkGoldMat);
+  toe.position.set(side * 0.32, 0.06, 0.26);
+  toe.rotation.x = Math.PI * 0.5;
+  modelGroup.add(toe);
+
+  // Ankle trim
+  const atGeo = new THREE.TorusGeometry(0.22, 0.03, 6, 12);
+  const at = new THREE.Mesh(atGeo, brightGoldMat);
+  at.position.set(side * 0.32, 0.15, 0);
+  at.rotation.x = Math.PI * 0.5;
+  modelGroup.add(at);
+}
+
+// =============================================
+// HEAD & NECK
+// =============================================
+// Gorget / high collar
+const gorgetGeo = new THREE.CylinderGeometry(0.4, 0.5, 0.4, 14);
+const gorget = new THREE.Mesh(gorgetGeo, goldMat);
+gorget.position.set(0, 3.6, 0);
+modelGroup.add(gorget);
+
+// Collar rim
+const crGeo = new THREE.TorusGeometry(0.42, 0.05, 8, 20);
+const cr = new THREE.Mesh(crGeo, brightGoldMat);
+cr.position.set(0, 3.8, 0);
+cr.rotation.x = Math.PI * 0.5;
+modelGroup.add(cr);
+
+// Head
+const headGeo = new THREE.SphereGeometry(0.33, 14, 14);
+const head = new THREE.Mesh(headGeo, skinMat);
+head.position.set(0, 4.1, 0.08);
+head.scale.set(1, 1.05, 0.95);
+modelGroup.add(head);
+
+// Hair
+const hairGeo = new THREE.SphereGeometry(0.32, 12, 12, 0, Math.PI*2, 0, Math.PI*0.5);
+const hairMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.95 });
+const hair = new THREE.Mesh(hairGeo, hairMat);
+hair.position.set(0, 4.15, 0.02);
+modelGroup.add(hair);
+
+// Face features — friendly smile like the reference
+// Eyes
+for (let side of [-1, 1]) {
+  // Eye whites
+  const ewGeo = new THREE.SphereGeometry(0.04, 8, 8);
+  const ewMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  const ew = new THREE.Mesh(ewGeo, ewMat);
+  ew.position.set(side * 0.1, 4.12, 0.34);
+  ew.scale.set(1.2, 0.7, 0.5);
+  modelGroup.add(ew);
+  // Pupil
+  const pGeo = new THREE.SphereGeometry(0.02, 6, 6);
+  const pMat = new THREE.MeshStandardMaterial({ color: 0x2a1a0a });
+  const p = new THREE.Mesh(pGeo, pMat);
+  p.position.set(side * 0.1, 4.12, 0.37);
+  modelGroup.add(p);
+}
+
+// Nose
+const noseGeo = new THREE.SphereGeometry(0.04, 6, 6);
+const nose = new THREE.Mesh(noseGeo, skinMat);
+nose.position.set(0, 4.07, 0.38);
+nose.scale.set(0.8, 0.7, 1);
+modelGroup.add(nose);
+
+// Big smile
+const smileGeo = new THREE.TorusGeometry(0.1, 0.018, 6, 16, Math.PI);
+const smileMat = new THREE.MeshStandardMaterial({ color: 0xcc8866 });
+const smile = new THREE.Mesh(smileGeo, smileMat);
+smile.position.set(0, 4.0, 0.34);
+smile.rotation.x = Math.PI;
+modelGroup.add(smile);
+
+// Cheek bumps (smiling)
+for (let side of [-1, 1]) {
+  const chGeo = new THREE.SphereGeometry(0.05, 6, 6);
+  const ch = new THREE.Mesh(chGeo, skinMat);
+  ch.position.set(side * 0.13, 4.04, 0.3);
+  modelGroup.add(ch);
+}
+
+// =============================================
+// LAUREL WREATH — More leaves, golden
+// =============================================
+const wreathGroup = new THREE.Group();
+for (let i = 0; i < 22; i++) {
+  const angle = (i / 22) * Math.PI * 1.5 - Math.PI * 0.25;
+  // Leaf
+  const leafGeo = new THREE.BoxGeometry(0.025, 0.14, 0.015);
+  const leaf = new THREE.Mesh(leafGeo, brightGoldMat);
+  leaf.position.set(Math.sin(angle) * 0.38, Math.cos(angle) * 0.38, 0);
+  leaf.rotation.z = -angle;
+  wreathGroup.add(leaf);
+  // Inner leaf
+  if (i % 2 === 0) {
+    const iGeo = new THREE.BoxGeometry(0.02, 0.1, 0.01);
+    const il = new THREE.Mesh(iGeo, goldMat);
+    il.position.set(Math.sin(angle) * 0.32, Math.cos(angle) * 0.32, 0.01);
+    il.rotation.z = -angle + 0.2;
+    wreathGroup.add(il);
+  }
+}
+wreathGroup.position.set(0, 4.2, 0.08);
+modelGroup.add(wreathGroup);
+
+
+// =============================================
+// FLAMING SWORD — Held at side, blade down
+// =============================================
+const swordGroup = new THREE.Group();
+
+// Blade — long, wide, tapered
+const bladeShape = new THREE.Shape();
+bladeShape.moveTo(-0.06, 0);
+bladeShape.lineTo(0.06, 0);
+bladeShape.lineTo(0.04, -1.8);
+bladeShape.lineTo(0, -2.0);
+bladeShape.lineTo(-0.04, -1.8);
+bladeShape.closePath();
+const bladeGeo = new THREE.ExtrudeGeometry(bladeShape, { depth: 0.025, bevelEnabled: true, bevelThickness: 0.005, bevelSize: 0.005 });
+const blade = new THREE.Mesh(bladeGeo, swordMat);
+swordGroup.add(blade);
+
+// Blade center fuller (groove)
+const fullerGeo = new THREE.BoxGeometry(0.025, 1.6, 0.04);
+const fuller = new THREE.Mesh(fullerGeo, darkGoldMat);
+fuller.position.set(0, -0.8, 0.013);
+swordGroup.add(fuller);
+
+// Cross guard — wide, ornate
+const guardGeo = new THREE.BoxGeometry(0.5, 0.07, 0.07);
+const guard = new THREE.Mesh(guardGeo, brightGoldMat);
+guard.position.y = 0.08;
+swordGroup.add(guard);
+
+// Guard end caps (upward swept)
+for (let side of [-1, 1]) {
+  const capGeo = new THREE.SphereGeometry(0.04, 6, 6);
+  const cap = new THREE.Mesh(capGeo, brightGoldMat);
+  cap.position.set(side * 0.27, 0.12, 0);
+  swordGroup.add(cap);
+  // Guard wings
+  const gwGeo = new THREE.BoxGeometry(0.06, 0.12, 0.03);
+  const gw = new THREE.Mesh(gwGeo, goldMat);
+  gw.position.set(side * 0.22, 0.15, 0);
+  gw.rotation.z = side * 0.4;
+  swordGroup.add(gw);
+}
+
+// Guard eagle head center
+const geGeo = new THREE.SphereGeometry(0.04, 6, 6);
+const ge = new THREE.Mesh(geGeo, brightGoldMat);
+ge.position.set(0, 0.1, 0.04);
+swordGroup.add(ge);
+
+// Grip — wrapped
+const gripGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.35, 8);
+const grip = new THREE.Mesh(gripGeo, darkGoldMat);
+grip.position.y = 0.28;
+swordGroup.add(grip);
+
+// Grip wrapping
+for (let i = 0; i < 6; i++) {
+  const wGeo = new THREE.TorusGeometry(0.045, 0.008, 4, 8);
+  const w = new THREE.Mesh(wGeo, brightGoldMat);
+  w.position.y = 0.14 + i * 0.05;
+  w.rotation.x = Math.PI * 0.5;
+  swordGroup.add(w);
+}
+
+// Pommel — eagle head
+const pomGeo = new THREE.SphereGeometry(0.07, 8, 8);
+const pom = new THREE.Mesh(pomGeo, brightGoldMat);
+pom.position.y = 0.48;
+swordGroup.add(pom);
+
+// Pommel gem
+const pgGeo = new THREE.SphereGeometry(0.035, 8, 8);
+const pg = new THREE.Mesh(pgGeo, gemMat);
+pg.position.set(0, 0.48, 0.04);
+swordGroup.add(pg);
+
+swordGroup.position.set(0.95, 1.55, 0.38);
+swordGroup.rotation.z = 0.03;
+modelGroup.add(swordGroup);
+
+// =============================================
+// CAPE — Flowing, wider
+// =============================================
+const capeShape = new THREE.Shape();
+capeShape.moveTo(-0.7, 0);
+capeShape.bezierCurveTo(-0.85, -0.8, -0.95, -1.8, -0.6, -2.8);
+capeShape.lineTo(0.6, -2.8);
+capeShape.bezierCurveTo(0.95, -1.8, 0.85, -0.8, 0.7, 0);
+capeShape.closePath();
+const capeGeo = new THREE.ExtrudeGeometry(capeShape, { depth: 0.035, bevelEnabled: false });
+const cape = new THREE.Mesh(capeGeo, capeMat);
+cape.position.set(0, 3.65, -0.45);
+cape.rotation.x = 0.12;
+modelGroup.add(cape);
+
+// Cape clasp (gold medallions at shoulders)
+for (let side of [-1, 1]) {
+  const ccGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.04, 10);
+  const cc = new THREE.Mesh(ccGeo, brightGoldMat);
+  cc.position.set(side * 0.65, 3.55, -0.3);
+  cc.rotation.x = Math.PI * 0.5;
+  modelGroup.add(cc);
+}
+
+// =============================================
+// SUN HALO — MASSIVE with many spiky rays
+// =============================================
+const haloGroup = new THREE.Group();
+
+// Inner ring
+const iRingGeo = new THREE.TorusGeometry(0.7, 0.04, 8, 48);
+const haloMat = new THREE.MeshStandardMaterial({
+  color: 0xffdd44, emissive: 0xffaa00, emissiveIntensity: 2.0,
+  metalness: 0.8, roughness: 0.15
+});
+const iRing = new THREE.Mesh(iRingGeo, haloMat);
+haloGroup.add(iRing);
+
+// Outer ring
+const oRingGeo = new THREE.TorusGeometry(1.3, 0.035, 8, 48);
+const oRing = new THREE.Mesh(oRingGeo, haloMat);
+haloGroup.add(oRing);
+
+// Many spiky rays — alternating long and short, triangular
+for (let i = 0; i < 36; i++) {
+  const angle = (i / 36) * Math.PI * 2;
+  const isLong = i % 2 === 0;
+  const rayLen = isLong ? 0.65 : 0.35;
+  const rayW = isLong ? 0.04 : 0.025;
+
+  // Triangle ray shape
+  const rShape = new THREE.Shape();
+  rShape.moveTo(-rayW, 0);
+  rShape.lineTo(rayW, 0);
+  rShape.lineTo(0, rayLen);
+  rShape.closePath();
+  const rGeo = new THREE.ExtrudeGeometry(rShape, { depth: 0.01, bevelEnabled: false });
+  const ray = new THREE.Mesh(rGeo, haloMat);
+
+  ray.position.set(
+    Math.cos(angle) * (isLong ? 0.72 : 0.72),
+    Math.sin(angle) * (isLong ? 0.72 : 0.72),
+    0
+  );
+  ray.rotation.z = angle - Math.PI * 0.5;
+  haloGroup.add(ray);
+}
+
+// Inner glow disc
+const glowGeo = new THREE.CircleGeometry(0.65, 32);
+const glowMat = new THREE.MeshStandardMaterial({
+  color: 0xffcc00, emissive: 0xff9900, emissiveIntensity: 1.5,
+  transparent: true, opacity: 0.15, side: THREE.DoubleSide
+});
+const glow = new THREE.Mesh(glowGeo, glowMat);
+glow.position.z = -0.02;
+haloGroup.add(glow);
+
+haloGroup.position.set(0, 4.3, -0.35);
+modelGroup.add(haloGroup);
+
+// =============================================
+// LIGHTING — Dramatic, cinematic
+// =============================================
+scene.add(new THREE.AmbientLight(0x1a1510, 0.4));
+
+const mainLight = new THREE.DirectionalLight(0xfff5e0, 2.5);
+mainLight.position.set(4, 10, 6);
+mainLight.castShadow = true;
+mainLight.shadow.mapSize.set(2048, 2048);
+scene.add(mainLight);
+
+const fillLight = new THREE.DirectionalLight(0x6666aa, 0.25);
+fillLight.position.set(-4, 5, -3);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0xffcc88, 0.8);
+rimLight.position.set(-2, 4, -5);
+scene.add(rimLight);
+
+const haloLight = new THREE.PointLight(0xffaa00, 4, 10);
+haloLight.position.set(0, 4.5, -0.2);
+scene.add(haloLight);
+
+const swordGlow = new THREE.PointLight(0xff4400, 3, 6);
+swordGlow.position.set(0.95, 0.3, 0.5);
+scene.add(swordGlow);
+
+const lightningGlow = new THREE.PointLight(0x4488ff, 3, 6);
+lightningGlow.position.set(-0.95, 2.9, 1.1);
+scene.add(lightningGlow);
+
+// Uplighting for drama
+const upLight = new THREE.PointLight(0x443322, 1.5, 8);
+upLight.position.set(0, -0.5, 2);
+scene.add(upLight);
+
+// Ground
+const groundGeo = new THREE.CircleGeometry(5, 48);
+const groundMat2 = new THREE.MeshStandardMaterial({
+  color: 0x0c0c0c, metalness: 0.6, roughness: 0.7
+});
+const ground = new THREE.Mesh(groundGeo, groundMat2);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// =============================================
+// FIRE PARTICLES — Better gradient fire
+// =============================================
+const fireCount = 350;
+const fireGeo2 = new THREE.BufferGeometry();
+const fPos = new Float32Array(fireCount * 3);
+const fCol = new Float32Array(fireCount * 3);
+const fVel = [];
+
+for (let i = 0; i < fireCount; i++) {
+  fPos[i*3]   = 0.95 + (Math.random()-0.5)*0.2;
+  fPos[i*3+1] = -0.3 + Math.random()*1.8;
+  fPos[i*3+2] = 0.38 + (Math.random()-0.5)*0.2;
+  // Color gradient: white core -> yellow -> orange -> red
+  const t = Math.random();
+  fCol[i*3]   = 1;
+  fCol[i*3+1] = 0.3 + t * 0.6;
+  fCol[i*3+2] = t * 0.2;
+  fVel.push({
+    x: (Math.random()-0.5)*0.012,
+    y: 0.015 + Math.random()*0.035,
+    z: (Math.random()-0.5)*0.012,
+    life: Math.random()
+  });
+}
+fireGeo2.setAttribute('position', new THREE.BufferAttribute(fPos, 3));
+fireGeo2.setAttribute('color', new THREE.BufferAttribute(fCol, 3));
+
+const fireMat2 = new THREE.PointsMaterial({
+  size: 0.07, transparent: true, opacity: 0.85, vertexColors: true,
+  blending: THREE.AdditiveBlending, depthWrite: false
+});
+const fire = new THREE.Points(fireGeo2, fireMat2);
+scene.add(fire);
+
+// =============================================
+// LIGHTNING — Branching, crackling
+// =============================================
+const ltGroup = new THREE.Group();
+scene.add(ltGroup);
+
+function bolt(startX, startY, startZ, length, branches) {
+  const pts = [];
+  let x = startX, y = startY, z = startZ;
+  pts.push(new THREE.Vector3(x, y, z));
+  const segs = 8 + Math.floor(Math.random() * 6);
+  for (let i = 0; i < segs; i++) {
+    x += (Math.random()-0.5) * length * 0.4;
+    y += (Math.random()-0.3) * length * 0.3;
+    z += (Math.random()-0.5) * length * 0.35;
+    pts.push(new THREE.Vector3(x, y, z));
+  }
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({
+    color: new THREE.Color(0.4 + Math.random()*0.3, 0.5 + Math.random()*0.3, 1),
+    transparent: true, opacity: 0.6 + Math.random() * 0.4
+  });
+  ltGroup.add(new THREE.Line(geo, mat));
+
+  // Sub-branches
+  if (branches > 0) {
+    const branchPt = Math.floor(segs * 0.4 + Math.random() * segs * 0.4);
+    if (branchPt < pts.length) {
+      bolt(pts[branchPt].x, pts[branchPt].y, pts[branchPt].z, length * 0.6, branches - 1);
+    }
+  }
+}
+
+function refreshLightning() {
+  while (ltGroup.children.length > 0) {
+    const c = ltGroup.children[0];
+    c.geometry.dispose();
+    c.material.dispose();
+    ltGroup.remove(c);
+  }
+  for (let i = 0; i < 5; i++) {
+    bolt(-0.95, 2.9, 0.95, 1.0 + Math.random()*0.5, 2);
+  }
+}
+refreshLightning();
+
+// =============================================
+// DUST / EMBER PARTICLES
+// =============================================
+const dustCount = 600;
+const dustGeo = new THREE.BufferGeometry();
+const dPos = new Float32Array(dustCount * 3);
+const dCol = new Float32Array(dustCount * 3);
+for (let i = 0; i < dustCount; i++) {
+  dPos[i*3]   = (Math.random()-0.5)*22;
+  dPos[i*3+1] = Math.random()*12;
+  dPos[i*3+2] = (Math.random()-0.5)*22;
+  const isEmber = Math.random() > 0.7;
+  dCol[i*3]   = isEmber ? 1 : 0.83;
+  dCol[i*3+1] = isEmber ? 0.4 : 0.69;
+  dCol[i*3+2] = isEmber ? 0.1 : 0.22;
+}
+dustGeo.setAttribute('position', new THREE.BufferAttribute(dPos, 3));
+dustGeo.setAttribute('color', new THREE.BufferAttribute(dCol, 3));
+const dustMat = new THREE.PointsMaterial({
+  size: 0.025, transparent: true, opacity: 0.5, vertexColors: true,
+  blending: THREE.AdditiveBlending, depthWrite: false
+});
+scene.add(new THREE.Points(dustGeo, dustMat));
+
+// =============================================
+// ANIMATION
+// =============================================
+let lastLt = 0;
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  // Halo rotation + pulse
+  haloGroup.rotation.z = t * 0.15;
+  haloLight.intensity = 4 + Math.sin(t * 1.5) * 1.5;
+
+  // Fire
+  const fp = fire.geometry.attributes.position.array;
+  for (let i = 0; i < fireCount; i++) {
+    fp[i*3]   += fVel[i].x;
+    fp[i*3+1] += fVel[i].y;
+    fp[i*3+2] += fVel[i].z;
+    fVel[i].life += 0.02;
+    if (fp[i*3+1] > 1.8 || fVel[i].life > 1) {
+      fp[i*3]   = 0.95 + (Math.random()-0.5)*0.2;
+      fp[i*3+1] = -0.4 + Math.random()*0.3;
+      fp[i*3+2] = 0.38 + (Math.random()-0.5)*0.2;
+      fVel[i].life = 0;
+    }
+  }
+  fire.geometry.attributes.position.needsUpdate = true;
+
+  // Sword flicker
+  swordGlow.intensity = 3 + Math.sin(t*9)*0.8 + Math.sin(t*15)*0.4;
+
+  // Lightning refresh
+  if (t - lastLt > 0.12) {
+    refreshLightning();
+    lastLt = t;
+    lightningGlow.intensity = 2 + Math.random() * 3;
+  }
+
+  // Dust drift
+  const dp = dustGeo.attributes.position.array;
+  for (let i = 0; i < dustCount; i++) {
+    dp[i*3+1] += 0.003;
+    dp[i*3]   += Math.sin(t*0.5 + i*0.1) * 0.001;
+    if (dp[i*3+1] > 12) dp[i*3+1] = 0;
+  }
+  dustGeo.attributes.position.needsUpdate = true;
+
+  controls.update();
+  composer.render();
+}
+animate();
+
+// === STL EXPORT ===
+window.exportSTL = function() {
+  const exporter = new STLExporter();
+  const result = exporter.parse(modelGroup, { binary: true });
+  const blob = new Blob([result], { type: 'application/octet-stream' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'emperor-glenn.stl';
+  link.click();
+  URL.revokeObjectURL(link.href);
+};
+
+// === RESIZE ===
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

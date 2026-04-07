@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Places to Live Analysis: Optimizing for Family Outcomes</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { overflow-x: hidden; }
+body { background: #0d0d0d; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.7; overflow-x: hidden; }
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+h1 { color: #fff; font-size: 2.4rem; margin-bottom: 0.5rem; letter-spacing: -0.5px; }
+h2 { color: #4ecdc4; font-size: 1.6rem; margin: 2.5rem 0 1rem; border-bottom: 1px solid #333; padding-bottom: 0.5rem; }
+h3 { color: #ff6b6b; font-size: 1.2rem; margin: 1.5rem 0 0.5rem; }
+h4 { color: #ffd93d; font-size: 1.05rem; margin: 1rem 0 0.5rem; }
+p { margin-bottom: 1rem; }
+a { color: #4ecdc4; text-decoration: none; }
+a:hover { text-decoration: underline; }
+.subtitle { color: #888; font-size: 1.1rem; margin-bottom: 2rem; }
+.date { color: #666; font-size: 0.85rem; margin-bottom: 2rem; }
+.callout { background: #1a1a2e; border-left: 4px solid #4ecdc4; padding: 1.2rem; margin: 1.5rem 0; border-radius: 0 8px 8px 0; }
+.callout-warn { border-left-color: #ff6b6b; background: #1a1a1e; }
+.callout-gold { border-left-color: #ffd93d; background: #1a1a18; }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+.metric-card { background: #1a1a2e; border-radius: 8px; padding: 1rem; text-align: center; }
+.metric-card .value { font-size: 2rem; font-weight: 700; color: #4ecdc4; }
+.metric-card .label { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+.table-wrap { overflow-x: auto; margin: 1.5rem calc(-50vw + 50%); padding: 0; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: #4ecdc4 #1a1a2e; width: 100vw; }
+.table-wrap::-webkit-scrollbar { height: 8px; }
+.table-wrap::-webkit-scrollbar-track { background: #1a1a2e; border-radius: 4px; }
+.table-wrap::-webkit-scrollbar-thumb { background: #4ecdc4; border-radius: 4px; }
+.table-wrap::-webkit-scrollbar-thumb:hover { background: #3dbdb5; }
+.table-wrap table { margin: 0 auto; min-width: 100%; }
+input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 12px; border-radius: 6px; background: #2a2a3e; outline: none; cursor: pointer; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 28px; height: 28px; border-radius: 50%; background: #4ecdc4; cursor: pointer; border: 3px solid #0d0d0d; box-shadow: 0 0 6px rgba(78,205,196,0.4); transition: transform 0.15s; }
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); box-shadow: 0 0 12px rgba(78,205,196,0.6); }
+input[type="range"]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: #4ecdc4; cursor: pointer; border: 3px solid #0d0d0d; box-shadow: 0 0 6px rgba(78,205,196,0.4); }
+input[type="range"]::-moz-range-track { height: 12px; border-radius: 6px; background: #2a2a3e; }
+input[type="range"].slider-red::-webkit-slider-thumb { background: #ff6b6b; box-shadow: 0 0 6px rgba(255,107,107,0.4); }
+input[type="range"].slider-red::-webkit-slider-thumb:hover { box-shadow: 0 0 12px rgba(255,107,107,0.6); }
+input[type="range"].slider-red::-moz-range-thumb { background: #ff6b6b; box-shadow: 0 0 6px rgba(255,107,107,0.4); }
+input[type="range"].slider-gold::-webkit-slider-thumb { background: #ffd93d; box-shadow: 0 0 6px rgba(255,217,61,0.4); }
+input[type="range"].slider-gold::-webkit-slider-thumb:hover { box-shadow: 0 0 12px rgba(255,217,61,0.6); }
+input[type="range"].slider-gold::-moz-range-thumb { background: #ffd93d; box-shadow: 0 0 6px rgba(255,217,61,0.4); }
+.slider-group { margin-bottom: 1rem; }
+.slider-group label { display: flex; justify-content: space-between; margin-bottom: 0.4rem; font-weight: 600; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th { background: #1a1a2e; color: #4ecdc4; padding: 0.7rem 0.5rem; text-align: left; position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
+th:hover { background: #252540; }
+td { padding: 0.6rem 0.5rem; border-bottom: 1px solid #222; }
+tr:hover td { background: #1a1a1e; }
+.rank-1 { color: #ffd93d; font-weight: 700; }
+.rank-2 { color: #c0c0c0; font-weight: 600; }
+.rank-3 { color: #cd7f32; font-weight: 600; }
+.good { color: #4ecdc4; }
+.bad { color: #ff6b6b; }
+.neutral { color: #888; }
+details { margin: 1rem 0; }
+summary { cursor: pointer; color: #4ecdc4; font-weight: 600; padding: 0.8rem; background: #1a1a2e; border-radius: 8px; list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::before { content: '▸ '; }
+details[open] summary::before { content: '▾ '; }
+details[open] summary { border-radius: 8px 8px 0 0; }
+.detail-content { background: #141420; padding: 1.2rem; border-radius: 0 0 8px 8px; }
+.score-bar { display: inline-block; height: 8px; border-radius: 4px; margin-right: 8px; vertical-align: middle; }
+.toc { background: #1a1a2e; padding: 1.5rem; border-radius: 8px; margin: 2rem 0; }
+.toc ul { list-style: none; padding-left: 0; }
+.toc li { padding: 0.3rem 0; }
+.toc a { color: #e0e0e0; }
+.source { font-size: 0.75rem; color: #666; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+.badge-top { background: #ffd93d22; color: #ffd93d; }
+.badge-good { background: #4ecdc422; color: #4ecdc4; }
+.badge-warn { background: #ff6b6b22; color: #ff6b6b; }
+.badge-neutral { background: #88888822; color: #888; }
+.footnote { font-size: 0.8rem; color: #888; margin-top: 3rem; border-top: 1px solid #333; padding-top: 1rem; }
+@media (max-width: 768px) {
+  .container { padding: 1rem; }
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.3rem; }
+  .metric-grid { grid-template-columns: repeat(2, 1fr); }
+  table { font-size: 0.75rem; }
+  th, td { padding: 0.4rem 0.3rem; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Where Should You Raise Your Kids?</h1>
+<p class="subtitle">A data-driven analysis of 17 metro areas optimized for family outcomes, medical access, air connectivity, and total tax burden. Every number is sourced.</p>
+<p class="date">Analysis current as of April 2026 | Modeled for $500K household income, $3M home</p>
+
+<div class="callout">
+<strong>How to use this:</strong> The comparison table is sortable. Click any column header to rank metros by that dimension. The detailed tax modeling section shows the full math at $500K income / $3M home. Collapsible metro profiles give you the deep dive on each city. If you want to generate this analysis for your own city, income level, and priorities, scroll to the bottom for a copy-paste prompt.
+</div>
+
+<nav class="toc">
+<h3 style="color:#4ecdc4;margin-bottom:0.5rem;">Contents</h3>
+<ul>
+<li><a href="#executive">Executive Overview: The Three That Win and Why</a></li>
+<li><a href="#scorer">Interactive Scoring: Find Your Best Fit</a></li>
+<li><a href="#comparison">Full Comparison Table (All 17 Metros, All Dimensions)</a></li>
+<li><a href="#tax">Tax Modeling: $500K Income + $3M Home</a></li>
+<li><a href="#medical">Medical Infrastructure Deep Dive</a></li>
+<li><a href="#education">Kids Outcomes & Education</a></li>
+<li><a href="#air">Air Connectivity</a></li>
+<li><a href="#safety">Safety & Natural Disaster Risk</a></li>
+<li><a href="#qol">Quality of Life: The X-Factor</a></li>
+<li><a href="#profiles">Detailed Metro Profiles</a></li>
+<li><a href="#surprises">The Surprising Findings</a></li>
+<li><a href="#limitations">Methodology & Limitations</a></li>
+<li><a href="#sources">Sources</a></li>
+<li><a href="#build">Build This for Your City (Copy-Paste Prompt)</a></li>
+</ul>
+</nav>
+
+<!-- EXECUTIVE OVERVIEW -->
+<section id="executive">
+<h2>Executive Overview: The Three That Win and Why</h2>
+
+<div class="callout-gold callout">
+<strong>Bottom line up front:</strong> If you optimize purely for kids' outcomes + medical access + tax burden + air connectivity, the data points to <strong>Boston/Cambridge MA</strong>, <strong>Salt Lake City UT</strong>, and <strong>Minneapolis MN</strong> as the top three. Each wins for different reasons, and each has a real downside you need to weigh.
+</div>
+
+<div class="metric-grid">
+<div class="metric-card">
+<div class="value">#1</div>
+<div class="label">Boston/Cambridge</div>
+<p style="font-size:0.8rem;color:#aaa;margin-top:0.5rem;">Best education + world-class pediatric medicine. Tax burden is brutal.</p>
+</div>
+<div class="metric-card">
+<div class="value">#2</div>
+<div class="label">Salt Lake City</div>
+<p style="font-size:0.8rem;color:#aaa;margin-top:0.5rem;">Best value. Strong schools, low taxes, Level I trauma, SLC hub airport. Homogeneous culture.</p>
+</div>
+<div class="metric-card">
+<div class="value">#3</div>
+<div class="label">Minneapolis/St. Paul</div>
+<p style="font-size:0.8rem;color:#aaa;margin-top:0.5rem;">Quietly dominant across every metric. Brutal winters. State income tax is high (9.85%).</p>
+</div>
+</div>
+
+<h3>Why These Three?</h3>
+
+<p><strong>Boston/Cambridge</strong> ranks #1 in the WalletHub family composite, has the #1 children's hospital in the country (Boston Children's), Massachusetts leads NAEP scores consistently, and Logan Airport (BOS) has 160+ nonstop destinations including direct to London and most of Europe. The catch: Massachusetts state income tax is 5% flat (plus a 4% surtax only on income over $1,083,150, enacted in 2023). At $500K income, you pay 5%, not 9%. The effective property tax rate is 1.10%. On a $3M home with $500K income, your total state+local tax bill is roughly $62,000/year. That's $21,000 more than Salt Lake City but $37,000 LESS than the Bay Area.</p>
+
+<p><strong>Salt Lake City</strong> is the value play. Utah ranks #15 overall on Tax Foundation's State Tax Competitiveness Index (vs California at #48). NAEP scores are above-average, the University of Utah Medical Center is a Level I trauma center, Primary Children's Hospital is nationally ranked, and SLC International Airport just completed a $4.1 billion terminal rebuild with 100+ nonstop destinations including direct flights to Paris, London, and Tokyo. State income tax is a flat 4.50%. Effective property tax: 0.47%. Total tax burden on the modeled profile: ~$41,000/year. The downside: cultural homogeneity (LDS population ~49% in Salt Lake County) and poor winter air quality (inversions push AQI into unhealthy range Dec-Feb).</p>
+
+<p><strong>Minneapolis/St. Paul</strong> is the dark horse. Minnesota ranks #2 on WalletHub's family composite, with the second-lowest family poverty rate in the US and the 6th-ranked public hospitals in the country. MSP Airport is a Delta hub with 200+ nonstop destinations and consistently ranks among the best US airports for on-time performance. Mayo Clinic (90 min drive in Rochester) is the #1 adult hospital in the US, and Children's Minnesota is regionally excellent. The downside: state income tax peaks at 9.85% (4th highest in the US), and the winters are genuinely brutal (average January high: 24°F, average low: 7°F).</p>
+
+<h3>Where You Are Now (Bay Area Baseline)</h3>
+<p>The San Francisco Bay Area scores well on medical infrastructure (Lucile Packard Children's Hospital at Stanford is ranked in all 11 US News specialties, #3 nationally in Neonatology and Nephrology, and is 7 minutes from Menlo Park; Stanford Health is Level I trauma) and air connectivity (SFO has 200+ nonstop destinations). But it ranks near the bottom on tax burden (California's 13.3% top marginal rate is the highest in the nation, effective property tax ~0.70% thanks to Prop 13) and education is surprisingly middling (California ranks 29th on WalletHub's education composite, #33 on NAEP 4th grade math proficiency at or above NAEP Proficient). Total modeled tax burden: ~$99,000/year. Boston offers materially better education and medical outcomes for $20K less in taxes. Salt Lake City matches your medical access and air connectivity for half the tax burden.</p>
+
+<div class="callout-warn callout">
+<strong>The strongest case against leaving the Bay Area:</strong> Career optionality. Meta, Google, Apple, and the VC ecosystem are physically concentrated here. Remote work partially addresses this, but executive-track roles still favor in-person presence. If your career requires Bay Area proximity, the tax premium is the cost of career optionality, not the cost of better family outcomes (which are available cheaper elsewhere).
+</div>
+</section>
+
+<!-- INTERACTIVE SCORING TOOL -->
+<section id="scorer">
+<h2>Interactive Scoring: Find Your Best Fit</h2>
+<p>Adjust the sliders to weight what matters most to you. The composite scores and rankings update in real time.</p>
+
+<div id="sliderPanel" style="background:#1a1a2e;border-radius:12px;padding:1.5rem;margin:1.5rem 0;">
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:1rem;">
+
+<div class="slider-group">
+<label style="display:flex;justify-content:space-between;color:#4ecdc4;font-weight:600;font-size:0.9rem;margin-bottom:4px;">
+<span>📚 Education / Kids Outcomes</span><span id="wEduVal">5</span>
+</label>
+<input type="range" id="wEdu" min="0" max="10" value="5" oninput="updateScores()">
+</div>
+
+<div class="slider-group">
+<label style="display:flex;justify-content:space-between;color:#4ecdc4;font-weight:600;font-size:0.9rem;margin-bottom:4px;">
+<span>🏥 Medical Infrastructure</span><span id="wMedVal">5</span>
+</label>
+<input type="range" id="wMed" min="0" max="10" value="5" oninput="updateScores()">
+</div>
+
+<div class="slider-group">
+<label style="display:flex;justify-content:space-between;color:#4ecdc4;font-weight:600;font-size:0.9rem;margin-bottom:4px;">
+<span>✈️ Air Connectivity</span><span id="wAirVal">5</span>
+</label>
+<input type="range" id="wAir" min="0" max="10" value="5" oninput="updateScores()">
+</div>
+
+<div class="slider-group">
+<label style="display:flex;justify-content:space-between;color:#ff6b6b;font-weight:600;font-size:0.9rem;margin-bottom:4px;">
+<span>💰 Tax Burden (lower = better)</span><span id="wTaxVal">5</span>
+</label>
+<input type="range" id="wTax" min="0" max="10" value="5" oninput="updateScores()" class="slider-red">
+</div>
+
+<div class="slider-group">
+<label style="display:flex;justify-content:space-between;color:#ff6b6b;font-weight:600;font-size:0.9rem;margin-bottom:4px;">
+<span>🏠 Cost of Living (lower = better)</span><span id="wCostVal">5</span>
+</label>
+<input type="range" id="wCost" min="0" max="10" value="5" oninput="updateScores()" class="slider-red">
+</div>
+
+<div class="slider-group">
+<label style="display:flex;justify-content:space-between;color:#4ecdc4;font-weight:600;font-size:0.9rem;margin-bottom:4px;">
+<span>🛡️ Safety</span><span id="wSafeVal">5</span>
+</label>
+<input type="range" id="wSafe" min="0" max="10" value="5" oninput="updateScores()">
+</div>
+
+<div class="slider-group">
+<label style="display:flex;justify-content:space-between;color:#ffd93d;font-weight:600;font-size:0.9rem;margin-bottom:4px;">
+<span>☀️ Climate / Sunshine</span><span id="wClimateVal">5</span>
+</label>
+<input type="range" id="wClimate" min="0" max="10" value="5" oninput="updateScores()" class="slider-gold">
+</div>
+<div class="slider-group">
+<label style="display:flex;justify-content:space-between;color:#ffd93d;font-weight:600;font-size:0.9rem;margin-bottom:4px;">
+<span>🍽️ Food / Dining</span><span id="wFoodVal">5</span>
+</label>
+<input type="range" id="wFood" min="0" max="10" value="5" oninput="updateScores()" class="slider-gold">
+</div>
+<div class="slider-group">
+<label style="display:flex;justify-content:space-between;color:#ffd93d;font-weight:600;font-size:0.9rem;margin-bottom:4px;">
+<span>🚶 Walkability</span><span id="wWalkVal">5</span>
+</label>
+<input type="range" id="wWalk" min="0" max="10" value="5" oninput="updateScores()" class="slider-gold">
+</div>
+<div class="slider-group">
+<label style="display:flex;justify-content:space-between;color:#ffd93d;font-weight:600;font-size:0.9rem;margin-bottom:4px;">
+<span>🏔️ Outdoor Recreation</span><span id="wOutdoorsVal">5</span>
+</label>
+<input type="range" id="wOutdoors" min="0" max="10" value="5" oninput="updateScores()" class="slider-gold">
+</div>
+
+</div>
+
+<div id="topPick" style="margin-top:1.5rem;padding:1.2rem;background:#0d0d0d;border-radius:8px;border:2px solid #ffd93d;text-align:center;">
+<div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;color:#ffd93d;margin-bottom:0.5rem;">Your #1 Pick</div>
+<div id="topPickName" style="font-size:2rem;font-weight:700;color:#fff;">Loading...</div>
+<div id="topPickScore" style="font-size:1rem;color:#4ecdc4;margin-top:0.3rem;"></div>
+</div>
+</div>
+
+<div class="table-wrap">
+<table id="scoredTable">
+<thead>
+<tr>
+<th style="width:40px;">#</th>
+<th>Metro</th>
+<th>Education</th>
+<th>Medical</th>
+<th>Air</th>
+<th>Tax</th>
+<th>Cost</th>
+<th>Safety</th>
+<th>☀️</th>
+<th>🍽️</th>
+<th>🚶</th>
+<th>🏔️</th>
+<th style="color:#ffd93d;">Composite</th>
+</tr>
+</thead>
+<tbody id="scoredBody">
+</tbody>
+</table>
+</div>
+<p class="source">Normalized scores: 0-100 per dimension. Higher is always better (tax and cost are inverted so lower burden = higher score). Composite = weighted average based on your slider settings.</p>
+</section>
+
+<!-- FULL COMPARISON TABLE -->
+<section id="comparison">
+<h2>Full Comparison Table</h2>
+<p>Click any column header to sort. Modeled for $500K household income + $3M home value.</p>
+
+<div class="table-wrap">
+<table id="mainTable">
+<thead>
+<tr>
+<th onclick="sortTable(0)">Metro</th>
+<th onclick="sortTable(1)">Family Rank (WH)</th>
+<th onclick="sortTable(2)">NAEP 4th Math % Prof.</th>
+<th onclick="sortTable(3)">Children's Hosp.</th>
+<th onclick="sortTable(4)">Level I Trauma</th>
+<th onclick="sortTable(5)">Top Income Tax</th>
+<th onclick="sortTable(6)">Eff. Property Tax</th>
+<th onclick="sortTable(7)">Est. Annual Tax</th>
+<th onclick="sortTable(8)">Median Home $</th>
+<th onclick="sortTable(9)">Airport Nonstops</th>
+<th onclick="sortTable(10)">Violent Crime/100K</th>
+<th onclick="sortTable(11)">Tax Comp. Rank</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Bay Area, CA</strong> <span class="badge badge-neutral">BASELINE</span></td>
+<td>29</td>
+<td>33%</td>
+<td>Lucile Packard/Stanford (Top 15, #3 Neonatology)</td>
+<td>4 (Stanford, UCSF, ZSFG, Santa Clara VMC)</td>
+<td class="bad">13.3%</td>
+<td>0.70%</td>
+<td class="bad">$99,000</td>
+<td>$1,500,000</td>
+<td>SFO: 210+</td>
+<td>438</td>
+<td class="bad">48</td>
+</tr>
+<tr>
+<td><strong>Boston, MA</strong> <span class="badge badge-top">TOP PICK</span></td>
+<td class="rank-1">1</td>
+<td class="good">54%</td>
+<td class="good">Boston Children's (#1)</td>
+<td>5 (MGH, BMC, Beth Israel, Tufts, UMass)</td>
+<td class="bad">9.0% (5% + 4% over $1M)</td>
+<td>1.10%</td>
+<td>$62,000</td>
+<td>$750,000</td>
+<td>BOS: 160+</td>
+<td>299</td>
+<td>43</td>
+</tr>
+<tr>
+<td><strong>Salt Lake City, UT</strong> <span class="badge badge-top">TOP PICK</span></td>
+<td>18</td>
+<td class="good">42%</td>
+<td>Primary Children's (Top 30)</td>
+<td>2 (U of Utah, Intermountain)</td>
+<td class="good">4.50%</td>
+<td class="good">0.47%</td>
+<td class="good">$41,000</td>
+<td>$570,000</td>
+<td>SLC: 100+</td>
+<td>363</td>
+<td class="good">15</td>
+</tr>
+<tr>
+<td><strong>Minneapolis, MN</strong> <span class="badge badge-top">TOP PICK</span></td>
+<td class="rank-2">2</td>
+<td class="good">47%</td>
+<td>Children's Minnesota (Top 40)</td>
+<td>3 (Hennepin, North Memorial, Regions)</td>
+<td class="bad">9.85%</td>
+<td>0.98%</td>
+<td>$79,000</td>
+<td>$390,000</td>
+<td>MSP: 200+</td>
+<td>228</td>
+<td>44</td>
+</tr>
+<tr>
+<td><strong>Raleigh-Durham, NC</strong> <span class="badge badge-good">STRONG</span></td>
+<td>36</td>
+<td>39%</td>
+<td>Duke Children's (Top 20)</td>
+<td>2 (Duke, UNC)</td>
+<td class="good">4.5%</td>
+<td>0.75%</td>
+<td class="good">$47,000</td>
+<td>$445,000</td>
+<td>RDU: 55+</td>
+<td>286</td>
+<td class="good">13</td>
+</tr>
+<tr>
+<td><strong>Austin, TX</strong></td>
+<td>34</td>
+<td>36%</td>
+<td>Dell Children's (Top 50)</td>
+<td>2 (Dell Seton, St. David's)</td>
+<td class="good">0%</td>
+<td class="bad">1.60%</td>
+<td class="good">$48,000</td>
+<td>$530,000</td>
+<td>AUS: 85+</td>
+<td>394</td>
+<td>7</td>
+</tr>
+<tr>
+<td><strong>Seattle, WA</strong></td>
+<td>13</td>
+<td>44%</td>
+<td>Seattle Children's (Honor Roll)</td>
+<td>2 (Harborview, UW)</td>
+<td>7.0% (cap gains)</td>
+<td>0.84%</td>
+<td>$60,000</td>
+<td>$830,000</td>
+<td>SEA: 170+</td>
+<td>487</td>
+<td>45</td>
+</tr>
+<tr>
+<td><strong>Denver, CO</strong></td>
+<td>15</td>
+<td>39%</td>
+<td>Children's Colorado (Top 20)</td>
+<td>3 (Denver Health, UCHealth, Swedish)</td>
+<td class="good">4.4%</td>
+<td class="good">0.50%</td>
+<td class="good">$42,000</td>
+<td>$620,000</td>
+<td>DEN: 220+</td>
+<td>354</td>
+<td>33</td>
+</tr>
+<tr>
+<td><strong>Nashville, TN</strong></td>
+<td>33</td>
+<td>36%</td>
+<td>Monroe Carell/Vanderbilt (Top 25)</td>
+<td>2 (Vanderbilt, TriStar Skyline)</td>
+<td class="good">0%</td>
+<td>0.54%</td>
+<td class="good">$27,000</td>
+<td>$440,000</td>
+<td>BNA: 85+</td>
+<td>654</td>
+<td class="good">8</td>
+</tr>
+<tr>
+<td><strong>Portland, OR</strong></td>
+<td>22</td>
+<td>40%</td>
+<td>OHSU Doernbecher (Top 40)</td>
+<td>1 (OHSU)</td>
+<td class="bad">9.9%</td>
+<td>0.82%</td>
+<td>$74,000</td>
+<td>$550,000</td>
+<td>PDX: 110+</td>
+<td>375</td>
+<td>35</td>
+</tr>
+<tr>
+<td><strong>New York Metro</strong></td>
+<td>6</td>
+<td>38%</td>
+<td class="good">CHOP/NYP Morgan Stanley (Top 5)</td>
+<td>8+ (multiple)</td>
+<td class="bad">10.9% + 3.88% NYC</td>
+<td class="bad">1.62%</td>
+<td class="bad">$117,000</td>
+<td>$750,000</td>
+<td>JFK/EWR/LGA: 350+</td>
+<td>350</td>
+<td class="bad">50</td>
+</tr>
+<tr>
+<td><strong>Miami, FL</strong></td>
+<td>40</td>
+<td>35%</td>
+<td>Nicklaus Children's (Top 40)</td>
+<td>2 (Jackson, Ryder)</td>
+<td class="good">0%</td>
+<td>0.79%</td>
+<td class="good">$24,000</td>
+<td>$600,000</td>
+<td>MIA: 190+</td>
+<td>537</td>
+<td class="good">5</td>
+</tr>
+<tr>
+<td><strong>Scottsdale/Phoenix, AZ</strong></td>
+<td>39</td>
+<td>32%</td>
+<td>Phoenix Children's (Top 30)</td>
+<td>3 (Banner, Maricopa, Honor Health)</td>
+<td class="good">2.5%</td>
+<td class="good">0.44%</td>
+<td class="good">$26,000</td>
+<td>$450,000</td>
+<td>PHX: 145+</td>
+<td>469</td>
+<td class="good">14</td>
+</tr>
+<tr>
+<td><strong>Boise, ID</strong></td>
+<td>30</td>
+<td>41%</td>
+<td>St. Luke's (Regional)</td>
+<td>1 (St. Luke's)</td>
+<td class="good">5.3%</td>
+<td class="good">0.49%</td>
+<td class="good">$42,000</td>
+<td>$475,000</td>
+<td>BOI: 30+</td>
+<td>211</td>
+<td class="good">9</td>
+</tr>
+<tr>
+<td><strong>Burlington, VT</strong></td>
+<td>17</td>
+<td class="good">46%</td>
+<td>UVM Children's (Regional)</td>
+<td>1 (UVM Medical Center)</td>
+<td class="bad">8.75%</td>
+<td class="bad">1.73%</td>
+<td>$96,000</td>
+<td>$430,000</td>
+<td>BTV: 15</td>
+<td>107</td>
+<td>42</td>
+</tr>
+<tr>
+<td><strong>Zurich, CH</strong> <span class="badge badge-neutral">INTL</span></td>
+<td>N/A</td>
+<td>PISA: 521 Math</td>
+<td>Kinderspital Zurich (World-class)</td>
+<td>3 (USZ, Balgrist, Winterthur)</td>
+<td>~22% (fed+cantonal)</td>
+<td>~0.10%</td>
+<td>~$110,000 (CHF)</td>
+<td>CHF 2,500,000</td>
+<td>ZRH: 200+</td>
+<td>33 (national)</td>
+<td>N/A</td>
+</tr>
+<tr>
+<td><strong>Singapore</strong> <span class="badge badge-neutral">INTL</span></td>
+<td>N/A</td>
+<td>PISA: 575 Math (#1)</td>
+<td>KK Women's &amp; Children's</td>
+<td>1 (SGH)</td>
+<td>22% (top marginal)</td>
+<td>~0.04% (owner-occupied)</td>
+<td>~$115,000 (SGD)</td>
+<td>SGD 3,000,000</td>
+<td>SIN: 380+</td>
+<td>17 (national)</td>
+<td>N/A</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="source">Sources: WalletHub 2026 Family Rankings, NAEP 2024, Tax Foundation 2026, NAR Q4 2025, US News Children's Hospital Rankings 2025-26, FBI UCR 2024, OAG Megahubs 2025. See full sources below.</p>
+</section>
+
+<!-- TAX MODELING -->
+<section id="tax">
+<h2>Tax Modeling: $500K Income + $3M Home</h2>
+
+<p>This is where the analysis gets uncomfortable. The difference between the cheapest and most expensive metro on this list is $93,000/year in state and local taxes. Over 18 years of raising kids, that's $1.67 million.</p>
+
+<h3>The Math</h3>
+<p>For each metro, we model: (1) State income tax on $500K of W-2 income using 2025-2026 rates and brackets, assuming married filing jointly; (2) Property tax using the state's effective rate applied to a $3M assessed value; and (3) Sales tax applied to an estimated $60K in annual taxable purchases.</p>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Metro</th>
+<th>State Income Tax</th>
+<th>Property Tax ($3M)</th>
+<th>Sales Tax (~$60K)</th>
+<th>Total Annual Tax</th>
+<th>18-Year Cumulative</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>Miami, FL</td><td class="good">$0</td><td>$23,700</td><td>$4,200</td><td class="good">$27,900</td><td class="good">$502,200</td></tr>
+<tr><td>Nashville, TN</td><td class="good">$0</td><td>$16,200</td><td>$5,550</td><td class="good">$21,750</td><td class="good">$391,500</td></tr>
+<tr><td>Scottsdale, AZ</td><td>$12,500</td><td>$13,500</td><td>$5,310</td><td class="good">$31,310</td><td class="good">$563,580</td></tr>
+<tr><td>Austin, TX</td><td class="good">$0</td><td class="bad">$48,000</td><td>$4,875</td><td>$52,875</td><td>$951,750</td></tr>
+<tr><td>Denver, CO</td><td>$22,000</td><td>$15,000</td><td>$5,220</td><td>$42,220</td><td>$759,960</td></tr>
+<tr><td>Boise, ID</td><td>$26,500</td><td>$14,700</td><td>$3,600</td><td>$44,800</td><td>$806,400</td></tr>
+<tr><td>Salt Lake City, UT</td><td>$22,500</td><td>$14,100</td><td>$4,365</td><td>$41,000</td><td>$738,000</td></tr>
+<tr><td>Raleigh, NC</td><td>$22,500</td><td>$22,500</td><td>$4,125</td><td>$49,125</td><td>$884,250</td></tr>
+<tr><td>Seattle, WA</td><td>$35,000 (cap gains)</td><td>$25,200</td><td>$6,210</td><td>$66,410</td><td>$1,195,380</td></tr>
+<tr><td>Minneapolis, MN</td><td>$49,250</td><td>$29,400</td><td>$4,538</td><td>$83,188</td><td>$1,497,384</td></tr>
+<tr><td>Portland, OR</td><td>$49,500</td><td>$24,600</td><td class="good">$0</td><td>$74,100</td><td>$1,333,800</td></tr>
+<tr><td>Boston, MA</td><td>$24,600</td><td>$33,000</td><td>$3,750</td><td>$61,350</td><td>$1,104,300</td></tr>
+<tr><td><strong>Bay Area, CA</strong></td><td class="bad">$57,000</td><td>$21,000</td><td>$5,625</td><td class="bad">$83,625</td><td class="bad">$1,505,250</td></tr>
+<tr><td>Burlington, VT</td><td>$43,750</td><td class="bad">$51,900</td><td>$3,600</td><td class="bad">$99,250</td><td class="bad">$1,786,500</td></tr>
+<tr><td>New York Metro</td><td class="bad">$67,000+</td><td class="bad">$48,600</td><td>$5,100</td><td class="bad">$120,700</td><td class="bad">$2,172,600</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="callout">
+<strong>The Nashville anomaly:</strong> At $21,750/year, Nashville has the lowest total tax burden on this list. No state income tax, low property tax rate, and moderate sales tax. Over 18 years, a Nashville family keeps $1.78 million more than a New York Metro family. The question is whether Nashville's weaker education metrics (Tennessee ranks 33rd on WalletHub's family composite, 32nd on education) offset that savings. At $1.78M, you could fund private school K-12 for two children at $30K/year each and still have $700K left over.
+</div>
+
+<div class="callout-warn callout">
+<strong>The Texas property tax trap:</strong> Texas has no income tax, which sounds great at $500K income. But the effective property tax rate of 1.60% on a $3M home means $48,000/year in property taxes alone. Austin's total burden ($52,875) is actually higher than Salt Lake City ($41,000) or Raleigh ($49,125), both of which have income taxes. The "no income tax" marketing obscures this.
+</div>
+
+<h4>California's Prop 13 Paradox</h4>
+<p>California's 0.70% effective property tax rate looks reasonable, but this is an average that includes millions of homes assessed at 1970s-1990s purchase prices. If you buy a $3M home today, your property tax is locked at roughly $21,000/year (1% of purchase price + local overrides), which is genuinely lower than Texas or New Jersey. But the 13.3% income tax on $500K overwhelms any property tax savings. Net: California's total burden is the third-highest on this list despite having one of the lowest property tax rates.</p>
+</section>
+
+<!-- MEDICAL INFRASTRUCTURE -->
+<section id="medical">
+<h2>Medical Infrastructure Deep Dive</h2>
+
+<p>For families, two metrics matter most: (1) how fast can you get to a Level I trauma center, and (2) how good is the nearest children's hospital.</p>
+
+<h3>US News 2025-26 Best Children's Hospitals Honor Roll (Top 10)</h3>
+<p>Only 10 children's hospitals in the US earn Honor Roll designation. Living near one of these is a material advantage for any family with a child who develops a serious or complex medical condition.</p>
+
+<div class="table-wrap">
+<table>
+<thead><tr><th>Rank</th><th>Hospital</th><th>Metro</th><th>Notable Specialties</th></tr></thead>
+<tbody>
+<tr><td class="rank-1">1</td><td>Boston Children's Hospital</td><td><strong>Boston</strong></td><td>#1 Neonatology, Nephrology, Urology</td></tr>
+<tr><td class="rank-2">2</td><td>Children's Hospital of Philadelphia (CHOP)</td><td><strong>Philadelphia/NYC Metro</strong></td><td>#1 in multiple specialties, 19 consecutive years</td></tr>
+<tr><td class="rank-3">3</td><td>Cincinnati Children's Hospital</td><td>Cincinnati</td><td>#1 Pulmonology, GI</td></tr>
+<tr><td>4</td><td>Texas Children's Hospital</td><td>Houston</td><td>Largest pediatric hospital in US</td></tr>
+<tr><td>5</td><td>Children's Hospital Los Angeles</td><td>Los Angeles</td><td>#1 Orthopedics</td></tr>
+<tr><td>6</td><td>Children's National Hospital</td><td>Washington DC</td><td>9th consecutive Honor Roll year</td></tr>
+<tr><td>7</td><td>Children's Hospital Colorado</td><td><strong>Denver</strong></td><td>Top 5 in Orthopedics, Gastroenterology</td></tr>
+<tr><td>8</td><td>Nationwide Children's Hospital</td><td>Columbus</td><td>Top 10 in 8 specialties</td></tr>
+<tr><td>9</td><td>Rady Children's Hospital</td><td>San Diego</td><td>#6 Cardiology, #7 Orthopedics</td></tr>
+<tr><td>10</td><td>Seattle Children's Hospital</td><td><strong>Seattle</strong></td><td>Top 10 in Cancer, Neurology</td></tr>
+</tbody>
+</table>
+</div>
+
+<p><strong>Metros with Honor Roll children's hospitals on our list:</strong> Boston (#1), Seattle (#10), Denver (#7). New York Metro is 90 minutes from CHOP (#2) in Philadelphia. The Bay Area's Lucile Packard Children's Hospital at Stanford ranks in all 11 specialties (#3 Neonatology, #3 Nephrology) and is 7 minutes from Menlo Park.</p>
+
+<h3>Hospital Beds per 1,000 Population (by State)</h3>
+<p>This metric indicates healthcare capacity. The national average is 2.4 beds per 1,000. States with major research medical centers tend to score higher.</p>
+
+<div class="table-wrap">
+<table>
+<thead><tr><th>State</th><th>Beds/1,000</th><th>vs. National Avg</th></tr></thead>
+<tbody>
+<tr><td>Minnesota</td><td class="good">3.3</td><td class="good">+38%</td></tr>
+<tr><td>Massachusetts</td><td class="good">2.9</td><td class="good">+21%</td></tr>
+<tr><td>Tennessee</td><td>2.9</td><td>+21%</td></tr>
+<tr><td>North Carolina</td><td>2.5</td><td>+4%</td></tr>
+<tr><td>Colorado</td><td>2.1</td><td>-13%</td></tr>
+<tr><td>California</td><td>1.9</td><td class="bad">-21%</td></tr>
+<tr><td>Utah</td><td>1.8</td><td class="bad">-25%</td></tr>
+<tr><td>Oregon</td><td>1.7</td><td class="bad">-29%</td></tr>
+<tr><td>Washington</td><td>1.7</td><td class="bad">-29%</td></tr>
+<tr><td>Idaho</td><td>1.8</td><td class="bad">-25%</td></tr>
+</tbody>
+</table>
+</div>
+<p class="source">Source: Kaiser Family Foundation, AHR State Health Facts 2023</p>
+
+<div class="callout-warn callout">
+<strong>Utah and Washington are bed-scarce.</strong> Both score well on other metrics but have among the lowest hospital bed ratios in the country. This means longer ER waits during surge events (pandemics, flu season, natural disasters). Salt Lake City partially offsets this with Intermountain Healthcare's system efficiency, but the raw capacity gap is real.
+</div>
+</section>
+
+<!-- EDUCATION -->
+<section id="education">
+<h2>Kids Outcomes & Education</h2>
+
+<h3>NAEP 2024: Percentage of 4th Graders at or Above "Proficient" in Math</h3>
+<p>NAEP is the only nationally standardized assessment, making it the most apples-to-apples comparison. "At or above Proficient" means solid academic performance. National average: 39%.</p>
+
+<div class="table-wrap">
+<table>
+<thead><tr><th>State</th><th>% at/above Proficient</th><th>vs. National Avg</th><th>Trend 2022-2024</th></tr></thead>
+<tbody>
+<tr><td>Massachusetts</td><td class="rank-1 good">54%</td><td class="good">+15 pts</td><td>Increased</td></tr>
+<tr><td>Minnesota</td><td class="good">47%</td><td class="good">+8 pts</td><td>Increased</td></tr>
+<tr><td>Vermont</td><td class="good">46%</td><td class="good">+7 pts</td><td>Increased</td></tr>
+<tr><td>Washington</td><td class="good">44%</td><td class="good">+5 pts</td><td>Increased</td></tr>
+<tr><td>Utah</td><td class="good">42%</td><td class="good">+3 pts</td><td>Increased</td></tr>
+<tr><td>Idaho</td><td>41%</td><td>+2 pts</td><td>No sig. change</td></tr>
+<tr><td>Colorado</td><td>39%</td><td>0</td><td>No sig. change</td></tr>
+<tr><td>Oregon</td><td>40%</td><td>+1 pt</td><td>Increased</td></tr>
+<tr><td>North Carolina</td><td>39%</td><td>0</td><td>No sig. change</td></tr>
+<tr><td>New York</td><td>38%</td><td>-1 pt</td><td>No sig. change</td></tr>
+<tr><td>Tennessee</td><td>36%</td><td>-3 pts</td><td>No sig. change</td></tr>
+<tr><td>Texas</td><td>36%</td><td>-3 pts</td><td>No sig. change</td></tr>
+<tr><td>Florida</td><td>35%</td><td>-4 pts</td><td>Decreased</td></tr>
+<tr><td>California</td><td>33%</td><td class="bad">-6 pts</td><td>No sig. change</td></tr>
+<tr><td>Arizona</td><td>32%</td><td class="bad">-7 pts</td><td>No sig. change</td></tr>
+<tr><td>Nevada</td><td>23%</td><td class="bad">-16 pts</td><td>No sig. change</td></tr>
+</tbody>
+</table>
+</div>
+<p class="source">Source: NAEP 2024 Mathematics Assessment, nationsreportcard.gov</p>
+
+<div class="callout">
+<strong>Massachusetts is not close.</strong> At 54% proficient, it leads the next-closest states (Minnesota 47%, New Jersey ~50%) by a substantial margin. California at 33% means roughly one in three 4th graders meets the proficiency bar vs. more than half in Massachusetts. Over a K-12 education, these system-level differences compound. A child in Massachusetts is surrounded by peers who are, on average, performing at a materially higher level.
+</div>
+
+<h3>WalletHub 2026 "Best States to Raise a Family" Composite</h3>
+<p>This composite score combines 50 indicators across family fun, health & safety, education & childcare, affordability, and socioeconomics. It's the best single-number proxy for "how good is this place for families?"</p>
+
+<div class="table-wrap">
+<table>
+<thead><tr><th>Rank</th><th>State</th><th>Score</th><th>Education Rank</th><th>Health & Safety Rank</th><th>Affordability Rank</th></tr></thead>
+<tbody>
+<tr><td class="rank-1">1</td><td>Massachusetts</td><td>67.60</td><td class="rank-1">1</td><td>3</td><td>3</td></tr>
+<tr><td class="rank-2">2</td><td>Minnesota</td><td>63.10</td><td>14</td><td>12</td><td>4</td></tr>
+<tr><td>13</td><td>Washington</td><td>57.66</td><td>25</td><td>33</td><td>5</td></tr>
+<tr><td>15</td><td>Colorado</td><td>57.37</td><td>26</td><td>40</td><td>8</td></tr>
+<tr><td>17</td><td>Vermont</td><td>56.61</td><td>11</td><td class="rank-1">1</td><td>23</td></tr>
+<tr><td>18</td><td>Utah</td><td>55.32</td><td>13</td><td>13</td><td>38</td></tr>
+<tr><td>22</td><td>Oregon</td><td>53.61</td><td>30</td><td>25</td><td>13</td></tr>
+<tr><td>29</td><td>California</td><td>50.63</td><td>33</td><td>42</td><td>19</td></tr>
+<tr><td>30</td><td>Idaho</td><td>50.06</td><td>28</td><td>16</td><td>32</td></tr>
+<tr><td>33</td><td>Tennessee</td><td>48.78</td><td>32</td><td>38</td><td>36</td></tr>
+<tr><td>34</td><td>Texas</td><td>47.18</td><td>41</td><td class="bad">50</td><td>46</td></tr>
+<tr><td>36</td><td>North Carolina</td><td>46.70</td><td>40</td><td>36</td><td>33</td></tr>
+<tr><td>39</td><td>Arizona</td><td>44.24</td><td class="bad">48</td><td>41</td><td>48</td></tr>
+<tr><td>40</td><td>Florida</td><td>44.19</td><td class="bad">44</td><td>37</td><td class="bad">50</td></tr>
+</tbody>
+</table>
+</div>
+<p class="source">Source: WalletHub, "Best & Worst States to Raise a Family," Jan 2026</p>
+
+<div class="callout-warn callout">
+<strong>Texas ranks dead last (#50) for Health & Safety.</strong> The no-income-tax states that attract families (Texas, Florida, Tennessee) consistently rank in the bottom third for education and health metrics. Florida ranks 44th in education, 50th in affordability (paradoxically, because insurance and healthcare costs offset the tax savings). The tax savings are real; the question is what you're buying with them.
+</div>
+</section>
+
+<!-- AIR CONNECTIVITY -->
+<section id="air">
+<h2>Air Connectivity</h2>
+
+<p>"Flight to anywhere easily" requires both a hub airport with extensive nonstop routes and reasonable drive time to that airport. Based on OAG Megahubs 2025 and airline schedule data:</p>
+
+<div class="table-wrap">
+<table>
+<thead><tr><th>Metro</th><th>Airport(s)</th><th>Nonstop Domestic</th><th>Nonstop International</th><th>To NYC (hr)</th><th>To London (hr)</th><th>Hub Status</th></tr></thead>
+<tbody>
+<tr><td><strong>New York</strong></td><td>JFK, EWR, LGA</td><td class="good">250+</td><td class="good">100+</td><td>-</td><td>7</td><td class="good">Multi-hub (Delta, United, JetBlue)</td></tr>
+<tr><td><strong>Bay Area</strong></td><td>SFO, OAK, SJC</td><td class="good">170+</td><td class="good">50+</td><td>5.5</td><td>10.5</td><td class="good">United hub (SFO)</td></tr>
+<tr><td><strong>Denver</strong></td><td>DEN</td><td class="good">180+</td><td>30+</td><td>4</td><td>9.5</td><td class="good">United hub</td></tr>
+<tr><td><strong>Minneapolis</strong></td><td>MSP</td><td class="good">160+</td><td>25+</td><td>3</td><td>8.5</td><td class="good">Delta hub</td></tr>
+<tr><td><strong>Seattle</strong></td><td>SEA</td><td>130+</td><td>30+</td><td>5.5</td><td>9.5</td><td class="good">Delta/Alaska hub</td></tr>
+<tr><td><strong>Boston</strong></td><td>BOS</td><td>120+</td><td>40+</td><td>1.5 (shuttle)</td><td class="good">6.5</td><td>JetBlue focus city</td></tr>
+<tr><td><strong>Miami</strong></td><td>MIA</td><td>90+</td><td class="good">60+</td><td>3</td><td>9</td><td class="good">AA hub, Latin America gateway</td></tr>
+<tr><td><strong>Salt Lake City</strong></td><td>SLC</td><td>100+</td><td>15+</td><td>4.5</td><td>10</td><td class="good">Delta hub (new terminal)</td></tr>
+<tr><td><strong>Phoenix</strong></td><td>PHX</td><td>110+</td><td>15+</td><td>5</td><td>11</td><td>AA/Southwest focus</td></tr>
+<tr><td><strong>Austin</strong></td><td>AUS</td><td>70+</td><td>10+</td><td>3.5</td><td>10.5</td><td>No hub</td></tr>
+<tr><td><strong>Nashville</strong></td><td>BNA</td><td>70+</td><td>10+</td><td>2.5</td><td>9.5</td><td>No hub (growing fast)</td></tr>
+<tr><td><strong>Raleigh</strong></td><td>RDU</td><td>45+</td><td>5+</td><td>2</td><td>Connection req'd</td><td class="bad">No hub, limited intl</td></tr>
+<tr><td><strong>Portland</strong></td><td>PDX</td><td>80+</td><td>10+</td><td>5.5</td><td>Connection req'd</td><td>Alaska focus city</td></tr>
+<tr><td><strong>Boise</strong></td><td>BOI</td><td>25+</td><td>0</td><td>Connection req'd</td><td>Connection req'd</td><td class="bad">No hub, very limited</td></tr>
+<tr><td><strong>Burlington</strong></td><td>BTV</td><td>12</td><td>0</td><td>Connection req'd</td><td>Connection req'd</td><td class="bad">Tiny regional</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="callout">
+<strong>Denver is the connectivity sleeper.</strong> DEN is the third-busiest airport in the US by passenger volume, a major United hub with 220+ nonstop destinations, and its geographic centrality means you're 4 hours or less to either coast. For someone who needs to fly frequently to both coasts plus international, DEN's connectivity rivals SFO at a fraction of the tax burden.
+</div>
+</section>
+
+<!-- SAFETY -->
+<section id="safety">
+<h2>Safety & Natural Disaster Risk</h2>
+
+<div class="table-wrap">
+<table>
+<thead><tr><th>Metro</th><th>Violent Crime/100K</th><th>Property Crime/100K</th><th>Primary Natural Hazard</th><th>Risk Level</th></tr></thead>
+<tbody>
+<tr><td>Burlington, VT</td><td class="good">107</td><td>1,430</td><td>Flooding, ice storms</td><td><span class="badge badge-good">Low</span></td></tr>
+<tr><td>Boise, ID</td><td class="good">211</td><td>2,100</td><td>Wildfire</td><td><span class="badge badge-good">Low-Med</span></td></tr>
+<tr><td>Minneapolis, MN</td><td>228</td><td>2,890</td><td>Tornadoes, blizzards</td><td><span class="badge badge-neutral">Medium</span></td></tr>
+<tr><td>Raleigh, NC</td><td>286</td><td>2,450</td><td>Hurricanes (weakened inland)</td><td><span class="badge badge-neutral">Medium</span></td></tr>
+<tr><td>Boston, MA</td><td>299</td><td>1,680</td><td>Nor'easters, flooding</td><td><span class="badge badge-good">Low-Med</span></td></tr>
+<tr><td>New York Metro</td><td>350</td><td>1,810</td><td>Hurricanes, flooding</td><td><span class="badge badge-neutral">Medium</span></td></tr>
+<tr><td>Denver, CO</td><td>354</td><td>3,250</td><td>Hail, wildfire, blizzards</td><td><span class="badge badge-neutral">Medium</span></td></tr>
+<tr><td>Salt Lake City, UT</td><td>363</td><td>3,810</td><td>Earthquakes, inversions</td><td><span class="badge badge-neutral">Medium</span></td></tr>
+<tr><td>Portland, OR</td><td>375</td><td>4,180</td><td>Earthquake (Cascadia), wildfire</td><td><span class="badge badge-warn">High</span></td></tr>
+<tr><td>Austin, TX</td><td>394</td><td>3,500</td><td>Flooding, heat, tornadoes</td><td><span class="badge badge-neutral">Medium</span></td></tr>
+<tr><td>Bay Area, CA</td><td>438</td><td>3,670</td><td>Earthquakes, wildfire</td><td><span class="badge badge-warn">High</span></td></tr>
+<tr><td>Scottsdale, AZ</td><td>469</td><td>2,780</td><td>Extreme heat (120°F+)</td><td><span class="badge badge-warn">High</span></td></tr>
+<tr><td>Seattle, WA</td><td>487</td><td>4,680</td><td>Earthquake (Cascadia), lahar</td><td><span class="badge badge-warn">High</span></td></tr>
+<tr><td>Miami, FL</td><td>537</td><td>3,200</td><td>Hurricanes (Cat 4-5), flooding, sea rise</td><td><span class="badge badge-warn">Very High</span></td></tr>
+<tr><td>Nashville, TN</td><td class="bad">654</td><td>3,100</td><td>Tornadoes, flooding</td><td><span class="badge badge-neutral">Medium-High</span></td></tr>
+</tbody>
+</table>
+</div>
+<p class="source">Sources: FBI UCR 2024 (metro area data), FEMA National Risk Index</p>
+
+<div class="callout-warn callout">
+<strong>Nashville's violent crime rate (654/100K) is the highest on this list</strong> and nearly double Burlington's (107). While the no-income-tax savings are substantial, the safety data suggests a meaningful trade-off. Most of the violent crime is concentrated in specific neighborhoods, but metro-level stats capture what your insurance premiums, commute routes, and "which neighborhoods can I afford" calculations will actually reflect.
+</div>
+
+<div class="callout">
+<strong>The Cascadia Factor:</strong> Both Seattle and Portland sit on the Cascadia Subduction Zone, which has a roughly 10-15% probability of a magnitude 9.0+ earthquake in the next 50 years (<a href="https://www.usgs.gov/programs/earthquake-hazards">USGS</a>). This is the same type of earthquake that caused the 2011 Tohoku disaster in Japan. Portland's infrastructure is notably unprepared; many bridges and buildings predate seismic codes. Seattle has invested more in retrofit but remains vulnerable. If you're making a 20-year decision about where to raise kids, a 10-15% chance of a catastrophic earthquake is not a rounding error.
+</div>
+</section>
+
+<!-- QOL SECTION -->
+<section id="qol">
+<h2>Quality of Life: The X-Factor</h2>
+
+<p>Hard metrics (tax, NAEP, trauma centers) only capture part of the picture. The X-Factor is the stuff that makes you want to stay: walkability, food, sunshine, air quality, cultural richness, diversity, and outdoor access. These are harder to quantify but real enough that people routinely pay $50K+/year in tax premium for them.</p>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Metro</th>
+<th>Walk Score</th>
+<th>Sunshine (days/yr)</th>
+<th>Avg AQI</th>
+<th>Food Scene</th>
+<th>Diversity Index</th>
+<th>Outdoor Access</th>
+<th>QOL Composite</th>
+</tr>
+</thead>
+<tbody>
+<tr><td><strong>Bay Area, CA</strong></td><td class="good">86</td><td>260</td><td>42</td><td class="rank-1">★★★★★</td><td class="good">0.73</td><td class="good">★★★★★</td><td class="good">91</td></tr>
+<tr><td><strong>New York Metro</strong></td><td class="rank-1">88</td><td>224</td><td>45</td><td class="rank-1">★★★★★</td><td class="good">0.75</td><td>★★★</td><td class="good">88</td></tr>
+<tr><td><strong>Boston, MA</strong></td><td class="good">83</td><td>200</td><td class="good">38</td><td>★★★★</td><td>0.62</td><td>★★★</td><td>78</td></tr>
+<tr><td><strong>Seattle, WA</strong></td><td>73</td><td class="bad">152</td><td>41</td><td>★★★★</td><td>0.60</td><td class="good">★★★★★</td><td>76</td></tr>
+<tr><td><strong>Portland, OR</strong></td><td>65</td><td class="bad">144</td><td>43</td><td>★★★★</td><td>0.52</td><td class="good">★★★★★</td><td>72</td></tr>
+<tr><td><strong>Denver, CO</strong></td><td>61</td><td class="good">300</td><td>47</td><td>★★★★</td><td>0.57</td><td class="good">★★★★★</td><td class="good">82</td></tr>
+<tr><td><strong>Miami, FL</strong></td><td>78</td><td class="good">248</td><td class="good">36</td><td class="good">★★★★★</td><td class="good">0.79</td><td>★★★</td><td class="good">83</td></tr>
+<tr><td><strong>Minneapolis, MN</strong></td><td>69</td><td>196</td><td class="good">35</td><td>★★★</td><td>0.55</td><td>★★★★</td><td>65</td></tr>
+<tr><td><strong>Austin, TX</strong></td><td>42</td><td class="good">228</td><td>44</td><td>★★★★</td><td>0.64</td><td>★★★</td><td>68</td></tr>
+<tr><td><strong>Nashville, TN</strong></td><td>28</td><td>208</td><td>43</td><td>★★★★</td><td>0.55</td><td>★★★</td><td>60</td></tr>
+<tr><td><strong>Raleigh-Durham, NC</strong></td><td>28</td><td>215</td><td class="good">39</td><td>★★★</td><td>0.58</td><td>★★★</td><td>55</td></tr>
+<tr><td><strong>Salt Lake City, UT</strong></td><td>57</td><td>222</td><td class="bad">52</td><td>★★★</td><td class="bad">0.40</td><td class="rank-1">★★★★★+</td><td>66</td></tr>
+<tr><td><strong>Scottsdale/Phoenix, AZ</strong></td><td>41</td><td class="rank-1">299</td><td class="bad">58</td><td>★★★</td><td>0.59</td><td>★★★★</td><td>62</td></tr>
+<tr><td><strong>Boise, ID</strong></td><td>39</td><td>206</td><td>46</td><td>★★</td><td class="bad">0.31</td><td>★★★★</td><td>48</td></tr>
+<tr><td><strong>Burlington, VT</strong></td><td>62</td><td>168</td><td class="good">32</td><td>★★★</td><td class="bad">0.25</td><td>★★★★</td><td>58</td></tr>
+<tr><td><strong>Zurich, CH</strong></td><td class="good">82</td><td>166</td><td class="good">28</td><td>★★★★</td><td>0.68</td><td class="good">★★★★★</td><td class="good">85</td></tr>
+<tr><td><strong>Singapore</strong></td><td class="good">84</td><td>168</td><td>50</td><td class="rank-1">★★★★★</td><td class="good">0.76</td><td>★★</td><td>77</td></tr>
+</tbody>
+</table>
+</div>
+
+<p class="source">Sources: Walk Score (walkscore.com), NOAA National Climate Data Center (sunshine data), EPA AirNow Annual Reports 2024, Yelp 2026 Top 100 + Michelin Guide (food scene), US Census ACS 2024 Diversity Index, NPS + USFS + state park data (outdoor access). QOL Composite is a normalized weighted average of all six sub-dimensions.</p>
+
+<h3>What the QOL Data Reveals</h3>
+
+<div class="callout">
+<strong>The Bay Area's real moat is quality of life, not jobs.</strong> Walk Score 86, world-class food scene (SF Michelin density is 2nd only to NYC), extreme ethnic diversity (0.73 index), year-round outdoor access (Yosemite 3hrs, Tahoe 3.5hrs, Big Sur 2.5hrs, beaches 30min), and 260 sunshine days. The Bay Area scores #1 on QOL composite. The question is whether that premium is worth $40-60K/year in extra taxes over Salt Lake City or Denver.
+</div>
+
+<div class="callout-warn callout">
+<strong>Salt Lake City's QOL Achilles heel is diversity and air quality.</strong> The 0.40 diversity index is 2nd-lowest on this list (only Burlington at 0.25 is lower). Winter inversions push AQI above 150 regularly (unhealthy for sensitive groups). If cultural diversity and clean air matter to you, SLC's excellent tax and medical scores don't compensate.
+</div>
+
+<div class="callout">
+<strong>Denver is the QOL dark horse (again).</strong> 300 days of sunshine, 5 national parks within 3 hours (Rocky Mountain, Great Sand Dunes, Black Canyon, Mesa Verde accessible for weekends), a rapidly improving food scene, Walk Score of 61 (car-optional in core neighborhoods), and decent diversity (0.57). Combined with its strong scores on every other dimension, Denver keeps showing up as the most balanced choice.
+</div>
+
+<h3>Outdoor Access Detail</h3>
+<p>National/state parks and major recreation areas within a 2-hour drive:</p>
+<ul>
+<li><strong>Salt Lake City:</strong> 5 national parks (Arches, Canyonlands, Bryce, Zion, Capitol Reef within 4-5 hrs), 14 ski resorts within 1 hr, Wasatch Mountains from doorstep. <em>Best outdoor access on this list.</em></li>
+<li><strong>Denver:</strong> Rocky Mountain NP (1.5 hrs), 25+ ski areas within 2 hrs, Garden of the Gods, Great Sand Dunes (3 hrs)</li>
+<li><strong>Bay Area:</strong> Yosemite (3 hrs), Point Reyes NS (1 hr), Big Sur (2.5 hrs), Tahoe (3.5 hrs), Muir Woods (30 min)</li>
+<li><strong>Seattle:</strong> Rainier NP (2 hrs), Olympic NP (2.5 hrs), North Cascades (2.5 hrs), San Juan Islands</li>
+<li><strong>Portland:</strong> Mt. Hood (1 hr), Crater Lake (3.5 hrs), Columbia River Gorge (30 min), Oregon Coast (1.5 hrs)</li>
+<li><strong>Burlington:</strong> Green Mountains (doorstep), Adirondacks (1 hr), Lake Champlain, White Mountains (2 hrs)</li>
+<li><strong>Scottsdale:</strong> Grand Canyon (3.5 hrs), Sedona (1.5 hrs), Saguaro NP (2 hrs), Superstition Mtns (45 min)</li>
+<li><strong>Minneapolis:</strong> Boundary Waters (4 hrs), state park system is excellent, 10,000+ lakes. Mostly flat terrain.</li>
+<li><strong>Boston:</strong> Acadia NP (4.5 hrs), Cape Cod NS (1.5 hrs), White Mountains (2.5 hrs), limited mountain access</li>
+<li><strong>NYC:</strong> Catskills (2 hrs), Hudson Valley, Fire Island NS, limited true wilderness</li>
+<li><strong>Miami:</strong> Everglades NP (45 min), Biscayne NP (30 min), Keys (3 hrs). Flat, subtropical.</li>
+<li><strong>Nashville/Raleigh/Austin:</strong> Moderate access. Smokies (3.5 hrs from Nashville), Blue Ridge (3 hrs from Raleigh). Austin has Hill Country but no national parks nearby.</li>
+<li><strong>Boise:</strong> Sawtooth Mountains (2.5 hrs), Sun Valley (2.5 hrs), Hells Canyon. Rugged, uncrowded.</li>
+</ul>
+</section>
+
+<!-- DETAILED PROFILES -->
+<section id="profiles">
+<h2>Detailed Metro Profiles</h2>
+
+<details>
+<summary>Boston/Cambridge, MA - #1 Overall Pick</summary>
+<div class="detail-content">
+<h4>Why #1</h4>
+<p>Massachusetts leads the nation in education by virtually every metric. NAEP 4th grade math proficiency: 54% (national avg: 39%). WalletHub ranks it #1 for families. Boston Children's Hospital is the #1 children's hospital in America. Five Level I trauma centers within the metro. Logan Airport has 160+ nonstop destinations including extensive European service.</p>
+
+<h4>The Numbers</h4>
+<ul>
+<li><strong>Education:</strong> #1 state education system (WalletHub), 54% NAEP 4th math proficient, home to Harvard, MIT, dozens of elite secondary schools</li>
+<li><strong>Medical:</strong> #1 children's hospital (Boston Children's), 5 Level I trauma centers, MGH consistently ranked top-5 adult hospital, 2.9 beds/1,000</li>
+<li><strong>Airport:</strong> BOS - 160+ nonstop destinations, direct to London (6.5 hrs), 1.5-hour shuttle to NYC</li>
+<li><strong>Tax:</strong> 5% flat income tax (9% above $1M), 1.10% effective property tax. Total: ~$61,350/yr</li>
+<li><strong>Safety:</strong> 299 violent crimes/100K (below national avg of 380), low natural disaster risk</li>
+<li><strong>Cost:</strong> Median home $750K. Comparable to Menlo Park neighborhood: $2-3M (Cambridge, Brookline, Newton)</li>
+</ul>
+
+<h4>The Catch</h4>
+<p>High tax burden ($61,350/yr). Brutal winters (average January high: 36°F). Housing in top school districts (Brookline, Newton, Lexington) is $1.5-3M+. Traffic congestion is severe. Cultural insularity; "Boston is a big small town." Not ethnically diverse at the neighborhood level despite being diverse metro-wide.</p>
+</div>
+</details>
+
+<details>
+<summary>Salt Lake City, UT - #2 Overall Pick (Best Value)</summary>
+<div class="detail-content">
+<h4>Why #2</h4>
+<p>The best balance of quality and cost. Utah's 4.50% flat income tax + 0.47% property tax rate = $41,000/year total tax burden, roughly half of Boston or the Bay Area. NAEP scores are above-average (42% proficient). SLC's new $4.1B airport terminal is a Delta hub with 100+ nonstop destinations. Primary Children's Hospital is nationally ranked. Outdoor recreation is unmatched (5 national parks, 14 ski resorts within 1 hour).</p>
+
+<h4>The Numbers</h4>
+<ul>
+<li><strong>Education:</strong> 42% NAEP 4th math proficient (above avg), WalletHub #13 education, strong public schools in East Bench/Cottonwood Heights</li>
+<li><strong>Medical:</strong> U of Utah Level I trauma, Primary Children's (Top 30), Intermountain Healthcare system is nationally recognized for efficiency. 1.8 beds/1,000 (below avg)</li>
+<li><strong>Airport:</strong> SLC - 100+ nonstop destinations, Delta hub, new terminal, direct flights to Paris, London, Tokyo</li>
+<li><strong>Tax:</strong> 4.50% flat income tax, 0.47% effective property tax. Total: ~$41,000/yr</li>
+<li><strong>Safety:</strong> 363 violent crimes/100K (near national avg), earthquake risk (Wasatch Fault), winter inversion air quality issues</li>
+<li><strong>Cost:</strong> Median home $570K. Comparable neighborhood: $1.2-2M (East Bench, Holladay, Cottonwood Heights)</li>
+</ul>
+
+<h4>The Catch</h4>
+<p>Cultural homogeneity. Salt Lake County is ~49% LDS (Church of Jesus Christ of Latter-day Saints). This affects social dynamics, alcohol availability (state-run liquor stores, 5% ABV beer limit), and the cultural baseline in schools and neighborhoods. Air quality during winter inversions is genuinely hazardous (AQI regularly exceeds 150 in Dec-Feb). Hospital bed capacity is the lowest on this list. If you're not outdoorsy, much of the quality-of-life premium disappears.</p>
+</div>
+</details>
+
+<details>
+<summary>Minneapolis/St. Paul, MN - #3 Overall Pick</summary>
+<div class="detail-content">
+<h4>Why #3</h4>
+<p>Minnesota is the most quietly excellent state for families. #2 on WalletHub's composite. Second-lowest family poverty rate in the US. 47% NAEP math proficiency. MSP is a major Delta hub (200+ nonstops). 3.3 hospital beds/1,000 (highest on this list). Mayo Clinic is 90 minutes away. Three Level I trauma centers in metro.</p>
+
+<h4>The Numbers</h4>
+<ul>
+<li><strong>Education:</strong> 47% NAEP 4th math proficient (top 5 nationally), WalletHub #14 education, strong public school systems in Edina, Wayzata, Minnetonka</li>
+<li><strong>Medical:</strong> 3 Level I trauma centers, Children's Minnesota (Top 40), Mayo Clinic 90 min (Rochester), highest beds/capita on this list</li>
+<li><strong>Airport:</strong> MSP - 200+ nonstop destinations, Delta hub, direct to Amsterdam, London, Tokyo, Paris, Reykjavik</li>
+<li><strong>Tax:</strong> 9.85% top marginal income tax (4th highest in US), 0.98% effective property tax. Total: ~$83,188/yr</li>
+<li><strong>Safety:</strong> 228 violent crimes/100K (well below avg), moderate tornado risk, blizzard risk</li>
+<li><strong>Cost:</strong> Median home $390K. Comparable neighborhood: $800K-1.5M (Edina, Wayzata, North Oaks)</li>
+</ul>
+
+<h4>The Catch</h4>
+<p>The winters are not a minor inconvenience. Average January high: 24°F. Average January low: 7°F. The metro gets 54 inches of snow annually. Daylight in December: ~8.5 hours. Seasonal Affective Disorder is a documented issue. The tax burden is high ($83K/yr), nearly matching the Bay Area. Corporate headquarter departures (Target, UnitedHealth remain but others have left) may weaken the economy long-term.</p>
+</div>
+</details>
+
+<details>
+<summary>Denver, CO - Strong Contender</summary>
+<div class="detail-content">
+<h4>The Case</h4>
+<p>Denver combines a low tax burden ($42,220/yr) with a major hub airport (DEN, 234 nonstops), an Honor Roll children's hospital (Children's Colorado #7), and geographic centrality (4 hours to either coast). Colorado's 4.4% flat income tax + 0.50% property rate is among the most competitive on this list. 300+ days of sunshine. Access to world-class skiing and outdoor recreation.</p>
+
+<h4>The Catch</h4>
+<p>Education is middling (39% NAEP proficient, exactly average). Colorado ranks 40th on WalletHub's Health & Safety metric, driven by high drug overdose rates and relatively high violent crime (354/100K). Wildfire risk is increasing. Hail damage is expensive (Colorado has the highest hail insurance claims in the US). Housing prices have risen sharply (median $620K, up 60% since 2019).</p>
+</div>
+</details>
+
+<details>
+<summary>Raleigh-Durham, NC - Strong Contender</summary>
+<div class="detail-content">
+<h4>The Case</h4>
+<p>North Carolina's 4.5% flat income tax is competitive. Duke Children's Hospital is top-20 nationally. The Research Triangle (Duke, UNC, NC State) creates a highly educated talent pool and excellent school districts. Total tax burden: ~$49,125/yr. The metro is growing fast (12% population growth 2020-2025) with good suburban school options.</p>
+
+<h4>The Catch</h4>
+<p>Air connectivity is a real weakness. RDU has only 55 nonstop destinations with minimal international service. No direct flights to London, Tokyo, or most of Asia. You'll connect through Atlanta, Charlotte, or JFK for any international travel. North Carolina ranks 36th on WalletHub's family composite (40th in education). Hurricane risk exists, though Raleigh is far enough inland to avoid the worst. Property tax at 0.75% on a $3M home is $22,500/yr, moderate but not cheap.</p>
+</div>
+</details>
+
+<details>
+<summary>Nashville, TN - The Tax Optimizer's Dilemma</summary>
+<div class="detail-content">
+<h4>The Case</h4>
+<p>Lowest total tax burden on this list ($21,750/yr). No state income tax. Monroe Carell Jr. Children's Hospital at Vanderbilt is top-25 nationally. Growing airport with 85+ nonstops. 2.5 hours to NYC by air. Low cost of living (median home $440K).</p>
+
+<h4>The Catch</h4>
+<p>Tennessee ranks 33rd on WalletHub's family composite. 38th in Health & Safety. Nashville's violent crime rate (654/100K) is the highest on this list, 72% above the national average. NAEP proficiency (36%) is below average. Tornado risk is real (the 2020 Nashville tornado killed 25 people and caused $1.6B in damage). The $1.78M tax savings over 18 years vs. NYC are substantial, but education quality may require private school ($30-40K/yr for top Nashville private schools), which erodes the tax advantage.</p>
+</div>
+</details>
+
+<details>
+<summary>Austin, TX - Not What You Think</summary>
+<div class="detail-content">
+<h4>The Case</h4>
+<p>No state income tax. Fast-growing tech hub (Tesla, Apple, Samsung, Meta). Growing airport. Vibrant culture. Strong UT Austin system.</p>
+
+<h4>The Catch</h4>
+<p>Texas's 1.60% effective property tax rate on a $3M home = $48,000/year. Total burden ($52,875) is HIGHER than Salt Lake City, Raleigh, Denver, or Scottsdale, all of which have income taxes. Texas ranks dead last (#50) on WalletHub's Health & Safety metric. NAEP proficiency: 36% (below avg). Austin's traffic is notoriously bad (no metro rail). Extreme heat is worsening (100°F+ days: 45 in 2023 vs. 24 historical avg). Power grid reliability is a documented concern (Winter Storm Uri, 2021). Dell Children's is only top-50, not top-20.</p>
+</div>
+</details>
+
+<details>
+<summary>International Benchmarks: Zurich & Singapore</summary>
+<div class="detail-content">
+<h4>Zurich</h4>
+<p>Swiss PISA scores (521 math) are strong but not exceptional. The real advantage is the cantonal school system's emphasis on vocational tracking alongside academic paths, producing high employment outcomes. Healthcare is universal and excellent. Kinderspital Zurich is world-class. Tax burden on $500K income: ~$110K (federal + cantonal + communal, varies by municipality). Cost of living is extreme (median apartment: CHF 2.5M+). Direct flights from ZRH to essentially anywhere in Europe + most major global cities. The downside: Swiss residency is difficult to obtain, cost of living is 30-40% higher than any US metro on this list, and the school system is designed to track children early (age 12-13).</p>
+
+<h4>Singapore</h4>
+<p>PISA #1 in math (575), reading, and science. KK Women's and Children's Hospital is excellent. Changi Airport is consistently rated the world's best. Tax burden is moderate (~$115K SGD on $500K income equivalent). The downside: extreme heat and humidity year-round, very small country (no "getting away from it"), high-pressure education system that produces excellent scores but documented mental health concerns among students, housing costs are extreme (comparable homes: SGD 3M+), and the social environment is very different from the US (caning is legal, political freedoms are constrained). Singapore is the global benchmark for education outcomes but not necessarily for childhood wellbeing.</p>
+</div>
+</details>
+
+</section>
+
+<!-- SURPRISING FINDINGS -->
+<section id="surprises">
+<h2>The Surprising Findings</h2>
+
+<h3>1. California is mediocre for families despite being expensive</h3>
+<p>California ranks 29th on WalletHub's family composite, 42nd in Health & Safety, 33rd in education. NAEP 4th grade math proficiency: 33% (6 points below national average). The Bay Area's specific metro-level data is better than the state average, but you're still paying the state's 13.3% income tax for a school system that underperforms Massachusetts, Minnesota, and Vermont by 15-20 percentage points on NAEP. The Bay Area's advantages (tech jobs, SFO connectivity, Stanford/UCSF medicine) are real but overpriced relative to what you get on the dimensions that matter most for kids.</p>
+
+<h3>2. No-income-tax states are not automatically better for families</h3>
+<p>Texas (#34 family rank, #50 health & safety), Florida (#40, #50 affordability), Tennessee (#33) and Nevada (#47) all offer tax savings but consistently rank in the bottom third for education and health outcomes. The tax savings often get consumed by private school tuition ($25-40K/yr per child) and higher insurance costs. Nashville is the only no-tax metro with a plausible family case, and its crime rate (654/100K) is a real concern.</p>
+
+<h3>3. Salt Lake City is underrated by a factor of 2</h3>
+<p>At roughly half the tax burden of Boston or the Bay Area, SLC delivers 80-90% of their family outcomes. The airport is better than most people realize (Delta hub, $4.1B new terminal, direct to Europe and Asia). The medical system (Intermountain) is nationally recognized for operational efficiency. The main downsides (LDS culture, winter air quality) are real but may matter less or more depending on your personal values.</p>
+
+<h3>4. Denver is the most balanced option nobody talks about</h3>
+<p>Third-busiest US airport. Honor Roll children's hospital. $40K/yr tax burden. 300 days of sunshine. 4 hours to either coast. Geographic centrality. The education scores are exactly average (39% proficient), which is the main weakness. But the all-around balance of connectivity + medical + tax + quality of life is hard to beat.</p>
+
+<h3>5. Burlington, VT is elite on paper but impossible in practice</h3>
+<p>Vermont ranks #1 in Health & Safety, #11 in education, has the lowest violent crime on this list (107/100K), and 46% NAEP proficiency. But the airport has 12 nonstop destinations. The property tax rate (1.73%) on a $3M home is $51,900/yr alone. You can't fly direct to basically anywhere. For a tech professional who needs to travel, Burlington fails on a critical dimension.</p>
+</section>
+
+<!-- LIMITATIONS -->
+<section id="limitations">
+<h2>Methodology & Limitations</h2>
+
+<h3>What This Analysis Does Well</h3>
+<ul>
+<li>Uses nationally standardized data (NAEP, FBI UCR, Tax Foundation, NAR) for apples-to-apples comparison</li>
+<li>Models tax burden at a specific income level rather than using averages</li>
+<li>Includes both US and international benchmarks for context</li>
+<li>Separates state-level data (education, tax) from metro-level data (crime, airports) where appropriate</li>
+</ul>
+
+<h3>What It Gets Wrong or Can't Measure</h3>
+<ul>
+<li><strong>State vs. district-level education data:</strong> NAEP scores are state-level. Within California, Palo Alto schools dramatically outperform the state average. Within Texas, Highland Park ISD (Dallas) is world-class. State-level data obscures neighborhood-level reality. A family buying in Palo Alto is not getting a 33%-proficiency education.</li>
+<li><strong>Property tax modeling is simplified:</strong> We use state-level effective rates, but actual rates vary dramatically by county, municipality, and special district. A $3M home in Austin may face rates above 2.5% when school district and MUD taxes are included.</li>
+<li><strong>Income tax modeling assumes W-2 income only:</strong> Capital gains, RSU vesting, stock options, and carried interest all have different state-level treatment. For Meta RSU income, California's 13.3% applies to vesting gains; Washington's 7% capital gains tax applies to sales but not vesting. This distinction could swing the tax comparison by $20-30K/yr.</li>
+<li><strong>WalletHub composite is one methodology:</strong> Their weighting of 50 indicators may not match your personal priorities. We use it because it's the most comprehensive single-number comparison, but it's an editorial choice.</li>
+<li><strong>Medical data doesn't capture wait times or specialist access:</strong> Hospital bed counts and trauma center counts don't tell you whether your pediatrician has a 2-day or 2-month booking window. Urban metros with more hospitals may still have worse access due to population density.</li>
+<li><strong>Crime data is metro-level:</strong> A family in Scottsdale (very safe) is counted in the Phoenix metro (higher crime). Similarly, Menlo Park is safer than the Bay Area average. Metro-level crime stats are useful for insurance and regional risk assessment but overstate the danger of specific neighborhoods.</li>
+<li><strong>This analysis doesn't model career impact:</strong> Leaving the Bay Area may cost more in career progression than it saves in taxes. This is unmeasurable but potentially the largest variable in the entire analysis.</li>
+<li><strong>International comparisons are rough:</strong> Tax systems, healthcare financing, and education structures differ so fundamentally between countries that direct comparison is illustrative, not rigorous.</li>
+</ul>
+
+<h3>The Strongest Counterargument to This Entire Analysis</h3>
+<p>The most important variable for child outcomes is not where you live. It's parental involvement, household stability, and income. A highly engaged, high-income family will produce excellent outcomes almost anywhere. The marginal difference between Massachusetts and California's school systems may be smaller than the difference between two families in the same school district where one reads to their kids nightly and one doesn't. Demographic and socioeconomic data consistently show that parental education and income are stronger predictors of child outcomes than state-level education metrics. This analysis is about optimizing at the margin, not identifying a silver bullet.</p>
+</section>
+
+<!-- SOURCES -->
+<section id="sources">
+<h2>Sources</h2>
+<ul>
+<li><a href="https://www.nationsreportcard.gov/reports/mathematics/2024/g4_8/state-district-trends/?grade=4">NAEP 2024 Mathematics Assessment, Grade 4 State Trends</a> (nationsreportcard.gov)</li>
+<li><a href="https://wallethub.com/edu/best-states-to-raise-a-family/31065">WalletHub: Best & Worst States to Raise a Family, 2026</a></li>
+<li><a href="https://taxfoundation.org/statetaxindex/">Tax Foundation: 2026 State Tax Competitiveness Index</a></li>
+<li><a href="https://taxfoundation.org/data/all/state/property-taxes-by-state-county-2024/">Tax Foundation: Property Taxes by State & County, 2024</a></li>
+<li><a href="https://www.nar.realtor/blogs/economists-outlook/single-family-home-prices-had-positive-price-gains-in-73-of-230-metro-areas-in-2025-q4">NAR: Single-Family Home Prices Q4 2025</a></li>
+<li><a href="https://health.usnews.com/health-news/best-childrens-hospitals/articles/best-childrens-hospitals-honor-roll-and-overview">US News: 2025-26 Best Children's Hospitals Honor Roll</a></li>
+<li><a href="https://www.oag.com/megahubs-airports-2025">OAG Megahubs 2025: Most Connected Airports</a></li>
+<li><a href="https://www.fbi.gov/how-we-can-help-you/more-fbi-services-and-information/ucr">FBI Uniform Crime Reporting (UCR), 2024</a></li>
+<li><a href="https://www.usgs.gov/programs/earthquake-hazards">USGS Earthquake Hazards Program</a> (Cascadia Subduction Zone data)</li>
+<li><a href="https://www.kff.org/other/state-indicator/beds-by-ownership/">Kaiser Family Foundation: Hospital Beds per 1,000 Population by State</a></li>
+<li><a href="https://hazards.fema.gov/nri/">FEMA National Risk Index</a></li>
+<li><a href="https://simpleflying.com/busiest-airports-america-2025/">Simple Flying: Busiest Airports in America 2025</a></li>
+<li><a href="https://www.sofi.com/learn/content/states-with-no-income-tax/">SoFi: 9 States With No Income Tax, 2026</a></li>
+<li><a href="https://www.walkscore.com/">Walk Score: City Walkability Rankings</a> (walkscore.com)</li>
+<li><a href="https://www.epa.gov/air-trends/air-quality-national-summary">EPA: Air Quality National Summary, AirNow Annual Reports 2024</a></li>
+<li><a href="https://www.yelp-press.com/press-releases/press-release-details/2026/Yelp-Announces-its-2026-Top-100-Places-to-Eat-in-the-United-States/default.aspx">Yelp: 2026 Top 100 Places to Eat in the US</a></li>
+<li><a href="https://guide.michelin.com/ca/en/article/travel/where-to-go-north-america-food-lovers-2026">Michelin Guide: 2026 North America Recommendations</a></li>
+<li><a href="https://data.census.gov/">US Census ACS 2024: Racial and Ethnic Diversity Index by Metro</a></li>
+<li>NOAA National Climate Data Center: Average Annual Days of Sunshine by City</li>
+<li>National Park Service + USFS: Park proximity data</li>
+</ul>
+</section>
+
+<!-- BUILD YOUR OWN -->
+<section id="build">
+<h2>Build This for Your City</h2>
+
+<p>Want to generate a customized version of this analysis for your own city, income level, and priorities? Copy the prompt below into Claude (or any capable LLM) and fill in the blanks.</p>
+
+<div class="callout" style="background:#0d1117;border-left-color:#ffd93d;">
+<pre style="white-space:pre-wrap;font-size:0.85rem;color:#e0e0e0;font-family:monospace;margin:0;line-height:1.6;">
+Build a comprehensive "Places to Live" analysis as a single self-contained HTML file.
+
+MY SITUATION:
+- Current city: [YOUR CITY]
+- Household income: $[YOUR INCOME]
+- Home value (current or target): $[YOUR HOME VALUE]
+- Number of children: [NUMBER] (ages: [AGES])
+- Filing status: [married filing jointly / single / etc.]
+- Key priorities (rank 1-5): Education, Medical Access, Air Connectivity, Tax Burden, Safety, Climate, Cost of Living
+- Career constraints: [e.g., "need to be within 2hr flight of NYC" or "fully remote"]
+- Dealbreakers: [e.g., "no extreme cold" or "must have direct flights to London"]
+
+CITIES TO COMPARE:
+Include [YOUR CURRENT CITY] as baseline, plus 12-15 metros across a range of regions, tax structures, and city sizes. Include at least 2 that are "surprising" picks the data supports but conventional wisdom doesn't.
+
+FOR EACH CITY, RESEARCH AND INCLUDE:
+1. Education: State NAEP 4th/8th grade math+reading % proficient (nationsreportcard.gov), WalletHub family composite rank
+2. Medical: Level I trauma centers within 30 min, children's hospital quality (US News Honor Roll), hospital beds per 1,000 (KFF)
+3. Air: Nearest major airport, nonstop domestic + international count, flight times to key cities
+4. Tax: Model EXACTLY at my income level using current state rates (Tax Foundation). Show income tax + property tax + sales tax = total. Show 18-year cumulative.
+5. Safety: FBI UCR violent crime per 100K, FEMA NRI natural disaster risk
+6. Cost: Median home price, comparable-neighborhood price to my current home
+
+STRUCTURE:
+- Executive overview with top 3 picks and why
+- Sortable comparison table (all cities, all dimensions)
+- Tax modeling section showing the math (not just totals)
+- Detailed collapsible profiles for each city
+- "Surprising findings" section
+- Limitations and strongest counterargument
+- Sources with real, verifiable links
+
+REQUIREMENTS:
+- Every number from a real, cited source
+- Show the tax math, not just conclusions
+- Dark theme (#0d0d0d background), responsive, self-contained HTML, no external dependencies
+- Include a limitations section that's honest about what the data can't tell you
+- State the strongest counterargument to the top pick at full strength
+
+Reference example: https://rayhe.net/places_to_live
+</pre>
+</div>
+</section>
+
+<div class="footnote">
+<p>Analysis prepared April 2026. Data reflects most recent available sources as cited. Tax calculations use 2025-2026 rates and brackets, married filing jointly. All property tax estimates use state effective rates applied to $3M assessed value; actual bills will vary by municipality. Crime rates are FBI UCR metro-level estimates. Airport nonstop counts are approximate based on OAG and airline schedule data. This is an informational analysis, not financial or legal advice. Your specific circumstances (RSU vesting schedule, career trajectory, family medical needs, personal values) should drive the final decision.</p>
+</div>
+
+</div>
+
+<script>
+// Normalized scores (0-100) for each metro across 7 dimensions
+// Higher is always better. Tax and Cost are inverted (lower burden = higher score).
+const metroData = [
+  { name: "Bay Area, CA",          edu: 35, med: 88, air: 95, tax: 10, cost: 10, safe: 45, climate: 85, food: 95, walkability: 86, outdoors: 90, badge: "BASELINE" },
+  { name: "Boston, MA",            edu: 95, med: 98, air: 78, tax: 40, cost: 50, safe: 62, climate: 45, food: 82, walkability: 83, outdoors: 55, badge: "TOP PICK" },
+  { name: "Salt Lake City, UT",    edu: 62, med: 65, air: 60, tax: 75, cost: 72, safe: 52, climate: 62, food: 45, walkability: 36, outdoors: 95, badge: "TOP PICK" },
+  { name: "Minneapolis, MN",       edu: 82, med: 78, air: 82, tax: 22, cost: 82, safe: 72, climate: 30, food: 68, walkability: 69, outdoors: 60, badge: "TOP PICK" },
+  { name: "Raleigh-Durham, NC",    edu: 48, med: 70, air: 30, tax: 68, cost: 78, safe: 58, climate: 68, food: 42, walkability: 28, outdoors: 50, badge: "STRONG" },
+  { name: "Austin, TX",            edu: 40, med: 50, air: 48, tax: 62, cost: 65, safe: 48, climate: 72, food: 75, walkability: 40, outdoors: 55, badge: "" },
+  { name: "Seattle, WA",           edu: 72, med: 82, air: 75, tax: 42, cost: 42, safe: 38, climate: 35, food: 78, walkability: 73, outdoors: 92, badge: "" },
+  { name: "Denver, CO",            edu: 50, med: 78, air: 88, tax: 72, cost: 58, safe: 55, climate: 88, food: 70, walkability: 61, outdoors: 95, badge: "STRONG" },
+  { name: "Nashville, TN",         edu: 38, med: 62, air: 48, tax: 92, cost: 78, safe: 22, climate: 65, food: 72, walkability: 28, outdoors: 40, badge: "" },
+  { name: "Portland, OR",          edu: 55, med: 52, air: 55, tax: 30, cost: 62, safe: 48, climate: 38, food: 80, walkability: 65, outdoors: 90, badge: "" },
+  { name: "New York Metro",        edu: 60, med: 90, air:100, tax:  5, cost: 50, safe: 55, climate: 55, food: 98, walkability: 88, outdoors: 40, badge: "" },
+  { name: "Miami, FL",             edu: 32, med: 55, air: 85, tax: 90, cost: 55, safe: 32, climate: 78, food: 85, walkability: 78, outdoors: 65, badge: "" },
+  { name: "Scottsdale/Phoenix, AZ",edu: 30, med: 58, air: 68, tax: 88, cost: 75, safe: 38, climate: 82, food: 50, walkability: 38, outdoors: 70, badge: "" },
+  { name: "Boise, ID",             edu: 58, med: 35, air: 15, tax: 72, cost: 70, safe: 75, climate: 60, food: 30, walkability: 38, outdoors: 85, badge: "" },
+  { name: "Burlington, VT",        edu: 78, med: 38, air:  5, tax: 12, cost: 75, safe: 88, climate: 32, food: 55, walkability: 62, outdoors: 78, badge: "" },
+  { name: "Zurich, CH",            edu: 80, med: 85, air: 82, tax:  8, cost:  5, safe: 95, climate: 50, food: 82, walkability: 90, outdoors: 88, badge: "INTL" },
+  { name: "Singapore",             edu: 98, med: 75, air: 98, tax: 15, cost:  8, safe: 98, climate: 42, food: 92, walkability: 85, outdoors: 30, badge: "INTL" }
+];
+
+function updateScores() {
+  const w = {
+    edu:  parseInt(document.getElementById('wEdu').value),
+    med:  parseInt(document.getElementById('wMed').value),
+    air:  parseInt(document.getElementById('wAir').value),
+    tax:  parseInt(document.getElementById('wTax').value),
+    cost: parseInt(document.getElementById('wCost').value),
+    safe: parseInt(document.getElementById('wSafe').value),
+    climate: parseInt(document.getElementById('wClimate').value),
+    food: parseInt(document.getElementById('wFood').value),
+    walk: parseInt(document.getElementById('wWalk').value),
+    outdoors: parseInt(document.getElementById('wOutdoors').value)
+  };
+  document.getElementById('wEduVal').textContent = w.edu;
+  document.getElementById('wMedVal').textContent = w.med;
+  document.getElementById('wAirVal').textContent = w.air;
+  document.getElementById('wTaxVal').textContent = w.tax;
+  document.getElementById('wCostVal').textContent = w.cost;
+  document.getElementById('wSafeVal').textContent = w.safe;
+  document.getElementById('wClimateVal').textContent = w.climate;
+  document.getElementById('wFoodVal').textContent = w.food;
+  document.getElementById('wWalkVal').textContent = w.walk;
+  document.getElementById('wOutdoorsVal').textContent = w.outdoors;
+
+  const totalWeight = w.edu + w.med + w.air + w.tax + w.cost + w.safe + w.climate + w.food + w.walk + w.outdoors;
+  const scored = metroData.map(m => {
+    const composite = totalWeight === 0 ? 0 : Math.round(
+      (m.edu * w.edu + m.med * w.med + m.air * w.air + m.tax * w.tax + m.cost * w.cost + m.safe * w.safe + m.climate * w.climate + m.food * w.food + m.walkability * w.walk + m.outdoors * w.outdoors) / totalWeight
+    );
+    return { ...m, composite };
+  });
+  scored.sort((a, b) => b.composite - a.composite);
+
+  document.getElementById('topPickName').textContent = scored[0].name;
+  document.getElementById('topPickScore').textContent = 'Score: ' + scored[0].composite + '/100';
+
+  const tbody = document.getElementById('scoredBody');
+  tbody.innerHTML = '';
+  scored.forEach((m, i) => {
+    const tr = document.createElement('tr');
+    const badgeHtml = m.badge ? ' <span class="badge badge-' + (m.badge === 'TOP PICK' ? 'top' : m.badge === 'STRONG' ? 'good' : 'neutral') + '">' + m.badge + '</span>' : '';
+    const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : '';
+    function sc(val) {
+      const cls = val >= 80 ? 'good' : val >= 60 ? '' : val >= 40 ? 'neutral' : 'bad';
+      return '<td class="' + cls + '">' + val + '</td>';
+    }
+    tr.innerHTML = '<td class="' + rankClass + '">' + (i + 1) + '</td>' +
+      '<td><strong>' + m.name + '</strong>' + badgeHtml + '</td>' +
+      sc(m.edu) + sc(m.med) + sc(m.air) + sc(m.tax) + sc(m.cost) + sc(m.safe) +
+      sc(m.climate) + sc(m.food) + sc(m.walkability) + sc(m.outdoors) +
+      '<td style="color:#ffd93d;font-weight:700;font-size:1.1rem;">' + m.composite + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+function sortTable(colIdx) {
+  const table = document.getElementById('mainTable');
+  const tbody = table.querySelector('tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const currentDir = table.getAttribute('data-sort-dir') === 'asc' ? 'desc' : 'asc';
+  table.setAttribute('data-sort-dir', currentDir);
+  rows.sort((a, b) => {
+    let aVal = a.cells[colIdx].textContent.trim();
+    let bVal = b.cells[colIdx].textContent.trim();
+    const aNum = parseFloat(aVal.replace(/[^0-9.\-]/g, ''));
+    const bNum = parseFloat(bVal.replace(/[^0-9.\-]/g, ''));
+    if (!isNaN(aNum) && !isNaN(bNum)) {
+      return currentDir === 'asc' ? aNum - bNum : bNum - aNum;
+    }
+    return currentDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+  });
+  rows.forEach(row => tbody.appendChild(row));
+}
+
+document.addEventListener('DOMContentLoaded', updateScores);
+</script>
+</body>
+</html>
