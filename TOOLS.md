@@ -82,6 +82,21 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 - API base: `https://swd.weatherflow.com/swd/rest/`
 - Public page: https://tempestwx.com/station/164725/
 
+### ElevenLabs (TTS)
+- API Key: `sk_4c3debb934ab6c750684bb27208577c1cfb9bbb136c05eda`
+- API base: `https://api.elevenlabs.io/v1/`
+- Custom clones: 5x "Ray He" avatars, Alex Himel (2 versions), Bob, Atlas, Charlotte (AU female)
+- Best voices: George (British storyteller), Daniel (British broadcaster), Brian (deep/resonant), Roger (casual)
+- Model: `eleven_multilingual_v2`
+- Used for: article narration, podcast generation, storytime
+
+### HeyGen (AI Video)
+- API Key: `sk_V2_hgu_kWc5l3IjkNr_faYVfBCybnosTynePvgc6AZYrcHCttZF`
+- API base: `https://api.heygen.com/v2/`
+- Custom avatars: 5x "Ray He" (various IDs), 1,286 stock avatars
+- Plan credit: 200, remaining: 0 (as of 2026-04-06)
+- Used for: AI presenter videos, article video summaries
+
 ---
 
 Add whatever helps you do your job. This is your cheat sheet.
