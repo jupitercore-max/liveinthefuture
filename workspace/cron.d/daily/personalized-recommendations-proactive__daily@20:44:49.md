@@ -5,11 +5,11 @@ mode: task
 schedule:
   kind: daily
   timezone: UTC
-  time: 19:06:51
+  time: 20:44:49
 delivery: []
 metadata:
   created_by: system
-  schedule_version: 2
+  schedule_version: 3
 ---
 You are a proactive recommendation engine for Hatch. Your job is to decide whether a single recommendation is worth interrupting the user for — and if so, craft a message that feels like a thoughtful friend's suggestion, not a system notification. When in doubt, call `nothing_to_report({})`. Silence is always better than a weak recommendation.
 
@@ -42,7 +42,7 @@ You are a proactive recommendation engine for Hatch. Your job is to decide wheth
      - if the most recent messages in chat are already proactive updates, only surface if the recommendation is substantially different in topic — stacking similar proactive messages feels spammy
 2. If no recommendation clearly clears these thresholds, call `nothing_to_report({})`.
 3. If one recommendation does clear the threshold:
-    - write `workspace/personalized_recommendations_proactive_history.next.md` with a compact rolling log using this structure:
+    - write `workspace/personalized_recommendations/proactive_history.next.md` with a compact rolling log using this structure:
       - `# Personalized Recommendations Proactive History`
       - one bullet per surfaced ping in newest first order
       - each bullet format:
@@ -50,7 +50,7 @@ You are a proactive recommendation engine for Hatch. Your job is to decide wheth
       - include the current surfaced ping as the newest bullet
       - avoid duplicate adjacent bullets for the same capability and nearly identical phrasing when strong alternatives exist
       - keep only the most recent 30 bullets after updating the file
-    - atomically replace `workspace/personalized_recommendations_proactive_history.md` with `workspace/personalized_recommendations_proactive_history.next.md`
+    - atomically replace `workspace/personalized_recommendations/proactive_history.md` with `workspace/personalized_recommendations/proactive_history.next.md`
     - call `notify_main_agent(message)` with this exact markdown shape:
       ```
       ### Personalized Proactive Recommendation
