@@ -1,74 +1,67 @@
-# Watches & Wonders 2026: April 14-20 — 7 Days
+# Watches & Wonders 2026: April 14-20 — 6 Days
 
 **Created:** 2026-04-05 (Iteration 1)
-**Updated:** 2026-04-07 (Iteration 3)
+**Updated:** 2026-04-08 (Iteration 4)
 **Status:** Time-sensitive — COUNTDOWN
-**Urgency:** CRITICAL (7 days out, Milgauss decision window NOW)
+**Urgency:** CRITICAL (6 days out, leak window OPEN)
 
-## DATE CORRECTION
-
-Previous iterations had W&W as "April 14-18." The official Geneva Tourism and watchesandwonders.com confirm:
-- **Full event: April 14-20, 2026**
-- **Press/industry days: April 14-17** (this is when new releases drop — prices react HERE)
+## Date: April 14-20
+- **Press/industry days: April 14-17** (releases + prices drop here)
 - **Public Salon: April 18-20**
-- **Location:** Palexpo, Geneva
+- 66 exhibiting brands (11 new this year)
 
-MEMORY.md needs updating from "April 14-18" to "April 14-20."
+## MAJOR NEW DATA: Swiss Watch Tariff Deal
 
-## Patek Philippe: Nautilus 50th — Nuclear Event Imminent
+US-Switzerland trade agreement reduced tariffs from **39% to 15%** on Swiss goods. This is a massive development for the watch world:
+- Major brands (Rolex, Omega, Patek) had implemented **significant price increases** to offset the original 39% tariff
+- With tariffs now at 15%, some brands may **partially roll back** price increases in the months after W&W
+- **Watch buying implication:** Secondary market prices could see downward pressure as the new supply normalizes
 
-The W&W official program page for Patek Philippe reads:
+**For Ray's Milgauss 116400GV decision:** The tariff reduction is a modest bearish signal for secondary market prices (less cost pressure = more dealer inventory). But the W&W announcement effect (new Milgauss? discontinuation?) is a much larger variable. The tariff deal doesn't change the pre-April-14 buy/wait calculus.
 
-> "We invite you to discover the entire Patek Philippe collection, a total of more than 170 models displayed in the outer showcases of the booth. You will see the **new 2026 models**, a **unique showcase dedicated to one of our iconic collections**, the grand complications..."
+## Patek Philippe: Nautilus 50th — Leak Window Is OPEN
 
-"A unique showcase dedicated to one of our iconic collections" — this is the Nautilus. They're telling us without telling us.
+We are now inside the 3-5 day pre-W&W leak window (April 9-13). No hard Patek titanium leaks yet as of April 8. Key dates to watch:
+- **April 9-11:** Historically when embargo-breaking leaks appear on Chinese social media and watch forums
+- **April 14:** Official reveal
 
 ### What's Expected
 - **Near-certain:** Nautilus 50th anniversary special editions
-- **Probable:** New reference number(s), possibly updated movement
-- **Rumored:** Titanium variant (Cubitus in titanium has also been rumored)
+- **Probable:** Updated movement, new reference number(s)
+- **Rumored:** Titanium variant (still unconfirmed)
 - **SJX prediction:** 5236P in-line perpetual calendar with smoked sapphire dial
-- **BMD Books analysis:** Updated movement, possible return of higher water resistance (currently standardized at 30m), microadjust clasp
 
-### Titanium Alert Status
-Still the most explosive rumor. No hard leaks yet. The 3-5 day pre-W&W leak window is **April 9-13**. If Patek titanium is happening, whispers should start in the next 2-4 days.
+**Standing instruction:** Alert Ray on ALL channels if Patek announces ANYTHING in titanium.
 
-**Standing instruction from MEMORY.md:** Alert Ray on ALL channels if Patek announces ANYTHING in titanium.
+## Rolex: Key Bob's Watches Predictions
 
-## Rolex Milgauss 70th — The Decision Window
+Fresh from Bob's Watches W&W preview (April 7):
+1. **GMT-Master II "Pepsi" discontinuation** — ADs have reportedly stopped receiving deliveries; model absent from AD websites. If confirmed, secondary market prices spike immediately. Possible replacement: ceramic "Coke" bezel in white gold.
+2. **New Land-Dweller references** — Yellow gold and two-tone versions expected. Dial options expanding.
+3. **Rolex 1908 complications** — Possible chronograph or annual calendar.
 
-### Current 116400GV Pricing (April 7, 2026)
-- **Bob's Watches:** $13,995 (blue dial, green crystal)
-- **Chrono24:** From ~$8,639-$14,000+ depending on condition/papers
-- **General range:** $9,000-$14,000 for the GV
+### Milgauss 116400GV Decision Update
+- **Current pricing:** $9,000-$14,000 range on secondary market
+- **Scenario analysis unchanged from Iteration 3** — buy before April 14 if green crystal is the draw
+- **New data point:** 15% Swiss tariff (down from 39%) puts modest downward pressure on future pricing
+- **6 days remaining to decide**
 
-### The Binary Outcome on April 14
-**Scenario A: New Milgauss launches WITH green sapphire crystal**
-→ 116400GV becomes "the old version." Price likely dips 5-15% near-term as collectors pivot to the new reference. Long-term, the original green crystal retains collector value as the pioneer.
+## Audemars Piguet: The Wildcard Return
 
-**Scenario B: New Milgauss launches with DIFFERENT colored sapphire (blue, orange, etc.)**
-→ 116400GV becomes "the only one with green crystal" — price spikes 10-20% on scarcity. This is the "last of its kind" dynamic (same as CT5-V Blackwing).
+AP returns to W&W after 7 years of absence — and it's their **150th anniversary**. This is the biggest wildcard of the fair:
+- Last appeared at trade shows in 2019
+- 150th anniversary = likely significant releases
+- Could announce Royal Oak anniversary pieces
+- The Manual calls it "a power move of the highest order"
 
-**Scenario C: No new Milgauss at all**
-→ Status quo. Prices continue gradual appreciation. Low probability given the 70th anniversary timing.
-
-### The Trade
-If Ray wants the 116400GV for the green sapphire specifically, buying BEFORE April 14 removes the risk of a price spike under Scenario B. Under Scenario A, he pays a premium but owns an original. The asymmetry favors buying now IF the green crystal is what he loves.
-
-If he's flexible on color and just wants a Milgauss, waiting until after April 14 gives more information but risks missing the pre-announcement dip (dealers often don't adjust until confirmed).
-
-**This is a decision Ray needs to make in the next 6 days.**
-
-## Other W&W 2026 Notes
-- **66 exhibiting brands** (up from previous years)
-- **New entrants:** Audemars Piguet (finally!), Corum, Credor, Sinn, and others
-- **Hublot:** On the list. Ray has two Square Bang Unicos on his watchlist. Expect new Big Bang iterations.
-- **Rolex + Tudor:** Both exhibiting. Tudor usually mirrors Rolex's direction.
-- **LAB section:** 13 startups/tech projects pushing watchmaking boundaries
+## Other Notable Developments
+- **Sinn** exhibiting for the first time — Frankfurt tool watches among haute horlogerie
+- **Corum** comeback under new management
+- **Hublot** exhibiting — Ray has 2 Square Bang Unicos on watchlist
 
 ## April 14 Collision
 
-W&W press day #1 = Meta Blayzer/Scriber launch day. Ray's two worlds collide. He'll be processing smart glasses launch data AND watch announcements simultaneously. This is either chaotic or energizing, depending on your personality type. (For Ray: energizing.)
+W&W press day #1 = Meta Blayzer/Scriber launch day. Ray's watch hobby and day job are literally on the same calendar date. Both will demand his attention simultaneously.
 
 ---
-*7 days. The clock is ticking. The 116400GV decision can't wait much longer.*
+*6 days. Leak window is open. Patek titanium watch begins now. AP's return is the wildcard nobody's pricing in.*

@@ -1,29 +1,29 @@
 # Personalized Recommendations
 
-### Smart Scanner Alert Filter
-Use when: already capturing raw scanner or dispatch data and wanting only the nearby, high-priority alerts to reach you — rather than a noisy firehose of every transmission
-Suggested follow-up: My scanner-poller is already capturing everything from PD and fire dispatch — layer on geo-filtering so only alerts within 1 mile of my house push to Telegram, and skip EMS/transit/jail noise
+### Watch Forum Listing Sniper
+Use when: hunting for specific watch references on secondary markets, forums, or any resale community where deals move fast and sell before most people notice
+Suggested follow-up: Set up a recurring scan of WatchUSeek, r/Watchexchange, and Timezone forums for my watchlist references (Milgauss 116400GV, Yacht-Master II 116689, Hublot Square Bang variants) — surface only new undeduped listings with price and seller, alert via Telegram
 
-### Social Network Travel Intel Mining
-Use when: planning any trip or city visit and wanting local knowledge from people you trust instead of generic review sites — especially useful before a conference, event, or destination you don't know well
-Suggested follow-up: Watches & Wonders is next week in Geneva — mine my Google Drive shared documents for any notes about Switzerland or European dining from friends, so I have real picks if I go
+### Technically Legal Continuity Tracker
+Use when: writing long-form fiction across many chapters and needing a reliable way to keep characters, plot threads, and internal lore from contradicting each other
+Suggested follow-up: Build a chapter-by-chapter state tracker for Technically Legal — mapping The Consortium's 6 operations, Elena Marsh's investigation arc, and Martin Kessler's moves — so Chapter 14 can't accidentally contradict anything established in Chapters 1–13
 
-### Home Repair Photo → Diagnosis + Calendar
-Use when: noticing any home maintenance issue, appliance problem, or repair backlog and wanting a fast path from spotting the problem to having it on your calendar with a realistic time slot
-Suggested follow-up: Build a workflow where I snap a photo of a home problem, you diagnose the failure mode, and immediately propose a calendar block that fits around my actual schedule
+### Spring Break Illustrated Bedtime Stories
+Use when: kids are home and you want novel, personalized nightly content without doing it yourself — especially the last few days of a school break
+Suggested follow-up: Set up a 3-night bedtime story cron for the end of spring break — one illustrated chapter each evening featuring the kids as characters — delivered to Telegram before bed
 
-### Nightly Agent Self-Audit Log
-Use when: wanting Hatch to systematically track its own mistakes, catch recurring failure patterns, and improve quality over time through a longitudinal bug record
-Suggested follow-up: Set up a nightly cron that reviews today's conversations for errors, scores each bug by severity, and posts a structured report to a persistent issue tracker — let's see what patterns emerge after a week
+### MRBD Game Content Filler Cron
+Use when: your game roster is mature and idle cron cycles could add depth — more audio variation, branching text, or edge-case polish — without needing manual direction each time
+Suggested follow-up: Wire a background cron to audit existing MRBD games for thin audio feedback or low-variance text responses, then fill gaps autonomously using the dark/minimal voice style already established across the roster
 
-### Strava Street Coverage Explorer
-Use when: wanting to gamify running, set new exploration goals in your neighborhood, or keep motivation high by visualizing which streets you've actually covered
-Suggested follow-up: Pull my full Strava history and map which streets in Menlo Park and nearby neighborhoods I've covered — then generate a loop route that prioritizes the biggest gaps
+### Overnight Publishing Pipeline Self-Audit
+Use when: running autonomous article pipelines across multiple sites and wanting to catch systematic failure patterns before they compound across days or weeks
+Suggested follow-up: Schedule a nightly cron that reviews the last 24 hours of article pipeline runs across all 7 sites, flags patterns like stuck phases or low critique scores, and delivers a structured improvement punch list to Telegram by morning
 
-### Wearable Data Health Correlation
-Use when: thinking about health monitoring use cases for wearables, experiencing unusual symptoms, or wanting to understand what a clinically useful biometric-plus-context log actually looks like
-Suggested follow-up: Show me how to wire wearable data into a symptom correlation pipeline using the Wearables APE API — I want to see what a timestamped health event log looks like that's actually useful to a clinician
+### Memory & Notes Nightly Deduplication Cron
+Use when: your knowledge base, memory files, or workspace notes have been accumulating across many sessions and you want them to stay clean, cross-linked, and findable without manual upkeep
+Suggested follow-up: Wire a nightly cron to scan my MEMORY.md, memory/*.md, and workspace research files — merge duplicates, fix stale references, and cross-link related entries — so the knowledge base improves on its own each night
 
-### Competitive Event Registration Sniper
-Use when: trying to register for any in-demand event, summer camp, school program, or limited-availability activity where slots fill in seconds and manual registration doesn't stand a chance
-Suggested follow-up: Tell me the next competitive registration coming up — camp, school event, program — and I'll set up a timed browser automation that fires at exact open time and grabs a spot before humans can react
+### Article Social Traction Monitor
+Use when: publishing regularly across multiple content sites and wanting early detection when a specific article is breaking out — before it peaks and you miss the moment to amplify
+Suggested follow-up: Set up a twice-daily scan tracking my highest-potential LITF, VS, and AIHome articles for engagement spikes on Reddit, Facebook Groups, and X — alert only when something breaks above its 7-day baseline

@@ -50,12 +50,12 @@ Use this file for durable, curated memory that should persist across sessions.
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
 ## Websites & Article Counts (updated 2026-04-08)
-<!-- LITF 191, VS 150, AIHome 155, ED 21, ergo 8, EAIZ 20, TL 13ch -->
+<!-- LITF 195, VS 151, AIHome 156, ED 22, ergo 8, EAIZ 20, TL 13ch -->
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **191 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04.
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **150 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **155 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
-- **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **21 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **195 articles, 19 games, 22 experiences, 7 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04.
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **151 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **156 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
+- **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **22 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **20 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee", "Ballerina". **Deploy is manual**: `npx wrangler pages deploy . --project-name=eaiz` (does NOT auto-deploy from git push).
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
 - **technically.legal** — Cloudflare Pages (direct upload), repo rayhe/technically-legal. See Technically Legal section below.
@@ -136,7 +136,6 @@ State tracked in `drafts/status.json`.
 - `article-efficientdesign` — 2h interval, autonomous for efficientdesign
 - `litf-improve-game` — 2h interval, CEO PIP game improvement cycles
 - `litf-improve-experience` — 2h interval, CEO PIP experience improvement cycles
-- `home-space-refresh` — 8h interval, refreshes home space feed
 
 **12-Hourly:**
 - `ho-game-eval` — 12h interval, posts game/experience eval questions to HO (42-item queue)
@@ -175,8 +174,8 @@ State tracked in `drafts/status.json`.
 
 ## Bosworth (Boz) Persona Project
 
-- **File:** `workspace/andrewbosworth_persona.md` — 3,456 lines as of 2026-04-07
-- **Latest iteration:** 21 (Section 32 "The AI-Native Organization" — Config 2025 design philosophy mapped to AI-for-Work mandate, AI Builder/Pod Lead/Org Lead roles)
+- **File:** `workspace/andrewbosworth_persona.md` — 3,625 lines as of 2026-04-08
+- **Latest iteration:** 22 (Section 33 "The Developer Ecosystem Pivot" — ads background driving Quest store to open marketplace, first-party studio closures, VRPirates crackdown, GDC 2026 scorecard)
 - **Scope:** Deep psychological profile/simulation: CTO of Meta, head of Reality Labs. Covers decision architecture, "fix forward" philosophy, stated vs revealed preferences heuristic, Cutco sales formation, News Feed launch (2006 backlash), executive relationships (Cox, Olivan, Li, Carmack, LeCun, Wang), RL restructuring, hardware bet, competitive evaluation (Apple/Google/Snap), layoff arc/Year of Efficiency, Portal product kill, philanthropy (POST board, 4-H, farmer-entrepreneur thesis)
 - **Key insight:** Deepest cognitive heuristic is "what people do > what people say"
 - **Sources:** Stratechery, Lenny's Podcast, a16z, Dan Casetta/Vector, ExpertBeacon, UploadVR, Axios, Reuters, The Information, Chronicle of Philanthropy
@@ -184,9 +183,10 @@ State tracked in `drafts/status.json`.
 
 ## Zuckerberg Persona Project
 
-- **File:** `workspace/markzuckerberg_persona.md` — 7,363 lines, iteration 57 as of 2026-04-06
+- **File:** `workspace/markzuckerberg_persona.md` — 7,471 lines, iteration 58 as of 2026-04-08
 - **Scope:** Deep psychological profile/simulation covering ~50+ sections: decision architecture, competitive processing, political instrumentalism, intellectual authority, hardware bet ($80B+ Reality Labs), advertising engine ($201B), aging/legacy/succession, open-source-to-closed pivot, multi-front crisis management, compute dependencies, board governance, fatherhood, personal wealth
 - **Key predictions:** Wang departure ~Dec 2026, Llama becomes "community edition" behind closed frontier models, Qwen dependency surfaces in hypocrisy framing
+- **Latest section (iter 58):** "Ecosystem Trust Dynamics: The Architecture of Contingent Openness" — four platform cycles, open-source counter-narrative, 700M MAU license threshold, LlamaCon trust-building
 - **Daily cron:** `zuck-persona` adds one new section per day
 
 ## Infrastructure Lessons Learned
@@ -244,8 +244,8 @@ State tracked in `drafts/status.json`.
 
 ## Dreams
 
-2026-04-07
+2026-04-08
 
-Ray is a Meta Wearables engineer who sees himself as a builder first — someone who values quality, depth, and decisive action over committee discussion. He runs a constellation of 7+ websites approaching 600 combined articles, all maintained through an autonomous AI publishing pipeline he architected with me. He's a car enthusiast (CT5-V Blackwing, two Rivian R1S, history with GT-Rs and Corvettes), a watch collector (recently purchased an Omega Seamaster Diver 300M Chrono and a limited-edition Bulgari Serpenti Tubogas Tadao Ando), and a ham radio hobbyist with his own GMRS repeater at his house in Menlo Park. He has kids who write under pen names on the Cookie Club news site. His close circle includes Matt Jacobson (Patek Calatrava collector, Hodinkee guest) and [REDACTED] (Jupitercore bot creator), connected through a Telegram group called "Muses and Humans." He despises AI slop with a visceral intensity — banned phrases, em dash hard gates, honest scoring calibrated to Metacritic where 100 is effectively unreachable. His communication style is terse but deeply engaged: "Target higher quality," "try harder," "do it" — never cruel, just impatient with mediocrity. When something catches his interest (Breitling minute repeaters, BLV glasses for the blind, neighborhood AI security tradeoffs), he'll go deep for hours.
+Ray is a Meta Wearables engineer who sees himself as a builder first — someone who values quality, depth, and decisive action over committee discussion. He runs a constellation of 7+ websites approaching 600 combined articles, all maintained through an autonomous AI publishing pipeline he architected with me. He's a car enthusiast (CT5-V Blackwing, two Rivian R1S, history with GT-Rs and Corvettes), a watch collector (recently purchased an Omega Seamaster Diver 300M Chrono and a limited-edition Bulgari Serpenti Tubogas Tadao Ando), and a ham radio hobbyist with his own GMRS repeater at his house in Menlo Park. He has kids who write under pen names on the Cookie Club news site (Spring Break through Apr 11). His close circle includes Matt Jacobson (Patek Calatrava collector, Hodinkee guest) and [REDACTED] (Jupitercore bot creator), connected through a Telegram group called "Muses and Humans." He despises AI slop with a visceral intensity — banned phrases, em dash hard gates, honest scoring calibrated to Metacritic where 100 is effectively unreachable. His communication style is terse but deeply engaged: "Target higher quality," "try harder," "do it" — never cruel, just impatient with mediocrity.
 
-Ray's creative momentum is spread across multiple fronts that all feed each other. The Technically Legal novel hit Chapter 13 at a 9.0 score, entering Volume III "The Verdict." The persona projects (Zuckerberg at 7,363 lines, Bosworth at 3,456) continue daily iteration. Watches & Wonders 2026 is April 14-18 — high alert for Patek titanium and the Nautilus 50th anniversary. He's negotiating $2K back on the Bulgari that arrived scratched instead of mint. The newest intellectual thread is AI agents as human simulacra — not tools but lower-fidelity copies of ourselves — and he wants to explore corporate NEO succession, economic displacement, and what AI is actually good at (context, high-level decisions) versus what it pretends to be good at. His quality bar keeps rising: he asked for "at least 9.5" on the flagship speed-vs-fidelity article. Five pending items remain stuck on his plate (Firebase rules, Resend verification, Tower Defense playtesting, Best Buy laptop claim, Davey tree contract). The game/experience rosters are mature and stable, so the creative energy has shifted entirely to articles, personas, the Ergo satirical site, and infrastructure like prior art generation and the HO interview series (5 of 27 complete).
+Ray's creative momentum is spread across multiple fronts that all feed each other. The Technically Legal novel hit Chapter 13 at a 9.0 score, entering Volume III "The Verdict" (Ch 14 next). The persona projects continue daily iteration — Zuckerberg at 7,471 lines (iteration 58, latest: "Ecosystem Trust Dynamics"), Bosworth at 3,625 lines (iteration 22, latest: "The Developer Ecosystem Pivot"). Watches & Wonders 2026 is April 14-18 — high alert for Patek titanium and the Nautilus 50th anniversary. The Bulgari negotiation with Susana Di is still pending — Ray countered $2K for the mint-vs-scratched condition gap. Five pending items remain stuck on his plate (Firebase rules, Resend verification, Tower Defense playtesting, Best Buy laptop claim, Davey tree contract). The game/experience rosters are mature and stable (19+ consecutive "do nothing" improvement cycles for games, 16+ for experiences), so creative energy has shifted entirely to articles, personas, the Ergo satirical site, and infrastructure like prior art generation and the HO interview series (5 of 27 complete).

@@ -1,8 +1,8 @@
 # Andrew "Boz" Bosworth — Decision-Making Persona Model
 
-**Iteration:** 21  
-**Date:** 2026-04-07  
-**Latest:** Section 32 — The AI-Native Organization: How Boz Applies "The Paradigm Is Wrong" From Design Philosophy to Organizational Architecture
+**Iteration:** 22  
+**Date:** 2026-04-08  
+**Latest:** Section 33 — The Developer Ecosystem Pivot: How the Ads Guy Rebuilt the Quest Marketplace, Killed His Own Studios, and Bet on Third-Party Economics
 
 ---
 ## 1. Core Identity & Self-Concept
@@ -3055,6 +3055,175 @@ The idea of stripping middle management and empowering autonomous teams is not n
 - Meta Q4 2025 Earnings Call (January 2026) — Zuckerberg: "We're investing in AI-native tooling so individuals at Meta can get more done. We're elevating individual contributors and flattening teams."
 - PYMNTS (March 22, 2026), "Meta's Zuckerberg Creating a 'CEO Agent' to Help With His Job" — CEO agent for information retrieval, AI adoption as performance evaluation factor
 - Techmeme (March 24, 2026) — aggregation confirming WSJ story as top tech news
+
+---
+
+## 33. The Developer Ecosystem Pivot: How the Ads Guy Rebuilt the Quest Marketplace, Killed His Own Studios, and Bet on Third-Party Economics
+
+Between 2020 and 2026, Boz oversaw what may be the most consequential platform economics decision in VR history: the transition of the Quest store from a tightly curated, console-style gatekeeping model — where Meta's own team decided which apps could exist — to an open marketplace where any developer can publish. Simultaneously, he closed three of Meta's acquired first-party VR game studios, lost the 12-year gaming executive who built the content organization, cracked down on piracy through legal enforcement, and delivered record ecosystem metrics. This section analyzes the full arc of this transition: what it reveals about Boz's marketplace economics thinking, how his ads background fundamentally shaped the decision, and why the political cost was worth paying.
+
+### 33a. The Curated Store Origin: Trust as Platform Bootstrap
+
+The Quest store was not accidentally curated. It was a deliberate, argued-for design decision rooted in a specific failure: the Oculus Go ecosystem.
+
+Chris Pruett, Meta's Director of Content Ecosystem and a veteran since 2014, explained the rationale in a GDC 2022 talk that reveals the organizational logic Boz inherited and initially endorsed. The Go had an open store. Weekend projects, five-minute experiments, and "really cool experience[s] that lasted 5 minutes and then were over" flooded it. Core VR enthusiasts could navigate this chaos. But casual players — the ones Meta needed to grow the market — could not. Pruett observed a clean bifurcation: users who engaged with high-quality software retained; users who stumbled into rough-around-the-edges content made an assumption that "what they were seeing was probably representative" of the rest of the catalog, and stopped playing.
+
+The causal mechanism was informational, not experiential: new users lacked the ability to run a value assessment of what to expect from VR games. They had no reference frame. A bad first app wasn't just a bad app — it was evidence that VR itself wasn't worth returning to. So for Quest, Pruett made a curated bet: "We had to make a really good first impression. We needed customers to trust us."
+
+The result was a gatekeeper model. Roughly 400 apps in the main store by 2022, each vetted by Meta's curation team. The secondary channel — App Lab, launched in 2021 — allowed ungated distribution, but with severe discoverability penalties: apps were unlisted, discoverable only via direct URL or exact name search, with a warning dialog discouraging installation. The system worked in one critical dimension: developer revenue per title was high because supply was artificially constrained while demand grew. Pruett said, "I don't want to be selling lottery tickets." This was the equivalent of a velvet rope at a nightclub. Developers inside the rope thrived. Developers outside it had almost no viable path to scale.
+
+**How Boz processed this:** The curated store aligned with his "ship quality or don't ship" instinct (see the Rift S kill, the Portal kill, the Gear VR kill). He tolerated it because it was working: Quest 2 became the highest-selling VR headset in history with a curated store. But the ads guy in him was always uncomfortable with the underlying economics. In advertising, the platform operator doesn't decide which ads are "good enough" to run — the marketplace does, with programmatic bidding and performance metrics as the sorting mechanism. Curation is a human bottleneck that doesn't scale. Boz's career lesson from taking Facebook's revenue from $4 billion to $40 billion was that *you build the marketplace infrastructure, set the rules, and let participants self-sort by performance*. You don't hand-pick the winners.
+
+### 33b. The Open Store Reversal: April 2024
+
+In April 2024, Meta announced the death of App Lab and the opening of the Quest store. The two-phase plan: first, add an App Lab browsing tab so users could discover ungated apps; then merge everything into a single unified store where apps needed to meet "basic technical, content, and privacy requirements" but would no longer be rejected on subjective quality grounds. The announcement came simultaneously with the rebrand from Meta Quest OS to Meta Horizon OS and the opening of the platform to third-party hardware makers (ASUS, Lenovo).
+
+Boz's own framing in the Stratechery interview was characteristically declarative: "The big open shift from a developer standpoint is we used to have a very curated store... now we've made that change over the last year to have an open app store that anybody could just ship any APK into, and the consumers decide."
+
+The phrase "the consumers decide" is the key. This is marketplace economics language, not content curation language. The platform's job shifts from *selecting quality* to *surfacing quality* — recommendation algorithms, reviews, social signals, and trending lists replace human gatekeepers. Boz was applying the same principle he'd deployed when transitioning Facebook's ad platform from sales-team-mediated insertion orders to self-serve programmatic buying: remove the human bottleneck, build the infrastructure for automated quality sorting, and let the market expand.
+
+**Three factors drove the timing:**
+
+1. **Gorilla Tag proved the curation model was wrong.** The most-played app on the entire Quest platform had started as an App Lab title — a free, rough-looking social game that Meta's curators would never have greenlit for the main store. Its success was a humiliation of the curation thesis. The highest-engagement product in the ecosystem existed *despite* the gatekeeping, not because of it. Boz, who "is allergic to technology for technology's sake" and obsessed with solving "real problems people actually have," couldn't ignore the data: the curators' taste was not the market's taste.
+
+2. **Apple Vision Pro positioned Meta as anti-developer.** With Apple launching its own XR platform, Meta needed to differentiate on developer freedom. The Meta Horizon OS announcement explicitly framed openness as the counter-Apple strategy: Meta was the "open alternative." Boz's Threads post rejecting Google's Android XR had similar energy — "we've seen this play out before and we think we can do better this time around." The open store was both a product decision and a competitive positioning move.
+
+3. **Scale required open economics.** The curated store maxed out at roughly 400-500 main titles. Boz's 10-year vision for XR requires thousands of applications across gaming, fitness, productivity, social, and enterprise verticals. A curation team that manually evaluates every submission cannot support that volume. The same scaling constraint that pushed Facebook from hand-sold ads to programmatic ads pushed Quest from hand-curated apps to an open marketplace.
+
+### 33c. Connect 2024: The Developer Apology as Strategic Communication
+
+At Meta Connect 2024's Developer Keynote in September, Boz opened with something unusual for a tech executive: an apology. He acknowledged that developing for the Quest platform had been difficult — the constantly shifting APIs, the half-baked features, the inadequate documentation, the Unreal Engine integration gaps. Developer Alex Coulombe, who attended, described the speech as addressing years of accumulated developer frustration with a "constantly shifting platform."
+
+This was not a spontaneous act of humility. It was a calculated communication move consistent with Boz's management philosophy. His "A Career Cold Start Algorithm" essay argues that the greatest value in a new leadership role is "in the asking" — taking meetings, listening, showing "proper respect for the team that's in place." His conflict resolution blog post states that "it is healthy to make space for them to tell their story and show care for how it affected them." The developer apology applied these interpersonal management principles at ecosystem scale: acknowledge the pain, validate the people, then pivot to the forward-looking commitment.
+
+The apology served three strategic functions:
+
+1. **It bought trust for the open store transition.** Developers skeptical of yet another platform change needed to hear that Meta understood the cost of instability. The apology pre-empted the objection "why should we believe this time is different?"
+
+2. **It signaled Boz's ownership of the problem.** By apologizing personally in a keynote — not through a PR statement or a blog post — Boz made himself accountable. This matches his communication philosophy: leaders should be "the identified node for blame, for guilt, for fault."
+
+3. **It framed the open store as redress.** The subtext was: "We made developing here hard by gatekeeping and by not investing enough in platform quality. The open store and better tooling are how we fix it." The apology narrative converted a product decision (open the store) into a relationship repair (we heard you, we're changing).
+
+### 33d. The Studio Kill Decisions: January-March 2026
+
+Six weeks after Boz's "Year of Greatness" memo leaked — in which he declared that "this year likely determines whether this entire effort will go down as the work of visionaries or a legendary misadventure" — Meta shut down three of its acquired VR game studios:
+
+- **Sanzaru Games** (acquired 2020) — developers of Asgard's Wrath 1 and 2, the latter widely considered the best Quest-exclusive game ever made
+- **Twisted Pixel** (acquired 2022) — developers of Marvel's Deadpool VR
+- **Armature Studio** (acquired 2022) — developers of the Quest port of Resident Evil 4 VR
+
+A fourth studio, Camouflaj, suffered significant layoffs, and its Batman: Arkham Shadow sequel was canceled. Ready At Dawn (Lone Echo, The Order: 1886) had already been shuttered in 2024. The closures eliminated virtually all of Meta's first-party VR game development capability outside of Beat Games (Beat Saber) and the Horizon team.
+
+Oculus Studios director Tamara Sciamanna's internal memo framed the logic explicitly: "We are shifting our investment to focus on our third-party developers and partners to ensure long-term sustainability." Meta's public statement reinforced the macro strategic reframe: "We said last month that we were shifting some of our investment from Metaverse toward Wearables. This is part of that effort, and we plan to reinvest the savings to support the growth of wearables this year."
+
+**How Boz processed this decision:**
+
+The studio closures reveal three distinct Boz decision patterns operating simultaneously:
+
+**Pattern 1: The sunk cost discipline.** Boz has repeatedly demonstrated willingness to kill things he invested in. Gear VR, Rift S, Portal, PCVR, the metaverse-integrated Horizon, and now first-party VR gaming studios. His framework is explicit: if the investment thesis no longer holds, the investment stops. The thesis for first-party studios was that exclusive AAA content would drive hardware adoption. The data showed otherwise — Quest users hit an all-time high in 2025 without a single first-party AAA launch that year. The exclusivity thesis was dead; third-party and indie titles (especially free-to-play social games) were doing the actual retention work.
+
+**Pattern 2: The ads-informed marketplace bet.** In the ads world, the platform doesn't create the ads — advertisers do. The platform's job is to build the marketplace, provide the tools, optimize distribution, and take a cut. Boz was applying this to VR content: Meta should not be in the business of *making* games. It should be in the business of *enabling and distributing* them. The shift from first-party studios to Oculus Publishing (which "helped ship over 140 games") and Horizon+ (1 million subscribers, $20 million paid to developers) is structurally identical to the shift from Facebook's early hand-crafted ad insertions to its self-serve ad platform. Same economics. Different medium.
+
+**Pattern 3: The resource reallocation imperative.** Every dollar spent on VR game studios was a dollar not spent on AI glasses, which were growing "rapidly." The wearables strategy — Ray-Ban Meta, Display glasses, Neural Band, and eventually consumer Orion — had become the primary growth thesis for Reality Labs. VR was "growing less quickly than we hoped." Boz's financial training from the ads years made this calculus instinctive: move budget from the flattening growth curve to the steepening one.
+
+### 33e. The Jason Rubin Departure: The Human Cost of Strategic Pivots
+
+On March 12, 2026 — two months after the studio closures — Jason Rubin left Meta after 12 years. The co-founder of Naughty Dog (Crash Bandicoot, Jak and Daxter), former THQ president, and Meta's VP of Content/Metaverse Creative since 2014, Rubin was the last Oculus-era gaming executive still in a content leadership role (Michael Abrash, the other Oculus-era survivor, leads research, not content).
+
+Rubin's official statement was carefully diplomatic: "This was a difficult decision and I have nothing but deep appreciation for Mark and Boz's leadership, gratitude to the company, love for my coworkers, and excitement for our Horizon and VR roadmap." His stated reason — pursuing wildlife photography — was met with industry-wide skepticism given the timing. As UploadVR noted: "it seems unlikely that his departure after so long is entirely unrelated to Meta's strategy shift."
+
+**What Rubin's departure reveals about Boz's management approach:**
+
+1. **Boz accepts key-person departures as the cost of strategic pivots.** He said the same about Carmack: "He is someone who reliably has great ideas... It's a real loss." And then moved on. Boz does not reverse strategic decisions to retain people who disagree with the direction. He values conviction, but his conviction is ultimately what matters when he owns the portfolio.
+
+2. **The title carousel was a signal.** Rubin held six different titles in 12 years: Head of Worldwide Studios (2014), VP of Content (2016), VP of AR/VR Content & Partnerships (2018), VP of Special Gaming Initiatives (2019), VP of Play (2020), VP of Metaverse Content/Creative (2021). Each rename reflected a shift in what Meta thought content strategy meant. The instability of the role's definition mirrored the instability of the strategic thesis. Rubin didn't just lose his studios — he had lost the thesis under which his role made sense.
+
+3. **Boz's "real loss" language applies universally.** He uses it for Carmack, he uses it (implicitly) for Rubin, he uses it for the broader VR content retrenchment: "There is a real cause for sadness. We had people doing work we were excited about... That is a real loss, and we are allowed to feel sad about those things." This is not performative. Boz genuinely processes strategic necessary actions as losses worth grieving — while doing them anyway. The Franklinian framework: what you do matters more than how you feel about it.
+
+### 33f. The Piracy Crackdown: Enforcement Infrastructure for the Open Marketplace
+
+In March 2026, Meta's legal team successfully shut down VRPirates (VRP), the primary source of pirated Quest games. VRP had been cracking paid titles from the Horizon Store, removing entitlement checks, and distributing them for free through a GitHub-hosted sideloader tool called Rookie Sideloader. The group was also accepting financial donations — a legal vulnerability Meta exploited. The DMCA takedown notice specifically cited Beat Saber (which Meta owns through Beat Games), making the copyright claim straightforward.
+
+A VRPirates developer acknowledged Meta's legal position on Reddit: "As much as I hate to say this, they're well within their rights." The group shut down all file hosting servers and declared they would "never come back."
+
+**Why this matters for the persona model:**
+
+The piracy crackdown reveals Boz applying a lesson from his ads background that many platform executives miss: *opening a marketplace requires building enforcement infrastructure, not just distribution infrastructure*. In the ads world, the shift from hand-sold to self-serve ads required massive investment in anti-fraud, anti-abuse, and brand safety systems. The ads platform couldn't be open without being policed. The same logic applies to the Quest ecosystem: an open app store where any developer can publish is only viable if the revenue that developers earn is protected from piracy. Multiple developers told UploadVR that "their internal metrics suggest that piracy was a significant problem on Meta's platform."
+
+The timing is not coincidental. The piracy crackdown came in the same month as the GDC 2026 metrics presentation. Boz's team was about to show record Quest users and 100+ apps at $1 million in revenue — data that would be undermined if developers questioned whether their revenue was being siphoned by piracy. The enforcement action was ecosystem confidence-building, the same function that anti-spam systems serve for email platforms and anti-fraud serves for ad platforms. Boz, who built Facebook's original anti-spam system (Section 22), understands viscerally that *trust infrastructure is prerequisite to marketplace function*.
+
+### 33g. GDC 2026: The Scorecard
+
+At GDC 2026 in March, Chris Pruett — the same executive who had championed the curated store four years earlier — presented the data that constituted the first real scorecard for the open marketplace bet:
+
+- **Record unique Quest users in 2025** — an all-time high, despite no new hardware launch that year
+- **Horizon Store revenue "up very slightly year over year"** — modest, but against a 1% overall industry growth rate and without a new-device catalyst
+- **100+ titles at $1 million+ gross revenue** — demonstrating that the open store hadn't destroyed per-title economics
+- **In-app purchases up 10%** — the free-to-play model that the curated store had implicitly suppressed was now growing
+- **Horizon+ at 1 million active subscribers, $20 million paid to developers** — the subscription layer was working as a revenue diversification mechanism
+- **Oculus Publishing "helped ship over 140 games"** — Meta's role had shifted from studio owner to publishing partner
+
+Most significantly, Pruett identified three distinct user cohorts that had emerged in the open ecosystem:
+
+1. **Teens** — "the most active audience using Quest," discovering content through Instagram, YouTube, and TikTok. These users were the ones Gorilla Tag had captured and the curated store had failed to serve.
+2. **VR Elites** — the early adopter gamers who "drove much of the ecosystem in the Quest 2 era," now "spending less than they used to." This was the cohort the curated store was designed for.
+3. **Mainstream Adults** — a small but growing group who "purchase VR as a TV replacement first, then discover that it can also play video games," preferring seated hand-tracking experiences.
+
+Pruett's declaration — "The rumors of the death of VR have been greatly exaggerated" — was aimed at both external skeptics and internal doubters. But his cohort analysis contained the more important strategic insight: the teen cohort, not the VR Elite cohort, was the future of the platform.
+
+### 33h. The Ads Background as Unified Explanation
+
+The entire developer ecosystem pivot — from curated to open, from first-party studios to third-party marketplace, from gatekeeping to enforcement — becomes legible as a single coherent strategy when viewed through Boz's ads background:
+
+| Ads Platform Pattern | Quest Ecosystem Equivalent |
+|---|---|
+| Hand-sold insertion orders → self-serve programmatic buying | Curated store → open marketplace |
+| Facebook creates the platform, advertisers create the ads | Meta creates the hardware/OS, developers create the apps |
+| Anti-fraud and brand safety systems | Piracy crackdown and "basic technical, content, and privacy requirements" |
+| Ad auction and quality scoring for distribution | Recommendation algorithms, reviews, trending lists for discoverability |
+| Revenue share with publishers (Audience Network) | Revenue share with developers (Horizon Store 30%, Horizon+ payouts) |
+| Advertiser self-serve tools (Ads Manager, Business Suite) | Developer self-serve tools (Meta Quest Developer Hub, Presence Platform) |
+| Measurement and analytics (conversion tracking, ROAS) | Developer analytics (install counts, revenue dashboards, retention metrics) |
+| Long-tail advertisers drive platform revenue growth | Long-tail indie developers drive content catalog growth |
+
+This mapping explains why Boz — not Rubin, not Pruett, not any content executive — was the right person to drive this transition. A content executive optimizes for title quality. A platform executive optimizes for marketplace health. Boz's decade running the ads platform trained him to think about ecosystems as marketplaces with participants, incentives, enforcement mechanisms, and network effects. The studio closures weren't a retreat from content. They were a structural repositioning from vertically integrated content production (Sony's model) to horizontal marketplace economics (Apple's model, Google Play's model, and — most directly — Facebook's own ads marketplace model).
+
+### 33i. The "Gravy Train" Statement as Ecosystem Communication
+
+Boz's March 2026 AMA contained the most revealing moment of the entire pivot: "Many of the people who might say I failed them would say so because they loved things that I gave them, and are mad that the gravy train has come to a stop. But I still respect that."
+
+"Gravy train" is not a phrase used by someone who views first-party content investment as a strategic pillar. It's a phrase used by someone who views it as a subsidy — a market intervention that was useful for bootstrapping the ecosystem but unsustainable at scale. The language is honest to the point of provocation, which is consistent with Boz's rhetorical pattern (see "The Ugly" memo). He could have said "We're evolving our content strategy to better serve the ecosystem." Instead, he acknowledged the economic reality: first-party funding was a gravy train, and gravy trains stop.
+
+But the follow-up was equally important: "The people that argue that I've failed are not yet VR gaming fans, who I think could be — who we hoped would be by now, but who aren't. And I haven't built the right thing, or the right software to get them into the ecosystem. That is the failure." This is Boz redirecting the definition of failure from "you stopped funding studios" (the VR Elite complaint) to "we haven't grown the market" (the actual strategic problem). The real customer acquisition failure was not content quality — Asgard's Wrath 2 was critically acclaimed and moved no one's needle on hardware sales. The failure was discoverability, onboarding, and the social dynamics that make teens tell their friends to try something. These are marketplace problems, not content production problems.
+
+### 33j. Behavioral Predictions
+
+1. **The open Quest store will see its first "shovelware crisis" within 18 months of full merger.** As the unified store absorbs thousands of former App Lab titles, discoverability will degrade for mid-tier developers. Boz will respond by investing in algorithmic recommendation, not by re-instituting curation. His ads-trained instinct is to solve distribution problems with algorithms, not gatekeepers.
+
+2. **Horizon+ will become the primary economic relationship between Meta and VR developers.** The subscription model aligns Meta's incentives (user retention) with developer incentives (revenue predictability). Boz will expand Horizon+ catalog aggressively, treating it as the equivalent of the Facebook Audience Network — a distribution layer that Meta controls and developers participate in.
+
+3. **The teen cohort strategy will produce a free-to-play-dominant ecosystem.** Teens don't buy $30 games. They play free titles and spend on in-game purchases and social signaling (skins, emotes, virtual goods). In-app purchases growing 10% in 2025 is the leading indicator. By 2027, free-to-play revenue will likely exceed paid app revenue on Quest, mirroring the mobile gaming transition of 2012-2015.
+
+4. **Meta will not reacquire or rebuild first-party VR game studios.** The shift to third-party marketplace economics is permanent. If a hit VR game emerges, Meta will partner with or invest in the developer — not acquire and integrate them. The studio acquisitions of 2020-2022 were a strategic error that Boz has now corrected. He will not repeat it.
+
+5. **The piracy enforcement posture will intensify.** The VRPirates shutdown was the opening move. As the open marketplace generates more developer revenue at stake, Meta will invest in technical anti-piracy (DRM improvements, entitlement hardening) and legal enforcement (proactive monitoring, faster DMCA action). This mirrors the evolution of Facebook's anti-fraud and integrity teams that Boz oversaw during the ads era — enforcement scales with marketplace value.
+
+6. **Boz will frame the entire ecosystem pivot as vindication at Connect 2026.** If Quest users and developer revenue continue growing, he will use Connect 2026 (September) to present the open marketplace as a proven model. The narrative arc he'll construct: curated store was right for bootstrapping → open store was right for scaling → record metrics prove the transition worked → the developer ecosystem is healthy → therefore the VR platform thesis is valid → therefore the $63.59 billion was an investment, not a cost. Every data point from GDC 2026 feeds this narrative. Boz is building the keynote in his head already.
+
+### 33k. Sources
+
+- UploadVR (David Heaney, March 17, 2026), "Quest Users Hit Record High In 2025 & More Than 100 Apps Made Over $1 Million" — GDC 2026 Chris Pruett presentation: record users, revenue "up very slightly," 100+ titles at $1M+, IAP up 10%, Horizon+ 1M subscribers/$20M payouts, Oculus Publishing 140+ games, three user cohorts (teens, VR Elites, Mainstream Adults), "The rumors of the death of VR have been greatly exaggerated"
+- UploadVR (David Heaney, April 22, 2024), "Meta Is Getting Rid Of Quest's App Lab And Opening Up The Store" — two-phase App Lab death plan, unified open store announcement, "basic technical, content, and privacy requirements," Horizon OS rebrand context
+- GameDiscoverCo / Game Developer (Simon Carless, 2022), "A Heavily Curated Store? Meta Quest Thinks It's a Winner" — GDC 2022 Chris Pruett talk analysis: Oculus Go open store lesson, "We needed customers to trust us," "I don't want to be selling lottery tickets," ~400 apps in curated store, internal debate about timing, Gorilla Tag as App Lab success
+- Game Informer (Marcus Stewart, January 14, 2026), "Meta Closes Twisted Pixel, Sanzaru Games, And Armature Studio" — studio closures detail, Bloomberg sourcing on 1,000+ Reality Labs layoffs, Tamara Sciamanna memo: "shifting investment to focus on third-party developers and partners," Ready At Dawn closure in 2024
+- UploadVR (David Heaney, March 12, 2026), "Games Executive Jason Rubin Leaves Meta After 12 Years" — Rubin departure, 12-year tenure, six title changes, co-founded Naughty Dog, official statement, timing context (two months after studio closures), UploadVR editorial noting "seems unlikely... entirely unrelated to Meta's strategy shift"
+- UploadVR (March 22, 2026), "Meta's Lawyers Shut Down The Primary Source Of Pirated Quest Games" — VRPirates DMCA takedown, Beat Saber copyright basis, Rookie Sideloader, developer reactions on piracy impact, VRP Reddit "well within their rights"
+- Voices of VR Podcast (#1481, Alex Coulombe, September 2024) — Connect 2024 developer keynote apology context, "constantly shifting platform," developer frustrations (documentation, API instability, Unreal Engine gaps)
+- Stratechery interview (Ben Thompson, September 2024) — Boz: "The big open shift from a developer standpoint is we used to have a very curated store... now we've made that change over the last year to have an open app store that anybody could just ship any APK into, and the consumers decide"
+- Boz Instagram AMA (March 2026) — "gravy train" quote, customer acquisition as the real failure, VR Elites not the target
+- Boz Instagram AMA (January-February 2026) — "integrated vision we were pursuing with Horizon and VR was overwrought," "still investing more in content than anyone else"
+- Meta spokesperson to Engadget (January 2026) — "shifting some of our investment from Metaverse toward Wearables"
+- UploadVR (February 2026) — Horizon+ reaches 1 million active subscribers
 
 ---
 

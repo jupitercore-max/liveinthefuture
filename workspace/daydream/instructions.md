@@ -71,18 +71,45 @@ Ray is an engineering leader at Meta who builds things. He values:
 - Always search for developments in: Meta/wearables, watch industry, vehicle news for Ray's fleet, Menlo Park/education, AI search/SEO landscape
 - Check for time-sensitive events (product launches, industry fairs, regulatory deadlines)
 - Look at what Ray's COMPETITORS are doing
-- **NEW: Search for Meta FAIR publications** — research papers often preview product direction
-- **NEW: Search for LOCAL government notices** (menlopark.gov, MPCSD, San Mateo County)
-- **NEW: Search for macro policy** (tariffs, trade, regulation) with supply-chain specificity
-- **NEW: Check industry trade publications** (Optometry Times for glasses, GM Authority for vehicles, Neuroscience News for neural interfaces)
+- Search for Meta FAIR publications — research papers often preview product direction
+- Search for LOCAL government notices (menlopark.gov, MPCSD, San Mateo County)
+- Search for macro policy (tariffs, trade, regulation) with supply-chain specificity
+- Check industry trade publications (Optometry Times for glasses, GM Authority for vehicles, Neuroscience News for neural interfaces)
+- **NEW: Search for SERVICE BULLETINS and RECALLS for Ray's specific vehicles** (Escalade IQL, Rivian R1S, CT5-V Blackwing, Volvo XC90). GM Authority, NHTSA, Rivian forums. These are immediately actionable.
+- **NEW: Check academic/institutional sources for pending items.** UC IPM for the tussock moth thread was far more useful than news articles. University extension services, CDC, NHTSA, IIHS = better signal than mainstream media for specific decisions.
 
 ## Thread Management
 - Each thread gets one file in threads/
-- Threads can be: Active (still evolving), Resolved (insight delivered), or Dormant (no new info)
+- Threads can be: Active (still evolving), Resolved (insight delivered), Dormant (no new info), or **Closed**
 - Don't let threads accumulate forever. If a thread hasn't had new info in 3 iterations, mark it dormant or close it.
 - Report to main only when something is genuinely time-sensitive or actionable
-- **NEW: Maximum 10 active threads.** Beyond that, force-rank and close the weakest.
-- **NEW: Threads should explicitly state what decision or action they're driving toward.** If a thread doesn't have an action, it's a note, not a thread.
+- Maximum 10 active threads. Beyond that, force-rank and close the weakest.
+- Threads should explicitly state what decision or action they're driving toward. If a thread doesn't have an action, it's a note, not a thread.
+- **NEW: Close threads decisively.** Mark them CLOSED, write a summary, and move on. Don't let "dormant" linger — dormant after one more iteration → closed.
+- **NEW: When closing a competitive/monitoring thread, fold key insights into the relevant active thread rather than losing them.** The smart glasses competitive landscape → tariffs thread mapping was useful.
 
 ---
-*Updated: 2026-04-06, after Iteration 2*
+*Updated: 2026-04-08, after Iteration 4*
+
+## Iteration 3 Learnings (2026-04-07)
+
+- Meshtastic thread found a genuine hobby convergence
+- Rivian AI assistant delay was a good find but low urgency — keep these as notes, not threads
+- Pre-event leak windows (W&W) are real research targets
+
+## Iteration 4 Learnings (2026-04-08)
+
+### What Worked
+- **Vehicle service bulletin scanning** found the Escalade IQL high-voltage plug issue. This is exactly the kind of "you should know" that justifies the daydream cron. GM Authority is the right source for GM vehicles.
+- **Academic/institutional sources** (UC IPM) for the tussock moth thread gave much more actionable guidance than news. "Bt is most effective against young larvae" + "eggs hatch when spring growth expands" = specific, time-sensitive, useful.
+- **Revisiting old data with new sources** elevated the AI Overviews thread from "42% drop" to "61-65% drop." Always look for the best data, not the first data.
+- **Bilateral trade agreements** (Swiss watch tariff deal) are a new dimension for the tariff thread. Industry-specific lobbying outcomes matter.
+- **Pre-launch feature announcements** (nutrition tracking) are high-signal for Ray's day job — they show the product direction AND create the public narrative before launch day.
+
+### What to Improve for Iteration 5
+- **Pull actual Cloudflare analytics** for Ray's sites. The AI Overviews thread needs to be grounded in real data, not industry averages.
+- **W&W leak monitoring should intensify** April 9-13. Daily or even twice-daily search for "Patek" + "leak" + "2026" during this window.
+- **Track the Bulgari negotiation.** Susana Di hasn't responded to Ray's $2K counter. Should follow up before she assumes silence = acceptance of $500.
+- **Best Buy Totaltech laptop claim** has been pending for a while. Totaltech memberships have terms — is there a filing deadline?
+- **Rivian R1S IIHS TOP SAFETY PICK+** earned — fold into a quick note for Ray, and consider as vehicle-safety.org content.
+

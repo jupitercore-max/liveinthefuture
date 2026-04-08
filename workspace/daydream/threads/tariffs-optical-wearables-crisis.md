@@ -68,7 +68,27 @@ Strong LITF candidate: "The $499 Smart Glasses That Just Got More Expensive: How
 - The $499 price point is under pressure but may hold through initial launch — the question is Q3/Q4 sustainability
 
 ### Thread Status
-This thread is producing insight but not an immediate action for Ray. Evolving into a structural monitoring thread. Will close if tariff situation stabilizes or becomes fully priced in.
+Structural monitoring thread. New development: Swiss watch tariff deal (39% → 15%) shows bilateral negotiations can reduce rates. No analogous deal for consumer electronics yet. Will close if tariff situation fully stabilizes.
+
+## Iteration 4 Update (April 8)
+
+### Swiss Watch Tariff Deal — A Template for Wearables?
+The US-Switzerland trade agreement reduced Swiss goods tariffs from **39% to 15%**. Key details:
+- Retroactive to November 2023
+- Negotiated after a White House meeting with Rolex CEO Dufour, Richemont chairman Rupert, and Breitling (Partners Group)
+- Swiss watchmakers had implemented significant price increases during the 39% period
+- **SECO (Swiss State Secretariat for Economic Affairs)** framed it as parity with EU trading conditions
+
+**Relevance to wearables:** This demonstrates that bilateral deals CAN reduce tariff pain. But:
+- Switzerland is a tiny trade partner vs. China/EU as a whole
+- The watch industry had concentrated, high-profile lobbying (CEOs visiting the White House)
+- Consumer electronics/optical devices lack this kind of organized trade advocacy
+- EssilorLuxottica (France/Italy) benefits from the general EU tariff structure, not a special deal
+
+### Consumer Impact Data
+- Altitudes Magazine reports "manufacturers scrambling as import costs rise sharply"
+- Average US household facing hundreds of dollars in additional annual costs from tariffs
+- Retailers freezing ad spend in response to tariff anxiety (demand uncertainty)
 
 ---
-*Updated: 2026-04-07, Iteration 3*
+*Updated: 2026-04-08, Iteration 4 — Added Swiss watch tariff deal, consumer impact data*

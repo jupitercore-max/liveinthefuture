@@ -1,76 +1,50 @@
-# The Davey Contract: What to Ask Before Signing
+# The Davey Contract: Treatment Window Is Closing NOW
 
 **Created:** 2026-04-05 (Iteration 1)
-**Updated:** 2026-04-06 (Iteration 2)
-**Status:** URGENT — treatment window narrowing
-**Urgency:** HIGH (upgraded from medium-high)
+**Updated:** 2026-04-08 (Iteration 4)
+**Status:** URGENT — treatment effectiveness declining each week
+**Action:** Sign the contract. Ask about Bt (Bacillus thuringiensis) vs synthetic options.
 
-## NEW: City of Menlo Park Confirmed the Infestation (March 30, 2026)
+## Why This Can't Wait Until After Spring Break
 
-The City of Menlo Park published an official notice on March 30: **"Menlo Park is experiencing a seasonal increase in Western Tussock Moth caterpillars affecting coast live oaks."** This is exactly Ray's situation — he has 6 live oaks.
+UC IPM (University of California Integrated Pest Management) is clear on timing for western tussock moth:
 
-Key details from the city's notice:
-- "Recent warm weather has accelerated their activity"
-- City is treating parks and high-traffic areas FIRST, then street trees
-- **The city is using NON-CHEMICAL methods:** manual removal, targeted pruning, water spray
-- "These methods are effective in reducing impacts while protecting beneficial insects, wildlife and the broader environment"
+> "Overwintering eggs hatch when spring growth is expanding. Young larvae are black caterpillars with long bristles."
 
-## Why This Changes the Calculus
+In Northern California, spring growth expansion happens in **March-April**. That's RIGHT NOW. The larvae are hatching or have recently hatched.
 
-If the city is deliberately avoiding chemicals, Ray should ask Davey Tree the same question with more urgency. The city's approach signals:
+### Treatment Effectiveness Is Time-Dependent
 
-1. **The caterpillar hairs cause skin irritation** — the city specifically warns about this for children
-2. **Healthy oaks recover without treatment** — the city says "generally able to recover without long-term impacts"
-3. **The city chose non-chemical approaches** even in high-traffic public areas
+UC IPM's recommended treatment hierarchy:
+1. **Bacillus thuringiensis (Bt)** — #1 ranked, least harmful to beneficial insects
+   - "Most effective when applied during warm, dry weather when larvae are actively feeding"
+   - "**Most effective against young larvae**"
+   - "Requires more than 1 treatment; apply second application 7-10 days after first"
+2. **Spinosad** (Entrust/Success) — Second option
+3. **Various synthetics** — Last resort
 
-This raises the question: **does Ray actually need to pay $600 for chemical treatment, or can he follow the city's playbook?**
+**The key insight:** Bt only works against YOUNG larvae. As larvae mature, treatment becomes progressively less effective. Every week of delay = lower success probability.
 
-## The Decision Framework
+## What to Ask Davey
 
-**Scenario A: Pay $600 for Davey, demand Btk**
-- Faster, more thorough treatment
-- Btk is safe for kids, pets, bees
-- Professional monitoring of tree health
-- Peace of mind for 6 trees
+1. **What product are they spraying?** (If it's Bt — great. If it's synthetic — ask why not Bt first)
+2. **How many applications?** (Should be at least 2, 7-10 days apart per UC IPM)
+3. **Are they timing to larval stage?** (Treatment should target young larvae, not mature ones)
+4. **What about beneficial insect protection?** (Bt is preferred because it doesn't kill beneficial predators)
 
-**Scenario B: Follow the city's approach (free/DIY)**
-- Manual removal + water spray from a hose is free
-- Targeted pruning of heavily infested branches
-- Healthy oaks recover naturally
-- Risk: if oaks are already stressed (drought, prior damage), defoliation could be more harmful
+## The $600 Math
 
-**Scenario C: Hybrid**
-- Have Davey do an arborist assessment of the 6 oaks' health first
-- Only treat if trees are stressed or if infestation is severe
-- This avoids paying for treatment healthy trees don't need
+6 live oaks × tussock moth damage = potential thousands in tree health costs if defoliation happens. $600 for professional treatment is cheap insurance. A heavy infestation "will destroy all spring growth" per UC IPM.
 
-## Updated Questions for Davey
+## Previous Context
+- City of Menlo Park confirmed the tussock moth infestation (March 30 notice) and is using zero chemicals themselves
+- Davey Tree Service quoted $600 for treatment
+- Ray noted: "ask what product they're spraying"
+- This has been on the pending list since at least early April
 
-1. **What product will you use?** (Btk = sign immediately. Pyrethroids = negotiate or walk.)
-2. **Have you assessed the trees' health?** Is treatment even necessary, or will the oaks recover on their own like the city says?
-3. **What's the caterpillar stage?** Btk only works on actively feeding early-instar larvae. If they're already pupating, treatment is pointless.
-4. **How does your approach differ from the city's non-chemical methods?** Why chemicals when the city isn't using them?
-5. **Will you guarantee a re-treatment if caterpillars return after the first application?** (Standard for professional services)
+## Spring Break Ends April 11
 
-## Time Sensitivity
-
-The city notice confirms caterpillars are active NOW (March 30). Btk works best on early instars. If Ray waits another week, the treatment window may close. April is the critical month.
-
-## Iteration 3 Update (April 7)
-
-No new information from Menlo Park city or Davey Tree since Iteration 2.
-
-### Treatment Window Assessment
-- City notice was March 30 — 8 days ago
-- Caterpillars are NOW at or approaching mid-instar based on "recent warm weather has accelerated their activity"
-- **If Ray is going to act (Davey or DIY), it needs to happen THIS WEEK.** By mid-April, larvae may be pupating, making Btk ineffective.
-- If no action by April 14, the treatment window has likely closed for this season.
-
-### Connection to Meshtastic Thread (NEW)
-The new Meshtastic mesh network thread includes placing a sensor node near the oaks. Temperature + humidity data would help predict caterpillar lifecycle timing in future seasons. This is a long-term play but connects the threads.
-
-### Thread Status
-This thread has been stable for 2 iterations with no new external information. If Ray hasn't signed the Davey contract by Iteration 4, marking dormant — the window will have passed.
+Ray is likely focused on family activities this week. But a 5-minute phone call to sign the contract and schedule treatment is all that's needed. Treatment can happen while the family is doing other things.
 
 ---
-*Updated: 2026-04-07, Iteration 3 — Window closing, no new info*
+*Updated: 2026-04-08, Iteration 4 — UC IPM data confirms treatment window is NOW. Bt most effective against young larvae. Delay reduces effectiveness.*
