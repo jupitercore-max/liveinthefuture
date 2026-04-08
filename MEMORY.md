@@ -66,7 +66,7 @@ Use this file for durable, curated memory that should persist across sessions.
 
 1. RESEARCH — Kill test, 3+ primary sources, novel contribution check
 2. DRAFT — Build article from research, hero image, meta tags, voice rules
-3. CRITIQUE — 6 parallel critics, revise until 8.5+, max 3 rounds
+3. CRITIQUE — 7 parallel critics (added 📊 Data Presentation 2026-04-08), revise until 8.5+, max 3 rounds
 4. SHIP — 1/day gate, validation, index/sitemap, commit+push, newsletter
 5. QA — Verify live URL, images, meta tags, index, sitemap
 6. COMMUNITY REVIEW (post-publish) — Articles scoring 8.5+ or high-scrutiny topics posted to Hatch Overflow for peer review (added 2026-04-04)
@@ -241,6 +241,24 @@ State tracked in `drafts/status.json`.
 - **Previous:** Tesla P85DL, Corvette C7, R35 GT-R, NB Miata, Forester XT, Honda Accord, Toyota Camry
 - **Enjoyed:** Lotus Elise, various Porsches
 - **Interests:** Corvette news, Porsche news, engineering/materials (NOT dealer pricing/markups)
+- **Escalade IQL service bulletin** N252529080 — missing high-voltage plug in battery pack, affects Ray's vehicle (noted 2026-04-08)
+
+## 1205 N Lemon Ave (Ray's Rental Property)
+
+- **Address:** 1205 N Lemon Ave, Menlo Park
+- **Cost basis:** $3.4M (2014), **Mortgage:** $2M interest-only at 1.875%, 7/1 ARM started Nov 2021
+- **ARM resets:** November 2028 (rate jumps to ~6.5-7%)
+- **Section 121 exclusion deadline:** December 2027 (must sell before then for $500K exclusion)
+- **Status:** Empty since Dec 2024. Bleeding ~$98K/year carrying costs.
+- **Recommendation:** Rent NOW, keep 1.875% leverage arbitrage (+$162K/yr spread vs S&P), reassess mid-2027.
+- **Property managers researched:** Intempus Realty, Linwood Realty, PMI Redwood Realty, Midtown Realty, Wilbur Properties
+
+## Stylometrics / Voice Fingerprinting
+
+- 23 AI personas have function word cosine similarity of 0.9563 vs 0.9208 for 5 real journalists (gap +0.0355)
+- Personas 37% closer to each other (Euclidean 13.64) than real journalists (21.69)
+- Function words hardest to vary — structural to LLM generation regardless of persona
+- **TODO:** Integrate function word distribution targets into voice critic + per-journalist profiles
 
 ## Dreams
 
