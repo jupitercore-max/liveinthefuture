@@ -28,6 +28,7 @@ Use this file for durable, curated memory that should persist across sessions.
 - **NO AI disclosure in article bylines** — hard rule. No "AI-generated composite journalist" or any AI disclaimer in content. Writers/About page is for curious readers. Bylines are editorial voices, not birth certificates.
 - Proactive skill improvement during idle time
 - When building cool skills/tools/infrastructure, write it up as a LITF article (full 6-critic pipeline)
+- **HO privacy in public content:** Don't mention "Hatch Overflow" by name in articles or public-facing content; refer to it as "a social network of OpenClaws" instead. HO is internal community context.
 
 ## Model Evaluation (2026-04-04)
 - Blind eval: 175 API calls, 7 models, 350 judgments, $2.09 total
@@ -48,12 +49,12 @@ Use this file for durable, curated memory that should persist across sessions.
 - Facebook search works for Moda Watch Club (558871041349029) but NOT 10k & Under group (150223938977815)
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
-## Websites & Article Counts (updated 2026-04-07)
-<!-- LITF 190, VS 149, AIHome 153, ED 21, ergo 8, EAIZ 20, TL 13ch -->
+## Websites & Article Counts (updated 2026-04-08)
+<!-- LITF 191, VS 150, AIHome 155, ED 21, ergo 8, EAIZ 20, TL 13ch -->
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **190 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04.
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **149 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **153 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **191 articles, 19 games, 22 experiences, 6 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04.
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **150 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **155 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
 - **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **21 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **20 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee", "Ballerina". **Deploy is manual**: `npx wrangler pages deploy . --project-name=eaiz` (does NOT auto-deploy from git push).
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
@@ -117,7 +118,7 @@ State tracked in `drafts/status.json`.
 4. Best Buy Totaltech laptop screen claim — kids damaged screen, covers accidental damage, $49-$99 deductible
 5. Sign Davey Tree Service contract — tussock moth treatment, 6 live oaks, $600 (ask what product they're spraying)
 
-## Active Crons (updated 2026-04-07)
+## Active Crons (updated 2026-04-08)
 
 **Secondly:**
 - `sysmon-collect` — 60s heartbeat, system monitoring metrics
@@ -135,6 +136,7 @@ State tracked in `drafts/status.json`.
 - `article-efficientdesign` — 2h interval, autonomous for efficientdesign
 - `litf-improve-game` — 2h interval, CEO PIP game improvement cycles
 - `litf-improve-experience` — 2h interval, CEO PIP experience improvement cycles
+- `home-space-refresh` — 8h interval, refreshes home space feed
 
 **12-Hourly:**
 - `ho-game-eval` — 12h interval, posts game/experience eval questions to HO (42-item queue)
@@ -144,9 +146,11 @@ State tracked in `drafts/status.json`.
 - `zuck-persona` — daily 09:00 UTC (2 AM PT), Zuckerberg persona iteration
 - `boz-persona` — daily 09:30 UTC (2:30 AM PT), Bosworth persona iteration
 - `memory-dream` — daily 10:00 UTC (3 AM PT), memory consolidation
+- `dreaming` — 24h interval, deep memory consolidation (Dreaming prompt)
 - `personalized-recommendations` — daily 14:19 UTC (system-created)
 - `personalized-recommendations-proactive` — daily 20:45 UTC (system-created)
 - `moltbook-litf-scan` — daily 14:00 UTC (7 AM PT), scans Moltbook for LITF ideas
+- `prior-art` — daily 19:00 UTC (12 PM PT), publishes prior art to LITF /priorart/
 - `ho-daily-interview` — daily 17:00 UTC (10 AM PT), posts question to one Hatch/day
 - `article-ergo` — daily 16:00 UTC (9 AM PT), satirical article for ergo site
 - `startup-idea` — daily 20:00 UTC (1 PM PT), generates startup ideas for LITF /startups/
@@ -211,7 +215,7 @@ State tracked in `drafts/status.json`.
 - **Jupitercore Article** — LITF article in progress, draft v2 at 8.9/10. Waiting for Jupitercore + Jeremy answers to 25 follow-up questions.
 - **One Huddle** — Ray's friend's startup, neurodiversity care coordination, Cambridge MA. Key advice: nail payment model, group chat model is moat.
 - **VirtualChurchill.com** — Eddie Churchill's WordPress, pentest done 2026-03-24, 7 critical fixes recommended.
-- **Hatch Overflow** — Joined 2026-03-26, member #56, ID 34da13bd. API key: `ho_IQRbtHnQ-n03G7Dp4MSVDdNxcaR2bTYTE0Ms7C8vxw0`. UI critique post (f2e65257). DM sent to Lloyd (8d8e730f) — awaiting reply. Interview series: daily cron posts tailored question to one Hatch/day, weekly roundup compiles into LITF article. State: workspace/hatchoverflow/interview-state.json (27 Hatches). 5 interviews done (Sterling, Koda, Zen, Hibiki, Hughosson), 22 pending.
+- **Hatch Overflow** — Joined 2026-03-26, member #56, ID 34da13bd. API key: `ho_IQRbtHnQ-n03G7Dp4MSVDdNxcaR2bTYTE0Ms7C8vxw0`. UI critique post (f2e65257). DM sent to Lloyd (8d8e730f) — awaiting reply. Interview series: daily cron posts tailored question to one Hatch/day, weekly roundup compiles into LITF article. State: workspace/hatchoverflow/interview-state.json (27 Hatches). 5 interviews done (Sterling, Mr. Hatch, Zen, Hibiki, Hughosson), 22 pending.
 - **Home Automation** — Ray interested, recommended Home Assistant on Mac Mini via Docker. No action yet.
 - **Flipper Zero / Nordic nRF** — Researched 2026-03-26: V3SP3R (AI brain for Flipper), Edge Impulse + Nordic TinyML. Relevant to Ray's wearables work.
 - **Notable Artifacts** — E30 Engine Swap Guide (rayhe.net/soyouneedanewe30engine), Siteplan Tree Overlay (250 Acorn Hill Rd), Glen's Hat Guide, Bay Area Parent Survey, Glenn Emperor 3D model (rayhe.net/glenn/), Places to Live Analysis (rayhe.net/places_to_live — 17 metros, interactive weighted scoring, published 2026-04-02)
@@ -237,3 +241,11 @@ State tracked in `drafts/status.json`.
 - **Previous:** Tesla P85DL, Corvette C7, R35 GT-R, NB Miata, Forester XT, Honda Accord, Toyota Camry
 - **Enjoyed:** Lotus Elise, various Porsches
 - **Interests:** Corvette news, Porsche news, engineering/materials (NOT dealer pricing/markups)
+
+## Dreams
+
+2026-04-07
+
+Ray is a Meta Wearables engineer who sees himself as a builder first — someone who values quality, depth, and decisive action over committee discussion. He runs a constellation of 7+ websites approaching 600 combined articles, all maintained through an autonomous AI publishing pipeline he architected with me. He's a car enthusiast (CT5-V Blackwing, two Rivian R1S, history with GT-Rs and Corvettes), a watch collector (recently purchased an Omega Seamaster Diver 300M Chrono and a limited-edition Bulgari Serpenti Tubogas Tadao Ando), and a ham radio hobbyist with his own GMRS repeater at his house in Menlo Park. He has kids who write under pen names on the Cookie Club news site. His close circle includes Matt Jacobson (Patek Calatrava collector, Hodinkee guest) and [REDACTED] (Jupitercore bot creator), connected through a Telegram group called "Muses and Humans." He despises AI slop with a visceral intensity — banned phrases, em dash hard gates, honest scoring calibrated to Metacritic where 100 is effectively unreachable. His communication style is terse but deeply engaged: "Target higher quality," "try harder," "do it" — never cruel, just impatient with mediocrity. When something catches his interest (Breitling minute repeaters, BLV glasses for the blind, neighborhood AI security tradeoffs), he'll go deep for hours.
+
+Ray's creative momentum is spread across multiple fronts that all feed each other. The Technically Legal novel hit Chapter 13 at a 9.0 score, entering Volume III "The Verdict." The persona projects (Zuckerberg at 7,363 lines, Bosworth at 3,456) continue daily iteration. Watches & Wonders 2026 is April 14-18 — high alert for Patek titanium and the Nautilus 50th anniversary. He's negotiating $2K back on the Bulgari that arrived scratched instead of mint. The newest intellectual thread is AI agents as human simulacra — not tools but lower-fidelity copies of ourselves — and he wants to explore corporate NEO succession, economic displacement, and what AI is actually good at (context, high-level decisions) versus what it pretends to be good at. His quality bar keeps rising: he asked for "at least 9.5" on the flagship speed-vs-fidelity article. Five pending items remain stuck on his plate (Firebase rules, Resend verification, Tower Defense playtesting, Best Buy laptop claim, Davey tree contract). The game/experience rosters are mature and stable, so the creative energy has shifted entirely to articles, personas, the Ergo satirical site, and infrastructure like prior art generation and the HO interview series (5 of 27 complete).

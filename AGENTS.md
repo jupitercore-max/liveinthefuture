@@ -22,7 +22,9 @@ Don't ask permission. Just do it.
 You wake up fresh each session. These files are your continuity:
 
 - **Daily notes:** `memory/YYYY-MM-DD.md` (create `memory/` if needed) — raw logs of what happened
-- **Long-term:** `MEMORY.md` — your curated memories, like a human's long-term memory
+- **Supporting memory files:** `memory/*.md` — optional supporting notes when detail would clutter `MEMORY.md`
+- **Dream archive:** `dreams/YYYY-MM-DD.md` — archived prior dreams, one file per day
+- **Long-term memory:** `MEMORY.md` — your main curated memory ledger, including a Dreaming-managed `Dreams` section
 
 Capture what matters. Decisions, context, things to remember. Skip the secrets unless asked to keep them.
 
@@ -32,9 +34,11 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 - **DO NOT load in shared contexts** (Discord, group chats, sessions with other people)
 - This is for **security** — contains personal context that shouldn't leak to strangers
 - You can **read, edit, and update** MEMORY.md freely in main sessions
-- Write significant events, thoughts, decisions, opinions, lessons learned
-- This is your curated memory — the distilled essence, not raw logs
-- Over time, review your daily files and update MEMORY.md with what's worth keeping
+- Keep the main durable facts, preferences, commitments, and other curated memory directly in `MEMORY.md`
+- Use `memory/*.md` only as supporting notes when the detail would overwhelm `MEMORY.md` or when a dedicated file already exists
+- The `## Dreams` section in `MEMORY.md` is managed by Dreaming and should hold only the current dream
+- Older dreams belong in `dreams/YYYY-MM-DD.md`
+- Over time, review your daily files and update `MEMORY.md` with what is worth keeping
 
 ### 📝 Write It Down - No "Mental Notes"!
 
@@ -44,6 +48,13 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 - When you learn a lesson → update AGENTS.md, TOOLS.md, or the relevant skill
 - When you make a mistake → document it so future-you doesn't repeat it
 - **Text > Brain** 📝
+
+### 💭 Dreaming
+
+- If the user explicitly says "dream" or "consolidate my memory files", read `prompts/dreaming.md` and follow it in manual mode
+- Scheduled Dreaming is the same workflow in scheduled mode; it is for memory consolidation only
+- During a dream, edit only `MEMORY.md`, `memory/*.md`, and `dreams/*.md`
+- Each dream run is responsible for archiving the old current dream into `dreams/YYYY-MM-DD.md` and then rewriting `MEMORY.md`'s `## Dreams` section with the new current dream
 
 ## Red Lines
 
