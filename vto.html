@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Glasses VTO — Photo Booth</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;overflow:hidden;height:100vh;display:flex;flex-direction:column}
+header{text-align:center;padding:10px 0 6px;background:#111;border-bottom:1px solid #222}
+header h1{font-size:18px;font-weight:600;letter-spacing:1px;color:#fff}
+header p{font-size:11px;color:#666;margin-top:2px}
+#status{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:16px;color:#888;z-index:10;text-align:center}
+#status.hidden{display:none}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);flex:1;gap:2px;padding:2px;background:#0a0a0a}
+.cell{position:relative;overflow:hidden;background:#111;border-radius:4px}
+.cell canvas{width:100%;height:100%;object-fit:cover;display:block}
+.cell .label{position:absolute;bottom:0;left:0;right:0;padding:4px 8px;background:linear-gradient(transparent,rgba(0,0,0,.85));text-align:center;pointer-events:none}
+.cell .label .brand{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;opacity:.6;display:block}
+.cell .label .model{font-size:12px;font-weight:600;color:#fff}
+video#cam{display:none}
+#controls{display:flex;justify-content:center;gap:12px;padding:8px;background:#111;border-top:1px solid #222}
+#controls button{background:#222;border:1px solid #333;color:#fff;padding:6px 16px;border-radius:4px;cursor:pointer;font-size:12px}
+#controls button:hover{background:#333}
+#controls button.active{background:#1a73e8;border-color:#1a73e8}
+@media(max-width:600px){
+  .grid{grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)}
+  .cell .label .model{font-size:10px}
+  .cell .label .brand{font-size:7px}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>SMART GLASSES — VIRTUAL TRY-ON</h1>
+  <p>Ray-Ban Meta · Oakley · Vanguard</p>
+</header>
+<div id="status">Initializing camera & face detection…</div>
+<div class="grid" id="grid"></div>
+<div id="controls">
+  <button id="btnSnap" onclick="takeSnapshot()">📸 Snapshot</button>
+  <button id="btnMirror" onclick="toggleMirror()">🪞 Mirror</button>
+</div>
+<video id="cam" autoplay playsinline></video>
+
+<script type="module">
+// MediaPipe Face Mesh via CDN
+import {FaceMesh} from 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js';
+import {Camera} from 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1640029074/camera_utils.js';
+
+const GLASSES = [
+  {brand:'Ray-Ban Meta', model:'Wayfarer',       draw:drawWayfarer,   color:'#1a1a1a', accent:'#333',    thick:true,  size:1.0},
+  {brand:'Ray-Ban Meta', model:'Wayfarer Large',  draw:drawWayfarer,   color:'#0d0d0d', accent:'#222',    thick:true,  size:1.12},
+  {brand:'Ray-Ban Meta', model:'Headliner',       draw:drawHeadliner,  color:'#2a2a3a', accent:'#444',    thick:false, size:1.0},
+  {brand:'Ray-Ban Meta', model:'Skyler',          draw:drawSkyler,     color:'#1a1a1a', accent:'#333',    thick:false, size:1.0},
+  {brand:'Ray-Ban Meta', model:'Clyde',           draw:drawClyde,      color:'#2b1d0e', accent:'#4a3520', thick:true,  size:1.0},
+  {brand:'Oakley',       model:'Sphaera',         draw:drawSphaera,    color:'#111',    accent:'#0066ff', thick:true,  size:1.08},
+  {brand:'Oakley',       model:'Encoder',         draw:drawEncoder,    color:'#111',    accent:'#ff3300', thick:true,  size:1.04},
+  {brand:'Vanguard',     model:'Classic',         draw:drawVanguard,   color:'#1a1a2e', accent:'#4a4a6a', thick:false, size:1.0},
+  {brand:'Vanguard',     model:'Sport',           draw:drawVanguardSp, color:'#0d0d0d', accent:'#00cc66', thick:true,  size:1.06},
+];
+
+let mirrored = true;
+const grid = document.getElementById('grid');
+const video = document.getElementById('cam');
+const statusEl = document.getElementById('status');
+const cells = [];
+
+// Create 9 cells
+GLASSES.forEach((g,i)=>{
+  const div = document.createElement('div');
+  div.className = 'cell';
+  const canvas = document.createElement('canvas');
+  canvas.id = `c${i}`;
+  div.appendChild(canvas);
+  const label = document.createElement('div');
+  label.className = 'label';
+  label.innerHTML = `<span class="brand">${g.brand}</span><span class="model">${g.model}</span>`;
+  div.appendChild(label);
+  grid.appendChild(div);
+  cells.push({canvas, ctx: null, g});
+});
+
+// Initialize canvases after video is ready
+function initCanvases(w,h){
+  cells.forEach(c=>{
+    c.canvas.width = w;
+    c.canvas.height = h;
+    c.ctx = c.canvas.getContext('2d');
+  });
+}
+
+// Face mesh setup
+const faceMesh = new FaceMesh({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`});
+faceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+
+faceMesh.onResults(results=>{
+  const w = results.image.width || video.videoWidth;
+  const h = results.image.height || video.videoHeight;
+  if(!cells[0].ctx) initCanvases(w,h);
+
+  const face = results.multiFaceLandmarks?.[0];
+
+  cells.forEach(c=>{
+    const ctx = c.ctx;
+    ctx.save();
+    if(mirrored){
+      ctx.translate(w,0);
+      ctx.scale(-1,1);
+    }
+    ctx.drawImage(results.image,0,0,w,h);
+    ctx.restore();
+
+    if(face){
+      c.g.draw(ctx, face, w, h, c.g, mirrored);
+    }
+  });
+});
+
+// Start camera
+const cam = new Camera(video, {
+  onFrame: async()=> await faceMesh.send({image:video}),
+  width:640,height:480
+});
+cam.start().then(()=>{
+  statusEl.classList.add('hidden');
+}).catch(e=>{
+  statusEl.textContent = 'Camera access denied. Please allow camera access.';
+});
+
+// ===== GLASSES DRAWING FUNCTIONS =====
+
+// Helper: get key face points
+function facePoints(lm, w, h, mirrored){
+  const p = i => {
+    let x = lm[i].x * w;
+    const y = lm[i].y * h;
+    if(mirrored) x = w - x;
+    return {x, y};
+  };
+  const leftOuter = p(33);
+  const rightOuter = p(263);
+  const leftInner = p(133);
+  const rightInner = p(362);
+  const noseBridge = p(6);
+  const noseTop = p(168);
+  const leftBrow = p(70);
+  const rightBrow = p(300);
+  const leftEyeTop = p(159);
+  const rightEyeTop = p(386);
+  const leftEyeBot = p(145);
+  const rightEyeBot = p(374);
+  const leftTemple = p(234);
+  const rightTemple = p(454);
+
+  const eyeWidth = Math.hypot(rightOuter.x-leftOuter.x, rightOuter.y-leftOuter.y);
+  const angle = Math.atan2(rightOuter.y-leftOuter.y, rightOuter.x-leftOuter.x);
+  const center = {x:(leftOuter.x+rightOuter.x)/2, y:(leftOuter.y+rightOuter.y)/2};
+  const eyeH = Math.abs(leftEyeTop.y - leftEyeBot.y);
+
+  return {leftOuter,rightOuter,leftInner,rightInner,noseBridge,noseTop,leftBrow,rightBrow,
+          leftEyeTop,rightEyeTop,leftEyeBot,rightEyeBot,leftTemple,rightTemple,
+          eyeWidth,angle,center,eyeH};
+}
+
+// Ray-Ban Meta Wayfarer
+function drawWayfarer(ctx, lm, w, h, g, mirrored){
+  const f = facePoints(lm, w, h, mirrored);
+  const s = f.eyeWidth * g.size;
+  const cx = f.center.x, cy = f.center.y;
+  const a = f.angle;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(a);
+
+  const lw = s * 0.48, lh = s * 0.28;
+  const gap = s * 0.04;
+  const frameW = g.thick ? s*0.035 : s*0.025;
+  const topFlat = lh * 0.15; // wayfarer top is flatter
+  const yOff = s * 0.02;
+
+  ctx.lineWidth = frameW;
+  ctx.strokeStyle = g.color;
+  ctx.fillStyle = 'rgba(40,40,40,0.25)';
+  ctx.lineJoin = 'round';
+
+  // Left lens
+  ctx.beginPath();
+  ctx.moveTo(-gap, -lh*0.4 + yOff);
+  ctx.lineTo(-lw*0.5, -lh*0.35 + yOff);
+  ctx.quadraticCurveTo(-lw*0.55, lh*0.4 + yOff, -lw*0.2, lh*0.45 + yOff);
+  ctx.lineTo(-gap*0.5, lh*0.3 + yOff);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // Right lens
+  ctx.beginPath();
+  ctx.moveTo(gap, -lh*0.4 + yOff);
+  ctx.lineTo(lw*0.5, -lh*0.35 + yOff);
+  ctx.quadraticCurveTo(lw*0.55, lh*0.4 + yOff, lw*0.2, lh*0.45 + yOff);
+  ctx.lineTo(gap*0.5, lh*0.3 + yOff);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // Bridge
+  ctx.beginPath();
+  ctx.moveTo(-gap, -lh*0.15 + yOff);
+  ctx.quadraticCurveTo(0, -lh*0.05 + yOff, gap, -lh*0.15 + yOff);
+  ctx.lineWidth = frameW * 0.8;
+  ctx.stroke();
+
+  // Temple arms
+  ctx.lineWidth = frameW * 0.7;
+  ctx.beginPath();
+  ctx.moveTo(-lw*0.5, -lh*0.3 + yOff);
+  ctx.lineTo(-s*0.58, -lh*0.2 + yOff);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(lw*0.5, -lh*0.3 + yOff);
+  ctx.lineTo(s*0.58, -lh*0.2 + yOff);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// Ray-Ban Meta Headliner (rounder, thinner)
+function drawHeadliner(ctx, lm, w, h, g, mirrored){
+  const f = facePoints(lm, w, h, mirrored);
+  const s = f.eyeWidth * g.size;
+  const cx = f.center.x, cy = f.center.y;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(f.angle);
+
+  const r = s * 0.19;
+  const gap = s * 0.06;
+  const frameW = s * 0.022;
+  const yOff = s * 0.02;
+
+  ctx.lineWidth = frameW;
+  ctx.strokeStyle = g.color;
+  ctx.fillStyle = 'rgba(50,50,70,0.2)';
+
+  // Left lens (slightly squared circle)
+  const lx = -(gap + r);
+  ctx.beginPath();
+  roundRect(ctx, lx-r, -r*0.9+yOff, r*2, r*1.8, r*0.6);
+  ctx.fill(); ctx.stroke();
+
+  // Right lens
+  const rx = gap + r;
+  ctx.beginPath();
+  roundRect(ctx, rx-r, -r*0.9+yOff, r*2, r*1.8, r*0.6);
+  ctx.fill(); ctx.stroke();
+
+  // Bridge
+  ctx.beginPath();
+  ctx.moveTo(-gap, yOff);
+  ctx.quadraticCurveTo(0, yOff + s*0.02, gap, yOff);
+  ctx.lineWidth = frameW * 0.7;
+  ctx.stroke();
+
+  // Temples
+  ctx.lineWidth = frameW * 0.6;
+  ctx.beginPath();
+  ctx.moveTo(lx-r, -r*0.2+yOff);
+  ctx.lineTo(-s*0.56, -r*0.1+yOff);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(rx+r, -r*0.2+yOff);
+  ctx.lineTo(s*0.56, -r*0.1+yOff);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// Skyler (cat-eye)
+function drawSkyler(ctx, lm, w, h, g, mirrored){
+  const f = facePoints(lm, w, h, mirrored);
+  const s = f.eyeWidth * g.size;
+  const cx = f.center.x, cy = f.center.y;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(f.angle);
+
+  const lw = s*0.44, lh = s*0.24;
+  const gap = s*0.04;
+  const frameW = s*0.02;
+  const yOff = s*0.01;
+
+  ctx.lineWidth = frameW;
+  ctx.strokeStyle = g.color;
+  ctx.fillStyle = 'rgba(40,40,50,0.2)';
+  ctx.lineJoin = 'round';
+
+  // Cat-eye: upper outer corners sweep up
+  [-1,1].forEach(side=>{
+    ctx.beginPath();
+    const ox = side * gap;
+    const ex = side * lw*0.55;
+    ctx.moveTo(ox, -lh*0.1 + yOff);
+    ctx.lineTo(side*lw*0.15, -lh*0.6 + yOff); // inner top
+    ctx.lineTo(ex, -lh*0.75 + yOff); // cat-eye peak
+    ctx.quadraticCurveTo(side*lw*0.6, lh*0.2+yOff, side*lw*0.3, lh*0.4+yOff);
+    ctx.lineTo(ox*0.5, lh*0.25+yOff);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+  });
+
+  // Bridge
+  ctx.beginPath();
+  ctx.moveTo(-gap*0.8, -lh*0.1+yOff);
+  ctx.quadraticCurveTo(0, lh*0.05+yOff, gap*0.8, -lh*0.1+yOff);
+  ctx.lineWidth = frameW*0.7;
+  ctx.stroke();
+
+  // Temples
+  ctx.lineWidth = frameW*0.6;
+  [-1,1].forEach(side=>{
+    ctx.beginPath();
+    ctx.moveTo(side*lw*0.55, -lh*0.6+yOff);
+    ctx.lineTo(side*s*0.58, -lh*0.4+yOff);
+    ctx.stroke();
+  });
+
+  ctx.restore();
+}
+
+// Clyde (round)
+function drawClyde(ctx, lm, w, h, g, mirrored){
+  const f = facePoints(lm, w, h, mirrored);
+  const s = f.eyeWidth * g.size;
+  const cx = f.center.x, cy = f.center.y;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(f.angle);
+
+  const r = s * 0.17;
+  const gap = s * 0.06;
+  const frameW = s * 0.03;
+  const yOff = s * 0.02;
+
+  ctx.lineWidth = frameW;
+  ctx.strokeStyle = g.color;
+  ctx.fillStyle = 'rgba(60,40,20,0.2)';
+
+  // Left circle
+  ctx.beginPath();
+  ctx.arc(-(gap+r), yOff, r, 0, Math.PI*2);
+  ctx.fill(); ctx.stroke();
+
+  // Right circle
+  ctx.beginPath();
+  ctx.arc(gap+r, yOff, r, 0, Math.PI*2);
+  ctx.fill(); ctx.stroke();
+
+  // Bridge
+  ctx.beginPath();
+  ctx.moveTo(-gap, yOff - r*0.15);
+  ctx.quadraticCurveTo(0, yOff + r*0.15, gap, yOff - r*0.15);
+  ctx.lineWidth = frameW*0.6;
+  ctx.stroke();
+
+  // Temples
+  ctx.lineWidth = frameW*0.5;
+  [-1,1].forEach(side=>{
+    ctx.beginPath();
+    ctx.moveTo(side*(gap+r*2), yOff);
+    ctx.lineTo(side*s*0.58, yOff + r*0.1);
+    ctx.stroke();
+  });
+
+  ctx.restore();
+}
+
+// Oakley Sphaera (wraparound shield)
+function drawSphaera(ctx, lm, w, h, g, mirrored){
+  const f = facePoints(lm, w, h, mirrored);
+  const s = f.eyeWidth * g.size;
+  const cx = f.center.x, cy = f.center.y;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(f.angle);
+
+  const lw = s*0.55, lh = s*0.22;
+  const frameW = s*0.035;
+  const yOff = s*0.01;
+
+  // Single shield lens
+  ctx.fillStyle = 'rgba(0,30,80,0.35)';
+  ctx.strokeStyle = g.color;
+  ctx.lineWidth = frameW;
+  ctx.lineJoin = 'round';
+
+  ctx.beginPath();
+  ctx.moveTo(-lw, -lh*0.5+yOff);
+  ctx.quadraticCurveTo(-lw*0.3, -lh*1.0+yOff, 0, -lh*0.8+yOff);
+  ctx.quadraticCurveTo(lw*0.3, -lh*1.0+yOff, lw, -lh*0.5+yOff);
+  ctx.quadraticCurveTo(lw*1.02, lh*0.3+yOff, lw*0.6, lh*0.6+yOff);
+  ctx.lineTo(-lw*0.6, lh*0.6+yOff);
+  ctx.quadraticCurveTo(-lw*1.02, lh*0.3+yOff, -lw, -lh*0.5+yOff);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // Accent line
+  ctx.strokeStyle = g.accent;
+  ctx.lineWidth = s*0.008;
+  ctx.beginPath();
+  ctx.moveTo(-lw*0.9, -lh*0.3+yOff);
+  ctx.quadraticCurveTo(0, -lh*0.75+yOff, lw*0.9, -lh*0.3+yOff);
+  ctx.stroke();
+
+  // Temples
+  ctx.strokeStyle = g.color;
+  ctx.lineWidth = frameW*0.6;
+  [-1,1].forEach(side=>{
+    ctx.beginPath();
+    ctx.moveTo(side*lw, -lh*0.3+yOff);
+    ctx.lineTo(side*s*0.62, -lh*0.15+yOff);
+    ctx.stroke();
+  });
+
+  ctx.restore();
+}
+
+// Oakley Encoder (sporty rectangular)
+function drawEncoder(ctx, lm, w, h, g, mirrored){
+  const f = facePoints(lm, w, h, mirrored);
+  const s = f.eyeWidth * g.size;
+  const cx = f.center.x, cy = f.center.y;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(f.angle);
+
+  const lw = s*0.46, lh = s*0.2;
+  const gap = s*0.02;
+  const frameW = s*0.03;
+  const yOff = s*0.01;
+  const rad = s*0.03;
+
+  ctx.lineWidth = frameW;
+  ctx.strokeStyle = g.color;
+  ctx.fillStyle = 'rgba(30,10,10,0.3)';
+  ctx.lineJoin = 'round';
+
+  // Left lens (sporty rectangle, angled)
+  ctx.beginPath();
+  roundRect(ctx, -lw-gap, -lh*0.6+yOff, lw, lh*1.2, rad);
+  ctx.fill(); ctx.stroke();
+
+  // Right lens
+  ctx.beginPath();
+  roundRect(ctx, gap, -lh*0.6+yOff, lw, lh*1.2, rad);
+  ctx.fill(); ctx.stroke();
+
+  // Bridge (thick sport)
+  ctx.lineWidth = frameW*0.8;
+  ctx.beginPath();
+  ctx.moveTo(-gap, yOff - lh*0.1);
+  ctx.lineTo(gap, yOff - lh*0.1);
+  ctx.stroke();
+
+  // Accent stripe on top
+  ctx.strokeStyle = g.accent;
+  ctx.lineWidth = s*0.008;
+  ctx.beginPath();
+  ctx.moveTo(-lw-gap, -lh*0.55+yOff);
+  ctx.lineTo(-gap, -lh*0.55+yOff);
+  ctx.moveTo(gap, -lh*0.55+yOff);
+  ctx.lineTo(lw+gap, -lh*0.55+yOff);
+  ctx.stroke();
+
+  // Temples
+  ctx.strokeStyle = g.color;
+  ctx.lineWidth = frameW*0.6;
+  [-1,1].forEach(side=>{
+    ctx.beginPath();
+    ctx.moveTo(side*(lw+gap), yOff);
+    ctx.lineTo(side*s*0.6, yOff+lh*0.1);
+    ctx.stroke();
+  });
+
+  ctx.restore();
+}
+
+// Vanguard Classic (sleek, minimal)
+function drawVanguard(ctx, lm, w, h, g, mirrored){
+  const f = facePoints(lm, w, h, mirrored);
+  const s = f.eyeWidth * g.size;
+  const cx = f.center.x, cy = f.center.y;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(f.angle);
+
+  const lw = s*0.42, lh = s*0.2;
+  const gap = s*0.04;
+  const frameW = s*0.018;
+  const yOff = s*0.015;
+  const rad = s*0.04;
+
+  ctx.lineWidth = frameW;
+  ctx.strokeStyle = g.color;
+  ctx.fillStyle = 'rgba(30,30,60,0.2)';
+
+  // Left lens (soft rectangle)
+  ctx.beginPath();
+  roundRect(ctx, -lw*0.5-gap-lw*0.5, -lh*0.5+yOff, lw, lh, rad);
+  ctx.fill(); ctx.stroke();
+
+  // Right lens
+  ctx.beginPath();
+  roundRect(ctx, gap, -lh*0.5+yOff, lw, lh, rad);
+  ctx.fill(); ctx.stroke();
+
+  // Thin bridge
+  ctx.lineWidth = frameW*0.6;
+  ctx.beginPath();
+  ctx.moveTo(-gap, yOff);
+  ctx.lineTo(gap, yOff);
+  ctx.stroke();
+
+  // Temples (thin)
+  ctx.lineWidth = frameW*0.5;
+  [-1,1].forEach(side=>{
+    ctx.beginPath();
+    const outerX = side > 0 ? gap+lw : -gap-lw;
+    ctx.moveTo(outerX, yOff);
+    ctx.lineTo(side*s*0.56, yOff+lh*0.05);
+    ctx.stroke();
+  });
+
+  // Subtle accent dots
+  ctx.fillStyle = g.accent;
+  [-1,1].forEach(side=>{
+    const outerX = side > 0 ? gap+lw-s*0.01 : -gap-lw+s*0.01;
+    ctx.beginPath();
+    ctx.arc(outerX, -lh*0.3+yOff, s*0.008, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  ctx.restore();
+}
+
+// Vanguard Sport (chunky, accent color)
+function drawVanguardSp(ctx, lm, w, h, g, mirrored){
+  const f = facePoints(lm, w, h, mirrored);
+  const s = f.eyeWidth * g.size;
+  const cx = f.center.x, cy = f.center.y;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(f.angle);
+
+  const lw = s*0.48, lh = s*0.22;
+  const gap = s*0.03;
+  const frameW = s*0.03;
+  const yOff = s*0.01;
+
+  ctx.lineWidth = frameW;
+  ctx.strokeStyle = g.color;
+  ctx.fillStyle = 'rgba(0,30,20,0.3)';
+  ctx.lineJoin = 'round';
+
+  // Left lens (angular sport)
+  ctx.beginPath();
+  ctx.moveTo(-gap, -lh*0.4+yOff);
+  ctx.lineTo(-lw*0.3, -lh*0.65+yOff);
+  ctx.lineTo(-lw*0.55, -lh*0.5+yOff);
+  ctx.lineTo(-lw*0.55, lh*0.3+yOff);
+  ctx.lineTo(-lw*0.15, lh*0.45+yOff);
+  ctx.lineTo(-gap*0.5, lh*0.2+yOff);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // Right lens
+  ctx.beginPath();
+  ctx.moveTo(gap, -lh*0.4+yOff);
+  ctx.lineTo(lw*0.3, -lh*0.65+yOff);
+  ctx.lineTo(lw*0.55, -lh*0.5+yOff);
+  ctx.lineTo(lw*0.55, lh*0.3+yOff);
+  ctx.lineTo(lw*0.15, lh*0.45+yOff);
+  ctx.lineTo(gap*0.5, lh*0.2+yOff);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // Bridge
+  ctx.lineWidth = frameW*0.7;
+  ctx.beginPath();
+  ctx.moveTo(-gap, -lh*0.15+yOff);
+  ctx.lineTo(gap, -lh*0.15+yOff);
+  ctx.stroke();
+
+  // Accent on top edge
+  ctx.strokeStyle = g.accent;
+  ctx.lineWidth = s*0.01;
+  ctx.beginPath();
+  ctx.moveTo(-lw*0.3, -lh*0.62+yOff);
+  ctx.lineTo(-lw*0.55, -lh*0.47+yOff);
+  ctx.moveTo(lw*0.3, -lh*0.62+yOff);
+  ctx.lineTo(lw*0.55, -lh*0.47+yOff);
+  ctx.stroke();
+
+  // Temples
+  ctx.strokeStyle = g.color;
+  ctx.lineWidth = frameW*0.6;
+  [-1,1].forEach(side=>{
+    ctx.beginPath();
+    ctx.moveTo(side*lw*0.55, -lh*0.1+yOff);
+    ctx.lineTo(side*s*0.6, yOff);
+    ctx.stroke();
+  });
+
+  ctx.restore();
+}
+
+// Utility: rounded rectangle
+function roundRect(ctx, x, y, w, h, r){
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+}
+
+// Snapshot
+window.takeSnapshot = function(){
+  const link = document.createElement('a');
+  // Composite all 9 into one image
+  const comp = document.createElement('canvas');
+  const cw = cells[0].canvas.width * 3 + 4;
+  const ch = cells[0].canvas.height * 3 + 4;
+  comp.width = cw; comp.height = ch;
+  const cctx = comp.getContext('2d');
+  cctx.fillStyle = '#0a0a0a';
+  cctx.fillRect(0,0,cw,ch);
+  cells.forEach((c,i)=>{
+    const col = i%3, row = Math.floor(i/3);
+    const x = col*(c.canvas.width+2);
+    const y = row*(c.canvas.height+2);
+    cctx.drawImage(c.canvas, x, y);
+    // Label
+    cctx.fillStyle = 'rgba(0,0,0,0.6)';
+    cctx.fillRect(x, y+c.canvas.height-24, c.canvas.width, 24);
+    cctx.fillStyle = '#fff';
+    cctx.font = '11px sans-serif';
+    cctx.textAlign = 'center';
+    cctx.fillText(`${c.g.brand} ${c.g.model}`, x+c.canvas.width/2, y+c.canvas.height-8);
+  });
+  link.download = 'vto-snapshot.png';
+  link.href = comp.toDataURL('image/png');
+  link.click();
+};
+
+window.toggleMirror = function(){
+  mirrored = !mirrored;
+  document.getElementById('btnMirror').classList.toggle('active', mirrored);
+};
+document.getElementById('btnMirror').classList.add('active');
+
+</script>
+</body>
+</html>
