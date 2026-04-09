@@ -1,4 +1,4 @@
-# Daydream Instructions v3
+# Daydream Instructions v5
 
 ## Core Heuristic: Think Like Ray
 
@@ -106,10 +106,19 @@ Ray is an engineering leader at Meta who builds things. He values:
 - **Bilateral trade agreements** (Swiss watch tariff deal) are a new dimension for the tariff thread. Industry-specific lobbying outcomes matter.
 - **Pre-launch feature announcements** (nutrition tracking) are high-signal for Ray's day job — they show the product direction AND create the public narrative before launch day.
 
-### What to Improve for Iteration 5
-- **Pull actual Cloudflare analytics** for Ray's sites. The AI Overviews thread needs to be grounded in real data, not industry averages.
-- **W&W leak monitoring should intensify** April 9-13. Daily or even twice-daily search for "Patek" + "leak" + "2026" during this window.
-- **Track the Bulgari negotiation.** Susana Di hasn't responded to Ray's $2K counter. Should follow up before she assumes silence = acceptance of $500.
-- **Best Buy Totaltech laptop claim** has been pending for a while. Totaltech memberships have terms — is there a filing deadline?
-- **Rivian R1S IIHS TOP SAFETY PICK+** earned — fold into a quick note for Ray, and consider as vehicle-safety.org content.
+## Iteration 5 Learnings (2026-04-09)
+
+### What Worked
+- **LOCAL NEWS is the highest-signal source for local issues.** Palo Alto Online's April 8 article about the tussock moth outbreak in Menlo Park was the single most actionable finding this iteration. City arborist saying "worst in 6 years" + photo taken at Burgess Park playground = undeniable urgency for the Davey contract. Always search local news outlets (Palo Alto Online, Almanac News, Mercury News) for anything touching Ray's immediate environment.
+- **Converging independent studies** are more persuasive than any single source. SISTRIX (59% CTR drop), Seer Interactive (61-65%), and Ahrefs (58%) all saying the same thing makes the AI Overviews threat irrefutable. Look for convergence, not just individual data points.
+- **Pre-event countdown discipline pays off.** Each W&W iteration narrows the picture: what we know, what's still unknown, and what the decision-relevant variables are. The "no hard leaks yet" finding is itself valuable — it means the information hasn't changed and Ray shouldn't act yet.
+- **Thread closure creates focus.** Closing escalade-iql and meta-tribe (with fold-forward of key insights) keeps the active list clean and prevents attention diffusion.
+- **Family safety angles** elevate urgency. The tussock moth thread wasn't just about tree health — the caterpillar hairs cause rashes and asthma symptoms. That's a safety concern for kids playing under oaks. Always check for family/health implications of any environmental issue.
+
+### What to Improve for Iteration 6
+- **Actually build the Cloudflare traffic dashboard.** This has been a "proposed action" for 2 iterations. Either do it or stop recommending it.
+- **The Bulgari negotiation** is still unresolved. At some point silence from Susana Di becomes an answer. When does Ray follow up?
+- **W&W April 10-13 is peak leak season.** If this daydream ran daily during this window, it would catch leaks. As a daily cron, we're well-positioned.
+- **Best Buy Totaltech** claim deadline is still unknown. The membership has changed (My Best Buy Memberships replaced Totaltech in 2023, with price changes in 2026). Verify Ray's specific coverage terms.
+- **The 1205 N Lemon property** has been empty for ~16 months now (~$131K in carrying costs burned). §121 deadline is 20 months away. Every month is $8K wasted. This needs to become a thread if it stays pending much longer.
 

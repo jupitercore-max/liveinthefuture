@@ -1,50 +1,54 @@
-# The Davey Contract: Treatment Window Is Closing NOW
+# The Davey Contract: Menlo Park Outbreak Confirmed — WORST IN 6 YEARS
 
 **Created:** 2026-04-05 (Iteration 1)
-**Updated:** 2026-04-08 (Iteration 4)
-**Status:** URGENT — treatment effectiveness declining each week
-**Action:** Sign the contract. Ask about Bt (Bacillus thuringiensis) vs synthetic options.
+**Updated:** 2026-04-09 (Iteration 5)
+**Status:** CRITICAL — local news confirms active infestation IN Menlo Park
+**Action:** Sign the contract TODAY. Call Davey and schedule treatment this week.
 
-## Why This Can't Wait Until After Spring Break
+## NEW: Palo Alto Online Confirms Outbreak (April 8, 2026)
 
-UC IPM (University of California Integrated Pest Management) is clear on timing for western tussock moth:
+Palo Alto Online published a story yesterday with the headline: **"Warm weather triggers hairy caterpillar population explosion in Midpeninsula."** Key quotes:
 
-> "Overwintering eggs hatch when spring growth is expanding. Young larvae are black caterpillars with long bristles."
+- **City of Menlo Park arborist Jillian Keller:** "We haven't seen an outbreak like this in over six years."
+- "Usually, these outbreaks start in May. We believe that this year's early outbreak was caused in part by unusually warm, dry weather."
+- Photo credit: "Tussock oak moth caterpillar at **Burgess Park playground in Menlo Park** on March 27, 2026"
+- Caterpillars spotted throughout **Menlo Park, Atherton, Palo Alto, Mountain View and Los Altos**
+- **Coast live oak trees are the primary host** — this is exactly what Ray has (6 live oaks)
+- "When an infestation of caterpillars feeds on plants and defoliates their leaves, it can stress smaller plants"
+- Caterpillar hairs (setae) can cause "allergic reactions leading to rashes, hives and difficulty breathing for people with asthma" — **family safety concern for outdoor play under oaks**
 
-In Northern California, spring growth expansion happens in **March-April**. That's RIGHT NOW. The larvae are hatching or have recently hatched.
+**Source:** https://www.paloaltoonline.com/news/2026/04/08/warm-weather-triggers-hairy-caterpillar-population-explosion-on-midpeninsula/
 
-### Treatment Effectiveness Is Time-Dependent
+## The Timeline Problem
 
-UC IPM's recommended treatment hierarchy:
-1. **Bacillus thuringiensis (Bt)** — #1 ranked, least harmful to beneficial insects
-   - "Most effective when applied during warm, dry weather when larvae are actively feeding"
-   - "**Most effective against young larvae**"
-   - "Requires more than 1 treatment; apply second application 7-10 days after first"
-2. **Spinosad** (Entrust/Success) — Second option
-3. **Various synthetics** — Last resort
+- **Caterpillars hatched EARLY this year** (March, not the usual May)
+- **Bt (Bacillus thuringiensis) is most effective against YOUNG larvae** (UC IPM)
+- Young larvae are already feeding — this is the shrinking treatment window
+- Bt requires **2 applications, 7-10 days apart** — so the full treatment cycle needs to START now
+- By mid-to-late April, larvae will be more mature and Bt becomes less effective
+- **Bottom line:** Every day of delay reduces treatment effectiveness
 
-**The key insight:** Bt only works against YOUNG larvae. As larvae mature, treatment becomes progressively less effective. Every week of delay = lower success probability.
+## What to Ask Davey (unchanged from previous iterations)
 
-## What to Ask Davey
+1. **What product are they spraying?** (Bt is preferred — least harmful to beneficial insects)
+2. **How many applications?** (Should be at least 2, 7-10 days apart)
+3. **Are they timing to larval stage?** (Need to target young larvae NOW, before they mature)
+4. **What about beneficial insect protection?** (Bt preserves natural predators)
+5. **NEW: Given the severity of the outbreak, do they recommend expanded treatment scope?** (More trees? Adjacent plants getting hit too per the article)
 
-1. **What product are they spraying?** (If it's Bt — great. If it's synthetic — ask why not Bt first)
-2. **How many applications?** (Should be at least 2, 7-10 days apart per UC IPM)
-3. **Are they timing to larval stage?** (Treatment should target young larvae, not mature ones)
-4. **What about beneficial insect protection?** (Bt is preferred because it doesn't kill beneficial predators)
+## The $600 Math (updated)
 
-## The $600 Math
-
-6 live oaks × tussock moth damage = potential thousands in tree health costs if defoliation happens. $600 for professional treatment is cheap insurance. A heavy infestation "will destroy all spring growth" per UC IPM.
+- 6 live oaks × worst outbreak in 6 years = HIGH defoliation risk
+- Professional tree damage remediation: $1,000-5,000+ per tree
+- $600 for treatment is a 10:1 or better ROI
+- **Family health angle:** Kids playing under infested oaks → rashes, hives, asthma risk
 
 ## Previous Context
-- City of Menlo Park confirmed the tussock moth infestation (March 30 notice) and is using zero chemicals themselves
-- Davey Tree Service quoted $600 for treatment
+- City of Menlo Park confirmed infestation (March 30 notice)
+- Davey Tree Service quoted $600 for treatment of 6 live oaks
 - Ray noted: "ask what product they're spraying"
-- This has been on the pending list since at least early April
-
-## Spring Break Ends April 11
-
-Ray is likely focused on family activities this week. But a 5-minute phone call to sign the contract and schedule treatment is all that's needed. Treatment can happen while the family is doing other things.
+- Palo Alto Online confirms outbreak WORST IN 6 YEARS (April 8)
+- **This is pending item #5 in MEMORY.md**
 
 ---
-*Updated: 2026-04-08, Iteration 4 — UC IPM data confirms treatment window is NOW. Bt most effective against young larvae. Delay reduces effectiveness.*
+*Updated: 2026-04-09, Iteration 5 — UPGRADED from HIGH to CRITICAL. Local news confirms worst tussock moth outbreak in 6+ years, specifically in Menlo Park. Treatment window shrinking daily.*

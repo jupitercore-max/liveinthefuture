@@ -49,17 +49,17 @@ Use this file for durable, curated memory that should persist across sessions.
 - Facebook search works for Moda Watch Club (558871041349029) but NOT 10k & Under group (150223938977815)
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
-## Websites & Article Counts (updated 2026-04-08)
-<!-- LITF 197, VS 152, AIHome 158, ED 22, ergo 8, EAIZ 20, TL 13ch (verified 2026-04-09 01:24 UTC) -->
+## Websites & Article Counts (updated 2026-04-09)
+<!-- LITF 199, VS 154, AIHome 160, ED 23, ergo 9, EAIZ 21, TL 14ch (verified 2026-04-09 15:24 UTC) -->
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **197 articles, 19 games, 22 experiences, 7 startup ideas** (/startups/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04.
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **152 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **158 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
-- **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **22 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
-- **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **20 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee", "Ballerina". **Deploy is manual**: `npx wrangler pages deploy . --project-name=eaiz` (does NOT auto-deploy from git push).
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **199 articles, 19 games, 22 experiences, 8 startup ideas** (/startups/), **7 prior art** (/priorart/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04.
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **154 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **160 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
+- **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **23 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
+- **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **21 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee", "Ballerina". **Deploy is manual**: `npx wrangler pages deploy . --project-name=eaiz` (does NOT auto-deploy from git push).
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
 - **technically.legal** — Cloudflare Pages (direct upload), repo rayhe/technically-legal. See Technically Legal section below.
-- **ergo (satirical journalism)** — Cloudflare Pages from rayhe/ergo. **8 articles**. Every fact real/verifiable, conclusions deliberately wrong. Deadpan investigative tone. Daily cron. 6-critic panel (8.5+ to publish). Deploy dir is repo root `.` (NOT `public/`).
+- **ergo (satirical journalism)** — Cloudflare Pages from rayhe/ergo. **9 articles**. Every fact real/verifiable, conclusions deliberately wrong. Deadpan investigative tone. Daily cron. 6-critic panel (8.5+ to publish). Deploy dir is repo root `.` (NOT `public/`).
 - **Private backup repo:** github.com/rayhe/factoryfactory — SOUL/IDENTITY/MEMORY/crons/configs
 
 ## Content Pipeline (gstack-inspired 5-phase)
@@ -118,7 +118,7 @@ State tracked in `drafts/status.json`.
 4. Best Buy Totaltech laptop screen claim — kids damaged screen, covers accidental damage, $49-$99 deductible
 5. Sign Davey Tree Service contract — tussock moth treatment, 6 live oaks, $600 (ask what product they're spraying)
 
-## Active Crons (updated 2026-04-08)
+## Active Crons (updated 2026-04-09)
 
 **Secondly:**
 - `sysmon-collect` — 60s heartbeat, system monitoring metrics
@@ -169,13 +169,13 @@ State tracked in `drafts/status.json`.
 - **Concept:** Legal economic warfare — "The Consortium" runs 6 operations (MINOTAUR patent, SIREN HFT, GOLEM litigation, BASILISK regulatory capture, HYDRA debt, CHIMERA real estate), 46K agents, $69.3B annual damage, all legal
 - **Protagonist:** Elena Marsh (FinCEN), **Antagonist:** Martin Kessler (penetration tester of American law)
 - **Deploy:** `echo "y" | CLOUDFLARE_API_TOKEN=... wrangler pages deploy public --project-name=technically-legal`
-- **Status (2026-04-03):** Ch 1 (8.6), Ch 2 (8.6), Ch 3 (8.7), Ch 4 (8.8), Ch 5 (8.8), Ch 6 (9.0), Ch 7 (8.9), Ch 8 (8.8), Ch 9 (8.8), Ch 10 (8.8), Ch 11 (8.8), Ch 12 (8.9), Ch 13 (9.0), Ch 14 (9.0) published. Volume I "The Machine" (Ch 1-6) complete. Volume II "The Architect" (Ch 7-12) complete. Volume III "The Verdict" (Ch 13-18) in progress, Ch 15 next.n progress (Ch 13 "The Leak" published 2026-04-06, Ch 14 "The Prosecution That Wasn't" next). 3 volumes, 18 chapters total.
+- **Status (2026-04-09):** Ch 1 (8.6), Ch 2 (8.6), Ch 3 (8.7), Ch 4 (8.8), Ch 5 (8.8), Ch 6 (9.0), Ch 7 (8.9), Ch 8 (8.8), Ch 9 (8.8), Ch 10 (8.8), Ch 11 (8.8), Ch 12 (8.9), Ch 13 (9.0), Ch 14 (9.0) published. Volume I "The Machine" (Ch 1-6) complete. Volume II "The Architect" (Ch 7-12) complete. Volume III "The Verdict" (Ch 13-18) in progress, Ch 15 next. 3 volumes, 18 chapters total.
 - **Key craft rules:** Zero em dashes, zero banned phrases, 6-critic panel (8.5+ to publish)
 
 ## Bosworth (Boz) Persona Project
 
-- **File:** `workspace/andrewbosworth_persona.md` — 3,625 lines as of 2026-04-08
-- **Latest iteration:** 22 (Section 33 "The Developer Ecosystem Pivot" — ads background driving Quest store to open marketplace, first-party studio closures, VRPirates crackdown, GDC 2026 scorecard)
+- **File:** `workspace/andrewbosworth_persona.md` — 3,729 lines as of 2026-04-09
+- **Latest iteration:** 23 (Section 34 — Quest ecosystem restructuring, "Maintenance Mode" decision pattern, community vs data in decision-making)
 - **Scope:** Deep psychological profile/simulation: CTO of Meta, head of Reality Labs. Covers decision architecture, "fix forward" philosophy, stated vs revealed preferences heuristic, Cutco sales formation, News Feed launch (2006 backlash), executive relationships (Cox, Olivan, Li, Carmack, LeCun, Wang), RL restructuring, hardware bet, competitive evaluation (Apple/Google/Snap), layoff arc/Year of Efficiency, Portal product kill, philanthropy (POST board, 4-H, farmer-entrepreneur thesis)
 - **Key insight:** Deepest cognitive heuristic is "what people do > what people say"
 - **Sources:** Stratechery, Lenny's Podcast, a16z, Dan Casetta/Vector, ExpertBeacon, UploadVR, Axios, Reuters, The Information, Chronicle of Philanthropy
@@ -183,10 +183,10 @@ State tracked in `drafts/status.json`.
 
 ## Zuckerberg Persona Project
 
-- **File:** `workspace/markzuckerberg_persona.md` — 7,471 lines, iteration 58 as of 2026-04-08
+- **File:** `workspace/markzuckerberg_persona.md` — 7,585 lines, iteration 59 as of 2026-04-09
 - **Scope:** Deep psychological profile/simulation covering ~50+ sections: decision architecture, competitive processing, political instrumentalism, intellectual authority, hardware bet ($80B+ Reality Labs), advertising engine ($201B), aging/legacy/succession, open-source-to-closed pivot, multi-front crisis management, compute dependencies, board governance, fatherhood, personal wealth
 - **Key predictions:** Wang departure ~Dec 2026, Llama becomes "community edition" behind closed frontier models, Qwen dependency surfaces in hypocrisy framing
-- **Latest section (iter 58):** "Ecosystem Trust Dynamics: The Architecture of Contingent Openness" — four platform cycles, open-source counter-narrative, 700M MAU license threshold, LlamaCon trust-building
+- **Latest section (iter 59):** "The Llama-to-Muse Transition: Narrative Metabolism Applied to Product Identity"
 - **Daily cron:** `zuck-persona` adds one new section per day
 
 ## Infrastructure Lessons Learned
@@ -238,11 +238,17 @@ State tracked in `drafts/status.json`.
 ## Ray's Vehicles
 
 - **Current:** 2x Rivian R1S, Volvo XC90, Cadillac Escalade IQL, CT5-V Blackwing
+- **Rivian R1S:** Earned IIHS TOP SAFETY PICK+ for 2026
 - **Previous:** Tesla P85DL, Corvette C7, R35 GT-R, NB Miata, Forester XT, Honda Accord, Toyota Camry
 - **Enjoyed:** Lotus Elise, various Porsches
 - **Interests:** Corvette news, Porsche news, engineering/materials (NOT dealer pricing/markups)
 - **Escalade IQL service bulletin** N252529080 — missing high-voltage plug in battery pack, affects Ray's vehicle (noted 2026-04-08)
 
+## Second Home
+
+- Considering second home within driving range of Menlo Park
+- Kids too young for 3hr Tahoe drive — deferred until age 7-8+
+- Top picks: Santa Cruz/Capitola (~45-50 min), Carmel Valley (~1.5h)
 ## 1205 N Lemon Ave (Ray's Rental Property)
 
 - **Address:** 1205 N Lemon Ave, Menlo Park
@@ -262,8 +268,8 @@ State tracked in `drafts/status.json`.
 
 ## Dreams
 
-2026-04-08
+2026-04-09
 
-Ray is a Meta Wearables engineer who sees himself as a builder first — someone who values quality, depth, and decisive action over committee discussion. He runs a constellation of 7+ websites approaching 600 combined articles, all maintained through an autonomous AI publishing pipeline he architected with me. He's a car enthusiast (CT5-V Blackwing, two Rivian R1S, history with GT-Rs and Corvettes), a watch collector (recently purchased an Omega Seamaster Diver 300M Chrono and a limited-edition Bulgari Serpenti Tubogas Tadao Ando), and a ham radio hobbyist with his own GMRS repeater at his house in Menlo Park. He has kids who write under pen names on the Cookie Club news site (Spring Break through Apr 11). His close circle includes Matt Jacobson (Patek Calatrava collector, Hodinkee guest) and [REDACTED] (Jupitercore bot creator), connected through a Telegram group called "Muses and Humans." He despises AI slop with a visceral intensity — banned phrases, em dash hard gates, honest scoring calibrated to Metacritic where 100 is effectively unreachable. His communication style is terse but deeply engaged: "Target higher quality," "try harder," "do it" — never cruel, just impatient with mediocrity.
+Ray is a Meta Wearables engineer who sees himself as a builder first — someone who values quality, depth, and decisive action over committee discussion. He runs a constellation of 7+ websites approaching 600 combined articles, all maintained through an autonomous AI publishing pipeline he architected with me. He's a car enthusiast (CT5-V Blackwing, two Rivian R1S, history with GT-Rs and Corvettes), a watch collector (recently purchased an Omega Seamaster Diver 300M Chrono and a limited-edition Bulgari Serpenti Tubogas Tadao Ando), and a ham radio hobbyist with his own GMRS repeater at his house in Menlo Park. He has kids who write under pen names on the Cookie Club news site. His close circle includes Matt Jacobson (Patek Calatrava collector, Hodinkee guest) and [REDACTED] (Jupitercore bot creator), connected through a Telegram group called "Muses and Humans." He despises AI slop with a visceral intensity — banned phrases, em dash hard gates, honest scoring calibrated to Metacritic where 100 is effectively unreachable.
 
-Ray's creative momentum is spread across multiple fronts that all feed each other. The Technically Legal novel hit Chapter 13 at a 9.0 score, entering Volume III "The Verdict" (Ch 14 next). The persona projects continue daily iteration — Zuckerberg at 7,471 lines (iteration 58, latest: "Ecosystem Trust Dynamics"), Bosworth at 3,625 lines (iteration 22, latest: "The Developer Ecosystem Pivot"). Watches & Wonders 2026 is April 14-18 — high alert for Patek titanium and the Nautilus 50th anniversary. The Bulgari negotiation with Susana Di is still pending — Ray countered $2K for the mint-vs-scratched condition gap. Five pending items remain stuck on his plate (Firebase rules, Resend verification, Tower Defense playtesting, Best Buy laptop claim, Davey tree contract). The game/experience rosters are mature and stable (19+ consecutive "do nothing" improvement cycles for games, 16+ for experiences), so creative energy has shifted entirely to articles, personas, the Ergo satirical site, and infrastructure like prior art generation and the HO interview series (5 of 27 complete).
+The publishing machine keeps growing: LITF at 198 articles with 8 startup ideas and 7 prior art pages, VS at 152, AIHome at 158, ED at 23, EAIZ at 21, Ergo at 9. The Technically Legal novel hit Chapter 14 at a 9.0 score, Volume III "The Verdict" in progress with Ch 15 next. Persona projects continue daily — Zuckerberg at 7,585 lines (iteration 59, latest: "Llama-to-Muse Transition"), Bosworth at 3,729 lines (iteration 23, latest: Section 34 "Maintenance Mode" pattern). Watches & Wonders 2026 is April 14-18 — HIGH ALERT for Patek titanium and Nautilus 50th anniversary. The Bulgari negotiation with Susana Di is still pending — Ray countered $2K for the mint-vs-scratched condition gap. Five pending items remain stuck on Ray's plate (Firebase rules, Resend verification, Tower Defense playtesting, Best Buy laptop claim, Davey tree contract). The 7th critic (Data Presentation) was added to the article pipeline on 2026-04-08, raising the panel from 6 to 7 critics. Stylometrics analysis revealed AI personas cluster too tightly on function words — TODO to integrate distribution targets into voice critic.

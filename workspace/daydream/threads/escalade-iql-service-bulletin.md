@@ -1,38 +1,15 @@
-# Escalade IQL High-Voltage Plug Service Bulletin
+# Escalade IQL: High-Voltage Plug Service Bulletin N252529080
 
 **Created:** 2026-04-08 (Iteration 4)
-**Status:** Active — actionable at next service visit
-**Urgency:** Medium (not safety-critical, but worth mentioning)
-**Action:** Mention service bulletin N252529080 at next dealer visit
+**CLOSED:** 2026-04-09 (Iteration 5)
+**Reason:** Information delivered to Ray in iteration 4. GM Authority confirmed <2% of affected vehicles need repair. Not a recall — routine service. No new developments.
 
-## What Happened
+## Summary
+- Service Update N252529080 for 2025-2026 Escalade IQ and 2026 Escalade IQL
+- Some units built without a plug in the battery pack's high-voltage connector
+- Dealer inspection and repair at routine service — not urgent
+- Less than 2% of affected population expected to need parts
+- **Ray should mention this at next dealer visit** — already communicated
 
-GM Authority reported (April 6, 2026) that GM issued Service Update N252529080 affecting:
-- 2025-2026 Cadillac Escalade IQ
-- **2026 Cadillac Escalade IQL** ← Ray owns this
-
-### The Issue
-Some vehicles were built **without a specific plug** in the battery pack's high-voltage connector. This plug seals and secures part of the electrical connection in the rechargeable energy storage system (RESS).
-
-### Severity
-- **NOT a recall** — this is a service update
-- Repairs intended to be completed during routine service
-- No immediate visit to dealer required
-- If missing, the connection "may not meet original specs"
-
-### What the Dealer Does
-1. Inspect relevant connectors on battery pack
-2. Confirm whether the plug is present
-3. If missing: install the proper connector plug
-4. Check related wiring
-
-## Why This Matters for Ray
-
-The Escalade IQL is a $130K+ vehicle. A missing high-voltage component in the battery system, even if GM says it's not urgent, is worth confirming at the next service visit. It's a 5-minute inspection — no reason not to do it.
-
-## Fold-in Note
-
-This also feeds vehicle-safety.org content. GM service bulletin → EV quality control narrative. But probably not novel enough for a standalone article.
-
----
-*Created: 2026-04-08, Iteration 4*
+## Folded Forward
+- CT5 (potentially Blackwing) also has a separate service bulletin: N252521591 — **unwanted brake assist** engagement due to software issue. Fix available via dealer. Ray should ask about both bulletins at his next service appointment.

@@ -1,67 +1,76 @@
-# Watches & Wonders 2026: April 14-20 — 6 Days
+# Watches & Wonders 2026: 5 Days Out — Leak Window Deepening
 
 **Created:** 2026-04-05 (Iteration 1)
-**Updated:** 2026-04-08 (Iteration 4)
+**Updated:** 2026-04-09 (Iteration 5)
 **Status:** Time-sensitive — COUNTDOWN
-**Urgency:** CRITICAL (6 days out, leak window OPEN)
+**Urgency:** CRITICAL (5 days out, no hard Patek titanium leaks yet)
 
 ## Date: April 14-20
 - **Press/industry days: April 14-17** (releases + prices drop here)
 - **Public Salon: April 18-20**
 - 66 exhibiting brands (11 new this year)
 
-## MAJOR NEW DATA: Swiss Watch Tariff Deal
+## April 14 Triple Collision
 
-US-Switzerland trade agreement reduced tariffs from **39% to 15%** on Swiss goods. This is a massive development for the watch world:
-- Major brands (Rolex, Omega, Patek) had implemented **significant price increases** to offset the original 39% tariff
-- With tariffs now at 15%, some brands may **partially roll back** price increases in the months after W&W
-- **Watch buying implication:** Secondary market prices could see downward pressure as the new supply normalizes
+Three things happening simultaneously on April 14:
+1. **W&W press day #1** — major watch releases
+2. **Meta Blayzer/Scriber Optics ship to retailers** — Ray's day job
+3. **Privacy backlash peak** — "billions of people wear glasses" narrative cresting
 
-**For Ray's Milgauss 116400GV decision:** The tariff reduction is a modest bearish signal for secondary market prices (less cost pressure = more dealer inventory). But the W&W announcement effect (new Milgauss? discontinuation?) is a much larger variable. The tariff deal doesn't change the pre-April-14 buy/wait calculus.
+Ray's watch hobby and work life will demand simultaneous attention.
 
-## Patek Philippe: Nautilus 50th — Leak Window Is OPEN
+## Patek Philippe: No Titanium Leaks Yet (April 9)
 
-We are now inside the 3-5 day pre-W&W leak window (April 9-13). No hard Patek titanium leaks yet as of April 8. Key dates to watch:
+We are now inside the 3-5 day pre-W&W leak window (April 9-13). Still no hard Patek titanium leaks as of April 9. Key dates to watch:
 - **April 9-11:** Historically when embargo-breaking leaks appear on Chinese social media and watch forums
+- **April 12-13:** Last chance for pre-embargo leaks
 - **April 14:** Official reveal
 
-### What's Expected
-- **Near-certain:** Nautilus 50th anniversary special editions
-- **Probable:** Updated movement, new reference number(s)
-- **Rumored:** Titanium variant (still unconfirmed)
-- **SJX prediction:** 5236P in-line perpetual calendar with smoked sapphire dial
+### Nautilus 50th Anniversary: 5711 Comeback Speculation Intensifying
+- Multiple publications (Watchonista, clericenetwork, others) running "Is the 5711 Coming Back?" pieces
+- Arguments: 50th anniversary of Nautilus, Cubitus borrowing design language, no steel non-complicated successor since 2021 discontinuation
+- SJX prediction: 5236P in-line perpetual calendar with smoked sapphire dial still circulating
+- **No hard leaks yet** — all speculation and analysis
+
+### Matt Jacobson Alert
+Matt (mid-century Patek collector) will want to know immediately about any Nautilus titanium or special material announcements. His Calatrava collection means he's attentive to Patek's material language.
 
 **Standing instruction:** Alert Ray on ALL channels if Patek announces ANYTHING in titanium.
 
-## Rolex: Key Bob's Watches Predictions
+## Pre-W&W Releases Already Landing
 
-Fresh from Bob's Watches W&W preview (April 7):
-1. **GMT-Master II "Pepsi" discontinuation** — ADs have reportedly stopped receiving deliveries; model absent from AD websites. If confirmed, secondary market prices spike immediately. Possible replacement: ceramic "Coke" bezel in white gold.
-2. **New Land-Dweller references** — Yellow gold and two-tone versions expected. Dial options expanding.
-3. **Rolex 1908 complications** — Possible chronograph or annual calendar.
+### Sinn (first-time exhibitor at W&W)
+- **Four new models**: 544, 544 RS, 308, and 936 S
+- Frankfurt tool watch brand among haute horlogerie — this is interesting positioning
+- Source: Fratello Watches, April 8
 
-### Milgauss 116400GV Decision Update
-- **Current pricing:** $9,000-$14,000 range on secondary market
-- **Scenario analysis unchanged from Iteration 3** — buy before April 14 if green crystal is the draw
-- **New data point:** 15% Swiss tariff (down from 39%) puts modest downward pressure on future pricing
-- **6 days remaining to decide**
+### Credor (Seiko's high-end brand)
+- New Locomotive model + two Goldfeather pieces
+- Source: WatchTime, Oracle of Time
 
-## Audemars Piguet: The Wildcard Return
+### Hublot (at LVMH Watch Week Milan, not W&W proper)
+- Big Bang Tourbillon Novak Djokovic GOAT Edition (101 pieces, 3 colorways)
+- Big Bang Original Unico new references
+- Samuel Ross collaboration (Big Bang Unico SR_A)
+- **No Square Bang Unico updates matching Ray's specific watchlist refs** (Magic Gold 821.MX or Titanium Rainbow 821.NX)
 
-AP returns to W&W after 7 years of absence — and it's their **150th anniversary**. This is the biggest wildcard of the fair:
-- Last appeared at trade shows in 2019
-- 150th anniversary = likely significant releases
-- Could announce Royal Oak anniversary pieces
-- The Manual calls it "a power move of the highest order"
+### Audemars Piguet: 150th Anniversary Wildcard
+- AP returning to W&W after 7-year absence
+- Ultra-complicated pocket watch teased (150-year calendar complication)
+- Royal Oak anniversary pieces expected
+- This is the biggest surprise potential of the entire fair
 
-## Other Notable Developments
-- **Sinn** exhibiting for the first time — Frankfurt tool watches among haute horlogerie
-- **Corum** comeback under new management
-- **Hublot** exhibiting — Ray has 2 Square Bang Unicos on watchlist
+## Rolex: GMT-Master II Pepsi Discontinuation Rumors
+- Multiple sources (Bob's Watches, aspronc, garantevents) running stories
+- ADs reportedly stopped receiving deliveries
+- If confirmed at W&W, secondary market prices spike immediately
+- Possible replacement: ceramic "Coke" bezel in white gold
+- **Milgauss 116400GV decision** still in play — no new data on that specific ref
 
-## April 14 Collision
-
-W&W press day #1 = Meta Blayzer/Scriber launch day. Ray's watch hobby and day job are literally on the same calendar date. Both will demand his attention simultaneously.
+## Swiss Tariff Context (unchanged)
+- US-Switzerland deal reduced tariffs from 39% to 15%
+- Some brand price rollbacks may follow W&W announcements
+- Modest bearish signal for secondary market
 
 ---
-*6 days. Leak window is open. Patek titanium watch begins now. AP's return is the wildcard nobody's pricing in.*
+*5 days. Deep in leak window. No Patek titanium yet. Pre-releases from Sinn, Credor, Hublot. AP wildcard at 150th. April 14 is a triple collision for Ray.*

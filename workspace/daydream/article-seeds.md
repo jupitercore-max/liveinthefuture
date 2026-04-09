@@ -5,35 +5,35 @@ Seeds must pass the same kill test as regular articles: Is there a novel contrib
 ---
 
 ## Seed 1: AI Overviews Are Killing Independent Publishing (LITF)
-**Pitch:** 500+ articles across 8 sites, all built assuming organic search traffic. Google AI Overviews now appear on 25%+ of searches with **61-65% click drops** documented (Seer Interactive study, 3,119 queries). Position 1 CTR drops 58% (Ahrefs Feb 2026). Even non-AIO queries see 41% CTR decline. Use Ray's own sites as the case study. The self-aware angle (we built an AI content machine, a bigger AI content machine is eating us) is exactly LITF's brand.
-**Novel contribution:** First-person data from an AI-assisted publishing operation measuring its own obsolescence. Plus: Cloudflare zone analytics for all 8 sites showing the actual traffic impact.
-**Kill test risk:** Could feel navel-gazing. Needs hard traffic data to transcend opinion.
-**Status:** STRONGEST — now have much more alarming data than the original 42% figure. Cloudflare analytics API available to pull real numbers.
+**Pitch:** 600+ articles across 8 sites, all built assuming organic search traffic. Three independent studies now converge: Google AI Overviews cause ~60% CTR collapse (SISTRIX: position 1 drops from 27% to 11%; Seer Interactive: 61-65%; Ahrefs: 58%). AI Overviews reach 2 billion users. Gemini traffic tripled in H2 2025. Use Ray's own Cloudflare analytics as the case study.
+**Novel contribution:** First-person data from an AI-assisted publishing operation measuring its own obsolescence. Three converging studies + actual site traffic data.
+**Kill test risk:** Could feel navel-gazing. Needs hard traffic data to transcend opinion. Cloudflare analytics API is available.
+**Status:** STRONGEST — data keeps getting worse. Three independent studies confirm. Ready to ground in real data.
 
 ## Seed 2: The $499 Glasses That Just Got More Expensive (LITF)
-**Pitch:** Trace the full supply chain of a single pair of Ray-Ban Meta glasses from Italian frame to Chinese sensor to retail shelf. Show exactly where the new tariff regime hits. The optical industry is in alarm. What does this mean for the 6 competitors launching smart glasses in 2026?
-**Novel contribution:** Supply-chain tariff mapping for a specific consumer product.
+**Pitch:** Trace the full supply chain of a single pair of Ray-Ban Meta glasses from Italian frame to Chinese sensor to retail shelf. Show where tariffs hit. Optical industry in alarm. Now expanded to three brands: Ray-Ban (lifestyle), Oakley Meta (sports), Blayzer/Scriber (prescription). Each has different supply chain exposure.
+**Novel contribution:** Supply-chain tariff mapping for a specific consumer product across three form factors.
 **Kill test risk:** Supply chain specifics may be hard to source publicly.
-**Status:** Still strong. Swiss tariff deal (39% → 15%) adds complexity — different tariff regimes for different components.
+**Status:** Strong. Expanded scope with Oakley Meta adds depth.
 
 ## Seed 3: The Economics of "The Last" (Efficient Design)
-**Pitch:** Why end-of-line performance cars always appreciate, with data from Bring a Trailer auction results. 993 Porsche, last Viper ACR, E46 M3, CT5-V Blackwing, and now the ZR1X Zora as the final C8.
-**Novel contribution:** Data-driven analysis from actual auction results.
+**Pitch:** Why end-of-line performance cars always appreciate. Data from Bring a Trailer auction results. 993 Porsche, last Viper ACR, E46 M3, CT5-V Blackwing, and the ZR1X Zora. NEW: 2027 Corvette Grand Sport X bringing back the Grand Sport name — where does it fit in the hierarchy?
+**Novel contribution:** Data-driven analysis from actual auction results + the Grand Sport naming return.
 **Kill test risk:** Need to pull actual BaT data.
 **Status:** Background — good evergreen piece for ED.
 
 ## Seed 4: Building a $75 Emergency Mesh Network (LITF)
-**Pitch:** Meshtastic on ESP32 ($25/node) + GMRS repeater + Home Assistant = resilient communication network without internet.
-**Novel contribution:** The specific convergence of Meshtastic + GMRS + Home Assistant as a unified system.
+**Pitch:** Meshtastic on ESP32 ($25/node) + GMRS repeater + Home Assistant = resilient communication without internet.
+**Novel contribution:** The specific convergence of Meshtastic + GMRS + Home Assistant.
 **Kill test risk:** Low — hardware DIY with clear parts list.
-**Status:** Active — strong candidate. Could double as a personal project for Ray.
+**Status:** Active — strong candidate. Personal project potential for Ray.
 
-## Seed 5: Your Glasses Know What You Had for Lunch (LITF) — NEW
-**Pitch:** Meta just announced camera-based nutrition tracking for smart glasses. Voice-prompted food logging today, automatic food recognition tomorrow. First-person test: how accurate is AI nutrition tracking vs manual logging? The "ambient AI" ratchet — from prompted to continuous sensing — and what it means for privacy.
-**Novel contribution:** First-hand testing of a brand-new feature + the privacy analysis of "automatic food logging" as the proof-of-concept for always-on ambient AI.
-**Kill test risk:** Feature needs to ship first (coming "soon" to US users 18+). If Ray gets it day 1, this is a fast article.
-**Status:** NEW — strong candidate. Ties directly to Ray's day job. The "ambient AI" framing is the biggest story in smart glasses right now.
+## Seed 5: Your Glasses Know What You Had for Lunch (LITF)
+**Pitch:** Meta's camera-based nutrition tracking + "ambient AI" ratchet from prompted → continuous sensing. First-person test: how accurate is AI nutrition tracking vs manual logging? Now with senator pushing eyewear regulation + triple regulatory threat (privacy outcry, legislative signal, class action on hardware).
+**Novel contribution:** First-hand testing of a new feature + regulatory convergence analysis.
+**Kill test risk:** Feature needs to ship first.
+**Status:** Strong. The regulatory angle (senator calling for eyewear regulation) strengthens the policy half of the article.
 
 ---
 
-*Updated: 2026-04-08, Iteration 4 — Updated AI Overviews with 61-65% data, added nutrition tracking seed*
+*Updated: 2026-04-09, Iteration 5 — Refined seeds with new data: SISTRIX convergence, Oakley Meta expansion, Grand Sport X, senator regulation signal*

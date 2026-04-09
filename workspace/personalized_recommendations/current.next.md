@@ -1,29 +1,29 @@
 # Personalized Recommendations
 
-### Watch Forum Listing Sniper
-Use when: hunting for specific watch references on secondary markets, forums, or any resale community where deals move fast and sell before most people notice
-Suggested follow-up: Set up a recurring scan of WatchUSeek, r/Watchexchange, and Timezone forums for my watchlist references (Milgauss 116400GV, Yacht-Master II 116689, Hublot Square Bang variants) — surface only new undeduped listings with price and seller, alert via Telegram
+### Watch Collection Visual Catalog
+Use when: managing a growing watch collection, preparing for insurance documentation, or wanting a searchable record of pieces with photos, condition notes, and live market comps
+Suggested follow-up: Build a visual catalog of my watch collection — starting with the Bulgari Serpenti Tubogas and Omega Seamaster I recently acquired — with photos, acquisition dates, condition notes, and live Chrono24 market comps
 
-### Technically Legal Continuity Tracker
-Use when: writing long-form fiction across many chapters and needing a reliable way to keep characters, plot threads, and internal lore from contradicting each other
-Suggested follow-up: Build a chapter-by-chapter state tracker for Technically Legal — mapping The Consortium's 6 operations, Elena Marsh's investigation arc, and Martin Kessler's moves — so Chapter 14 can't accidentally contradict anything established in Chapters 1–13
+### Geneva / Travel Intel from Google Drive
+Use when: planning travel for a major event, scouting an area for a second home, or visiting any city where a friend's firsthand restaurant and hotel picks beat anything on Yelp
+Suggested follow-up: Watches & Wonders is in 5 days — mine my Google Drive for any shared docs about Geneva or Switzerland dining from friends, so I have real picks if I'm attending
 
-### Spring Break Illustrated Bedtime Stories
-Use when: kids are home and you want novel, personalized nightly content without doing it yourself — especially the last few days of a school break
-Suggested follow-up: Set up a 3-night bedtime story cron for the end of spring break — one illustrated chapter each evening featuring the kids as characters — delivered to Telegram before bed
+### Q2 Credit Card Perk Audit
+Use when: managing premium credit cards at the start of a new quarter and wanting to make sure rotating credits don't expire unused before you think to use them
+Suggested follow-up: Run a Q2 credit card perk audit — identify any Amex, Chase, or other card credits that reset in April and flag anything I'm at risk of letting lapse before June
 
-### MRBD Game Content Filler Cron
-Use when: your game roster is mature and idle cron cycles could add depth — more audio variation, branching text, or edge-case polish — without needing manual direction each time
-Suggested follow-up: Wire a background cron to audit existing MRBD games for thin audio feedback or low-variance text responses, then fill gaps autonomously using the dark/minimal voice style already established across the roster
+### Autonomous Video Production Pipeline via Mac Mini
+Use when: needing AI video content for articles, persona clips, or experience promos without burning through commercial API credits
+Suggested follow-up: Wire a local video production pipeline using my Mac Mini for rendering, ElevenLabs for audio, and my existing Ray He avatars — with QA gates before anything ships to LITF
 
-### Overnight Publishing Pipeline Self-Audit
-Use when: running autonomous article pipelines across multiple sites and wanting to catch systematic failure patterns before they compound across days or weeks
-Suggested follow-up: Schedule a nightly cron that reviews the last 24 hours of article pipeline runs across all 7 sites, flags patterns like stuck phases or low critique scores, and delivers a structured improvement punch list to Telegram by morning
+### Wine List Photo Intelligence
+Use when: at a restaurant with an unfamiliar wine list and wanting critic scores, retail prices, and a top pick before you order — especially useful at a business dinner or somewhere with a deep list
+Suggested follow-up: Next time I'm dining out, snap the wine list and get a sommelier-grade breakdown — retail price, critic score, tasting notes, and a best pick for the table
 
-### Memory & Notes Nightly Deduplication Cron
-Use when: your knowledge base, memory files, or workspace notes have been accumulating across many sessions and you want them to stay clean, cross-linked, and findable without manual upkeep
-Suggested follow-up: Wire a nightly cron to scan my MEMORY.md, memory/*.md, and workspace research files — merge duplicates, fix stale references, and cross-link related entries — so the knowledge base improves on its own each night
+### Tempest Weather × Outdoor Activity Scorer
+Use when: planning outdoor activities, backyard events, GMRS repeater testing, or any evening where actual hyperlocal conditions matter more than a generic forecast
+Suggested follow-up: Wire my Tempest station's live data into a scorer that rates upcoming evenings for outdoor quality — clear skies, low wind, temperature — and surfaces the best windows this week
 
-### Article Social Traction Monitor
-Use when: publishing regularly across multiple content sites and wanting early detection when a specific article is breaking out — before it peaks and you miss the moment to amplify
-Suggested follow-up: Set up a twice-daily scan tracking my highest-potential LITF, VS, and AIHome articles for engagement spikes on Reddit, Facebook Groups, and X — alert only when something breaks above its 7-day baseline
+### Kids Playable Study Game
+Use when: kids need engaging educational content that feels like a game rather than homework — especially good for downtime, school prep, or building skills around what they're already writing about on the Cookie Club
+Suggested follow-up: Build a playable study game for the kids — start with current events or reading comprehension, with XP, quiz challenges, and a streak system they can revisit daily
