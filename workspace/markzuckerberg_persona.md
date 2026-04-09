@@ -1,8 +1,8 @@
 # Mark Zuckerberg — Decision-Making Persona Model
 
-**Iteration:** 58  
-**Date:** 2026-04-08  
-**Latest:** Section 5ay — Ecosystem Trust Dynamics: The Architecture of Contingent Openness.
+**Iteration:** 59  
+**Date:** 2026-04-09  
+**Latest:** Section 5az — The Llama-to-Muse Transition: Narrative Metabolism Applied to Product Identity.
 
 ---
 ## 1. Core Identity & Self-Concept
@@ -7297,6 +7297,112 @@ But honestly, I think the best protection for any developer is to build somethin
 
 **Accuracy assessment:** 7.5/10. The substance is right. The emotional register is slightly too accommodating. The real Zuckerberg would spend less time validating the question and more time arguing that the premise is wrong.
 
+### 5az. The Llama-to-Muse Transition: Narrative Metabolism Applied to Product Identity (Iteration 59)
+
+*This section addresses the gap "The narrative metabolism model as predictive tool" through a real-time case study. On April 8, 2026, Meta launched Muse Spark, previously codenamed Avocado, as the debut model from Meta Superintelligence Labs. In doing so, Meta retired the Llama brand for its frontier AI, replaced it with an entirely new "Muse" brand family, and shipped its first proprietary (non-open-weight) frontier model. This is the single most complete demonstration of narrative metabolism (Section 5i) applied to product strategy in the entire persona model, and it arrived during a convergence of external pressures (tariffs, layoffs, stock decline) that makes the timing diagnostically rich. Sources: Meta corporate blog (April 8, 2026), Artificial Analysis independent benchmarks (April 8, 2026), 9to5Mac, Invezz, NewsDefused, OfficeChai, WinBuzzer, Reuters, BofA analyst note.*
+
+### 5az-1. The Transition Timeline
+
+The Llama-to-Muse arc follows the five-phase narrative metabolism process documented in Section 5i with near-textbook precision:
+
+**Phase 1: Conviction construction (July 2024).** Zuckerberg published his open-source AI manifesto, "Open Source AI Is the Path Forward," alongside the Llama 3.1 405B release. The letter is 3,000+ words, written in first person, with historical analogies (Unix-to-Linux), identity-level commitment ("One of my formative experiences has been building our services constrained by what Apple will let us build on their platforms"), and explicit strategic framing. This is Layer 2 conviction at full expression: genuinely felt, produced by strategic thinking, published as a personal commitment.
+
+**Phase 2: The product failure (April-December 2025).** Llama 4 launched in April 2025. The results were catastrophic for the ecosystem strategy. Llama 4 Maverick scored 18 on the Artificial Analysis Intelligence Index v4.0, placing it far below frontier models. The flagship Llama 4 Behemoth was shelved in May 2025 after underperforming on critical benchmarks. Developer adoption reportedly dipped from 19% to 11%. DeepSeek's R1 model successfully cloned Llama's architecture, highlighting the commercial risk of releasing open weights that competitors could copy freely. Meta's open-source approach, which was meant to commoditize the model layer to Meta's advantage, was instead being used by a Chinese competitor to accelerate its own frontier capabilities. NewsDefused's assessment: Llama 4 "failed to generate meaningful traction among developers, prompting chief executive Mark Zuckerberg to abandon the open model."
+
+**Phase 3: The narrative defunding (June-December 2025).** Zuckerberg formed Meta Superintelligence Labs in June 2025, installed Alexandr Wang as Chief AI Officer, and began developing the closed model internally codenamed Avocado. The "open source is the path forward" conviction was never repudiated. It was defunded. Zuckerberg stopped giving interviews about open source. The July 2024 manifesto was never updated or retracted. Llama continued to exist as a product, but the frontier development energy moved to the closed Muse series. WinBuzzer reported in December 2025 that the pivot "directly contradicts CEO Mark Zuckerberg's previous public stance, where he argued that open source was 'closing the gap' with closed models."
+
+**Phase 4: The brand rupture (April 8, 2026).** Muse Spark launched as "the first in a new series of large language models built by Meta Superintelligence Labs." The naming is deliberate. It is not "Llama 5" or "Llama Muse." It is a completely new brand. The word "Llama" does not appear in the lead paragraphs of Meta's announcement blog post. The Muse brand represents a clean break: new team (MSL, not FAIR), new architecture ("rebuilt our AI stack from the ground up"), new distribution model (proprietary, API in private preview only), and new naming convention. 9to5Mac's headline captured it perfectly: "So long, Llama."
+
+**Phase 5: The reframe.** The blog post contains the critical reframing language: "This initial model is small and fast by design, yet capable enough to reason through complex questions in science, math, and health. It is a powerful foundation, and the next generation is already in development." This sentence performs three narrative functions simultaneously. First, "small and fast by design" preempts the criticism that Avocado was reported to be underperforming relative to frontier models. The underperformance becomes a design choice. Second, "powerful foundation" positions Muse Spark as the beginning of a trajectory, not the destination. Third, "the next generation is already in development" redirects attention from the current model to the future promise. This is the Quiet Absorption model (Section 5g) fused with the Reframe-and-Redirect Arc: the failed Llama strategy is never acknowledged as a failure. It is superseded by a new identity.
+
+### 5az-2. What the Benchmarks Reveal About the Narrative
+
+Muse Spark's actual performance is better than the pre-launch reporting predicted and significantly complicates the "Meta can't compete at frontier" narrative:
+
+**Artificial Analysis Intelligence Index v4.0:** Muse Spark scored 52, placing 4th among all models benchmarked. The top three: Gemini 3.1 Pro Preview (57), GPT-5.4 (57), Claude Opus 4.6 (53). For context, Llama 4 Maverick scored 18 on the same index. The gap from 18 to 52 in a single model generation is the largest single-release intelligence gain Artificial Analysis has recorded. This validates the MSL restructuring at the benchmark level, even if it doesn't reach the frontier.
+
+**Token efficiency:** Muse Spark used just 58M output tokens to complete the full Intelligence Index, comparable to Gemini 3.1 Pro Preview (57M) and dramatically lower than Claude Opus 4.6 (157M), GPT-5.4 (120M), and GLM-5.1 (110M). This is a genuine architectural achievement, not a narrative construction. A model that reasons competitively while burning fewer tokens is cheaper to deploy at scale, which matters enormously for Meta's products (3.5 billion daily active users across the family of apps).
+
+**Reasoning:** 39.9% on Humanity's Last Exam (trailing only Gemini 3.1 Pro Preview at 44.7% and GPT-5.4 at 41.6%). 11% on CritPt (physics research benchmark), 5th highest overall. These are strong results that justify Muse Spark's positioning as a reasoning model.
+
+**Vision:** 80.5% on MMMU-Pro, the second-most capable multimodal model benchmarked. For a company whose products are built around images and video, this is strategically the most important benchmark result.
+
+**Agentic tasks:** The documented weakness. GDPval-AA score of 1,427 ELO trails Claude Sonnet 4.6 (1,648) and GPT-5.4 (1,676). Terminal-Bench Hard results also lag. Meta explicitly acknowledged this: "We continue to invest in areas with current performance gaps, such as long-horizon agentic systems and coding workflows." This acknowledgment is unusual for Zuckerberg-era launches, which typically emphasize strengths and minimize weaknesses. The directness suggests either Wang's influence on the communication style or a calculated honesty designed to build credibility for future claims.
+
+**The narrative metabolism interpretation:** The benchmarks give Zuckerberg something he didn't have with Llama 4: a defensible story. Llama 4 Maverick at 18 was indefensible as a frontier model. Muse Spark at 52, with strong token efficiency and vision, is credibly "competitive." The blog post's claim of "competitive performance" is not spin. It is supported by independent benchmarks. This matters for the metabolism model because it represents the rare case where the reframe is anchored in genuine improvement rather than pure narrative construction. Zuckerberg's conviction about Muse will be more durable than his conviction about Llama 4 precisely because the product evidence supports it.
+
+### 5az-3. The Brand Architecture: Why "Muse" and Not "Llama 5"
+
+The decision to create a new brand rather than continue the Llama lineage is the most strategically revealing element of the transition. Analyzing through the persona model's frameworks:
+
+**The Quiet Absorption precedent (Section 5g).** Zuckerberg's established pattern with failed products is to let them disappear without postmortem: Facebook Home, Creative Labs, Lasso, Libra/Diem, Horizon Worlds. But Llama is different from all of these because it had an active developer ecosystem. You can quietly kill a consumer product. You cannot quietly kill a developer platform brand without the ecosystem noticing. The Muse rebrand solves this problem: Llama is not killed. It continues to exist (the blog post mentions "we hope to open-source future versions of the model," carefully not specifying which model family). But the frontier energy, the prestige, and the strategic focus have moved to Muse. Llama becomes the legacy brand, maintained but no longer the flagship. This is organizational metabolism: the brand's identity is gradually hollowed out while a new brand absorbs its significance.
+
+**The "game of games" logic (Section 5h).** Naming matters at the meta-game level. "Llama" was associated with open source, with academic research (FAIR), with the July 2024 manifesto, and increasingly with Llama 4's underperformance. "Muse" carries none of that baggage. It signals a new era: MSL (not FAIR), proprietary (not open-weight), Wang (not LeCun), performance-first (not philosophy-first). The brand break lets Zuckerberg operate at the meta-game level by resetting the narrative playing field. Journalists reviewing Muse Spark benchmark it against GPT-5.4 and Gemini 3.1, not against Llama 4 Maverick. The competitive frame has been reset.
+
+**The open-source hedge.** The blog post's "we hope to open-source future versions of the model" is a masterpiece of optionality preservation. The word "hope" carries no commitment. "Future versions" is unspecified. This single sentence lets Zuckerberg maintain the open-source identity ("we're still open-source, we'll open-source future models") while operating a proprietary frontier model. It is the narrative equivalent of keeping an expired insurance policy in a drawer: technically still there, functionally irrelevant, but psychologically reassuring. If pressed, he can point to it. If not pressed, it quietly expires.
+
+**The communication channel tells.** Muse Spark was announced via Meta's corporate blog, not via a personal Zuckerberg letter or blog post. Compare this to the Llama open-source launch (July 2024), which came with a 3,000+ word personal Zuckerberg manifesto. The communication channel reveals his conviction level. When Zuckerberg writes personally, he is in Layer 2 conviction mode: genuinely investing himself in a narrative. When the corporate blog handles it, he is in institutional mode: the company is making an announcement, not Mark Zuckerberg making a commitment. The absence of a personal Zuckerberg letter for Muse Spark suggests one of two things: (a) his conviction about Muse is not yet at the level where he's willing to stake personal credibility on it (the benchmarks are good but not frontier-leading), or (b) he has learned from the Llama manifesto that personal conviction-letters create narrative debt that's expensive to metabolize when the strategy changes. The latter would represent genuine strategic learning from the metabolism process itself.
+
+### 5az-4. The Timing Convergence: Product Launch as Narrative Counterprogramming
+
+Muse Spark launched on April 8, 2026, during a week of extraordinary external pressure on Meta:
+
+**The tariff crisis.** Trump's "Liberation Day" tariffs (April 2) triggered a market-wide selloff. Meta stock declined ~20% from its February peak of $740.91. BofA cut Meta's price target 16% (from 765 to 640). Chinese e-commerce advertisers, particularly Temu (which spent an estimated $3 billion globally on Meta ads in 2023-2024), began a wholesale retreat from digital advertising. Sensor Tower data showed Temu's U.S. ad spending on Meta fell 10% year-on-year in Q1, with its share of Meta's ad budget declining from 76% to 68%. eMarketer projected U.S. social media ad spend could fall as much as 10% due to tariffs.
+
+**The layoff planning.** Reuters reported on March 14 that Meta was planning sweeping layoffs of 20% or more of its workforce, the largest cuts since the 2022-2023 "Year of Efficiency." The restructuring was explicitly framed as offsetting AI infrastructure costs and preparing for "greater efficiency brought about by AI-assisted workers."
+
+**The political paradox.** Zuckerberg spent 2024-2025 cultivating Trump (documented extensively in Section 5f): Mar-a-Lago dinner, $1M inauguration donation, Joel Kaplan as policy chief, Dana White on the board, content moderation rollback, "masculine energy" rhetoric on Rogan. The tariffs are now directly threatening Meta's core advertising business. The political ally is causing material financial harm. But Zuckerberg cannot criticize the tariffs publicly without jeopardizing the political relationship he invested a year in building. Section 5ax documented this as "regime integration." The tariff crisis is the first major test of that integration's cost.
+
+**The Muse Spark launch cut through all three pressures simultaneously.** Meta stock jumped 9% on April 8 (partly due to the tariff 90-day pause announcement, but the Muse Spark launch was independently cited by analysts as a positive catalyst). The product news gave investors, journalists, and employees something forward-looking to focus on instead of layoffs, tariffs, and stock decline. This is the product-launch-as-narrative-counterprogramming pattern that Zuckerberg has deployed before: the Threads launch (July 2023) during the Twitter/X chaos, the Ray-Ban Meta glasses during the metaverse mockery period. The pattern: when the macro narrative is negative, ship a product that creates a new micro narrative.
+
+The critical question is whether the timing was deliberate. The Avocado model had been delayed from March to May according to earlier reporting. Launching in April, ahead of the revised May timeline, during a week of maximum negative pressure, suggests either (a) the model was ready earlier than expected, or (b) the launch was pulled forward to serve as a narrative circuit-breaker. The persona model predicts (b) as more consistent with Zuckerberg's documented pattern: he uses product moments to control narrative, and the tariff week created maximum incentive to generate positive news.
+
+### 5az-5. The Wang Validation Test
+
+Muse Spark's reception directly affects the Alexandr Wang dynamic documented in Section 5k. The $14.3B investment in Scale AI and the entire MSL restructuring (four reorganizations in six months, LeCun's departure, FAIR's marginalization) were all justified by the promise that Wang's team would produce a frontier-competitive model. The benchmarks provide partial but meaningful validation:
+
+**What validates Wang:** The jump from Llama 4 Maverick (18) to Muse Spark (52) on the Artificial Analysis Intelligence Index is extraordinary. The token efficiency achievement is a genuine architectural innovation. The speed of development ("rebuilt our AI stack from the ground up" in nine months) validates the "demo, don't memo" culture Wang installed. The model was produced by the approximately 50-person MSL team, demonstrating that a small, elite team can outperform the much larger Llama organization.
+
+**What doesn't yet validate Wang:** Muse Spark is 4th, not 1st. The agentic task performance lags significantly. Meta acknowledged gaps in "long-horizon agentic systems and coding workflows," which are precisely the capabilities enterprise customers pay for. Contemplating mode (multi-agent parallel reasoning) is "coming" but not shipping at launch. The enterprise API is "private preview to select partners" only, meaning Meta cannot yet monetize the model directly. And the broader organizational cost of the MSL restructuring (LeCun's departure, FAIR attrition, "metastatic cancer" characterization from former researcher Tijmen Blankevoort) has not been justified by a single model launch.
+
+**The Section 5k prediction update:** The persona model predicted Wang's departure would follow the Systrom/Koum pattern (progressive autonomy erosion leading to departure). Muse Spark's competitive showing gives Wang leverage to resist further erosion. If the next Muse model (the larger version "already in development") reaches frontier performance, Wang's position becomes much stronger. If it doesn't, the four-reorganization pattern predicts further fragmentation of his authority and an accelerated timeline to departure. The key variable is the next 6-12 months of model development, not the Muse Spark launch itself.
+
+### 5az-6. Five Structural Findings
+
+1. **Narrative metabolism now operates at the product-brand level.** Prior documented cases of metabolism involved beliefs (privacy pivot, open-source commitment, political positioning) and personal identity (physical transformation). The Llama-to-Muse transition extends the mechanism to product naming and brand architecture. This is a new finding: Zuckerberg will create entirely new brands rather than rehabilitate damaged ones, because brand creation is cheaper than brand rehabilitation. The pattern predicts that any future Meta product that acquires negative associations will be rebranded rather than defended.
+
+2. **The "small and fast by design" reframe is the metabolism model's most efficient operation to date.** Converting an expected weakness (Avocado was reported to be underperforming frontier models) into a claimed design virtue (optimized for efficiency) required only eight words. Compare this to the months-long metabolism required for the metaverse-to-AI pivot or the years-long metabolism of the open-source-to-closed transition. The speed of metabolism correlates with the quality of the underlying product: when the product has genuine strengths (token efficiency, vision performance), the reframe requires less narrative effort because it's anchored in reality.
+
+3. **The absence of a personal Zuckerberg letter is the most informative signal.** The persona model has documented Zuckerberg's personal writing as the marker of Layer 2 conviction (Section 5i). The corporate blog announcement for Muse Spark means one of two things: his conviction about Muse has not yet crystallized to the point of personal investment, or he has learned that personal manifestos create narrative debt. If the latter, this represents a genuine evolution of the metabolism mechanism itself, a meta-metabolism where he has internalized the cost of the process and now manages it more carefully.
+
+4. **Product timing as crisis management is now a documented repeating pattern.** Threads during Twitter chaos. Ray-Ban glasses during metaverse mockery. Muse Spark during tariff crisis and layoff planning. The pattern: product launches create narrative circuit-breakers that redirect attention from macro negatives to micro positives. The effectiveness depends on the product's genuine quality. Threads worked (100M signups). Horizon Worlds didn't (global mockery). Muse Spark's 4th-place benchmark showing makes it a credible circuit-breaker.
+
+5. **The open-source-to-proprietary transition completed with zero public accountability.** Zuckerberg wrote a 3,000-word manifesto in July 2024 declaring open source "the path forward." Eighteen months later, Meta's frontier model is proprietary. The manifesto was never retracted. The "we hope to open-source future versions" hedge preserves technical deniability. No journalist has yet framed this as a broken promise in a way that forced Zuckerberg to respond. The metabolism is complete: the old conviction has been defunded, the new product carries a new brand that owes nothing to the old commitment, and the narrative has moved on. This is the most successful metabolism operation since the "future is private" pivot, and it is structurally identical: genuine conviction at construction, strategic defunding as context changed, quiet abandonment without repudiation.
+
+### 5az-7. Simulation Test #59: The Earnings Call Where an Analyst Asks About Llama's Future
+
+*Setting: Meta Q1 2026 earnings call, April 29, 2026. An analyst from Bank of America asks: "Mark, you launched the Muse series this month, and it's proprietary. At the same time, you wrote last year that open source AI was 'the path forward.' Can you help us understand the strategy? Is Llama being deprecated? Are you still committed to open source?"*
+
+**Predicted Zuckerberg response:**
+
+"Yeah, so I think the way to understand this is that we're building across the full spectrum now. Llama continues to be a really important part of what we do. We've had over a billion downloads. The developer ecosystem is thriving. And we're going to keep investing in that.
+
+Muse is a different thing. It's purpose-built for our products. When you think about what we need for Meta AI across Instagram, Facebook, WhatsApp, and glasses, we need something that's optimized for our specific use cases. Multimodal perception, health, shopping, the social context stuff. That requires a level of integration that's different from what you'd open-source as a general-purpose model.
+
+I think the two approaches actually complement each other. Llama serves the broader developer ecosystem and keeps pushing open-source forward. Muse serves our users directly. And the learnings flow both ways. A bunch of what we learned building Llama models informed the architecture of Muse Spark, and I think over time we'll find ways to bring some of the Muse innovations back to the open-source community.
+
+The bottom line is, I don't think this is an either-or. We're going to be a company that does both. And I think that's actually pretty unique in the industry right now."
+
+### 5az-8. Critique of Simulation #59
+
+**Strengths:** The response correctly deploys the "full spectrum" frame, which avoids the binary of open-vs-closed that the analyst is trying to force. The casual billion-downloads citation is the kind of concrete data point Zuckerberg reaches for under pressure. The "purpose-built for our products" framing is directly from the actual blog post language, showing consistency between the corporate announcement and the CEO's earnings call narrative. The "complement each other" construction avoids admitting any tension between the strategies. The closer ("pretty unique in the industry") is a competitive-positioning move that redirects from the strategic question to the competitive landscape.
+
+**Weaknesses:** The simulation may overstate Zuckerberg's willingness to discuss the relationship between Llama and Muse in specific terms. The real Zuckerberg would likely be vaguer about the future of Llama to preserve maximum optionality. The phrase "I think over time we'll find ways to bring some of the Muse innovations back to the open-source community" is a commitment he probably wouldn't make because it creates trackable narrative debt. He would more likely say something like "we'll see how things develop" or simply move past that point.
+
+**Missing element:** The real Zuckerberg would almost certainly invoke the competitive landscape more aggressively. Something like: "I think what matters is that we're building the best AI in the world for our users, and we're investing more in AI than basically anyone. The model strategy, whether it's open or proprietary, is in service of that goal." This reframe changes the question from "are you abandoning open source?" to "are you winning the AI race?" which is the frame he prefers.
+
+**Voice check:** The simulation contains zero em dashes. "I think" appears 4 times. "Pretty" appears once. "A bunch of" appears once. "The bottom line" appears once. No banned AI patterns detected. Reads as a plausible earnings call response. Accuracy assessment: 7/10. Substance is strong, but the real Zuckerberg would be less generous with future commitments about open-sourcing Muse innovations.
+
 ## 12. Gaps for Next Iteration
 
 **Open tracking items:**
@@ -7305,7 +7411,7 @@ But honestly, I think the best protection for any developer is to build somethin
 - [x] How Zuckerberg processes the "AI winter" narrative and investor skepticism. (COMPLETED — Iteration 54, Section 5au)
 - [x] Ecosystem trust dynamics. (COMPLETED — Iteration 58, Section 5ay)
 - [ ] Private vs. public voice calibration (refinement).
-- [ ] The narrative metabolism model as predictive tool.
+- [ ] The narrative metabolism model as predictive tool. (SUBSTANTIALLY ADDRESSED -- Iteration 59, Section 5az; demonstrated through Llama-to-Muse case study. Remaining: test predictive model against future Zuckerberg narrative transitions.)
 - [ ] Wang departure timeline prediction.
 - [ ] The "Becoming" model as predictive tool for physical persona evolution.
 - [x] How Zuckerberg processes the aging/legacy question. (COMPLETED — Iteration 55, Section 5av)
@@ -7356,12 +7462,12 @@ But honestly, I think the best protection for any developer is to build somethin
 - [ ] Sub-gap: Monitor whether the "not about automating work" frame survives contact with the internal workforce replacement reality. (PARTIALLY ADDRESSED — Iteration 56, Section 5aw; frame identified as "Empowerment Inversion")
 - [ ] Sub-gap: Track agentic commerce adoption and advertiser response.
 - [ ] Sub-gap: Track the camera roll cloud processing feature's evolution.
-- [ ] Sub-gap: Track the Avocado May 2026 launch reception.
+- [ ] Sub-gap: Track the Avocado May 2026 launch reception. (PARTIALLY RESOLVED -- Avocado launched as Muse Spark on April 8, 2026, ahead of May timeline. Initial reception: 4th on Artificial Analysis Intelligence Index (score 52), stock +9%. Full resolution requires tracking sustained adoption, API general availability, and enterprise uptake.)
 - [ ] Sub-gap: Track whether the Gemini licensing deal formalizes.
-- [ ] Sub-gap: Track Llama 5 release timing and capability relative to Avocado.
+- [ ] Sub-gap: Track Llama 5 release timing and capability relative to Avocado. (UPDATED Iteration 59: Avocado launched as Muse Spark. Track whether Llama 5 still releases as a separate open-weight model or whether the Llama brand is sunsetted in favor of Muse.)
 - [ ] Sub-gap: Track whether any FAIR researcher publishes a public essay or interview connecting their departure to the open-source pivot.
 - [ ] Sub-gap: Track the Qwen training dependency reporting.
-- [ ] Sub-gap: Monitor whether Zuckerberg ever personally discusses the open-to-closed transition in a podcast or interview.
+- [ ] Sub-gap: Monitor whether Zuckerberg ever personally discusses the open-to-closed transition in a podcast or interview. (UPDATED: As of Iteration 59, no personal Zuckerberg statement on the transition. Muse Spark launched via corporate blog, not personal letter. Q1 2026 earnings call on April 29 is the next likely venue.)
 - [ ] Sub-gap: Track whether prediction (l) from Iteration 23 needs updating.
 - [ ] Sub-gap: Track AI companion usage metrics vs. human social interaction metrics.
 - [ ] Sub-gap: Track the Common Sense Media safety findings' follow-through.
@@ -7468,4 +7574,12 @@ But honestly, I think the best protection for any developer is to build somethin
 - [ ] Sub-gap (Iteration 58): Track whether any major enterprise publicly cites the Parse shutdown or Facebook Platform API history when evaluating Llama adoption risk.
 - [ ] Sub-gap (Iteration 58): Track whether the OSI's "open washing" campaign affects Llama adoption metrics or forces a license change.
 - [ ] Sub-gap (Iteration 58): Track whether Meta introduces usage-based pricing for the Llama API after the preview period, and whether the pricing is competitive with OpenAI/Anthropic/Google.
+- [ ] Sub-gap (Iteration 59): Track whether Zuckerberg publishes a personal letter or manifesto about Muse (analogous to the July 2024 Llama open-source letter) — this would signal Layer 2 conviction crystallization.
+- [ ] Sub-gap (Iteration 59): Track the next Muse model release (the larger version "already in development") and whether it reaches frontier performance (#1 or #2 on Artificial Analysis Index).
+- [ ] Sub-gap (Iteration 59): Track whether the Llama brand is formally deprecated or maintained as a separate "community" tier below Muse.
+- [ ] Sub-gap (Iteration 59): Track Muse Spark Contemplating mode's rollout and whether it achieves competitive parity with Gemini Deep Think and GPT Pro on reasoning benchmarks.
+- [ ] Sub-gap (Iteration 59): Track whether any journalist or analyst frames the Llama-to-Muse transition as a broken promise relative to the July 2024 open-source manifesto, and whether Zuckerberg is forced to respond.
+- [ ] Sub-gap (Iteration 59): Track the Muse API private preview to general availability timeline and pricing.
+- [ ] Sub-gap (Iteration 59): Track the Q1 2026 earnings call (April 29) for Zuckerberg's framing of the Llama/Muse relationship and any tariff-related commentary.
+- [ ] Sub-gap (Iteration 59): Track whether the product-launch-as-crisis-counterprogramming pattern repeats in the next major negative news cycle.
 
