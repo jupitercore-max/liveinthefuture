@@ -1,8 +1,9 @@
 # Tariffs Are About to Hit Ray's Day Job — And Nobody's Talking About It
 
 **Created:** 2026-04-06 (Iteration 2)
-**Status:** Active — HIGH urgency, directly impacts Meta Wearables
-**Urgency:** High (structural, imminent)
+**Updated:** 2026-04-10 (Iteration 6)
+**Status:** Active — MEDIUM urgency (chip tariff delay reduces near-term pressure)
+**Urgency:** Medium (structural, but semiconductor delay buys time)
 
 ## The Situation
 
@@ -92,3 +93,32 @@ The US-Switzerland trade agreement reduced Swiss goods tariffs from **39% to 15%
 
 ---
 *Updated: 2026-04-08, Iteration 4 — Added Swiss watch tariff deal, consumer impact data*
+
+## Iteration 6 Update (April 10)
+
+### MAJOR: Chip Tariffs Delayed Until June 2027
+The US has delayed implementation of new tariffs on Chinese chip imports until **June 2027**. Key details:
+- Section 301 probe confirmed China's state-backed chipmaking poses a threat to US commerce
+- But instead of immediate tariffs, the administration chose delay to "maintain leverage"
+- A separate **Section 232 investigation** into global chip imports could result in additional tariffs on a wide range of electronics
+- China has restricted exports of **rare earth metals** in retaliation
+
+**Relevance to Meta Wearables:**
+- The semiconductor components in Ray-Ban Meta glasses are NOT hit by chip tariffs yet
+- This buys Meta ~14 months of breathing room on component costs
+- The $499 Blayzer/Scriber price point is more defensible than previously thought
+- BUT: rare earth restrictions could still affect sensor/camera modules
+- AND: the Section 232 investigation is a wildcard — could hit consumer electronics broadly
+
+### Combined Tariff Picture (April 2026)
+- **Swiss watches:** 39% → 15% (bilateral deal) ✓ Good for Ray's watch collecting
+- **Semiconductors:** Delayed to June 2027 ✓ Good for Meta Wearables near-term
+- **Chinese components (general):** 250% ✗ Still devastating for Chinese-origin parts
+- **EU/Italy (frames):** 10% baseline ✗ Hits EssilorLuxottica frame costs
+- **Section 232 (pending):** Unknown ✗ Wildcard for all consumer electronics
+
+### Thread Assessment
+Downgrading from HIGH to MEDIUM urgency. The chip tariff delay removes the most immediate threat to Meta Wearables component costs. The structural tariff exposure remains (EU baseline, Chinese component substitution costs), but the timeline pressure has eased significantly. Will monitor Section 232 investigation.
+
+---
+*Updated: 2026-04-10, Iteration 6 — Chip tariff delay to June 2027 reduces near-term pressure on Meta Wearables. Swiss watch deal + chip delay = more favorable than feared. Section 232 investigation remains the wildcard.*

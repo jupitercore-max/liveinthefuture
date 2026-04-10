@@ -122,3 +122,18 @@ Ray is an engineering leader at Meta who builds things. He values:
 - **Best Buy Totaltech** claim deadline is still unknown. The membership has changed (My Best Buy Memberships replaced Totaltech in 2023, with price changes in 2026). Verify Ray's specific coverage terms.
 - **The 1205 N Lemon property** has been empty for ~16 months now (~$131K in carrying costs burned). §121 deadline is 20 months away. Every month is $8K wasted. This needs to become a thread if it stays pending much longer.
 
+## Iteration 6 Learnings (2026-04-10)
+
+### What Worked
+- **Financial deadline awareness is a daydream superpower.** The 1205 N Lemon thread finally got created because the numbers became undeniable: $128K burned, $8K/month continuing, $500K exclusion at risk in 20 months. Pending financial items should be escalated to threads faster — iteration 5 flagged it as "needs to become a thread if it stays pending much longer." It should have been a thread 2 iterations ago.
+- **Reframing threats as opportunities is the highest-value thinking.** The AI Overviews thread flipped from "60% traffic decline" to "3x citation advantage for fresh content" because of one new data point (AirOps: content under 3 months old is 3x more likely to be cited). Look for data that CHANGES THE FRAMING, not just confirms the existing narrative.
+- **Tariff granularity matters.** The chip tariff delay to June 2027 dramatically changes the near-term picture for Meta Wearables. Previous iterations treated "tariffs" as monolithic. The reality is Swiss watches (15%), semiconductors (delayed), Chinese components (250%), EU baseline (10%) — each with different timelines and impacts. Always disaggregate.
+- **The countdown format works for time-sensitive threads.** W&W at "4 days out" creates natural urgency and focus. Apply this to other time-sensitive threads (§121 deadline: 20 months).
+- **Close threads aggressively.** Escalade-iql and meta-tribe both lingered 2 iterations too long. If a thread has been reported and has no new data, close it.
+
+### What to Improve for Iteration 7
+- **The Cloudflare analytics dashboard has been proposed for 4 iterations.** This is becoming the daydream equivalent of Ray's pending items. Either build it (spawn a subagent from the daydream) or acknowledge it as out of scope and remove the recommendation.
+- **Rental property thread needs real data.** Search for actual comparable rentals on Redfin/Zillow for the specific address. What would 1205 N Lemon Ave actually rent for?
+- **Post-April 14 W&W thread should transition to a summary/analysis thread.** Once announcements drop, the countdown format is obsolete. Prepare for the pivot.
+- **The Bulgari negotiation silence** has been noted for 2 iterations without action. Either create a thread or stop mentioning it.
+

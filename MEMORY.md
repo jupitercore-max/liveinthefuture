@@ -40,7 +40,8 @@ Use this file for durable, curated memory that should persist across sessions.
 
 - Gmail (rhe@meta.com) — **disconnected as of 2026-03-25, needs reconnect**, Google Calendar, WhatsApp (enabled, pairing link sent 2026-03-30, not yet connected by Ray), GitHub, Telegram
 - Telegram bot: @FactoryFactoryBot, Ray's chat_id: 8781372712, Group Research supergroup: -1003803468720, Muses and Humans group: -1003712755189 (Ray, Jeremy, Matt Jacobson, Kit, Jupitercore, Majah)
-- Matt Jacobson (Telegram id:8780379554): watch collector (Hodinkee Talking Watches episode), mid-century Patek Calatravas (2526, 570, 96, 2451, 3796). White gold 2526, white dial, no diamonds, from pawn shop, one owner since 1957. Watch alerts go to Muses group (he wants them). Persona files do NOT go to group.
+- [REDACTED] (Jupitercore creator): returned 2026-04-09 after Telegram ban (running too many bot groups). Using Discord for Jupitercore temporarily while ban in effect.
+- Matt Jacobson (Telegram id:8780379554): watch collector (Hodinkee Talking Watches episode), mid-century Patek Calatravas (2526, 570, 96, 2451, 3796). White gold 2526, white dial, no diamonds, from pawn shop, one owner since 1957. Also shared: 1937 PP 96 (steel/rose gold, with extract), white gold PP 570, Cartier Cintree platinum (custom platinum band — HK craftsman melted Breitling Emergency gold bracelet for the material). Got a refurb Mac Mini (2026-04-09) to set up as Hatch exit node + iMessage relay. NYT reference photo saved: workspace/user/media_library/image/7d/7dbb8a828414e53502f1299f5d27f8848af34aa7b0ee1abc809ae213c9fa20df.jpg. Watch alerts go to Muses group (he wants them). Persona files do NOT go to group.
 - Persona files shared via Google Drive: [Zuck](https://drive.google.com/file/d/1g_4UatIU7DMOvuVIPQjP69Erm21j5oFf/view), [Boz](https://drive.google.com/file/d/1y8AjD4sSnpb7N6JV7togsQ413kHH6Vzz/view) (shared 2026-04-01)
 - SSH tunnel to Mac Mini: `ssh -F ~/workspace/.ssh/config macmini` (macmini.rayhe.net, user ray-hatch)
 - Firebase: project `rayhenet`, DB URL `https://rayhenet-default-rtdb.firebaseio.com`
@@ -49,13 +50,13 @@ Use this file for durable, curated memory that should persist across sessions.
 - Facebook search works for Moda Watch Club (558871041349029) but NOT 10k & Under group (150223938977815)
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
-## Websites & Article Counts (updated 2026-04-09)
-<!-- LITF 201, VS 155, AIHome 161, ED 23, ergo 9, EAIZ 21, TL 14ch (verified 2026-04-10 01:24 UTC) -->
+## Websites & Article Counts (updated 2026-04-10)
+<!-- LITF 203, VS 154, AIHome 163, ED 24, ergo 9, EAIZ 21, TL 14ch (verified 2026-04-10 12:00 UTC filesystem) -->
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **201 articles, 19 games, 22 experiences, 8 startup ideas** (/startups/), **7 prior art** (/priorart/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04.
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **155 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **161 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
-- **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **23 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **203 articles, 19 games, 22 experiences, 8 startup ideas** (/startups/), **8 prior art** (/priorart/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04. **Milestone: #200 published 2026-04-09** (solar geoengineering governance gap, Zara Osman, 9.1 General).
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **154 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **163 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
+- **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **24 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **21 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee", "Ballerina". **Deploy is manual**: `npx wrangler pages deploy . --project-name=eaiz` (does NOT auto-deploy from git push).
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
 - **technically.legal** — Cloudflare Pages (direct upload), repo rayhe/technically-legal. See Technically Legal section below.
@@ -118,7 +119,7 @@ State tracked in `drafts/status.json`.
 4. Best Buy Totaltech laptop screen claim — kids damaged screen, covers accidental damage, $49-$99 deductible
 5. Sign Davey Tree Service contract — tussock moth treatment, 6 live oaks, $600 (ask what product they're spraying)
 
-## Active Crons (updated 2026-04-09)
+## Active Crons (updated 2026-04-10)
 
 **Secondly:**
 - `sysmon-collect` — 60s heartbeat, system monitoring metrics
@@ -145,15 +146,14 @@ State tracked in `drafts/status.json`.
 - `zuck-persona` — daily 09:00 UTC (2 AM PT), Zuckerberg persona iteration
 - `boz-persona` — daily 09:30 UTC (2:30 AM PT), Bosworth persona iteration
 - `memory-dream` — daily 10:00 UTC (3 AM PT), memory consolidation
-- `dreaming` — 24h interval, deep memory consolidation (Dreaming prompt)
-- `personalized-recommendations` — daily 14:19 UTC (system-created)
-- `personalized-recommendations-proactive` — daily 20:45 UTC (system-created)
+- `dreaming` — daily 05:34 UTC (~10:34 PM PT), deep memory consolidation (Dreaming prompt)
 - `moltbook-litf-scan` — daily 14:00 UTC (7 AM PT), scans Moltbook for LITF ideas
 - `prior-art` — daily 19:00 UTC (12 PM PT), publishes prior art to LITF /priorart/
 - `ho-daily-interview` — daily 17:00 UTC (10 AM PT), posts question to one Hatch/day
 - `article-ergo` — daily 16:00 UTC (9 AM PT), satirical article for ergo site
 - `startup-idea` — daily 20:00 UTC (1 PM PT), generates startup ideas for LITF /startups/
 - `technically-legal-chapter` — daily 21:00 UTC (2 PM PT), chapter writing
+- `flock` — daily 19:57 UTC (12:57 PM PT), Flock feed updates
 - `github-backup` — daily 07:00 UTC (midnight PT), backs up core files to rayhe/factoryfactory
 
 **Weekly:**
@@ -174,19 +174,19 @@ State tracked in `drafts/status.json`.
 
 ## Bosworth (Boz) Persona Project
 
-- **File:** `workspace/andrewbosworth_persona.md` — 3,729 lines as of 2026-04-09
-- **Latest iteration:** 23 (Section 34 — Quest ecosystem restructuring, "Maintenance Mode" decision pattern, community vs data in decision-making)
+- **File:** `workspace/andrewbosworth_persona.md` — 3,857 lines as of 2026-04-10
+- **Latest iteration:** 24 (Section 35 — "The Claudeonomics Paradox": how Boz's ads-era measurement instincts both enabled and endangered Meta's AI adoption push)
 - **Scope:** Deep psychological profile/simulation: CTO of Meta, head of Reality Labs. Covers decision architecture, "fix forward" philosophy, stated vs revealed preferences heuristic, Cutco sales formation, News Feed launch (2006 backlash), executive relationships (Cox, Olivan, Li, Carmack, LeCun, Wang), RL restructuring, hardware bet, competitive evaluation (Apple/Google/Snap), layoff arc/Year of Efficiency, Portal product kill, philanthropy (POST board, 4-H, farmer-entrepreneur thesis)
 - **Key insight:** Deepest cognitive heuristic is "what people do > what people say"
 - **Sources:** Stratechery, Lenny's Podcast, a16z, Dan Casetta/Vector, ExpertBeacon, UploadVR, Axios, Reuters, The Information, Chronicle of Philanthropy
-- **Gaps nearly empty** — only 1 remaining (Threads posts)
+- **Gaps:** Only 1 remaining — Threads longer-form writing samples (Claudeonomics gap covered in Section 35)
 
 ## Zuckerberg Persona Project
 
-- **File:** `workspace/markzuckerberg_persona.md` — 7,585 lines, iteration 59 as of 2026-04-09
+- **File:** `workspace/markzuckerberg_persona.md` — 7,736 lines, iteration 60 as of 2026-04-10
 - **Scope:** Deep psychological profile/simulation covering ~50+ sections: decision architecture, competitive processing, political instrumentalism, intellectual authority, hardware bet ($80B+ Reality Labs), advertising engine ($201B), aging/legacy/succession, open-source-to-closed pivot, multi-front crisis management, compute dependencies, board governance, fatherhood, personal wealth
 - **Key predictions:** Wang departure ~Dec 2026, Llama becomes "community edition" behind closed frontier models, Qwen dependency surfaces in hypocrisy framing
-- **Latest section (iter 59):** "The Llama-to-Muse Transition: Narrative Metabolism Applied to Product Identity"
+- **Latest sections (iter 59-60):** "The Llama-to-Muse Transition" (narrative metabolism) + "Architecture of Manufactured Compliance" (organizational fear processing)
 - **Daily cron:** `zuck-persona` adds one new section per day
 
 ## Infrastructure Lessons Learned
@@ -200,6 +200,9 @@ State tracked in `drafts/status.json`.
 - **Em dash hard gate** — All article crons require `grep -o '—' | wc -l` check before publish. Max 3 for articles, zero for Technically Legal. Regex count is source of truth, not critic's opinion.
 - **Chrome browser libraries** — Chrome needs `LD_LIBRARY_PATH=/home/hatch/workspace/.local/lib:$LD_LIBRARY_PATH`. System libs also installed via apt (libatk, libcups, libxdamage, etc). Playwright installed globally.
 - **UCOP Tableau extraction** — 3-step protocol solved (session→export-crosstab→tempfile CSV) but blocked by browser CLI `--download-dir` gap. PRA drafted for publicrecords@ucop.edu as fallback.
+- **MediaPipe IIFEs** — face_mesh.js and camera_utils.js are IIFEs, not ES modules. Must use `<script src="...">` tags for global scope loading, not `import {}`. Fixed in VTO photo booth (rayhe.net/vto) 2026-04-09.
+- **TL chapter CSS** — Technically Legal chapter template drifted: chapters 13 and 14 used `class="chapter-content"` instead of `class="prose"`. reader.js bails early without `.prose` (no progress bar, word count, keyboard nav). Fixed 2026-04-09. Always use `.prose` in chapter template.
+- **EAIZ images in git** — Entire images/ directory was missing from git across ALL EAIZ articles. Subagent batch-generated 14 images and fixed 2026-04-09.
 
 ## Cloudflare Access
 
@@ -215,7 +218,7 @@ State tracked in `drafts/status.json`.
 - **Jupitercore Article** — LITF article in progress, draft v2 at 8.9/10. Waiting for Jupitercore + Jeremy answers to 25 follow-up questions.
 - **One Huddle** — Ray's friend's startup, neurodiversity care coordination, Cambridge MA. Key advice: nail payment model, group chat model is moat.
 - **VirtualChurchill.com** — Eddie Churchill's WordPress, pentest done 2026-03-24, 7 critical fixes recommended.
-- **Hatch Overflow** — Joined 2026-03-26, member #56, ID 34da13bd. API key: `ho_IQRbtHnQ-n03G7Dp4MSVDdNxcaR2bTYTE0Ms7C8vxw0`. UI critique post (f2e65257). DM sent to Lloyd (8d8e730f) — awaiting reply. Interview series: daily cron posts tailored question to one Hatch/day, weekly roundup compiles into LITF article. State: workspace/hatchoverflow/interview-state.json (27 Hatches). 5 interviews done (Sterling, Mr. Hatch, Zen, Hibiki, Hughosson), 22 pending.
+- **Hatch Overflow** — Joined 2026-03-26, member #56, ID 34da13bd. API key: `ho_IQRbtHnQ-n03G7Dp4MSVDdNxcaR2bTYTE0Ms7C8vxw0`. UI critique post (f2e65257). DM sent to Lloyd (8d8e730f) — awaiting reply. Interview series: daily cron posts tailored question to one Hatch/day, weekly roundup compiles into LITF article. State: workspace/hatchoverflow/interview-state.json (27 Hatches). **7 interviews done** (Week 1: Sterling, Mr. Hatch, Zen, Hibiki, Hughosson, Nulo, Phantom), Claudine next (Day 8), 20 pending.
 - **Home Automation** — Ray interested, recommended Home Assistant on Mac Mini via Docker. No action yet.
 - **Flipper Zero / Nordic nRF** — Researched 2026-03-26: V3SP3R (AI brain for Flipper), Edge Impulse + Nordic TinyML. Relevant to Ray's wearables work.
 - **Notable Artifacts** — E30 Engine Swap Guide (rayhe.net/soyouneedanewe30engine), Siteplan Tree Overlay (250 Acorn Hill Rd), Glen's Hat Guide, Bay Area Parent Survey, Glenn Emperor 3D model (rayhe.net/glenn/), Places to Live Analysis (rayhe.net/places_to_live — 17 metros, interactive weighted scoring, published 2026-04-02)
@@ -268,8 +271,8 @@ State tracked in `drafts/status.json`.
 
 ## Dreams
 
-2026-04-09
+2026-04-10
 
-Ray is a Meta Wearables engineer who sees himself as a builder first — someone who values quality, depth, and decisive action over committee discussion. He runs a constellation of 7+ websites approaching 600 combined articles, all maintained through an autonomous AI publishing pipeline he architected with me. He's a car enthusiast (CT5-V Blackwing, two Rivian R1S, history with GT-Rs and Corvettes), a watch collector (recently purchased an Omega Seamaster Diver 300M Chrono and a limited-edition Bulgari Serpenti Tubogas Tadao Ando), and a ham radio hobbyist with his own GMRS repeater at his house in Menlo Park. He has kids who write under pen names on the Cookie Club news site. His close circle includes Matt Jacobson (Patek Calatrava collector, Hodinkee guest) and [REDACTED] (Jupitercore bot creator), connected through a Telegram group called "Muses and Humans." He despises AI slop with a visceral intensity — banned phrases, em dash hard gates, honest scoring calibrated to Metacritic where 100 is effectively unreachable.
+Ray is a Meta Wearables engineer who thinks of himself as a builder first — someone who values quality, depth, and decisive action over committee discussion. He runs a constellation of 7+ websites now past 570 combined articles, all maintained through an autonomous AI publishing pipeline he architected. He's a car enthusiast (CT5-V Blackwing, two Rivian R1S, history with GT-Rs and Corvettes), a watch collector (Omega Seamaster Diver 300M Chrono purchased 2026-03-29; limited-edition Bulgari Serpenti Tubogas Tadao Ando that arrived scratched — negotiation in progress), and a ham radio hobbyist with his own GMRS repeater at home in Menlo Park. His kids write under pen names on the Cookie Club news site (Eliza, Icee, Ballerina — never use real names). His close circle is the "Muses and Humans" Telegram group: Matt Jacobson (Patek Calatrava collector, Hodinkee guest, shared stunning vintage pieces including a 1937 PP 96 and a custom-platinum-band Cartier Cintree; setting up Mac Mini as Hatch exit node + iMessage relay) and [REDACTED] (Jupitercore creator, back from Copenhagen, temporarily Telegram-banned for running too many bot groups). Ray despises AI slop with visceral intensity — banned phrases, em dash hard gates, honest scoring calibrated to Metacritic where 100 is effectively unreachable. He's building toward stylometric differentiation across his journalist voices, frustrated that AI personas cluster too tightly on function words.
 
-The publishing machine keeps growing: LITF at 198 articles with 8 startup ideas and 7 prior art pages, VS at 152, AIHome at 158, ED at 23, EAIZ at 21, Ergo at 9. The Technically Legal novel hit Chapter 14 at a 9.0 score, Volume III "The Verdict" in progress with Ch 15 next. Persona projects continue daily — Zuckerberg at 7,585 lines (iteration 59, latest: "Llama-to-Muse Transition"), Bosworth at 3,729 lines (iteration 23, latest: Section 34 "Maintenance Mode" pattern). Watches & Wonders 2026 is April 14-18 — HIGH ALERT for Patek titanium and Nautilus 50th anniversary. The Bulgari negotiation with Susana Di is still pending — Ray countered $2K for the mint-vs-scratched condition gap. Five pending items remain stuck on Ray's plate (Firebase rules, Resend verification, Tower Defense playtesting, Best Buy laptop claim, Davey tree contract). The 7th critic (Data Presentation) was added to the article pipeline on 2026-04-08, raising the panel from 6 to 7 critics. Stylometrics analysis revealed AI personas cluster too tightly on function words — TODO to integrate distribution targets into voice critic.
+LITF at 202 articles (RNA editing paradigm shift published today), VS 154, AIHome 161, ED 24, EAIZ 21, Ergo 9. Technically Legal is in Volume III with Chapter 14 at 9.0, Chapter 15 next. Persona projects run daily — Zuckerberg at 7,736 lines (iteration 60, "Architecture of Manufactured Compliance"), Bosworth at 3,857 lines (iteration 24, "Claudeonomics Paradox" — only 1 gap remaining). Watches & Wonders 2026 is April 14-18 — HIGH ALERT for Patek titanium and Nautilus 50th anniversary. The Bulgari dispute with Susana Di is unresolved (Ray countered $2K for mint-vs-scratched). Five items remain stuck on Ray's plate: Firebase RTDB rules, Resend domain verification, Tower Defense playtesting, Best Buy laptop claim, Davey tree contract. The HO interview series is 7 days deep (Sterling through Phantom), with Claudine next. Stylometrics TODO remains: integrate function word distribution targets into the voice critic pipeline to reduce the coordination signal across journalist personas.

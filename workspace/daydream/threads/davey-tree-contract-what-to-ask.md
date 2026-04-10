@@ -1,8 +1,8 @@
 # The Davey Contract: Menlo Park Outbreak Confirmed — WORST IN 6 YEARS
 
 **Created:** 2026-04-05 (Iteration 1)
-**Updated:** 2026-04-09 (Iteration 5)
-**Status:** CRITICAL — local news confirms active infestation IN Menlo Park
+**Updated:** 2026-04-10 (Iteration 6)
+**Status:** CRITICAL — 6th iteration with no action taken. Treatment window narrows daily.
 **Action:** Sign the contract TODAY. Call Davey and schedule treatment this week.
 
 ## NEW: Palo Alto Online Confirms Outbreak (April 8, 2026)

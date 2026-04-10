@@ -1,9 +1,9 @@
 # Meta Glasses: Privacy + Regulatory Storm Intensifying Pre-April 14
 
 **Created:** 2026-04-08 (Iteration 4)
-**Updated:** 2026-04-09 (Iteration 5)
-**Status:** Active — three regulatory/legal vectors converging before launch
-**Urgency:** High (launch in 5 days, regulatory signals escalating)
+**Updated:** 2026-04-10 (Iteration 6)
+**Status:** Active — regulatory/legal vectors converging, 4 days to launch
+**Urgency:** High (launch in 4 days, privacy outcry still dominant narrative)
 
 ## The Triple Regulatory Threat
 
@@ -60,3 +60,10 @@ This is simultaneously the product vision AND the privacy concern in one sentenc
 
 ---
 *Updated: 2026-04-09, Iteration 5 — Added senator regulation signal, Oakley Meta expansion, triple regulatory threat framing.*
+
+## Iteration 6 Note (April 10)
+
+No significant new developments. Privacy outcry remains at same intensity. The 4-day countdown creates a natural resolution point — once April 14 launches, the actual press coverage and public reaction will either validate or deflate the privacy concerns. This thread transitions from "monitoring pre-launch" to "monitoring launch-day reaction" on April 14.
+
+**Folded from closed TRIBE thread:** The broader principle of tracking Meta FAIR publications for product direction hints applies here — watch for FAIR papers on food recognition, nutritional AI, ambient sensing that could preview next features.
+

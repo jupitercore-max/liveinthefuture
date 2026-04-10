@@ -1,14 +1,12 @@
-# Meta TRIBE: Brain Decoding Connects to Neural Band
+# Meta TRIBE: Brain Decoding Connects to Neural Band — CLOSED
 
 **Created:** 2026-04-06 (Iteration 2)
-**CLOSED:** 2026-04-09 (Iteration 5)
-**Reason:** Low urgency, no new developments in 3 iterations. TRIBE research is interesting but no actionable connection to Ray's immediate work or decisions. Neural band is still in research phase.
+**Closed:** 2026-04-10 (Iteration 6)
+**Reason:** Low urgency for 4 iterations, no new actionable information. Key insight (FAIR research papers preview product direction) folded into meta-glasses-nutrition-privacy thread as a general principle.
 
 ## Summary
-- Meta FAIR's TRIBE paper showed brain decoding from EEG using temporal-spatial transformers
-- Theoretical connection to Meta's neural band (EMG wristband) program
-- Both involve decoding neural signals from non-invasive wearables
-- No concrete product or timeline developments since thread creation
+Meta's TRIBE (Temporal Resolution for Interpretable Brain Encoding) research showed brain decoding capabilities that connect to the neural band product direction. The connection is real but speculative — no product timeline, no actionable decision for Ray. The broader principle (track FAIR publications for product direction hints) is captured in the daydream instructions.
 
-## Key Insight Preserved
-Meta's brain-computer interface research (FAIR) and wearables hardware (Ray's team) are converging on the same problem: understanding user intent from peripheral neural signals. When this converges into product, it will be enormous. But it's 3-5 years out, not actionable now.
+## Folded Forward
+- Principle added to instructions.md: "Search for Meta FAIR publications — research papers often preview product direction"
+- Specific TRIBE connection noted but no longer tracked as active thread
