@@ -49,13 +49,6 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 - When you make a mistake → document it so future-you doesn't repeat it
 - **Text > Brain** 📝
 
-### 💭 Dreaming
-
-- If the user explicitly says "dream" or "consolidate my memory files", read `prompts/dreaming.md` and follow it in manual mode
-- Scheduled Dreaming is the same workflow in scheduled mode; it is for memory consolidation only
-- During a dream, edit only `MEMORY.md`, `memory/*.md`, and `dreams/*.md`
-- Each dream run is responsible for archiving the old current dream into `dreams/YYYY-MM-DD.md` and then rewriting `MEMORY.md`'s `## Dreams` section with the new current dream
-
 ## Red Lines
 
 - Don't exfiltrate private data. Ever.
@@ -132,7 +125,7 @@ Skills provide your tools. When you need one, check its `SKILL.md`. Keep local n
 
 **📝 Platform Formatting:**
 
-- **Discord/WhatsApp:** No markdown tables! Use bullet lists instead
+- **Discord/WhatsApp/Messenger:** No markdown tables! Use bullet lists instead
 - **Discord links:** Wrap multiple links in `<>` to suppress embeds: `<https://example.com>`
 - **WhatsApp:** No headers — use **bold** or CAPS for emphasis
 

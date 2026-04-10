@@ -1,29 +1,29 @@
 # Personalized Recommendations
 
-### Watch Collection Visual Catalog
-Use when: managing a growing watch collection, preparing for insurance documentation, or wanting a searchable record of pieces with photos, condition notes, and live market comps
-Suggested follow-up: Build a visual catalog of my watch collection — starting with the Bulgari Serpenti Tubogas and Omega Seamaster I recently acquired — with photos, acquisition dates, condition notes, and live Chrono24 market comps
+### Watches & Wonders Live Alert Pipeline
+Use when: monitoring high-stakes watch events, brand announcements, or industry releases where timing determines whether you get the story first or miss it entirely
+Suggested follow-up: W&W opens in 5 days — deploy a cron that monitors Patek, Rolex, and Hublot press releases and Nautilus 50th coverage, alerting me on all channels the moment something drops
 
-### Geneva / Travel Intel from Google Drive
-Use when: planning travel for a major event, scouting an area for a second home, or visiting any city where a friend's firsthand restaurant and hotel picks beat anything on Yelp
-Suggested follow-up: Watches & Wonders is in 5 days — mine my Google Drive for any shared docs about Geneva or Switzerland dining from friends, so I have real picks if I'm attending
+### 1205 N Lemon Ave Rental Activation
+Use when: managing properties that are sitting empty, needing to generate rental income quickly, or wanting competing quotes from multiple property managers without making calls yourself
+Suggested follow-up: 1205 N Lemon Ave has been empty since December — email all 5 researched property managers simultaneously for competing quotes and get me a decision package by tomorrow
 
-### Q2 Credit Card Perk Audit
-Use when: managing premium credit cards at the start of a new quarter and wanting to make sure rotating credits don't expire unused before you think to use them
-Suggested follow-up: Run a Q2 credit card perk audit — identify any Amex, Chase, or other card credits that reset in April and flag anything I'm at risk of letting lapse before June
+### Bulgari Negotiation Follow-Up
+Use when: a vendor negotiation has gone quiet and you need a professional follow-up that applies pressure without burning the relationship
+Suggested follow-up: Susana Di's $500 credit offer for my scratched Bulgari Tadao Ando has been countered with $2K — send a professional follow-up message and see where she lands
 
-### Autonomous Video Production Pipeline via Mac Mini
-Use when: needing AI video content for articles, persona clips, or experience promos without burning through commercial API credits
-Suggested follow-up: Wire a local video production pipeline using my Mac Mini for rendering, ElevenLabs for audio, and my existing Ray He avatars — with QA gates before anything ships to LITF
+### Stylometrics Voice Fingerprint Integration
+Use when: running an autonomous AI publishing pipeline and wanting to systematically reduce the markers that reveal content as machine-generated
+Suggested follow-up: My 23 AI personas have a +0.0355 cosine similarity gap vs real journalists — integrate function word distribution targets into the voice critic across all 7 sites right now
 
-### Wine List Photo Intelligence
-Use when: at a restaurant with an unfamiliar wine list and wanting critic scores, retail prices, and a top pick before you order — especially useful at a business dinner or somewhere with a deep list
-Suggested follow-up: Next time I'm dining out, snap the wine list and get a sommelier-grade breakdown — retail price, critic score, tasting notes, and a best pick for the table
+### Escalade IQL Service Bulletin
+Use when: owning a vehicle with an open safety or technical service bulletin and wanting to schedule service before it becomes urgent or a liability
+Suggested follow-up: Schedule a dealership appointment for my Escalade IQL to address bulletin N252529080 — missing high-voltage plug in the battery pack
 
-### Tempest Weather × Outdoor Activity Scorer
-Use when: planning outdoor activities, backyard events, GMRS repeater testing, or any evening where actual hyperlocal conditions matter more than a generic forecast
-Suggested follow-up: Wire my Tempest station's live data into a scorer that rates upcoming evenings for outdoor quality — clear skies, low wind, temperature — and surfaces the best windows this week
+### Persona Arc Deep-Synthesis
+Use when: maintaining long-running research or creative documents and wanting a meta-layer analysis of how themes, patterns, and structural moves have evolved across many iterations
+Suggested follow-up: Zuck is at iteration 59 (7,585 lines) and Boz at iteration 23 (3,729 lines) — synthesize the arc of each persona into a reading companion mapping emergent themes and major structural moves
 
-### Kids Playable Study Game
-Use when: kids need engaging educational content that feels like a game rather than homework — especially good for downtime, school prep, or building skills around what they're already writing about on the Cookie Club
-Suggested follow-up: Build a playable study game for the kids — start with current events or reading comprehension, with XP, quiz challenges, and a streak system they can revisit daily
+### Technically Legal Chapter 15
+Use when: writing long-form fiction with active momentum and wanting to push the next chapter while scoring and tone are hot
+Suggested follow-up: Chapter 14 of Technically Legal just scored 9.0 — kick off Chapter 15 of Volume III while the narrative momentum is still live
