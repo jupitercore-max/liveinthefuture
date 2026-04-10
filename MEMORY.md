@@ -51,10 +51,10 @@ Use this file for durable, curated memory that should persist across sessions.
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25
 
 ## Websites & Article Counts (updated 2026-04-10)
-<!-- LITF 203, VS 154, AIHome 163, ED 24, ergo 9, EAIZ 21, TL 14ch (verified 2026-04-10 12:00 UTC filesystem) -->
+<!-- LITF 203, VS 156, AIHome 163, ED 24, ergo 9, EAIZ 21, TL 14ch (verified 2026-04-10 12:30 UTC filesystem) -->
 
 - **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **203 articles, 19 games, 22 experiences, 8 startup ideas** (/startups/), **8 prior art** (/priorart/), 16 journalists. AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (9+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04. **Milestone: #200 published 2026-04-09** (solar geoengineering governance gap, Zara Osman, 9.1 General).
-- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **154 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
+- **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **156 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
 - **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **163 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
 - **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **24 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **21 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee", "Ballerina". **Deploy is manual**: `npx wrangler pages deploy . --project-name=eaiz` (does NOT auto-deploy from git push).
