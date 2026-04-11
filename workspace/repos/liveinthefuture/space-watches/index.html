@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Every Watch Worn in Space — Live in the Future</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; }
+
+.header { padding: 2rem; text-align: center; border-bottom: 1px solid #222; background: linear-gradient(180deg, #111 0%, #0a0a0a 100%); }
+.header h1 { font-size: 2rem; margin-bottom: 0.5rem; color: #fff; }
+.header .subtitle { color: #888; font-size: 1rem; }
+.header .stats { margin-top: 1rem; display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; }
+.header .stat { text-align: center; }
+.header .stat .num { font-size: 1.8rem; font-weight: 700; color: #4fc3f7; }
+.header .stat .label { font-size: 0.8rem; color: #666; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.controls { padding: 1rem 2rem; background: #111; border-bottom: 1px solid #222; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+.controls input, .controls select {
+  background: #1a1a1a; color: #e0e0e0; border: 1px solid #333; border-radius: 6px;
+  padding: 0.5rem 0.75rem; font-size: 0.9rem; outline: none;
+}
+.controls input:focus, .controls select:focus { border-color: #4fc3f7; }
+.controls input[type="text"] { flex: 1; min-width: 200px; }
+.controls select { min-width: 150px; }
+.controls .result-count { color: #666; font-size: 0.85rem; margin-left: auto; }
+
+.table-wrap { overflow-x: auto; padding: 0 1rem; }
+table { width: 100%; border-collapse: collapse; margin: 0 auto; font-size: 0.85rem; }
+thead { position: sticky; top: 0; z-index: 2; }
+th { background: #1a1a1a; color: #4fc3f7; padding: 0.6rem 0.5rem; text-align: left; border-bottom: 2px solid #333; cursor: pointer; white-space: nowrap; user-select: none; }
+th:hover { color: #81d4fa; }
+th .sort-arrow { font-size: 0.7rem; margin-left: 4px; }
+td { padding: 0.5rem; border-bottom: 1px solid #1a1a1a; vertical-align: top; }
+tr:hover td { background: #151515; }
+tr.highlight td { background: #1a2a3a; }
+
+.astro { color: #fff; font-weight: 500; }
+.mission { color: #90caf9; }
+.make { color: #a5d6a7; font-weight: 500; }
+.model { color: #ce93d8; }
+.date { color: #888; white-space: nowrap; }
+.context { color: #999; font-size: 0.8rem; max-width: 300px; }
+.wrist { text-align: center; }
+.no-watch { color: #555; font-style: italic; }
+
+.footer { padding: 2rem; text-align: center; color: #555; font-size: 0.8rem; border-top: 1px solid #222; margin-top: 2rem; }
+.footer a { color: #4fc3f7; text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+
+@media (max-width: 768px) {
+  .header h1 { font-size: 1.4rem; }
+  .controls { padding: 0.75rem; }
+  .controls select { min-width: 100px; }
+  table { font-size: 0.75rem; }
+  th, td { padding: 0.3rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🚀 Every Watch Worn in Space</h1>
+  <div class="subtitle">A comprehensive database of timepieces worn on every spaceflight from 1961 to present</div>
+  <div class="stats">
+    <div class="stat"><div class="num" id="total-records">—</div><div class="label">Records</div></div>
+    <div class="stat"><div class="num" id="total-brands">—</div><div class="label">Brands</div></div>
+    <div class="stat"><div class="num" id="total-missions">—</div><div class="label">Missions</div></div>
+    <div class="stat"><div class="num" id="total-astronauts">—</div><div class="label">Spacefarers</div></div>
+  </div>
+</div>
+
+<div class="controls">
+  <input type="text" id="search" placeholder="Search astronaut, mission, brand, model..." autocomplete="off">
+  <select id="filter-make"><option value="">All Brands</option></select>
+  <select id="filter-decade"><option value="">All Decades</option></select>
+  <select id="filter-country">
+    <option value="">All Countries</option>
+    <option value="United States">United States</option>
+    <option value="Russia">Russia / USSR</option>
+    <option value="China">China</option>
+    <option value="Japan">Japan</option>
+    <option value="Europe">ESA / Europe</option>
+  </select>
+  <span class="result-count" id="result-count"></span>
+</div>
+
+<div class="table-wrap">
+  <table id="data-table">
+    <thead>
+      <tr>
+        <th data-col="astronaut">Spacefarer <span class="sort-arrow"></span></th>
+        <th data-col="mission">Mission <span class="sort-arrow"></span></th>
+        <th data-col="date">Date <span class="sort-arrow"></span></th>
+        <th data-col="make">Brand <span class="sort-arrow"></span></th>
+        <th data-col="model">Model <span class="sort-arrow"></span></th>
+        <th data-col="reference">Reference <span class="sort-arrow"></span></th>
+        <th data-col="wrist">Wrist <span class="sort-arrow"></span></th>
+        <th data-col="context">Context <span class="sort-arrow"></span></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div class="footer">
+  <p>Data compiled by <strong>Robert J Jackson</strong> and <strong>W. Craig Conrey</strong> with contributions from Philip MWU, Lawrence L. McGlynn, Gilles Aurégan, and other members of the <a href="https://www.facebook.com/groups/763768904041672/" target="_blank">Space Watches Facebook Group</a>.</p>
+  <p style="margin-top: 0.5rem;">Original dataset: <a href="https://lookerstudio.google.com/reporting/40738bd5-c07f-41f2-aaad-ca5b0aaf9602/page/ZNSUB" target="_blank">Looker Studio Report</a> · Published on <a href="https://liveinthefuture.org">Live in the Future</a></p>
+</div>
+
+<script>
+let DATA = [];
+let sortCol = 'date';
+let sortDir = 1; // 1 = asc, -1 = desc
+
+async function init() {
+  const resp = await fetch('data.json');
+  DATA = await resp.json();
+  
+  // Populate stats
+  document.getElementById('total-records').textContent = DATA.length.toLocaleString();
+  const brands = new Set(DATA.map(r => r.make).filter(m => m && !['No watch worn','Unknown','Uncertain',''].includes(m)));
+  document.getElementById('total-brands').textContent = brands.size;
+  const missions = new Set(DATA.map(r => r.mission).filter(Boolean));
+  document.getElementById('total-missions').textContent = missions.size;
+  const astronauts = new Set(DATA.map(r => r.astronaut).filter(Boolean));
+  document.getElementById('total-astronauts').textContent = astronauts.size;
+  
+  // Populate brand filter
+  const makeSelect = document.getElementById('filter-make');
+  const makeCounts = {};
+  DATA.forEach(r => {
+    const m = r.make?.trim();
+    if (m && !['No watch worn','Unknown','Uncertain',''].includes(m)) {
+      makeCounts[m] = (makeCounts[m] || 0) + 1;
+    }
+  });
+  Object.entries(makeCounts).sort((a,b) => b[1]-a[1]).forEach(([m, c]) => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = `${m} (${c})`;
+    makeSelect.appendChild(opt);
+  });
+  
+  // Populate decade filter
+  const decadeSelect = document.getElementById('filter-decade');
+  const decades = new Set(DATA.map(r => Math.floor(r.year / 10) * 10).filter(d => d > 0));
+  [...decades].sort().forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = `${d}s`;
+    decadeSelect.appendChild(opt);
+  });
+  
+  render();
+  
+  document.getElementById('search').addEventListener('input', render);
+  document.getElementById('filter-make').addEventListener('change', render);
+  document.getElementById('filter-decade').addEventListener('change', render);
+  document.getElementById('filter-country').addEventListener('change', render);
+  
+  document.querySelectorAll('th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      if (sortCol === col) sortDir *= -1;
+      else { sortCol = col; sortDir = 1; }
+      render();
+    });
+  });
+}
+
+function render() {
+  const query = document.getElementById('search').value.toLowerCase();
+  const makeFilter = document.getElementById('filter-make').value;
+  const decadeFilter = document.getElementById('filter-decade').value;
+  const countryFilter = document.getElementById('filter-country').value;
+  
+  let filtered = DATA.filter(r => {
+    if (query) {
+      const searchable = [r.astronaut, r.mission, r.make, r.model, r.reference, r.context, r.date].join(' ').toLowerCase();
+      if (!searchable.includes(query)) return false;
+    }
+    if (makeFilter && r.make !== makeFilter) return false;
+    if (decadeFilter && Math.floor(r.year / 10) * 10 !== parseInt(decadeFilter)) return false;
+    if (countryFilter) {
+      if (countryFilter === 'Europe') {
+        if (!r.astronaut?.includes('ESA') && !r.astronaut?.match(/France|Germany|Italy|Netherlands|Belgium|UK|Sweden|Denmark|Switzerland|Spain|Austria/i)) return false;
+      } else {
+        if (!r.astronaut?.includes(countryFilter) && !(countryFilter === 'Russia' && r.astronaut?.includes('Russia'))) return false;
+      }
+    }
+    return true;
+  });
+  
+  // Sort
+  filtered.sort((a, b) => {
+    let av = a[sortCol] || '';
+    let bv = b[sortCol] || '';
+    if (sortCol === 'date' || sortCol === 'year') {
+      av = av || '9999'; bv = bv || '9999';
+    }
+    return av < bv ? -sortDir : av > bv ? sortDir : 0;
+  });
+  
+  // Update sort arrows
+  document.querySelectorAll('th[data-col]').forEach(th => {
+    const arrow = th.querySelector('.sort-arrow');
+    if (th.dataset.col === sortCol) {
+      arrow.textContent = sortDir === 1 ? '▲' : '▼';
+    } else {
+      arrow.textContent = '';
+    }
+  });
+  
+  document.getElementById('result-count').textContent = `${filtered.length.toLocaleString()} results`;
+  
+  const tbody = document.getElementById('tbody');
+  // Virtual rendering for performance — show max 500 rows
+  const maxRows = 500;
+  const shown = filtered.slice(0, maxRows);
+  
+  tbody.innerHTML = shown.map(r => {
+    const isNoWatch = ['No watch worn','Unknown','Uncertain'].includes(r.make);
+    return `<tr${isNoWatch ? ' class="no-watch-row"' : ''}>
+      <td class="astro">${esc(r.astronaut)}</td>
+      <td class="mission">${esc(r.mission)}</td>
+      <td class="date">${esc(r.date)}</td>
+      <td class="${isNoWatch ? 'no-watch' : 'make'}">${esc(r.make)}</td>
+      <td class="model">${esc(r.model)}</td>
+      <td>${esc(r.reference)}</td>
+      <td class="wrist">${esc(r.wrist)}</td>
+      <td class="context">${esc(r.context)}</td>
+    </tr>`;
+  }).join('');
+  
+  if (filtered.length > maxRows) {
+    tbody.innerHTML += `<tr><td colspan="8" style="text-align:center;color:#666;padding:1rem">Showing ${maxRows} of ${filtered.length} results. Narrow your search to see more.</td></tr>`;
+  }
+}
+
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+init();
+</script>
+</body>
+</html>
