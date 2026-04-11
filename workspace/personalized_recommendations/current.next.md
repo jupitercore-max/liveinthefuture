@@ -1,29 +1,29 @@
 # Personalized Recommendations
 
-### Watches & Wonders Live Alert Pipeline
-Use when: monitoring high-stakes watch events, brand announcements, or industry releases where timing determines whether you get the story first or miss it entirely
-Suggested follow-up: W&W opens in 5 days — deploy a cron that monitors Patek, Rolex, and Hublot press releases and Nautilus 50th coverage, alerting me on all channels the moment something drops
+### Watches & Wonders 2026 Live Alert Pipeline
+Use when: monitoring watch show announcements, tracking new releases at major industry events, or wanting real-time alerts when a target brand reveals something
+Suggested follow-up: Set up a live W&W 2026 alert cron that monitors Patek Philippe, Rolex, and Hublot announcements April 14-18 and pushes updates to Telegram the moment they drop
 
-### 1205 N Lemon Ave Rental Activation
-Use when: managing properties that are sitting empty, needing to generate rental income quickly, or wanting competing quotes from multiple property managers without making calls yourself
-Suggested follow-up: 1205 N Lemon Ave has been empty since December — email all 5 researched property managers simultaneously for competing quotes and get me a decision package by tomorrow
+### 1205 N Lemon Ave Decision Engine
+Use when: weighing real estate decisions involving multiple financial variables, approaching a time-sensitive tax deadline, or needing an interactive model for a high-stakes hold vs rent vs sell choice
+Suggested follow-up: Build an interactive decision dashboard for 1205 N Lemon Ave modeling rent vs sell vs hold — Section 121 exclusion countdown, ARM reset risk in November 2028, and carrying cost bleed at current rates
 
-### Bulgari Negotiation Follow-Up
-Use when: a vendor negotiation has gone quiet and you need a professional follow-up that applies pressure without burning the relationship
-Suggested follow-up: Susana Di's $500 credit offer for my scratched Bulgari Tadao Ando has been countered with $2K — send a professional follow-up message and see where she lands
+### Locked Space Watches Data Extraction
+Use when: needing to recover data from a view-only or canvas-rendered source with no export, or wanting to expand a recently launched database with records that got cut off by a rendering limit
+Suggested follow-up: Extract the remaining ~1,700 Space Watches records blocked by Looker Studio's canvas re-render limit and add them to liveinthefuture.org/space-watches/
 
-### Stylometrics Voice Fingerprint Integration
-Use when: running an autonomous AI publishing pipeline and wanting to systematically reduce the markers that reveal content as machine-generated
-Suggested follow-up: My 23 AI personas have a +0.0355 cosine similarity gap vs real journalists — integrate function word distribution targets into the voice critic across all 7 sites right now
+### Tax Return Deep Audit
+Use when: filing or reviewing taxes, wanting to catch missed Meta RSU deductions, verify Section 121 eligibility for a property you recently vacated, or audit for California TCJA non-conformity items
+Suggested follow-up: Upload my 2025 tax return and audit every line — Meta RSU cost basis, Section 121 eligibility for 1205 Lemon, and California deductions TurboTax doesn't surface
 
-### Escalade IQL Service Bulletin
-Use when: owning a vehicle with an open safety or technical service bulletin and wanting to schedule service before it becomes urgent or a liability
-Suggested follow-up: Schedule a dealership appointment for my Escalade IQL to address bulletin N252529080 — missing high-voltage plug in the battery pack
+### Secondhand Watch Listing Cross-Check
+Use when: evaluating a secondhand luxury watch listing, verifying a seller's condition claims, or building a data-backed case for a price dispute on a recently purchased piece
+Suggested follow-up: Cross-check the Bulgari Serpenti Tubogas Tadao Ando against comparable sold listings on Chrono24 and WatchBox to quantify the mint-vs-very-good price gap for the Susana Di dispute
 
-### Persona Arc Deep-Synthesis
-Use when: maintaining long-running research or creative documents and wanting a meta-layer analysis of how themes, patterns, and structural moves have evolved across many iterations
-Suggested follow-up: Zuck is at iteration 59 (7,585 lines) and Boz at iteration 23 (3,729 lines) — synthesize the arc of each persona into a reading companion mapping emergent themes and major structural moves
+### Stylometrics Voice Critic Integration
+Use when: iterating on AI journalist personas, wanting to reduce function word clustering across the content pipeline, or ensuring voice critics catch homogeneity before articles publish
+Suggested follow-up: Integrate function word distribution targets into the voice critic for all 6 sites — each journalist persona should diverge from the cluster mean by at least 0.05 cosine units before passing
 
-### Technically Legal Chapter 15
-Use when: writing long-form fiction with active momentum and wanting to push the next chapter while scoring and tone are hot
-Suggested follow-up: Chapter 14 of Technically Legal just scored 9.0 — kick off Chapter 15 of Volume III while the narrative momentum is still live
+### Product Recall Monitor
+Use when: managing a household with multiple vehicles or kids' products and wanting automatic NHTSA and CPSC alerts filtered to your specific VINs and product inventory
+Suggested follow-up: Set up a daily recall monitor for my Rivian R1S VINs, Cadillac Escalade IQL, Volvo XC90, and CT5-V Blackwing — push new NHTSA entries to Telegram only
