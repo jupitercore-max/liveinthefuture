@@ -1,4 +1,4 @@
-# Daydream Instructions v5
+# Daydream Instructions v7
 
 ## Core Heuristic: Think Like Ray
 
@@ -18,45 +18,21 @@ Ray is an engineering leader at Meta who builds things. He values:
 5. Technical infrastructure — home network, automation, radio
 6. Community — Hatch Overflow, friends (Jeremy, Matt, Glenn)
 
-## Iteration 1 Learnings (2026-04-05)
+## Accumulated Learnings (Iterations 1-7)
 
-### What Worked
-- **Time-sensitive scanning** caught Watches & Wonders starting April 14. Calendar-aware thinking is critical.
-- **Cross-domain connections** surfaced the AI Overviews → content empire threat.
-- **The pending items in MEMORY.md are a goldmine.** Thinking about WHY something is pending reveals urgency.
+### Highest-Value Thinking Patterns
+1. **Reframing threats as opportunities** — single highest-value insight type. The AI Overviews "pivot from defense to offense" and the tariff "chip delay buys 14 months" both came from finding data that changes the frame, not confirms it.
+2. **Financial deadline awareness** — pending items with time sensitivity should escalate to threads immediately, not after 5 iterations. The 1205 N Lemon thread should have existed from iteration 1.
+3. **Local news sources** — Palo Alto Online, Almanac News, Mercury News are the highest-signal sources for anything touching Ray's immediate environment. City arborist quotes > generic insect treatment advice.
+4. **Converging independent studies** — 4+ studies saying the same thing is irrefutable. One study is noise.
+5. **Pre-event countdown discipline** — each iteration narrows the picture: what we know, what's unknown, what's decision-relevant. "No hard leaks yet" is itself a finding.
+6. **FAIR publications as product direction hints** — what Meta's research teams publish previews what the product teams ship 12-24 months later.
+7. **Tariff/macro disaggregation** — never treat "tariffs" or "regulation" as monolithic. Different products, components, and timelines create asymmetric impacts.
+8. **Family safety angles** — always check for health/safety implications for Ray's kids. Environmental hazards, vehicle recalls, neighborhood changes.
+9. **Vehicle service bulletin scanning** — GM Authority, NHTSA, manufacturer forums. Immediately actionable for Ray's specific vehicles.
+10. **Schema markup = tangible action** — tactical levers (schema.org) are more valuable than strategic observations ("AI Overviews are growing"). Always look for the thing Ray can DO, not just KNOW.
 
-### What to Improve
-- Check traffic analytics if available
-- Track Watches & Wonders announcements starting April 14
-- Explore radio hobby ↔ home automation connections
-
-## Iteration 2 Learnings (2026-04-06)
-
-### What Worked
-- **Supply chain / macro scanning** found the tariff-optical industry connection. The Vision Council webinar was a high-signal source. Industry trade publications (Optometry Times, Modern Retina) are better sources than mainstream news for this kind of thing.
-- **Cross-team research connections** found Meta TRIBE. Searching for what FAIR is publishing and connecting it to what Wearables is shipping is a productive thinking pattern.
-- **Local government sources** are underused goldmines. The City of Menlo Park tussock moth notice (March 30) was directly relevant to Ray's pending Davey contract and added urgency + context the original thread didn't have.
-- **Pre-event timing windows** matter. The Milgauss 116400GV search could be affected by W&W announcements. Pre-event is the decision window; post-event is too late.
-
-### What to Improve for Iteration 3
-- **Find Ray's actual site traffic data.** Cloudflare Web Analytics or Google Search Console would ground the AI Overviews thread in reality instead of industry statistics. Should I proactively set up Cloudflare Analytics?
-- **Monitor Patek Philippe pre-W&W leaks** April 10-13. Leaks often surface 3-5 days before the fair.
-- **Look harder at the education thread.** The school analysis exists, but MPCSD 2026-27 registration is OPEN now. Are there new schools, policy changes, or AI-in-education developments specific to the Bay Area?
-- **The Meshtastic + GMRS angle is still unexplored.** Ray has a GMRS repeater at his house, ESP32 interest, and Home Assistant intent. Meshtastic (LoRa mesh) + GMRS repeater + Home Assistant could be a powerful emergency communication system. This is the kind of cross-hobby convergence Ray loves.
-- **Look for Corvette engineering deep-dives.** The ZR1X at $209K / 1,250 HP is an engineering story, not a car shopping story. Ray would appreciate the engineering analysis.
-
-## Question Generation Heuristics
-- What's the second-order effect of [current trend] on Ray's world?
-- What decisions has Ray deferred that have time sensitivity? (Check MEMORY.md pending items)
-- What's the competitive landscape doing that Ray's day job hasn't responded to yet?
-- What industry events are coming in the next 30 days? (Calendar-aware thinking)
-- Where do Ray's hobbies intersect in ways he hasn't connected?
-- What would make Ray's family's daily life better?
-- **NEW: What are Ray's colleagues at Meta publishing/shipping that connects to his specific team's work?** (TRIBE → Neural Band connection pattern)
-- **NEW: What macro forces (tariffs, regulation, lawsuits) create asymmetric impacts across Ray's interests?** (Tariff thread)
-- **NEW: What is the LOCAL government doing that's relevant to Ray's immediate life?** (Menlo Park city notices)
-
-## Anti-Patterns (Don't Do These)
+### Anti-Patterns (Don't Do These)
 - Don't suggest things Ray has already done or decided against
 - Don't be generic ("Ray should invest in AI" — he works in AI)
 - Don't repeat MEMORY.md back as insights
@@ -64,76 +40,36 @@ Ray is an engineering leader at Meta who builds things. He values:
 - Don't give career advice or speculate about job security (preachy + overstepping)
 - Don't report for the sake of reporting. If nothing is ready, stay quiet.
 - Don't surface more than 3 article seeds per iteration — quality over quantity
-- **NEW: Don't use training data for current events.** Always search. The tariff situation changes weekly.
-- **NEW: Don't treat threads as static.** Each iteration should either ADD new information or CLOSE the thread. Threads that just get "updated" with no new info are noise.
+- Don't use training data for current events. Always search. Things change weekly.
+- Don't treat threads as static. Each iteration must ADD new information or CLOSE the thread.
+- **Don't nag Ray about pending items when he's obviously unable to act** (vacation, travel, etc.). Context-shift the urgency framing when he returns.
+- **Don't recommend the same action for 4+ iterations without either doing it yourself or dropping it.** The Cloudflare analytics dashboard pattern — if it's been proposed repeatedly without action, either it's not actually important enough or it needs to be done, not suggested.
+- **Don't over-monitor competitive intelligence that Ray already gets from his internal team.** Samsung's Galaxy Glasses are useful for the external analyst interpretation but Ray's team has better internal CI. Focus on what Ray WON'T see at work: local news, financial deadlines, hobby convergences, content strategy.
 
-## Search Strategy
-- Always search for developments in: Meta/wearables, watch industry, vehicle news for Ray's fleet, Menlo Park/education, AI search/SEO landscape
-- Check for time-sensitive events (product launches, industry fairs, regulatory deadlines)
-- Look at what Ray's COMPETITORS are doing
-- Search for Meta FAIR publications — research papers often preview product direction
-- Search for LOCAL government notices (menlopark.gov, MPCSD, San Mateo County)
-- Search for macro policy (tariffs, trade, regulation) with supply-chain specificity
-- Check industry trade publications (Optometry Times for glasses, GM Authority for vehicles, Neuroscience News for neural interfaces)
-- **NEW: Search for SERVICE BULLETINS and RECALLS for Ray's specific vehicles** (Escalade IQL, Rivian R1S, CT5-V Blackwing, Volvo XC90). GM Authority, NHTSA, Rivian forums. These are immediately actionable.
-- **NEW: Check academic/institutional sources for pending items.** UC IPM for the tussock moth thread was far more useful than news articles. University extension services, CDC, NHTSA, IIHS = better signal than mainstream media for specific decisions.
+### Search Strategy
+- **Always search for**: Meta/wearables competitive moves, watch industry (especially W&W), vehicle recalls for Ray's fleet, Menlo Park/education, AI search/SEO landscape
+- **Local sources first**: Palo Alto Online, Almanac News, Mercury News, menlopark.gov, MPCSD
+- **Industry trade publications**: Optometry Times (glasses), GM Authority (vehicles), Neuroscience News (neural), Glass Almanac (smart glasses)
+- **Academic/institutional**: UC IPM, NHTSA, IIHS, CDC
+- **FAIR publications**: arxiv.org Meta FAIR papers
+- **Regulatory**: FCC, FDA (health features), congressional hearing transcripts
+- **Watch sources**: Fratello, SJX, Hodinkee, Robb Report
+- **Schema.org/SEO**: WPRiders, Ahrefs, BrightEdge, SISTRIX
 
-## Thread Management
+### Thread Management
 - Each thread gets one file in threads/
-- Threads can be: Active (still evolving), Resolved (insight delivered), Dormant (no new info), or **Closed**
-- Don't let threads accumulate forever. If a thread hasn't had new info in 3 iterations, mark it dormant or close it.
-- Report to main only when something is genuinely time-sensitive or actionable
 - Maximum 10 active threads. Beyond that, force-rank and close the weakest.
-- Threads should explicitly state what decision or action they're driving toward. If a thread doesn't have an action, it's a note, not a thread.
-- **NEW: Close threads decisively.** Mark them CLOSED, write a summary, and move on. Don't let "dormant" linger — dormant after one more iteration → closed.
-- **NEW: When closing a competitive/monitoring thread, fold key insights into the relevant active thread rather than losing them.** The smart glasses competitive landscape → tariffs thread mapping was useful.
+- Threads should explicitly state what decision or action they're driving toward.
+- Close threads decisively after 3 iterations without new data.
+- When closing, fold key insights into relevant active threads.
+- **Countdown format** for time-sensitive threads (§121: X months, W&W: X days)
+- **Vacation/travel awareness**: Don't escalate pending items when Ray can't act. Reframe when he returns.
+- **Post-event transition**: Monitoring threads should transition from countdown to analysis after the event occurs.
 
----
-*Updated: 2026-04-08, after Iteration 4*
-
-## Iteration 3 Learnings (2026-04-07)
-
-- Meshtastic thread found a genuine hobby convergence
-- Rivian AI assistant delay was a good find but low urgency — keep these as notes, not threads
-- Pre-event leak windows (W&W) are real research targets
-
-## Iteration 4 Learnings (2026-04-08)
-
-### What Worked
-- **Vehicle service bulletin scanning** found the Escalade IQL high-voltage plug issue. This is exactly the kind of "you should know" that justifies the daydream cron. GM Authority is the right source for GM vehicles.
-- **Academic/institutional sources** (UC IPM) for the tussock moth thread gave much more actionable guidance than news. "Bt is most effective against young larvae" + "eggs hatch when spring growth expands" = specific, time-sensitive, useful.
-- **Revisiting old data with new sources** elevated the AI Overviews thread from "42% drop" to "61-65% drop." Always look for the best data, not the first data.
-- **Bilateral trade agreements** (Swiss watch tariff deal) are a new dimension for the tariff thread. Industry-specific lobbying outcomes matter.
-- **Pre-launch feature announcements** (nutrition tracking) are high-signal for Ray's day job — they show the product direction AND create the public narrative before launch day.
-
-## Iteration 5 Learnings (2026-04-09)
-
-### What Worked
-- **LOCAL NEWS is the highest-signal source for local issues.** Palo Alto Online's April 8 article about the tussock moth outbreak in Menlo Park was the single most actionable finding this iteration. City arborist saying "worst in 6 years" + photo taken at Burgess Park playground = undeniable urgency for the Davey contract. Always search local news outlets (Palo Alto Online, Almanac News, Mercury News) for anything touching Ray's immediate environment.
-- **Converging independent studies** are more persuasive than any single source. SISTRIX (59% CTR drop), Seer Interactive (61-65%), and Ahrefs (58%) all saying the same thing makes the AI Overviews threat irrefutable. Look for convergence, not just individual data points.
-- **Pre-event countdown discipline pays off.** Each W&W iteration narrows the picture: what we know, what's still unknown, and what the decision-relevant variables are. The "no hard leaks yet" finding is itself valuable — it means the information hasn't changed and Ray shouldn't act yet.
-- **Thread closure creates focus.** Closing escalade-iql and meta-tribe (with fold-forward of key insights) keeps the active list clean and prevents attention diffusion.
-- **Family safety angles** elevate urgency. The tussock moth thread wasn't just about tree health — the caterpillar hairs cause rashes and asthma symptoms. That's a safety concern for kids playing under oaks. Always check for family/health implications of any environmental issue.
-
-### What to Improve for Iteration 6
-- **Actually build the Cloudflare traffic dashboard.** This has been a "proposed action" for 2 iterations. Either do it or stop recommending it.
-- **The Bulgari negotiation** is still unresolved. At some point silence from Susana Di becomes an answer. When does Ray follow up?
-- **W&W April 10-13 is peak leak season.** If this daydream ran daily during this window, it would catch leaks. As a daily cron, we're well-positioned.
-- **Best Buy Totaltech** claim deadline is still unknown. The membership has changed (My Best Buy Memberships replaced Totaltech in 2023, with price changes in 2026). Verify Ray's specific coverage terms.
-- **The 1205 N Lemon property** has been empty for ~16 months now (~$131K in carrying costs burned). §121 deadline is 20 months away. Every month is $8K wasted. This needs to become a thread if it stays pending much longer.
-
-## Iteration 6 Learnings (2026-04-10)
-
-### What Worked
-- **Financial deadline awareness is a daydream superpower.** The 1205 N Lemon thread finally got created because the numbers became undeniable: $128K burned, $8K/month continuing, $500K exclusion at risk in 20 months. Pending financial items should be escalated to threads faster — iteration 5 flagged it as "needs to become a thread if it stays pending much longer." It should have been a thread 2 iterations ago.
-- **Reframing threats as opportunities is the highest-value thinking.** The AI Overviews thread flipped from "60% traffic decline" to "3x citation advantage for fresh content" because of one new data point (AirOps: content under 3 months old is 3x more likely to be cited). Look for data that CHANGES THE FRAMING, not just confirms the existing narrative.
-- **Tariff granularity matters.** The chip tariff delay to June 2027 dramatically changes the near-term picture for Meta Wearables. Previous iterations treated "tariffs" as monolithic. The reality is Swiss watches (15%), semiconductors (delayed), Chinese components (250%), EU baseline (10%) — each with different timelines and impacts. Always disaggregate.
-- **The countdown format works for time-sensitive threads.** W&W at "4 days out" creates natural urgency and focus. Apply this to other time-sensitive threads (§121 deadline: 20 months).
-- **Close threads aggressively.** Escalade-iql and meta-tribe both lingered 2 iterations too long. If a thread has been reported and has no new data, close it.
-
-### What to Improve for Iteration 7
-- **The Cloudflare analytics dashboard has been proposed for 4 iterations.** This is becoming the daydream equivalent of Ray's pending items. Either build it (spawn a subagent from the daydream) or acknowledge it as out of scope and remove the recommendation.
-- **Rental property thread needs real data.** Search for actual comparable rentals on Redfin/Zillow for the specific address. What would 1205 N Lemon Ave actually rent for?
-- **Post-April 14 W&W thread should transition to a summary/analysis thread.** Once announcements drop, the countdown format is obsolete. Prepare for the pivot.
-- **The Bulgari negotiation silence** has been noted for 2 iterations without action. Either create a thread or stop mentioning it.
-
+### Instructions Evolution Log
+- v1 → v2: Time-sensitive scanning, pending-items-as-urgency, anti-pattern on career advice, search strategy
+- v2 → v3: Macro/supply-chain scanning, local government sources, FAIR publications, trade publications, thread closure, 10-thread cap
+- v3 → v4: Vehicle service bulletin scanning, academic/institutional sources, decisive thread closure, fold-forward
+- v4 → v5: Local news highest-signal source, converging studies pattern, family safety angles, countdown format
+- v5 → v6: Financial deadline awareness, reframing threats as opportunities, tariff disaggregation, aggressive closure
+- v6 → v7: Vacation-awareness (don't nag during travel), the "propose-it-or-do-it" pattern (stop recommending without acting), external CI value-add principle (focus on what Ray WON'T get at work), schema markup as first tactical lever, post-event thread transition planning

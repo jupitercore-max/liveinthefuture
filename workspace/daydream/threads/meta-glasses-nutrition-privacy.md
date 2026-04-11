@@ -1,69 +1,74 @@
-# Meta Glasses: Privacy + Regulatory Storm Intensifying Pre-April 14
+# Meta Glasses: Competitive Landscape Just Compressed + Privacy Storm at Launch
 
 **Created:** 2026-04-08 (Iteration 4)
-**Updated:** 2026-04-10 (Iteration 6)
-**Status:** Active — regulatory/legal vectors converging, 4 days to launch
-**Urgency:** High (launch in 4 days, privacy outcry still dominant narrative)
+**Updated:** 2026-04-11 (Iteration 7)
+**Status:** Active — DUAL PRESSURE: competitive clock + regulatory convergence, 3 days to launch
+**Urgency:** HIGH (Samsung battery cert is biggest competitive signal yet)
 
-## The Triple Regulatory Threat
+## NEW: Samsung Galaxy Glasses — Real Hardware, Real Timeline
 
-Three distinct legal/regulatory pressures hitting Meta Wearables simultaneously:
+### Battery Certification = Operational Commitment
+Samsung's Galaxy Glasses battery has been certified at **245 mAh** (SamMobile via 9to5Google, March 2026). This is a regulatory-stage milestone — products don't submit battery cells unless hardware is production-ready.
+
+**Why this matters:**
+- Meta's Ray-Ban Display: 248 mAh. Samsung's 245 mAh is functionally identical.
+- This capacity strongly suggests Samsung's version will include a **display** (non-display models run ~150 mAh)
+- Two internal Samsung models: **SM-O200P and SM-O200J** — targeting 2026 ship date
+- Samsung declared "execution phase" in March 6 product briefing
+- Samsung's entry runs on **Android XR** — Google's platform play
+
+### Android XR: The Platform War
+Google is building a comprehensive smart glasses platform that DIRECTLY competes with Meta:
+- **Dual approach**: camera/audio glasses (like Ray-Ban Meta) AND display glasses (like Ray-Ban Display)
+- **Partners**: Samsung, **Gentle Monster** (Korean luxury eyewear), **Warby Parker** (prescription), Samsung
+- **Key advantage**: Existing Android app ecosystem transfers to XR. Solves Meta's biggest weakness (Gizmodo: "not enough apps" as #1 complaint)
+- **Navigation, Uber integration, contextual AI** all demoed
+- Google's prototypes are "pushing beyond what most people think is technologically possible"
+
+### Other Competitors
+- **Rokid AI Glasses Style ($299)**: Gizmodo 3.5/5, "surprisingly tough competition." Solid AI features, AI voice assistant beats Meta in some ways. Weight marketing misleading (38g without lenses, 45g real vs Meta's 48-50g)
+- **XREAL 1S ($449)**: Hand-tracking capabilities, new form factor
+- **Apple**: Reportedly pivoted to chasing Meta's smart glasses approach (Gizmodo)
+
+### Competitive Assessment for Ray's Team
+Meta's moat was always time — 2+ years head start with Ray-Ban Meta. Samsung's battery cert compresses that to months, not years:
+
+| Company | Status | Display? | Platform | Ship Date |
+|---------|--------|----------|----------|-----------|
+| Meta | Shipping (Ray-Ban, Oakley, Blayzer/Scriber) | Yes (Display) | Proprietary | NOW |
+| Samsung | Battery certified, execution phase | Likely (245 mAh) | Android XR | H2 2026 |
+| Google | Prototypes shown, partners locked | Both versions | Android XR | 2026-2027 |
+| Rokid | Shipping | No | Proprietary | NOW |
+| Apple | Pivoted to glasses | Unknown | Unknown | 2027+ |
+
+**The question for Ray:** Is the Wearables team's roadmap calibrated for competition arriving in H2 2026, or does it still assume 2027+?
+
+## The Triple Regulatory Threat (unchanged)
 
 ### 1. Privacy Outcry (Public Sentiment)
-- **"Billions of people wear glasses"** backlash intensifying
-- Glass Almanac, multiple outlets covering the privacy angle hard
-- Social media split: consumer excitement vs "normalizing surveillance" framing
+- **"Billions of people wear glasses"** backlash still dominant narrative
+- Gizmodo Ray-Ban Display review: 3.5/5, explicitly calls them "probably a privacy nightmare" and "existentially exhausting"
 - The nutrition tracking feature (camera-based food logging) is the privacy lightning rod
-- **IDC forecast: 13.4M smart glasses in 2026** (up from 9.6M in 2025)
 
-### 2. Legislative Pressure (NEW)
+### 2. Legislative Pressure
 - **US Senator pushing for changes to eyewear regulations** (Optometry Times, April 8)
-- This is the first concrete LEGISLATIVE signal about smart glasses regulation
-- If this gains traction, it creates a regulatory overhang for the entire product line
-- The April 14 launch puts Meta directly in the crosshairs of any regulatory conversation
+- First concrete LEGISLATIVE signal about smart glasses regulation
 
-### 3. Hardware Liability (Existing)
-- **Class action filed March 4, 2026** (N.D. Cal.) over charging case failures (~15-20% fail rate in 12 months per sentiment research)
-- Service/warranty sentiment is negative across forums and social media
+### 3. Hardware Liability
+- **Class action filed March 4, 2026** (N.D. Cal.) — charging case failures
+- **IDC forecast: 13.4M smart glasses in 2026** (up from 9.6M in 2025) — more units = more liability exposure
 
-## Oakley Meta Expands the Attack Surface
-
-Meta's partnership with EssilorLuxottica has now expanded to **Oakley Meta** — performance AI glasses for athletes:
-- **Oakley Meta Vanguard**: Athletic training (mountain biking, trail running) with Prizm lenses + ultra-wide camera
-- **Oakley Meta HSTN**: Lifestyle/low-impact sports
-- **Garmin integration** for real-time metrics
-- **Super Bowl LX campaign** with iShowSpeed, Marshawn Lynch, Spike Lee, Kylian Mbappé
-- This means Meta's smart glasses platform now spans: lifestyle (Ray-Ban), vision correction (Blayzer/Scriber), AND sports performance (Oakley)
-
-**The implication:** More form factors = more users in more contexts = more privacy surface area. A mountain biker's POV camera in a national park or a prescription wearer's always-on camera in a school pickup line are very different privacy scenarios.
-
-## The Zuckerberg Quote (Reiterated)
-"With ongoing software updates, Meta AI on glasses will transition from something you have to prompt with a question each time, to a **more continuous, in-the-moment assistant** that can help throughout the day."
-
-This is simultaneously the product vision AND the privacy concern in one sentence.
-
-## What Ray Should Think About
-
-1. **Launch week media prep:** The narrative is forming NOW. Privacy will dominate the first 48 hours of coverage. Is the comms team ready with responses that go beyond "we take privacy seriously"?
-2. **The Oakley expansion changes the use-case argument.** Ray-Ban = lifestyle, Oakley = sports, Blayzer/Scriber = medical (prescription). Each use case has different privacy expectations and regulatory environments.
-3. **The senator signal is new.** Legislative interest in eyewear regulation is a leading indicator. Even if nothing passes soon, it creates uncertainty that affects product roadmaps.
-4. **Ambient AI rollout cadence matters:** Voice-prompted → photo-prompted → automatic. Each step normalizes more sensing. The nutrition feature is the canary.
+## Oakley Meta Expansion (unchanged)
+- Oakley Meta Vanguard (athletic) + HSTN (lifestyle)
+- Platform now spans: lifestyle (Ray-Ban), prescription (Blayzer/Scriber), sports (Oakley)
+- Each form factor = different privacy expectations and regulatory environments
 
 ## Connection to Other Threads
-
-- **Tariffs thread:** $499 price set pre-tariff. If margin is squeezed, software value-adds like nutrition tracking become more critical to justify the price point.
-- **Zuck persona:** Maps to "Ecosystem Trust Dynamics" section. Trust architecture being tested live at scale.
-- **W&W thread:** April 14 collision — launch day + W&W press day. Ray's attention split.
+- **Tariffs**: Samsung's Korean/Chinese supply chain has different tariff exposure than Meta's Italian (EssilorLuxottica) chain
+- **W&W**: April 14 is launch day + press day. Ray's attention split three ways.
 
 ## Article Seed (Updated)
-"Your Glasses Know What You Had for Lunch" (LITF) — trace the ambient AI progression from prompted → automatic, analyze the privacy tradeoffs, compare to manual logging apps. Stronger now with the senator regulation angle and Oakley expansion.
+"Your Glasses Know What You Had for Lunch" (LITF) — now with competitive angle: Samsung's entry makes the privacy question industry-wide, not just Meta-specific. Execute post-April 14.
 
 ---
-*Updated: 2026-04-09, Iteration 5 — Added senator regulation signal, Oakley Meta expansion, triple regulatory threat framing.*
-
-## Iteration 6 Note (April 10)
-
-No significant new developments. Privacy outcry remains at same intensity. The 4-day countdown creates a natural resolution point — once April 14 launches, the actual press coverage and public reaction will either validate or deflate the privacy concerns. This thread transitions from "monitoring pre-launch" to "monitoring launch-day reaction" on April 14.
-
-**Folded from closed TRIBE thread:** The broader principle of tracking Meta FAIR publications for product direction hints applies here — watch for FAIR papers on food recognition, nutritional AI, ambient sensing that could preview next features.
-
+*Updated: 2026-04-11, Iteration 7 — Samsung battery certification (245 mAh, matching Meta Display) is the biggest competitive development in smart glasses since Apple Vision Pro. Two Samsung models in execution phase. Android XR ecosystem advantage (existing apps) directly attacks Meta's weakest point. This is a competitive clock, not just a privacy story.*

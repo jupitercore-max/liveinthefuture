@@ -122,3 +122,19 @@ Downgrading from HIGH to MEDIUM urgency. The chip tariff delay removes the most 
 
 ---
 *Updated: 2026-04-10, Iteration 6 — Chip tariff delay to June 2027 reduces near-term pressure on Meta Wearables. Swiss watch deal + chip delay = more favorable than feared. Section 232 investigation remains the wildcard.*
+
+## Iteration 7 Update (April 11)
+
+### Rare Earth Restrictions: Mixed Signals
+Reports suggest possible partial suspension of some Chinese rare earth export restrictions (dhit.pl), though Dy (dysprosium) and Tb (terbium) remain under strict control. The IEA is calling for a financing overhaul for rare earth supply chains given the China dependency.
+
+**Net assessment:** If the broad restriction eases, this further reduces near-term pressure on sensor/camera module components in smart glasses. However, Dy/Tb are specifically used in permanent magnets (speakers, actuators) in wearables — those remain restricted. Mixed signal, not a clear resolution.
+
+### Samsung Competitive Angle
+Samsung's Galaxy Glasses (245 mAh battery cert, two models SM-O200P/SM-O200J) introduce a new tariff dimension: Samsung's supply chain routes through Korea and Vietnam, with different tariff exposure than Meta's Italian (EssilorLuxottica) chain. Under Section 122, Korea faces 10% baseline, same as EU. But Samsung's component sourcing from China faces the same 250% wall. The tariff landscape is symmetrically painful for all players.
+
+### Thread Assessment
+Maintaining MEDIUM urgency. No significant new tariff developments. Section 232 investigation remains the only near-term wildcard. Will close this thread after W&W (April 14) unless Section 232 produces news.
+
+---
+*Updated: 2026-04-11, Iteration 7 — Mixed rare earth signals, Samsung competitive tariff dimension added. Thread nearing closure criteria.*
