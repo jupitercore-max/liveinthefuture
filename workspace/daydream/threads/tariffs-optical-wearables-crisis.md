@@ -138,3 +138,18 @@ Maintaining MEDIUM urgency. No significant new tariff developments. Section 232 
 
 ---
 *Updated: 2026-04-11, Iteration 7 — Mixed rare earth signals, Samsung competitive tariff dimension added. Thread nearing closure criteria.*
+
+## Iteration 8 Update (April 13)
+
+### No Significant New Tariff Developments
+The tariff picture remains stable from Iteration 7:
+- Chip tariffs delayed to June 2027 ✓
+- Swiss watch deal 39%→15% ✓
+- EU baseline 10% on frames ✗
+- Section 232 investigation pending ✗
+
+### Thread Closure Decision
+**Closing after W&W (April 14-17).** The tariff landscape is now well-characterized and structurally stable. Near-term pressure reduced by chip delay. The remaining wildcard (Section 232) will be monitored in the broader smart glasses competitive thread if developments emerge. Key insights preserved in article seed ("The $499 Glasses That Just Got More Expensive").
+
+---
+*Updated: 2026-04-13, Iteration 8 — No new tariff developments. Closing after W&W per plan. Key insights preserved in article seeds and competitive landscape thread.*

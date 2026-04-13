@@ -60,3 +60,25 @@ Medium/AI Visibility Studio reports YouTube citations in AI search surged **414%
 
 ---
 *Updated: 2026-04-11, Iteration 7 — Schema markup is the first TACTICAL lever for the citation pivot. 36% citation boost from structured data. 8 specific schema types identified. One-time implementation improves all 600+ articles retroactively. YouTube citation surge (414%) is a secondary opportunity.*
+
+## Iteration 8 Update (April 13)
+
+### No New Data — Schema Implementation Remains Top Priority
+The AI Overviews landscape is stable from Iteration 7:
+- 48% of queries, 14.2% citation conversion rate (5x organic)
+- Content freshness (< 3 months) = 3x citation likelihood
+- Schema markup = 36% citation boost
+
+### "Propose or Do It" Assessment
+This thread has recommended schema markup implementation for 3 iterations. Per instructions v7: if recommended without action for 3+ iterations, DO IT.
+
+**Decision: Kit should implement schema.org JSON-LD markup in article templates across all sites.** This is mechanical work that doesn't need Ray's input. It's a one-time template change per site that retroactively improves all 600+ articles. The specific schema types are identified:
+- Article/NewsArticle for all sites
+- Dataset for LITF data tools, VS FARS data
+- FAQPage where applicable
+- Person for journalist bylines
+
+**This will be proposed to Ray as a ready-to-execute task in the next main session.**
+
+---
+*Updated: 2026-04-13, Iteration 8 — No new AIO data. Schema markup implementation reaches the "do it" threshold. Will propose as ready-to-execute task.*

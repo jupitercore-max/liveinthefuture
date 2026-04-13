@@ -8,7 +8,7 @@ Seeds must pass the same kill test as regular articles: Is there a novel contrib
 **Pitch:** 600+ articles across 8 sites, all built assuming organic search traffic. Four independent studies now converge on ~60% CTR collapse. BUT: new data shows content under 3 months old is 3x more likely to be cited, and AI citations convert at 14.2% vs 2.8% (5x premium). Frame this as the pivot from defense to offense: Ray's daily publishing pipeline may be a competitive advantage, not a liability. NEW: Schema markup increases citation by 36% — add the before/after implementation data.
 **Novel contribution:** First-person data from an AI-assisted publishing operation measuring its own transformation. Four converging studies + fresh-content advantage + schema.org implementation data.
 **Kill test risk:** Needs real traffic data (Cloudflare analytics) to transcend opinion.
-**Status:** STRONGEST — ready to execute once schema markup is implemented and traffic data collected.
+**Status:** STRONGEST — ready to execute once schema markup is implemented and traffic data collected. Schema implementation reaching "do it" threshold.
 
 ## Seed 2: The $499 Glasses That Just Got More Expensive (LITF)
 **Pitch:** Trace the full supply chain of a single pair of Ray-Ban Meta glasses from Italian frame to Chinese sensor to retail shelf. Show where tariffs hit. Three form factors with different supply chain exposure. Chip tariff delay to June 2027 creates a false sense of security — rare earth restrictions and Section 232 are the real wildcards.
@@ -29,17 +29,23 @@ Seeds must pass the same kill test as regular articles: Is there a novel contrib
 **Status:** Active — strong candidate. Personal project potential for Ray.
 
 ## Seed 5: Your Glasses Know What You Had for Lunch (LITF)
-**Pitch:** Meta's camera-based nutrition tracking + "ambient AI" ratchet from prompted → continuous sensing. Triple regulatory threat: privacy outcry, senator pushing eyewear regulation, class action on hardware. NEW competitive angle: Samsung's 245 mAh battery cert (matching Meta Display) + Android XR means this isn't just Meta's problem — it's an industry-wide privacy/regulation question. First-person test: how accurate is AI nutrition tracking vs manual logging?
+**Pitch:** Meta's camera-based nutrition tracking + "ambient AI" ratchet from prompted → continuous sensing. Apple's entry (4 prototypes, all camera-equipped) makes this an industry-wide question, not just Meta. Snap's Specs add a sixth front.
 **Novel contribution:** First-hand testing + regulatory convergence + industry competitive context.
 **Kill test risk:** Feature needs to ship first.
-**Status:** Strong. Execute post-April 14 launch. Samsung angle strengthens it.
+**Status:** Strong. Execute post-April 14 launch. Apple entry strengthens it dramatically.
 
-## Seed 6 (NEW): The Five-Front Smart Glasses War: A Supply Chain Map (LITF)
-**Pitch:** Meta, Samsung, Google, Rokid, Apple are all now building AI glasses. Each has different supply chain routes, tariff exposure, platform strategy, and privacy approach. Map all five competitors across: components (where?), assembly (where?), platform (proprietary vs Android XR), display (yes/no), and tariff exposure. The Samsung battery cert (245 mAh, regulatory stage) plus Google's Android XR ecosystem advantage (existing apps) are the key new datapoints.
-**Novel contribution:** A competitive landscape map grounded in supply chain data, not marketing comparisons. Nobody has mapped tariff exposure across all five competitors.
-**Kill test risk:** Some supply chain details are proprietary. Need public filings, teardowns, and analyst reports.
-**Status:** New seed. Strong — combines Ray's day job knowledge with his content empire. Execute post-April 14.
+## Seed 6 (UPDATED): The Six-Front Smart Glasses War: A Supply Chain Map (LITF)
+**Pitch:** Meta, Samsung, Google, Snap, Apple, Rokid — six companies, six different approaches. Map across: components, assembly, platform, silicon, frame material, tariff exposure, and privacy strategy. NEW: Apple's acetate frames vs Meta's polycarbonate is a genuinely novel competitive axis. Snap's Qualcomm deal is a silicon commitment story. Meta's Limitless acquisition is a capabilities play.
+**Novel contribution:** A competitive landscape map grounded in supply chain and material data, not marketing comparisons. Nobody has mapped acetate vs polycarbonate as competitive positioning, or tariff exposure across six competitors.
+**Kill test risk:** Some supply chain details are proprietary.
+**Status:** STRONGEST timing — execute the week after W&W when all product details are public. The most consequential week in smart glasses history just happened.
+
+## Seed 7 (NEW): When Your Car's Software Update Locks You Out (VS)
+**Pitch:** Rivian's 2026.07 update bricked phone keys and key fobs on Gen 1 vehicles. Over-the-air updates control physical access to modern vehicles. What happens when that goes wrong? Map the OTA update risk landscape: which manufacturers have had OTA failures, what's the safety fallback, and what should regulators require?
+**Novel contribution:** Concrete case study (Rivian 2026.07) as entry point to systemic OTA vehicle safety question. Plus shadow braking reports as a second vector.
+**Kill test risk:** Low — Rivian incident is documented, OTA safety is under-covered.
+**Status:** New seed. Strong VS candidate. Ray's personal experience (2 R1S) adds first-person angle.
 
 ---
 
-*Updated: 2026-04-11, Iteration 7 — Added Seed 6 (Five-Front Smart Glasses War). Updated Seeds 1 and 5 with schema markup and Samsung competitive data respectively.*
+*Updated: 2026-04-13, Iteration 8 — Updated Seed 6 to six-front war (Snap added). Added Seed 7 (Rivian OTA failures for VS). Apple's acetate frames as competitive axis is novel.*

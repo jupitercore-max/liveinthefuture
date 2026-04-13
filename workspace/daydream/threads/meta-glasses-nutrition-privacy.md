@@ -1,74 +1,93 @@
-# Meta Glasses: Competitive Landscape Just Compressed + Privacy Storm at Launch
+# Smart Glasses Competitive Landscape: Six-Front War + Meta Acquires Limitless
 
-**Created:** 2026-04-08 (Iteration 4)
-**Updated:** 2026-04-11 (Iteration 7)
-**Status:** Active — DUAL PRESSURE: competitive clock + regulatory convergence, 3 days to launch
-**Urgency:** HIGH (Samsung battery cert is biggest competitive signal yet)
+**Created:** 2026-04-08 (Iteration 4, as "Meta Glasses Nutrition/Privacy")
+**Updated:** 2026-04-13 (Iteration 8 — MAJOR expansion, thread renamed)
+**Status:** Active — CRITICAL. The competitive landscape transformed in one week.
+**Urgency:** HIGH (Apple confirmation + Snap/Qualcomm deal + Meta acquisition = most consequential week in smart glasses history)
 
-## NEW: Samsung Galaxy Glasses — Real Hardware, Real Timeline
+## What Changed This Week (April 10-13)
 
-### Battery Certification = Operational Commitment
-Samsung's Galaxy Glasses battery has been certified at **245 mAh** (SamMobile via 9to5Google, March 2026). This is a regulatory-stage milestone — products don't submit battery cells unless hardware is production-ready.
+Three developments in 72 hours have redrawn the entire smart glasses competitive map:
 
-**Why this matters:**
-- Meta's Ray-Ban Display: 248 mAh. Samsung's 245 mAh is functionally identical.
-- This capacity strongly suggests Samsung's version will include a **display** (non-display models run ~150 mAh)
-- Two internal Samsung models: **SM-O200P and SM-O200J** — targeting 2026 ship date
-- Samsung declared "execution phase" in March 6 product briefing
-- Samsung's entry runs on **Android XR** — Google's platform play
+### 1. Meta Acquires Limitless (formerly Rewind)
+- **Limitless** was an AI pendant startup ($99 device, records conversations, ~$33M raised from a16z, First Round, NEA)
+- **Team joining Reality Labs Wearables** — this is Ray's organization
+- Limitless hardware discontinued, existing customers get 1 year free on Unlimited Plan
+- "Rewind" desktop recording software also discontinued
+- **Why it matters for Ray:** His org just absorbed a team with deep expertise in always-on audio capture, conversation transcription, and personal AI memory. This directly maps to the Meta glasses product roadmap (ambient AI, contextual awareness, conversation summaries). Ray may know people involved or be directly impacted by the new team joining.
 
-### Android XR: The Platform War
-Google is building a comprehensive smart glasses platform that DIRECTLY competes with Meta:
-- **Dual approach**: camera/audio glasses (like Ray-Ban Meta) AND display glasses (like Ray-Ban Display)
-- **Partners**: Samsung, **Gentle Monster** (Korean luxury eyewear), **Warby Parker** (prescription), Samsung
-- **Key advantage**: Existing Android app ecosystem transfers to XR. Solves Meta's biggest weakness (Gizmodo: "not enough apps" as #1 complaint)
-- **Navigation, Uber integration, contextual AI** all demoed
-- Google's prototypes are "pushing beyond what most people think is technologically possible"
+### 2. Apple Smart Glasses Confirmed — 4 Prototypes, 2027 Launch (Bloomberg/Gurman, April 12)
+- **Mark Gurman's Power On newsletter** (Bloomberg, April 12): Apple's display-free smart glasses launching early 2027
+- **4 prototype designs:**
+  1. Large rectangular (Wayfarer-like)
+  2. Slimmer rectangular
+  3. Round frames
+  4. Aviator-style
+- **Premium acetate frames** — deliberate quality differentiation vs Meta's polycarbonate
+- **Custom silicon** derived from Apple Watch S-series architecture — designed for camera AI + all-day battery
+- **Features:** Cameras, mics, speakers, Siri integration, photos/video, phone calls, notifications, music, hands-free interaction
+- **NO display** — camera + audio + AI only (exactly Meta's current approach)
+- **Part of a troika:** camera-equipped AirPods Pro + AI pendant (AirTag-sized) + smart glasses
+- **Vision Air scrapped** — Apple redirecting from expensive headsets to lightweight everyday wearables
 
-### Other Competitors
-- **Rokid AI Glasses Style ($299)**: Gizmodo 3.5/5, "surprisingly tough competition." Solid AI features, AI voice assistant beats Meta in some ways. Weight marketing misleading (38g without lenses, 45g real vs Meta's 48-50g)
-- **XREAL 1S ($449)**: Hand-tracking capabilities, new form factor
-- **Apple**: Reportedly pivoted to chasing Meta's smart glasses approach (Gizmodo)
+**Why this is the biggest competitive development since Samsung's battery cert:**
+- Apple doesn't enter categories it can't dominate. Their smart glasses will have iPhone integration depth that Meta can never match.
+- Acetate frames + 4 designs signals Apple is treating this as a FASHION product, not a tech gadget
+- Apple Watch silicon → proven low-power AI processing
+- The Apple ecosystem moat (AirPods + Watch + iPhone + glasses) creates cross-device intelligence that no single-product competitor can replicate
 
-### Competitive Assessment for Ray's Team
-Meta's moat was always time — 2+ years head start with Ray-Ban Meta. Samsung's battery cert compresses that to months, not years:
+### 3. Snap/Qualcomm Multi-Year Deal for Specs (Reuters, April 10)
+- Snap confirmed **Snapdragon XR** as the silicon platform for consumer Specs glasses
+- **Multi-year deal** — not a one-off, this is a committed hardware roadmap
+- **Late 2026 launch target** — ahead of Apple, alongside Samsung
+- Spun out as a separate product line this year
+- Developer-friendly approach (Snapdragon XR tooling is mature)
 
-| Company | Status | Display? | Platform | Ship Date |
-|---------|--------|----------|----------|-----------|
-| Meta | Shipping (Ray-Ban, Oakley, Blayzer/Scriber) | Yes (Display) | Proprietary | NOW |
-| Samsung | Battery certified, execution phase | Likely (245 mAh) | Android XR | H2 2026 |
-| Google | Prototypes shown, partners locked | Both versions | Android XR | 2026-2027 |
-| Rokid | Shipping | No | Proprietary | NOW |
-| Apple | Pivoted to glasses | Unknown | Unknown | 2027+ |
+## Updated Competitive Map (6 Competitors, April 2026)
 
-**The question for Ray:** Is the Wearables team's roadmap calibrated for competition arriving in H2 2026, or does it still assume 2027+?
+| Company | Status | Display? | Platform | Silicon | Ship Date | Frame Material |
+|---------|--------|----------|----------|---------|-----------|----------------|
+| **Meta** | Shipping (4 models) | Yes (Display) | Proprietary | Qualcomm | NOW | Polycarbonate |
+| **Samsung** | Battery certified | Likely (245 mAh) | Android XR | Qualcomm | H2 2026 | Unknown |
+| **Google** | Prototypes, partners locked | Both | Android XR | Unknown | 2026-2027 | Via partners |
+| **Snap** | Qualcomm deal signed | Unknown | Proprietary | Snapdragon XR | Late 2026 | Unknown |
+| **Apple** | 4 prototypes | NO | Apple Intelligence | Watch S-derived | Early 2027 | Acetate |
+| **Rokid** | Shipping | No | Proprietary | Unknown | NOW | Standard |
 
-## The Triple Regulatory Threat (unchanged)
+### Meta's Advantages (Still Significant)
+- **76.1% market share** (IDC 2025) — massive head start
+- **EssilorLuxottica partnership** — optical expertise, retail distribution, Ray-Ban brand
+- **Prescription models** (Blayzer/Scriber $499, April 14) — first to market in Rx
+- **Limitless acquisition** — ambient AI/conversation tech
+- **13.4M unit forecast** for 2026 — platform scale
 
-### 1. Privacy Outcry (Public Sentiment)
-- **"Billions of people wear glasses"** backlash still dominant narrative
-- Gizmodo Ray-Ban Display review: 3.5/5, explicitly calls them "probably a privacy nightmare" and "existentially exhausting"
-- The nutrition tracking feature (camera-based food logging) is the privacy lightning rod
+### Meta's Vulnerabilities (Growing)
+- **App ecosystem** — Gizmodo's #1 complaint. Android XR (Samsung/Google) inherits the entire Android app ecosystem
+- **No iPhone integration** — Apple's glasses will work seamlessly with iPhone, Meta's won't
+- **Polycarbonate vs acetate** — Apple's premium material positioning
+- **Multi-device ecosystem** — Apple's glasses + AirPods + Watch + pendant vs Meta's standalone product
+- **Privacy narrative** — Meta's advertising business model makes privacy attacks stick harder than they would for Apple
 
-### 2. Legislative Pressure
-- **US Senator pushing for changes to eyewear regulations** (Optometry Times, April 8)
-- First concrete LEGISLATIVE signal about smart glasses regulation
+## The Question Ray Should Be Asking
 
-### 3. Hardware Liability
-- **Class action filed March 4, 2026** (N.D. Cal.) — charging case failures
-- **IDC forecast: 13.4M smart glasses in 2026** (up from 9.6M in 2025) — more units = more liability exposure
+The competitive landscape went from "Meta is 2 years ahead" to "five funded competitors are shipping within 18 months" in April 2026. The Limitless acquisition shows Meta is buying capabilities to stay ahead. But Apple's entry changes the conversation from "should I buy smart glasses?" to "which ecosystem's smart glasses?"
 
-## Oakley Meta Expansion (unchanged)
-- Oakley Meta Vanguard (athletic) + HSTN (lifestyle)
-- Platform now spans: lifestyle (Ray-Ban), prescription (Blayzer/Scriber), sports (Oakley)
-- Each form factor = different privacy expectations and regulatory environments
+**The real competitive threat isn't any single competitor — it's that the category is now validated enough for Apple to enter.** When Apple enters, the market gets bigger (good) but Meta's share shrinks (bad). The iPhone integration moat is the specific vector Ray's team should worry about.
 
-## Connection to Other Threads
-- **Tariffs**: Samsung's Korean/Chinese supply chain has different tariff exposure than Meta's Italian (EssilorLuxottica) chain
-- **W&W**: April 14 is launch day + press day. Ray's attention split three ways.
+## Privacy Thread (folded in, formerly separate)
 
-## Article Seed (Updated)
-"Your Glasses Know What You Had for Lunch" (LITF) — now with competitive angle: Samsung's entry makes the privacy question industry-wide, not just Meta-specific. Execute post-April 14.
+The privacy narrative is now industry-wide, not just Meta-specific:
+- Apple's 4 camera-equipped prototypes face the same "billions wear glasses" backlash
+- But Apple's privacy reputation gives them a narrative shield Meta lacks
+- Senator pushing eyewear regulations applies to ALL players
+- Class action (March 4, N.D. Cal.) still active for Meta specifically
+
+## Article Seeds (updated)
+
+**Seed 6: "The Six-Front Smart Glasses War"** — upgraded from five to six (Snap confirmed). Now includes:
+- Meta (incumbent), Samsung (battery cert), Google (Android XR platform), Snap (Qualcomm deal), Apple (4 prototypes, 2027), Rokid (budget)
+- Supply chain mapping, tariff exposure, platform strategy, material choices
+- **The acetate vs polycarbonate angle is genuinely novel** — nobody is mapping frame material strategy as competitive positioning
 
 ---
-*Updated: 2026-04-11, Iteration 7 — Samsung battery certification (245 mAh, matching Meta Display) is the biggest competitive development in smart glasses since Apple Vision Pro. Two Samsung models in execution phase. Android XR ecosystem advantage (existing apps) directly attacks Meta's weakest point. This is a competitive clock, not just a privacy story.*
+*Updated: 2026-04-13, Iteration 8 — Meta acquired Limitless (joining Reality Labs Wearables = Ray's org). Apple confirmed 4 prototype smart glasses designs (Gurman, April 12) for early 2027, acetate frames, camera-first, Watch silicon. Snap locked multi-year Qualcomm deal for Specs (late 2026). The competitive landscape went from 3-front to 6-front in April 2026. This is the most consequential week in smart glasses since Meta launched Ray-Ban Stories in 2021.*

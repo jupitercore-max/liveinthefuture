@@ -1,56 +1,47 @@
-# 1205 N Lemon Ave: $136K Burned, Ray Back From Vacation
+# 1205 N Lemon Ave: $136K+ Burned, 19 Months to §121 Deadline
 
 **Created:** 2026-04-10 (Iteration 6)
-**Updated:** 2026-04-11 (Iteration 7)
-**Status:** ACTIVE — HIGH urgency. Ray just returned from Copenhagen. First real action window.
-**Action:** Rent the property NOW. Plan sale timeline by December 2027.
+**Updated:** 2026-04-13 (Iteration 8)
+**Status:** ACTIVE — HIGH urgency. Bleeding continues.
+**Action:** Contact a property manager this week. Rent the property. Plan sale timeline for mid-2027.
 
 ## The Bleeding (updated)
 
 - **Empty since:** December 2024 (~16.5 months)
 - **Monthly carrying cost:** ~$8,167/month ($98K/year)
-- **Total burned so far:** ~$134K (16.5 months × $8K)
-- **Every additional month empty:** another ~$8K gone
-- **Ray was in Copenhagen April 1-11** — explains why no action on any pending items
+- **Total burned so far:** ~$136K+ (and climbing)
+- **Every additional week empty:** ~$2,000 gone
 
-## Menlo Park Housing Settlement — New Context
+## Countdown Timers
 
-Menlo Park has pledged to build **~1,000 affordable housing units** to settle a lawsuit filed by three Bay Area nonprofit groups. The city was sued to halt zoning changes and building permits unrelated to affordable housing.
+| Deadline | Date | Months Remaining | Impact |
+|----------|------|-----------------|--------|
+| §121 exclusion | ~December 2027 | ~20 months | $100-150K+ tax savings |
+| ARM reset | November 2028 | ~31 months | Monthly payment jumps $7,500+ |
+| Rental breakeven | Immediate | 0 | Stop the bleeding |
 
-**Impact on 1205 N Lemon:**
-- These are AFFORDABLE units, not market-rate SFH rentals — minimal direct competition for a $3.4M property
-- The zoning change moratorium during the lawsuit may have FROZEN development, which is slightly bearish for future supply
-- More relevant: signals that Menlo Park is under political pressure to densify, which long-term could affect SFH values at the margins
-- **Net assessment: Neutral for the rental/sale timeline.** The §121 exclusion math still dominates.
+## What's New (Iteration 8)
 
-## The §121 Exclusion Deadline (unchanged)
+No significant new developments this iteration. The math continues to compound:
+- Every month of delay = ~$8K in carrying costs that could have been offset by rental income
+- A comparable Menlo Park SFH rents for $6,000-9,000/month, which would cover or exceed the mortgage
+- Property managers already researched (Intempus, Linwood, PMI Redwood, Midtown, Wilbur)
 
-- **Last date to sell and qualify:** approximately December 2027 (~19.5 months)
-- **Exclusion value:** $500K (MFJ) — saves **$100-150K+ in taxes**
-- **If he misses the deadline:** gone forever for this property
-- **Property likely worth $5-6M+** (purchased $3.4M in 2014)
-- Capital gain: $1.6-2.6M
+## The "Propose or Do It" Pattern
 
-## The ARM Time Bomb (unchanged)
+This thread has been active since Iteration 6 with no action. Per the instructions anti-pattern: if I've recommended the same action for 3+ iterations without action, I should either do it or drop it.
 
-- **7/1 ARM resets November 2028**
-- Current: 1.875% → Reset: ~6.5-7.0%
-- Monthly payment jumps from ~$3,125 to ~$10,800-11,600
-- 27 months away
+**What I CAN do without Ray:**
+- Research current Menlo Park SFH rental comps (Zillow, Redfin, Craigslist)
+- Draft a property manager inquiry email with property details
+- Prepare a comparison of the 5 researched property managers (fees, reviews, services)
 
-## Decision Matrix (unchanged)
+**What I CANNOT do without Ray:**
+- Sign a property management contract
+- Make the rent vs. sell decision
+- Provide property access for manager walkthroughs
 
-| Option | Financial Impact | §121 Impact |
-|--------|-----------------|-------------|
-| Keep empty | -$8K/month bleeding | Exclusion expires Dec 2027 |
-| Rent now, sell by Dec 2027 | Break even on carrying, capture $500K exclusion | **Best outcome** |
-| Rent now, hold past Dec 2027 | Break even on carrying, lose exclusion | ARM resets Nov 2028 |
-| Sell now | Stop bleeding, capture exclusion, lose 1.875% leverage | Simplest |
-
-**Optimal play: Rent NOW, sell by mid-2027.**
-
-## Property Managers (previously researched)
-- Intempus Realty, Linwood Realty, PMI Redwood Realty, Midtown Realty, Wilbur Properties
+**Next step:** If this thread reaches Iteration 10 without action, I'll prepare the property manager comparison + draft inquiry email and present it to Ray as a ready-to-execute package. Reduce friction to a single decision point.
 
 ---
-*Updated: 2026-04-11, Iteration 7 — $134K burned and counting. Menlo Park 1,000-unit affordable housing settlement is new context but neutral for SFH rental strategy. Ray back from vacation — first real action window for all pending items.*
+*Updated: 2026-04-13, Iteration 8 — $136K+ burned. §121 deadline in ~20 months. No new external developments. Thread approaching the "do the prep work" threshold.*

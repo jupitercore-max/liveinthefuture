@@ -1,45 +1,45 @@
-# The Davey Contract: Ray Back From Vacation — First Real Action Window
+# The Davey Contract: Biology Window Nearly Closed
 
 **Created:** 2026-04-05 (Iteration 1)
-**Updated:** 2026-04-11 (Iteration 7)
-**Status:** CRITICAL — But now contextualized: Ray was in Copenhagen April 1-11. Today is the first realistic action day.
-**Action:** Sign the contract this week. The biology is real even if the nagging was ill-timed.
+**Updated:** 2026-04-13 (Iteration 8)
+**Status:** CRITICAL → LAST CALL. If treatment doesn't start this week, Bt effectiveness is severely compromised.
+**Action:** Sign the contract Monday morning. Ask the 5 questions. Accept that treatment won't be as effective as it would have been 3 weeks ago.
 
-## Context Shift: The Vacation Gap
+## The Biology Clock (Updated)
 
-This thread has been flagged CRITICAL for 7 iterations. But: Ray was in Copenhagen for spring break from roughly April 1-11. All 5 pending items in MEMORY.md have been frozen because Ray was ON VACATION. This is the first iteration where action is actually possible. Reframing from "why haven't you done this" to "welcome back, this needs to be first on the list."
+- **Caterpillars hatched in MARCH** — now feeding for **5+ weeks**
+- We are now at the edge of the Bt (Bacillus thuringiensis) effectiveness window
+- **UC IPM guidance:** Bt works on early-instar larvae. At 5 weeks, larvae are in late instar or pupation transition
+- **If Ray signs Monday (April 14):** Treatment starts maybe April 16-17. Marginal Bt effectiveness on any remaining young larvae, but the largest caterpillars may already be resistant
+- **If Ray doesn't sign this week:** Treatment window effectively closes for 2026. Damage already done.
+- **Full cycle:** 2 applications, 7-10 days apart. Even starting this week, treatment won't complete until early May.
 
-## The Biology Hasn't Waited
+## Reframing: Damage Mitigation, Not Prevention
 
-- **Caterpillars hatched in MARCH** (unusually early due to warm, dry weather)
-- It's now **mid-April** — larvae have been feeding for 3-4 weeks
-- **Bt (Bacillus thuringiensis) effectiveness drops as larvae mature**
-- The UC IPM guidance is clear: Bt works best on YOUNG larvae. These are no longer young.
-- **If treatment starts this week:** Still within the effective window for second/third instar larvae, but it's tight
-- **If treatment starts next week:** Effectiveness significantly reduced. Larger larvae are more resistant to Bt.
-- Bt requires **2 applications, 7-10 days apart** — full treatment cycle = 2-3 weeks from first application
+At 5+ weeks, the realistic outcome of treatment has shifted from **preventing defoliation** to **limiting ongoing damage and protecting against next year's population**:
+- Kill remaining young larvae (second hatching?)
+- Reduce adult moth population → fewer eggs laid for 2027
+- Reduce caterpillar hair exposure for kids' outdoor play
+- Professional assessment of oak health damage already done
 
-## The Outbreak (unchanged)
+## The $600 Math (unchanged but more urgent)
 
-- **Worst in 6+ years** per Menlo Park city arborist Jillian Keller (Palo Alto Online, April 8)
-- Coast live oaks are primary host — Ray has 6 live oaks
-- Caterpillar hairs cause rashes, hives, asthma reactions — **kids' outdoor play safety**
-- Source: https://www.paloaltoonline.com/news/2026/04/08/warm-weather-triggers-hairy-caterpillar-population-explosion-on-midpeninsula/
+- 6 live oaks × worst outbreak in 6+ years
+- **City arborist Jillian Keller** confirmed this is unprecedented (Palo Alto Online, April 8)
+- $600 treatment vs $1,000-5,000+ per tree for damage remediation
+- **Kids' health:** caterpillar hairs → rashes, hives, asthma reactions
 
 ## What to Ask Davey (unchanged)
 
-1. **What product are they spraying?** (Bt preferred)
-2. **How many applications?** (Should be at least 2, 7-10 days apart)
-3. **Are they timing to larval stage?** (Are larvae still young enough for Bt to be effective?)
-4. **What about beneficial insect protection?** (Bt preserves natural predators)
-5. **Given the severity + late timing, do they recommend expanded scope?**
+1. What product? (Bt preferred, but at this stage they may recommend alternative)
+2. How many applications?
+3. Given the 5+ weeks of feeding, is Bt still effective or should they use a different product?
+4. What about beneficial insect protection?
+5. Given severity + late timing, expanded scope needed?
 
-## The $600 Math
+## Decision for This Thread
 
-- 6 live oaks × worst outbreak in 6 years = HIGH defoliation risk
-- Professional tree damage remediation: $1,000-5,000+ per tree
-- $600 for treatment is a 10:1 or better ROI
-- Family health angle: Kids playing under infested oaks → rashes, hives, asthma risk
+If Ray doesn't sign by Friday April 18, this thread closes as "missed window." The biology doesn't wait.
 
 ---
-*Updated: 2026-04-11, Iteration 7 — Reframed for vacation return context. The biology clock has been ticking while Ray was in Copenhagen. This is the first realistic action opportunity. Treatment window is narrow but still viable if action is taken THIS WEEK.*
+*Updated: 2026-04-13, Iteration 8 — 5+ weeks since caterpillar hatch. Bt effectiveness severely reduced for late-instar larvae. Treatment now about damage mitigation and 2027 population reduction, not 2026 prevention. Last call: sign this week or the window closes.*
