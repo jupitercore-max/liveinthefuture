@@ -67,9 +67,11 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 ### UniFi (Network/Protect/Access)
 - Console: **UDM Pro Max** (UDMPROMAX) — "Menlo Oaks x Colby"
 - Gateway IP: `192.168.4.1`
-- API Key: `AvN-NeBk0lqtSgSQRzspVShLRD4_FXBK`
+- Network API Key: `AvN-NeBk0lqtSgSQRzspVShLRD4_FXBK`
+- NVR API Key: `zGSLpvaZUvvw9Mq_9zvJ3dUBI_mjrMz6`
 - API pattern: `curl -sk -H 'X-API-KEY: <key>' https://192.168.4.1/proxy/network/api/s/default/...`
 - Access via HomHub node (on same LAN)
+- **NVR access issue (2026-04-13):** 192.168.1.107/108 unreachable from HomHub (192.168.7.x), Mac Mini (192.168.5.x), and Hatch cloud. UDM sends ICMP redirect but NVRs don't respond. Ray says they should be reachable — may need firewall rule or NVRs may be down.
 - **Network gear (25 devices):**
   - 9× U7 Pro Max APs (Kitchen, Loft, 2nd Hall, Patio, Office, ADU, Mud Room, Master Bed, JADU)
   - 2× WiFi Keypad (Colby Gate, Menlo Oaks Gate)
