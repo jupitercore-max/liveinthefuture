@@ -64,6 +64,22 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 - Used for: Pages deployments (technically-legal, etc.)
 - Deploy command: `CLOUDFLARE_API_TOKEN=<token> CLOUDFLARE_ACCOUNT_ID=<id> npx wrangler pages deploy <dir> --project-name=<project>`
 
+### UniFi (Network/Protect/Access)
+- Console: **UDM Pro Max** (UDMPROMAX) — "Menlo Oaks x Colby"
+- Gateway IP: `192.168.4.1`
+- API Key: `AvN-NeBk0lqtSgSQRzspVShLRD4_FXBK`
+- API pattern: `curl -sk -H 'X-API-KEY: <key>' https://192.168.4.1/proxy/network/api/s/default/...`
+- Access via HomHub node (on same LAN)
+- **Network gear (25 devices):**
+  - 9× U7 Pro Max APs (Kitchen, Loft, 2nd Hall, Patio, Office, ADU, Mud Room, Master Bed, JADU)
+  - 2× WiFi Keypad (Colby Gate, Menlo Oaks Gate)
+  - 1× USW Enterprise 48 PoE, 1× USW Pro Aggregation, 1× 16p ADU switch
+  - 3× 8p Enterprise switches (gates), 4× Flex switches (poles/trees)
+  - 2× UDB Pro (Sector + standard) on 192.168.1.107/108
+- **Protect:** NVR exists (UDB Pro devices) but API key doesn't have Protect scope (500/401)
+- **Access:** Not installed yet (404)
+- Clients: 181 connected (52 wired, 129 WiFi)
+
 ### Hydrawise (Irrigation)
 - API Key: `C8C6-E879-64F8-40B0`
 - Controller: "Menlo Oaks" (ID 1612066, serial 03d047712e)
