@@ -94,6 +94,12 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 - **Access:** Not installed yet (404)
 - Clients: 181 connected (52 wired, 129 WiFi)
 
+### Kit's Gmail
+- Email: `factoryfactorykit@gmail.com`
+- Password: `#R:_>DtAU{ZEo)rF2d?mZkA(`
+- Created by Ray 2026-04-13
+- Used for: service signups, OAuth, receiving alerts
+
 ### Hydrawise (Irrigation)
 - API Key: `C8C6-E879-64F8-40B0`
 - Controller: "Menlo Oaks" (ID 1612066, serial 03d047712e)
