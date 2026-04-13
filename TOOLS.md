@@ -71,7 +71,19 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 - NVR API Key: `zGSLpvaZUvvw9Mq_9zvJ3dUBI_mjrMz6`
 - API pattern: `curl -sk -H 'X-API-KEY: <key>' https://192.168.4.1/proxy/network/api/s/default/...`
 - Access via HomHub node (on same LAN)
+- **UI.com Cloud API Key:** `RaXkQXa-p-EiL7e4bDP1lvjdsZaFN0AQ` (no 2FA needed, covers all sites)
+- **Cloud API endpoint:** `https://api.ui.com/ea/devices` with `X-API-KEY` header
+- **UI.com account:** rayche@gmail.com / txaQ6E01WNN8jvw! (has 2FA — use cloud API key instead)
 - **NVR access issue (2026-04-13):** 192.168.1.107/108 unreachable from HomHub (192.168.7.x), Mac Mini (192.168.5.x), and Hatch cloud. UDM sends ICMP redirect but NVRs don't respond. Ray says they should be reachable — may need firewall rule or NVRs may be down.
+- **Network gear (25 devices):**
+  - 9× U7 Pro Max APs (Kitchen, Loft, 2nd Hall, Patio, Office, ADU, Mud Room, Master Bed, JADU)
+  - 2× WiFi Keypad (Colby Gate, Menlo Oaks Gate)
+  - 1× USW Enterprise 48 PoE, 1× USW Pro Aggregation, 1× 16p ADU switch
+  - 3× 8p Enterprise switches (gates), 4× Flex switches (poles/trees)
+  - 2× UDB Pro (Sector + standard) on 192.168.1.107/108
+- **Protect:** NVR exists (UDB Pro devices) but API key doesn't have Protect scope (500/401)
+- **Access:** Not installed yet (404)
+- Clients: 181 connected (52 wired, 129 WiFi)
 - **Network gear (25 devices):**
   - 9× U7 Pro Max APs (Kitchen, Loft, 2nd Hall, Patio, Office, ADU, Mud Room, Master Bed, JADU)
   - 2× WiFi Keypad (Colby Gate, Menlo Oaks Gate)
