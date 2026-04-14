@@ -136,3 +136,10 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 ---
 
 Add whatever helps you do your job. This is your cheat sheet.
+
+### Facebook
+- Email: rayche@gmail.com
+- Password: alinaFB2
+- Browser profile persisted at: workspace/.browser-profile/ (symlinked from ~/.cache/browser)
+- Restore script: workspace/scripts/restore-browser-profile.sh
+- Session cookies valid until April 2027
