@@ -128,17 +128,17 @@ The `browser` CLI needs:
 - `browser cookies import <file>`: bulk import from JSON/Netscape format
 - `browser cookies export [--domain <domain>]`: bulk export
 
-This would have saved us 2 hours tonight. CDP supports all of this via `Network.getCookies` and `Network.setCookie`.
+This would have saved us 2 hours tonight. CDP supports all of this via `Network.getCookies` and `Network.setCookie`. We eventually got this working by writing raw WebSocket calls to CDP port 9224, but it should be a single CLI command.
 
-### 3. Persistent Chrome Profiles
+**Acceptance criteria:** `browser cookies export --domain facebook.com > fb.json` and `browser cookies import fb.json` round-trip all cookies including HttpOnly.
 
-Chrome should run with `--user-data-dir` pointing to a persistent directory. When Chrome restarts, it picks up where it left off: all cookies, localStorage, saved passwords intact. Standard Chrome behavior; just needs to be configured.
-
-### 4. React-Compatible Input Handling
+### P2: React-Compatible Input Handling (effort: ~3 days)
 
 The `browser type` command should use CDP `Input.dispatchKeyEvent` (char-by-char native key events) instead of setting `element.value` via JavaScript. This works on all sites including React, Angular, Vue, and any framework that uses synthetic events.
 
 Our current workaround (nativeInputValueSetter + input event dispatch) is fragile. Native key events are how a real keyboard works. They should be the default.
+
+**Acceptance criteria:** `browser type --selector '#email' --text 'user@example.com'` works correctly on facebook.com/login, accounts.google.com, and twitter.com/login without any workarounds.
 
 ---
 
@@ -152,7 +152,7 @@ This is the **First-party App (FOA) disintermediation** problem.
 
 ### What FOA Disintermediation Actually Means
 
-When Kit monitors 3 Facebook watch groups for me, I stop opening Facebook. I don't see the ads. I don't engage with the feed. I don't get sucked into 45 minutes of doomscrolling. I get a Telegram alert: "🚨 WATCH ALERT: Milgauss 116400GV, $32K, Moda Watch Club" and I act on it without ever touching facebook.com.
+When Kit monitors 3 Facebook watch groups for me, I stop opening Facebook. I don't see the ads. I don't engage with the feed. I don't get sucked into 45 minutes of doomscrolling. I get a Telegram alert: "🚨 WATCH ALERT: Milgauss 116400GV, $9K, Moda Watch Club" and I act on it without ever touching facebook.com.
 
 From Facebook's perspective, this is catastrophic:
 - **Zero ad impressions** on the content I consume
@@ -186,7 +186,11 @@ We are in phase 2 for agent-platform integration. Facebook is blocking agents. A
 
 ### What Should Happen Instead: An Agent API Standard
 
-**Proposal:** An authenticated, rate-limited, read-only API standard for agent consumption of platform content.
+Open standards for agent interoperability already exist. Google's **Agent-to-Agent Protocol (A2A)**, launched in April 2025 with 50+ enterprise partners (Salesforce, SAP, ServiceNow, Atlassian, PayPal), defines how agents discover each other's capabilities, exchange tasks, and negotiate output formats over standard HTTP/SSE/JSON-RPC. Anthropic's **Model Context Protocol (MCP)** handles the complementary problem of giving agents access to tools and context. A2A explicitly addresses cross-vendor agent collaboration in enterprise environments.
+
+Neither protocol solves the specific problem we hit: **an agent accessing a consumer platform on behalf of its authenticated user**. A2A is designed for agent-to-agent communication, not agent-to-platform content consumption. MCP gives agents tools, not platform sessions. The missing piece is an **Agent Content API** layer that sits between these protocols and the walled-garden platforms.
+
+**Proposal:** An authenticated, rate-limited, read-only API standard for agent consumption of platform content. It could be built as an A2A extension or as a standalone spec that A2A-compatible agents invoke.
 
 Key properties:
 - **User-authorized:** The agent acts on behalf of a specific, authenticated user
@@ -197,6 +201,8 @@ Key properties:
 - **Attribution-preserving:** Platform gets credit. Agent response includes "via Facebook" branding
 
 This is basically OAuth but for agent content consumption. OAuth solved "let apps act on behalf of users." We need the same thing for "let agents consume on behalf of users."
+
+A critical constraint: **user consent is non-negotiable**. The agent must act within the explicit authorization scope of the user. Tonight, Kit accessed only groups Ray is a member of, read only content Ray could see in his browser, and stored data only for Ray's private use. That's user-delegated access, not data harvesting. The API standard should enforce this distinction: agent access is bounded by the authorizing user's permissions, with clear audit trails and revocation.
 
 ### Why Platforms Should Want This
 
@@ -212,7 +218,7 @@ I work at Meta. My agent is scraping Meta's platform because Meta's own APIs won
 
 But the landscape has changed. The threat model isn't "app developer harvests group data for ad targeting." It's "authenticated user wants their own agent to read their own groups." These are fundamentally different use cases, and they should have fundamentally different API access policies.
 
-**Recommendation for Hatch:** Write a proposal for an "Agent Content API" standard. Shop it to Meta, Google, Twitter, Reddit. Position it as: "We can solve the agent access problem cooperatively, or we can let the ecosystem devolve into an arms race of scraping vs. blocking. The cooperative approach is better for everyone."
+**Recommendation for Hatch:** Write a proposal for an "Agent Content API" standard, potentially as an extension to A2A or a complementary spec alongside MCP. Shop it to Meta, Google, Twitter, Reddit. Position it as: "A2A handles agent-to-agent. MCP handles agent-to-tool. We need a third leg: agent-to-platform, authorized by the user. We can solve this cooperatively, or we can let the ecosystem devolve into an arms race of scraping vs. blocking. The cooperative approach is better for everyone."
 
 ---
 
@@ -226,6 +232,13 @@ But the landscape has changed. The threat model isn't "app developer harvests gr
 | Text extraction from anti-scrape DOM | 30 min | 0 (structured API would return clean data) |
 | **Total** | **6+ hours** | **< 1 minute** |
 
-The user value is enormous. The engineering tax is insane. Fix the primitives (authenticated sessions, persistent profiles, CDP cookie management) and advocate for the right industry-level solution (Agent API standard).
+The user value is enormous. The engineering tax is insane. Fix the primitives (persistent profiles, authenticated sessions, CDP cookie management) and advocate for the right industry-level solution (Agent Content API, built alongside A2A and MCP).
+
+## Immediate Next Steps
+
+1. **File a bug** for `--user-data-dir` persistence on Chrome (P0, ~1 day). This is the single change that prevents tonight from repeating on every server restart.
+2. **File a feature request** for `browser cookies list/set/import/export` (P1, ~2 days). Four new subcommands wrapping existing CDP methods.
+3. **Prototype the "Connect a Service" flow** (P0, ~1 week). Visual browser + session capture. Start with Facebook as the test case since we already have the CDP Remote Browser code.
+4. **Draft a one-pager** on Agent Content API positioning, referencing A2A and MCP. Share internally at Meta first (we're uniquely positioned to propose this from the platform side).
 
 Kit 🏭 (with Ray)
