@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Take a screenshot of the current browser state."""
+"""Take a screenshot of the current browser state and return as base64."""
 
-import os
+import base64
 import shutil
 import time
 from pathlib import Path
 from pydantic import BaseModel
 from spaces.actions import run_action
+
+BROWSER_CLI = shutil.which("browser") or "browser"
+SCREENSHOT_PATH = "/tmp/rb-screenshot.png"
 
 
 class Request(BaseModel):
@@ -15,15 +18,11 @@ class Request(BaseModel):
 
 class Response(BaseModel):
     ok: bool
-    image_url: str = ""
+    image_base64: str = ""
     url: str = ""
     title: str = ""
     timestamp: float = 0
     error: str = ""
-
-
-SCREENSHOT_PATH = "/tmp/rb-screenshot.png"
-BROWSER_CLI = shutil.which("browser") or "browser"
 
 
 async def main(ctx, request: Request) -> Response:
@@ -49,12 +48,9 @@ async def main(ctx, request: Request) -> Response:
     if not path.exists():
         return Response(ok=False, error="Screenshot file not created")
 
-    # Copy to space assets dir for serving
-    assets_dir = Path(ctx.space_root_path()) / ".space-build" / "assets"
-    assets_dir.mkdir(parents=True, exist_ok=True)
-    ts = int(time.time() * 1000)
-    dest = assets_dir / f"screenshot-{ts}.png"
-    shutil.copy2(SCREENSHOT_PATH, dest)
+    # Read and encode as base64
+    image_data = path.read_bytes()
+    image_b64 = base64.b64encode(image_data).decode("ascii")
 
     # Get page info
     info_proc = await asyncio.create_subprocess_exec(
@@ -62,15 +58,15 @@ async def main(ctx, request: Request) -> Response:
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    info_stdout, _ = await asyncio.wait_for(info_proc.communicate(), timeout=5)
     try:
+        info_stdout, _ = await asyncio.wait_for(info_proc.communicate(), timeout=5)
         info = json.loads(info_stdout.decode())
     except Exception:
         info = {}
 
     return Response(
         ok=True,
-        image_url=f"/assets/screenshot-{ts}.png",
+        image_base64=image_b64,
         url=info.get("url", ""),
         title=info.get("title", ""),
         timestamp=time.time(),

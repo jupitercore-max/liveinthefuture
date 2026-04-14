@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Click at coordinates in the browser viewport."""
+"""Click at coordinates in the browser viewport using browser CLI."""
 
 import shutil
 from pydantic import BaseModel
@@ -11,8 +11,6 @@ BROWSER_CLI = shutil.which("browser") or "browser"
 class Request(BaseModel):
     x: int
     y: int
-    viewport_width: int = 1280
-    viewport_height: int = 720
 
 
 class Response(BaseModel):
@@ -22,45 +20,29 @@ class Response(BaseModel):
 
 async def main(ctx, request: Request) -> Response:
     import asyncio
+    import json
 
-    # Use CDP Input.dispatchMouseEvent for precise clicking
-    js = f"""
-    (async () => {{
-        // Use CDP to dispatch mouse events at exact coordinates
+    # Use browser evaluate to dispatch mouse events via CDP
+    # This is more reliable than document.elementFromPoint
+    js = f"""(function() {{
         const x = {request.x};
         const y = {request.y};
-        
-        // Find element at coordinates and click it
         const el = document.elementFromPoint(x, y);
         if (el) {{
-            // Scroll element into view if needed
-            el.scrollIntoView({{block: 'nearest'}});
-            
-            // Create and dispatch mouse events
-            const events = ['mousedown', 'mouseup', 'click'];
-            for (const type of events) {{
-                const evt = new MouseEvent(type, {{
-                    bubbles: true,
-                    cancelable: true,
-                    view: window,
-                    clientX: x,
-                    clientY: y,
-                    button: 0,
-                }});
-                el.dispatchEvent(evt);
-            }}
-            
-            // Also try focus + click for input elements
-            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {{
-                el.focus();
-            }}
-            
-            'clicked: ' + el.tagName + (el.id ? '#' + el.id : '') + (el.className ? '.' + String(el.className).split(' ')[0] : '');
-        }} else {{
-            'no element at coordinates';
+            // Focus if it's an input
+            if (['INPUT','TEXTAREA','SELECT'].includes(el.tagName)) el.focus();
+            // Dispatch proper mouse events
+            ['pointerdown','mousedown','pointerup','mouseup','click'].forEach(type => {{
+                el.dispatchEvent(new PointerEvent(type, {{
+                    bubbles: true, cancelable: true, view: window,
+                    clientX: x, clientY: y, screenX: x, screenY: y,
+                    pointerId: 1, pointerType: 'mouse', button: 0, buttons: type.includes('down') ? 1 : 0
+                }}));
+            }});
+            return 'clicked:' + el.tagName;
         }}
-    }})()
-    """
+        return 'miss';
+    }})()"""
 
     proc = await asyncio.create_subprocess_exec(
         BROWSER_CLI, "evaluate", "--expression", js,

@@ -86,8 +86,8 @@ export default function App() {
     if (!silent) setLoading(true);
     try {
       const res = await Space.screenshot({});
-      if (res.ok && res.image_url) {
-        setScreenshotUrl(res.image_url + "?t=" + Date.now());
+      if (res.ok && res.image_base64) {
+        setScreenshotUrl("data:image/png;base64," + res.image_base64);
         if (res.url) setDisplayUrl(res.url);
         if (res.title) setPageTitle(res.title);
       }
