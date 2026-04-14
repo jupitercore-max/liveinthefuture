@@ -129,4 +129,34 @@ Chamath called decentralized trading a "trillion-dollar market opportunity." Thi
 
 **All-In Podcast:** New episodes weekly (latest Apr 10). Episode recaps available via podscan.fm, listennotes.com, and various news sites that summarize key takes.
 
-**Last updated:** 2026-04-13
+### 2026-04-14 — US Liquidity Crisis Warning: "Blinking Yellow"
+**Source:** All-In Podcast (episode ~Apr 11-12), reported by Daily Hodl / WEEX
+**Details:** Chamath flagged subprime lender price-to-book ratios — specifically Capital One and Credit Acceptance — as an early warning signal for a US liquidity crisis. He said the spread between these lenders historically portends a rollover when price-to-book ratios escalate to highs. Key quote: *"Some of the most critical leading indicators, particularly around liquidity and the credit health of the American consumer are blinking yellow. So right now, they are choosing to ignore these historically useful leading indicators."* Called for the Fed to get ahead of it by abruptly cutting rates. Context: Fed held steady at 4.25%-4.5% the prior week.
+**Significance:** MEDIUM. Macro warning, not directly AI/Meta-related, but shows Chamath positioning as a macro bear. If consumer credit deteriorates, it affects ad spend (Meta's core revenue). Worth watching.
+
+---
+
+### 2026-04-14 — Equity Tokenization Thesis: "$150T Market Restructuring"
+**Source:** X thread (@chamath, link: x.com/chamath/status/2029650649819009211), amplified by WEEX/crypto media
+**Details:** Chamath published a detailed thread arguing equity tokenization will reshape the $150T+ global stock market. Three structural gaps tokenization addresses: (1) **24/7 trading** — 11% of US stock trades already happen after hours, global shareholder base needs always-on markets; (2) **Ownership simplification** — reduces intermediary layers (brokers, clearinghouses, depositories), saving $5-10B annually in post-trade friction; (3) **Access democratization** — current accredited investor rules ($1M net worth / $200K income) lock out most people from private companies like SpaceX. SPV-based equity tokens can bridge this. Noted that equity token market cap grew 3.5x since early 2025, and stablecoins grew 10x in 5 years.
+**Significance:** MEDIUM. Extends his decentralized finance thesis from "trillion-dollar market" (Mar 2026) to a concrete structural argument. Aligns with regulatory tailwinds under Trump admin (Sacks on PCAST). Not directly Meta-related but shows where Social Capital is likely deploying capital.
+
+---
+
+### 2026-04-14 — 8090.ai Software Factory: Content Marketing Push
+**Source:** X (@chamath), Apr 10 and Apr 6 tweets
+**Details:** Two recent 8090.ai promotions: (1) Apr 10 — Testimonial-style tweet: *"It's just so awesome to make things that people find useful. This is a great testimonial for 8090's Software Factory. I'm so excited for the next few months - tons of stuff coming… Please try it! 8090.ai"* (2) Apr 6 — "Software Factory Stories - Episode 5. Meet the team at Clean Energy Authority. Here's their story." — continuing a customer story content series.
+**Significance:** LOW. Routine product promotion, but the cadence is increasing. Episode 5 suggests a regular content series. "Tons of stuff coming" hints at product roadmap announcements in the next few months.
+
+---
+
+### 2026-04-14 — All-In Pod: Calacanis Goes Deep on Bittensor/TAO
+**Source:** All-In Podcast (~Apr 11), reported by BlockBeats/Bitget
+**Details:** Co-host Jason Calacanis praised Bittensor Subnet 62 (Ridges AI / SN62) — an open-source AI coding assistant that reached ~80% of Claude 4's capabilities in 45 days, spending only ~$1M in TAO rewards. Calacanis emphasized decentralization + open source + incentive mechanisms as an alternative model to centralized AI labs. He also founded **Stillcore Capital**, a fund specifically for Bittensor ecosystem subnet investments, and previously posted "TAO > BTC" on social media (Mar 23). Note: This is primarily a Calacanis position, not Chamath's explicitly, but it's from the All-In platform.
+**Significance:** MEDIUM for All-In tracking. The TAO/Bittensor thesis is becoming a recurring All-In theme. If Chamath endorses it too, that would be notable. The "80% of Claude 4 for $1M" claim is extraordinary and likely to draw scrutiny.
+
+---
+
+**X Profile Note (Apr 14 scrape):** Without login, X profile shows "Highlights" — most visible tweets are viral posts from 2021 (WSB, Robinhood/FB comparison, capital gains proposal) and 2025 (Deep State pardons). Only 2 genuinely recent tweets visible: Apr 10 (8090.ai testimonial) and Apr 6 (Software Factory Stories Ep 5). Login or `from:chamath` search needed for complete recent timeline.
+
+**Last updated:** 2026-04-14
