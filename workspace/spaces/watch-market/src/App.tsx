@@ -104,51 +104,66 @@ function BrandBar({ analytics }: { analytics: GetAnalyticsResponse }) {
 }
 
 function PriceScatter({ analytics }: { analytics: GetAnalyticsResponse }) {
-  const data = useMemo(() =>
-    analytics.scatter.map((s) => ({
-      ...s,
-      dateNum: new Date(s.date + "T00:00:00").getTime(),
-    })),
-  [analytics.scatter]);
-
-  const topBrands = useMemo(() => {
-    const counts: Record<string, number> = {};
-    data.forEach((d) => { counts[d.brand] = (counts[d.brand] || 0) + 1; });
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([b]) => b);
-  }, [data]);
+  // Group by brand for a price-by-brand scatter (more useful than date axis with limited data)
+  const data = useMemo(() => {
+    const brandMap: Record<string, number[]> = {};
+    analytics.scatter.forEach((s) => {
+      if (!brandMap[s.brand]) brandMap[s.brand] = [];
+      brandMap[s.brand].push(s.price);
+    });
+    // Sort brands by count descending, take top 12
+    const sorted = Object.entries(brandMap)
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 12);
+    // Flatten for scatter: x = brand index, y = price
+    const points: { brandIdx: number; brand: string; price: number; ref: string; model: string }[] = [];
+    sorted.forEach(([brand], idx) => {
+      analytics.scatter
+        .filter((s) => s.brand === brand)
+        .forEach((s) => {
+          points.push({ brandIdx: idx, brand, price: s.price, ref: s.reference, model: s.model });
+        });
+    });
+    return { points, brands: sorted.map(([b]) => b) };
+  }, [analytics.scatter]);
 
   return (
     <div className="surface-card p-4 sm:p-5">
       <h3 className="text-lg font-semibold mb-4" style={{ fontFamily: "var(--font-display)" }}>
-        Price Distribution
+        Price Distribution by Brand
       </h3>
       <div className="flex flex-wrap gap-2 mb-3">
-        {topBrands.map((b) => (
+        {data.brands.slice(0, 6).map((b) => (
           <span key={b} className="text-xs px-2 py-1 rounded-full" style={{
             background: "var(--accent-dim)", color: "var(--accent)",
           }}>{b}</span>
         ))}
       </div>
       <ResponsiveContainer width="100%" height={280}>
-        <ScatterChart margin={{ left: 10, right: 10, bottom: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" />
+        <ScatterChart margin={{ left: 10, right: 20, bottom: 30 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#252530" />
           <XAxis
-            type="number" dataKey="dateNum" domain={["dataMin", "dataMax"]}
-            tickFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-            tick={{ fill: "#6a6a7a", fontSize: 11 }}
+            type="number" dataKey="brandIdx"
+            domain={[-0.5, data.brands.length - 0.5]}
+            ticks={data.brands.map((_, i) => i)}
+            tickFormatter={(v) => data.brands[v] || ""}
+            tick={{ fill: "#e8e6e0", fontSize: 10 }}
+            angle={-35}
+            textAnchor="end"
+            interval={0}
           />
           <YAxis
             type="number" dataKey="price" domain={[0, "auto"]}
-            tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+            tickFormatter={(v) => v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`}
             tick={{ fill: "#6a6a7a", fontSize: 11 }}
           />
           <Tooltip
             contentStyle={{ background: "#1a1a24", border: "1px solid #252530", borderRadius: 8, color: "#e8e6e0" }}
             formatter={(value: unknown) => [formatPrice(value as number), "Price"]}
-            labelFormatter={(v) => new Date(v as number).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            labelFormatter={(v) => data.brands[v as number] || ""}
           />
-          <Scatter data={data} fill="#c9a96e" fillOpacity={0.7}>
-            {data.map((entry, i) => (
+          <Scatter data={data.points} fill="#c9a96e" fillOpacity={0.7}>
+            {data.points.map((entry, i) => (
               <Cell key={i} fill={BRAND_COLORS[entry.brand] || "#c9a96e"} fillOpacity={0.8} />
             ))}
           </Scatter>
