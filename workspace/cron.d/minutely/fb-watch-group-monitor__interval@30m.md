@@ -86,8 +86,11 @@ Link: https://www.facebook.com/groups/[id]
 8. **Update price database** at `research/watch-price-db.json`:
    - Append every listing seen (not just target matches)
    - Fields: brand, model, ref, askingPrice, condition, contents, seller, group, date, soldStatus, postSnippet
-   - Skip duplicates (match on seller + ref + price)
-   - Update soldStatus if listing now shows SOLD/OHPF
+   - **SNAPSHOT RULE (critical):** When first seeing a listing, capture the FULL original asking price and all details immediately. Listings often change to "SOLD" or "$old" after selling, losing the original price data.
+   - On duplicate match (same seller + ref + price): do NOT overwrite the original record. Instead, ADD a `soldDate` and update `soldStatus` to SOLD/OHPF while PRESERVING the original `askingPrice`, `condition`, `contents`, and `postSnippet`.
+   - If a listing's price text is now "$old", "SOLD", or "OHPF" but we already have it with a real price, keep the original price and just mark it sold.
+   - If we see a listing for the first time and it already says SOLD with no price, still record it but mark `askingPrice` as null and `soldStatus` as "SOLD" — we missed the window.
+   - Track `firstSeenDate` and `lastSeenDate` separately from `date` (post date) to understand time-on-market.
 
 9. **Track seen posts** in `research/watch-monitor-state.json` to avoid duplicate alerts
 
