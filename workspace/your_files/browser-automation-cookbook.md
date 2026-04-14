@@ -19,6 +19,7 @@ Built and battle-tested while automating Facebook group monitoring from a cloud 
 9. [Streaming WebViews (CDP Screencast)](#9-streaming-webviews-cdp-screencast)
 10. [Security Considerations](#10-security-considerations)
 11. [Implementation Checklist](#11-implementation-checklist)
+12. [Credential Mirroring to Edge Devices](#12-credential-mirroring-to-edge-devices)
 
 ---
 
@@ -1143,6 +1144,360 @@ async def get_page_info() -> tuple[str, str]:
                 except Exception:
                     return ("", "")
 ```
+
+---
+
+## 12. Credential Mirroring to Edge Devices
+
+### The Problem
+
+You have one cloud browser maintaining authenticated sessions to Facebook, X, Google, etc. But you also have local devices that need those same credentials:
+
+- **MRBD glasses** running a local browser for web overlays or companion apps
+- **Mac Mini** acting as a home exit node with its own Chrome instance
+- **Multiple MRBDs** (office pair, home pair, car pair) that all need the same sessions
+- **Any local device** running a browser that should "just be logged in" to everything the cloud is
+
+The cloud is the **credential authority** (human logs in there once via Remote Browser). Edge devices are **credential consumers** that mirror what the cloud has.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│                  Cloud Server                    │
+│                                                  │
+│  Chrome (port 9224)  ──CDP──>  Cookie Store     │
+│       │                        (master copy)     │
+│       │                           │              │
+│  Profile persists in              │              │
+│  workspace/.browser-profile/      │              │
+│                                   │              │
+│              ┌────────────────────┘              │
+│              │  Credential Sync Service          │
+│              │  (extracts, encrypts, pushes)     │
+│              └────────┬───────────────────┘      │
+└───────────────────────┼──────────────────────────┘
+                        │
+          ┌─────────────┼─────────────────┐
+          │             │                 │
+          ▼             ▼                 ▼
+    ┌──────────┐  ┌──────────┐     ┌──────────┐
+    │ MRBD #1  │  │ MRBD #2  │     │ Mac Mini │
+    │ (office) │  │ (home)   │     │ (proxy)  │
+    │          │  │          │     │          │
+    │ Chrome   │  │ Chrome   │     │ Chrome   │
+    │ CDP:9225 │  │ CDP:9225 │     │ CDP:9225 │
+    └──────────┘  └──────────┘     └──────────┘
+```
+
+### How It Works
+
+#### Step 1: Cloud Extracts Cookies (Master Copy)
+
+The cloud server periodically exports all cookies via CDP:
+
+```python
+#!/usr/bin/env python3
+"""Export all cookies from cloud Chrome as the master credential set."""
+
+import json
+import asyncio
+import time
+from lib.cdp import cdp_call
+
+COOKIE_STORE = "config/credential-mirror/master-cookies.json"
+
+async def export_master_cookies():
+    result = await cdp_call("Network.getAllCookies")
+    cookies = result.get("cookies", [])
+    
+    # Group by domain for easy consumption
+    by_domain = {}
+    for c in cookies:
+        domain = c.get("domain", "unknown")
+        if domain not in by_domain:
+            by_domain[domain] = []
+        by_domain[domain].append(c)
+    
+    manifest = {
+        "exported_at": time.time(),
+        "exported_iso": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "cookie_count": len(cookies),
+        "domains": list(by_domain.keys()),
+        "cookies_by_domain": by_domain,
+        "all_cookies": cookies,
+    }
+    
+    with open(COOKIE_STORE, "w") as f:
+        json.dump(manifest, f, indent=2)
+    
+    print(f"Exported {len(cookies)} cookies across {len(by_domain)} domains")
+    return manifest
+
+asyncio.run(export_master_cookies())
+```
+
+#### Step 2: Push to Edge Devices
+
+Two approaches depending on how the edge device connects:
+
+**Approach A: Pull model (device fetches from cloud)**
+
+Edge device has an agent/daemon that periodically pulls the master cookie file:
+
+```python
+#!/usr/bin/env python3
+"""Edge device cookie sync daemon. Pulls master cookies and injects into local Chrome."""
+
+import json
+import asyncio
+import time
+import websockets
+import urllib.request
+
+CLOUD_COOKIE_URL = "https://your-cloud-server/api/cookies"  # or via SSH/SCP
+LOCAL_CDP_PORT = 9225
+SYNC_INTERVAL = 300  # 5 minutes
+
+async def inject_cookies_to_local_chrome(cookies):
+    """Inject cookies into local Chrome via CDP."""
+    resp = urllib.request.urlopen(f"http://localhost:{LOCAL_CDP_PORT}/json")
+    targets = json.loads(resp.read())
+    page = next(t for t in targets if t["type"] == "page")
+    
+    async with websockets.connect(page["webSocketDebuggerUrl"]) as ws:
+        for i, cookie in enumerate(cookies):
+            # CDP Network.setCookie expects specific fields
+            params = {
+                "name": cookie["name"],
+                "value": cookie["value"],
+                "domain": cookie["domain"],
+                "path": cookie.get("path", "/"),
+                "secure": cookie.get("secure", False),
+                "httpOnly": cookie.get("httpOnly", False),
+                "sameSite": cookie.get("sameSite", "None"),
+            }
+            if cookie.get("expires", 0) > 0:
+                params["expires"] = cookie["expires"]
+            
+            await ws.send(json.dumps({
+                "id": i + 1,
+                "method": "Network.setCookie",
+                "params": params,
+            }))
+            resp = await asyncio.wait_for(ws.recv(), timeout=5)
+            result = json.loads(resp)
+            if not result.get("result", {}).get("success", False):
+                print(f"  WARN: Failed to set {cookie['name']} on {cookie['domain']}")
+    
+    print(f"Injected {len(cookies)} cookies into local Chrome")
+
+async def sync_loop():
+    while True:
+        try:
+            # Fetch master cookies (via file, HTTP, or SSH)
+            with open("/path/to/synced/master-cookies.json") as f:
+                manifest = json.load(f)
+            
+            cookies = manifest.get("all_cookies", [])
+            await inject_cookies_to_local_chrome(cookies)
+            
+        except Exception as e:
+            print(f"Sync error: {e}")
+        
+        await asyncio.sleep(SYNC_INTERVAL)
+
+asyncio.run(sync_loop())
+```
+
+**Approach B: Push model (cloud pushes to devices via SSH/node command)**
+
+Better for devices the cloud agent already talks to (like HomHub nodes):
+
+```python
+#!/usr/bin/env python3
+"""Cloud-side: push cookies to all registered edge devices."""
+
+import json
+import subprocess
+
+EDGE_DEVICES = [
+    {"name": "mrbd-office", "host": "mrbd-office.local", "cdp_port": 9225},
+    {"name": "mrbd-home", "host": "mrbd-home.local", "cdp_port": 9225},
+    {"name": "macmini", "host": "macmini.rayhe.net", "user": "ray-hatch", "cdp_port": 9225},
+]
+
+def push_cookies_to_device(device, cookie_file):
+    """SCP the cookie file, then SSH to run the injection script."""
+    host = device["host"]
+    user = device.get("user", "hatch")
+    
+    # 1. Copy cookie file
+    subprocess.run([
+        "scp", "-F", "workspace/.ssh/config",
+        cookie_file,
+        f"{user}@{host}:/tmp/cloud-cookies.json"
+    ], check=True)
+    
+    # 2. Run injection script on device
+    subprocess.run([
+        "ssh", "-F", "workspace/.ssh/config",
+        f"{user}@{host}",
+        f"python3 /opt/hatch/inject-cookies.py --port {device['cdp_port']} --cookies /tmp/cloud-cookies.json"
+    ], check=True)
+    
+    print(f"Pushed cookies to {device['name']}")
+
+def push_all():
+    with open("config/credential-mirror/master-cookies.json") as f:
+        manifest = json.load(f)
+    
+    for device in EDGE_DEVICES:
+        try:
+            push_cookies_to_device(device, "config/credential-mirror/master-cookies.json")
+        except Exception as e:
+            print(f"Failed to push to {device['name']}: {e}")
+
+push_all()
+```
+
+**Approach C: Via Hatch node invoke (for paired devices)**
+
+If edge devices are paired Hatch nodes (like HomHub), use the node system directly:
+
+```python
+# In a cron or heartbeat:
+# 1. Export cookies from cloud Chrome
+# 2. For each paired node with a browser:
+#    nodes invoke --node <device> --command browser.inject_cookies --params '{"cookies": [...]}'
+```
+
+#### Step 3: Domain-Specific Navigation Warm-Up
+
+After injecting cookies, the local browser needs to **visit each domain once** to activate the session. Cookies alone aren't enough — some sites verify on first page load:
+
+```python
+WARMUP_URLS = [
+    "https://www.facebook.com",
+    "https://x.com/home",
+    "https://www.google.com",
+    "https://www.instagram.com",
+]
+
+async def warmup_sessions(cdp_port=9225):
+    """Navigate to each domain to activate injected cookies."""
+    for url in WARMUP_URLS:
+        await cdp_call_on_port(cdp_port, "Page.navigate", {"url": url})
+        await asyncio.sleep(3)  # Let the page load and validate the session
+        
+        # Check if we're actually logged in (not redirected to login)
+        result = await cdp_call_on_port(cdp_port, "Runtime.evaluate", {
+            "expression": "document.title"
+        })
+        title = result.get("result", {}).get("value", "")
+        print(f"  {url} → {title}")
+```
+
+### MRBD-Specific Considerations
+
+Meta Ray-Ban glasses (MRBD) and similar wearable devices with embedded browsers have unique constraints:
+
+#### Display Constraints
+- **600x600px viewport** — cookies and sessions work identically, but any Remote Browser UI needs to be adapted for this resolution
+- Injection scripts work the same regardless of viewport size
+- No CDP screencast needed for headless cookie injection
+
+#### Multiple Devices, One Identity
+```
+Cloud (authority)
+  ├── MRBD #1 (office)     ← same Facebook session
+  ├── MRBD #2 (home)       ← same Facebook session
+  ├── MRBD #3 (car)        ← same Facebook session
+  └── Mac Mini (proxy)     ← same Facebook session
+```
+
+All devices share the same cookies for the same user. This is identical to how you're logged into Facebook on your phone, laptop, and tablet simultaneously. Facebook allows multiple concurrent sessions from the same `c_user` — each with its own `xs` token.
+
+**Important:** Each device gets its own `xs` session token. You can't just copy the exact same `xs` to all devices — Facebook will invalidate duplicate sessions. Instead:
+
+1. Log in on the cloud browser (creates session A)
+2. For each edge device, the cloud navigates to `facebook.com/login`, submits credentials programmatically, and extracts that device's unique session
+3. Or: share the cloud session initially, and let Facebook's multi-session handling sort it out (works in practice, may get flagged if > 5 simultaneous sessions)
+
+#### Sync Frequency
+
+| Use Case | Sync Interval | Why |
+|----------|--------------|-----|
+| Credential refresh after re-login | Immediate (push) | Time-sensitive — edge devices are broken until synced |
+| Routine cookie health check | Every 6 hours | Catch expiry before it affects automation |
+| New domain added | On-demand (push) | Human logged into a new site on cloud |
+| Session invalidated on one device | Immediate (push from cloud) | Re-push fresh cookies from authority |
+
+#### Offline Edge Devices
+
+Edge devices may be offline when the cloud pushes. Handle this:
+
+```python
+DEVICE_SYNC_STATE = "config/credential-mirror/sync-state.json"
+
+def record_sync_attempt(device_name, success, timestamp):
+    """Track which devices have the latest cookies."""
+    with open(DEVICE_SYNC_STATE) as f:
+        state = json.load(f)
+    
+    state[device_name] = {
+        "last_attempt": timestamp,
+        "last_success": timestamp if success else state.get(device_name, {}).get("last_success"),
+        "needs_sync": not success,
+    }
+    
+    with open(DEVICE_SYNC_STATE, "w") as f:
+        json.dump(state, f, indent=2)
+
+def get_devices_needing_sync():
+    """Return devices that missed the last push."""
+    with open(DEVICE_SYNC_STATE) as f:
+        state = json.load(f)
+    return [name for name, info in state.items() if info.get("needs_sync")]
+```
+
+On each heartbeat or cron cycle, retry any devices that missed the last push.
+
+### The Full Credential Mirror Pipeline
+
+```
+Human logs into Facebook on cloud Remote Browser
+         │
+         ▼
+Cloud Chrome stores cookies in profile
+         │
+         ▼
+Credential sync cron (every 5 min or on-demand):
+  1. CDP Network.getAllCookies → master-cookies.json
+  2. For each registered edge device:
+     a. If device is online (node status check):
+        - Push cookies via SSH/SCP or node invoke
+        - Inject via CDP Network.setCookie on device
+        - Warm up domains (navigate to each URL)
+        - Record success in sync-state.json
+     b. If device is offline:
+        - Record pending sync in sync-state.json
+        - Retry on next cycle
+         │
+         ▼
+Edge device is now authenticated to all cloud sites
+  - Can automate Facebook, X, Google, etc. locally
+  - Uses residential IP (if on home network)
+  - Sessions independent but same user identity
+```
+
+### Security Notes for Credential Mirroring
+
+- **Transport encryption**: Always push cookies over SSH or TLS, never plain HTTP
+- **At-rest encryption**: `master-cookies.json` contains the keys to every logged-in account — encrypt it or restrict file permissions to 600
+- **Device compromise**: If an edge device is compromised, the attacker gets all mirrored sessions. Mitigate by only mirroring cookies for sites that specific device needs (e.g., MRBD only gets Facebook and X, not banking)
+- **Revocation**: If a device is lost/stolen, immediately change passwords on all mirrored sites (this invalidates all session cookies) and remove the device from the sync list
+- **Audit trail**: Log every cookie push with device name, timestamp, and domain list. If something goes wrong, you need to know which device had what access when
 
 ---
 
