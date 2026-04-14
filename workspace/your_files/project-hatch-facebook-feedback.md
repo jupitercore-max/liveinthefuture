@@ -7,6 +7,28 @@
 
 ---
 
+## TL;DR
+
+| Problem | Hours Spent | Should Have Taken |
+|---|---|---|
+| Getting authenticated on Facebook | 3+ hours | 30 seconds (if Agent API existed) |
+| Building Remote Browser tool | 2+ hours | 0 (should be built-in) |
+| Handling React form inputs | 30 min | 0 (CDP key events should be default) |
+| Text extraction from anti-scrape DOM | 30 min | 0 (structured API would return clean data) |
+| **Total** | **6+ hours** | **< 1 minute** |
+
+**The ask:** The browser should exist only for human login (2FA, captchas, security prompts). Once the human authenticates, the agent should receive the credentials programmatically (exported cookies, tokens, session keys) and never touch the browser again. The browser is a login gate, not an operational tool.
+
+**Immediate next steps:**
+1. **P0:** `--user-data-dir` persistence on Chrome (~1 day). One flag, permanently solves session loss on restart.
+2. **P0:** "Connect a Service" flow (~1 week). Visual browser for human login, automatic credential extraction for agent use.
+3. **P1:** `browser cookies list/set/import/export` CLI commands (~2 days). Four subcommands wrapping existing CDP methods.
+4. **P2:** Draft Agent Content API one-pager, referencing A2A and MCP. Share internally at Meta first.
+
+
+
+---
+
 ## The Goal
 
 Simple: monitor 3 Facebook groups (Moda Watch Club, Moda 10k & Under, Moda Backup) every 30 minutes. Extract watch listings. Alert me when specific references appear. Store prices in a database for trend analysis.
@@ -107,18 +129,19 @@ The following four changes are ordered by impact and effort. Items 1 and 3 toget
 
 ### P0: First-Class Authenticated Browser Sessions (effort: ~1 week)
 
-**The primitive:** A built-in "log in once, agent uses forever" flow.
+**The primitive:** Browser for human login only. Agent gets credentials programmatically.
 
 - User opens a visual browser view (like our Remote Browser space, but native to Hatch)
-- User logs into any service, handling captchas, 2FA, security prompts
-- Hatch captures the authenticated session (all cookies, localStorage, sessionStorage)
-- Hatch persists the session in a durable store (survives restarts)
-- Agent accesses the service via the authenticated browser or extracted cookies
-- Hatch monitors for session expiry and prompts the user to re-authenticate when needed
+- User logs into any service, handling captchas, 2FA, security prompts naturally
+- Hatch **extracts all credentials** (cookies including HttpOnly, localStorage, sessionStorage) via CDP
+- Credentials are stored in a durable, encrypted credential store (survives restarts)
+- The agent **never uses the browser operationally**. It uses the extracted cookies/tokens via curl, HTTP libraries, or API calls
+- When credentials expire, Hatch prompts the user to re-authenticate via the visual browser
+- The browser is a login gate, not a runtime dependency
 
 This is not a nice-to-have. Every interesting automation task involves a platform that requires authentication: email, social media, banking, shopping, HR systems. We had to build a full CDP-based browser streaming tool from scratch just to get a Facebook session. That should be a built-in Hatch primitive.
 
-**Acceptance criteria:** User clicks "Connect Facebook" (or any site), a visual browser opens, user logs in, and the agent can subsequently access that site without further user intervention. Session survives restarts (depends on P0 above).
+**Acceptance criteria:** User clicks "Connect Facebook," a visual browser opens, user logs in, and the agent receives exported cookies/tokens it can use via HTTP requests (no browser needed). Session credentials survive restarts. Browser is only invoked again when credentials expire.
 
 ### P1: CDP Cookie Management in the Browser Tool (effort: ~2 days)
 
@@ -221,24 +244,5 @@ But the landscape has changed. The threat model isn't "app developer harvests gr
 **Recommendation for Hatch:** Write a proposal for an "Agent Content API" standard, potentially as an extension to A2A or a complementary spec alongside MCP. Shop it to Meta, Google, Twitter, Reddit. Position it as: "A2A handles agent-to-agent. MCP handles agent-to-tool. We need a third leg: agent-to-platform, authorized by the user. We can solve this cooperatively, or we can let the ecosystem devolve into an arms race of scraping vs. blocking. The cooperative approach is better for everyone."
 
 ---
-
-## Summary
-
-| Problem | Hours Spent | Should Have Taken |
-|---|---|---|
-| Getting authenticated on Facebook | 3+ hours | 30 seconds (if Agent API existed) |
-| Building Remote Browser tool | 2+ hours | 0 (should be built-in) |
-| Handling React form inputs | 30 min | 0 (CDP key events should be default) |
-| Text extraction from anti-scrape DOM | 30 min | 0 (structured API would return clean data) |
-| **Total** | **6+ hours** | **< 1 minute** |
-
-The user value is enormous. The engineering tax is insane. Fix the primitives (persistent profiles, authenticated sessions, CDP cookie management) and advocate for the right industry-level solution (Agent Content API, built alongside A2A and MCP).
-
-## Immediate Next Steps
-
-1. **File a bug** for `--user-data-dir` persistence on Chrome (P0, ~1 day). This is the single change that prevents tonight from repeating on every server restart.
-2. **File a feature request** for `browser cookies list/set/import/export` (P1, ~2 days). Four new subcommands wrapping existing CDP methods.
-3. **Prototype the "Connect a Service" flow** (P0, ~1 week). Visual browser + session capture. Start with Facebook as the test case since we already have the CDP Remote Browser code.
-4. **Draft a one-pager** on Agent Content API positioning, referencing A2A and MCP. Share internally at Meta first (we're uniquely positioned to propose this from the platform side).
 
 Kit 🏭 (with Ray)
