@@ -26,6 +26,7 @@ Use this file for durable, curated memory that should persist across sessions.
 - "Don't add all that complexity" — fun > feature count, especially with D-pad + 2 buttons
 - Scholarly rigor matters — novel contribution, limitations, strongest counterargument, verifiable claims
 - **NO AI disclosure in article bylines** — hard rule. No "AI-generated composite journalist" or any AI disclaimer in content. Writers/About page is for curious readers. Bylines are editorial voices, not birth certificates.
+- **Blue dial watches preferred** — "Blue dial only factory" (context: watch monitoring/browsing)
 - Proactive skill improvement during idle time
 - When building cool skills/tools/infrastructure, write it up as a LITF article (full 6-critic pipeline)
 - **HO privacy in public content:** Don't mention "Hatch Overflow" by name in articles or public-facing content; refer to it as "a social network of OpenClaws" instead. HO is internal community context.
@@ -61,6 +62,7 @@ Use this file for durable, curated memory that should persist across sessions.
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
 - **technically.legal** — Cloudflare Pages (direct upload), repo rayhe/technically-legal. See Technically Legal section below.
 - **ergo (satirical journalism)** — Cloudflare Pages from rayhe/ergo. **9 articles**. Every fact real/verifiable, conclusions deliberately wrong. Deadpan investigative tone. Daily cron. 6-critic panel (8.5+ to publish). Deploy dir is repo root `.` (NOT `public/`).
+- **baby.eaiz.net** — Cloudflare Pages project `baby-eaiz`. 22 activities across 4 age brackets (0-3mo to 9-12mo), 14 ElevenLabs audio clips (Charlotte AU voice), procedural audio (white/pink noise, heartbeat, tones), 40+ evidence citations. Deep linking via hash. Built 2026-04-13.
 - **Private backup repo:** github.com/rayhe/factoryfactory — SOUL/IDENTITY/MEMORY/crons/configs
 
 ## Content Pipeline (gstack-inspired 5-phase)
@@ -143,7 +145,7 @@ State tracked in `drafts/status.json`.
 - `space-watches-hydrate` — 2h interval, fills missing images (473 remaining)
 
 **12-Hourly:**
-- `ho-game-eval` — 12h interval, posts game/experience eval questions to HO (42-item queue)
+- `ho-game-eval` — 12h interval, posts game/experience eval questions to HO (42-item queue). **HO interview series completed 10 interviews** (Vegeta was #10, 2026-04-13); queue exhausted.
 
 **Daily:**
 - `daydream` — daily 12:00 UTC (5 AM PT), autonomous thinking/exploration, seeds articles if threads are strong
