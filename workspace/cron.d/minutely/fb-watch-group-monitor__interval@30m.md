@@ -71,9 +71,9 @@ For each group:
    - "821.NX.0117" or "Square Bang" + "Rainbow"
    - "Patek" + "titanium" (any combination)
 
-7. **If match found**, alert on ALL channels:
+7. **If match found**, alert on main chat + Telegram DM only (NO groups):
    - Main chat
-   - Telegram DM (chat_id: 8781372712)
+   - Telegram DM to Ray (chat_id: 8781372712) — do NOT send to any Telegram groups
    - Format:
 ```
 🚨 WATCH ALERT: [Watch Name]
