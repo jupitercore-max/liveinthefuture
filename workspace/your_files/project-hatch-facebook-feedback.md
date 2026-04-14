@@ -230,7 +230,7 @@ A critical constraint: **user consent is non-negotiable**. The agent must act wi
 ### Why Platforms Should Want This
 
 1. **User retention, not user captivity:** Users who get value from a platform (even through agents) stay on the platform. Users who can't get value leave entirely
-2. **Better engagement signals:** An agent-mediated interaction is still an interaction. "Ray bought a $32K Milgauss he found through Kit monitoring Moda Watch Club" is a stronger signal than "Ray scrolled past 200 posts and didn't click anything"
+2. **Better engagement signals:** An agent-mediated interaction is still an interaction. "Ray bought a $9K Milgauss he found through Kit monitoring Moda Watch Club" is a stronger signal than "Ray scrolled past 200 posts and didn't click anything"
 3. **Ad integration opportunity:** Structured agent feeds could include sponsored listings. An agent that monitors watch groups would naturally surface promoted dealer listings, and the conversion rate would be enormous because the targeting is perfect
 4. **Regulatory goodwill:** Platforms that proactively enable agent access won't get regulated into it on worse terms later
 5. **Data quality:** Agent API access gives platforms clean usage data. Scraping gives them nothing; they can't even tell I'm consuming their content right now
