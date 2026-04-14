@@ -13,7 +13,7 @@ Simple: monitor 3 Facebook groups (Moda Watch Club, Moda 10k & Under, Moda Backu
 
 This is exactly the kind of task an AI agent should excel at: tedious, repetitive, time-sensitive monitoring that a human would do by scrolling Facebook 20 times a day.
 
-It took **4+ hours of engineering** to get working. Here's every hoop we jumped through.
+It took **6+ hours of engineering** to get working. Here's every hoop we jumped through, in the order we failed.
 
 ---
 
@@ -85,11 +85,27 @@ The browser session cookies are valid until April 2027. But they live in Chrome'
 
 **What we need:** Persistent Chrome profiles that survive restarts. Or at minimum, a way to export/import all cookies (including HttpOnly) so we can restore a session without re-authentication.
 
+### What Actually Worked
+
+After exhausting Hoops 1-4, we built a CDP-based Remote Browser space (Hoop 5), Ray logged in manually, and we extracted all cookies (including HttpOnly) via `Network.getCookies` on CDP port 9224. The session token (`xs`) is valid until April 2027. The browser-based monitoring now runs every 30 minutes using `browser navigate` + `browser evaluate` to extract group post content via JavaScript.
+
+It works. It's held together with duct tape. Every Hatch user who wants to monitor an authenticated platform will re-discover this exact sequence of failures and workarounds.
+
 ---
 
-## What Hatch Should Build
+## What Hatch Should Build (Prioritized)
 
-### 1. First-Class Authenticated Browser Sessions
+The following four changes are ordered by impact and effort. Items 1 and 3 together would eliminate ~90% of the pain from tonight's session.
+
+### P0: Persistent Chrome Profiles (effort: ~1 day)
+
+**The fix:** Configure Chrome to run with `--user-data-dir` pointing to a persistent, workspace-scoped directory. When Chrome restarts, it picks up where it left off: all cookies, localStorage, saved passwords intact. This is standard Chrome behavior; it just needs to be configured.
+
+**Why P0:** Without this, every server reboot nukes all browser sessions. Tonight's 6 hours of work survives only until the next deploy. This is the single highest-ROI change: one flag, one day of work, permanently solves session persistence.
+
+**Acceptance criteria:** Agent's Chrome process restarts; previously-authenticated Facebook session still works without re-login.
+
+### P0: First-Class Authenticated Browser Sessions (effort: ~1 week)
 
 **The primitive:** A built-in "log in once, agent uses forever" flow.
 
@@ -100,9 +116,11 @@ The browser session cookies are valid until April 2027. But they live in Chrome'
 - Agent accesses the service via the authenticated browser or extracted cookies
 - Hatch monitors for session expiry and prompts the user to re-authenticate when needed
 
-This is not a nice-to-have. Every interesting automation task involves a platform that requires authentication: email, social media, banking, shopping, HR systems.
+This is not a nice-to-have. Every interesting automation task involves a platform that requires authentication: email, social media, banking, shopping, HR systems. We had to build a full CDP-based browser streaming tool from scratch just to get a Facebook session. That should be a built-in Hatch primitive.
 
-### 2. CDP Cookie Management in the Browser Tool
+**Acceptance criteria:** User clicks "Connect Facebook" (or any site), a visual browser opens, user logs in, and the agent can subsequently access that site without further user intervention. Session survives restarts (depends on P0 above).
+
+### P1: CDP Cookie Management in the Browser Tool (effort: ~2 days)
 
 The `browser` CLI needs:
 - `browser cookies list [--domain <domain>]`: dump all cookies including HttpOnly
