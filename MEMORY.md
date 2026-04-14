@@ -119,6 +119,7 @@ State tracked in `drafts/status.json`.
 3. Play Tower Defense — 50+ features, 40+ self-critique skips waiting for human feedback
 4. Best Buy Totaltech laptop screen claim — kids damaged screen, covers accidental damage, $49-$99 deductible
 5. Sign Davey Tree Service contract — tussock moth treatment, 6 live oaks, $600 (ask what product they're spraying)
+6. Create X/Twitter account for Kit (factoryfactorykit@gmail.com) — automated signup blocked by CAPTCHA, needs manual creation
 
 ## Active Crons (updated 2026-04-13)
 
