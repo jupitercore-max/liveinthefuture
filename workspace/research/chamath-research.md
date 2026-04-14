@@ -67,6 +67,19 @@ Chamath called decentralized trading a "trillion-dollar market opportunity." Thi
 - TAM for intelligence
 - Iran ceasefire, Israel's influence, market impact
 
+**Recent Episode (~Apr 10-12, 2026):** Guest: Josh Shapiro (PA Governor)
+- PA permitting transformation (40M permits, only 5 refunds)
+- 30% tax dollars wasted on fraud/incompetence
+- Wealth tax debate from moderate Dem perspective
+- Iran war chaos, Israel, 2028 race positioning
+
+**2026 Predictions Episode (recapped by WEEX Apr 11):**
+- Chamath: Copper as biggest winner (70% supply gap by 2040)
+- Sacks: IPO year (trillions in new market value)
+- Friedberg: Huawei + Polymarket (breakout year)
+- Jason: Amazon (first "Enterprise Epoch" company)
+- Losers: Friedberg picked state governments; 2025 consensus (enterprise SaaS) validated
+
 **Recent topics from episode analytics:**
 - Anthropic generational run
 - Agentic models
@@ -106,11 +119,12 @@ Chamath called decentralized trading a "trillion-dollar market opportunity." Thi
 - Opendoor (via SPAC)
 
 ### Current Thesis (2026)
-- **Decentralized finance/trading** as trillion-dollar opportunity
+- **Copper** as 2026's biggest business winner — 70% supply gap by 2040, critical for data centers/chips/weapons
+- **Decentralized finance/trading** as trillion-dollar opportunity + equity tokenization ($150T market restructuring)
 - **AI go-to-market** is being fumbled — needs organized industry response
 - **Quantum computing** as existential threat to crypto (5-7 year timeline)
-- **California exodus** as case study in counterproductive taxation
-- **8090.ai** — appears to be promoting his "Software Factory" product
+- **California exodus** as case study in counterproductive taxation (personally hedging — caught house-hunting)
+- **8090.ai** — promoting "Software Factory" product, increasing content cadence
 
 ### Key Relationships
 - **David Sacks** (co-host, now in Trump admin — PCAST chair)
@@ -158,5 +172,34 @@ Chamath called decentralized trading a "trillion-dollar market opportunity." Thi
 ---
 
 **X Profile Note (Apr 14 scrape):** Without login, X profile shows "Highlights" — most visible tweets are viral posts from 2021 (WSB, Robinhood/FB comparison, capital gains proposal) and 2025 (Deep State pardons). Only 2 genuinely recent tweets visible: Apr 10 (8090.ai testimonial) and Apr 6 (Software Factory Stories Ep 5). Login or `from:chamath` search needed for complete recent timeline.
+
+### 2026-04-14 — Copper as 2026's Biggest Business Winner Pick
+**Source:** All-In Podcast "2026 Predictions" episode (translated/summarized by WEEX, published 2026-04-11)
+**Details:** In the All-In annual predictions round, Chamath picked **copper** as 2026's biggest business winner. His thesis: in a world moving toward unilateralism and national economic resilience, copper is "the most useful, cheapest, most versatile, and conductive material" — ubiquitous in data centers, chips, and weapon systems. Key stat: at current rates, **by 2040 there will be a ~70% gap in global copper supply vs. demand**. Other hosts' picks: Sacks chose 2026 as the "big IPO year" (trillions in new market value), Friedberg chose Huawei + Polymarket, Jason chose Amazon as the first "Enterprise Epoch" company where machine profits surpass human profits.
+**Significance:** MEDIUM. Copper is a classic Chamath play — macro/structural commodity thesis rather than individual company bet. Implies Social Capital may be building copper exposure. Aligns with his infrastructure-first investment philosophy.
+
+---
+
+### 2026-04-14 — Chamath Caught House-Hunting Despite "Stay and Fight" Stance
+**Source:** All-In Podcast "2026 Predictions" episode (WEEX transcript)
+**Details:** Sacks revealed that while Chamath publicly claimed he'd "stay and fight" in California over the billionaire tax, Sacks got a call from a realtor who was helping Chamath look for a house (presumably in Texas). Chamath's response: "I'm just hedging my bets!" He also added detail to his CA wealth tax analysis: if the tax makes it to the ballot, he gives it a **40% probability of passing**. He emphasized the super-voting rights provision — if you hold super-voting shares, the tax authorities would value ALL your shares at a multiple of the voting rights. Example: Google founders with 52% voting rights of a $4T company could see their taxable "net worth" assessed at $1T each instead of $200B, turning a 5% tax into an effective 25-50% rate. This is likely why Page and Brin left preemptively.
+**Significance:** LOW for investment tracking, HIGH for personality profile. Shows Chamath hedging despite bravado — classic pattern. The super-voting multiplier detail is genuinely important policy analysis not widely covered.
+
+---
+
+### 2026-04-14 — All-In Episode: Josh Shapiro on Trump, Iran, Economy, 2028 Race
+**Source:** All-In Podcast (~Apr 10-12, 2026), reported by CryptoBriefing/ListenNotes
+**Details:** PA Governor Josh Shapiro appeared as a guest. Key topics: (1) Pennsylvania's permitting transformation — PA went from slowest to a national model, 40M permits issued with only 5 refunds; (2) 30% of tax dollars wasted on fraud/incompetence; (3) Zero tolerance for healthcare funding fraud; (4) PA has one of lowest income taxes after multiple cuts; (5) Iran war chaos discussion; (6) Israel's failure analysis; (7) 2028 race positioning — Shapiro is clearly teeing up a national profile; (8) Wealth tax debate from a Democrat governor's perspective — what Dems are getting wrong on business. This is a noteworthy episode because Shapiro is a moderate Dem who aligns with several All-In positions (pro-business, anti-bureaucracy, anti-fraud).
+**Chamath-specific:** No major Chamath takes reported from this episode (guest-dominated format). But the Shapiro appearance signals the All-In hosts are engaging with moderate/pragmatic Democrats, not just Trump admin allies.
+**Significance:** LOW for Chamath-specific tracking. Notable for All-In political positioning — broadening audience beyond pure tech/right-of-center.
+
+---
+
+### 2026-04-14 — All-In 2026 Biggest Business Losers
+**Source:** All-In Podcast "2026 Predictions" episode (WEEX transcript)
+**Details:** Loser predictions: Friedberg picked **state governments** — expects increasing exposure of waste, fraud, and abuse to trigger financing difficulties and public distrust. (Other hosts' loser picks not fully transcribed in available sources but 2025 consensus was enterprise SaaS, which did perform poorly.) Chamath's 2025 loser pick was stablecoin (as winner), suggesting his forecasting was strong last year. Notable that all hosts' 2025 predictions scored well — robotics/autonomous driving (Friedberg), USD stablecoin (Chamath), large AI companies (Sacks), Tesla/Google (Jason) all hit.
+**Significance:** LOW. Contextual; shows the hosts' prediction track record and evolving macro view.
+
+---
 
 **Last updated:** 2026-04-14
