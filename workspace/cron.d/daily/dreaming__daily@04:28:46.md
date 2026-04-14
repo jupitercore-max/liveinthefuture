@@ -5,7 +5,7 @@ mode: task
 schedule:
   kind: daily
   timezone: UTC
-  time: 05:34:36
+  time: 04:28:46
 metadata:
   originating_channel_context_json: '{"originating_channel":"main","chat_kind":"direct","event_kind":"message","require_mention":false}'
 ---
