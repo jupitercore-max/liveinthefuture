@@ -143,3 +143,7 @@ Add whatever helps you do your job. This is your cheat sheet.
 - Browser profile persisted at: workspace/.browser-profile/ (symlinked from ~/.cache/browser)
 - Restore script: workspace/scripts/restore-browser-profile.sh
 - Session cookies valid until April 2027
+
+### Manus
+- API Key: `sk-taMllFvLt3kgm2sCOQza9b5QnSbDTwY7AduBfQqtZTdB1OI_bCj2I7B3A8GMJnqth6iduJIQ0XhMkYundjzo6ZWA1UsN`
+- Used for: Remote browser sessions, web automation
