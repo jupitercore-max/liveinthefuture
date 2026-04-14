@@ -9,7 +9,7 @@ import {
 } from "./actions";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  ScatterChart, Scatter, CartesianGrid, Cell,
+  ScatterChart, Scatter, CartesianGrid,
   PieChart, Pie,
 } from "recharts";
 import {
@@ -19,18 +19,6 @@ import {
 
 type Tab = "dashboard" | "listings" | "watchlist";
 
-const BRAND_COLORS: Record<string, string> = {
-  Rolex: "#006039",
-  Omega: "#1a1a2e",
-  "Patek Philippe": "#1c3f60",
-  "Audemars Piguet": "#2d2d2d",
-  Tudor: "#8B0000",
-  Breitling: "#1a1a1a",
-  IWC: "#3d3d3d",
-  Hublot: "#1c1c1c",
-  Cartier: "#8B0000",
-  "Vacheron Constantin": "#1a237e",
-};
 
 const PIE_COLORS = [
   "#c9a96e", "#7eb8da", "#e07b6e", "#8ac78a", "#c78ad0",
@@ -92,11 +80,7 @@ function BrandBar({ analytics }: { analytics: GetAnalyticsResponse }) {
             contentStyle={{ background: "#1a1a24", border: "1px solid #252530", borderRadius: 8, color: "#e8e6e0" }}
             formatter={(value: unknown) => [String(value), "Listings"]}
           />
-          <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-            {data.map((entry, i) => (
-              <Cell key={i} fill={BRAND_COLORS[entry.name] || PIE_COLORS[i % PIE_COLORS.length]} fillOpacity={0.85} />
-            ))}
-          </Bar>
+          <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#c9a96e" fillOpacity={0.85} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -162,11 +146,7 @@ function PriceScatter({ analytics }: { analytics: GetAnalyticsResponse }) {
             formatter={(value: unknown) => [formatPrice(value as number), "Price"]}
             labelFormatter={(v) => data.brands[v as number] || ""}
           />
-          <Scatter data={data.points} fill="#c9a96e" fillOpacity={0.7}>
-            {data.points.map((entry, i) => (
-              <Cell key={i} fill={BRAND_COLORS[entry.brand] || "#c9a96e"} fillOpacity={0.8} />
-            ))}
-          </Scatter>
+          <Scatter data={data.points} fill="#c9a96e" fillOpacity={0.7} />
         </ScatterChart>
       </ResponsiveContainer>
     </div>
@@ -174,11 +154,12 @@ function PriceScatter({ analytics }: { analytics: GetAnalyticsResponse }) {
 }
 
 function GroupPie({ analytics }: { analytics: GetAnalyticsResponse }) {
-  const data = useMemo(() =>
-    analytics.groups.map((g) => ({
+  const dataWithColors = useMemo(() =>
+    analytics.groups.map((g, i) => ({
       name: g.group_name.replace("Moda Watch Club - ", "").replace("Moda Clubs - Watches (Moda Watch Club - ", "").replace(")", "").replace("Moda Watch Club", "Main"),
       value: g.count,
       avgPrice: g.avg_price,
+      fill: PIE_COLORS[i % PIE_COLORS.length],
     })),
   [analytics.groups]);
 
@@ -190,14 +171,10 @@ function GroupPie({ analytics }: { analytics: GetAnalyticsResponse }) {
       <ResponsiveContainer width="100%" height={240}>
         <PieChart>
           <Pie
-            data={data} dataKey="value" nameKey="name"
+            data={dataWithColors} dataKey="value" nameKey="name"
             cx="50%" cy="50%" outerRadius={90} innerRadius={50}
             strokeWidth={2} stroke="#111118"
-          >
-            {data.map((_, i) => (
-              <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-            ))}
-          </Pie>
+          />
           <Tooltip
             contentStyle={{ background: "#1a1a24", border: "1px solid #252530", borderRadius: 8, color: "#e8e6e0" }}
             formatter={(value: unknown, _name: unknown, props: unknown) =>
@@ -207,7 +184,7 @@ function GroupPie({ analytics }: { analytics: GetAnalyticsResponse }) {
         </PieChart>
       </ResponsiveContainer>
       <div className="flex flex-wrap justify-center gap-3 mt-2">
-        {data.map((d, i) => (
+        {dataWithColors.map((d: { name: string; fill: string }, i: number) => (
           <div key={i} className="flex items-center gap-1.5 text-sm">
             <div className="w-3 h-3 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
             <span style={{ color: "var(--dim)" }}>{d.name}</span>
