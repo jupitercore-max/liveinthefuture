@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
-"""Type text into the focused element, React-compatible."""
+"""Type text via CDP Input.dispatchKeyEvent — works on ALL sites including React."""
 
-import shutil
+import asyncio
+import json
 from pydantic import BaseModel
 from spaces.actions import run_action
 
-BROWSER_CLI = shutil.which("browser") or "browser"
+import websockets
+
+
+CDP_PORT = 9224
 
 
 class Request(BaseModel):
     text: str
-    clear_first: bool = True
-    use_react_trick: bool = True
+    clear_first: bool = False
 
 
 class Response(BaseModel):
@@ -20,75 +23,63 @@ class Response(BaseModel):
 
 
 async def main(ctx, request: Request) -> Response:
-    import asyncio
-    import json
-
-    text_escaped = json.dumps(request.text)
-
-    if request.use_react_trick:
-        # React-compatible: use nativeInputValueSetter to trigger React onChange
-        js = f"""
-        (function() {{
-            const el = document.activeElement;
-            if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA' && !el.isContentEditable)) {{
-                return 'no focused input element';
-            }}
-            
-            if (el.isContentEditable) {{
-                if ({json.dumps(request.clear_first)}) el.textContent = '';
-                el.textContent += {text_escaped};
-                el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                return 'typed via contentEditable';
-            }}
-            
-            const nativeSetter = Object.getOwnPropertyDescriptor(
-                window.HTMLInputElement.prototype, 'value'
-            ).set || Object.getOwnPropertyDescriptor(
-                window.HTMLTextAreaElement.prototype, 'value'
-            ).set;
-            
-            if ({json.dumps(request.clear_first)}) {{
-                nativeSetter.call(el, {text_escaped});
-            }} else {{
-                nativeSetter.call(el, el.value + {text_escaped});
-            }}
-            
-            el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-            el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-            
-            return 'typed: ' + el.value.substring(0, 50);
-        }})()
-        """
-    else:
-        # Simple approach for non-React sites
-        js = f"""
-        (function() {{
-            const el = document.activeElement;
-            if (!el) return 'no focused element';
-            if ({json.dumps(request.clear_first)}) el.value = '';
-            el.value += {text_escaped};
-            el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-            el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-            return 'typed: ' + el.value.substring(0, 50);
-        }})()
-        """
-
-    proc = await asyncio.create_subprocess_exec(
-        BROWSER_CLI, "evaluate", "--expression", js,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
+    import urllib.request
+    
     try:
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=10)
-    except asyncio.TimeoutError:
-        proc.kill()
-        return Response(ok=False, error="Type timed out")
-
-    if proc.returncode != 0:
-        err = stderr.decode()[:200]
-        return Response(ok=False, error=err)
-
-    return Response(ok=True)
+        resp = urllib.request.urlopen(f"http://localhost:{CDP_PORT}/json")
+        targets = json.loads(resp.read())
+        page = next((t for t in targets if t["type"] == "page"), None)
+        if not page:
+            return Response(ok=False, error="No page target")
+        
+        ws_url = page["webSocketDebuggerUrl"]
+        msg_id = 1
+        
+        async with websockets.connect(ws_url, max_size=10 * 1024 * 1024) as ws:
+            async def send_and_wait(method: str, params: dict) -> None:
+                nonlocal msg_id
+                await ws.send(json.dumps({"id": msg_id, "method": method, "params": params}))
+                deadline = asyncio.get_event_loop().time() + 5
+                while True:
+                    remaining = deadline - asyncio.get_event_loop().time()
+                    if remaining <= 0:
+                        break
+                    raw = await asyncio.wait_for(ws.recv(), timeout=remaining)
+                    data = json.loads(raw)
+                    if data.get("id") == msg_id:
+                        break
+                msg_id += 1
+            
+            # Clear field first if requested
+            if request.clear_first:
+                await send_and_wait("Input.dispatchKeyEvent", {
+                    "type": "keyDown", "key": "a",
+                    "code": "KeyA", "windowsVirtualKeyCode": 65,
+                    "modifiers": 2,  # Ctrl
+                })
+                await send_and_wait("Input.dispatchKeyEvent", {"type": "keyUp", "key": "a", "code": "KeyA"})
+                await send_and_wait("Input.dispatchKeyEvent", {
+                    "type": "keyDown", "key": "Backspace",
+                    "code": "Backspace", "windowsVirtualKeyCode": 8,
+                })
+                await send_and_wait("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Backspace", "code": "Backspace"})
+            
+            # Type each character
+            for char in request.text:
+                await send_and_wait("Input.dispatchKeyEvent", {
+                    "type": "keyDown",
+                    "text": char,
+                    "key": char,
+                    "unmodifiedText": char,
+                })
+                await send_and_wait("Input.dispatchKeyEvent", {
+                    "type": "keyUp",
+                    "key": char,
+                })
+        
+        return Response(ok=True)
+    except Exception as e:
+        return Response(ok=False, error=str(e)[:300])
 
 
 if __name__ == "__main__":

@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
-"""Scroll the browser page."""
+"""Scroll the page via CDP Input.dispatchMouseEvent mouseWheel."""
 
-import shutil
 from pydantic import BaseModel
 from spaces.actions import run_action
 
-BROWSER_CLI = shutil.which("browser") or "browser"
-
 
 class Request(BaseModel):
-    direction: str = "down"  # "up" or "down"
-    amount: int = 500  # pixels
+    direction: str = "down"
+    amount: int = 400
 
 
 class Response(BaseModel):
@@ -19,26 +16,21 @@ class Response(BaseModel):
 
 
 async def main(ctx, request: Request) -> Response:
-    import asyncio
+    from lib.cdp import cdp_call
 
-    delta = request.amount if request.direction == "down" else -request.amount
-    js = f"window.scrollBy(0, {delta}); 'scrolled {delta}px'"
+    delta_y = request.amount if request.direction == "down" else -request.amount
 
-    proc = await asyncio.create_subprocess_exec(
-        BROWSER_CLI, "evaluate", "--expression", js,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
     try:
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=10)
-    except asyncio.TimeoutError:
-        proc.kill()
-        return Response(ok=False, error="Scroll timed out")
-
-    if proc.returncode != 0:
-        return Response(ok=False, error=stderr.decode()[:200])
-
-    return Response(ok=True)
+        await cdp_call("Input.dispatchMouseEvent", {
+            "type": "mouseWheel",
+            "x": 640,
+            "y": 360,
+            "deltaX": 0,
+            "deltaY": delta_y,
+        })
+        return Response(ok=True)
+    except Exception as e:
+        return Response(ok=False, error=str(e)[:300])
 
 
 if __name__ == "__main__":

@@ -3,8 +3,6 @@
 import { executeAction, executeActionStream } from "@hatch/sdk";
 
 export type ClickRequest = {
-  viewport_height?: number;
-  viewport_width?: number;
   x: number;
   y: number;
 };
@@ -12,38 +10,6 @@ export type ClickRequest = {
 export type ClickResponse = {
   error?: string;
   ok: boolean;
-};
-
-export type EnsureBrowserRequest = {
-  with_proxy?: boolean;
-};
-
-export type EnsureBrowserResponse = {
-  chrome_running?: boolean;
-  error?: string;
-  ip?: string;
-  ok: boolean;
-  proxy_running?: boolean;
-};
-
-export type ExtractCookiesRequest = {
-  domain?: string;
-};
-
-export type ExtractCookiesResponse = {
-  cookie_count?: number;
-  domains?: Array<string>;
-  error?: string;
-  ok: boolean;
-};
-
-export type GetInfoRequest = Record<string, unknown>;
-
-export type GetInfoResponse = {
-  error?: string;
-  ok: boolean;
-  title?: string;
-  url?: string;
 };
 
 export type NavigateRequest = {
@@ -66,13 +32,14 @@ export type PressKeyResponse = {
   ok: boolean;
 };
 
-export type ScreenshotRequest = Record<string, unknown>;
+export type ScreenshotRequest = {
+  quality?: number;
+};
 
 export type ScreenshotResponse = {
   error?: string;
-  image_url?: string;
+  image_base64?: string;
   ok: boolean;
-  timestamp?: number;
   title?: string;
   url?: string;
 };
@@ -90,7 +57,6 @@ export type ScrollResponse = {
 export type TypeTextRequest = {
   clear_first?: boolean;
   text: string;
-  use_react_trick?: boolean;
 };
 
 export type TypeTextResponse = {
@@ -105,30 +71,6 @@ export class Space {
 
   static clickStream(request: ClickRequest): AsyncIterable<ClickResponse> {
     return executeActionStream<ClickResponse>("click", request);
-  }
-
-  static ensureBrowser(request: EnsureBrowserRequest): Promise<EnsureBrowserResponse> {
-    return executeAction<EnsureBrowserResponse>("ensure_browser", request);
-  }
-
-  static ensureBrowserStream(request: EnsureBrowserRequest): AsyncIterable<EnsureBrowserResponse> {
-    return executeActionStream<EnsureBrowserResponse>("ensure_browser", request);
-  }
-
-  static extractCookies(request: ExtractCookiesRequest): Promise<ExtractCookiesResponse> {
-    return executeAction<ExtractCookiesResponse>("extract_cookies", request);
-  }
-
-  static extractCookiesStream(request: ExtractCookiesRequest): AsyncIterable<ExtractCookiesResponse> {
-    return executeActionStream<ExtractCookiesResponse>("extract_cookies", request);
-  }
-
-  static getInfo(request: GetInfoRequest): Promise<GetInfoResponse> {
-    return executeAction<GetInfoResponse>("get_info", request);
-  }
-
-  static getInfoStream(request: GetInfoRequest): AsyncIterable<GetInfoResponse> {
-    return executeActionStream<GetInfoResponse>("get_info", request);
   }
 
   static navigate(request: NavigateRequest): Promise<NavigateResponse> {

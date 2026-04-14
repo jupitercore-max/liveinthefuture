@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
-"""Send a special key press (Enter, Tab, Escape, Backspace, etc.)."""
+"""Press special keys via CDP Input.dispatchKeyEvent."""
 
-import shutil
+import asyncio
+import json
 from pydantic import BaseModel
 from spaces.actions import run_action
 
-BROWSER_CLI = shutil.which("browser") or "browser"
+import websockets
 
-KEY_MAP = {
-    "Enter": "Enter",
-    "Tab": "Tab",
-    "Escape": "Escape",
-    "Backspace": "Backspace",
-    "Delete": "Delete",
-    "ArrowUp": "ArrowUp",
-    "ArrowDown": "ArrowDown",
-    "ArrowLeft": "ArrowLeft",
-    "ArrowRight": "ArrowRight",
-    "Space": " ",
+CDP_PORT = 9224
+
+# Map key names to CDP key event params
+KEY_MAP: dict[str, dict] = {
+    "Enter":     {"key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13},
+    "Tab":       {"key": "Tab", "code": "Tab", "windowsVirtualKeyCode": 9},
+    "Escape":    {"key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27},
+    "Backspace": {"key": "Backspace", "code": "Backspace", "windowsVirtualKeyCode": 8},
+    "Delete":    {"key": "Delete", "code": "Delete", "windowsVirtualKeyCode": 46},
+    "ArrowUp":   {"key": "ArrowUp", "code": "ArrowUp", "windowsVirtualKeyCode": 38},
+    "ArrowDown": {"key": "ArrowDown", "code": "ArrowDown", "windowsVirtualKeyCode": 40},
+    "ArrowLeft": {"key": "ArrowLeft", "code": "ArrowLeft", "windowsVirtualKeyCode": 37},
+    "ArrowRight":{"key": "ArrowRight", "code": "ArrowRight", "windowsVirtualKeyCode": 39},
+    "Space":     {"key": " ", "code": "Space", "windowsVirtualKeyCode": 32, "text": " "},
 }
 
 
@@ -31,69 +35,35 @@ class Response(BaseModel):
 
 
 async def main(ctx, request: Request) -> Response:
-    import asyncio
-    import json
+    import urllib.request
 
-    key = KEY_MAP.get(request.key, request.key)
-    key_code = {
-        "Enter": 13, "Tab": 9, "Escape": 27, "Backspace": 8,
-        "Delete": 46, "ArrowUp": 38, "ArrowDown": 40,
-        "ArrowLeft": 37, "ArrowRight": 39, " ": 32,
-    }.get(key, 0)
-
-    js = f"""
-    (function() {{
-        const el = document.activeElement || document.body;
-        const key = {json.dumps(key)};
-        const keyCode = {key_code};
-        
-        ['keydown', 'keypress', 'keyup'].forEach(type => {{
-            el.dispatchEvent(new KeyboardEvent(type, {{
-                key: key,
-                code: key,
-                keyCode: keyCode,
-                which: keyCode,
-                bubbles: true,
-                cancelable: true,
-            }}));
-        }});
-        
-        // For Enter, also submit form if in a form
-        if (key === 'Enter' && el.form) {{
-            el.form.requestSubmit ? el.form.requestSubmit() : el.form.submit();
-        }}
-        
-        // For Backspace, delete last char
-        if (key === 'Backspace' && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {{
-            const nativeSetter = Object.getOwnPropertyDescriptor(
-                window.HTMLInputElement.prototype, 'value'
-            ).set;
-            if (nativeSetter) {{
-                nativeSetter.call(el, el.value.slice(0, -1));
-                el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-            }}
-        }}
-        
-        return 'pressed: ' + key;
-    }})()
-    """
-
-    proc = await asyncio.create_subprocess_exec(
-        BROWSER_CLI, "evaluate", "--expression", js,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
+    key_params = KEY_MAP.get(request.key)
+    if not key_params:
+        return Response(ok=False, error=f"Unknown key: {request.key}")
+    
     try:
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=10)
-    except asyncio.TimeoutError:
-        proc.kill()
-        return Response(ok=False, error="Key press timed out")
-
-    if proc.returncode != 0:
-        return Response(ok=False, error=stderr.decode()[:200])
-
-    return Response(ok=True)
+        resp = urllib.request.urlopen(f"http://localhost:{CDP_PORT}/json")
+        targets = json.loads(resp.read())
+        page = next((t for t in targets if t["type"] == "page"), None)
+        if not page:
+            return Response(ok=False, error="No page target")
+        
+        ws_url = page["webSocketDebuggerUrl"]
+        
+        async with websockets.connect(ws_url, max_size=10 * 1024 * 1024) as ws:
+            # keyDown
+            down_params = {"type": "keyDown", **key_params}
+            await ws.send(json.dumps({"id": 1, "method": "Input.dispatchKeyEvent", "params": down_params}))
+            await asyncio.wait_for(ws.recv(), timeout=5)
+            
+            # keyUp
+            up_params = {"type": "keyUp", "key": key_params["key"], "code": key_params.get("code", "")}
+            await ws.send(json.dumps({"id": 2, "method": "Input.dispatchKeyEvent", "params": up_params}))
+            await asyncio.wait_for(ws.recv(), timeout=5)
+        
+        return Response(ok=True)
+    except Exception as e:
+        return Response(ok=False, error=str(e)[:300])
 
 
 if __name__ == "__main__":
