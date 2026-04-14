@@ -1,93 +1,94 @@
-# Smart Glasses Competitive Landscape: Six-Front War + Meta Acquires Limitless
+# Smart Glasses: The Prescription Inflection + Limitless Convergence
 
 **Created:** 2026-04-08 (Iteration 4, as "Meta Glasses Nutrition/Privacy")
-**Updated:** 2026-04-13 (Iteration 8 — MAJOR expansion, thread renamed)
-**Status:** Active — CRITICAL. The competitive landscape transformed in one week.
-**Urgency:** HIGH (Apple confirmation + Snap/Qualcomm deal + Meta acquisition = most consequential week in smart glasses history)
+**Updated:** 2026-04-14 (Iteration 9 — TRIPLE EVENT DAY)
+**Status:** Active — CRITICAL. Three things happening TODAY.
+**Urgency:** CRITICAL (product launch + W&W + competitive landscape all converging)
 
-## What Changed This Week (April 10-13)
+## What's Happening TODAY (April 14)
 
-Three developments in 72 hours have redrawn the entire smart glasses competitive map:
+1. **Ray-Ban Meta Blayzer Optics + Scriber Optics ($499) ship to retailers** — prescription-first smart glasses
+2. **Watches & Wonders 2026 Day 1** — luxury watches + tech converging in Geneva
+3. **Meta production scaling** — Bloomberg reports 20-30M annual unit target
 
-### 1. Meta Acquires Limitless (formerly Rewind)
-- **Limitless** was an AI pendant startup ($99 device, records conversations, ~$33M raised from a16z, First Round, NEA)
-- **Team joining Reality Labs Wearables** — this is Ray's organization
-- Limitless hardware discontinued, existing customers get 1 year free on Unlimited Plan
-- "Rewind" desktop recording software also discontinued
-- **Why it matters for Ray:** His org just absorbed a team with deep expertise in always-on audio capture, conversation transcription, and personal AI memory. This directly maps to the Meta glasses product roadmap (ambient AI, contextual awareness, conversation summaries). Ray may know people involved or be directly impacted by the new team joining.
+### Blayzer/Scriber: The Details (Official Press Release)
 
-### 2. Apple Smart Glasses Confirmed — 4 Prototypes, 2027 Launch (Bloomberg/Gurman, April 12)
-- **Mark Gurman's Power On newsletter** (Bloomberg, April 12): Apple's display-free smart glasses launching early 2027
-- **4 prototype designs:**
-  1. Large rectangular (Wayfarer-like)
-  2. Slimmer rectangular
-  3. Round frames
-  4. Aviator-style
-- **Premium acetate frames** — deliberate quality differentiation vs Meta's polycarbonate
-- **Custom silicon** derived from Apple Watch S-series architecture — designed for camera AI + all-day battery
-- **Features:** Cameras, mics, speakers, Siri integration, photos/video, phone calls, notifications, music, hands-free interaction
-- **NO display** — camera + audio + AI only (exactly Meta's current approach)
-- **Part of a troika:** camera-equipped AirPods Pro + AI pendant (AirTag-sized) + smart glasses
-- **Vision Air scrapped** — Apple redirecting from expensive headsets to lightweight everyday wearables
+- **$499 starting price** for both models
+- **Prescription-first design:** Single-vision, progressive, AND Transitions® lens support
+- **Physical improvements:** Slimmer design, interchangeable nose pads, overextension hinges (+10° rotation), adjustable temple tips
+- **New action button:** Single-press Meta AI activation + customizable shortcuts
+- **Wide lens design compatibility:** Accessible to "far more prescription wearers" than previous models
+- **Oakley Meta getting Transitions® lenses too** (athletes in changing light)
+- **New seasonal colors:** Shiny Transparent Grey (Wayfarer), Shiny Transparent Peach (Skyler), Matte Transparent Peach (Headliner)
+- **International expansion:** Japan, South Korea, Singapore, Chile, Peru, Colombia later this year
 
-**Why this is the biggest competitive development since Samsung's battery cert:**
-- Apple doesn't enter categories it can't dominate. Their smart glasses will have iPhone integration depth that Meta can never match.
-- Acetate frames + 4 designs signals Apple is treating this as a FASHION product, not a tech gadget
-- Apple Watch silicon → proven low-power AI processing
-- The Apple ecosystem moat (AirPods + Watch + iPhone + glasses) creates cross-device intelligence that no single-product competitor can replicate
+## THE INSIGHT RAY MAY BE MISSING: The TAM Inflection Point
 
-### 3. Snap/Qualcomm Multi-Year Deal for Specs (Reuters, April 10)
-- Snap confirmed **Snapdragon XR** as the silicon platform for consumer Specs glasses
-- **Multi-year deal** — not a one-off, this is a committed hardware roadmap
-- **Late 2026 launch target** — ahead of Apple, alongside Samsung
-- Spun out as a separate product line this year
-- Developer-friendly approach (Snapdragon XR tooling is mature)
+This is bigger than a product launch. It's a **total addressable market inflection**.
 
-## Updated Competitive Map (6 Competitors, April 2026)
+**Before today:**
+- Smart glasses TAM ≈ "people who want tech sunglasses" (~300M potential market)
+- Buyers are tech enthusiasts who'll wear them outdoors
+- Average daily wear time: 2-4 hours (outdoor activities only)
 
-| Company | Status | Display? | Platform | Silicon | Ship Date | Frame Material |
-|---------|--------|----------|----------|---------|-----------|----------------|
-| **Meta** | Shipping (4 models) | Yes (Display) | Proprietary | Qualcomm | NOW | Polycarbonate |
-| **Samsung** | Battery certified | Likely (245 mAh) | Android XR | Qualcomm | H2 2026 | Unknown |
-| **Google** | Prototypes, partners locked | Both | Android XR | Unknown | 2026-2027 | Via partners |
-| **Snap** | Qualcomm deal signed | Unknown | Proprietary | Snapdragon XR | Late 2026 | Unknown |
-| **Apple** | 4 prototypes | NO | Apple Intelligence | Watch S-derived | Early 2027 | Acetate |
-| **Rokid** | Shipping | No | Proprietary | Unknown | NOW | Standard |
+**After today:**
+- Smart glasses TAM → "people who wear prescription glasses" (~4 BILLION globally)
+- Buyers include office workers, parents, students — MAINSTREAM
+- Average daily wear time: 12-16 hours (all-day Rx wear)
 
-### Meta's Advantages (Still Significant)
-- **76.1% market share** (IDC 2025) — massive head start
-- **EssilorLuxottica partnership** — optical expertise, retail distribution, Ray-Ban brand
-- **Prescription models** (Blayzer/Scriber $499, April 14) — first to market in Rx
-- **Limitless acquisition** — ambient AI/conversation tech
-- **13.4M unit forecast** for 2026 — platform scale
+**Why this matters for MRBD games/experiences:**
+- The incoming user cohort is LESS tech-savvy but wears glasses ALL DAY
+- Session opportunities shift from "intentional outdoor break" to "ambient all-day availability"
+- **Ambient experiences > intensive games** for prescription wearers
+- The D-pad + 2 button constraint becomes EVEN MORE valuable: simple enough for non-gamers
+- Audio-first experiences (Sonar Sub, Fisher) become disproportionately appealing because they work while doing other things
 
-### Meta's Vulnerabilities (Growing)
-- **App ecosystem** — Gizmodo's #1 complaint. Android XR (Samsung/Google) inherits the entire Android app ecosystem
-- **No iPhone integration** — Apple's glasses will work seamlessly with iPhone, Meta's won't
-- **Polycarbonate vs acetate** — Apple's premium material positioning
-- **Multi-device ecosystem** — Apple's glasses + AirPods + Watch + pendant vs Meta's standalone product
-- **Privacy narrative** — Meta's advertising business model makes privacy attacks stick harder than they would for Apple
+## THE DEEPER CONVERGENCE: Limitless + All-Day Rx Wear
 
-## The Question Ray Should Be Asking
+Meta acquired Limitless (always-on audio recording/transcription) and launches prescription glasses THE SAME MONTH. Connect the dots:
 
-The competitive landscape went from "Meta is 2 years ahead" to "five funded competitors are shipping within 18 months" in April 2026. The Limitless acquisition shows Meta is buying capabilities to stay ahead. But Apple's entry changes the conversation from "should I buy smart glasses?" to "which ecosystem's smart glasses?"
+1. Prescription wearers use glasses 12-16 hours/day (vs sunglasses 2-4 hours)
+2. Limitless's core tech = always-on conversation capture + AI memory
+3. All-day Rx wear + always-on audio = **orders of magnitude more context data**
+4. This is the path to "AI that remembers your entire day"
+5. Ray's org (Reality Labs Wearables) just absorbed the Limitless team
 
-**The real competitive threat isn't any single competitor — it's that the category is now validated enough for Apple to enter.** When Apple enters, the market gets bigger (good) but Meta's share shrinks (bad). The iPhone integration moat is the specific vector Ray's team should worry about.
+**The strategic play:** Meta isn't just selling prescription glasses. They're creating the hardware vehicle for ambient AI that's worn all day. The $499 prescription frame is the distribution mechanism for Limitless-style always-on AI. Apple knows this — their smart glasses are camera-first, display-free, designed for all-day wear too.
 
-## Privacy Thread (folded in, formerly separate)
+## Updated Competitive Map (April 14)
 
-The privacy narrative is now industry-wide, not just Meta-specific:
-- Apple's 4 camera-equipped prototypes face the same "billions wear glasses" backlash
-- But Apple's privacy reputation gives them a narrative shield Meta lacks
-- Senator pushing eyewear regulations applies to ALL players
-- Class action (March 4, N.D. Cal.) still active for Meta specifically
+| Company | Status | Rx Support? | All-Day Wearability? | AI Memory? |
+|---------|--------|-------------|---------------------|------------|
+| **Meta** | SHIPPING TODAY | YES ($499) | Yes (Rx lenses) | Yes (Limitless team) |
+| **Apple** | 4 prototypes, 2027 | TBD | Yes (acetate frames) | Via Siri/Apple Intelligence |
+| **Samsung** | Battery certified | Unknown | Unknown | Via Android XR |
+| **Snap** | Qualcomm deal, late 2026 | Unknown | Unknown | Unknown |
+| **Google** | Partners, 2026-2027 | Via partners | Partner-dependent | Gemini |
+| **Rokid** | Shipping | Limited | No | Limited |
 
-## Article Seeds (updated)
+**Meta's moat tightened today.** They are now the ONLY company shipping prescription-ready smart glasses with built-in AI. Apple's 2027 launch is 8+ months away. Samsung and Snap haven't even addressed prescription support.
 
-**Seed 6: "The Six-Front Smart Glasses War"** — upgraded from five to six (Snap confirmed). Now includes:
-- Meta (incumbent), Samsung (battery cert), Google (Android XR platform), Snap (Qualcomm deal), Apple (4 prototypes, 2027), Rokid (budget)
-- Supply chain mapping, tariff exposure, platform strategy, material choices
-- **The acetate vs polycarbonate angle is genuinely novel** — nobody is mapping frame material strategy as competitive positioning
+## Production Scale Context
+
+From CES 2026 / Bloomberg:
+- Meta aiming for **20-30M annual production** (up from 10M current target)
+- International rollout SUSPENDED in France, UK, Italy, Canada due to stock shortages
+- EssilorLuxottica's manufacturing + retail (LensCrafters, Sunglass Hut) = distribution moat no competitor can replicate
+- New CES feature: "Handwriting" mode via EMG bracelet for in-lens text composition
+
+## Privacy Narrative (unchanged but intensifying)
+
+- Apple's entry validates the category BUT also amplifies the "cameras everywhere" concern
+- Class action (March 4, N.D. Cal.) still active against Meta
+- Prescription lenses make the cameras LESS visible (no longer "tech gadget" look) — could reduce social friction OR increase covert recording concerns
+
+## Article Seeds
+
+**Seed 5 (strengthened):** "Your Glasses Know What You Had for Lunch" — The always-on AI nutrition tracking + Limitless convergence makes this stronger. Prescription all-day wear changes the data collection calculus.
+
+**Seed 6 (strongest timing):** "The Six-Front Smart Glasses War" — Execute THIS WEEK while W&W media attention is high. The prescription launch + Apple confirmation + Snap deal + Samsung battery cert = peak relevance window.
+
+**NEW potential seed:** "The Prescription Pivot: How $499 Glasses Are About to Create 4 Billion New AI Users" — the TAM inflection argument as a standalone LITF piece.
 
 ---
-*Updated: 2026-04-13, Iteration 8 — Meta acquired Limitless (joining Reality Labs Wearables = Ray's org). Apple confirmed 4 prototype smart glasses designs (Gurman, April 12) for early 2027, acetate frames, camera-first, Watch silicon. Snap locked multi-year Qualcomm deal for Specs (late 2026). The competitive landscape went from 3-front to 6-front in April 2026. This is the most consequential week in smart glasses since Meta launched Ray-Ban Stories in 2021.*
+*Updated: 2026-04-14, Iteration 9 — Blayzer/Scriber $499 Rx glasses ship TODAY. TAM inflection from ~300M (sunglasses) to ~4B (Rx wearers). Limitless acquisition + all-day Rx wear = ambient AI data play. Meta production scaling to 20-30M units. International expansion: Japan, S. Korea, Singapore, Chile, Peru, Colombia. Meta is only company with Rx + AI + shipping NOW. The prescription pivot is the story.*

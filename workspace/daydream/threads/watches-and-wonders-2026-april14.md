@@ -1,70 +1,61 @@
-# Watches & Wonders 2026: T-Minus 24 Hours — Final Pre-Embargo State
+# Watches & Wonders 2026: Day 1 — Embargo Lifting, Transitioning to Analysis
 
 **Created:** 2026-04-05 (Iteration 1)
-**Updated:** 2026-04-13 (Iteration 8)
-**Status:** FINAL COUNTDOWN — Embargo drops midnight April 14 Geneva time
-**Urgency:** CRITICAL → transitions to ANALYSIS mode tomorrow
+**Updated:** 2026-04-14 (Iteration 9)
+**Status:** TRANSITIONING — Embargo dropping throughout today. Analysis mode initiated.
+**Urgency:** HIGH (active event, data flowing in)
 
-## The Answer is Tomorrow
+## Day 1 Status (April 14, 12:00 UTC / 5:00 AM PT)
 
-W&W 2026 press day #1 is April 14. This is the last pre-embargo update. After tomorrow, this thread transitions from speculation to analysis.
+W&W 2026 press day has begun in Geneva (2:00 PM local). Embargoes are lifting throughout the day. We are EARLY — most reveals will come over the next 6-12 hours.
 
-## Rolex "Oyster Story" — Teaser Decoded (NEW)
+### What We Know So Far
 
-Rolex dropped its annual pre-W&W teaser video on Friday April 11. Gear Patrol's detailed breakdown:
+**Rolex:**
+- "Oyster Story" teaser CONFIRMED — two-tone Oyster Perpetual celebrating 100 years of the Oyster case (1926-2026)
+- First two-tone OP in Rolex history — guilloché dial, Roman numerals, blued Breguet hands
+- GMT-Master II Pepsi (126710BLRO) discontinuation signals INTENSIFYING: fewer than 30% of ADs in North America received a single allocation in Q1 2026 (The Luxury Playbook). WatchUSeek and r/Rolex forums report production shifts at Bienne. BUT: Rolex has made zero official statements. Absence from W&W 2025 updates noted as a yellow flag.
+- Milgauss 116400GV: $13,372 (Bob's Watches, excellent) — down from $14,400 two iterations ago. ~7% decline.
 
-- **Theme: "Oyster Story"** — celebrating 100 years of the Oyster case (1926-2026)
-- **Confirmed new watch:** Two-tone Oyster Perpetual with "100 Years" at 6 o'clock
-  - Gray sunburst dial (possibly Rhodium)
-  - Yellow gold indices and seconds hand
-  - Smooth yellow gold bezel
-  - Brushed gray metal end link
-  - Guilloché dial, Roman numerals, blued Breguet hands (vintage aesthetic)
-- **This would be the FIRST two-tone Oyster Perpetual in Rolex history** — a genuinely groundbreaking move
-- **Heritage focus:** Video showcases Mercedes Gleitze Channel swim, Everest summit, Mariana Trench — Rolex's historical milestones
-- **Unusual approach:** Rolex rarely revisits vintage aesthetics. This is more nostalgic than forward-looking.
+**Patek Philippe:**
+- **NO titanium leaks.** Leak window closed. But Patek is the most leak-proof brand — surprises still possible today.
+- Rare Handcrafts 2026: 65 métiers d'art pieces confirmed (artisan showcase, not new references)
+- Nautilus 50th: Expected new dial/complication variant. Concrete details should drop TODAY.
+- Price adjustments: Reports of Patek "slashing prices" in 2026 — need to verify details
 
-### What This Means for Ray's Watchlist
-- The 100th anniversary OP will be a commemorative model — possible collectible
-- No signals of a Milgauss successor in the teaser
-- **Milgauss 116400GV now at $13,372** (Bob's Watches, excellent condition) — down from $14,400 last iteration. Swiss tariff deal (39%→15%) may be depressing secondary market prices.
+**Hublot:**
+- Big Bang Unico SR_A: New Samuel Ross collaboration unveiled (fourth collab with Ross). This is a Big Bang, NOT a Square Bang. No updates on Ray's watched Square Bang Unico Magic Gold or Titanium Rainbow refs.
 
-## Patek Philippe: Zero Titanium Leaks — Final Assessment
+**No data yet on:**
+- Tudor 100th anniversary pieces
+- Audemars Piguet 150th pocket watch
+- Any surprise titanium announcements from ANY brand
 
-**The leak window is now CLOSED.** We are hours from the embargo drop with:
-- Zero titanium leaks from Chinese social media, watch forums, or insiders
-- Patek Rare Handcrafts 2026 confirmed as 65 métiers d'art pieces (artisan showcase, NOT new references)
-- The Nautilus 50th anniversary will likely be a new dial/complication variant, not a material change
+## Milgauss Buying Window Assessment
 
-**However:** Patek is historically the most leak-proof brand in watchmaking. The absence of leaks doesn't guarantee absence of surprises. The Calatrava Pilot Travel Time and Nautilus Annual Calendar were both genuine surprises at previous W&Ws.
+The GMT-Master Pepsi situation creates an interesting dynamic:
+- If Rolex DOES confirm Pepsi discontinuation today → secondary market Pepsi prices spike, attention shifts away from Milgauss → Milgauss stays depressed → buying window widens
+- If Rolex does NOT address it → rumor continues → general Rolex secondary market uncertainty → Milgauss stays flat
+- Either way, the Swiss tariff deal (39% → 15%) is structurally depressing secondary market prices by making new watches more accessible
+- **Net assessment:** $13,372 is a good price. It's been falling steadily. Post-W&W clarity on the Rolex lineup should signal whether this bottoms out.
 
-**Matt Jacobson alert remains active:** If Patek drops ANYTHING in titanium tomorrow, alert Ray on ALL channels immediately.
+## Thread Transition Plan (executing)
 
-## GMT-Master II Pepsi Discontinuation — Unresolved
+- ☑ Convert from countdown to analysis mode
+- ☐ Track specific reveals as embargoes lift throughout April 14-15
+- ☐ Assess Nautilus 50th details (pricing, complications, materials)
+- ☐ Assess GMT-Master Pepsi status (confirmed discontinued or not)
+- ☐ Check for ANY Patek titanium
+- ☐ Update Hublot Square Bang status
+- ☐ Price movement tracking post-W&W
+- **Close thread:** April 18 (after final W&W press/industry days)
 
-Still no official confirmation. ADs reportedly stopped receiving deliveries. If confirmed at W&W tomorrow, secondary market prices for the 126710BLRO will spike immediately. This would be the biggest Rolex discontinuation since the Explorer 36mm.
+## Alert Protocols Still Active
 
-## Pre-W&W Price Movements
-| Watch | Last Iteration | Current | Change |
-|-------|---------------|---------|--------|
-| Milgauss 116400GV | $14,400 | $13,372 | -$1,028 |
-
-The ~7% drop on the Milgauss could reflect the Swiss tariff deal (39%→15%) making new Swiss watches more accessible, which pressures secondary market premiums. Or it could be normal market variance. Worth monitoring post-W&W.
-
-## April 14 Triple Collision (updated)
-
-Three things happening simultaneously:
-1. **W&W press day #1** — major watch releases, embargo drops midnight
-2. **Meta Blayzer/Scriber $499 prescription models** ship to retailers
-3. **Apple smart glasses confirmed** (Gurman, April 12) — competitive pressure on Ray's team intensifies
-
-## Thread Transition Plan
-
-After April 14 embargo drop:
-- Convert this thread to **W&W 2026 Analysis** — what actually shipped, pricing, market impact
-- Specific tracking: any Nautilus special editions, GMT-Master discontinuation confirmation, Hublot Square Bang updates
-- Move from countdown to assessment mode
-- Close thread after April 17 (end of press/industry days)
+- **Patek titanium:** Alert Ray on ALL channels if announced
+- **Nautilus 50th:** Summarize details once embargo lifts
+- **GMT-Master Pepsi:** If officially discontinued, alert + market impact analysis
+- **Matt Jacobson:** Watch alerts go to Muses and Humans group
 
 ---
-*T-minus 24 hours. Rolex two-tone OP "100 Years" confirmed via teaser. Patek titanium leak window closed — answer tomorrow. Milgauss 116400GV dropped $1K to $13,372. GMT-Master Pepsi discontinuation still unconfirmed. Thread transitions to analysis mode after embargo drop.*
+*Updated: 2026-04-14, Iteration 9 — W&W Day 1 underway. Embargo lifting throughout today. GMT-Master Pepsi discontinuation signals intensifying (< 30% AD allocation in Q1 2026). Milgauss at $13,372. Hublot SR_A Big Bang collab (not Square Bang). Patek titanium: zero leaks, answer comes today. Thread transitions to analysis mode. Facebook monitoring down — missing real-time W&W listings.*

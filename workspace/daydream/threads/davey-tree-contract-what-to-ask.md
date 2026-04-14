@@ -1,45 +1,49 @@
-# The Davey Contract: Biology Window Nearly Closed
+# The Davey Contract: LAST CALL — Sign Today or Lose the Window
 
 **Created:** 2026-04-05 (Iteration 1)
-**Updated:** 2026-04-13 (Iteration 8)
-**Status:** CRITICAL → LAST CALL. If treatment doesn't start this week, Bt effectiveness is severely compromised.
-**Action:** Sign the contract Monday morning. Ask the 5 questions. Accept that treatment won't be as effective as it would have been 3 weeks ago.
+**Updated:** 2026-04-14 (Iteration 9)
+**Status:** CRITICAL → FINAL DEADLINE. Treatment window effectively closes this week.
+**Action:** Sign contract TODAY (Monday April 14). The biology is non-negotiable.
 
-## The Biology Clock (Updated)
+## The Biology Clock: 6 Weeks In
 
-- **Caterpillars hatched in MARCH** — now feeding for **5+ weeks**
-- We are now at the edge of the Bt (Bacillus thuringiensis) effectiveness window
-- **UC IPM guidance:** Bt works on early-instar larvae. At 5 weeks, larvae are in late instar or pupation transition
-- **If Ray signs Monday (April 14):** Treatment starts maybe April 16-17. Marginal Bt effectiveness on any remaining young larvae, but the largest caterpillars may already be resistant
-- **If Ray doesn't sign this week:** Treatment window effectively closes for 2026. Damage already done.
-- **Full cycle:** 2 applications, 7-10 days apart. Even starting this week, treatment won't complete until early May.
+- **Caterpillars hatched in MARCH** — now feeding for **6+ weeks**
+- At 6 weeks, most larvae are in **late instar or pupation transition**
+- Bt (Bacillus thuringiensis) is LEAST effective on late-instar larvae
+- **Realistic outcome if signed today:** Kill remaining young larvae (any second-hatch), reduce adult moth population for 2027, reduce caterpillar hair exposure for kids
+- **If not signed by Friday April 18:** This thread CLOSES. Treatment window missed for 2026.
 
-## Reframing: Damage Mitigation, Not Prevention
+## Updated Framing: Ask Davey About Alternatives to Bt
 
-At 5+ weeks, the realistic outcome of treatment has shifted from **preventing defoliation** to **limiting ongoing damage and protecting against next year's population**:
-- Kill remaining young larvae (second hatching?)
-- Reduce adult moth population → fewer eggs laid for 2027
-- Reduce caterpillar hair exposure for kids' outdoor play
-- Professional assessment of oak health damage already done
+At 6+ weeks, Davey should be asked whether Bt is still the right product or whether they recommend:
+- **Spinosad** — broader spectrum, effective on later instars, still organic
+- **Bacillus thuringiensis var. kurstaki (Btk)** specifically — the most effective Bt strain for caterpillars
+- **Horticultural oil** — suffocates larvae regardless of instar stage
+- Professional assessment of whether treatment at this stage is even cost-effective vs. waiting for natural pupation and treating preventatively for 2027
 
-## The $600 Math (unchanged but more urgent)
+## The 5 Questions (refined for late-window timing)
 
-- 6 live oaks × worst outbreak in 6+ years
-- **City arborist Jillian Keller** confirmed this is unprecedented (Palo Alto Online, April 8)
-- $600 treatment vs $1,000-5,000+ per tree for damage remediation
-- **Kids' health:** caterpillar hairs → rashes, hives, asthma reactions
+1. **Given that caterpillars have been feeding for 6+ weeks, is Bt still effective or do you recommend a different product?**
+2. How many applications, and what's the complete timeline?
+3. What's your professional assessment of the oak damage already done?
+4. Should we plan a preventive treatment in early spring 2027 instead/in addition?
+5. What about beneficial insect protection (especially if using something other than Bt)?
 
-## What to Ask Davey (unchanged)
+## The $600 Math (time-adjusted)
 
-1. What product? (Bt preferred, but at this stage they may recommend alternative)
-2. How many applications?
-3. Given the 5+ weeks of feeding, is Bt still effective or should they use a different product?
-4. What about beneficial insect protection?
-5. Given severity + late timing, expanded scope needed?
+- 6 live oaks with the worst outbreak in 6+ years
+- City arborist Jillian Keller confirmed unprecedented severity (Palo Alto Online, April 8)
+- Even at reduced effectiveness, treatment NOW still:
+  - Kills any young larvae from second hatching
+  - Reduces adult moth population → fewer eggs for 2027
+  - Reduces caterpillar HAIR exposure (rashes, hives, asthma) for kids playing outdoors
+  - Gets a professional arborist assessment of tree health damage
 
-## Decision for This Thread
+## Thread Lifecycle
 
-If Ray doesn't sign by Friday April 18, this thread closes as "missed window." The biology doesn't wait.
+- **If signed by April 18:** Thread transitions to "treatment monitoring" for one iteration, then closes
+- **If NOT signed by April 18:** Thread closes as "missed window — reassess for 2027 preventive treatment"
+- Either way, this thread ends at Iteration 10 (next run)
 
 ---
-*Updated: 2026-04-13, Iteration 8 — 5+ weeks since caterpillar hatch. Bt effectiveness severely reduced for late-instar larvae. Treatment now about damage mitigation and 2027 population reduction, not 2026 prevention. Last call: sign this week or the window closes.*
+*Updated: 2026-04-14, Iteration 9 — 6+ weeks since caterpillar hatch. Bt effectiveness severely reduced. Ask Davey about alternatives (spinosad, horticultural oil). Kids' outdoor play exposure is the strongest immediate argument. This is the LAST iteration before deadline closure.*
