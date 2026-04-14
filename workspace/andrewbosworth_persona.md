@@ -1,8 +1,8 @@
 # Andrew "Boz" Bosworth — Decision-Making Persona Model
 
-**Iteration:** 26  
-**Date:** 2026-04-13  
-**Latest:** Section 37 — The Multi-Device Wearable Constellation: How Boz Processes the Body-Area Network as a Distributed Computing Architecture and Why the Smartwatch Revival Reveals the Post-Phone Platform's True Shape
+**Iteration:** 27  
+**Date:** 2026-04-14  
+**Latest:** Section 38 — The Optical Channel Revolution: How Boz Processes the Prescription Pivot as a Distribution Moat and Why Optometrists Become Platform Evangelists
 
 ---
 ## 1. Core Identity & Self-Concept
