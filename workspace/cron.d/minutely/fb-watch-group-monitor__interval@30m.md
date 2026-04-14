@@ -13,37 +13,86 @@ metadata:
 ---
 # Facebook Watch Group Monitor
 
-Scrape 3 Facebook watch groups via HomHub curl and check for target watches + build price database.
+Use the LOCAL BROWSER (port 9224, `browser` CLI) to scrape 3 Facebook watch groups. Ray is logged into Facebook in the browser — session persists. Do NOT use curl or HomHub.
 
-## Config Files
-- `config/facebook-cookies.txt` — Facebook session cookies (single line)
-- `config/watch-groups.json` — Group URLs + target watch definitions (refs, keywords)
-- `config/watch_parser.py` — Python parser for extracting structured listings from HTML
-- `research/watch-price-db.json` — Accumulated price database
+## Groups to Monitor
+1. **Moda Watch Club** — https://www.facebook.com/groups/558871041349029
+2. **Moda Watch Club - 10k & Under** — https://www.facebook.com/groups/150223938977815
+3. **Moda Watch Club - Backup** — https://www.facebook.com/groups/607987992210015
 
-## Steps
+## Target Watches (alert immediately if found)
+- Rolex Milgauss ref **116400GV** (green sapphire crystal, discontinued)
+- Rolex Yacht-Master II ref **116689** (18K white gold/platinum)
+- Hublot Square Bang Unico Magic Gold ref **821.MX.0130.RX** (42mm, limited 200 pieces)
+- Hublot Square Bang Unico Titanium Rainbow ref **821.NX.0117.LR.0999** (42mm)
+- ANY **Patek Philippe titanium** watch — alert on ANY mention of Patek + titanium
 
-1. **Read cookies** from `config/facebook-cookies.txt`
-2. **For each group** in `config/watch-groups.json`, use HomHub node (`homehub-a53bc7`) `system.run` to curl the group URL with cookies and full browser headers (user-agent, accept, sec-ch-ua, etc.)
-3. **Check for auth failure**: If response is < 5KB OR contains "Sorry, something went wrong" OR contains "You must log in":
-   - **IMMEDIATELY notify Ray on Telegram** (chat_id: 8781372712) AND main chat: "⚠️ Facebook cookies expired — watch group monitoring is down. Paste fresh cookies."
-   - Stop processing, do not silently continue
-4. **Parse listings** from HTML using `config/watch_parser.py` (run via exec). Extract: brand, model, reference, price, condition, contents, location, seller, post URL, sold status
-5. **Check against target watchlist** in `config/watch-groups.json`. Match on ref numbers (exact substring) and keywords (case-insensitive). If match found:
-   - Alert on ALL channels: main chat + Telegram (8781372712) + email (rayche@gmail.com via Resend)
-   - Include: watch name, price, condition, seller, group name, post URL
-6. **Update price database** at `research/watch-price-db.json` — append new listings, skip duplicates (match on post URL), update sold status if changed
-7. **Track seen posts** to avoid duplicate alerts — store post IDs in `research/watch-monitor-state.json`
+## Method
 
-## Alert Format (for target watch matches)
+For each group:
+
+1. `browser navigate --url <group_url>`
+2. Wait 3 seconds for JS rendering
+3. `browser evaluate --expression '<JS to extract posts>'` — use this JS pattern:
+```js
+(() => {
+    // Scroll to load more
+    window.scrollTo(0, 5000);
+    setTimeout(() => {}, 2000);
+    // Get all text from feed area
+    const feed = document.querySelector('[role="feed"]') || document.body;
+    const posts = feed.querySelectorAll('[role="article"]');
+    const results = [];
+    posts.forEach(p => {
+        results.push(p.innerText.substring(0, 1500));
+    });
+    // Also get full feed text as backup
+    const feedText = feed.innerText.substring(0, 20000);
+    return JSON.stringify({posts: results, feedText: feedText});
+})()
+```
+4. **Check for auth failure**: If page title contains "Log in" or "Error" or feed text is empty:
+   - IMMEDIATELY notify Ray on Telegram (chat_id: 8781372712) AND main chat
+   - Message: "⚠️ Facebook browser session expired — open Remote Browser space and log in again"
+   - STOP processing
+
+5. **Parse listings** from extracted text. Look for:
+   - Price patterns: $XX,XXX or asking $XX,XXX
+   - Brand/model/ref numbers
+   - Condition: mint, excellent, good, very good, worn
+   - Box/papers: full set, box and papers, B&P, no box, watch only
+   - SOLD/OHPF markers
+   - Seller name (from post author)
+
+6. **Match against target watchlist**: Search for ref numbers (exact substring, case-insensitive) and brand+model keywords:
+   - "116400GV" or "Milgauss" + "green"
+   - "116689" or "Yacht-Master II" or "YM2" or "YMII"
+   - "821.MX.0130" or "Square Bang" + "Magic Gold"
+   - "821.NX.0117" or "Square Bang" + "Rainbow"
+   - "Patek" + "titanium" (any combination)
+
+7. **If match found**, alert on ALL channels:
+   - Main chat
+   - Telegram DM (chat_id: 8781372712)
+   - Format:
 ```
 🚨 WATCH ALERT: [Watch Name]
 Price: $XX,XXX | Condition: [condition]
 Seller: [name] | Group: [group name]
 Contents: [box/papers/etc]
-Link: [post URL]
+Link: https://www.facebook.com/groups/[id]
 ```
 
-## Failure Notification
-If ANY group fails to return data, notify Ray immediately on both main chat AND Telegram. Do not wait for next cycle. The message should be:
-"⚠️ FB Watch Monitor: [group name] returned no data. Cookies may be expired. Paste fresh cookies in config/facebook-cookies.txt"
+8. **Update price database** at `research/watch-price-db.json`:
+   - Append every listing seen (not just target matches)
+   - Fields: brand, model, ref, askingPrice, condition, contents, seller, group, date, soldStatus, postSnippet
+   - Skip duplicates (match on seller + ref + price)
+   - Update soldStatus if listing now shows SOLD/OHPF
+
+9. **Track seen posts** in `research/watch-monitor-state.json` to avoid duplicate alerts
+
+## Notes
+- Facebook breaks some text into individual characters (anti-scraping). Post body text usually comes through intact.
+- The browser on port 9224 is the same one Ray logged into via the Remote Browser space.
+- Session should persist for weeks in a real browser profile vs hours with curl cookies.
+- Blue dials are preferred — mention "blue dial" prominently in alerts if applicable.
