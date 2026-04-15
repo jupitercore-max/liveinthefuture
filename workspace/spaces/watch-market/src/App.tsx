@@ -7,11 +7,7 @@ import {
   type GetListingsResponse,
   type GetWatchlistResponse,
 } from "./actions";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  ScatterChart, Scatter, CartesianGrid,
-  PieChart, Pie,
-} from "recharts";
+// Pure CSS charts — no recharts (React 19 ref compat issue)
 import {
   Eye, TrendingUp, DollarSign, Package, Search, Filter,
   Target, Clock, AlertTriangle, ExternalLink, ChevronDown,
@@ -65,129 +61,160 @@ function BrandBar({ analytics }: { analytics: GetAnalyticsResponse }) {
       avgPrice: b.avg_price || 0,
     })),
   [analytics.brands]);
+  const maxCount = Math.max(...data.map(d => d.count), 1);
 
   return (
     <div className="surface-card p-4 sm:p-5">
       <h3 className="text-lg font-semibold mb-4" style={{ fontFamily: "var(--font-display)" }}>
         Brand Distribution
       </h3>
-      <ResponsiveContainer width="100%" height={280}>
-        <BarChart data={data} layout="vertical" margin={{ left: 10, right: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-          <XAxis type="number" tick={{ fill: "#6a6a7a", fontSize: 12 }} />
-          <YAxis type="category" dataKey="name" width={100} tick={{ fill: "#e8e6e0", fontSize: 12 }} />
-          <Tooltip
-            contentStyle={{ background: "#1a1a24", border: "1px solid #252530", borderRadius: 8, color: "#e8e6e0" }}
-            formatter={(value: unknown) => [String(value), "Listings"]}
-          />
-          <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#c9a96e" fillOpacity={0.85} />
-        </BarChart>
-      </ResponsiveContainer>
+      <div className="space-y-2">
+        {data.map((d) => (
+          <div key={d.name} className="flex items-center gap-3">
+            <div className="w-20 text-xs text-right truncate" style={{ color: "var(--text)" }}>{d.name}</div>
+            <div className="flex-1 h-6 rounded" style={{ background: "var(--surface-elevated)" }}>
+              <div
+                className="h-full rounded flex items-center justify-end pr-2 text-xs font-medium transition-all"
+                style={{
+                  width: `${Math.max((d.count / maxCount) * 100, 8)}%`,
+                  background: "linear-gradient(90deg, rgba(201,169,110,0.3), rgba(201,169,110,0.7))",
+                  color: "#e8e6e0",
+                }}
+              >
+                {d.count}
+              </div>
+            </div>
+            <div className="w-16 text-xs text-right" style={{ color: "var(--dim)" }}>
+              {d.avgPrice ? formatPrice(d.avgPrice) : "—"}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
 function PriceScatter({ analytics }: { analytics: GetAnalyticsResponse }) {
-  // Group by brand for a price-by-brand scatter (more useful than date axis with limited data)
   const data = useMemo(() => {
-    const brandMap: Record<string, number[]> = {};
+    const brandMap: Record<string, { prices: number[]; refs: string[] }> = {};
     analytics.scatter.forEach((s) => {
-      if (!brandMap[s.brand]) brandMap[s.brand] = [];
-      brandMap[s.brand].push(s.price);
+      if (!brandMap[s.brand]) brandMap[s.brand] = { prices: [], refs: [] };
+      brandMap[s.brand].prices.push(s.price);
+      brandMap[s.brand].refs.push(s.reference);
     });
-    // Sort brands by count descending, take top 12
     const sorted = Object.entries(brandMap)
-      .sort((a, b) => b[1].length - a[1].length)
-      .slice(0, 12);
-    // Flatten for scatter: x = brand index, y = price
-    const points: { brandIdx: number; brand: string; price: number; ref: string; model: string }[] = [];
-    sorted.forEach(([brand], idx) => {
-      analytics.scatter
-        .filter((s) => s.brand === brand)
-        .forEach((s) => {
-          points.push({ brandIdx: idx, brand, price: s.price, ref: s.reference, model: s.model });
-        });
-    });
-    return { points, brands: sorted.map(([b]) => b) };
+      .sort((a, b) => b[1].prices.length - a[1].prices.length)
+      .slice(0, 8);
+    return sorted.map(([brand, d]) => ({
+      brand,
+      min: Math.min(...d.prices),
+      max: Math.max(...d.prices),
+      avg: d.prices.reduce((a, b) => a + b, 0) / d.prices.length,
+      count: d.prices.length,
+      prices: d.prices,
+    }));
   }, [analytics.scatter]);
+  const globalMax = Math.max(...data.map(d => d.max), 1);
 
   return (
     <div className="surface-card p-4 sm:p-5">
       <h3 className="text-lg font-semibold mb-4" style={{ fontFamily: "var(--font-display)" }}>
-        Price Distribution by Brand
+        Price Range by Brand
       </h3>
-      <div className="flex flex-wrap gap-2 mb-3">
-        {data.brands.slice(0, 6).map((b) => (
-          <span key={b} className="text-xs px-2 py-1 rounded-full" style={{
-            background: "var(--accent-dim)", color: "var(--accent)",
-          }}>{b}</span>
+      <div className="space-y-3">
+        {data.map((d) => (
+          <div key={d.brand}>
+            <div className="flex justify-between text-xs mb-1">
+              <span style={{ color: "var(--text)" }}>{d.brand} ({d.count})</span>
+              <span style={{ color: "var(--dim)" }}>{formatPrice(d.min)} – {formatPrice(d.max)}</span>
+            </div>
+            <div className="relative h-4 rounded" style={{ background: "var(--surface-elevated)" }}>
+              <div
+                className="absolute h-full rounded"
+                style={{
+                  left: `${(d.min / globalMax) * 100}%`,
+                  width: `${Math.max(((d.max - d.min) / globalMax) * 100, 2)}%`,
+                  background: "linear-gradient(90deg, rgba(201,169,110,0.4), rgba(201,169,110,0.8))",
+                }}
+              />
+              <div
+                className="absolute w-2 h-4 rounded-sm"
+                style={{
+                  left: `${(d.avg / globalMax) * 100}%`,
+                  background: "#c9a96e",
+                  transform: "translateX(-50%)",
+                }}
+                title={`Avg: ${formatPrice(d.avg)}`}
+              />
+            </div>
+          </div>
         ))}
+        <div className="flex justify-between text-xs pt-2" style={{ color: "var(--dim)", borderTop: "1px solid var(--border)" }}>
+          <span>$0</span>
+          <span>{formatPrice(globalMax)}</span>
+        </div>
       </div>
-      <ResponsiveContainer width="100%" height={280}>
-        <ScatterChart margin={{ left: 10, right: 20, bottom: 30 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#252530" />
-          <XAxis
-            type="number" dataKey="brandIdx"
-            domain={[-0.5, data.brands.length - 0.5]}
-            ticks={data.brands.map((_, i) => i)}
-            tickFormatter={(v) => data.brands[v] || ""}
-            tick={{ fill: "#e8e6e0", fontSize: 10 }}
-            angle={-35}
-            textAnchor="end"
-            interval={0}
-          />
-          <YAxis
-            type="number" dataKey="price" domain={[0, "auto"]}
-            tickFormatter={(v) => v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`}
-            tick={{ fill: "#6a6a7a", fontSize: 11 }}
-          />
-          <Tooltip
-            contentStyle={{ background: "#1a1a24", border: "1px solid #252530", borderRadius: 8, color: "#e8e6e0" }}
-            formatter={(value: unknown) => [formatPrice(value as number), "Price"]}
-            labelFormatter={(v) => data.brands[v as number] || ""}
-          />
-          <Scatter data={data.points} fill="#c9a96e" fillOpacity={0.7} />
-        </ScatterChart>
-      </ResponsiveContainer>
     </div>
   );
 }
 
 function GroupPie({ analytics }: { analytics: GetAnalyticsResponse }) {
-  const dataWithColors = useMemo(() =>
-    analytics.groups.map((g, i) => ({
+  const data = useMemo(() => {
+    const total = analytics.groups.reduce((s, g) => s + g.count, 0) || 1;
+    return analytics.groups.map((g, i) => ({
       name: g.group_name.replace("Moda Watch Club - ", "").replace("Moda Clubs - Watches (Moda Watch Club - ", "").replace(")", "").replace("Moda Watch Club", "Main"),
-      value: g.count,
+      count: g.count,
+      pct: Math.round((g.count / total) * 100),
       avgPrice: g.avg_price,
-      fill: PIE_COLORS[i % PIE_COLORS.length],
-    })),
-  [analytics.groups]);
+      color: PIE_COLORS[i % PIE_COLORS.length],
+    }));
+  }, [analytics.groups]);
+  const total = data.reduce((s, d) => s + d.count, 0);
+
+  // Build conic gradient for donut
+  const conicStops = useMemo(() => {
+    let cum = 0;
+    return data.map((d) => {
+      const start = cum;
+      cum += (d.count / total) * 360;
+      return `${d.color} ${start}deg ${cum}deg`;
+    }).join(", ");
+  }, [data, total]);
 
   return (
     <div className="surface-card p-4 sm:p-5">
       <h3 className="text-lg font-semibold mb-4" style={{ fontFamily: "var(--font-display)" }}>
         By Group
       </h3>
-      <ResponsiveContainer width="100%" height={240}>
-        <PieChart>
-          <Pie
-            data={dataWithColors} dataKey="value" nameKey="name"
-            cx="50%" cy="50%" outerRadius={90} innerRadius={50}
-            strokeWidth={2} stroke="#111118"
-          />
-          <Tooltip
-            contentStyle={{ background: "#1a1a24", border: "1px solid #252530", borderRadius: 8, color: "#e8e6e0" }}
-            formatter={(value: unknown, _name: unknown, props: unknown) =>
-              [`${value} listings (avg ${formatPrice((props as {payload: {avgPrice: number | null}}).payload.avgPrice)})`, ""]
-            }
-          />
-        </PieChart>
-      </ResponsiveContainer>
-      <div className="flex flex-wrap justify-center gap-3 mt-2">
-        {dataWithColors.map((d: { name: string; fill: string }, i: number) => (
-          <div key={i} className="flex items-center gap-1.5 text-sm">
-            <div className="w-3 h-3 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
-            <span style={{ color: "var(--dim)" }}>{d.name}</span>
+      <div className="flex justify-center mb-4">
+        <div style={{
+          width: 180, height: 180, borderRadius: "50%",
+          background: `conic-gradient(${conicStops})`,
+          position: "relative",
+        }}>
+          <div style={{
+            position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+            width: 100, height: 100, borderRadius: "50%",
+            background: "#111118",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexDirection: "column",
+          }}>
+            <div className="text-2xl font-bold" style={{ color: "var(--accent)" }}>{total}</div>
+            <div className="text-xs" style={{ color: "var(--dim)" }}>total</div>
+          </div>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {data.map((d) => (
+          <div key={d.name} className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{ background: d.color }} />
+              <span style={{ color: "var(--text)" }}>{d.name}</span>
+            </div>
+            <div className="flex gap-3">
+              <span style={{ color: "var(--dim)" }}>{d.count} ({d.pct}%)</span>
+              <span className="w-16 text-right" style={{ color: "var(--accent)" }}>{formatPrice(d.avgPrice)}</span>
+            </div>
           </div>
         ))}
       </div>
