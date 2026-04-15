@@ -245,4 +245,11 @@ Chamath called decentralized trading a "trillion-dollar market opportunity." Thi
 
 ---
 
-**Last updated:** 2026-04-14 (evening)
+### 2026-04-15 — Forbes Amplifies Enterprise AI Warning: Closed-Source Dependency Hands Rivals Your Edge
+**Source:** Forbes (Apr 12, 2026), Josipa Majic Predin — "Chamath Says Firms That Treat AI As A Strategy Hand Rivals Their Edge"
+**Details:** Forbes cited a recent Chamath post warning that companies are "handing their proprietary workflows, tribal knowledge, and competitive logic to closed-source model providers, mistaking token consumption for transformation." The article frames this as a structural enterprise risk: when companies pipe their competitive intelligence through third-party AI APIs, they're effectively training competitors' models on their differentiation. The core argument is that AI adoption without ownership of the model layer isn't a strategy — it's a subsidy to your AI provider. This extends Chamath's "Generational Fumble" tweet (Apr 13) from the consumer/public sentiment angle to the enterprise side: the AI industry is failing both the public (eroding trust) and enterprises (eroding moats).
+**Significance:** MEDIUM. Adds an enterprise dimension to Chamath's evolving AI thesis. Two-pronged argument: (1) public sentiment turning against AI (go-to-market failure), (2) enterprise AI adoption being done wrong (closed-source dependency = competitive suicide). Aligns with 8090.ai positioning — his own product is a "Software Factory" that presumably keeps workflows in-house. Relevant to Meta's enterprise AI strategy.
+
+---
+
+**Last updated:** 2026-04-15

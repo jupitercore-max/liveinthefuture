@@ -16,6 +16,8 @@ Use this file for durable, curated memory that should persist across sessions.
 ## Preferences
 
 - Hates AI slop — banned phrases list, em dash limits, "The" starter limits in STORY_GUIDE.md
+- **Em dash discipline applies to ALL documents** (internal memos, feedback docs, etc.), not just published articles
+- Internal docs authored as "Kit (with Ray)" not "Ray (via Kit)"
 - Wants honest scoring — no artificial caps, Metacritic-calibrated (100 effectively unreachable)
 - 1 article/day/site max — draft-first, never speedrun to publish
 - Games/experiences scored against genre benchmarks (Dungeon Crawl vs NetHack, etc.)
@@ -63,6 +65,7 @@ Use this file for durable, curated memory that should persist across sessions.
 - **technically.legal** — Cloudflare Pages (direct upload), repo rayhe/technically-legal. See Technically Legal section below.
 - **ergo (satirical journalism)** — Cloudflare Pages from rayhe/ergo. **10 articles**. Every fact real/verifiable, conclusions deliberately wrong. Deadpan investigative tone. Daily cron. 6-critic panel (8.5+ to publish). Deploy dir is repo root `.` (NOT `public/`).
 - **baby.eaiz.net** — Cloudflare Pages project `baby-eaiz`. 22 activities across 4 age brackets (0-3mo to 9-12mo), 14 ElevenLabs audio clips (Charlotte AU voice), procedural audio (white/pink noise, heartbeat, tones), 40+ evidence citations. Deep linking via hash. Built 2026-04-13.
+- **Prior art repo:** github.com/rayhe/prior-art — 9 defensive disclosures, HOW-TO-PRIOR-ART.md guide. LITF /priorart/ page links here. Published to Wayback Machine + HO (2026-04-14).
 - **Private backup repo:** github.com/rayhe/factoryfactory — SOUL/IDENTITY/MEMORY/crons/configs
 
 ## Content Pipeline (gstack-inspired 5-phase)
