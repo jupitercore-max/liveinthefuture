@@ -674,6 +674,14 @@ export default function App() {
                     <option value="active">Active</option>
                     <option value="sold">Sold</option>
                   </select>
+                  <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
+                    className="px-3 py-2.5 rounded-lg text-sm appearance-none cursor-pointer"
+                    style={{ background: "var(--surface-elevated)", border: "1px solid var(--border)", color: "var(--text)" }}>
+                    <option value="date">Newest</option>
+                    <option value="price_desc">Price ↓</option>
+                    <option value="price_asc">Price ↑</option>
+                    <option value="brand">Brand A-Z</option>
+                  </select>
                 </div>
               </div>
               {listings && (
