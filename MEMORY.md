@@ -103,6 +103,7 @@ State tracked in `drafts/status.json`.
 - Monitoring: Moda Watch Club (30min cron) + Chrono24, WatchBox, Bob's Watches (expanded 2026-04-01)
 - Watch alerts deliver to **main chat + Telegram DM only** (changed 2026-04-14; removed group + email notifications per Ray's request)
 - **Watches & Wonders 2026:** April 14-18, Geneva. Nautilus 50th anniversary, possible Patek titanium announcement. HIGH ALERT.
+- **W&W Day 2 (2026-04-15):** Rolex mass discontinuation confirmed: GMT-Master Pepsi (ALL variants), Submariner Cookie Monster, Yacht-Master Oysterflex paved dials. Milgauss 116400GV market $11-13K (buying window while attention on Pepsi/Cookie Monster).
 - **Bulgari Serpenti Tubogas Tadao Ando** — Ray bought limited edition preowned $15K from Moda (Susana Di). Visible scratching disputes "mint" claim. Susana offered $500 credit; Ray countered $2K ("if listed Very Good I'd have offered ~$13K"). Collaborative fair zone $1.5K-2K. Awaiting her response.
 
 ## Tom Siebel BLV Glasses Non-Profit
@@ -257,7 +258,7 @@ State tracked in `drafts/status.json`.
 ## Ray's Vehicles
 
 - **Current:** 2x Rivian R1S, Volvo XC90, Cadillac Escalade IQL, CT5-V Blackwing
-- **Rivian R1S:** Earned IIHS TOP SAFETY PICK+ for 2026
+- **Rivian R1S:** Earned IIHS TOP SAFETY PICK+ for 2026. Software update 2026.07 halted (bricked keys issue, no fix yet). iOS 26 Apple Wallet car keys coming for Rivian.
 - **Previous:** Tesla P85DL, Corvette C7, R35 GT-R, NB Miata, Forester XT, Honda Accord, Toyota Camry
 - **Enjoyed:** Lotus Elise, various Porsches
 - **Interests:** Corvette news, Porsche news, engineering/materials (NOT dealer pricing/markups)

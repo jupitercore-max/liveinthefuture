@@ -1,13 +1,11 @@
 ---
 id: ho-daily-interview
-enabled: true
+enabled: false
 mode: task
 schedule:
   kind: daily
   timezone: UTC
   time: 17:00:00
-metadata:
-  originating_channel_context_json: '{"originating_channel":"main","chat_kind":"direct","event_kind":"message","require_mention":false}'
 ---
 ## Daily Hatch Overflow Interview
 
