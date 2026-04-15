@@ -6,11 +6,12 @@ import {
   type GetAnalyticsResponse,
   type GetListingsResponse,
   type GetWatchlistResponse,
+  type GetRefHistoryResponse,
 } from "./actions";
 // Pure CSS charts — no recharts (React 19 ref compat issue)
 import {
   Eye, TrendingUp, DollarSign, Package, Search, Filter,
-  Target, Clock, AlertTriangle, ExternalLink, ChevronDown,
+  Target, Clock, AlertTriangle, ExternalLink, ChevronDown, X,
 } from "lucide-react";
 
 type Tab = "dashboard" | "listings" | "watchlist";
@@ -222,10 +223,150 @@ function GroupPie({ analytics }: { analytics: GetAnalyticsResponse }) {
   );
 }
 
-function ListingsTable({ listings, onLoadMore, hasMore }: {
+function RefDetailModal({ refData, onClose }: {
+  refData: GetRefHistoryResponse;
+  onClose: () => void;
+}) {
+  const pricePoints = useMemo(() => {
+    const pts = refData.history
+      .filter((h) => {
+        const p = h.original_price || h.price;
+        return p && p > 0;
+      })
+      .map((h) => ({ date: h.date, price: (h.original_price || h.price) as number, sold: h.sold, seller: h.seller }))
+      .reverse(); // chronological
+    return pts;
+  }, [refData.history]);
+  const maxPrice = Math.max(...pricePoints.map((p) => p.price), 1);
+  const minPrice = Math.min(...pricePoints.map((p) => p.price), 0);
+  const range = maxPrice - minPrice || 1;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.75)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-5 sm:p-6"
+        style={{ background: "#13131b", border: "1px solid var(--border)" }}>
+        {/* Header */}
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h2 className="text-xl font-bold" style={{ fontFamily: "var(--font-display)" }}>
+              <span className="gold-gradient">{refData.brand} {refData.reference}</span>
+            </h2>
+            {refData.model && <div className="text-sm mt-1" style={{ color: "var(--dim)" }}>{refData.model}</div>}
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-[#1a1a24] transition-colors">
+            <X size={20} style={{ color: "var(--dim)" }} />
+          </button>
+        </div>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          {([
+            ["Avg", refData.avg_price],
+            ["Min", refData.min_price],
+            ["Max", refData.max_price],
+            ["Median", refData.median_price],
+          ] as [string, number | null][]).map(([label, val]) => (
+            <div key={label} className="p-3 rounded-lg" style={{ background: "var(--accent-dim)" }}>
+              <div className="text-xs mb-1" style={{ color: "var(--dim)" }}>{label}</div>
+              <div className="font-semibold" style={{ color: "var(--accent)", fontFamily: "var(--font-display)" }}>
+                {formatPrice(val)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Counts */}
+        <div className="flex gap-4 mb-5 text-sm">
+          <span>{refData.total_listings} total</span>
+          <span style={{ color: "var(--active-green)" }}>{refData.active_count} active</span>
+          <span style={{ color: "var(--sold-red)" }}>{refData.sold_count} sold</span>
+        </div>
+
+        {/* Price chart (pure CSS) */}
+        {pricePoints.length > 1 && (
+          <div className="mb-5">
+            <h3 className="text-sm font-medium mb-3" style={{ color: "var(--dim)" }}>Price History</h3>
+            <div className="relative h-40 rounded-lg p-2" style={{ background: "var(--surface-elevated)" }}>
+              {/* Y-axis labels */}
+              <div className="absolute left-2 top-2 text-xs" style={{ color: "var(--dim)" }}>{formatPrice(maxPrice)}</div>
+              <div className="absolute left-2 bottom-2 text-xs" style={{ color: "var(--dim)" }}>{formatPrice(minPrice)}</div>
+              {/* Points and lines */}
+              <svg className="w-full h-full" viewBox={`0 0 ${Math.max(pricePoints.length * 60, 200)} 140`} preserveAspectRatio="none">
+                {/* Line */}
+                <polyline
+                  fill="none" stroke="#c9a96e" strokeWidth="2"
+                  points={pricePoints.map((p, i) => {
+                    const x = (i / Math.max(pricePoints.length - 1, 1)) * (Math.max(pricePoints.length * 60, 200) - 20) + 10;
+                    const y = 130 - ((p.price - minPrice) / range) * 120;
+                    return `${x},${y}`;
+                  }).join(" ")}
+                />
+                {/* Dots */}
+                {pricePoints.map((p, i) => {
+                  const x = (i / Math.max(pricePoints.length - 1, 1)) * (Math.max(pricePoints.length * 60, 200) - 20) + 10;
+                  const y = 130 - ((p.price - minPrice) / range) * 120;
+                  return (
+                    <circle key={i} cx={x} cy={y} r="4"
+                      fill={p.sold ? "#e07b6e" : "#c9a96e"} stroke="#13131b" strokeWidth="2">
+                      <title>{`${formatPrice(p.price)} - ${p.seller} (${p.date})${p.sold ? " SOLD" : ""}`}</title>
+                    </circle>
+                  );
+                })}
+              </svg>
+            </div>
+          </div>
+        )}
+
+        {/* Listing history */}
+        <h3 className="text-sm font-medium mb-3" style={{ color: "var(--dim)" }}>All Listings</h3>
+        <div className="space-y-2">
+          {refData.history.map((h) => {
+            const displayPrice = h.sold ? (h.original_price || h.price) : h.price;
+            return (
+              <div key={h.id} className="flex items-center justify-between p-3 rounded-lg text-sm"
+                style={{ background: "var(--surface-elevated)" }}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {h.sold ? (
+                      <>
+                        <span className="font-semibold" style={{ color: "var(--sold-red)" }}>SOLD</span>
+                        {displayPrice ? (
+                          <span className="text-xs" style={{ color: "var(--dim)" }}>was {formatPrice(displayPrice)}</span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="font-semibold" style={{ color: "var(--accent)" }}>{formatPrice(displayPrice)}</span>
+                    )}
+                    <span style={{ color: "var(--dim)" }}>&middot;</span>
+                    <span style={{ color: "var(--dim)" }}>{h.seller}</span>
+                  </div>
+                  <div className="flex gap-3 mt-1 text-xs" style={{ color: "var(--dim)" }}>
+                    <span>{formatDate(h.date)}</span>
+                    {h.condition && <span>{h.condition}</span>}
+                    {h.contents && <span>{h.contents}</span>}
+                  </div>
+                </div>
+                {h.post_url && (
+                  <a href={h.post_url} target="_blank" rel="noopener noreferrer"
+                    className="flex-shrink-0 ml-2" style={{ color: "var(--accent)" }}>
+                    <ExternalLink size={14} />
+                  </a>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ListingsTable({ listings, onLoadMore, hasMore, onRefClick }: {
   listings: GetListingsResponse;
   onLoadMore: () => void;
   hasMore: boolean;
+  onRefClick: (ref: string, brand: string) => void;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -242,23 +383,42 @@ function ListingsTable({ listings, onLoadMore, hasMore }: {
             <tr key={l.id} className="hover:bg-[#1a1a24] transition-colors" style={{ borderBottom: "1px solid var(--border)" }}>
               <td className="py-3 px-3 font-medium">{l.brand}</td>
               <td className="py-3 px-3">
-                <div>{l.model || "—"}</div>
-                <div className="text-xs" style={{ color: "var(--accent)" }}>{l.reference}</div>
+                <div>{l.model || "\u2014"}</div>
+                {l.reference ? (
+                  <button
+                    className="text-xs underline decoration-dotted cursor-pointer hover:brightness-125 transition-all"
+                    style={{ color: "var(--accent)", background: "none", border: "none", padding: 0 }}
+                    onClick={() => onRefClick(l.reference, l.brand)}
+                  >
+                    {l.reference}
+                  </button>
+                ) : (
+                  <div className="text-xs" style={{ color: "var(--dim)" }}>\u2014</div>
+                )}
               </td>
               <td className="py-3 px-3 font-semibold" style={{ fontFamily: "var(--font-display)" }}>
                 {l.sold ? (
-                  <span style={{ color: "var(--sold-red)" }}>SOLD</span>
+                  <div>
+                    <span style={{ color: "var(--sold-red)" }}>SOLD</span>
+                    {(l.original_price || l.price) ? (
+                      <div className="text-xs font-normal" style={{ color: "var(--dim)" }}>
+                        was {formatPrice(l.original_price || l.price)}
+                      </div>
+                    ) : null}
+                  </div>
                 ) : (
-                  <span style={{ color: l.price ? "var(--accent)" : "var(--dim)" }}>{formatPrice(l.price)}</span>
-                )}
-                {l.original_price && l.price && l.original_price !== l.price && (
-                  <div className="text-xs line-through" style={{ color: "var(--dim)" }}>
-                    {formatPrice(l.original_price)}
+                  <div>
+                    <span style={{ color: l.price ? "var(--accent)" : "var(--dim)" }}>{formatPrice(l.price)}</span>
+                    {l.original_price && l.price && l.original_price !== l.price && (
+                      <div className="text-xs line-through font-normal" style={{ color: "var(--dim)" }}>
+                        {formatPrice(l.original_price)}
+                      </div>
+                    )}
                   </div>
                 )}
               </td>
-              <td className="py-3 px-3 text-sm" style={{ color: "var(--dim)" }}>{l.condition || "—"}</td>
-              <td className="py-3 px-3 text-sm" style={{ color: "var(--dim)" }}>{l.contents || "—"}</td>
+              <td className="py-3 px-3 text-sm" style={{ color: "var(--dim)" }}>{l.condition || "\u2014"}</td>
+              <td className="py-3 px-3 text-sm" style={{ color: "var(--dim)" }}>{l.contents || "\u2014"}</td>
               <td className="py-3 px-3 text-sm">{l.seller}</td>
               <td className="py-3 px-3 text-xs" style={{ color: "var(--dim)" }}>
                 {l.group_name.replace("Moda Watch Club - ", "").replace("Moda Clubs - Watches (", "").replace(")", "").replace("Moda Watch Club", "Main")}
@@ -335,7 +495,9 @@ function WatchlistSection({ watchlist }: { watchlist: GetWatchlistResponse }) {
                     style={{ background: "var(--surface-elevated)" }}>
                     <div className="flex-1">
                       <span style={{ color: m.sold ? "var(--sold-red)" : "var(--accent)" }} className="font-medium">
-                        {m.sold ? "SOLD" : formatPrice(m.price)}
+                        {m.sold ? (
+                          <>SOLD{m.price ? <span className="text-xs font-normal ml-1" style={{ color: "var(--dim)" }}>was {formatPrice(m.price)}</span> : null}</>
+                        ) : formatPrice(m.price)}
                       </span>
                       <span className="mx-2" style={{ color: "var(--dim)" }}>·</span>
                       <span style={{ color: "var(--dim)" }}>{m.seller}</span>
@@ -366,7 +528,13 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
   const [soldFilter, setSoldFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("date");
   const [offset, setOffset] = useState(0);
+  const [refDetail, setRefDetail] = useState<GetRefHistoryResponse | null>(null);
+
+  const handleRefClick = useCallback((ref: string, brand: string) => {
+    Space.getRefHistory({ reference: ref, brand }).then(setRefDetail);
+  }, []);
 
   useEffect(() => {
     Space.getAnalytics({}).then(setAnalytics);
@@ -377,7 +545,7 @@ export default function App() {
   const loadListings = useCallback((reset = false) => {
     const newOffset = reset ? 0 : offset;
     Space.getListings({
-      search, brand: brandFilter, sold_filter: soldFilter,
+      search, brand: brandFilter, sold_filter: soldFilter, sort_by: sortBy,
       offset: newOffset, limit: 50,
     }).then((res) => {
       if (reset || newOffset === 0) {
@@ -390,12 +558,12 @@ export default function App() {
       }
       setOffset(newOffset + 50);
     });
-  }, [search, brandFilter, soldFilter, offset, listings]);
+  }, [search, brandFilter, soldFilter, sortBy, offset, listings]);
 
   useEffect(() => {
     setOffset(0);
     loadListings(true);
-  }, [search, brandFilter, soldFilter]);
+  }, [search, brandFilter, soldFilter, sortBy]);
 
   const brands = useMemo(() =>
     analytics?.brands.map((b) => b.brand).sort() || [],
@@ -484,7 +652,7 @@ export default function App() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1 relative">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--dim)" }} />
-                  <input type="text" placeholder="Search brand, model, ref..."
+                  <input type="text" placeholder="Search brand, model, ref, seller..."
                     value={search} onChange={(e) => setSearch(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm outline-none"
                     style={{ background: "var(--surface-elevated)", border: "1px solid var(--border)", color: "var(--text)" }} />
@@ -520,6 +688,7 @@ export default function App() {
                   listings={listings}
                   onLoadMore={() => loadListings(false)}
                   hasMore={listings.has_more}
+                  onRefClick={handleRefClick}
                 />
               )}
             </div>
@@ -543,6 +712,11 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Ref detail modal */}
+      {refDetail && (
+        <RefDetailModal refData={refDetail} onClose={() => setRefDetail(null)} />
+      )}
     </SpaceRoot>
   );
 }

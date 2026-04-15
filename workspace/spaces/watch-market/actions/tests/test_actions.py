@@ -56,5 +56,20 @@ class TestGetWatchlist(unittest.TestCase):
         self.assertEqual(result.targets[0].name, "Rolex Milgauss")
 
 
+class TestGetRefHistory(unittest.TestCase):
+    def test_returns_history(self):
+        from get_ref_history import Request, main
+        result = asyncio.run(main(FakeCtx(), Request(reference="116400GV")))
+        self.assertIsInstance(result.history, list)
+        self.assertIsInstance(result.total_listings, int)
+        self.assertEqual(result.reference, "116400GV")
+
+    def test_empty_ref(self):
+        from get_ref_history import Request, main
+        result = asyncio.run(main(FakeCtx(), Request(reference="NONEXISTENT_REF_XYZ")))
+        self.assertEqual(result.total_listings, 0)
+        self.assertEqual(len(result.history), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

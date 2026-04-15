@@ -75,6 +75,36 @@ export type GetListingsResponse = {
   total: number;
 };
 
+export type GetRefHistoryRequest = {
+  brand?: string;
+  reference?: string;
+};
+
+export type GetRefHistoryResponse = {
+  active_count: number;
+  avg_price: number | null;
+  brand: string;
+  history: Array<{
+  condition: string | null;
+  contents: string | null;
+  date: string;
+  group_name: string;
+  id: string;
+  original_price: number | null;
+  post_url: string;
+  price: number | null;
+  seller: string;
+  sold: boolean;
+}>;
+  max_price: number | null;
+  median_price: number | null;
+  min_price: number | null;
+  model: string;
+  reference: string;
+  sold_count: number;
+  total_listings: number;
+};
+
 export type GetWatchlistRequest = Record<string, unknown>;
 
 export type GetWatchlistResponse = {
@@ -116,6 +146,14 @@ export class Space {
 
   static getListingsStream(request: GetListingsRequest): AsyncIterable<GetListingsResponse> {
     return executeActionStream<GetListingsResponse>("get_listings", request);
+  }
+
+  static getRefHistory(request: GetRefHistoryRequest): Promise<GetRefHistoryResponse> {
+    return executeAction<GetRefHistoryResponse>("get_ref_history", request);
+  }
+
+  static getRefHistoryStream(request: GetRefHistoryRequest): AsyncIterable<GetRefHistoryResponse> {
+    return executeActionStream<GetRefHistoryResponse>("get_ref_history", request);
   }
 
   static getWatchlist(request: GetWatchlistRequest): Promise<GetWatchlistResponse> {
