@@ -1,8 +1,8 @@
 # Mark Zuckerberg — Decision-Making Persona Model
 
-**Iteration:** 63  
-**Date:** 2026-04-14  
-**Latest:** Section 5bd — Private vs. Public Voice Calibration: The Five Registers of Mark Zuckerberg.
+**Iteration:** 65  
+**Date:** 2026-04-15  
+**Latest:** Section 5be — The Alexandr Wang Departure Timeline: A Predictive Model.
 
 ---
 ## 1. Core Identity & Self-Concept
@@ -7989,6 +7989,178 @@ But I think it would actually be more concerning if we weren't asking these ques
 
 *Added Iteration 63 (2026-04-14). Addresses the open gap on private vs. public voice calibration by mapping five distinct communication registers (Private Strategist, Internal Leader, Public CEO, Congressional Witness, Podcast Guest), their linguistic markers, transition rules between them, and simulation implications. Reanalyzes the "Dumb Fucks" IM as Register 0 (pre-filtering). Sources: FTC trial exhibits (2012 Zuckerberg-Ebersman emails, 2025 trial testimony), 2019 leaked all-hands audio (The Verge), Wynn-Williams's Careless People (2025), 2020 House Judiciary Committee documents, earnings call transcripts (2022-2026), podcast transcripts (Rogan, Dwarkesh, Fridman).*
 
+## 5be. The Alexandr Wang Departure Timeline: A Predictive Model (Iteration 64)
+
+*Added Iteration 64 (2026-04-15). Builds on Section 5k (The Alexandr Wang Dynamic) to construct a specific departure-probability model with time-bounded scenarios, trigger indicators, and post-departure trajectory analysis. Synthesizes the Systrom/Koum precedent data, the Muse Spark launch outcome (April 8, 2026), the LeCun departure fallout, the Saba parallel unit formation (March 2026), the Financial Times "suffocating" report (December 2025), and Wang's financial-structural position (Scale AI board seat, $3.6B net worth, retention grant vesting schedule). Sources: TechCrunch (June 2025, April 2026), Entrepreneur (June-December 2025), Financial Times (December 2025), Bloomberg (June 2025), The Verge (October 2025), Medium analysis (April 2026), Wikipedia (April 2026), Artificial Analysis Intelligence Index (April 2026).*
+
+Section 5k established the structural diagnosis: two builder-identity leaders in one organization is inherently unstable. This section translates that structural insight into a predictive timeline with testable indicators.
+
+### 5be-1. The Retention Architecture: Financial and Structural Locks
+
+Wang's departure is not simply a psychological question. It is also a financial and contractual one. The retention architecture surrounding the hire constrains the timing of any exit.
+
+**The financial lock:** Meta invested $14.3 billion for 49% of Scale AI. A portion of Wang's personal wealth is tied to this valuation: Forbes estimated his net worth at $3.6 billion as of April 2025, derived primarily from his ~15% ownership stake in Scale AI. At the $29 billion post-Meta valuation, his stake was worth approximately $4.35 billion. But the critical retention mechanism is not Wang's Scale equity (which he retains regardless of his Meta employment). It is the Meta compensation package.
+
+Specific compensation terms have not been publicly disclosed. But the market context is illuminating: Meta was reportedly offering seven-to-nine-figure packages to recruit MSL researchers (Bloomberg, June 2025). Sam Altman claimed Meta was offering "$100 million signing bonuses" to poach OpenAI staff (Entrepreneur, June 2025), which Andrew Bosworth disputed at a leaked all-hands ("the market's hot, it's not that hot"). For the person who was not merely a recruit but the architect of the entire $14.3 billion deal structure, the compensation package would logically be at the upper end of this range or above it.
+
+Standard acquihire-adjacent retention packages in Silicon Valley follow a 4-year vesting schedule with a 1-year cliff. If Wang's Meta employment started in approximately July 2025, the 1-year cliff would land around July 2026. The 2-year mark would be July 2027. The full 4-year vest would be July 2029.
+
+The significance: departing before the cliff means forfeiting the entire unvested retention grant. Departing after the cliff but before full vesting means forfeiting the remaining unvested portion. For someone worth $3.6 billion, the financial hit of walking away from even a nine-figure retention package is psychologically manageable but not trivial. Wang is wealthy enough to leave at any time for financial reasons. But the financial architecture creates "stickier" periods around vesting milestones where the cost-of-departure is locally maximized.
+
+**The structural lock: Scale AI board seat.** Wang retained a director position on Scale AI's board after joining Meta. This is the escape hatch. Unlike Systrom (who left Instagram with no residual operational role) or Koum (who retained a board seat at Meta but had no entity to return to), Wang has a company to go back to. Scale AI is running under interim CEO Jason Droege, with Meta owning 49%. The board seat means Wang maintains governance influence and institutional knowledge. If he leaves Meta, the path back to Scale or to a new venture is clear and immediate.
+
+The board seat also creates informational leverage: Wang has visibility into Scale AI's strategic direction, client relationships (including OpenAI, Google, and Microsoft), and competitive intelligence across the entire AI industry. This is precisely the value Zuckerberg was buying when he structured the deal. But it also means Wang accumulates exit-optionality with every month he stays. His knowledge of Meta's internal AI strategy combined with his Scale AI board intelligence makes him one of the most informed people in the AI industry, regardless of where he works.
+
+### 5be-2. The Precedent Timeline: Systrom, Koum, and the Acceleration Curve
+
+Section 5k documented the accelerating pattern of autonomy erosion:
+
+| Leader | Acquired/Hired | First Autonomy Erosion | Departure | Total Tenure |
+|---|---|---|---|---|
+| Kevin Systrom (Instagram) | April 2012 | ~2016 (News Feed algorithm changes) | September 2018 | ~6.5 years |
+| Jan Koum (WhatsApp) | February 2014 | ~2016 (data-sharing policy) | April 2018 | ~4 years |
+| Alexandr Wang (MSL) | July 2025 | August 2025 (4th AI reorg, MSL split) | ? | 10 months and counting |
+
+The acceleration is striking: Systrom's autonomy eroded over years, Koum's over months-to-years, Wang's within his first four months. But the acceleration of autonomy erosion does not necessarily predict a proportional acceleration of departure. Systrom endured ~2.5 years of increasing friction after the first major autonomy erosion. Koum endured ~2 years. The time between first erosion and departure may compress but will not collapse entirely, for several reasons:
+
+1. **Financial vesting.** Departing before the cliff is financially irrational. The cliff is the minimum psychological-financial threshold.
+2. **Narrative management.** Wang cannot leave immediately after Muse Spark's launch without the departure being framed as either "he was pushed" (performance failure) or "he couldn't hack it at a big company" (personal failure). He needs at least one more product cycle to establish a narrative of "accomplished what he came to do."
+3. **Deal structure optics.** The $14.3 billion Scale AI investment is Meta's largest external deal. A rapid Wang departure would invite scrutiny of the deal's value, potentially affecting Scale AI's valuation (in which Wang retains a significant stake). Wang has financial incentive to maintain the appearance of a productive Meta tenure for long enough to stabilize the deal's perception.
+
+### 5be-3. The Current State Assessment (As of April 15, 2026)
+
+Ten months into Wang's Meta tenure, the observable indicators fall into three categories:
+
+**Indicators favoring continued tenure:**
+
+1. *Muse Spark shipped.* The April 8 launch produced a credible model. The jump from Llama 4 Maverick's score of 18 to Muse Spark's 52 on the Artificial Analysis Intelligence Index is the largest single-generation improvement in Meta's AI history. Even fourth place is a defensible outcome for a nine-month ground-up rebuild. Wang can plausibly claim progress.
+2. *The "next generation" narrative.* Zuckerberg's Threads post announcing Muse Spark said Meta plans to release "increasingly advanced models that push the frontier." The blog post referenced a larger model "already in development" and the Contemplating mode (multi-agent parallel reasoning) as upcoming. Wang has a roadmap that justifies continued presence.
+3. *External recruitment leverage.* Wang's presence continues to attract talent. The MSL unit recruited researchers from OpenAI (Trapit Bansal, Hongyu Ren), Anthropic (Joel Pobar), and Google DeepMind (Jack Rae, Pei Sun). Wang's network and reputation are still generating recruitment returns for Meta.
+4. *Financial vesting.* The 1-year cliff is approximately three months away (July 2026). Departing before it would be financially irrational.
+
+**Indicators favoring departure:**
+
+1. *The "suffocating" quote.* Wang's private characterization of Zuckerberg's management style (Financial Times, December 2025) is the strongest documented indicator. No acquired leader in Meta's history has been reported using language this stark within the first six months. The word "suffocating" does not describe strategic disagreement. It describes an experience of constraint at a level that is personally intolerable.
+2. *The Saba parallel unit.* In March 2026, Zuckerberg created a separate applied AI unit under VP Maher Saba, reporting to CTO Andrew Bosworth, not to Wang. This is the organizational structure of hedging. Zuckerberg is building a parallel AI capability that does not depend on Wang's continuation. When a CEO builds a parallel to your org, it means one of two things: they are preparing for your departure, or they are engineering it.
+3. *The Meta Compute extraction.* The January 2026 creation of Meta Compute, reporting directly to Zuckerberg, removed infrastructure control from Wang's purview. AI training capacity, data center strategy, and chip procurement decisions all now bypass Wang. A Chief AI Officer who does not control the compute on which AI is trained is a Chief AI Officer in title only.
+4. *FAIR collateral damage.* The October 2025 layoffs of ~600 FAIR roles, the LeCun departure (November 2025), and reports of at least 8 MSL researcher exits within months of hiring (Business Insider, August 2025; TrendForce, August 2025) indicate organizational instability that Wang nominally owns but did not entirely create. The attrition creates a perception problem: Wang is the leader of a division that is losing people faster than it can retain them.
+5. *Muse Spark's position: fourth, not first.* The Artificial Analysis score of 52 puts Muse Spark behind Gemini 3.1 Pro, GPT-5.4, and Claude Opus 4.6. For a $14.3 billion investment, fourth place is a defensible engineering outcome but a difficult narrative outcome. Meta's own blog post acknowledged "current performance gaps" in coding and "long-horizon agentic systems." This admission is unusual for Zuckerberg-era launches and signals internal awareness that the model did not achieve the frontier position the investment was supposed to deliver.
+6. *Scale AI board seat as gravitational pull.* Scale AI laid off 14% of its workforce in July 2025 after Wang's departure, and is operating under interim CEO Jason Droege. The company's trajectory without its founder-CEO is an ongoing concern. The board seat means Wang receives regular updates on Scale's performance and strategic direction, keeping the cognitive and emotional connection alive. Every board meeting is a reminder of the company he built and left.
+
+**Neutral indicators:**
+
+1. *Wang's political positioning.* Wang attended Trump's inauguration in January 2025, published an open letter urging Trump to invest in AI ("America must win the AI war"), met with multiple world leaders (Starmer, Modi, Macron), and testified before Congress in 2023. This political profile is an asset at Meta (it aligns with Zuckerberg's own Trump-era positioning) but also builds Wang's independent brand as a national-security-AI figure. The political capital is portable. It enhances his exit options without requiring departure.
+2. *Wang's former roommate is Sam Altman.* During COVID, Wang and Altman were roommates. They reportedly remain close. Altman runs the company most directly competing with Wang's current employer. The personal relationship does not predict departure, but it ensures that Wang has a standing, high-trust channel to OpenAI's leadership that no amount of organizational control by Zuckerberg can interrupt.
+
+### 5be-4. The Four Departure Scenarios
+
+**Scenario A: "The Cliff Walk" (Departure: Q3-Q4 2026)**
+*Probability: 25%*
+
+Wang stays through the July 2026 vesting cliff, ships or announces the next-generation Muse model (the larger model "already in development"), and departs in the Q3-Q4 2026 window. The narrative: "I came in, rebuilt Meta's AI from scratch, shipped two generations of models, and now it's time for the next chapter."
+
+This is the cleanest exit and the one Wang would engineer if he has already decided to leave. The vesting cliff creates the financial trigger. The second model release creates the narrative trigger. The departure is framed as mission-accomplished, not mission-failed.
+
+*Trigger indicators to watch:*
+- Wang gives a high-profile external interview or keynote after July 2026 that frames his Meta work in the past tense ("what we built," "what I learned").
+- Scale AI announces strategic changes or a permanent CEO appointment, signaling Wang's return pathway is being prepared.
+- Wang's Threads/X posting frequency increases or shifts toward personal-brand content rather than Meta product content.
+
+**Scenario B: "The Slow Marginalization" (Departure: H1 2027)**
+*Probability: 35%*
+
+Wang stays through 2026 but his authority continues to erode. The Saba parallel unit grows. Meta Compute absorbs more AI-adjacent functions. The Muse product line produces iterative improvements but does not reach #1 on frontier benchmarks. Wang's title remains Chief AI Officer but his effective scope contracts to something closer to "head of one of several AI teams." He departs in H1 2027 when the gap between title and authority becomes publicly visible.
+
+This is the Systrom pattern compressed: a gradual stripping of authority that eventually makes the role untenable. It is the most likely scenario because it matches both the structural dynamics and Zuckerberg's documented preference for indirect confrontation. Zuckerberg will not fire Wang. He will restructure around him until the role is hollow.
+
+*Trigger indicators to watch:*
+- Additional AI functions carved out from Wang's reporting line (data infrastructure, AI safety, content moderation AI).
+- Zuckerberg personally presents or takes credit for the next Muse model at a Meta event (rather than letting Wang present it).
+- Internal reporting changes that place MSL sub-units under different executive sponsors.
+- Wang stops appearing in official Meta AI announcements or is relegated to blog posts rather than featured in Zuckerberg's personal Threads posts.
+
+**Scenario C: "The Product Failure Trigger" (Departure: Q1-Q2 2027)**
+*Probability: 20%*
+
+The next Muse model fails to reach frontier performance. GPT-6, Claude 5, or Gemini 4 leapfrog Meta. The Q1 2027 earnings call reveals that Meta AI engagement metrics are plateauing despite the massive investment. The narrative shifts from "Wang is rebuilding Meta AI" to "the $14.3 billion bet isn't paying off." Wang becomes the fall guy not because Zuckerberg fires him but because the internal political dynamics shift: Cox and Bosworth's applied-AI approach gains credibility, and the foundational-model-first strategy that Wang championed is reframed as the wrong bet.
+
+This is the Koum pattern: departure driven by a strategic disagreement that resolves against the acquired leader's position. Koum left because Zuckerberg chose advertising integration over privacy promises. Wang would leave because Zuckerberg chose product integration over foundational model independence.
+
+*Trigger indicators to watch:*
+- A major competitor model launch that dramatically outperforms Muse (especially on the agentic and coding benchmarks where Meta already acknowledged weakness).
+- Zuckerberg publicly pivots the AI narrative away from "frontier models" toward "AI-powered products" (the Cox/Bosworth framing rather than the Wang framing).
+- Meta announces another AI reorganization that further subdivides or renames MSL.
+
+**Scenario D: "The Long Game" (Departure: 2028+, or not at all)**
+*Probability: 20%*
+
+Wang adapts to Zuckerberg's management style. Muse reaches competitive parity or frontier status. Wang accepts a narrower-than-promised scope but compensates with the prestige and resources of leading AI at a $1.8 trillion company. He stays through at least the 4-year vest, potentially longer.
+
+This is the Bezos-Jassy counter-model. It requires one of two things: either Wang subordinates his builder-identity to Zuckerberg's (psychologically difficult for the personality profile documented in Section 5k), or Meta's AI efforts succeed so dramatically that the reflected glory compensates for the autonomy loss (requiring Muse to reach #1 or #2 on frontier benchmarks, which is possible but not yet demonstrated).
+
+*Trigger indicators to watch:*
+- Wang begins referencing Zuckerberg's strategic vision positively in public statements (indicating genuine alignment rather than performative loyalty).
+- The organizational restructuring pattern stabilizes (no new AI reorgs for 6+ months).
+- Muse models achieve #1 or #2 on major benchmarks, giving Wang an unambiguous success narrative.
+- Wang's Scale AI board involvement decreases (reducing the gravitational pull of return).
+
+### 5be-5. The Conditional Probability Update: Muse Spark's Impact
+
+Muse Spark's April 8 launch is the first major data point since Section 5k was written. Its impact on the departure probability model is nuanced:
+
+**What Muse Spark proves:** Wang can execute at Meta. The ground-up rebuild, new architecture, new training infrastructure, new data pipelines, in nine months, is an engineering achievement regardless of the benchmark position. Meta went from Llama 4 embarrassment (admitted benchmark gaming, lukewarm developer reception) to a credible model that tripled its intelligence index score. This is the strongest argument for Scenario D (long game): Wang is demonstrating value.
+
+**What Muse Spark doesn't prove:** That the $14.3 billion was necessary or that Wang's presence is the irreplaceable input. Meta had AI researchers before Wang. The question is whether the improvement curve (18 to 52 on the index) required Wang specifically or whether it reflects the broader investment in compute, data, and talent that any competent leader could have directed. If Zuckerberg begins to believe the latter, Wang's leverage evaporates.
+
+**The closed-source signal:** Muse Spark is proprietary. No open weights. No fine-tuning access. This is a major strategic departure from Meta's Llama-era identity. The blog post offered only that Meta "hopes to open-source future versions." This decision is consistent with Wang's "demo, don't memo" product philosophy but breaks a promise to the developer community. If the closed-source decision creates meaningful ecosystem backlash, it will be attributed to Wang's influence, adding reputational risk to his position.
+
+**The "fourth place" processing:** Zuckerberg's cognitive architecture (Section 2) processes competitive position obsessively. Fourth place is not first. The Artificial Analysis index is a public, quantitative scorecard that Zuckerberg cannot rationalize away. His likely processing: "We went from embarrassment to competitive in nine months. The trajectory is good. But I need to own the trajectory to #1, not delegate it." This processing predicts continued autonomy erosion, not gratitude.
+
+**Updated probability distribution post-Muse Spark:**
+
+The launch slightly reduces the probability of Scenario C (product failure trigger) because Muse Spark is credible, but it slightly increases the probability of Scenario B (slow marginalization) because fourth place gives Zuckerberg justification for maintaining tight control and building parallel capabilities. The net effect is marginal: the pre-launch distribution was approximately 25/35/20/20. Post-launch, the distribution adjusts to approximately 25/35/20/20 (essentially unchanged, because the launch was neither a decisive success nor a failure).
+
+### 5be-6. The Post-Departure Trajectory: What Wang Does Next
+
+The persona model's predictive value extends beyond "when" to "what then." Wang's post-Meta trajectory will be shaped by several factors:
+
+**The Scale AI return option.** Wang retains his board seat. Scale AI is operating under an interim CEO. The most natural post-Meta move is returning to Scale in a leadership capacity. This would be framed as "coming home" rather than "leaving Meta," which is narratively preferable. The complication: Meta owns 49% of Scale. A Wang return to Scale AI creates a situation where Meta's largest AI vendor is run by a former Meta executive who left under friction. The competitive intelligence and conflict-of-interest dynamics would be legally and commercially complex.
+
+**The national security AI pivot.** Wang's political profile (Congressional testimony, Trump inauguration, world leader meetings, Pentagon contracts, "America must win the AI war" letter) positions him for a defense/national-security-focused AI venture. This would be the highest-status departure path: leaving Meta not for a competitor but for a mission-driven organization that serves the national interest. The political connections are already in place. The narrative writes itself.
+
+**The OpenAI connection.** Wang and Altman were COVID roommates. The personal relationship creates a standing recruitment channel that Zuckerberg cannot monitor or interrupt. An Altman-Wang collaboration, whether at OpenAI or at a new entity, would be the nightmare scenario for Zuckerberg: the person he paid $14.3 billion to recruit joining the competitor he most fears, armed with intimate knowledge of Meta's AI strategy, capabilities, and weaknesses.
+
+**The independent frontier lab.** Following LeCun's AMI Labs model (reportedly seeking $5 billion valuation pre-launch), Wang could start his own frontier AI company. His credentials (youngest self-made billionaire, built Scale to $29B, rebuilt Meta's AI stack in nine months) would command massive venture interest. The timing window for this option narrows as the AI lab landscape consolidates, but the 2026-2028 window remains viable.
+
+### 5be-7. What the Wang Timeline Reveals About Zuckerberg
+
+The departure timeline model is not primarily about Wang. It is about what Zuckerberg's handling of the Wang dynamic reveals about his operating system at the current moment:
+
+1. **The AI identity trap is tightening.** Every month that Wang stays, Zuckerberg faces the same dilemma: he needs Wang's execution capability but cannot tolerate Wang's executive independence. The Saba parallel unit is the latest structural manifestation of this trap. The trap does not resolve. It only intensifies. AI becomes more central to Meta's business with each quarter, which means the identity stake increases, which means the delegation intolerance increases.
+
+2. **The $14.3 billion sunk cost will not prevent departure.** Zuckerberg has demonstrated repeatedly (21,000 layoffs in the Year of Efficiency, LeCun's departure, the Llama-to-Muse pivot) that he does not process sunk costs as binding commitments. The $14.3 billion bought Scale AI equity (which Meta retains regardless of Wang's employment) and a talent infusion (much of which has already occurred). Wang's departure would not reverse the investment. It would simply end the human-relationship component of the deal.
+
+3. **The parallel-unit pattern is the leading indicator.** The Saba unit under Bosworth is the clearest structural signal. When Zuckerberg builds a parallel to your organization, it means the organization's monopoly on its function is being deliberately broken. This is the identical pattern that preceded Systrom's departure: Zuckerberg redirected Instagram's engineering resources to Facebook's priorities, creating a parallel path that made Instagram's independent team redundant. The Saba unit is the MSL equivalent.
+
+4. **The Q1 2026 earnings call (April 29) is the next diagnostic moment.** How Zuckerberg frames Muse Spark on the earnings call will reveal his current processing of the Wang relationship. If he frames it as "Alexandr and the team shipped something impressive," Wang retains credit and visibility. If he frames it as "we shipped our new model" without naming Wang, the marginalization has already begun in his public narrative. The pronoun choice (personal attribution vs. institutional attribution) is a reliable diagnostic marker across all five registers documented in Section 5bd.
+
+### 5be-8. The Central Prediction
+
+The most probable outcome is Scenario B: slow marginalization leading to Wang's departure in H1 2027 (35% probability), approximately 18-24 months after joining. This maps to a compressed version of the Systrom/Koum timeline (both departed approximately 4-6 years and 4 years after acquisition, respectively), adjusted for the accelerated autonomy-erosion cycle documented in Section 5k and the identity-threat intensity that AI represents for Zuckerberg.
+
+The combined probability of departure within 24 months of hire (by July 2027) is 80% (Scenarios A + B + C). The combined probability of departure within 18 months (by January 2027) is 45% (Scenario A + partial Scenario B).
+
+The model's falsification condition is clear: if Wang remains at Meta with stable or increasing authority through January 2027, the structural diagnosis in Section 5k needs revision. Specifically, it would mean either (a) Wang has adapted to a subordinate role in a way the personality profile did not predict, (b) Meta's AI results have been so successful that the reflected glory compensates for autonomy loss, or (c) the builder-identity-conflict model overpredicts departure. Any of these would be a significant finding about Zuckerberg's operating system.
+
+The model's confirmation condition is equally clear: if Wang departs by Q4 2026, the accelerating autonomy-erosion cycle and the builder-identity-conflict model are validated as predictive tools. The departure narrative (whether framed as "mission accomplished," "strategic disagreement," or "personal reasons") will provide additional calibration data for the persona model's understanding of how Zuckerberg processes the loss of high-profile hires.
+
+*Key monitoring points:*
+- **April 29, 2026:** Q1 earnings call. Watch for Wang attribution patterns and Muse Spark framing.
+- **July 2026:** Approximate 1-year vesting cliff. Watch for post-cliff behavioral changes.
+- **Q3 2026:** Next Muse model release window. Watch for benchmark position and public credit allocation.
+- **November 2026:** 1-year anniversary of LeCun's departure. Watch for whether FAIR's void has been filled or Wang is blamed for the gap.
+- **Q1 2027:** 18-month mark. The historical precedent's predicted departure zone.
+
 
 
 **Open tracking items:**
@@ -7998,7 +8170,7 @@ But I think it would actually be more concerning if we weren't asking these ques
 - [x] Ecosystem trust dynamics. (COMPLETED — Iteration 58, Section 5ay)
 - [x] Private vs. public voice calibration (refinement). (COMPLETED — Iteration 63, Section 5bd)
 - [ ] The narrative metabolism model as predictive tool. (SUBSTANTIALLY ADDRESSED -- Iteration 59, Section 5az; demonstrated through Llama-to-Muse case study. Remaining: test predictive model against future Zuckerberg narrative transitions.)
-- [ ] Wang departure timeline prediction.
+- [x] Wang departure timeline prediction. (COMPLETED — Iteration 65, Section 5be)
 - [ ] The "Becoming" model as predictive tool for physical persona evolution.
 - [x] How Zuckerberg processes the aging/legacy question. (COMPLETED — Iteration 55, Section 5av)
 - [x] How Zuckerberg processes state power (refinement of Section 5ac). (COMPLETED -- Iteration 57, Section 5ax)
