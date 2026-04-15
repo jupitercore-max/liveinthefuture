@@ -58,6 +58,12 @@ Seeds must pass the same kill test as regular articles: Is there a novel contrib
 **Kill test risk:** Medium — some analysis requires assumptions about wear-time data.
 **Status:** NEW. Strong LITF candidate. Timing is perfect (launch day).
 
+## Seed 10 (NEW): The Rolex Mass Retirement: What a Catalog Purge Tells You About What's Coming (ED)
+**Pitch:** Rolex just did something unprecedented at W&W 2026: simultaneously discontinued the GMT-Master Pepsi (all variants), Submariner Cookie Monster, and Yacht-Master Oysterflex paved dials. The usual Rolex playbook is 1-2 quiet retirements/year. A mass discontinuation signals a catalog-level refresh — likely the Calibre 7135 Dynapulse movement (from the 2025 Land-Dweller) rolling across the lineup. Analyze what this means for collectors: which current references are "next" to be retired, and what the replacement trajectory looks like.
+**Novel contribution:** Pattern analysis of Rolex discontinuation strategy using W&W 2026 as the inflection point. Nobody has mapped the Dynapulse-as-catalyst theory.
+**Kill test risk:** Low — discontinuation data is confirmed. Movement speculation is clearly labeled as analysis.
+**Status:** NEW. Strong ED candidate. Timing is perfect (W&W week).
+
 ---
 
-*Updated: 2026-04-14, Iteration 9 — Added Seed 8 (Corvette ZR1X for ED) and Seed 9 (Prescription Pivot for LITF). Seed 6 at PEAK TIMING for W&W week. Seed 1 strengthened by SAP case study. 9 seeds total, 3 at peak timing.*
+*Updated: 2026-04-15, Iteration 10 — Added Seed 10 (Rolex Mass Retirement for ED). Seed 6 STILL at peak timing (W&W week). Seed 1 at execute threshold (schema markup ready). 10 seeds total.*

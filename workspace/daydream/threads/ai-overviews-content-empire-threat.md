@@ -1,38 +1,37 @@
-# AI Overviews: Schema Markup Implementation — EXECUTE
+# AI Overviews: Schema Markup Implementation — READY TO EXECUTE
 
 **Created:** 2026-04-05 (Iteration 1)
-**Updated:** 2026-04-14 (Iteration 9)
-**Status:** ACTIVE — "Do it" threshold reached. Implementation starting.
-**Action:** Implement schema.org JSON-LD across all 8 site templates.
+**Updated:** 2026-04-15 (Iteration 10)
+**Status:** ACTIVE — **5 iterations recommending. Execute or report threshold exceeded.**
+**Action:** Implement schema.org JSON-LD across all site templates. Present to Ray as one-decision package.
 
-## What's New (Iteration 9): CMI Validation
+## The Case (Final Summary)
 
-Content Marketing Institute published a definitive piece (April 8, 2026) on structured data for AI engines that validates everything in this thread:
+### Data (April 2026)
+- AI Overviews appear on **48% of all Google queries** (up from 31% in Feb 2025)
+- **2 billion monthly users** inside Google Search
+- Organic CTR drops **34.5-61%** when AI Overviews appear
+- BUT: cited brands earn **35% more clicks**, visitors convert **4.4x higher** (14.2% vs 2.8%)
+- Content under 3 months old is **3x more likely to be cited**
+- Only **274,455 domains** have appeared in AI Overviews out of 18.4M indexed
+- **AI Mode** (separate Google surface): 75M daily users, **only 13.7% citation overlap** with AI Overviews
 
-### SAP Case Study (Real Data)
-- **168% traffic growth from LLMs** between 2024-2025
-- LLM-referred visitors are **more engaged** and **2x more likely to convert**
-- "Citations are swiftly becoming the first page of search" — Caerley McShane, Global SEO Lead, SAP
+### Validation
+- **SAP**: 168% traffic growth from LLMs, 2x conversion rate
+- **Aiso experiment**: Structured pages score 30% higher in AI responses (controlled test)
+- **Google + Microsoft both explicitly say** structured data improves AI search visibility
+- **WPRiders**: Schema markup increases citation accuracy 30-36%
 
-### Aiso Experiment (Controlled Test)
-- Identical content on structured vs unstructured pages
-- ChatGPT responses from structured pages scored **30% higher** for accuracy, completeness, and presentation quality
-- Google AND Microsoft both explicitly say structured data improves visibility in AI search
+### Ray's Position
+- **8 sites, 600+ articles** — ALL without structured data currently
+- **Daily publishing cadence** — content freshness advantage (3x multiplier)
+- **Niche verticals** — vehicle safety, AI homebuilding, watches/cars have low AI Overview competition
+- **The combination** of freshness + niche + schema = disproportionate AI visibility gains
 
-### Key Framework: Entities, Not Keywords
-- Schema markup converts text into **named entities** (person, product, organization, topic)
-- AI engines use entity relationships to determine trust and relevance
-- Without markup, machines see "strings of text" — with it, they see connected knowledge
+## Implementation Package (ready to execute)
 
-## "Do It" Status (Iteration 4 of recommending)
-
-This thread has recommended schema markup for 4 iterations. Per instructions:
-- **Threshold: 3 iterations → do it or drop it**
-- **Decision: DO IT.**
-
-### Implementation Plan (ready to execute)
-
-**Phase 1: Article Template** (highest impact, one-time change per site)
+### Phase 1: Article Template (1 hour per site)
+Add JSON-LD to article template on each site:
 ```json
 {
   "@context": "https://schema.org",
@@ -47,29 +46,25 @@ This thread has recommended schema markup for 4 iterations. Per instructions:
 }
 ```
 
-**Phase 2: Site-Specific Types**
-- LITF: Add `Dataset` for data tools (space watches, school analysis), `SoftwareApplication` for games
-- VS: Add `Dataset` for FARS/IIHS data tables
-- AIHome: Add `HowTo` for actionable guides
-- ED: Add `Review` for watch/car reviews
+### Phase 2: Site-Specific Types (30 min per site)
+- LITF: `Dataset` (space watches, school analysis), `SoftwareApplication` (games)
+- VS: `Dataset` (FARS/IIHS data tables)
+- AIHome: `HowTo` (actionable guides)
+- ED: `Review` (watch/car reviews)
 
-**Phase 3: Measurement**
-- Cloudflare analytics: track AI Overview referral traffic before/after
-- Google Search Console: track "AI Mode" impressions if available
-- Compare citation rate: are our articles appearing in AI Overviews?
+### Phase 3: Measurement
+- Cloudflare analytics: AI Overview referral traffic before/after
+- Google Search Console: AI Mode impressions
+- Compare citation rate over 30 days
 
-### Next Step
-**Propose to Ray as a ready-to-execute task.** The implementation is mechanical — modify article template, add JSON-LD block, deploy. One-time change improves all 600+ articles retroactively.
+## Propose-or-Do-It Gate: EXCEEDED
 
-If Ray says "do it": implementation takes ~2 hours across all sites.
+This is iteration 5 of recommending schema markup. Per instructions v8:
+> "If an action has been recommended for 3+ iterations, either execute it (if possible without Ray), prepare a ready-to-execute package (reduce friction to one decision), or drop the recommendation."
 
-## Data Summary (unchanged)
-- AI Overviews: 48% of ALL queries, 75M daily AI Mode users
-- Content < 3 months old: 3x more likely cited
-- AI citations: 14.2% conversion (5x organic)
-- Schema markup: 30-36% citation accuracy/boost
-- YouTube citations surged 414%
-- SAP: 168% LLM traffic growth, 2x conversion rate
+**Decision: Present to Ray as a ready-to-execute task.** Kit can implement the Phase 1 template changes across all 8 sites in ~2 hours. This is mechanical work — no editorial judgment needed.
+
+**Report to main: YES** — include in next report as "I can do this today, say 'do it'."
 
 ---
-*Updated: 2026-04-14, Iteration 9 — CMI/SAP/Aiso validation: structured pages score 30% higher in AI responses, SAP saw 168% LLM traffic growth. "Do it" threshold exceeded (4 iterations). Implementation plan ready. Propose to Ray as one-decision package.*
+*Updated: 2026-04-15, Iteration 10 — 48% query coverage confirmed, 5x conversion premium, 3x freshness advantage. 5 iterations recommending. Implementation package ready. Reporting to main as ready-to-execute.*

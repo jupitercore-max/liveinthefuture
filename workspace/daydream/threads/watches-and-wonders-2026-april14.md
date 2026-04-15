@@ -1,61 +1,78 @@
-# Watches & Wonders 2026: Day 1 — Embargo Lifting, Transitioning to Analysis
+# Watches & Wonders 2026: Day 2 — Mass Discontinuation Confirmed, Milgauss Window Open
 
 **Created:** 2026-04-05 (Iteration 1)
-**Updated:** 2026-04-14 (Iteration 9)
-**Status:** TRANSITIONING — Embargo dropping throughout today. Analysis mode initiated.
-**Urgency:** HIGH (active event, data flowing in)
+**Updated:** 2026-04-15 (Iteration 10)
+**Status:** ACTIVE — Day 2 of 5. Major Rolex news confirmed. Patek still pending.
+**Urgency:** HIGH (active event, actionable intelligence on Milgauss)
 
-## Day 1 Status (April 14, 12:00 UTC / 5:00 AM PT)
+## CONFIRMED: Rolex Mass Discontinuation (Bob's Watches, April 14-15)
 
-W&W 2026 press day has begun in Geneva (2:00 PM local). Embargoes are lifting throughout the day. We are EARLY — most reveals will come over the next 6-12 hours.
+Rolex officially discontinued multiple high-profile references at W&W 2026. This is **historically unprecedented** — Rolex typically retires 1-2 references quietly. This is a catalog purge.
 
-### What We Know So Far
+### GMT-Master II "Pepsi" — ALL VARIANTS RETIRED
+- **Ref. 126710BLRO** (steel, Jubilee bracelet, black dial) — DISCONTINUED
+- **Ref. 126710BLRO** (steel, Oyster bracelet, black dial) — DISCONTINUED
+- **Ref. 126719BLRO** (white gold, Oyster bracelet, blue dial) — DISCONTINUED
+- **Ref. 126719BLRO** (white gold, Oyster bracelet, meteorite dial) — DISCONTINUED
+- **Significance:** The Pepsi bezel IS the GMT-Master's visual identity (since 1955 ref. 6542). Retiring ALL variants simultaneously is seismic. The modern steel Pepsi (2018 Baselworld) had one of the shortest production windows of any in-demand Rolex sports watch.
+- Bob Altieri: "We expect pre-owned demand to increase significantly and quickly."
 
-**Rolex:**
-- "Oyster Story" teaser CONFIRMED — two-tone Oyster Perpetual celebrating 100 years of the Oyster case (1926-2026)
+### Submariner "Cookie Monster" (Ref. 126619LB) — RETIRED
+- Blue dial, blue bezel, white gold — officially leaving the catalog.
+
+### Yacht-Master Oysterflex Paved Dial — RETIRED
+- Both Everose gold refs (268655 and 126655) in paved dial configuration discontinued
+- **Note for Ray:** The broader Yacht-Master lineup remains active, including the YM II ref 116689 on Ray's watchlist. The paved dial retirements are a trim, not a line exit.
+
+### Rolex "Oyster Story" — CONFIRMED
+- Two-tone Oyster Perpetual celebrating 100 years of the Oyster case (1926-2026)
 - First two-tone OP in Rolex history — guilloché dial, Roman numerals, blued Breguet hands
-- GMT-Master II Pepsi (126710BLRO) discontinuation signals INTENSIFYING: fewer than 30% of ADs in North America received a single allocation in Q1 2026 (The Luxury Playbook). WatchUSeek and r/Rolex forums report production shifts at Bienne. BUT: Rolex has made zero official statements. Absence from W&W 2025 updates noted as a yellow flag.
-- Milgauss 116400GV: $13,372 (Bob's Watches, excellent) — down from $14,400 two iterations ago. ~7% decline.
 
-**Patek Philippe:**
-- **NO titanium leaks.** Leak window closed. But Patek is the most leak-proof brand — surprises still possible today.
-- Rare Handcrafts 2026: 65 métiers d'art pieces confirmed (artisan showcase, not new references)
-- Nautilus 50th: Expected new dial/complication variant. Concrete details should drop TODAY.
-- Price adjustments: Reports of Patek "slashing prices" in 2026 — need to verify details
+## THE MILGAUSS BUYING WINDOW
 
-**Hublot:**
-- Big Bang Unico SR_A: New Samuel Ross collaboration unveiled (fourth collab with Ross). This is a Big Bang, NOT a Square Bang. No updates on Ray's watched Square Bang Unico Magic Gold or Titanium Rainbow refs.
+This is the actionable insight: **the Milgauss 116400GV is in a price dip while the entire watch world is distracted by Pepsi/Cookie Monster discontinuation news.**
 
-**No data yet on:**
-- Tudor 100th anniversary pieces
-- Audemars Piguet 150th pocket watch
-- Any surprise titanium announcements from ANY brand
+### Price Data
+- Current range: **$11,000-$13,000** (Luxury Playbook, April 2026)
+- Bob's Watches (excellent condition): ~$13,372 (down from $14,400+ two iterations ago)
+- Premium over last retail ($9,300): +20-40%
+- 5-year total return: ~+50-70%
+- Already discontinued (2023) — 3 years of post-discontinuation normalization
 
-## Milgauss Buying Window Assessment
+### Why the Window Exists
+1. **Attention shift:** All collector attention this week is on Pepsi ($20K+ expected floor) and Cookie Monster
+2. **The Milgauss is "old news":** Discontinued in 2023, no dramatic W&W moment
+3. **Soft market:** Luxury watch market still correcting from 2022 peak
+4. **Counter-risk:** The "all discontinued Rolex" narrative could eventually lift Milgauss too — the window may close as the halo effect spreads
 
-The GMT-Master Pepsi situation creates an interesting dynamic:
-- If Rolex DOES confirm Pepsi discontinuation today → secondary market Pepsi prices spike, attention shifts away from Milgauss → Milgauss stays depressed → buying window widens
-- If Rolex does NOT address it → rumor continues → general Rolex secondary market uncertainty → Milgauss stays flat
-- Either way, the Swiss tariff deal (39% → 15%) is structurally depressing secondary market prices by making new watches more accessible
-- **Net assessment:** $13,372 is a good price. It's been falling steadily. Post-W&W clarity on the Rolex lineup should signal whether this bottoms out.
+### Blue Dial Alignment
+- The 116400GV Z-Blue with green sapphire crystal = blue dial ✓ (matches Ray's "blue dial only factory" preference)
+- The green crystal + lightning bolt seconds hand = most visually distinctive Rolex in the lineup
 
-## Thread Transition Plan (executing)
+## Patek Philippe Status: DAY 2
 
-- ☑ Convert from countdown to analysis mode
-- ☐ Track specific reveals as embargoes lift throughout April 14-15
-- ☐ Assess Nautilus 50th details (pricing, complications, materials)
-- ☐ Assess GMT-Master Pepsi status (confirmed discontinued or not)
-- ☐ Check for ANY Patek titanium
-- ☐ Update Hublot Square Bang status
-- ☐ Price movement tracking post-W&W
-- **Close thread:** April 18 (after final W&W press/industry days)
+- **Nautilus 50th:** Still waiting for official reveal. Speculation strong for a new steel non-complicated reference. No official confirmation yet.
+- **Titanium:** ZERO leaks, ZERO announcements so far. But W&W runs through April 18 — Patek could still surprise.
+- **Cubitus (2024):** Referenced as potential "replacement" for Nautilus positioning. If Nautilus returns, the Cubitus becomes the first Patek sports watch to be quasi-deprecated within 2 years.
 
-## Alert Protocols Still Active
+## Hublot Status
 
-- **Patek titanium:** Alert Ray on ALL channels if announced
-- **Nautilus 50th:** Summarize details once embargo lifts
-- **GMT-Master Pepsi:** If officially discontinued, alert + market impact analysis
-- **Matt Jacobson:** Watch alerts go to Muses and Humans group
+- Big Bang Unico SR_A (Samuel Ross collab) — Big Bang, NOT Square Bang
+- No updates on Ray's watched refs: Square Bang Unico Magic Gold (821.MX.0130.RX) or Titanium Rainbow (821.NX.0117.LR.0999)
+
+## Thread Checklist (W&W through April 18)
+
+- ☑ GMT-Master Pepsi discontinuation confirmed
+- ☑ Submariner Cookie Monster confirmed
+- ☑ Yacht-Master Oysterflex paved dials confirmed
+- ☑ Oyster Story OP confirmed
+- ☑ Milgauss price analysis updated
+- ☐ Nautilus 50th official details (waiting)
+- ☐ ANY Patek titanium (waiting — HIGH ALERT remains)
+- ☐ Hublot Square Bang updates (unlikely but monitoring)
+- ☐ Post-W&W secondary market price movements (after April 18)
+
+## Thread Closes: April 19 (post-event summary)
 
 ---
-*Updated: 2026-04-14, Iteration 9 — W&W Day 1 underway. Embargo lifting throughout today. GMT-Master Pepsi discontinuation signals intensifying (< 30% AD allocation in Q1 2026). Milgauss at $13,372. Hublot SR_A Big Bang collab (not Square Bang). Patek titanium: zero leaks, answer comes today. Thread transitions to analysis mode. Facebook monitoring down — missing real-time W&W listings.*
+*Updated: 2026-04-15, Iteration 10 — Rolex mass discontinuation confirmed: Pepsi (all variants), Cookie Monster, YM Oysterflex paved dials. Unprecedented catalog purge. Milgauss 116400GV at $11-13K while market attention elsewhere — buying window exists. Patek Nautilus 50th and titanium still pending. Thread continues through April 18.*

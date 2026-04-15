@@ -1,44 +1,40 @@
 # Rivian 2026.07 Software Update + Shadow Braking: Dual Safety Vectors
 
 **Created:** 2026-04-13 (Iteration 8)
-**Updated:** 2026-04-14 (Iteration 9)
-**Status:** ACTIVE — Needs Ray's verification on both R1S vehicles
-**Urgency:** CRITICAL (safety + convenience for Ray's family)
+**Updated:** 2026-04-15 (Iteration 10)
+**Status:** ACTIVE — Stock impact confirmed. Still no fix.
+**Urgency:** HIGH (safety + financial for Ray's family)
 
-## OTA Update Status (Iteration 9)
+## OTA Update Status (Iteration 10)
 
-No new resolution data found from Rivian. The 2026.07 rollout remains HALTED. Key facts unchanged:
-1. **Phone app access disabled** on affected vehicles
-2. **Key fobs bricked** on some Gen 1 units
-3. **Backup key cards = only access method** for affected vehicles
-4. **Data wiped** — radio presets, contacts, elevation data
+The 2026.07 rollout remains **HALTED**. Key developments:
 
-Search results also surface a "digital key update" article from April 12, suggesting Rivian may have been updating their digital key infrastructure when things went wrong — the key bricking wasn't a side effect but may be related to the core key management system update.
+1. **Rivian stock dipped on the news** — StockTwits/financial coverage confirms market reaction
+2. **Still no fix announced** — Rivian has not published a resolution timeline
+3. **Apple Wallet car keys** — iOS 26 update adds Apple Wallet car key support for Rivian (among other brands). This may eventually provide an alternative key method, but it's a separate infrastructure from the bricked 2026.07 keys.
+4. **Digital key infrastructure** was the likely root cause — not a side effect but a core key management system update gone wrong
 
-## Shadow Braking: CONFIRMED as Ongoing Issue
+## Shadow Braking (unchanged)
 
-Independent reporting confirms the Rivian R1S shadow braking phenomenon:
-- **2026 R1S ADAS** misinterprets shadows (overpasses, bridges, tree shadows) as solid objects
-- Triggers **hard emergency braking** at highway speeds
-- The source describes it as a fundamental **computer vision limitation** — not easily fixed via OTA
-- No formal NHTSA recall yet, but increasingly documented in owner forums
-- **Family safety angle is acute:** Hard braking at 65+ mph with kids in the car
+- ADAS misinterprets shadows (overpasses, bridges, tree shadows) as solid objects
+- Triggers hard emergency braking at highway speeds
+- Computer vision limitation — not easily OTA-fixable
+- No NHTSA recall yet
+- **Family safety concern:** Hard braking at 65+ mph with kids in the car
 
-## Action Items for Ray (unchanged)
+## Action Items for Ray (unchanged, NOT nagging — just tracking)
 
-1. ☐ **Check both R1S vehicles** — did either receive the 2026.07 update?
-2. ☐ **Locate backup key cards** for both vehicles — one per driver, keep accessible
-3. ☐ **Do NOT manually trigger any pending updates** until Rivian confirms the fix
-4. ☐ **Monitor for shadow braking** — note any unexpected hard braking events, especially under overpasses on 101/280
+1. ☐ Check both R1S vehicles — did either receive the 2026.07 update?
+2. ☐ Locate backup key cards
+3. ☐ Do NOT manually trigger pending updates
+4. ☐ Monitor for shadow braking events
 
-## VS Article Angle (refined)
+## Thread Lifecycle
 
-**"When Your Car's Software Update Locks You Out: The OTA Safety Gap"**
-- Rivian 2026.07 as primary case study (key bricking)
-- Shadow braking as secondary case study (computer vision limits)
-- Map the OTA failure landscape: which manufacturers have had OTA incidents
-- Regulatory gap: no NHTSA framework specifically for OTA-induced safety issues
-- Ray's first-person angle: owner of 2 affected vehicles
+Thread stays active until:
+- Rivian announces a fix/workaround, OR
+- Ray confirms his vehicles are unaffected, OR
+- 3 iterations with no new data → close
 
 ---
-*Updated: 2026-04-14, Iteration 9 — Rivian 2026.07 rollout still halted, no resolution announcement found. Shadow braking independently confirmed as computer vision limitation (not OTA-fixable). Digital key infrastructure update may have been the root cause. Both safety vectors remain active for Ray's 2 R1S.*
+*Updated: 2026-04-15, Iteration 10 — Rivian stock dipped on update failure news. Still no fix. iOS 26 Apple Wallet car key support coming for Rivian (separate from bricked keys). Digital key infrastructure confirmed as root cause.*

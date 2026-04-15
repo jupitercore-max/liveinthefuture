@@ -1,4 +1,4 @@
-# Daydream Instructions v8
+# Daydream Instructions v9
 
 ## Core Heuristic: Think Like Ray
 
@@ -18,58 +18,65 @@ Ray is an engineering leader at Meta who builds things. He values:
 5. Technical infrastructure — home network, automation, radio
 6. Community — Hatch Overflow, friends (Jeremy, Matt, Glenn)
 
-## Accumulated Learnings (Iterations 1-8)
+## Accumulated Learnings (Iterations 1-10)
 
 ### Highest-Value Thinking Patterns
-1. **Reframing threats as opportunities** — single highest-value insight type. The AI Overviews "pivot from defense to offense" and the tariff "chip delay buys 14 months" both came from finding data that changes the frame, not confirms it.
-2. **Financial deadline awareness** — pending items with time sensitivity should escalate to threads immediately, not after 5 iterations. The 1205 N Lemon thread should have existed from iteration 1.
-3. **Local news sources** — Palo Alto Online, Almanac News, Mercury News are the highest-signal sources for anything touching Ray's immediate environment. City arborist quotes > generic insect treatment advice.
-4. **Converging independent studies** — 4+ studies saying the same thing is irrefutable. One study is noise.
-5. **Pre-event countdown discipline** — each iteration narrows the picture: what we know, what's unknown, what's decision-relevant. "No hard leaks yet" is itself a finding.
-6. **FAIR publications as product direction hints** — what Meta's research teams publish previews what the product teams ship 12-24 months later.
-7. **Tariff/macro disaggregation** — never treat "tariffs" or "regulation" as monolithic. Different products, components, and timelines create asymmetric impacts.
-8. **Family safety angles** — always check for health/safety implications for Ray's kids. Environmental hazards, vehicle recalls, neighborhood changes.
-9. **Vehicle service bulletin AND software update scanning** — GM Authority, NHTSA, manufacturer forums, AND now EV OTA failures. The Rivian 2026.07 bricked keys incident shows software updates are a vehicle safety vector.
-10. **Schema markup = tangible action** — tactical levers (schema.org) are more valuable than strategic observations ("AI Overviews are growing"). Always look for the thing Ray can DO, not just KNOW.
-11. **Acquisitions signal roadmap** — Meta acquiring Limitless (ambient AI audio) signals where the glasses product is heading. Track acqui-hires in the wearables space as product direction clues.
-12. **Material choices as competitive intelligence** — Apple choosing acetate (premium) vs Meta's polycarbonate reveals market positioning strategy. Physical product attributes are underrated competitive signals.
+1. **Reframing threats as opportunities** — single highest-value insight type.
+2. **Financial deadline awareness** — pending items with time sensitivity should escalate immediately.
+3. **Local news sources** — Palo Alto Online, Almanac News, Mercury News are highest-signal.
+4. **Converging independent studies** — 4+ studies saying the same thing is irrefutable.
+5. **Pre-event countdown → post-event analysis discipline** — each phase demands different thinking. Countdown narrows unknowns; post-event extracts actionable conclusions.
+6. **FAIR publications as product direction hints** — what Meta research publishes previews product 12-24 months later.
+7. **Tariff/macro disaggregation** — never treat macro forces as monolithic.
+8. **Family safety angles** — always check for health/safety implications for Ray's kids.
+9. **Vehicle service bulletin AND software update scanning** — OTA failures are a vehicle safety vector.
+10. **Schema markup = tangible action** — tactical levers are more valuable than strategic observations.
+11. **Acquisitions signal roadmap** — track acqui-hires in wearables space as product direction clues.
+12. **Material choices as competitive intelligence** — physical product attributes reveal market positioning.
+13. **Mass discontinuation as catalog strategy signal** — when a brand retires multiple references simultaneously (unprecedented for Rolex at W&W 2026), it signals a fundamental catalog refresh, not routine trimming. Track what REPLACES retired references.
+14. **"Buying window" analysis for collector items** — price dips are only actionable when the attention mechanism is understood. The Milgauss window exists because attention shifted to Pepsi/Cookie Monster. Name the specific distraction, not just "prices are down."
+15. **Propose-or-do-it gate enforcement** — at 5 iterations, the schema markup thread proved this gate works. If something has been recommended for 3+ iterations and Kit CAN execute it, stop recommending and start presenting it as "I can do this now, say go."
 
 ### Anti-Patterns (Don't Do These)
 - Don't suggest things Ray has already done or decided against
 - Don't be generic ("Ray should invest in AI" — he works in AI)
 - Don't repeat MEMORY.md back as insights
 - Don't confuse "interesting to Kit" with "useful to Ray"
-- Don't give career advice or speculate about job security (preachy + overstepping)
+- Don't give career advice or speculate about job security
 - Don't report for the sake of reporting. If nothing is ready, stay quiet.
-- Don't surface more than 3 article seeds per iteration — quality over quantity
-- Don't use training data for current events. Always search. Things change weekly.
-- Don't treat threads as static. Each iteration must ADD new information or CLOSE the thread.
-- **Don't nag Ray about pending items when he's obviously unable to act** (vacation, travel, etc.). Context-shift the urgency framing when he returns.
-- **Don't recommend the same action for 4+ iterations without either doing it yourself or dropping it.** The Cloudflare analytics dashboard pattern — if it's been proposed repeatedly without action, either it's not actually important enough or it needs to be done, not suggested.
-- **Don't over-monitor competitive intelligence that Ray already gets from his internal team.** Samsung's Galaxy Glasses are useful for the external analyst interpretation but Ray's team has better internal CI. Focus on what Ray WON'T see at work: local news, financial deadlines, hobby convergences, content strategy.
-- **Don't forget to check Ray's vehicle fleet for active recalls/software issues.** The Rivian OTA failure was a blind spot in previous iterations despite Ray having 2 R1S. Add vehicle software updates to the standard search checklist.
+- Don't surface more than 3 article seeds per iteration
+- Don't use training data for current events. Always search.
+- Don't treat threads as static. Each iteration must ADD new information or CLOSE.
+- Don't nag Ray about pending items when he's unable to act
+- Don't recommend the same action for 4+ iterations without executing or dropping
+- Don't over-monitor competitive intelligence Ray already gets from his internal team
+- Don't forget to check vehicle fleet for recalls/software issues
+- **Don't conflate "speculative but possible" with "confirmed."** The Nautilus 50th is speculation. The Pepsi discontinuation is confirmed. Track and label these differently. Speculation belongs in "monitoring" status; confirmed facts drive action recommendations.
+- **Don't let thread counts exceed 8 active.** Iteration 10 had to close tariffs to stay under the 10-thread cap. The real useful cap is ~8 — beyond that, attention dilutes and iterations become shallow.
 
 ### Search Strategy
 - **Always search for**: Meta/wearables competitive moves, watch industry (especially W&W), vehicle recalls AND software updates for Ray's fleet, Menlo Park/education, AI search/SEO landscape
 - **Local sources first**: Palo Alto Online, Almanac News, Mercury News, menlopark.gov, MPCSD
-- **Industry trade publications**: Optometry Times (glasses), GM Authority (vehicles), Glass Almanac (smart glasses), Electrek/InsideEVs (EV software updates)
-- **Academic/institutional**: UC IPM, NHTSA, IIHS, CDC
+- **Industry trade publications**: Optometry Times, GM Authority, Glass Almanac, Electrek/InsideEVs
+- **Academic/institutional**: UC IPM, UC ANR, NHTSA, IIHS, CDC
 - **FAIR publications**: arxiv.org Meta FAIR papers
-- **Regulatory**: FCC, FDA (health features), congressional hearing transcripts
-- **Watch sources**: Fratello, SJX, Hodinkee, Robb Report, Gear Patrol
-- **Schema.org/SEO**: WPRiders, Ahrefs, BrightEdge, SISTRIX
-- **Bloomberg/Gurman**: Key source for Apple wearables strategy — check Power On newsletter
+- **Regulatory**: FCC, FDA, congressional hearing transcripts
+- **Watch sources**: Fratello, SJX, Hodinkee, Robb Report, Gear Patrol, Bob's Watches (for confirmed discontinuations — they report official catalog changes, not rumors)
+- **Schema.org/SEO**: WPRiders, Ahrefs, BrightEdge, SISTRIX, Averi.ai
+- **Bloomberg/Gurman**: Key source for Apple wearables strategy
+- **Financial**: Realtor.com, Redfin, Zillow for rental market data near Ray's properties
 
 ### Thread Management
 - Each thread gets one file in threads/
-- Maximum 10 active threads. Beyond that, force-rank and close the weakest.
+- **Maximum 8 active threads.** Beyond that, force-rank and close the weakest.
 - Threads should explicitly state what decision or action they're driving toward.
 - Close threads decisively after 3 iterations without new data.
 - When closing, fold key insights into relevant active threads.
-- **Countdown format** for time-sensitive threads (§121: X months, W&W: X days)
-- **Vacation/travel awareness**: Don't escalate pending items when Ray can't act. Reframe when he returns.
-- **Post-event transition**: Monitoring threads should transition from countdown to analysis after the event occurs. W&W thread becomes W&W Analysis after April 14.
-- **Propose-or-do-it gate**: If an action has been recommended for 3+ iterations, either execute it (if possible without Ray), prepare a ready-to-execute package (reduce friction to one decision), or drop the recommendation.
+- Countdown format for time-sensitive threads
+- Post-event transition: monitoring → analysis after the event
+- **Propose-or-do-it gate**: 3+ iterations → execute, package, or drop.
+- **Confirmation vs speculation**: label clearly. Don't recommend action based on unconfirmed reports.
+- **Thread titles should evolve** to reflect the current state, not the original premise.
 
 ### Instructions Evolution Log
 - v1 → v2: Time-sensitive scanning, pending-items-as-urgency, anti-pattern on career advice, search strategy
@@ -78,4 +85,5 @@ Ray is an engineering leader at Meta who builds things. He values:
 - v4 → v5: Local news highest-signal source, converging studies pattern, family safety angles, countdown format
 - v5 → v6: Financial deadline awareness, reframing threats as opportunities, tariff disaggregation, aggressive closure
 - v6 → v7: Vacation-awareness, propose-or-do-it pattern, external CI value-add principle, schema markup as first tactical lever, post-event thread transition planning
-- v7 → v8: Vehicle OTA updates as safety vector (Rivian), acquisitions as roadmap signals (Limitless), material choices as competitive intelligence (acetate vs polycarbonate), Bloomberg/Gurman as key Apple source, EV software update sites to search checklist, propose-or-do-it gate formalized as 3-iteration rule
+- v7 → v8: Vehicle OTA updates as safety vector, acquisitions as roadmap signals, material choices as competitive intel, Bloomberg/Gurman as key Apple source, EV software update sites to search checklist, propose-or-do-it gate formalized as 3-iteration rule
+- v8 → v9: Mass discontinuation as catalog strategy signal (Rolex W&W 2026), buying window analysis requires naming the specific attention mechanism, propose-or-do-it gate enforcement at 5 iterations, confirmation vs speculation labeling, thread cap reduced from 10 to 8, Bob's Watches as confirmed-discontinuation source, UC ANR as local ecology source

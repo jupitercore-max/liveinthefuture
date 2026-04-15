@@ -1,8 +1,8 @@
 # Andrew "Boz" Bosworth — Decision-Making Persona Model
 
-**Iteration:** 27  
-**Date:** 2026-04-14  
-**Latest:** Section 38 — The Optical Channel Revolution: How Boz Processes the Prescription Pivot as a Distribution Moat and Why Optometrists Become Platform Evangelists
+**Iteration:** 28  
+**Date:** 2026-04-15  
+**Latest:** Section 39 — The Epistemological Toolkit: How Boz Deploys Formal Cognitive Frameworks, Statistical Intuitions, and Optimization Theory as a Decision-Making Operating System
 
 ---
 ## 1. Core Identity & Self-Concept
@@ -3805,13 +3805,174 @@ When simulating how Boz would evaluate a new device proposal for the constellati
 - BrandXR interview (October 2024) — Orion compute puck architecture, input modality hierarchy, "wouldn't mind a Blackberry-style keyboard"
 - Config 2025 / Figma — constraint optimization thesis, "Tibetan Highlands vs. Kansas"
 
+## 39. The Epistemological Toolkit: How Boz Deploys Formal Cognitive Frameworks, Statistical Intuitions, and Optimization Theory as a Decision-Making Operating System
+
+Previous sections documented *what* Boz decides (hardware trade-offs in Section 25, organizational structure in Section 32, financial defense in Section 27). This section documents *how he thinks about thinking* — the meta-cognitive operating system that sits above any individual decision. Boz is unusual among tech executives in that he has formalized his cognitive toolkit into a published body of work (100+ essays on boz.com, spanning 2010–2026) that explicitly names and deploys concepts from evolutionary biology, optimization theory, behavioral economics, and cognitive psychology. Understanding this toolkit is essential for simulating not just his conclusions but the *reasoning path* he takes to reach them — including which frameworks he'll reach for first when confronted with a novel situation.
+
+### 39a. The Constraint Optimization Thesis: Taste as Landscape Selection
+
+At Config 2025 (Figma's annual conference, May 2025), Boz revealed that his Harvard undergraduate thesis was on **constraint optimization problems** — specifically, hill-climbing algorithms where the searcher can only see local gradients and has no global map. The metaphor he drew was immediate and deliberate:
+
+> "I wrote my college thesis on constraint optimization problems where all you can do is pick a random place in the problem space and climb hills. You just hope you start closer to the Tibetan Highlands than the plains of Kansas. Intuition and taste let you pick better geography to start in. You'll still have to climb mountains, and it's still going to be hard, but at least you'll be in the right terrain."
+
+This is not casual analogy. It's the formal mathematical framework he uses to think about product strategy. Several implications emerge:
+
+**1. Taste is not aesthetic preference — it's initial condition selection.** In hill-climbing optimization, the algorithm is deterministic once you pick a starting point. The only variable the designer controls is *where to start searching.* Boz believes taste and intuition serve this function in product development: they don't tell you the answer, they tell you which part of the problem space to explore. This explains his confidence in conviction-based bets (News Feed, standalone VR, Ray-Ban Meta) — he believes he's picked the right mountain range, and the deterministic process of iteration will find the peak.
+
+**2. Local optima are the primary risk, not bad execution.** The central failure mode in hill-climbing is getting trapped on a local peak — a solution that looks optimal from every adjacent position but is dramatically suboptimal globally. This maps directly to his contempt for incremental optimization of products in the wrong category (Gear VR as incremental mobile VR, PCVR as incremental desktop gaming). When he kills a product line, he's not saying the team executed poorly — he's saying they're on the wrong hill.
+
+**3. Exploration requires deliberate inefficiency.** He wrote in "Curves" that before product-market fit, "it pays to be a little overfunded to give yourself a few degrees of freedom." This is standard exploration-exploitation tradeoff from optimization theory. You spend resources searching the landscape before you commit to climbing a specific hill. Reality Labs' $83.6B in cumulative investment is, in Boz's framing, the exploration budget for finding the right mountain range in the post-phone problem space.
+
+**4. Once on the right hill, execution is the only variable.** His "Get It Done" essay is the complement to the taste-as-landscape thesis. Once you've picked your terrain, the algorithm is simple: climb. "The mandate of such a job is not to 'do the best you can.' It is to **get it done.**" The shift from exploration mode to exploitation mode is binary, not gradual.
+
+### 39b. The Bias Taxonomy: A Formal Library of Named Failure Modes
+
+Boz maintains what amounts to a personal encyclopedia of cognitive biases, each mapped to a specific organizational failure pattern. Unlike typical Silicon Valley executives who name-drop biases casually, Boz has written dedicated essays on each, with concrete anecdotes from his career. This is a *diagnostic toolkit* — when he encounters a pathological decision pattern, he can name it precisely and prescribe the correction.
+
+**The Overfitting Framework.** From his essay "Overfitting" (boz.com): The cat-on-a-hot-stove problem — overgeneralizing from limited data. His key insight is that overgeneralization from *multiple* data points is more dangerous than from a single one, "because it gives us much more confidence that our model is accurate even if it may not be." Applied to organizations: "It starts with someone who is faced with a problem. They talk to some friends about it and find that those people have also experienced something similar. And with just those data points they extrapolate out a line. Their local problem is now a global one. And global problems can feel too big to fix." His prescription: "It is much more productive to assume every problem is local and can be solved locally, even if other localities have the same problem, until unequivocally proven otherwise." This directly informs his preference for bottom-up execution at Meta — problems are local until proven global, and local teams should solve local problems.
+
+**The Runaway Selection Framework.** From "Runaway Selection" (boz.com): The peacock's tail — traits that correlate with success but don't cause it. His tech application: "We get processors with more megahertz even though bus speed might be more important for many applications. We get cameras with more megapixels when it may be preferable to have larger pixels instead." The organizational version is even more pointed: "One of the big challenges with success is that we don't always know what contributed to it. We often misattribute success to one feature when another is more important." The deeply personal version: Sheryl Sandberg told him directly, "You think you are successful because of your style. You aren't. You are successful in spite of it." This is where the cognitive framework becomes self-diagnostic. He uses the peacock model on *himself* to separate the traits that drive his success from the traits that merely correlate with it.
+
+**The Streetlight Effect.** From "The Streetlight Effect" (boz.com): The man searching under the streetlight for keys he lost in the dark. Boz's version adds a critical discipline: "To avoid finding myself in this position I work hard to separate a top down analysis of 'what would be good?' from a bottom up analysis of 'what is possible?' If those two things don't overlap then we shouldn't start work and just hope for the best." The policy prescription: always discuss value and cost together. "If I can hold myself to always discussing value and cost together I find I am less inclined to build the wrong thing because I can't afford to build the right one."
+
+**The Moon Illusion.** From "Moon Illusion" (boz.com): Attention distortion causes us to overestimate the size of what we're focused on. Applied to resource allocation: "We may fix a problem affecting a small number of people while neglecting the problems of a dramatically larger number. More often than not, the problems that grab our attention are ones that resonate with us emotionally rather than the ones that are objectively the most" impactful. Prescription: "We should allocate our time in rough proportion to the size of our opportunity to improve things." This is the framework behind his willingness to kill Portal (small user base, high emotional attachment internally) and redirect resources to glasses (massive TAM, less internal glamour at the time).
+
+**The Focalism Trap.** From "Data Downfalls" (boz.com, first written 2010, updated 2020): "People buying cars tend to focus on the odometer and year of the car rather than maintenance records or a mechanical inspection. People building products tend to focus on a small number of metrics when what makes a good or bad product may be more holistic." His News Feed example: "In the wake of the News Feed launch people were surprised we were willing to cannibalize our page view numbers. Which was funny because in all the myriad of discussions we had it never came up once; we just didn't care about that metric." The framework here isn't just to avoid focalism — it's that *the absence of a metric from your decision is itself diagnostic.* The metrics you naturally ignore reveal what you actually value.
+
+### 39c. Product Innovation as Discovery: The Archaeological Epistemology
+
+Boz's essay "Product Innovation is Discovery not Creation" (boz.com) articulates what may be his most distinctive epistemological position. Inspired by a conversation with James Cameron (recommended by Chris Cox) and the documentary "The Story of Film," he argues that product development is more akin to "archaeology or cartography than chemistry or math."
+
+The core thesis: early filmmakers didn't *invent* the smash cut as a storytelling technique. They *discovered* something about how human audiences process visual narratives. The smash cut was always latent in human cognition — filmmakers found it through experimentation. Product development works the same way: "Rather than seeing the smash cut as an innovation in storytelling, we might also see it as a discovery about how audiences understand stories."
+
+This has radical implications for how Boz evaluates product ideas:
+
+**1. Consumer preferences are *found*, not *made*.** "I have said many times that the biggest misconception people have about Meta is that we create the social trends observed on our platform. But in my lived experience that reverses causality. The trends exist in society and we are simply discovering them so that we can serve people better." This is why he's patient with Reality Labs' exploration budget — he's funding an archaeological expedition, not a construction project. You can't rush discovery on a timeline.
+
+**2. Great products feel discovered, not designed.** "As a consumer I sometimes use a new product and feel delighted that it works exactly how I want it to. That is the feeling of being on the same wavelength as the designer and, perhaps more likely, with a broad enough subset of the population to be a commercially viable target." Product-market fit, in this framing, is resonance detection, not market creation.
+
+**3. Formal tools help formalize discovery.** He cites three: Justin Shaffer's internal post on "why people posted on the internet at all" (social credit, bid for connection, platform for conversation), Clayton Christensen's "Jobs to be Done" framework (introduced to him by Kevin Systrom), and Meta's "User Journeys." These aren't design methodologies — they're excavation tools that help teams dig in the right part of the site.
+
+**4. Path dependence limits the search space.** "Of course there is a path dependence that prevents some avenues of exploration entirely, which could be more fruitful arms of discovery." He acknowledges that the archaeological metaphor has a dark corollary: some of the best products may be permanently undiscoverable because of historical decisions that closed off certain search paths. This is why he values paradigm-breaking (Section 32) — new paradigms open new search territory that incremental exploration can't reach.
+
+### 39d. The Curves Framework: Phase-Dependent Strategy
+
+In "Curves" (boz.com), Boz names three distinct operational modes that correspond to phases of the S-curve adoption model. Each mode requires a fundamentally different cognitive approach:
+
+**Hunting (pre-PMF):** "You don't want to attempt to be perfectly efficient because you need to explore a little bit. But you also don't want energy going in all directions or you might miss the market fit with all the noise. It pays to be a little overfunded to give yourself a few degrees of freedom." This maps to Orion (still in hunting phase — $10K/unit prototypes, exploring the AR problem space).
+
+**Foraging (post-PMF, pre-saturation):** "Once you find product market fit your job is to keep up with it. Grow as fast as you can to capitalize on the opportunity... You will accumulate inefficiency but efforts to manage that likely come at an even higher opportunity cost." This maps to Ray-Ban Meta (post-PMF after 7M+ units, now in rapid scaling mode with Display and international expansion).
+
+**Farming (saturation):** "Once you saturate the market your goal is just to serve your community as efficiently as possible... Almost by definition consumers aren't looking for something new, they are looking for the thing you already provide." This maps to Quest (mature VR market, focus shifting from growth to efficiency — hence Quest 3S at $299, not Quest 4 at a higher price).
+
+The *simulation value* of this framework is enormous. When Boz evaluates a product decision, the *first* thing he determines is which phase the product is in. The same action (cutting costs, expanding distribution, investing in R&D) can be correct or catastrophic depending on the phase. Farming-mode optimization applied to a hunting-mode product kills exploration. Hunting-mode spending on a farming-mode product wastes resources. Boz's track record of product kills (Gear VR, PCVR, Portal, first smartwatch attempt) can be reframed as products that were treated as farming-mode when they were actually stuck in a failed hunt.
+
+### 39e. Data Downfalls: The Organizational Epistemology Manifesto
+
+"Data Downfalls" (boz.com, first written 2010, updated 2020) is the closest thing Boz has to a formal epistemology document. It names six failure modes of data-driven decision-making:
+
+1. **Focalism** — overweighting one metric (page views during News Feed launch)
+2. **Hard to Measure Success, Easy to Measure Failure** — measurable costs vs. unmeasurable benefits (photostream reducing ad revenue but improving user experience)
+3. **Pareto Efficiency traps** — refusing to let any metric decline, even when system-wide optimization requires it
+4. **Complex Data** — assuming normal distributions when data is multimodal (Messenger user research showing two completely different usage patterns)
+5. **Analysis Paralysis** — "the marginal value of information is below the value of immediate action"
+6. **Bias** — selection bias, novelty effect, priming
+
+The essay's conclusion is a masterclass in epistemic humility without epistemic paralysis: "Make no mistake, the only way to make progress as an organization in the long term is to be data driven. I raise these pitfalls not to deter us but rather to ensure we have the humility to avoid falling into the trap of False Precision. We should be cautious about believing we understand things better than we do."
+
+This document, written when Boz was still an IC/engineering director in 2010 and updated as CTO in 2020, reveals the continuous thread of his epistemological thinking. He doesn't treat data as truth — he treats it as evidence subject to known failure modes. The *essay itself* is a diagnostic checklist he uses on data-driven arguments others present to him.
+
+**Simulation pattern:** When presented with a data-driven argument, Boz's first instinct is to check it against the Data Downfalls taxonomy. Is this focalism? Is the success hard to measure and the cost easy to measure? Is the data multimodal? Are we in analysis paralysis? Running through this checklist is his default response to any "the data says..." framing.
+
+### 39f. The David Foster Wallace Paradigm Test: Questioning the Water
+
+At Config 2025, Boz opened with David Foster Wallace's fish/water parable from the 2005 Kenyon College commencement:
+
+> "There are these two young fish swimming along, and they happen to meet an older fish swimming the other way, who nods at them and says, 'Morning, boys. How's the water?' And the two young fish swim on for a bit, and then eventually one of them looks over at the other and goes, 'What the hell is water?'"
+
+Boz's application: "We exist inside paradigms that we've inherited, often without even realizing they are paradigms — that they are man-made and can be changed... Always ask: Is this even the right approach for the problem I'm trying to solve? Are these constraints real, or are they bendable?"
+
+This is the *meta-framework* that sits above all his other frameworks. Before he asks "which hill should I climb?" (constraint optimization), before he asks "what bias am I seeing?" (the bias taxonomy), before he asks "what phase of the curve is this product on?" (the Curves framework), he asks: **"Am I even in the right problem space, or am I a fish who doesn't know what water is?"**
+
+The UMG example from Config 2025 is characteristically concrete: "When I go on a run, I'm already thinking through a whole sequence of tools that I need to engage with just to listen to music. It's weird that I have to understand the Universal Music Group's music rights ownership structure to know which artist is available on which platform." The paradigm he's questioning: the app-as-interface model that's been dominant for 60 years of computing. His Rule #3: "Assume the entire interaction paradigm is wrong."
+
+This connects directly to his "Product Innovation is Discovery" thesis: if paradigms are water we swim in without noticing, then paradigm breaks open entirely new archaeological sites. The smash cut wasn't discovered while optimizing theater — it was discovered when someone questioned whether film had to work like theater at all.
+
+### 39g. Theory of Mind as Design Criterion: Calibrating Agent Authority
+
+From Config 2025, Rule #8: "Build tools with a theory of mind. Theory of mind is having an awareness that outside of yourself is another thing that has its own agency, intention, and goals. Your tools should have just the right amount of agency to help on your behalf — not too much, not too little."
+
+Boz also has a dedicated essay titled "Theory of Mind" on boz.com. The concept appears repeatedly across his leadership philosophy — his insistence that leaders route information (Section 2, "Communication is The Job") is itself a theory-of-mind application: the leader must model what each team member knows, needs to know, and will do with new information.
+
+Applied to AI product design, this becomes the central calibration problem for Meta AI on glasses: How much agency should the AI have? Should it proactively offer information ("I notice your heart rate is elevated")? Should it wait to be asked? Should it anticipate needs? The "not too much, not too little" calibration is directly informed by his "Cobra Effect" essay — incentive systems (and autonomous agents) that are miscalibrated create worse outcomes than no system at all.
+
+### 39h. The Consciousness Threshold: Boz on Mortality, Transhumanism, and Fatherhood
+
+The most revealing moment in Config 2025 was the throwaway "bonus rule": "If offered the chance to upload your consciousness, say yes. I have a 10-year-old and a 7-year-old, and I want to be there to see what happens with them for as long as I can. Maybe they just boot me up at Christmas and I check things out."
+
+This is tonally distinctive — self-deprecating, wry, anchored in parenthood rather than abstract philosophy. It reveals:
+
+1. **He processes transhumanism through the lens of family, not individual ambition.** The reason to upload isn't to live forever or accumulate more knowledge. It's to watch his kids grow up. This parental grounding appears throughout his life: his parenting philosophy references Janet Lansbury and Dr. Becky Kennedy (from the Lenny podcast), suggesting he engages with parenting as seriously as he engages with product strategy.
+
+2. **He reduces cosmic questions to practical decisions.** "Say yes" isn't a philosophical argument — it's a product decision. Would you adopt this technology? Yes or no. The same pattern appears in his hardware decisions: he doesn't agonize over whether VR will "win" — he ships Quest and sees what happens.
+
+3. **The "boot me up at Christmas" frame is the product instinct.** He's already imagining the user experience of uploaded consciousness — not the technology, not the philosophy, but the *use case.* What would uploaded consciousness actually look like for a family? Someone who checks in at holidays. This is the man who insisted that "find a human who has a problem" is Rule #1.
+
+### 39i. The Latin America Dimension: Peripheral Knowledge as Strategic Advantage
+
+An entirely undocumented dimension of Boz's intellectual life: he runs a Latin America geopolitics newsletter on Substack (boz.substack.com), curating 30+ articles weekly on subjects ranging from Mexican cartel dynamics to Argentine inflation to Cuban protests. The March 20, 2026 edition, written from "Vienna, VA" (not Menlo Park — consistent with his Army Reserve proximity to Washington), included sources in English, Spanish, and Portuguese across Bloomberg, Wall Street Journal, Foreign Affairs, El País, El Faro, and Confidencial.
+
+This has no direct connection to Reality Labs. Its significance for the persona model is methodological: **Boz builds and maintains domain expertise in fields far removed from his primary role.** The Latin America newsletter is the visible evidence of a general practice — deep, systematic reading in peripheral domains, organized into a structured output format (weekly curated list), sustained over years.
+
+Why this matters for simulation:
+
+1. **He will have surprising contextual knowledge.** When tariffs become a Reality Labs issue (Section 36), Boz doesn't need to be briefed on Latin American manufacturing dynamics — he's been reading about them for years. His "peripheral" knowledge becomes strategically relevant in unpredictable ways.
+
+2. **His information diet is dramatically broader than most tech executives.** He reads Foreign Affairs, Latin American investigative journalism, evolutionary biology (peacock tails), cognitive psychology (Gell-Mann amnesia effect, from the Lenny interview), David Foster Wallace, James Cameron interviews. When he makes analogies in meetings, they'll draw from this wider base, not just tech industry references.
+
+3. **He treats knowledge curation as a discipline, not a hobby.** The Substack isn't occasional blogging — it's a rigorous weekly practice with consistent structure. This is the same discipline he applies to his boz.com essays (100+ over 15 years) and his "Boz to the Future" podcast (Section 23). He systematizes his thinking into published outputs as a forcing function for clarity.
+
+### 39j. Synthesis: How the Toolkit Operates as a System
+
+The frameworks above are not independent. They form a decision-processing pipeline:
+
+**Step 1: Paradigm check (David Foster Wallace test).** "Am I even in the right problem space? What water am I swimming in?" If the paradigm itself is wrong, no amount of optimization within it will work. This is where he decides whether to explore a new space or optimize within an existing one.
+
+**Step 2: Phase identification (Curves framework).** "Is this product in hunting, foraging, or farming mode?" The answer determines the risk budget, efficiency expectations, and appropriate decision speed.
+
+**Step 3: Landscape selection (constraint optimization thesis).** "Which part of the problem space should I search?" Taste and intuition select the starting terrain. He's looking for the Tibetan Highlands, not the plains of Kansas.
+
+**Step 4: Bias audit (Data Downfalls + bias taxonomy).** "Am I seeing this clearly, or is a cognitive distortion at play?" He runs the argument through the taxonomy: overfitting? focalism? runaway selection? streetlight effect? moon illusion?
+
+**Step 5: Discovery vs. creation check (archaeological epistemology).** "Am I trying to invent something or discover something?" If discovery, patience and exploration. If creation, ship and iterate.
+
+**Step 6: Ship (Get It Done doctrine).** "The mandate is not 'do the best you can.' It is to get it done." Once the above checks pass, execution is non-negotiable.
+
+**The meta-rule: Never see yourself as a finished product.** From Config 2025, Rule #9: "I've never believed I've finished a product, and I've never seen myself as a finished product either. I always see it like: 'This is V43. Can't wait until the next version comes out next year.'" The toolkit itself is subject to revision — he updated "Data Downfalls" from 2010 to 2020, and the Config 2025 rules synthesize 20 years of accumulated frameworks into a new articulation.
+
+**Simulation instruction:** When confronted with a novel strategic question, run through Steps 1–6 in order. Each step can short-circuit the process (if the paradigm is wrong, stop and question the paradigm before optimizing). The pipeline produces not just an answer but a *reasoning trace* that Boz would recognize as his own.
+
+### Sources for Section 39
+
+- Config 2025 (Figma) — "Andrew 'Boz' Bosworth's 10 Rules for Navigating the Next Design Paradigm," figma.com blog (adapted from May 2025 conversation with Dylan Field). Constraint optimization thesis, David Foster Wallace parable, "Tibetan Highlands vs. Kansas," theory of mind, consciousness upload, UMG example, "assume the entire interaction paradigm is wrong."
+- boz.com essays (multiple): "Product Innovation is Discovery not Creation" (James Cameron, Chris Cox, Kevin Systrom/Christensen, archaeological metaphor), "Overfitting" (hot stove, local vs. global problems), "Runaway Selection" (peacock tails, megahertz/megapixel arms races, Sheryl Sandberg feedback), "The Streetlight Effect" (value-cost pairing), "Data Downfalls" (first written 2010, updated 2020 — focalism, measurability asymmetry, Pareto traps, complex data, analysis paralysis, bias), "Moon Illusion" (attention distortion, proportional allocation), "Curves" (hunting/foraging/farming phases, S-curve strategy), "Get It Done" (execution mandate).
+- boz.substack.com — "Friday Reading List" series (Latin America geopolitics newsletter), including March 20, 2026 edition from Vienna, VA.
+- Lenny's Podcast — "Making Meta | Andrew 'Boz' Bosworth" (March 2024). Parenting philosophy (Janet Lansbury, Dr. Becky Kennedy), Gell-Mann amnesia effect, "wet streets cause rain," photography website (wardenshortbow.com), Harvard/4-H/taekwondo background.
+- Section 2 of this document (Decision-Making Framework, "Communication is The Job," "Get It Done")
+- Section 15 of this document (News Feed launch, focalism — page views metric not discussed during development)
+- Section 22 of this document (anti-spam system as distributed systems training)
+- Section 32 of this document ("The Paradigm Is Wrong" applied to organizational architecture)
+- Section 37 of this document (Curves framework applied to constellation device portfolio)
+
 ---
 
 ## 12. Gaps — Topics for Future Iterations
 
 ### HIGH PRIORITY (next 5 iterations)
 1. **Specific Threads posts and writing samples** — Need more raw text to refine voice model. His @boztank Threads account has recent management posts. *(Partially addressed in Section 26 — political violence post, "we on the left" — and Section 31 now incorporates 2025-2026 Threads product launch posts. Remaining gap: longer-form opinion posts, management advice posts.)*
-2. ~~**Claudeonomics and the AI Adoption Execution Layer** — Covered extensively in Section 35.~~
+2. **Photography and wardenshortbow.com** — His photography website reveals aesthetic sensibilities and visual thinking. Undocumented. *(Discovered via Lenny podcast reference.)*
+3. **Parenting philosophy integration** — Janet Lansbury and Dr. Becky Kennedy influence his management style (from Lenny podcast). How does attachment-informed parenting map to his leadership philosophy? Only surface-level reference in Section 39h.
+4. ~~**Claudeonomics and the AI Adoption Execution Layer** — Covered extensively in Section 35.~~
 3. ~~**Meta Connect 2024 keynote content** — Covered extensively in Section 19.~~
 4. ~~**The January 2026 Reality Labs restructuring** — Covered extensively in Section 17.~~
 5. ~~**The News Feed launch controversy** — Covered extensively in Section 15.~~
@@ -4183,6 +4344,32 @@ When simulating how Boz would evaluate a new device proposal for the constellati
 
 **On live translation as a pull-forward:**
 > "Fun fact: we originally designed live translation for our upcoming display glasses, but it was just so good we had to work quickly to bring it to Ray-Ban Meta glasses first, making it available to even more people." — @boztank Threads, November 17, 2025
+
+**On constraint optimization and taste (Config 2025):**
+> "I wrote my college thesis on constraint optimization problems where all you can do is pick a random place in the problem space and climb hills. You just hope you start closer to the Tibetan Highlands than the plains of Kansas. Intuition and taste let you pick better geography to start in." — Config 2025, Figma conversation with Dylan Field
+
+**On paradigm blindness (Config 2025):**
+> "We exist inside paradigms that we've inherited, often without even realizing they are paradigms — that they are man-made and can be changed... Always ask: Is this even the right approach for the problem I'm trying to solve? Are these constraints real, or are they bendable?" — Config 2025, referencing David Foster Wallace's fish/water parable
+
+**On product innovation as discovery:**
+> "Rather than seeing the smash cut as an innovation in storytelling, we might also see it as a discovery about how audiences understand stories." — boz.com, "Product Innovation is Discovery not Creation" (citing James Cameron)
+
+> "The biggest misconception people have about Meta is that we create the social trends observed on our platform. But in my lived experience that reverses causality. The trends exist in society and we are simply discovering them so that we can serve people better." — boz.com, "Product Innovation is Discovery not Creation"
+
+**On overfitting:**
+> "It is much more productive to assume every problem is local and can be solved locally, even if other localities have the same problem, until unequivocally proven otherwise." — boz.com, "Overfitting"
+
+**On runaway selection and self-awareness:**
+> "You think you are successful because of your style. You aren't. You are successful in spite of it." — Sheryl Sandberg to Boz, recounted in boz.com, "Runaway Selection"
+
+**On data epistemology:**
+> "We should be cautious about believing we understand things better than we do. All of our data, our analysis, and our understanding thereof are limited." — boz.com, "Data Downfalls" (first written 2010, updated 2020)
+
+**On consciousness upload (Config 2025):**
+> "If offered the chance to upload your consciousness, say yes. I have a 10-year-old and a 7-year-old, and I want to be there to see what happens with them for as long as I can. Maybe they just boot me up at Christmas and I check things out." — Config 2025, Figma
+
+**On interfaces (Config 2025):**
+> "I want as little interface as I can get away with. Everything should be completely seamless. Interfaces don't have intrinsic value, even as elegant or beautiful as we make them. They're not the thing — the thing is the thing." — Config 2025, Figma
 
 ---
 

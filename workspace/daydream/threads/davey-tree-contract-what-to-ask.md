@@ -1,49 +1,35 @@
-# The Davey Contract: LAST CALL — Sign Today or Lose the Window
+# Davey Tree Contract: FINAL STATUS — Window Closing Friday
 
 **Created:** 2026-04-05 (Iteration 1)
-**Updated:** 2026-04-14 (Iteration 9)
-**Status:** CRITICAL → FINAL DEADLINE. Treatment window effectively closes this week.
-**Action:** Sign contract TODAY (Monday April 14). The biology is non-negotiable.
+**Updated:** 2026-04-15 (Iteration 10)
+**Status:** CLOSING — Thread closes next iteration regardless of action.
+**Decision deadline:** Friday April 18, 2026
 
-## The Biology Clock: 6 Weeks In
+## Treatment Window Reality
 
-- **Caterpillars hatched in MARCH** — now feeding for **6+ weeks**
-- At 6 weeks, most larvae are in **late instar or pupation transition**
-- Bt (Bacillus thuringiensis) is LEAST effective on late-instar larvae
-- **Realistic outcome if signed today:** Kill remaining young larvae (any second-hatch), reduce adult moth population for 2027, reduce caterpillar hair exposure for kids
-- **If not signed by Friday April 18:** This thread CLOSES. Treatment window missed for 2026.
+- Caterpillars hatched in March — now **7+ weeks** into feeding
+- Bt effectiveness: severely reduced on late-instar larvae
+- Alternative products (spinosad, horticultural oil) still viable but diminishing
+- UC ANR confirmed California oak moths visible in Santa Cruz County (April 8, 2026) — the broader Bay Area is affected this year
 
-## Updated Framing: Ask Davey About Alternatives to Bt
+## What's Changed Since Last Iteration
 
-At 6+ weeks, Davey should be asked whether Bt is still the right product or whether they recommend:
-- **Spinosad** — broader spectrum, effective on later instars, still organic
-- **Bacillus thuringiensis var. kurstaki (Btk)** specifically — the most effective Bt strain for caterpillars
-- **Horticultural oil** — suffocates larvae regardless of instar stage
-- Professional assessment of whether treatment at this stage is even cost-effective vs. waiting for natural pupation and treating preventatively for 2027
+No new developments. The biology is the biology.
 
-## The 5 Questions (refined for late-window timing)
+## Questions for Davey (if Ray calls this week)
 
-1. **Given that caterpillars have been feeding for 6+ weeks, is Bt still effective or do you recommend a different product?**
-2. How many applications, and what's the complete timeline?
-3. What's your professional assessment of the oak damage already done?
-4. Should we plan a preventive treatment in early spring 2027 instead/in addition?
-5. What about beneficial insect protection (especially if using something other than Bt)?
+1. At 7+ weeks, is Bt still worth applying or should we switch to spinosad/horticultural oil?
+2. Is this more of a 2027 preventive treatment conversation at this point?
+3. What's the tree damage assessment?
+4. What product specifically will you spray?
+5. Cost for 2027 preventive application scheduled in February/March?
 
-## The $600 Math (time-adjusted)
+## Thread Resolution
 
-- 6 live oaks with the worst outbreak in 6+ years
-- City arborist Jillian Keller confirmed unprecedented severity (Palo Alto Online, April 8)
-- Even at reduced effectiveness, treatment NOW still:
-  - Kills any young larvae from second hatching
-  - Reduces adult moth population → fewer eggs for 2027
-  - Reduces caterpillar HAIR exposure (rashes, hives, asthma) for kids playing outdoors
-  - Gets a professional arborist assessment of tree health damage
-
-## Thread Lifecycle
-
-- **If signed by April 18:** Thread transitions to "treatment monitoring" for one iteration, then closes
-- **If NOT signed by April 18:** Thread closes as "missed window — reassess for 2027 preventive treatment"
-- Either way, this thread ends at Iteration 10 (next run)
+**This is the LAST active iteration.** Regardless of outcome:
+- If signed by April 18 → treatment happens, thread closes
+- If not signed → thread closes as "missed 2026 window, reassess February 2027"
+- **No more nagging.** Ray knows the situation. The decision is his.
 
 ---
-*Updated: 2026-04-14, Iteration 9 — 6+ weeks since caterpillar hatch. Bt effectiveness severely reduced. Ask Davey about alternatives (spinosad, horticultural oil). Kids' outdoor play exposure is the strongest immediate argument. This is the LAST iteration before deadline closure.*
+*Updated: 2026-04-15, Iteration 10 — Final iteration. 7+ weeks post-hatch. UC ANR confirms Bay Area outbreak. Thread closes next iteration regardless.*

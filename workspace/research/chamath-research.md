@@ -126,6 +126,14 @@ Chamath called decentralized trading a "trillion-dollar market opportunity." Thi
 - **California exodus** as case study in counterproductive taxation (personally hedging — caught house-hunting)
 - **8090.ai** — promoting "Software Factory" product, increasing content cadence
 
+### Active SPAC: American Exceptionalism Acquisition Corp A (AEXA)
+- **Ticker:** AEXA (NYSE)
+- **Type:** Blank check company, SPAC — Chamath's return to SPACs after the 2021 wave
+- **Target sectors:** Energy production, AI, decentralized finance, and defense — sectors Chamath calls "critically important in maintaining U.S. global leadership for the next century"
+- **Status (as of Apr 2026):** Still seeking merger target. No deal announced.
+- **Thesis:** First-principles, contrarian approach. Focus on getting private tech companies public to broaden investor access.
+- **Context:** Chamath IPO'd AEXA after his previous SPACs (IPOA–IPOF) had mixed results — Virgin Galactic, SoFi, Opendoor succeeded; Clover Health drew Hindenburg allegations. This is his "American Exceptionalism" rebrand, explicitly tied to US competitiveness.
+
 ### Key Relationships
 - **David Sacks** (co-host, now in Trump admin — PCAST chair)
 - **Jason Calacanis** (co-host, angel investor)
@@ -252,4 +260,10 @@ Chamath called decentralized trading a "trillion-dollar market opportunity." Thi
 
 ---
 
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-15 (10:00 UTC cycle)
+
+### 2026-04-15 10:00 UTC — Research Cycle: Quiet Period
+**Sources checked:** Web search (Chamath + All-In + AEXA/SPAC + tariffs + crypto + Meta), Apple Podcasts (All-In episode list), Wikipedia, Meyka, MarketBeat
+**X scrape:** Skipped — HomHub node offline
+**Findings:** No new Chamath activity since last update. No new All-In episode since Apr 11 (Brad Gerstner). AEXA SPAC still seeking target (added to portfolio section above). Forbes enterprise AI warning article (Apr 12) already documented. No new tweets indexed by web search beyond Apr 13 "Generational Fumble" tweet.
+**Notification:** None warranted — no signal above noise threshold.
