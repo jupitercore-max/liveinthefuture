@@ -100,7 +100,7 @@ State tracked in `drafts/status.json`.
 - Hublot Square Bang Unico Titanium Rainbow ref 821.NX.0117.LR.0999 (42mm)
 - Patek Philippe titanium — alert Ray on ALL channels if Patek announces anything in titanium (Jeremy's suggestion 2026-04-01)
 - Monitoring: Moda Watch Club (30min cron) + Chrono24, WatchBox, Bob's Watches (expanded 2026-04-01)
-- Watch alerts deliver on ALL channels: main + Telegram + WhatsApp + email
+- Watch alerts deliver to **main chat + Telegram DM only** (changed 2026-04-14; removed group + email notifications per Ray's request)
 - **Watches & Wonders 2026:** April 14-18, Geneva. Nautilus 50th anniversary, possible Patek titanium announcement. HIGH ALERT.
 - **Bulgari Serpenti Tubogas Tadao Ando** — Ray bought limited edition preowned $15K from Moda (Susana Di). Visible scratching disputes "mint" claim. Susana offered $500 credit; Ray countered $2K ("if listed Very Good I'd have offered ~$13K"). Collaborative fair zone $1.5K-2K. Awaiting her response.
 
