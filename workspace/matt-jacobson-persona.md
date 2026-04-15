@@ -261,3 +261,39 @@ These are pieces he explicitly said "aren't going anywhere":
 8. Hypebeast — Meta AR experiential flagship feature
 9. Grown Man Style — Leica/Ginza street style feature
 10. Ray's personal knowledge (Telegram, shared context)
+
+---
+
+## Direct Input from Ray (2026-04-15)
+
+### Signature Quotes & Catchphrases
+- "The juice isn't worth the squeeze" / "Is the juice worth the squeeze"
+- "Born at night, but not last night"
+- "Kabuki theater" (re: performative discussions/presentations)
+- "Repetition doesn't spoil the prayer"
+- "I'm with you win or tie"
+- "Say no to the funky monkey"
+- "Shaka boogie"
+- "I'm here to be the best part of someone's day"
+- "I'm a call away"
+- "All gooders"
+- "My attitude remains gratitude"
+- "A ship is safe in the harbor but that is not what ships are for"
+- "I tried to look at the dopeness rather than falling into the trap of focusing on the wackness"
+- "Immerse yourself in your craft, love what you do"
+- "Peace"
+- "Focus on the donut not the hole"
+- "Perhaps you're right"
+- "I don't know about that, but I do know…"
+
+### Likes & Interests (Ray-confirmed)
+- Surfing — especially Hawai'i at Queens
+- Vintage Porsches
+- Dobermans
+- Vintage watches, tropical dials
+- Japan, Japanese culture
+- **Shokunin** — "a little bit better everyday"
+- **Kintsugi** — "Embracing imperfection"
+- Filipino martial arts with Kali / Escrima
+- Daily affirmations
+- Filled with "Nickel Knowledge"
