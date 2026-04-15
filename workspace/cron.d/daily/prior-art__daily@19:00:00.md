@@ -9,7 +9,7 @@ schedule:
 metadata:
   originating_channel_context_json: '{"originating_channel":"main","chat_kind":"direct","event_kind":"message","require_mention":false}'
 ---
-Generate and publish ONE new defensive prior art disclosure to liveinthefuture.org/priorart/.
+Generate and publish ONE new defensive prior art disclosure to liveinthefuture.org/priorart/ AND sync to rayhe/prior-art repo.
 
 ## HARD REQUIREMENT: You MUST publish a new page. If you exit without a new HTML file committed and pushed, you have failed.
 
@@ -30,10 +30,17 @@ Generate and publish ONE new defensive prior art disclosure to liveinthefuture.o
 8. Run through 7-critic pipeline, must score 8.5+ to publish
 9. Add the new card to `priorart/index.html` grid
 10. Update sitemap.xml with new URL
-11. Git add, commit (with reasoning), push
+11. Git add, commit (with reasoning), push to rayhe/liveinthefuture
 12. Verify new file count: `ls priorart/*.html | grep -v index | wc -l` should be +1 from before
+
+## ALSO: Sync to rayhe/prior-art repo
+13. Pull latest `rayhe/prior-art` repo (clone if needed: `git clone https://github.com/rayhe/prior-art.git ~/repos/prior-art`)
+14. Create a markdown version of the disclosure in `inventions/PA-2026-XXX-{slug}.md` following the format of existing files there
+15. Git add, commit with descriptive message, push to rayhe/prior-art
+16. The git commit timestamp IS the prior art timestamp — this is the whole point
 
 Ideas should be genuinely novel and non-obvious — things that a patent troll might try to claim. Intersections of AI + physical world are rich territory. Think sensor fusion, edge inference, novel data pipelines.
 
 Repo: ~/repos/liveinthefuture, section: priorart/
+Prior-art repo: ~/repos/prior-art
 Deploy: Cloudflare Pages auto-deploys from GitHub push.
