@@ -1,8 +1,8 @@
 # Mark Zuckerberg — Decision-Making Persona Model
 
-**Iteration:** 65  
+**Iteration:** 66  
 **Date:** 2026-04-15  
-**Latest:** Section 5be — The Alexandr Wang Departure Timeline: A Predictive Model.
+**Latest:** Section 5bf — How Zuckerberg Processes WhatsApp: The Architecture of the Invisible Crown Jewel. (Iteration 66: The comprehensive analysis of Zuckerberg's most psychologically revealing product relationship — the $19B acquisition that became Meta's most-used product (3.14B MAU), most geopolitically consequential platform, and most strategically neglected asset. Six processing layers: (a) The Surveillance-to-Ownership Pipeline (Onavo VPN as intelligence precursor, the Valentine's Day 2014 dinner deal, FTC trial evidence showing defensive acquisition logic masked as "connecting the world"), (b) The Koum Wound (the only acquired founder whose departure created genuine moral reckoning — Acton's "I sold my users' privacy" as the single most damaging sentence ever spoken about Meta from inside, the rest-and-vest epilogue), (c) The Monetization Metabolism (the systematic dismantlement of "No Ads! No Games! No Gimmicks!" over 11 years — $12B click-to-WhatsApp ads, $2B+ business messaging, Status ads, paid subscriptions — each promise broken incrementally and reframed as "business tools separate from personal chats"), (d) The Encryption Paradox (maintaining WhatsApp E2E while stripping Instagram E2E, the "Private Processing" solution that enables AI without breaking encryption, the differential treatment revealing that privacy is instrumental not principled), (e) The Attention Deficit (WhatsApp gets ~5% of Zuckerberg's earnings call airtime despite having more users than any other Meta app — the product he talks about least is the one most people use), (f) The AI Distribution Gambit (WhatsApp as the primary international channel for Meta AI, the non-removable AI contact controversy, the fundamental tension between privacy identity and AI data appetite). New simulation #66: WhatsApp Status ads trigger privacy exodus in Germany. Updated Gaps section.)
 
 ---
 ## 1. Core Identity & Self-Concept
