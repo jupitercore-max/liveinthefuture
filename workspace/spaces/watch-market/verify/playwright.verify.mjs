@@ -32,6 +32,16 @@ export async function verify(ctx) {
   // Check watchlist targets rendered
   const milgauss = await page.locator("text=Rolex Milgauss").first();
   assert(await milgauss.isVisible(), "Milgauss target should be visible");
+
+  // Navigate back to Dashboard for screenshot
+  await page.getByRole("button", { name: "Dashboard" }).click();
+  await page.waitForTimeout(2000);
+  
+  // Verify dashboard charts are visible
+  const brandDist = await page.locator("text=Brand Distribution").first();
+  assert(await brandDist.isVisible(), "Brand Distribution chart should be visible on dashboard");
+  const priceRange = await page.locator("text=Price Range by Brand").first();
+  assert(await priceRange.isVisible(), "Price Range chart should be visible on dashboard");
 }
 
 export async function handleAction(ctx) {

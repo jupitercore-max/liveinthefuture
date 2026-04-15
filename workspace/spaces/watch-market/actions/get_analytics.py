@@ -75,11 +75,11 @@ async def main(ctx, request: Request) -> Response:
     med_p = prices[len(prices) // 2] if prices else None
 
     brand_rows = db.execute("""
-        SELECT brand, COUNT(*) as cnt,
+        SELECT COALESCE(brand, '') as brand, COUNT(*) as cnt,
                AVG(CASE WHEN price > 0 THEN price END) as avg_p,
                MIN(CASE WHEN price > 0 THEN price END) as min_p,
                MAX(CASE WHEN price > 0 THEN price END) as max_p
-        FROM listings WHERE brand != '' GROUP BY brand ORDER BY cnt DESC
+        FROM listings WHERE brand IS NOT NULL AND brand != '' GROUP BY brand ORDER BY cnt DESC
     """).fetchall()
 
     brands: List[BrandStat] = []
@@ -115,12 +115,15 @@ async def main(ctx, request: Request) -> Response:
                               avg_price=round(r["avg_p"], 2) if r["avg_p"] else None) for r in timeline_rows]
 
     scatter_rows = db.execute("""
-        SELECT date, price, brand, reference, model FROM listings
-        WHERE price IS NOT NULL AND price > 0 AND date != '' ORDER BY date
+        SELECT date, price, COALESCE(brand, '') as brand,
+               COALESCE(reference, '') as reference, COALESCE(model, '') as model
+        FROM listings
+        WHERE price IS NOT NULL AND price > 0 AND date != ''
+        AND brand IS NOT NULL AND brand != '' ORDER BY date
     """).fetchall()
     scatter = [PriceScatterPoint(
         date=r["date"], price=r["price"], brand=r["brand"],
-        reference=r["reference"] or "", model=r["model"] or "",
+        reference=r["reference"], model=r["model"],
     ) for r in scatter_rows]
 
     sync_row = db.execute("SELECT synced_at FROM sync_log ORDER BY id DESC LIMIT 1").fetchone()
