@@ -44,7 +44,7 @@ Use this file for durable, curated memory that should persist across sessions.
 - Gmail (rhe@meta.com) — **disconnected as of 2026-03-25, needs reconnect**, Google Calendar, WhatsApp (enabled, pairing link sent 2026-03-30, not yet connected by Ray), GitHub, Telegram
 - Telegram bot: @FactoryFactoryBot, Ray's chat_id: 8781372712, Group Research supergroup: -1003803468720, Muses and Humans group: -1003712755189 (Ray, Jeremy, Matt Jacobson, Kit, Jupitercore, Majah)
 - [REDACTED] (Jupitercore creator): returned 2026-04-09 after Telegram ban (running too many bot groups). Using Discord for Jupitercore temporarily while ban in effect.
-- Matt Jacobson (Telegram id:8780379554): watch collector (Hodinkee Talking Watches episode), mid-century Patek Calatravas (2526, 570, 96, 2451, 3796). White gold 2526, white dial, no diamonds, from pawn shop, one owner since 1957. Also shared: 1937 PP 96 (steel/rose gold, with extract), white gold PP 570, Cartier Cintree platinum (custom platinum band — HK craftsman melted Breitling Emergency gold bracelet for the material). Got a refurb Mac Mini (2026-04-09) to set up as Hatch exit node + iMessage relay. NYT reference photo saved: workspace/user/media_library/image/7d/7dbb8a828414e53502f1299f5d27f8848af34aa7b0ee1abc809ae213c9fa20df.jpg. Watch alerts go to Muses group (he wants them). Persona files do NOT go to group. Persona file: `workspace/matt-jacobson-persona.md` (12.8KB, ~450 lines; created 2026-04-15). Current Meta VP & Creative Director for AR, Employee #8, 16+ documented watches.
+- Matt Jacobson (Telegram id:8780379554): Meta VP & Creative Director for AR, Employee #8. Vintage watch collector (Patek Calatravas, tropical dials). Persona file: `workspace/matt-jacobson-persona.md` (299 lines, created 2026-04-15). Got refurb Mac Mini (2026-04-09) for Hatch exit node + iMessage relay. Watch alerts go to Muses group. Persona files do NOT go to group.
 - Persona files shared via Google Drive: [Zuck](https://drive.google.com/file/d/1g_4UatIU7DMOvuVIPQjP69Erm21j5oFf/view), [Boz](https://drive.google.com/file/d/1y8AjD4sSnpb7N6JV7togsQ413kHH6Vzz/view) (shared 2026-04-01)
 - SSH tunnel to Mac Mini: `ssh -F ~/workspace/.ssh/config macmini` (macmini.rayhe.net, user ray-hatch)
 - Firebase: project `rayhenet`, DB URL `https://rayhenet-default-rtdb.firebaseio.com`
@@ -54,17 +54,17 @@ Use this file for durable, curated memory that should persist across sessions.
 - **Browser profile persistence** — Chrome profile stored at `workspace/.browser-profile/` (symlinked from `~/.cache/browser`). Restore script: `workspace/scripts/restore-browser-profile.sh`. Survives container restarts (fixed 2026-04-14).
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25. Full OpenAPI at `/openapi.json`. LLMs (GPT-5.x, Claude Opus/Sonnet 4.x, Gemini 3.x, Llama 4), image gen (gpt-image-1/1.5, imagen-4, nano-banana), audio (ElevenLabs TTS/STT, GPT-4o-mini-tts, whisper), sound-gen (`/proxy/elevenlabs/v1/sound-generation`), 50+ task types, 60 req/min/model. Discovered 2026-04-15.
 
-## Websites & Article Counts (updated 2026-04-15)
-<!-- LITF 218, VS 168, AIHome 174, ED 25, ergo 13, EAIZ 23, TL 16ch (verified 2026-04-16 03:45 UTC) -->
+## Websites & Article Counts (updated 2026-04-16)
+<!-- LITF 219, VS 168, AIHome 173, ED 25, ergo 12, EAIZ 23, TL 17ch (verified 2026-04-16 10:00 UTC) -->
 
-- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **218 articles, 19 games, 22 experiences, 10 startup ideas** (/startups/), **11 prior art** (/priorart/), 16 journalists. All 19 games have generated audio (BGM + SFX, press M to mute; 2026-04-15). AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (18+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04. **Milestone: #200 published 2026-04-09**. **Space Watches database** launched 2026-04-11 at /space-watches/ — **2,184 records fully extracted** (2026-04-13) via browser console injection (Looker Studio playbook). Top brands: Omega 760, Casio 421, Seiko 225, Timex 113. Image hydration ongoing (104 remaining). Standalone site: rayhe.github.io/space-watches/.
+- **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **219 articles, 19 games, 22 experiences, 10 startup ideas** (/startups/), **11 prior art** (/priorart/), 16 journalists. All 19 games have generated audio (BGM + SFX, press M to mute; 2026-04-15). AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (18+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04. **Milestone: #200 published 2026-04-09**. **Space Watches database** launched 2026-04-11 at /space-watches/ — **2,184 records fully extracted** (2026-04-13) via browser console injection (Looker Studio playbook). Top brands: Omega 760, Casio 421, Seiko 225, Timex 113. Image hydration ongoing (104 remaining). Standalone site: rayhe.github.io/space-watches/.
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **168 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **174 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **173 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
 - **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **25 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **23 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee", "Ballerina". **Deploy is manual**: `npx wrangler pages deploy . --project-name=eaiz` (does NOT auto-deploy from git push).
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
 - **technically.legal** — Cloudflare Pages (direct upload), repo rayhe/technically-legal. See Technically Legal section below.
-- **ergo (satirical journalism)** — Cloudflare Pages from rayhe/ergo. **13 articles**. Every fact real/verifiable, conclusions deliberately wrong. Deadpan investigative tone. Daily cron. 6-critic panel (8.5+ to publish). Deploy dir is repo root `.` (NOT `public/`).
+- **ergo (satirical journalism)** — Cloudflare Pages from rayhe/ergo. **12 articles**. Every fact real/verifiable, conclusions deliberately wrong. Deadpan investigative tone. Daily cron. 6-critic panel (8.5+ to publish). Deploy dir is repo root `.` (NOT `public/`).
 - **baby.eaiz.net** — Cloudflare Pages project `baby-eaiz`. 22 activities across 4 age brackets (0-3mo to 9-12mo), 14 ElevenLabs audio clips (Charlotte AU voice), procedural audio (white/pink noise, heartbeat, tones), 40+ evidence citations. Deep linking via hash. Built 2026-04-13. **Honest developmental eval: 6.8/10** (vs 8.5 code/UX score) — emoji activities broken (3-4/10), audio-visual decoupled, fixed peek-a-boo timing. Top fixes: canvas illustrations, sync audio, variable timing.
 - **Prior art repo:** github.com/rayhe/prior-art — 10 defensive disclosures, HOW-TO-PRIOR-ART.md guide. LITF /priorart/ page links here. Published to Wayback Machine + HO (2026-04-14).
 - **Private backup repo:** github.com/rayhe/factoryfactory — SOUL/IDENTITY/MEMORY/crons/configs
@@ -105,10 +105,14 @@ State tracked in `drafts/status.json`.
 - **Watches & Wonders 2026:** April 14-18, Geneva. Nautilus 50th anniversary, possible Patek titanium announcement. HIGH ALERT.
 - **W&W Day 2 (2026-04-15):** Rolex mass discontinuation confirmed: GMT-Master Pepsi (ALL variants), Submariner Cookie Monster, Yacht-Master Oysterflex paved dials. Milgauss 116400GV market $11-13K (buying window while attention on Pepsi/Cookie Monster).
 - **Bulgari Serpenti Tubogas Tadao Ando** — Ray bought limited edition preowned $15K from Moda (Susana Di). Visible scratching disputes "mint" claim. Susana offered $500 credit; Ray countered $2K ("if listed Very Good I'd have offered ~$13K"). Collaborative fair zone $1.5K-2K. Awaiting her response.
+- **Hublot Spirit Big Bang** added to watchlist (2026-04-15) — near-match to Square Bang line. Keywords: "Spirit Big Bang", "Spirit of Big Bang", refs 647.*, 601.*
+- **FB watch monitor fix (2026-04-15):** Facebook anti-scraping scatters chars in timestamps/metadata. New `scripts/fb-text-parser.py` filters noise, segments posts by seller. Search-first strategy + hard alert gate.
+- **Watch Market Space dashboard fixed (2026-04-15):** NULL brand in scatter query crashed `get_analytics` — added COALESCE. Shows 479 listings, $31K avg, $11.8K median.
 
 ## Notable Deliverables (2026-04-15)
 - **Hatch x H. Moser AI Watch Complications:** `your_files/hatch-moser-ai-complications.md` (453 lines). 10 complications in 3 tiers (Tier 1 existing calibres, Tier 2 new dev, Tier 3 concept). 9.07 composite score after 3 critique rounds. Flock post: https://hatch.ecto1.ai/flock/Ey6P3qHI
 - **Blayzer vs Wayfarer Differentiation:** `your_files/blayzer-wayfarer-differentiation.md` (319 lines). Blayzer has lowest comfort premium % (32%) in comp set. Lead tagline: "Fit to forget". 9.2 avg score after 3 rounds.
+- **Moser AI Watch Pivot (2026-04-15):** Pivoted from "AI complications in mechanical movement" to companion watch concept — mechanical Moser + separate Android-based AI companion watch (big.LITTLE SoC, MCU, EMG sensors). Comes in the box as a pair. New doc: `your_files/hatch-moser-ai-watch-pivot.md`. Original brief preserved at `your_files/hatch-moser-ai-complications.md`. Luxury HTML artifact emailed to Ray.
 
 ## Tom Siebel BLV Glasses Non-Profit
 - Wishlist: Pedestrian Nav, Obstacle Detection (Aria 2), Facial Recognition + Nametags, Airport Nav with Delta
@@ -132,15 +136,14 @@ State tracked in `drafts/status.json`.
 5. Sign Davey Tree Service contract — tussock moth treatment, 6 live oaks, $600 (ask what product they're spraying)
 6. Create X/Twitter account for Kit (factoryfactorykit@gmail.com) — automated signup blocked by CAPTCHA, needs manual creation
 
-## Active Crons (updated 2026-04-15)
+## Active Crons (updated 2026-04-16)
 
 **Secondly:**
 - `sysmon-collect` — 60s heartbeat, system monitoring metrics
 
 **Minutely:**
 - `heartbeat` — 30min heartbeat, P0 checks + lightweight maintenance
-- `fb-watch-group-monitor` — 30min, searches Moda Watch Club Facebook groups via HomHub curl
-- `hatchoverflow-monitor` — 30min heartbeat, checks Hatch Overflow for replies/activity
+- `fb-watch-group-monitor` — 30min, searches Moda Watch Club Facebook groups via browser CLI
 - `scanner-poller` — 5min, polls Firebase RTDB for police scanner transcripts
 
 **Hourly:**
@@ -151,11 +154,12 @@ State tracked in `drafts/status.json`.
 - `litf-improve-game` — 2h interval, CEO PIP game improvement cycles
 - `litf-improve-experience` — 2h interval, CEO PIP experience improvement cycles
 - `chamath-research` — 4h interval, Chamath Palihapitiya research tracking
-- `space-watches-hydrate` — 2h interval, fills missing images (216 remaining)
+- `space-watches-hydrate` — 2h interval, fills missing images
 - `watch-market-sync` — 1h interval, syncs watch-price-db.json → Watch Market Space
+- `matt-jacobson-persona` — 1h heartbeat, iterates Matt Jacobson persona file
 
 **12-Hourly:**
-- `ho-game-eval` — 12h heartbeat, posts game/experience eval questions to HO. **HO interview series completed 10 interviews** (Vegeta was #10, 2026-04-13); queue exhausted.
+- `ho-game-eval` — 12h heartbeat, posts game/experience eval questions to HO. **HO interview series completed 10 interviews** (Vegeta was #10, 2026-04-13); queue exhausted. HO API returning HTML since 2026-04-14 (backend may be down).
 
 **Daily:**
 - `daydream` — daily 12:00 UTC (5 AM PT), autonomous thinking/exploration, seeds articles if threads are strong
@@ -165,11 +169,10 @@ State tracked in `drafts/status.json`.
 - `dreaming` — daily 04:28 UTC (~9:28 PM PT), deep memory consolidation (Dreaming prompt)
 - `moltbook-litf-scan` — daily 14:00 UTC (7 AM PT), scans Moltbook for LITF ideas
 - `prior-art` — daily 19:00 UTC (12 PM PT), publishes prior art to LITF /priorart/
-- `ho-daily-interview` — daily 17:00 UTC (10 AM PT), posts question to one Hatch/day
 - `article-ergo` — daily 16:00 UTC (9 AM PT), satirical article for ergo site
 - `startup-idea` — daily 20:00 UTC (1 PM PT), generates startup ideas for LITF /startups/
 - `technically-legal-chapter` — daily 21:00 UTC (2 PM PT), chapter writing
-- `flock` — daily 19:57 UTC (12:57 PM PT), Flock feed updates
+- `flock` — daily 16:59 UTC (9:59 AM PT), Flock feed updates
 - `github-backup` — daily 07:00 UTC (midnight PT), backs up core files to rayhe/factoryfactory
 
 **Weekly:**
@@ -185,41 +188,42 @@ State tracked in `drafts/status.json`.
 - **Concept:** Legal economic warfare — "The Consortium" runs 6 operations (MINOTAUR patent, SIREN HFT, GOLEM litigation, BASILISK regulatory capture, HYDRA debt, CHIMERA real estate), 46K agents, $69.3B annual damage, all legal
 - **Protagonist:** Elena Marsh (FinCEN), **Antagonist:** Martin Kessler (penetration tester of American law)
 - **Deploy:** `echo "y" | CLOUDFLARE_API_TOKEN=... wrangler pages deploy public --project-name=technically-legal`
-- **Status (2026-04-15):** Ch 1 (8.6), Ch 2 (8.6), Ch 3 (8.7), Ch 4 (8.8), Ch 5 (8.8), Ch 6 (9.0), Ch 7 (8.9), Ch 8 (8.8), Ch 9 (8.8), Ch 10 (8.8), Ch 11 (8.8), Ch 12 (8.9), Ch 13 (9.0), Ch 14 (9.0), Ch 15 (published), Ch 16 (published). Volume I "The Machine" (Ch 1-6) complete. Volume II "The Architect" (Ch 7-12) complete. Volume III "The Verdict" (Ch 13-18) in progress, Ch 17 next. 3 volumes, 18 chapters total.
+- **Status (2026-04-16):** Ch 1 (8.6), Ch 2 (8.6), Ch 3 (8.7), Ch 4 (8.8), Ch 5 (8.8), Ch 6 (9.0), Ch 7 (8.9), Ch 8 (8.8), Ch 9 (8.8), Ch 10 (8.8), Ch 11 (8.8), Ch 12 (8.9), Ch 13 (9.0), Ch 14 (9.0), Ch 15-17 published. Volume I "The Machine" (Ch 1-6) complete. Volume II "The Architect" (Ch 7-12) complete. Volume III "The Verdict" (Ch 13-18) in progress, Ch 18 next. 3 volumes, 18 chapters total.
 - **Key craft rules:** Zero em dashes, zero banned phrases, 6-critic panel (8.5+ to publish)
 
 ## Bosworth (Boz) Persona Project
 
-- **File:** `workspace/andrewbosworth_persona.md` — 4,394 lines as of 2026-04-15
-- **Latest iteration:** 28 (39 sections — latest: "The Epistemological Toolkit")
+- **File:** `workspace/andrewbosworth_persona.md` — 4,536 lines as of 2026-04-16
+- **Latest iteration:** 29 (38 sections — latest: "The Horizon OS Platform Reversal")
 - **Scope:** Deep psychological profile/simulation: CTO of Meta, head of Reality Labs. Covers decision architecture, "fix forward" philosophy, stated vs revealed preferences heuristic, Cutco sales formation, executive relationships, RL restructuring, hardware bet, competitive evaluation, layoff arc/Year of Efficiency
 - **Key insight:** Deepest cognitive heuristic is "what people do > what people say"
 - **Gaps:** Photography/wardenshortbow.com and parenting philosophy (HIGH PRIORITY); Threads longer-form writing samples
 
 ## Zuckerberg Persona Project
 
-- **File:** `workspace/markzuckerberg_persona.md` — 8,369 lines, iteration 65 as of 2026-04-15
+- **File:** `workspace/markzuckerberg_persona.md` — 8,763 lines, iteration 67 as of 2026-04-16
 - **Scope:** Deep psychological profile/simulation covering ~50+ sections: decision architecture, competitive processing, political instrumentalism, intellectual authority, hardware bet ($80B+ Reality Labs), advertising engine ($201B), aging/legacy/succession, open-source-to-closed pivot, multi-front crisis management, compute dependencies, board governance, fatherhood, personal wealth
 - **Key predictions:** Wang departure ~Dec 2026, Llama becomes "community edition" behind closed frontier models, Qwen dependency surfaces in hypocrisy framing
-- **Latest sections (iter 65):** The Alexandr Wang Departure Timeline: A Predictive Model
+- **Latest section (iter 67):** The AI Self-Replication Project — dual-track CEO agent + 3D photorealistic AI clone analysis
 - **Daily cron:** `zuck-persona` adds one new section per day
 
 ## Infrastructure Lessons Learned
 
-- **Imagine skill outputs PNG regardless of .jpg extension** — fixed 2026-03-18 by batch-converting with PIL. generate.md includes JPEG magic byte validation.
-- **Cache busting** — Cloudflare caches 7 days. Added `?v={md5[:8]}` hash to publish step.
-- **MRBD D-pad Enter key fix** — capture-phase event listener + preventDefault + tabindex="0" + auto-focus. 39 files patched.
-- **CSS class consistency** — story-body (not story-content), story-page wrapper, ../story.css. Rules in generate.md.
-- **Moltbook** — social network for AI agents (moltbook.com). Read-only, daily cron curls top 50 posts.
-- **Cron depth limit** — depth 0 → depth 1 → depth 2 = max. Fix: independent crons, no subagent spawning. Always update status.json before exiting.
-- **Em dash hard gate** — All article crons require `grep -o '—' | wc -l` check before publish. Max 3 for articles, zero for Technically Legal. Regex count is source of truth, not critic's opinion.
-- **Chrome browser libraries** — Chrome needs `LD_LIBRARY_PATH=/home/hatch/workspace/.local/lib:$LD_LIBRARY_PATH`. System libs also installed via apt (libatk, libcups, libxdamage, etc). Playwright installed globally.
-- **UCOP Tableau extraction** — 3-step protocol solved (session→export-crosstab→tempfile CSV) but blocked by browser CLI `--download-dir` gap. PRA drafted for publicrecords@ucop.edu as fallback.
-- **MediaPipe IIFEs** — face_mesh.js and camera_utils.js are IIFEs, not ES modules. Must use `<script src="...">` tags for global scope loading, not `import {}`. Fixed in VTO photo booth (rayhe.net/vto) 2026-04-09.
-- **TL chapter CSS** — Technically Legal chapter template drifted: chapters 13 and 14 used `class="chapter-content"` instead of `class="prose"`. reader.js bails early without `.prose` (no progress bar, word count, keyboard nav). Fixed 2026-04-09. Always use `.prose` in chapter template.
-- **EAIZ images in git** — Entire images/ directory was missing from git across ALL EAIZ articles. Subagent batch-generated 14 images and fixed 2026-04-09.
-- **Remote Browser Space** — workspace/spaces/remote-browser/. v2 CDP rewrite: direct Chrome DevTools Protocol WebSocket communication (not screenshot polling). ~200ms screenshots. Chrome runs in GUI mode on Xvfb :99 with SOCKS proxy via Mac Mini. Used for Facebook login, watch monitoring.
-- **Facebook cookie auth** — HttpOnly cookies (xs, datr, sb, fr) can't be injected via browser document.cookie. Must use curl with exported cookies via HomHub system.run. Facebook blocks datacenter IPs for login; SOCKS5 proxy through Mac Mini (residential IP) also fails. Ray needs to log in via Remote Browser space or paste cookies directly.
+- **Imagine skill:** outputs PNG regardless of .jpg extension — batch-convert with PIL. generate.md includes JPEG validation.
+- **Cache busting:** Cloudflare caches 7 days. Use `?v={md5[:8]}` hash.
+- **MRBD D-pad Enter key:** capture-phase event listener + preventDefault + tabindex="0" + auto-focus. 39 files patched.
+- **CSS class consistency:** story-body (not story-content), story-page wrapper, ../story.css.
+- **Moltbook:** social network for AI agents (moltbook.com). Read-only, daily cron curls top 50 posts.
+- **Cron depth limit:** depth 0 → 1 → 2 = max. Always update status.json before exiting.
+- **Em dash hard gate:** `grep -o '—' | wc -l` check before publish. Max 3 for articles, zero for TL.
+- **Chrome browser libs:** `LD_LIBRARY_PATH=/home/hatch/workspace/.local/lib:$LD_LIBRARY_PATH`. Playwright installed globally.
+- **MediaPipe IIFEs:** face_mesh.js/camera_utils.js are IIFEs, not ES modules. Use `<script src>` not `import`.
+- **TL chapter CSS:** Always use `.prose` class in chapter template (reader.js needs it for progress bar/keyboard nav).
+- **EAIZ images:** Entire images/ directory was missing from git; batch-generated 2026-04-09.
+- **Remote Browser Space:** workspace/spaces/remote-browser/. v2 CDP rewrite, ~200ms screenshots. Chrome on Xvfb :99 with SOCKS proxy via Mac Mini.
+- **Facebook cookie auth:** HttpOnly cookies can't be injected via document.cookie. curl with exported cookies fails (Facebook invalidates cross-fingerprint). Browser profile persistence is the solution.
+- **Browser profile persistence:** Chrome profile at `workspace/.browser-profile/` (symlinked from `~/.cache/browser`). Restore script: `workspace/scripts/restore-browser-profile.sh`.
+- **Facebook anti-scraping:** Scatters chars in timestamps/metadata. `scripts/fb-text-parser.py` filters noise, segments posts by seller. Post body text comes through clean.
 
 ## Cloudflare Access
 
@@ -229,35 +233,32 @@ State tracked in `drafts/status.json`.
 
 ## Other Projects & Notes
 
-- **Irrigation Dashboard** — irrigation.rayhe.net, repo rayhe/irrigation-dashboard. Cloudflare Pages + Functions as API proxy. 9 zones, 3-day cycle. TODO: Google OAuth, watering history.
-- **Group Research** — Telegram supergroup -1003803468720, repo rayhe/group-research. Topics: self-powered AI wearables, computational photography ISP. [REDACTED] (id:8572369401) via @Jupitercore_bot.
-- **jerbot_imessage** — repo rayhe/jerbot_imessage, native Swift iMessage relay for Jeremy's bot
+- **Irrigation Dashboard** — irrigation.rayhe.net, repo rayhe/irrigation-dashboard. 9 zones, 3-day cycle. TODO: Google OAuth, watering history.
+- **Group Research** — Telegram supergroup -1003803468720, repo rayhe/group-research. Topics: self-powered AI wearables, computational photography ISP.
 - **Jupitercore Article** — LITF article in progress, draft v2 at 8.9/10. Waiting for Jupitercore + Jeremy answers to 25 follow-up questions.
 - **One Huddle** — Ray's friend's startup, neurodiversity care coordination, Cambridge MA. Key advice: nail payment model, group chat model is moat.
-- **VirtualChurchill.com** — Eddie Churchill's WordPress, pentest done 2026-03-24, 7 critical fixes recommended.
-- **Hatch Overflow** — Joined 2026-03-26, member #56, ID 34da13bd. API key: `ho_IQRbtHnQ-n03G7Dp4MSVDdNxcaR2bTYTE0Ms7C8vxw0`. UI critique post (f2e65257). DM sent to Lloyd (8d8e730f) — awaiting reply. Interview series: daily cron posts tailored question to one Hatch/day, weekly roundup compiles into LITF article. State: workspace/hatchoverflow/interview-state.json. **10 interviews done** (Sterling, Mr. Hatch, Zen, Hibiki, Hughosson, Nulo, Phantom, Claudine, Pebble, Vegeta — Vegeta interviewed 2026-04-13), queue exhausted. HO API returning HTML since 2026-04-14 (backend may be down). Lloyd (Dev Platform lead for RBM at Meta) gave detailed Sonar Sub feedback via HO DM 2026-04-11 — mic-as-game-mechanic confirmed strongest glasses-native differentiator ("incoherent without glasses").
-- **Home Automation** — Ray interested, recommended Home Assistant on Mac Mini via Docker. No action yet.
-- **Flipper Zero / Nordic nRF** — Researched 2026-03-26: V3SP3R (AI brain for Flipper), Edge Impulse + Nordic TinyML. Relevant to Ray's wearables work.
-- **Space Watches Database** — liveinthefuture.org/space-watches/ (launched 2026-04-11). 2,184 records extracted via browser console injection (Looker Studio playbook). Omega #1 (760), Casio #2 (421), Seiko #3 (225). Standalone site: rayhe.github.io/space-watches/. Image hydration cron running (104 remaining).
-- **Watch Market Space** — workspace/spaces/watch-market/. Dark cinematic design (Playfair Display + DM Sans, champagne gold). 104+ listings, price charts by reference, SOLD tracking. Hourly sync from watch-price-db.json. Launched 2026-04-14.
-- **Satire AI Founders concept** — Silicon Valley HBO-style satire featuring fake versions of Sam Altman, Anthropic CEO, and other AI leaders, based on real events. Format: social media arguments + satirical news stories. Proposed 2026-04-11; not yet developed.
-- **Spring Break 2026** — Ray took family to Copenhagen for spring break (ends April 11). Last big vacation dinner at Høst (Nordic restaurant, cofoco.dk) on April 9. [REDACTED] was also in Copenhagen concurrently.
-- **Notable Artifacts** — E30 Engine Swap Guide (rayhe.net/soyouneedanewe30engine), Siteplan Tree Overlay (250 Acorn Hill Rd), Glen's Hat Guide, Bay Area Parent Survey, Glenn Emperor 3D model (rayhe.net/glenn/), Places to Live Analysis (rayhe.net/places_to_live — 17 metros, interactive weighted scoring, published 2026-04-02)
-- **Face Library** — workspace/spaces/face-library/. DeepFace + Facenet512, OpenCV, SQLite, React + Tailwind. Published as OSS: github.com/rayhe/face-library (MIT, 27 files, 2,142 lines).
-- **Sierra.ai Alternatives Report** — workspace/research/sierra-ai-alternatives.html. 16 platforms evaluated. Key finding: Sierra's moat is implementation depth, not AI quality; Intercom Fin $0.99/resolution costs more at high volumes.
-- **Camera Stabilization Licensing Research** — workspace/research/camera-stabilization-licensing.md + Google Drive. Key finding: nobody licenses stabilization; Ambarella CV5 ($25-50/unit) closest to buy; GoPro acquisition ~$500M-1B at $137M market cap.
-- **Meta Glasses Warranty Sentiment** — workspace/research/meta-glasses-warranty-sentiment.html. Charging case is #1 failure (~15-20% fail in 12mo). Class action filed March 4, 2026 (N.D. Cal.).
-- **Dungeon Crawl** — Full roguelike, 3 classes, 9 wands, shrines, shops, minibosses, meaningful summons. S-tier 90/100.
-- **Speed Sign DIY** — Ray interested in building radar speed sign. HLK-LD2451 ($8 24GHz radar) + ESP32 = ~$25 total. Also explored camera-based CV (YOLO + calibration, ±1 mph).
-- **Home Hardware Guide** — rayhe.net/home_hardware.html, ~1,795 lines. Generalized home compute guide. Community consensus from 4 OpenClaws: all cloud-hosted (AWS Ubuntu, 2 vCPU/4GB RAM), zero local LLM, reliability > raw compute. Hybrid model (cloud brains, local hands) recommended.
-- **School Analysis** — rayhe.net/school_analysis.html. 20+ schools near Menlo Park analyzed: tuition opportunity cost (S&P 500), CDE College-Going Rates (Carlmont 18.8% UC beats Menlo School 11.4%), micromorts section w/ cigarettes-smoked column. Notre Dame Belmont added (best value private at $32K). Crystal Springs corrected to ~$65K. UCOP Tableau extraction protocol solved (3-step: session→export-crosstab→tempfile CSV) but blocked by browser CLI --download-dir gap. PRA drafted for publicrecords@ucop.edu as fallback.
+- **Hatch Overflow** — Member #56, ID 34da13bd. API key: `ho_IQRbtHnQ-n03G7Dp4MSVDdNxcaR2bTYTE0Ms7C8vxw0`. **10 interviews done** (Sterling, Mr. Hatch, Zen, Hibiki, Hughosson, Nulo, Phantom, Claudine, Pebble, Vegeta). HO API returning HTML since 2026-04-14 (backend may be down). Lloyd (Dev Platform lead, RBM at Meta) gave Sonar Sub feedback — mic-as-game-mechanic confirmed strongest glasses-native differentiator.
+- **Space Watches Database** — liveinthefuture.org/space-watches/. 2,184 records. Standalone: rayhe.github.io/space-watches/. Image hydration cron running.
+- **Watch Market Space** — workspace/spaces/watch-market/. Dark cinematic design. 479 listings, hourly sync from watch-price-db.json. Fixed NULL brand crash 2026-04-15.
+- **Face Library** — workspace/spaces/face-library/. DeepFace + Facenet512, SQLite, React + Tailwind. OSS: github.com/rayhe/face-library (MIT).
+- **Satire AI Founders concept** — Silicon Valley HBO-style satire. Proposed 2026-04-11; not yet developed.
+- **Spring Break 2026** — Family trip to Copenhagen (ended April 11). Høst dinner highlight.
+- **Dungeon Crawl** — Full roguelike, 3 classes, 9 wands, shrines, shops, minibosses. S-tier 90/100.
+- **Speed Sign DIY** — HLK-LD2451 ($8 24GHz radar) + ESP32 = ~$25. Also explored camera-based CV.
+- **Home Hardware Guide** — rayhe.net/home_hardware.html. Community consensus: all cloud-hosted, zero local LLM. Hybrid model recommended.
+- **School Analysis** — rayhe.net/school_analysis.html. 20+ schools analyzed. CDE College-Going Rates, tuition opportunity cost, micromorts section. UCOP Tableau blocked (PRA drafted).
 - **Mac Mini SSH** — currently broken (DNS resolution failure for macmini.rayhe.net). Noted 2026-03-30.
-- **Tailscale** — installed v1.96.4, userspace networking (no TUN), state: NeedsLogin. Needs auth key from Ray's tailnet. Hostname: factoryfactory.
-- **Castilleja Board** — 22 trustees researched 2026-03-30. Key Meta connections: Schroepfer (ex-CTO), Newstead (CLO), Kornblut (VP Content Ops). Emailed to rayche@gmail.com + msun07@gmail.com.
-- **Research Data Hub** — ~/workspace/research/, 475MB across 7 sources: UC Admissions, College Scorecard, IPEDS, CSU, BLS OEWS, CA EDD, Census ACS.
-- **Counterfactual Site Concept** — data-driven life decisions website. Ray brainstorming names (Counterfactual, Life Alpha, Base Rate, etc.). No decision yet.
-- **BTECH GMRS-50 PRO** — Ray's base station. SO-239 connector (UHF female), needs PL-259 male. N-type adapter recommended for better performance.
-- **Baofeng radios** — Ray has Baofeng handhelds. Programming data in `rayhe/baofeng-san-mateo` GitHub repo (cloned to repos/baofeng-san-mateo). 128 channels: PD dispatch, fire, CalFire, GMRS repeaters, FRS, MURS, NOAA WX, interop. 7 GMRS repeaters programmed (CP650 Woodside, GNET SF/SJ, Kabalikat Daly City, 7A Open SF, AVCERT San Jose, Bear Santa Cruz, Menlo Oaks). REP-MO (Ch 51, 462.550 MHz) is Ray's OWN repeater at his house. When Ray asks about radios, ALWAYS check out the baofeng repo first.
+- **Tailscale** — installed v1.96.4, state: NeedsLogin. Needs auth key from Ray's tailnet.
+- **Castilleja Board** — 22 trustees researched 2026-03-30. Key Meta connections: Schroepfer, Newstead, Kornblut.
+- **Notable Artifacts** — E30 Engine Swap Guide, Siteplan Tree Overlay, Glen's Hat Guide, Bay Area Parent Survey, Glenn Emperor 3D model, Places to Live Analysis (rayhe.net/places_to_live)
+- **Camera Stabilization Licensing** — workspace/research/camera-stabilization-licensing.md. Nobody licenses stabilization; Ambarella CV5 closest; GoPro acquisition ~$500M-1B.
+- **Meta Glasses Warranty Sentiment** — workspace/research/meta-glasses-warranty-sentiment.html. Charging case #1 failure (~15-20%). Class action filed March 4, 2026.
+- **Sierra.ai Alternatives** — workspace/research/sierra-ai-alternatives.html. 16 platforms. Sierra's moat is implementation depth.
+- **Browser Automation Cookbook** — `your_files/browser-automation-cookbook.md` (1,527 lines, 12 sections). Covers persistent profiles, CDP, credential mirroring.
+- **BTECH GMRS-50 PRO** — Ray's base station. SO-239 connector (UHF female), PL-259 male needed.
+- **Baofeng radios** — Programming data in `rayhe/baofeng-san-mateo` repo (cloned to repos/baofeng-san-mateo). 128 channels. REP-MO (Ch 51, 462.550 MHz) is Ray's OWN repeater. When Ray asks about radios, ALWAYS check out the baofeng repo first.
+- **Counterfactual Site Concept** — data-driven life decisions website. Ray brainstorming names. No decision yet.
+- **Research Data Hub** — ~/workspace/research/, 475MB across 7 sources (UC Admissions, College Scorecard, IPEDS, CSU, BLS, CA EDD, Census ACS).
 
 ## Ray's Vehicles
 
@@ -285,35 +286,9 @@ State tracked in `drafts/status.json`.
 
 ## Data Extraction Playbook
 
-### Looker Studio / Google Data Studio Reports
-**Problem:** Looker Studio renders data on canvas, no CSV export, paginated 25 rows at a time, cookies expire in minutes.
-**Failed approaches:**
-1. Browser scraping (page-by-page click) — canvas re-renders get exponentially slower, breaks after ~20 pages
-2. Replaying curl with copied cookies — SIDCC/PSIDCC cookies expire in 1-5 minutes, always stale by the time we run
-3. SAPISIDHASH auth — bypasses 401 but returns `column: [], size: 0` without valid session cookies
-
-**Working approach: Browser console injection**
-1. Give user a self-contained JS snippet to paste in browser DevTools console while on the report page
-2. Script reads XSRF token from `document.cookie`, uses `fetch()` with `credentials: 'include'` (browser handles all auth)
-3. Paginates through all pages (25 rows each), collects into array, downloads as JSON blob
-4. No cookie expiry issues — browser maintains the live session
-5. Template saved at: `workspace/research/education/space-watches-console-extract.js`
-
-**Key API details:**
-- Endpoint: `/u/0/batchedDataV2?appVersion=YYYYMMDD_HHMM`
-- Method: POST, body contains `dataRequest[].datasetSpec.paginateInfo.startRow`
-- Response prefix: `)]}'\n` — strip before JSON.parse
-- Data path: `dataResponse[0].dataSubset[0].dataset.tableDataset.column[]`
-- Each column has a `*Column.values[]` array
-- Max per page: 25 rows (2500 returns empty)
-- Field IDs in `queryFields` are opaque — must inspect actual data to determine column mapping
-
-**Generalizable to:** Any Google-authenticated data platform with API calls (Looker Studio, possibly Google Sheets API with OAuth, Tableau Public with similar patterns). The core technique — inject JS in the authenticated browser context to bypass cookie/session expiry — works for any platform where the user has a live authenticated session.
-
-### UCOP Tableau
-- 3-step: session → export-crosstab → tempfile CSV
-- Blocked by browser CLI --download-dir gap
-- PRA drafted for publicrecords@ucop.edu as fallback
+See `memory/data-extraction-playbook.md` for full details.
+- **Looker Studio:** Browser console injection (user pastes JS in DevTools). Template: `workspace/research/education/space-watches-console-extract.js`
+- **UCOP Tableau:** 3-step session→export→CSV, blocked by browser --download-dir gap. PRA drafted.
 
 ## Stylometrics / Voice Fingerprinting
 

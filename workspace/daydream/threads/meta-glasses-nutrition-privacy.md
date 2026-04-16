@@ -1,60 +1,89 @@
-# Smart Glasses: Prescription Launch Aftermath + Apple Timeline Compression
+# Smart Glasses: Apple's 4-Frame Acetate Strategy vs Meta's Comfort Moat
 
 **Created:** 2026-04-08 (Iteration 4)
-**Updated:** 2026-04-15 (Iteration 10)
-**Status:** Active — HIGH. Post-launch analysis + Apple competitive timeline updated.
-**Urgency:** HIGH (Ray's team's product planning directly affected)
+**Updated:** 2026-04-16 (Iteration 11)
+**Status:** Active — HIGH. Apple design details confirmed. Material competition axis now explicit.
+**Urgency:** HIGH (directly relevant to Ray's Blayzer differentiation work)
 
-## Post-Launch Status (Day 2)
+## Apple Smart Glasses — Full Design Details (MacRumors/Gurman, April 13)
 
-Ray-Ban Meta Blayzer Optics + Scriber Optics ($499) shipped to retailers on April 14. No first-day reviews found yet — embargo period for press reviews likely in effect.
+### Four Frame Styles Confirmed
 
-## Apple Timeline COMPRESSED (New Gurman Report, April 13)
+1. **Large rectangular** — reminiscent of Ray-Ban Wayfarers (direct Meta competitor)
+2. **Slim rectangular** — similar to Tim Cook's personal glasses
+3. **Larger oval/circular** — unique to Apple
+4. **Smaller refined oval/circular** — smaller face option
 
-Bloomberg's Mark Gurman published a detailed report on Apple's smart glasses plans:
+Each designed to be "instantly recognizable as Apple" — what Apple calls the "icon" internally.
+
+### Materials: Premium Acetate
+
+- **Acetate** — "more durable and luxurious" than standard plastic (Gurman's words)
+- Colors: black, ocean blue, light brown (and "many" more)
+- This is a DELIBERATE positioning against Meta's polycarbonate Wayfarer/Blayzer frames
+
+### Camera System
+
+- **Vertically oriented oval lenses with surrounding lights**
+- Contrasts with Meta's circular camera design
+- Computer vision feeds into Apple Intelligence for contextual awareness
+
+### Integration
+
+- Tight iPhone + Siri integration
+- Part of broader AI wearable strategy: AirPods with cameras + camera pendant
+- Display-free (like current Meta approach)
+
+### Timeline
 
 - **Unveil:** End of 2026 or early 2027
 - **Release:** 2027
-- **Design:** Multiple frame styles, **oval camera design** (distinctive from Meta's round cameras)
-- **Features:** Display-free (like Meta's current approach), tight iPhone integration
-- **Materials:** High-end materials (acetate confirmed from prior reports)
+- **John Giannandrea** (Apple's head of ML/AI) possibly leaving — implied in Bloomberg report
 
-### What's New in This Report
-- **Oval cameras** — Apple is deliberately differentiating the camera hardware design from Meta
-- **"Several styles"** — not just one frame, but a collection (like Meta's Wayfarer/Blayzer/Skyler/etc.)
-- **John Giannandrea may be leaving** — implied in the Bloomberg piece, Apple's head of ML/AI strategy
+## THE ACETATE PARADOX — Insight Ray Should See
 
-### Timeline Implication for Ray's Team
-- Meta has an **8-12 month exclusive window** on prescription smart glasses (April 2026 → early 2027)
-- Apple's glasses will NOT have prescription support at launch (display-free, multiple styles = fashion-first)
-- **Meta's moat:** Prescription + AI + shipping NOW. Apple's entry is fashion-first, function-second.
-- The competitive clock starts Q4 2026 when Apple announces — Ray's team needs differentiation locked before that
+Ray's Blayzer differentiation brief (2026-04-15) found:
+- Blayzer has the **lowest comfort premium** at 32% — lead tagline "Fit to forget"
+- Meta's competitive advantage is comfort/weight for all-day wear
 
-## The TAM Inflection (unchanged, strengthening)
+Apple is attacking from the **opposite axis**: material luxury. Acetate is:
+- **Heavier** than polycarbonate (1.3-1.4 g/cm³ vs 1.2 g/cm³ — roughly 10-15% heavier)
+- **More premium-feeling** — warm to touch, hypoallergenic, accepts richer colors
+- **Less flexible** — better structural rigidity, worse comfort on longer wear sessions
+- **Fashion industry standard** for premium eyewear (Luxottica, Mykita, etc.)
 
-- Prescription wearers globally: ~4 billion
-- Sunglasses buyers: ~300M
-- The prescription launch expanded Meta's addressable market by ~13x
-- All-day Rx wear (12-16 hours) vs outdoor sunglasses (2-4 hours) = 4-8x more usage time per user
-- Combined with Limitless acquisition = ambient AI data collection multiplier
+### The Strategic Tension
 
-## Meta Production Scaling
+| Axis | Meta (Blayzer) | Apple |
+|---|---|---|
+| Material | Polycarbonate (light) | Acetate (premium) |
+| Weight | Lighter | ~10-15% heavier |
+| Comfort (16hr wear) | Advantage | Disadvantage |
+| Fashion perception | "Tech product" | "Premium eyewear" |
+| Prescription users (4B TAM) | **Already shipping** | Not at launch |
+| Price | $499 | Unknown (likely $499-999) |
 
-- 20-30M annual unit target (Bloomberg)
+**The risk for Meta:** If Apple's "these look premium, those look plastic" narrative lands, polycarbonate becomes a liability — REGARDLESS of comfort data. Fashion perception can override functional reality.
+
+**The counter:** Meta's prescription moat is decisive for the 4B TAM. Prescription wearers care about comfort over fashion (16 hours/day vs a fashion accessory). The "Fit to forget" story is strongest in the prescription segment.
+
+### Potential Two-Segment Strategy
+
+1. **Prescription segment** → comfort narrative (Meta's strength): "Fit to forget"
+2. **Non-prescription segment** → materials upgrade needed to compete with Apple's acetate positioning
+
+**Question for Ray:** Is there internal discussion about premium materials (acetate, titanium) for a future Meta glasses line? Apple's strategy makes this an inevitable competitive response.
+
+## Meta Production + Expansion (unchanged)
+
+- 20-30M annual unit target
 - International expansion: Japan, S. Korea, Singapore, Chile, Peru, Colombia (later 2026)
-- France, UK, Italy, Canada expansion SUSPENDED due to stock shortages
-
-## MRBD Impact Assessment (for Ray's games/experiences)
-
-The incoming prescription user cohort changes the game design calculus:
-- **Less tech-savvy** — D-pad simplicity becomes even more valuable
-- **All-day availability** — ambient/notification experiences > intensive sessions
-- **Audio-first wins** — Sonar Sub, Fisher work while doing other things
-- **Lloyd's insight confirmed:** Mic-as-game-mechanic is the strongest glasses-native differentiator
+- France, UK, Italy, Canada SUSPENDED (stock shortages)
+- Malibu 2 smartwatch (Android-based) also targeting late 2026
 
 ## Thread Lifecycle
 
-This thread transitions from "launch monitoring" to "competitive analysis" mode. Active through Apple's announcement timeline (Q4 2026).
+This thread continues as the primary competitive analysis thread. Next major milestone: Apple's official announcement (Q4 2026).
 
 ---
-*Updated: 2026-04-15, Iteration 10 — Gurman confirms Apple glasses: oval cameras, multiple styles, end-2026 unveil, 2027 release. Meta has 8-12 month prescription exclusivity window. Production scaling to 20-30M units. Thread transitions to competitive analysis mode.*
+*Updated: 2026-04-16, Iteration 11 — Apple 4 frame styles confirmed in premium acetate (MacRumors/Gurman April 13). Materials competition axis now explicit: Apple's acetate luxury vs Meta's polycarbonate comfort. The "Fit to forget" tagline becomes segment-dependent. Meta dominant in prescription (4B TAM, comfort matters), Apple attacks non-prescription fashion segment. Smartwatch "Malibu 2" also targeting late 2026.*
