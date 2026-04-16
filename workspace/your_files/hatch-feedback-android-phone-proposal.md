@@ -32,7 +32,7 @@ adb shell content query --uri content://sms/inbox | head -5
 # Unlock the screen
 adb shell input keyevent 26             # wake
 adb shell input swipe 500 1500 500 500  # swipe up
-adb shell input text 314159             # PIN
+adb shell input text YOUR_PIN           # PIN
 adb shell input keyevent 66             # enter
 
 # Take a screenshot (visual verification)
