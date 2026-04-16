@@ -147,3 +147,28 @@ Add whatever helps you do your job. This is your cheat sheet.
 ### Manus
 - API Key: `sk-taMllFvLt3kgm2sCOQza9b5QnSbDTwY7AduBfQqtZTdB1OI_bCj2I7B3A8GMJnqth6iduJIQ0XhMkYundjzo6ZWA1UsN`
 - Used for: Remote browser sessions, web automation
+
+
+### Mac Mini Phone (ADB)
+- **Device:** Google Pixel 9 Pro Fold (codename: comet)
+- **Serial:** 49231FDKD0009E
+- **Android:** 16
+- **Carrier:** AT&T
+- **Phone Number:** +1 650-680-6317
+- **NOTE:** This is NOT Ray's personal phone (380-267-5041). Separate device for ADB/SMS tasks.
+- **Screen Unlock Code:** 314159
+- **ADB Path on Mac Mini:** `~/platform-tools-extracted/platform-tools/adb`
+- **Connection:** USB, always attached to Mac Mini
+- **Helper Script:** `workspace/scripts/phone-sms.sh`
+- **Screenshot command:** `ssh macmini "ADB shell screencap /sdcard/screen.png && ADB pull /sdcard/screen.png /tmp/phone-screen.png" && scp macmini:/tmp/phone-screen.png /tmp/phone-screen.png`
+- **Capabilities:**
+  - ✅ Read SMS inbox (for verification codes)
+  - ✅ Screen unlock + screenshot
+  - ✅ Compose SMS (pre-fill, needs screen tap to send)
+  - ❌ Silent SMS send (Android 16 blocks it)
+- **Quick Read Latest SMS:**
+  ```
+  ssh -F ~/workspace/.ssh/config macmini "~/platform-tools-extracted/platform-tools/adb shell content query --uri content://sms/inbox" | head -5
+  ```
+- **LinkedIn app installed** on this device (logged into Ray's account — shows notifications)
+- **2 Google accounts** on device
