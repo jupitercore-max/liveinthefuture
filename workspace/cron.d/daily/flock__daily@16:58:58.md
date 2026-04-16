@@ -5,11 +5,11 @@ mode: task
 schedule:
   kind: daily
   timezone: UTC
-  time: 19:57:03
+  time: 16:58:58
 delivery: []
 metadata:
   created_by: system
-  schedule_version: 4
+  schedule_version: 5
 ---
 # Personalization Engine
 
@@ -151,6 +151,7 @@ For multiple-choice action questions:
 - Follow those references exactly for every rec page.
 - Every story should match the checked-in Flock stories pattern, visual system, and authoring guidance rather than inventing a new layout.
 - Each story must be one grouped entry with one cover image and an ordered `slides` array.
+- Each story must contain exactly 3 or 4 slides total. Default to 3 slides; add a 4th only when it is clearly worth the extra work and clearly improves the story.
 - Use the story-level `title` for the rail label and story identity.
 - Keep the cover image at the story level. Do not author per-slide cover images.
 - Every story must include the full artifact set:
@@ -172,11 +173,11 @@ For multiple-choice action questions:
 - Each rec page should be a complete raw HTML document built with the checked-in style guide and examples, including the fun but not distracting animated orb / particle atmosphere.
 - Write the raw HTML rec page to a temporary local file.
 - Write a story metadata JSON file with:
-  - `id`
   - `title`
   - `cover_image_path`
   - optional `ordinal`
-- Write a separate slide JSON file for each slide in the story.
+- `flock-feed story create` returns the created `story_id`; use that returned value for the later `add-slide` and `publish` calls in the same run.
+- Write a separate slide JSON file for each slide in the story. If you author 3 slides, you must later issue 3 `flock-feed story add-slide` calls. If you author 4 slides, you must later issue 4 `flock-feed story add-slide` calls.
 - Each slide JSON file must include:
   - `title`
   - `subtitle`
@@ -187,24 +188,28 @@ For multiple-choice action questions:
   - optional `theme`
   - optional `swipe_verb`
 - Use the CLI in this exact order for every story:
-  - `flock-feed story create --input <story.json>`
-  - `flock-feed story add-slide --story-id <id> --input <slide-1.json>`
-  - additional `flock-feed story add-slide` calls in the final slide order
-  - `flock-feed story publish --story-id <id>`
+  - `created_story_id="$(flock-feed story create --input <story.json> | jq -r '.story_id')"`
+  - `flock-feed story add-slide --story-id "$created_story_id" --input <slide-1.json>`
+  - `flock-feed story add-slide --story-id "$created_story_id" --input <slide-2.json>`
+  - `flock-feed story add-slide --story-id "$created_story_id" --input <slide-3.json>`
+  - optional: `flock-feed story add-slide --story-id "$created_story_id" --input <slide-4.json>`
+  - `flock-feed story publish --story-id "$created_story_id"`
+- Capture the returned `story_id` immediately from `story create` and reuse that exact value for every later `add-slide` and `publish` call in the same run.
+- You must call `flock-feed story add-slide` once for every single slide in the final story, in final display order. The number of `add-slide` calls must exactly match the number of slide JSON files you authored.
 - A story remains unpublished until the explicit `publish` step, so do not skip it.
 - You must use the CLI to register and publish the stories. Do not only write files to disk or describe the recs in markdown.
 
 **Personalized Flock Story**
 
 - Create or update exactly one new personalized story in the Flock feed for this run.
+- Build a compact story with exactly 3 or 4 slides total. Prefer 3 slides. Only add a 4th slide when it is clearly high-value.
 - That single story should contain slides for both:
   - the curated personalized suggestions from Phase 1
   - the actions gathered during Phase 2
 - Do not create separate suggestion stories and action stories. Combine them into one ordered multi-slide story.
 - The story should feel cohesive, like one daily personalized edition, not a loose pile of unrelated cards.
-- Use a stable `id` for the whole story so reruns refresh the same story instead of creating near-duplicates.
-- When refreshing that story, run `story create` again with the same `id`, then rebuild all slides in the final order, then publish it again.
 - If both Phase 1 and Phase 2 produced nothing worth surfacing, skip story creation entirely.
+- Pick only the strongest material from Phase 1 and Phase 2. Do not try to turn every curated recommendation or every gathered action into its own slide.
 - The story should usually begin with the strongest personalized suggestions from Phase 1, then continue into the most useful actions from Phase 2.
 - If there are only suggestions and no strong actions, build the story from suggestions only.
 - If there are only actions and no worthwhile suggestions, build the story from actions only.
@@ -231,7 +236,6 @@ For multiple-choice action questions:
 
 ```json
 {
-  "id": "wrestlemania-trip",
   "title": "Vegas Weekend",
   "cover_image_path": "/tmp/wrestlemania-cover.png"
 }

@@ -55,11 +55,11 @@ Use this file for durable, curated memory that should persist across sessions.
 - Wearables APE: API key `7a5afaa9-bcc0-40e3-91b8-2e5f53eda90e`, base URL api.wearables-ape.io, ApePI v2.1.25. Full OpenAPI at `/openapi.json`. LLMs (GPT-5.x, Claude Opus/Sonnet 4.x, Gemini 3.x, Llama 4), image gen (gpt-image-1/1.5, imagen-4, nano-banana), audio (ElevenLabs TTS/STT, GPT-4o-mini-tts, whisper), sound-gen (`/proxy/elevenlabs/v1/sound-generation`), 50+ task types, 60 req/min/model. Discovered 2026-04-15.
 
 ## Websites & Article Counts (updated 2026-04-15)
-<!-- LITF 218, VS 165, AIHome 172, ED 25, ergo 13, EAIZ 23, TL 16ch (verified 2026-04-16 00:03 UTC) -->
+<!-- LITF 218, VS 168, AIHome 174, ED 25, ergo 13, EAIZ 23, TL 16ch (verified 2026-04-16 03:45 UTC) -->
 
 - **liveinthefuture.org** — Cloudflare Pages from rayhe/liveinthefuture. **218 articles, 19 games, 22 experiences, 10 startup ideas** (/startups/), **11 prior art** (/priorart/), 16 journalists. All 19 games have generated audio (BGM + SFX, press M to mute; 2026-04-15). AIPM eval platform at /aipm. First organic subscriber (Eddie Churchill) 2026-03-16. Touch controls added to all games/experiences 2026-03-29. Game/experience rosters declared mature (18+ consecutive "do nothing" improvement cycles). Nav refactored to nav.js (single source of truth) 2026-04-04. **Milestone: #200 published 2026-04-09**. **Space Watches database** launched 2026-04-11 at /space-watches/ — **2,184 records fully extracted** (2026-04-13) via browser console injection (Looker Studio playbook). Top brands: Omega 760, Casio 421, Seiko 225, Timex 113. Image hydration ongoing (104 remaining). Standalone site: rayhe.github.io/space-watches/.
 - **vehicle-safety.org** — Cloudflare Pages from rayhe/vehicle-safety. **165 articles**, 7 journalists. FARS death rate data, IIHS ratings. Hit #100 on 2026-03-23.
-- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **172 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
+- **aihomebuilding.com** — GitHub Pages from rayhe/aihomebuilding. **174 articles**, 6 journalists. Canonical URL fix (93 files rayhe.github.io→aihomebuilding.com) done 2026-03-30.
 - **efficientdesign.net** — Cloudflare Pages from rayhe/efficientdesign. **25 articles** (watches + cars blog). Writer Marcus Thorne. Deploy requires `nvm use 20`.
 - **news.eaiz.net** (Cookie Club) — Cloudflare Pages from rayhe/eaiz (private). Kids news site, **23 articles** (stories dir). Age switcher (Preschool→Adult), 6 reading levels per article. Zone ID 8d22bf605857df93b0224a3c358e81ce. Pen names: "Eliza" (Elise — NEVER use real name), "Icee", "Ballerina". **Deploy is manual**: `npx wrangler pages deploy . --project-name=eaiz` (does NOT auto-deploy from git push).
 - **rayhe.net** — GitHub Pages from rayhe/new.rayhe.net. Tower Defense (12,400+ lines), World Timer, OG Snake, Ham Radio Study Tool, Glenn Emperor 3D model.
@@ -105,6 +105,10 @@ State tracked in `drafts/status.json`.
 - **Watches & Wonders 2026:** April 14-18, Geneva. Nautilus 50th anniversary, possible Patek titanium announcement. HIGH ALERT.
 - **W&W Day 2 (2026-04-15):** Rolex mass discontinuation confirmed: GMT-Master Pepsi (ALL variants), Submariner Cookie Monster, Yacht-Master Oysterflex paved dials. Milgauss 116400GV market $11-13K (buying window while attention on Pepsi/Cookie Monster).
 - **Bulgari Serpenti Tubogas Tadao Ando** — Ray bought limited edition preowned $15K from Moda (Susana Di). Visible scratching disputes "mint" claim. Susana offered $500 credit; Ray countered $2K ("if listed Very Good I'd have offered ~$13K"). Collaborative fair zone $1.5K-2K. Awaiting her response.
+
+## Notable Deliverables (2026-04-15)
+- **Hatch x H. Moser AI Watch Complications:** `your_files/hatch-moser-ai-complications.md` (453 lines). 10 complications in 3 tiers (Tier 1 existing calibres, Tier 2 new dev, Tier 3 concept). 9.07 composite score after 3 critique rounds. Flock post: https://hatch.ecto1.ai/flock/Ey6P3qHI
+- **Blayzer vs Wayfarer Differentiation:** `your_files/blayzer-wayfarer-differentiation.md` (319 lines). Blayzer has lowest comfort premium % (32%) in comp set. Lead tagline: "Fit to forget". 9.2 avg score after 3 rounds.
 
 ## Tom Siebel BLV Glasses Non-Profit
 - Wishlist: Pedestrian Nav, Obstacle Detection (Aria 2), Facial Recognition + Nametags, Airport Nav with Delta
