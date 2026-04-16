@@ -13,9 +13,11 @@ WATCHLIST = [
     {"name": "Rolex Yacht-Master II", "ref": "116689", "note": "18K white gold/platinum",
      "keywords": ["116689", "Yacht-Master II", "YM2", "YMII"], "must_contain": ""},
     {"name": "Hublot Square Bang Magic Gold", "ref": "821.MX.0130.RX", "note": "42mm, limited 200 pieces",
-     "keywords": ["821.MX.0130", "Square Bang"], "must_contain": ""},
+     "keywords": ["821.MX.0130", "Square Bang", "Magic Gold"], "must_contain": ""},
     {"name": "Hublot Square Bang Rainbow", "ref": "821.NX.0117.LR.0999", "note": "42mm titanium",
-     "keywords": ["821.NX.0117", "Square Bang"], "must_contain": ""},
+     "keywords": ["821.NX.0117", "Square Bang", "Rainbow"], "must_contain": ""},
+    {"name": "Hublot Spirit Big Bang", "ref": "Any", "note": "Near-match: tonneau Hublot, related to Square Bang line",
+     "keywords": ["Spirit Big Bang", "Spirit of Big Bang", "647.", "601."], "must_contain": ""},
     {"name": "Patek Philippe Titanium", "ref": "Any", "note": "Any Patek in titanium",
      "keywords": ["Patek"], "must_contain": "titanium"},
 ]

@@ -25,20 +25,35 @@ Use the LOCAL BROWSER (port 9224, `browser` CLI) to scrape 3 Facebook watch grou
 - Rolex Yacht-Master II ref **116689** (18K white gold/platinum)
 - Hublot Square Bang Unico Magic Gold ref **821.MX.0130.RX** (42mm, limited 200 pieces)
 - Hublot Square Bang Unico Titanium Rainbow ref **821.NX.0117.LR.0999** (42mm)
+- ANY **Hublot Spirit Big Bang** or **Spirit of Big Bang** — near-match to Square Bang line, alert as "near-match"
+- ANY **Hublot** listing mentioning **"Magic Gold"** — alert as near-match even if not Square Bang
 - ANY **Patek Philippe titanium** watch — alert on ANY mention of Patek + titanium
 
 ## Method
 
 For each group:
 
-1. `browser navigate --url <group_url>`
+### A. Search-First Strategy (PRIMARY — catches target watches)
+For each watchlist keyword, search the group directly:
+1. `browser navigate --url "https://www.facebook.com/groups/<GROUP_ID>/search/?q=<KEYWORD>"`
 2. Wait 3 seconds for JS rendering
+3. Extract all post text from search results
+4. Keywords to search: "Milgauss", "116400GV", "Yacht-Master II", "116689", "Square Bang", "Magic Gold", "Spirit Big Bang", "Richard Mille", "Patek titanium", "Rainbow"
+5. Deduplicate by seller+model to avoid double-alerting
+
+### B. Feed Scroll (SECONDARY — catches everything else for price DB)
+1. `browser navigate --url <group_url>`
+2. **Deep scroll**: Execute 5 scroll passes (scroll 3000px, wait 2s, repeat) to load ~50+ posts
 3. `browser evaluate --expression '<JS to extract posts>'` — use this JS pattern:
 ```js
 (() => {
-    // Scroll to load more
-    window.scrollTo(0, 5000);
-    setTimeout(() => {}, 2000);
+    // Deep scroll to load more posts (5 passes)
+    const scrollAndWait = (px) => { window.scrollTo(0, px); };
+    scrollAndWait(3000);
+    scrollAndWait(6000);
+    scrollAndWait(9000);
+    scrollAndWait(12000);
+    scrollAndWait(15000);
     // Get all text from feed area
     const feed = document.querySelector('[role="feed"]') || document.body;
     const posts = feed.querySelectorAll('[role="article"]');
@@ -47,7 +62,7 @@ For each group:
         results.push(p.innerText.substring(0, 1500));
     });
     // Also get full feed text as backup
-    const feedText = feed.innerText.substring(0, 20000);
+    const feedText = feed.innerText.substring(0, 40000);
     return JSON.stringify({posts: results, feedText: feedText});
 })()
 ```
@@ -69,6 +84,8 @@ For each group:
    - "116689" or "Yacht-Master II" or "YM2" or "YMII"
    - "821.MX.0130" or "Square Bang" + "Magic Gold"
    - "821.NX.0117" or "Square Bang" + "Rainbow"
+   - "Spirit Big Bang" or "Spirit of Big Bang" — alert as **NEAR-MATCH** (related to Square Bang line)
+   - "Magic Gold" (any Hublot) — alert as **NEAR-MATCH** if not already an exact Square Bang match
    - "Patek" + "titanium" (any combination)
 
 7. **If match found**, alert on main chat + Telegram DM only (NO groups):
