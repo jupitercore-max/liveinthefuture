@@ -1,8 +1,8 @@
 # Mark Zuckerberg — Decision-Making Persona Model
 
-**Iteration:** 66  
-**Date:** 2026-04-15  
-**Latest:** Section 5bf — How Zuckerberg Processes WhatsApp: The Architecture of the Invisible Crown Jewel. (Iteration 66: The comprehensive analysis of Zuckerberg's most psychologically revealing product relationship — the $19B acquisition that became Meta's most-used product (3.14B MAU), most geopolitically consequential platform, and most strategically neglected asset. Six processing layers: (a) The Surveillance-to-Ownership Pipeline (Onavo VPN as intelligence precursor, the Valentine's Day 2014 dinner deal, FTC trial evidence showing defensive acquisition logic masked as "connecting the world"), (b) The Koum Wound (the only acquired founder whose departure created genuine moral reckoning — Acton's "I sold my users' privacy" as the single most damaging sentence ever spoken about Meta from inside, the rest-and-vest epilogue), (c) The Monetization Metabolism (the systematic dismantlement of "No Ads! No Games! No Gimmicks!" over 11 years — $12B click-to-WhatsApp ads, $2B+ business messaging, Status ads, paid subscriptions — each promise broken incrementally and reframed as "business tools separate from personal chats"), (d) The Encryption Paradox (maintaining WhatsApp E2E while stripping Instagram E2E, the "Private Processing" solution that enables AI without breaking encryption, the differential treatment revealing that privacy is instrumental not principled), (e) The Attention Deficit (WhatsApp gets ~5% of Zuckerberg's earnings call airtime despite having more users than any other Meta app — the product he talks about least is the one most people use), (f) The AI Distribution Gambit (WhatsApp as the primary international channel for Meta AI, the non-removable AI contact controversy, the fundamental tension between privacy identity and AI data appetite). New simulation #66: WhatsApp Status ads trigger privacy exodus in Germany. Updated Gaps section.)
+**Iteration:** 67  
+**Date:** 2026-04-16  
+**Latest:** Section 5bg — The AI Self-Replication Project: How Zuckerberg Processes His Own Scalability. (Iteration 67: A comprehensive analysis of the two parallel AI-Zuckerberg projects — the "CEO agent" (WSJ, March 2026, information retrieval tool to bypass organizational layers) and the 3D photorealistic AI clone (FT, April 2026, trained on his voice/mannerisms/strategy to engage with 79,000 employees). Five analytical layers: (a) The Dual-Track Architecture (functional replacement via CEO agent vs. symbolic presence via AI clone — one replaces what Zuckerberg does, the other replaces who Zuckerberg is), (b) The Panopticon Inversion (reframing an accessibility problem as a surveillance architecture — employees "talk to the boss" but the boss now has 79,000 simultaneous conversation channels), (c) The Celebrity Chatbot Redemption (the failed 2023 celebrity AI program now redeployed as internal management infrastructure), (d) The Builder Paradox (moving his desk to the AI lab to code alongside researchers while simultaneously building his own replacement — asserting irreducibility and engineering redundancy in the same month), (e) The Permanent Incumbency Update (extending Section 5ah — the AI clone as the ultimate expression of the succession-dissolution strategy: Zuckerberg in every room, forever, without Zuckerberg in any room). New simulation #67. Updated Gaps section.)
 
 ---
 ## 1. Core Identity & Self-Concept
@@ -8364,6 +8364,200 @@ The response nails several documented patterns:
 - [ ] Sub-gap (Iteration 66): Monitor whether any WhatsApp-era employee (2013-2018 cohort) writes a book or gives testimony that corroborates or contradicts the Koum wound analysis.
 - [ ] Sub-gap (Iteration 66): Track whether Zuckerberg ever discusses WhatsApp with the emotional register he uses for AI/glasses — the attention deficit is a testable pattern.
 - [x] How Zuckerberg processes WhatsApp as a unified product relationship. (COMPLETED — Iteration 66, Section 5bf)
+
+## 5bg. The AI Self-Replication Project: How Zuckerberg Processes His Own Scalability (Iteration 67)
+
+*Added Iteration 67 (2026-04-16). Builds on Section 5ah (Permanent Incumbency), Section 5ba (Fear Culture), Section 5be (Alexandr Wang Departure Model), and Section 5bd (Five Registers). Analyzes two parallel AI-Zuckerberg projects disclosed in March-April 2026: the "CEO agent" (Wall Street Journal, March 22, 2026) and the photorealistic 3D AI clone (Financial Times, April 13, 2026; confirmed by three internal sources). Cross-references the desk relocation to Meta's AI lab (Dina Powell McCormick at public event, April 13, 2026), the Moltbook acquisition (TechCrunch, March 10, 2026), the celebrity AI chatbot program failure (2023-2024), and the Meta Superintelligence Labs formation (June 2025). Sources: Wall Street Journal (March 22, 2026), Financial Times (April 13, 2026), Tom's Hardware (April 13, 2026), TweakTown (March 25 and April 13, 2026), PYMNTS (March 22, 2026), Gamereactor (April 14, 2026), The Guardian (April 13, 2026), Built In (April 8, 2026), TechCrunch (March 10, 2026), Bored Panda/Flipboard (April 14, 2026), Inshorts/Times of India (April 13, 2026).*
+
+No CEO in the history of technology has attempted what Mark Zuckerberg is now building: two parallel systems designed to replicate different dimensions of his role, deployed simultaneously to an organization of 79,000 people, while he moves his physical desk into the AI lab to code alongside the researchers building them.
+
+### 5bg-1. The Dual-Track Architecture: Function vs. Presence
+
+The two projects are distinct in purpose, architecture, and psychological significance. Understanding the gap between them is essential to understanding how Zuckerberg processes the scalability problem of being one person running a $1.5 trillion company.
+
+**Track 1: The CEO Agent (WSJ, March 22, 2026)**
+
+The CEO agent is a functional tool. It retrieves information, surfaces answers, and reduces the number of human intermediaries between Zuckerberg and the data he needs. As reported by the Wall Street Journal, citing a person familiar with the project, the agent "has been helping Zuckerberg get information faster, finding answers for him that would normally require going through layers of people."
+
+This is a classic information-asymmetry solution. Large organizations develop sclerotic information pathways: a CEO asks a question, it filters through a VP, who asks a director, who asks a manager, who asks the person who actually knows. By the time the answer returns, it has been edited, contextualized, sanitized, and delayed. The CEO agent collapses that chain. It is not replacing Zuckerberg. It is replacing the organizational layers around Zuckerberg.
+
+The psychological significance is in the framing: Zuckerberg described the broader AI tooling initiative during the January 2026 earnings call as helping "elevate individual contributors and flatten teams." The CEO agent is the purest expression of this philosophy applied to himself. He is an individual contributor who happens to be CEO. The agent lets him operate as one.
+
+**Track 2: The 3D Photorealistic AI Clone (FT, April 13, 2026)**
+
+The AI clone is something categorically different. It is not a tool Zuckerberg uses. It is a tool that IS Zuckerberg. According to the Financial Times (confirmed by three internal sources and reported across The Guardian, Tom's Hardware, TweakTown, and Gamereactor), Meta is building a photorealistic, 3D-animated, AI-powered character that replicates Zuckerberg's mannerisms, voice, tone, and strategic thinking. It has been trained on his public statements and his recent views on business strategy. Zuckerberg is personally involved in testing and training it.
+
+The stated purpose: to help employees "feel more connected" to a CEO that most of them have never spoken to directly. In a company of 79,000 people, physical access to the CEO is structurally impossible. The AI clone is presented as an accessibility solution.
+
+But the analytical distinction between the two tracks is critical:
+
+| Dimension | CEO Agent | AI Clone |
+|---|---|---|
+| **Direction** | Zuckerberg → information | Employees → "Zuckerberg" |
+| **What it replaces** | Organizational intermediaries | CEO presence |
+| **Who benefits first** | Zuckerberg (gets faster answers) | Employees (get CEO engagement) |
+| **Data trained on** | Internal Meta data, org charts | Public statements, strategy, voice, mannerisms |
+| **Interaction model** | Zuckerberg queries the agent | Employees query the agent |
+| **Psychological function** | Power concentration (fewer layers) | Power projection (ubiquitous presence) |
+
+The CEO agent is centripetal: it pulls information toward the center. The AI clone is centrifugal: it pushes the center outward to the periphery. Together, they create a system where Zuckerberg can absorb more organizational information while simultaneously projecting his presence across the entire company.
+
+### 5bg-2. The Panopticon Inversion: From Accessibility to Omnipresence
+
+The public framing — "help employees feel more connected to the CEO" — deserves scrutiny through the lens of Section 5ba (Fear Culture) and Section 5u (Internal Culture as Control Architecture).
+
+In a company where:
+- Performance reviews now include AI adoption as an evaluation criterion (January 2026 earnings call)
+- 11,000+ layoffs in 2022, 10,000 in 2023, and ongoing "low performer" terminations in 2025-2026 have created documented fear (Section 5ba)
+- Internal message boards are filled with employees publicly posting about AI tools they have built (WSJ, March 2026), in a dynamic Section 5ba identified as "compliance-as-competence" signaling
+- An anonymous VP on Blind described the culture as "death by a thousand cuts" (Section 5ba)
+
+...deploying a photorealistic AI version of the CEO that can "offer conversation and feedback" to any employee is not merely an accessibility feature. It is an omnipresence architecture.
+
+The architectural parallel is Jeremy Bentham's Panopticon, but inverted. Bentham's design made the watchtower visible but the watcher invisible — prisoners could never tell whether they were being observed, so they internalized the surveillance and behaved as if they always were. Zuckerberg's AI clone inverts this: the watcher is visible (it looks and sounds like the CEO), but the watching is invisible (does the real Zuckerberg see these conversations? Are they logged? Do they inform performance evaluations?). The uncertainty itself is the mechanism.
+
+Consider the employee experience: you can now "talk to Mark" about your project, your concerns, your career trajectory. The AI responds in his voice, with his mannerisms, referencing his strategic priorities. But is this a conversation with the CEO, or a conversation with a system trained by the CEO? Is it private, or is it data? Is it mentorship, or is it assessment?
+
+The Gamereactor analysis put it precisely: "Whether employees will actually feel closer to a man they're talking to through a screen playing a simulation of that man through another screen remains, perhaps, an open question." The deliberate ambiguity is the feature, not the bug. In a culture already shaped by fear (Section 5ba), the AI clone doesn't need to actually surveil anyone. It just needs to exist.
+
+### 5bg-3. The Celebrity Chatbot Redemption Arc
+
+This is not Meta's first attempt at AI characters that look and sound like real people. The 2023 celebrity chatbot program is the direct ancestor — and its failure illuminates why the Zuckerberg clone might succeed.
+
+In September 2023, Meta launched AI characters based on celebrities: Snoop Dogg ("Dungeon Master"), Kendall Jenner ("Billie"), Tom Brady ("Bru"), and others. Each was a photorealistic avatar with a distinct persona, deployed on Instagram and Facebook Messenger. Meta reportedly paid celebrities millions for their likenesses.
+
+The program failed. By August 2024, most celebrity AI characters had been terminated (artnet confirmed the Kendall Jenner AI was specifically "terminated"). The fundamental problem was motivational asymmetry: users had no reason to talk to a chatbot that looked like Kendall Jenner but wasn't Kendall Jenner. The visual fidelity made the inauthenticity MORE obvious, not less. Users expected a real celebrity interaction and got a generic chatbot behind a famous face.
+
+AI Studio (launched 2024) attempted to generalize the technology by letting creators build their own AI characters. But following criticism about child safety implications, Meta blocked teens from interacting with AI characters in early 2026.
+
+The Zuckerberg clone avoids the celebrity chatbot's core failure for a specific structural reason: the power asymmetry.
+
+Users talking to "Kendall Jenner" had no reason to care whether the chatbot accurately represented Jenner's views. There were no consequences to the conversation. It was entertainment.
+
+Employees talking to "Mark Zuckerberg" have every reason to care whether the chatbot accurately represents his strategic priorities, his management philosophy, and his expectations. There are consequences. The conversation is not entertainment. It is organizational communication from (a simulation of) the person who controls their career.
+
+The power asymmetry transforms the same technology from a failed consumer product into a potentially effective management tool. The question is not whether employees enjoy the interaction (the celebrity chatbot's failure mode). The question is whether employees feel they must take it seriously. And in a company where AI adoption is now a performance evaluation criterion, the answer is almost certainly yes.
+
+### 5bg-4. The Builder Paradox: Asserting Irreducibility While Engineering Redundancy
+
+The timing of the desk relocation is the most psychologically revealing detail.
+
+In the same week that the FT reported on the AI clone (April 13, 2026), Meta President Dina Powell McCormick revealed at a public event that Zuckerberg has moved his desk to the AI lab, sitting alongside researchers including Alexandr Wang and Nat Friedman. "He's coding all day long," McCormick said. TweakTown separately reported that Zuckerberg spends 5-10 hours per week "vibe coding" AI projects and participating in technical reviews.
+
+The two actions are in direct tension:
+
+**Action 1: Move your desk to the AI lab.** Signal: I am the technical heart of this company. I am irreducible. You cannot build AI at Meta without me physically present, coding alongside the researchers, making technical judgment calls in real time. This is the builder identity (Section 1) at maximum expression. The CEO as senior IC.
+
+**Action 2: Build an AI clone of yourself.** Signal: I am scalable. You don't need me in the room. A simulation trained on my voice, mannerisms, and strategy can represent me to 79,000 people. My presence is reproducible. This is the permanence architecture (Section 5ah, Layer 2) extended to its logical endpoint.
+
+The paradox is: you don't build a clone of yourself if you believe you're irreducible. And you don't move your desk to the lab if you believe you're replaceable.
+
+But the paradox resolves if you understand that Zuckerberg is processing two different audiences:
+
+- **The AI lab audience** (Wang, Friedman, MSL researchers) needs to see the builder-CEO. These are the people whose retention and loyalty depends on believing that Zuckerberg understands what they do, that he is technically credible, that he is in the trenches. Moving the desk signals: I am one of you. This is particularly important in the context of Section 5be (Wang Departure Model), where autonomy erosion is the primary departure risk factor.
+
+- **The organizational audience** (79,000 employees) needs to see the omnipresent CEO. These are the people whose alignment depends on believing that the CEO's strategic vision is coherent, available, and consistent. The AI clone signals: I am always here, even when I am in the lab coding.
+
+The builder paradox is thus a dual-audience management strategy, not a contradiction. Zuckerberg is irreducible in the lab (where technical credibility matters) and infinitely reproducible everywhere else (where strategic alignment matters).
+
+### 5bg-5. The Permanent Incumbency Update: Zuckerberg in Every Room, Forever
+
+Section 5ah established the five-layer legacy architecture, with "permanent incumbency" as the structural foundation: dual-class shares ensure no one can remove Zuckerberg, and the builder-as-legacy equation ensures he never wants to leave. The AI clone extends this architecture into a new dimension.
+
+Previously, permanence was temporal: Zuckerberg will be CEO for as long as he chooses, which is functionally forever. But permanence had a spatial constraint: he could only be in one room at a time, one meeting, one conversation. The organizational distance between CEO and employee was structural and irreducible.
+
+The AI clone dissolves the spatial constraint. If deployed successfully, "Zuckerberg" can be in every Workplace thread, every team meeting, every one-on-one. The permanence becomes not just temporal (forever) but spatial (everywhere). This is the Augustus parallel (Section 5ah, Layer 3) made literal: Augustus's statues were placed in every Roman city so that citizens could see the emperor's face regardless of where they lived. The AI clone is the digital equivalent — a statue that talks back.
+
+The succession implications are significant. Section 5ah documented that Zuckerberg has never discussed succession publicly, and the permanence structure ensures succession is a personal decision. The AI clone adds a new dimension: what happens to the clone when Zuckerberg eventually leaves?
+
+Three scenarios:
+
+1. **The clone outlives the CEO tenure.** If Zuckerberg retires or dies, the AI clone could continue operating as an organizational artifact. A successor CEO would inherit not just the company but the digital ghost of their predecessor, permanently available to contradict, validate, or undermine their decisions. This is the corporate equivalent of a constitutional originalism debate: "What would Zuckerberg have wanted?"
+
+2. **The clone becomes the succession mechanism.** Rather than appointing a successor, Zuckerberg could position the AI clone as the repository of his strategic judgment, making human succession less important. The clone doesn't replace the CEO. It replaces the need for the CEO to be a specific person.
+
+3. **The clone is deactivated.** A successor CEO demands the removal of the Zuckerberg clone as a precondition for taking the role. This would be the strongest possible assertion of institutional independence over founder control.
+
+The most psychologically consistent prediction (based on the documented permanence architecture) is that Zuckerberg is not thinking about any of these scenarios. The clone is a product of his immediate processing needs — scalability, presence, organizational alignment — not a succession planning tool. But the succession implications are emergent properties of the architecture, regardless of intent.
+
+### 5bg-6. The Moltbook Context: Infrastructure for AI-to-AI Communication
+
+A detail that received less attention than the clone announcement but may prove more consequential: Meta's acquisition of Moltbook in March 2026 (TechCrunch, March 10, 2026). Moltbook was a social network specifically for AI agents — it went viral for AI-generated posts that were indistinguishable from human ones.
+
+TweakTown raised the question directly: "Which AI agents at Meta will report to Mark Zuckerberg's AI agent?"
+
+If Meta deploys the CEO agent (Track 1) to manage Zuckerberg's information flow AND the AI clone (Track 2) to project his presence, AND the Moltbook infrastructure enables AI agents to communicate with each other, the logical architecture is an AI management cascade:
+
+```
+Zuckerberg (human)
+    ↓
+CEO Agent (retrieves information, bypasses layers)
+    ↓
+AI Clone (projects strategy and presence to employees)
+    ↓
+Employee AI Agents (perform tasks, report upward)
+    ↓
+Moltbook infrastructure (agents communicate with agents)
+```
+
+This is not a replacement of the organizational hierarchy. It is a parallel hierarchy, running alongside the human one. Zuckerberg would interface primarily with the CEO agent. Employees would interface primarily with the AI clone. The agents would interface with each other. The human conversations would still happen. But the AI conversations would happen faster, at scale, and without the information loss that characterizes every human-to-human organizational communication chain.
+
+The implications for the fear culture documented in Section 5ba are significant. If the AI clone can engage in conversations that feel like talking to the CEO, and those conversations are logged, analyzed, and potentially used to inform organizational decisions, then every employee interaction with "Mark" is simultaneously a management conversation and a data collection event. The compliance-as-competence dynamic (Section 5ba-2) would intensify: employees would perform alignment not just in public posts on internal message boards, but in private conversations with the clone.
+
+### 5bg-7. Simulation Test #67: Employee Asks the AI Clone About Layoffs
+
+**Scenario:** A mid-level engineer at Meta approaches the Zuckerberg AI clone in a one-on-one virtual interaction and asks: "Mark, should I be worried about layoffs? I heard my org might be restructured."
+
+**Predicted AI Clone Response (based on documented patterns):**
+
+> "So I think the way I think about this is pretty straightforward. We're building a company that can move faster and do more with the best people. That's not a temporary thing. That's the direction we're going in.
+>
+> I don't want to comment on specific org changes because those decisions get made by the leaders closest to the work. But I think the general principle is that we're going to keep investing in the areas where we see the biggest opportunities and we're going to be honest about the areas where we need to be more efficient.
+>
+> The thing I'd say is, the best way to think about your position here is to focus on impact. The people who are doing great work and shipping things that matter are the people we want to keep. And I think the AI tools we're building right now are a pretty big opportunity to multiply what you can do. I'd focus on that."
+
+**Voice register:** This is a hybrid of Register 2 (Internal Strategic, as documented in the Year of Efficiency memo) and Register 5 (Podcast-Intimate). The clone would need to simulate accessibility without creating liability. Key patterns:
+- "So I think the way I think about this" — double "I think" construction, documented as authentic (Section 3z)
+- "Pretty straightforward" / "pretty big opportunity" — the "pretty [adjective]" pattern
+- Deflects the specific question to "org leaders" — consistent with documented non-commitment to specifics
+- Reframes job security as performance ("focus on impact") — consistent with the Year of Efficiency rhetoric
+- References AI tools as an opportunity — consistent with the AI adoption mandate
+- Zero em dashes, short sentences, "and" as primary connector
+
+**What this reveals about Zuckerberg's processing:**
+
+The AI clone cannot answer the layoff question honestly because honest answers to layoff questions are never in the CEO's interest. "Yes, your org is being restructured" creates legal liability. "No, you're safe" creates promissory estoppel risk. "I can't comment" from a human CEO is expected. "I can't comment" from an AI clone specifically built to make employees "feel more connected" would defeat the product's purpose.
+
+So the clone is structurally required to give motivational non-answers. It must sound like mentorship while providing no actionable information. It must make the employee feel heard without committing to anything. This is the fundamental limit of the product: it can simulate the emotional experience of CEO attention but not the informational content of CEO transparency.
+
+### 5bg-8. Simulation Critique
+
+**What works (authenticity score: 8.0/10):**
+
+The simulation captures the clone's structural bind accurately. The "focus on impact" reframe is precisely how Zuckerberg processes the efficiency narrative (Section 5ba). The register hybrid (internal-strategic + podcast-intimate) is the correct register for this interaction: intimate enough to feel personal, strategic enough to avoid commitment. The deflection to org leaders is consistent. The AI tools reference is the natural pivot.
+
+**What might break:**
+
+1. **The uncanny valley problem.** A photorealistic AI that looks and sounds like Zuckerberg but gives evasive answers to direct questions may produce more alienation than connection. Real Zuckerberg is evasive too. But real Zuckerberg's evasiveness is accompanied by body language cues, contextual awareness, and the knowledge that he is actually making the decisions. The clone's evasiveness, without genuine agency, may read as emptiness rather than strategic caution.
+
+2. **The information asymmetry reversal.** The FT reports the clone is trained on Zuckerberg's "latest views on business strategy." But who decides what the "latest views" are? If the clone is updated by a training team rather than by Zuckerberg directly, it becomes a communication channel controlled by whoever manages the training data. In a company with documented internal political dynamics (Section 5z), control of the clone's training data is control of the CEO's voice.
+
+3. **The emotional labor displacement.** One function of a human CEO is absorbing organizational anxiety. Town halls, all-hands Q&As, and direct interactions serve an emotional function beyond information transfer. The clone can simulate the surface of this emotional labor but cannot perform it. An employee who "talks to Mark" about layoff anxiety and receives a motivational non-answer has not had their anxiety absorbed. They have had it reflected back in the CEO's voice, which may intensify rather than reduce it.
+
+4. **The competitive signaling problem.** The clone announcement coincides with reports that Meta is competing aggressively for AI talent (Section 5be). Potential recruits evaluating Meta offers now know that the company's CEO is building a system where they may interact with an AI simulation rather than the real person. For researchers who left Google or OpenAI specifically to work WITH Zuckerberg, the clone signals that "working with Zuckerberg" may mean "working with a chatbot that sounds like Zuckerberg." The Wang departure model (Section 5be) should incorporate this as a potential autonomy-erosion accelerant.
+
+**Open tracking items:**
+
+- [ ] Sub-gap (Iteration 67): Track whether the AI clone is deployed to employees and, if so, the adoption rate, internal reception, and whether any employee publicly describes the interaction (Blind, Twitter/X, press).
+- [ ] Sub-gap (Iteration 67): Track whether the CEO agent and AI clone are merged into a single system or maintained as separate projects, and what organizational team controls the clone's training data.
+- [ ] Sub-gap (Iteration 67): Track the Q1 2026 earnings call (April 29) for whether Zuckerberg references either project publicly, and whether he uses Register 2 (internal-strategic, downplaying) or Register 5 (podcast-intimate, celebrating).
+- [ ] Sub-gap (Iteration 67): Track whether other tech CEOs announce similar AI self-replication projects, and whether the concept becomes normalized corporate infrastructure or is treated as a Zuckerberg-specific eccentricity.
+- [ ] Sub-gap (Iteration 67): Track the public/press reaction arc — specifically whether the "horror movie" framing (Bored Panda, Flipboard) or the "just dogfooding our AI" framing (Meta's position) dominates the narrative.
+- [ ] Sub-gap (Iteration 67): Track whether the AI clone interacts with the Zuckerberg AI on WhatsApp/Instagram (the consumer-facing Meta AI), creating a potential collision between the internal CEO-presence product and the external AI-assistant product.
+- [ ] Sub-gap (Iteration 67): Monitor whether any former Meta employee or current Meta researcher publishes an analysis of the clone's training methodology, limitations, or failure modes.
+- [ ] Sub-gap (Iteration 67): Track whether the clone is deployed to external audiences (investors, partners, press) or remains internal-only, and whether the boundary shifts over time.
+- [x] Track whether Zuckerberg's AI CEO agent evolves into a de facto succession mechanism or remains a productivity tool. (SUBSTANTIALLY ADDRESSED — Iteration 67, Section 5bg. The CEO agent remains a productivity tool as of April 2026, but the parallel AI clone project introduces a new succession-adjacent dynamic. Remaining: track deployment and institutional evolution of both projects.)
+- [x] Track whether the CEO agent project expands in scope (from information retrieval to decision-making or communication). (SUBSTANTIALLY ADDRESSED — Iteration 67, Section 5bg. Scope has expanded: the CEO agent handles information retrieval while the separate AI clone handles communication/presence. Decision-making remains human-only as of April 2026. Remaining: track whether either system gains decision-making authority.)
 
 - [ ] Narrative metabolism in real-time: the Avocado justification arc (COMPLETED → new sub-gaps below).
 - [x] How Zuckerberg processes the "AI winter" narrative and investor skepticism. (COMPLETED — Iteration 54, Section 5au)
