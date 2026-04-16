@@ -100,7 +100,18 @@ def sync() -> dict:
         return {"error": "price_db_not_found"}
 
     data = json.loads(PRICE_DB.read_text())
-    listings = data.get("listings", [])
+    # Handle both formats: list of {listings: [...]} objects, or single {listings: [...]} dict
+    if isinstance(data, list):
+        listings = []
+        for item in data:
+            if isinstance(item, dict) and "listings" in item:
+                listings.extend(item["listings"])
+            elif isinstance(item, dict):
+                listings.append(item)
+    elif isinstance(data, dict):
+        listings = data.get("listings", [])
+    else:
+        listings = []
     db = get_db()
     new_count = 0
     updated_count = 0
