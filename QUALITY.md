@@ -16,7 +16,7 @@ _Updated by hourly cron cycles. Honest assessments, not self-congratulation._
 - Anything below B-tier gets 2 improvement cycles, then gets cut
 - Indexes ordered by score (highest first)
 
-## Games (19 total)
+## Games (16 total — 3 games lost in April 16 force-push, not recovered)
 
 _10-dimension scoring: Trigger / Hook / Glasses / Return / D-Pad / Audio / Session Variance / Strategic Depth / Surprise / Craft. Raw /50, displayed as /100._
 
@@ -38,17 +38,18 @@ _10-dimension scoring: Trigger / Hook / Glasses / Return / D-Pad / Audio / Sessi
 | photon-dodge | 80 | A | 78 (was A) | Named Hazards: 5 rare attack events during STORM+ phases (🌟 NOVA center burst, 🔒 CAGE 3-wall trap with gap, 🌀 HELIX crossing spirals, 🎯 SNIPER tracking salvos, ⚫ VOID screen blackout → ring at old position). Each has 1s audio+visual warning, distinct dodging strategy. Discovery tracked in localStorage (⚠ X/5 on title). ~12% chance per spawn during STORM/CHAOS/HELLFIRE with 10s cooldown. Still has: mic-reactive patterns (bass=rings, mid=aimed, treble=spirals, beat=walls), 5 phases, power-ups, graze system, 8 ranks. |
 | audio-memory | 80 | A | 76 (was A) | Risk Bid system: before each round (from round 2), choose SAFE (1×, lose 1 life), RISKY (2×, lose 2 lives), or ALL IN (3× but game over on miss). 3 lives total. Wrong answers cost lives based on bid — survive mistakes on SAFE/RISKY but lose the round, while ALL IN is instant death for triple score. Creates genuine resource decisions: bid high early when sequence is short and you're confident, or conserve lives for later rounds? The score multiplication stacks with challenge round 2× bonuses (RISKY + challenge = 4×). Still has: challenge rounds every 3rd (reverse/ghost/speed), D-pad tones, combo streaks, bone conduction nearly eyes-free play. |
 | duel | 88 | A | 84 (was A) | Duel Modifiers: 40% chance per round of 1 of 6 gameplay conditions — each targets a distinct axis of the core audio-tell mechanic: FOG (draw sound muffled to 8% — barely audible, listen intently), QUICK DRAW (half reaction window), MIRROR (audio tells inverted — bluffs play draw sound, real draws silent; color becomes tell: orange=bluff, green=real), DUST STORM (phantom noise pops during wait confuse audio processing), SILENCE (no draw sound at all — eyes only), DOUBLE BLUFF (60% bluff chance). All 6 modifiers create genuinely different listening/decision problems. Discovery tracked in localStorage (✨ X/6 on title). MIRROR is the standout — completely inverts learned instincts. Combined with bluff system, heartbeat tension, 3 modes, mic=difficulty, rank progression. Does not warrant S-tier: strategic depth is fundamentally binary (press/don't press), limiting ceiling. |
-| tower-defense | 84 | A | 82 (was A) | Wave Mutations: 6 discoverable wave modifiers (~25% chance, wave 3+) — 🛡️ SHIELDED (35% HP shield absorbs first hits, need burst not sustained), ⚡ BLITZ (2x spawn rate, 65% HP, need area control), 🔇 EMP (one random cannon type disabled, forces diversification), 💨 HASTE (1.5x enemy speed, Frost becomes essential), 💰 BOUNTY (1.5x HP but 2.5x gold, risk/reward), 🌊 SWARM (near-instant spawns, overwhelming burst). Each has distinct audio warning (sawtooth+rumble), orange HUD badge during wave, persistent discovery (⚡ X/6 on title). SHIELDED enemies show cyan shield bar above HP. EMP'd cannons pulse red. Discovery tracked in localStorage. Each mutation creates a genuinely different optimal strategy — SHIELDED punishes Rapid, SWARM punishes Sniper, EMP punishes mono-builds. Still has: 5 tower types (Blaster/Sniper/Rapid/Splash/Frost), 6 enemy types, elite enemies, mic-reactive difficulty, spatial audio, cannon XP/leveling, rank progression, combo system. 1,564 lines. |
+| tower-defense | — | LOST | 82 (was A) | **⚠ LOST IN APRIL 16 FORCE-PUSH — NOT RECOVERED.** Source file never in git history. Was 84/A-tier with wave mutations, 5 tower types, 1,564 lines. Needs rebuild or recovery from backup. |
+| buffalo | — | LOST | New — first eval | **⚠ LOST IN APRIL 16 FORCE-PUSH — NOT RECOVERED.** Was 54/C-tier endless runner. |
+| buffalo-gold | — | LOST | New — first eval | **⚠ LOST IN APRIL 16 FORCE-PUSH — NOT RECOVERED.** Was 42/C-tier slot machine. |
 
-| buffalo | 54 | C | New — first eval | Endless lane runner. 5 lanes, 4 obstacle types (rock/tree/ravine), buffalo herd collection, stampede ability (costs 30% herd to smash through anything), speed control. Herd management IS interesting — bigger herd = higher score multiplier but fragile. BUT: zero mic integration, zero spatial audio, zero rank progression, zero discovery system. Phone does this better (swipe > D-pad for lanes, bigger screen). A competent mobile runner misplaced on a glasses platform. **Ceiling: ~64 with mic + ranks.** Benchmark: Subway Surfers has power-ups, seasonal content, social features, hundreds of levels of variety. |
-| buffalo-gold | 42 | C | New — first eval | Slot machine. 1024 ways, free spins with stacking multipliers, real casino "BUFFALO!" voice recording embedded as base64 (bloats HTML to 1929 lines). Polished visuals with real symbol images. BUT: zero strategic depth (pure RNG), zero mic integration, Glasses Advantage = 1 (phone is objectively better for slots), zero meaningful session variance (same spins forever). No player decisions exist. A slot machine fundamentally doesn't belong on a glasses-native game platform. **Bordering F-tier. 2 improvement cycles or cut.** |
-
-### Distribution
+### Distribution (of 16 deployed games)
 - S-tier: **7** (dungeon-crawl, stalk, gravity-sling, sonar-sub, trader, terraform, fisher)
-- A-tier: **10** (mine, signal, hex-collapse, beacon, rhythm-pulse, pulse, photon-dodge, audio-memory, duel, tower-defense)
+- A-tier: **9** (mine, signal, hex-collapse, beacon, rhythm-pulse, pulse, photon-dodge, audio-memory, duel)
 - B-tier: **0**
-- C-tier: **2** (buffalo, buffalo-gold) — both need 2 improvement cycles or cut
+- C-tier: **0**
 - F-tier: 0
+- **LOST (not deployed):** 3 (tower-defense 84/A, buffalo 54/C, buffalo-gold 42/C)
+- **Also lost:** games/audio/ directory (BGM + SFX mp3 files for all games). Games still function via Web Audio procedural synthesis but lack BGM tracks.
 
 ### What changed
 Under the old 6-dimension/30-point rubric, 9 of 16 games scored 30/30 (S-tier) because adding rank progression was a universal cheat code. The 4 new dimensions (Session Variance, Strategic Depth, Surprise/Discovery, Craft) expose the difference between genuinely replayable games (Dungeon Crawl: procedural rooms, fight/flee decisions, emergent encounters) and good-but-repetitive games (Beacon: same beam-sweep loop every time).
