@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-002: Automated Municipal Code Contradiction Detection via LLM | Live in the Future</title>
+  <meta name="description" content="Defensive prior art: An LLM pipeline that detects logical contradictions between municipal ordinances and generates structured conflict reports.">
+  <meta property="og:title" content="System and Method for Automated Detection of Contradictions in Municipal Code Using Large Language Models">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/llm-municipal-code-conflict-detector.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/llm-municipal-code-conflict-detector.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/priorart-municipal-code.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">← Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-002 · LegalTech / LLM</span>
+      <h1>System and Method for Automated Detection of Contradictions in Municipal Code Using Large Language Models</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-03-31">Published March 31, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/priorart-municipal-code.jpg" alt="Municipal code volumes with digital analysis overlay" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>⚖️ Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. § 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a system and method for automated identification of logical contradictions, regulatory conflicts, and ambiguities within municipal code corpora using large language models (LLMs) combined with formal logic verification. The system ingests the complete codified ordinances of a municipality, segments them into semantic units mapped to a hierarchical ontology, and performs pairwise and transitive conflict analysis using an LLM with retrieval-augmented generation (RAG). Detected conflicts are classified by severity (direct contradiction, implicit tension, ambiguous overlap, supersession gap) and presented in structured reports with full citation chains. A formal verification layer uses first-order logic translations to confirm LLM-detected conflicts, reducing false positives. The system is designed for use by city attorneys, legislative analysts, and municipal clerks during code revision cycles.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to automated legal text analysis, specifically to the detection of internal inconsistencies within bodies of codified municipal law using natural language processing and formal logic methods.</p>
+
+      <h2>Background</h2>
+
+      <p>The United States has approximately <a href="https://www.census.gov/govs/cog/">19,502 incorporated cities and towns</a> (US Census Bureau, Census of Governments), each maintaining an independent municipal code. The average municipal code contains 500-2,000 individually numbered sections accumulated over decades of legislative activity. Codes are amended piecemeal: a new ordinance addressing short-term rentals may conflict with an existing land-use ordinance, a revised noise ordinance may contradict a grandfathered entertainment district exemption, and parking requirements in a zoning code may conflict with recently adopted Complete Streets policies.</p>
+
+      <p>These contradictions are not hypothetical. A <a href="https://www.icma.org/documents/municipal-code-management-best-practices">2019 ICMA survey</a> found that 73% of responding municipalities had identified at least one internal code conflict in the preceding 5 years, and 31% reported conflicts that resulted in litigation or regulatory enforcement challenges. The city of <a href="https://www.citylab.com/">San Jose, California spent $2.3 million</a> in a single code reconciliation project after discovering 47 material conflicts between their zoning, building, and environmental codes.</p>
+
+      <p>Current practice relies on manual review by city attorneys during code revision, supplemented by commercial codification services (Municode, American Legal Publishing, General Code) that provide formatting and organizational consistency but do not perform semantic conflict analysis. No existing system uses LLMs or formal methods to automatically detect contradictions across complete municipal code corpora.</p>
+
+      <p>Relevant prior art includes:</p>
+      <ul>
+        <li><a href="https://patents.google.com/patent/US11568181B2">US11568181B2</a> (Thomson Reuters): Identifies related legal provisions using semantic similarity. Does not detect contradictions or perform logical conflict analysis.</li>
+        <li><a href="https://patents.google.com/patent/US20220092457A1">US20220092457A1</a> (LexisNexis): Uses NLP to classify legal text by topic. Classification only, no conflict detection.</li>
+        <li><a href="https://arxiv.org/abs/2303.17564">Nay, 2023</a>: "Large Language Models as Tax Attorneys" demonstrated LLM capability on legal reasoning tasks but applied to tax law interpretation, not municipal code conflict detection.</li>
+        <li><a href="https://www.municode.com/">Municode</a>, <a href="https://www.generalcode.com/">General Code</a>, <a href="https://www.amlegal.com/">American Legal Publishing</a>: Commercial codification services providing code hosting, formatting, and search. None offer automated conflict detection.</li>
+      </ul>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. Code Ingestion and Segmentation</h3>
+
+      <p>The system ingests a complete municipal code in any of the following formats: HTML from code hosting platforms (Municode, American Legal), XML from codification services, or PDF from municipalities that publish only print-formatted codes. A document parsing pipeline extracts individual sections, preserving hierarchical structure (Title > Chapter > Article > Section > Subsection) and cross-reference links.</p>
+
+      <p>Each section is segmented into "regulatory units" (RUs): the smallest self-contained statement of a rule, requirement, prohibition, permission, or definition. For example, a single section establishing parking requirements may contain 5-15 RUs covering different use types, lot sizes, and exemptions. Segmentation is performed by a fine-tuned LLM (e.g., Llama 3 70B or equivalent) prompted with the instruction: "Extract each individual rule, requirement, prohibition, permission, definition, or exemption as a separate regulatory unit. Preserve the exact statutory language and cite the source section."</p>
+
+      <h3>2. Ontological Mapping</h3>
+
+      <p>Each regulatory unit is classified into a municipal code ontology with approximately 200 leaf categories organized in a hierarchy. Top-level categories include: Land Use & Zoning, Building & Construction, Public Health & Safety, Business Licensing, Environmental, Transportation & Parking, Housing & Habitability, Public Works, Revenue & Taxation, and Administrative Procedure. The classification is performed by the same LLM with a structured output schema requiring category, sub-category, and regulated entity (person, property type, activity type, geographic area).</p>
+
+      <p>Regulatory units sharing any ontological overlap (same or adjacent categories, same regulated entity type, or same geographic scope) are flagged as candidate conflict pairs. This filtering step reduces the O(n²) pairwise comparison space by approximately 95%, as most regulatory units address non-overlapping domains.</p>
+
+      <h3>3. Conflict Detection via LLM Analysis</h3>
+
+      <p>For each candidate conflict pair (RU_a, RU_b), the system constructs a prompt containing: the full text of both regulatory units, their source section citations, their ontological classifications, and any cross-references to other sections. The LLM is instructed to classify the relationship as one of:</p>
+
+      <ul>
+        <li><strong>DIRECT_CONTRADICTION:</strong> RU_a and RU_b impose mutually exclusive requirements on the same regulated entity in the same circumstances. Example: Section 5.04.030 requires all food trucks to obtain a Type B permit; Section 12.08.050 exempts vehicles operating on private property from municipal permitting requirements.</li>
+        <li><strong>IMPLICIT_TENSION:</strong> RU_a and RU_b are not directly contradictory but create practical compliance difficulties. Example: a noise ordinance limits construction noise to 65 dB at property boundaries; a building code requires pile driving for foundations in seismic zones, which inherently exceeds 65 dB.</li>
+        <li><strong>AMBIGUOUS_OVERLAP:</strong> RU_a and RU_b both regulate the same activity but with different standards, and the code does not specify which takes precedence. Example: both the health code and the zoning code regulate outdoor dining, with different setback requirements.</li>
+        <li><strong>SUPERSESSION_GAP:</strong> A newer ordinance appears to supersede an older one but does not explicitly repeal it, creating an ambiguity about whether both remain in effect.</li>
+        <li><strong>NO_CONFLICT:</strong> The regulatory units are compatible.</li>
+      </ul>
+
+      <p>For each detected conflict (non-NO_CONFLICT classification), the LLM generates: a plain-language explanation of the conflict, the specific clauses in tension, a severity rating (1-5), and a suggested resolution approach.</p>
+
+      <h3>4. Formal Verification Layer</h3>
+
+      <p>To reduce false positives, detected conflicts are passed through a formal verification layer. Each regulatory unit in the conflict pair is translated into first-order logic (FOL) predicates by the LLM. For example:</p>
+
+      <p><code>RU_a: "All food trucks operating within city limits must obtain a Type B permit"</code><br>
+      <code>→ ∀x (food_truck(x) ∧ operates_within(x, city_limits) → must_obtain(x, type_b_permit))</code></p>
+
+      <p><code>RU_b: "Vehicles operating exclusively on private property are exempt from municipal permitting"</code><br>
+      <code>→ ∀x (vehicle(x) ∧ operates_on(x, private_property) → ¬requires(x, municipal_permit))</code></p>
+
+      <p>A theorem prover (Z3 or equivalent) checks whether the conjunction of FOL translations is satisfiable. If unsatisfiable (the rules cannot simultaneously be true for any entity), the conflict is confirmed. If satisfiable, the model identifies the specific conditions under which the conflict manifests (e.g., "a food truck operating on private property within city limits").</p>
+
+      <h3>5. Report Generation</h3>
+
+      <p>The system produces structured conflict reports in multiple formats (PDF for legislative review, JSON for integration with code management systems, HTML for web-based review). Each report entry includes: conflict ID, severity rating, classification type, the two regulatory units with full citations, plain-language explanation, formal logic representation, satisfiability analysis results, affected entities and scenarios, suggested resolution, and links to related conflicts (transitive chains where A conflicts with B and B conflicts with C).</p>
+
+      <h3>6. Figures Description</h3>
+
+      <ul>
+        <li><strong>Figure 1:</strong> System architecture showing pipeline from code ingestion through segmentation, ontological mapping, candidate pair generation, LLM conflict analysis, formal verification, and report generation.</li>
+        <li><strong>Figure 2:</strong> Example ontology hierarchy for municipal code classification, showing the Land Use & Zoning branch expanded to leaf categories.</li>
+        <li><strong>Figure 3:</strong> Example conflict report entry showing a DIRECT_CONTRADICTION between a food truck permitting requirement and a private property exemption, with FOL translations and Z3 satisfiability result.</li>
+        <li><strong>Figure 4:</strong> Transitive conflict chain visualization showing how a noise ordinance conflicts with a construction requirement, which in turn conflicts with a housing density mandate, forming a three-way regulatory deadlock.</li>
+      </ul>
+
+      <h2>Claims</h2>
+
+      <ol>
+        <li>A method for detecting contradictions in municipal code, comprising: ingesting a complete municipal code corpus; segmenting said code into individual regulatory units; classifying each regulatory unit into a municipal code ontology; identifying candidate conflict pairs based on ontological overlap; analyzing each candidate pair using a large language model to detect direct contradictions, implicit tensions, ambiguous overlaps, and supersession gaps; and generating structured conflict reports with citation chains.</li>
+
+        <li>The method of claim 1, further comprising translating detected conflict pairs into first-order logic predicates and verifying the conflict using a theorem prover to confirm unsatisfiability.</li>
+
+        <li>The method of claim 1, wherein candidate conflict pairs are identified by filtering regulatory units sharing at least one of: same ontological category, same regulated entity type, or overlapping geographic scope, reducing pairwise comparison space by at least 90%.</li>
+
+        <li>The method of claim 1, wherein the conflict classification includes severity ratings and suggested resolution approaches generated by the large language model.</li>
+
+        <li>The method of claim 2, wherein the theorem prover identifies specific conditions under which the conflict manifests when the conjunction of logic translations is satisfiable but constrained.</li>
+
+        <li>The method of claim 1, further comprising identifying transitive conflict chains where regulatory unit A conflicts with B and B conflicts with C, indicating systemic regulatory inconsistency.</li>
+
+        <li>A system for municipal code conflict analysis comprising: a document parser for extracting regulatory units from codified ordinances in HTML, XML, or PDF formats; a large language model configured for ontological classification and pairwise conflict analysis; a theorem prover for formal verification of detected conflicts; and a report generator producing structured outputs with citation chains and resolution recommendations.</li>
+
+        <li>The system of claim 7, wherein the system monitors ongoing legislative activity and re-analyzes affected code sections when new ordinances are adopted, providing pre-adoption conflict screening.</li>
+
+        <li>The system of claim 7, further comprising a dashboard displaying conflict density by code section, enabling legislative analysts to prioritize code sections for revision based on conflict severity and frequency.</li>
+      </ol>
+
+      <h2>Prior Art References</h2>
+
+      <ol>
+        <li><a href="https://patents.google.com/patent/US11568181B2">US11568181B2</a> — Thomson Reuters — "Related Legal Provision Identification" (2023)</li>
+        <li><a href="https://patents.google.com/patent/US20220092457A1">US20220092457A1</a> — LexisNexis — "Legal Text Classification" (2022)</li>
+        <li><a href="https://arxiv.org/abs/2303.17564">Nay, 2023</a> — "Large Language Models as Tax Attorneys" — arXiv</li>
+        <li><a href="https://www.census.gov/govs/cog/">US Census Bureau</a> — Census of Governments (19,502 municipalities)</li>
+        <li><a href="https://www.icma.org/">ICMA</a> — Municipal Code Management Best Practices Survey 2019</li>
+        <li><a href="https://github.com/Z3Prover/z3">Z3 Theorem Prover</a> — Microsoft Research</li>
+        <li><a href="https://www.municode.com/">Municode</a> — Municipal code hosting and codification</li>
+        <li><a href="https://www.generalcode.com/">General Code / eCode360</a> — Codification services</li>
+        <li><a href="https://www.amlegal.com/">American Legal Publishing</a> — Municipal code publishing</li>
+        <li><a href="https://ai.meta.com/blog/meta-llama-3/">Meta Llama 3</a> — Open-source LLM architecture</li>
+        <li><a href="https://arxiv.org/abs/2005.11401">Lewis et al., 2020</a> — "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks"</li>
+        <li><a href="https://www.law.cornell.edu/wex/municipal_law">Cornell LII</a> — Municipal Law Overview</li>
+      </ol>
+
+    </div>
+  </article>
+
+<script src="../story.js"></script>
+</body>
+</html>

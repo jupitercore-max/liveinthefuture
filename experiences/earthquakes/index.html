@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/experiences/earthquakes/" />
+  <meta property="og:title" content="Live Earthquakes - Hypernova WebApp" />
+  <meta property="og:url" content="https://liveinthefuture.org/experiences/earthquakes/" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Live Earthquakes - Hypernova WebApp</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0d0d0d;
+  color: #e8e8e8;
+  width: 600px;
+  height: 600px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+canvas { display: block; }
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+var cv = document.getElementById('c');
+var ctx = cv.getContext('2d');
+var W = 600, H = 600;
+
+// State
+var quakes = [];
+var focusIdx = 0;
+var showDetail = false;
+var userLat = null, userLon = null;
+var geoRequested = false;
+var feeds = [
+  { label: 'Past Hour', url: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_hour.geojson' },
+  { label: 'Past Day', url: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson' },
+  { label: 'Past Week', url: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_week.geojson' }
+];
+var feedIdx = 1; // default: past day
+var loading = true;
+var error = false;
+var tick = 0;
+var maxMag = 0;
+var listScroll = 0;
+var sortMode = 'proximity'; // 'proximity' (default when geo) or 'time'
+
+// Compass heading for spatial earthquake audio (head-tracked panning)
+var compassHeading = null;
+window.addEventListener('deviceorientation', function(e) {
+  if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+    compassHeading = e.webkitCompassHeading;
+  } else if (e.alpha !== null) {
+    compassHeading = (360 - e.alpha) % 360;
+  }
+}, false);
+
+// Watch Zones — user-bookmarked regions to monitor
+var watchZones = []; // [{lat, lon, label, addedAt}]
+var WATCH_RADIUS_KM = 500;
+var MAX_WATCH_ZONES = 5;
+var knownQuakeKeys = {}; // track known quakes to detect new arrivals
+
+function loadWatchZones() {
+  try {
+    var saved = localStorage.getItem('eq_watchzones');
+    if (saved) watchZones = JSON.parse(saved);
+  } catch(e) {}
+}
+
+function saveWatchZones() {
+  try {
+    localStorage.setItem('eq_watchzones', JSON.stringify(watchZones));
+  } catch(e) {}
+}
+
+function isInAnyWatchZone(q) {
+  for (var i = 0; i < watchZones.length; i++) {
+    if (haversineKm(watchZones[i].lat, watchZones[i].lon, q.lat, q.lon) <= WATCH_RADIUS_KM) return true;
+  }
+  return false;
+}
+
+function isAboveWatchThreshold(q) {
+  for (var i = 0; i < watchZones.length; i++) {
+    var wz = watchZones[i];
+    if (haversineKm(wz.lat, wz.lon, q.lat, q.lon) <= WATCH_RADIUS_KM) {
+      var threshold = wz.minMag !== undefined ? wz.minMag : 3.0;
+      if (q.mag >= threshold) return true;
+    }
+  }
+  return false;
+}
+
+function findWatchZoneAt(lat, lon) {
+  for (var i = 0; i < watchZones.length; i++) {
+    if (haversineKm(watchZones[i].lat, watchZones[i].lon, lat, lon) <= 100) return i;
+  }
+  return -1;
+}
+
+function countQuakesInZone(zone) {
+  var count = 0;
+  for (var i = 0; i < quakes.length; i++) {
+    if (haversineKm(zone.lat, zone.lon, quakes[i].lat, quakes[i].lon) <= WATCH_RADIUS_KM) count++;
+  }
+  return count;
+}
+
+function countQuakesAboveThresholdInZone(zone) {
+  var count = 0;
+  var threshold = zone.minMag !== undefined ? zone.minMag : 3.0;
+  for (var i = 0; i < quakes.length; i++) {
+    if (quakes[i].mag >= threshold && haversineKm(zone.lat, zone.lon, quakes[i].lat, quakes[i].lon) <= WATCH_RADIUS_KM) count++;
+  }
+  return count;
+}
+
+function maxMagInZone(zone) {
+  var m = 0;
+  for (var i = 0; i < quakes.length; i++) {
+    if (haversineKm(zone.lat, zone.lon, quakes[i].lat, quakes[i].lon) <= WATCH_RADIUS_KM) {
+      if (quakes[i].mag > m) m = quakes[i].mag;
+    }
+  }
+  return m;
+}
+
+function playWatchAlert() {
+  if (!audioCtx) return;
+  var now = audioCtx.currentTime;
+  // Rising two-tone alert — distinct from the rumble
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(660, now);
+  osc.frequency.setValueAtTime(880, now + 0.12);
+  osc.frequency.setValueAtTime(1100, now + 0.24);
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.12, now + 0.02);
+  gain.gain.setValueAtTime(0.12, now + 0.24);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 0.5);
+}
+
+function playBookmarkChime(adding) {
+  if (!audioCtx) return;
+  var now = audioCtx.currentTime;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'triangle';
+  if (adding) {
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.setValueAtTime(660, now + 0.1);
+  } else {
+    osc.frequency.setValueAtTime(660, now);
+    osc.frequency.setValueAtTime(330, now + 0.1);
+  }
+  gain.gain.setValueAtTime(0.1, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 0.25);
+}
+
+function checkWatchZoneAlerts() {
+  if (watchZones.length === 0) return;
+  var alerted = false;
+  for (var i = 0; i < quakes.length; i++) {
+    var key = quakes[i].lat + ',' + quakes[i].lon + ',' + quakes[i].time.getTime();
+    if (knownQuakeKeys[key]) continue;
+    knownQuakeKeys[key] = true;
+    if (isAboveWatchThreshold(quakes[i]) && !alerted) {
+      playWatchAlert();
+      alerted = true;
+    }
+  }
+}
+
+loadWatchZones();
+
+// USGS-inspired "Did you feel it?" estimation
+// Based on magnitude, distance, and depth using simplified intensity attenuation
+function estimateIntensity(mag, distKm, depthKm) {
+  // Hypocentral distance
+  var hypoDist = Math.sqrt(distKm * distKm + depthKm * depthKm);
+  if (hypoDist < 1) hypoDist = 1;
+  // Simplified MMI estimation: MMI ≈ 1.5*M - 3.5*log10(hypo) + 2
+  var mmi = 1.5 * mag - 3.5 * Math.log10(hypoDist) + 2;
+  return Math.max(0, Math.min(12, mmi));
+}
+
+function intensityLabel(mmi) {
+  if (mmi >= 6) return { text: 'Strong shaking', color: '#ff2200', felt: true };
+  if (mmi >= 4.5) return { text: 'You\u2019d feel this', color: '#ff6600', felt: true };
+  if (mmi >= 3) return { text: 'Might feel it', color: '#ffcc00', felt: true };
+  if (mmi >= 2) return { text: 'Barely perceptible', color: '#88ff00', felt: false };
+  return { text: 'Not felt', color: '#555', felt: false };
+}
+
+function sortQuakes() {
+  if (sortMode === 'proximity' && userLat !== null) {
+    quakes.sort(function(a, b) {
+      var dA = haversineKm(userLat, userLon, a.lat, a.lon);
+      var dB = haversineKm(userLat, userLon, b.lat, b.lon);
+      return dA - dB;
+    });
+  } else {
+    quakes.sort(function(a, b) {
+      return b.time.getTime() - a.time.getTime();
+    });
+  }
+  focusIdx = 0;
+}
+
+// Audio
+var audioCtx = null;
+var audioInited = false;
+
+function initAudio() {
+  if (audioInited) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioInited = true;
+  } catch(e) {}
+}
+
+function playQuakeRumble(mag, depth, lat, lon) {
+  if (!audioCtx) return;
+  // Magnitude maps to pitch, duration, and gain
+  // M2-3: light tick, M5-6: moderate rumble, M7+: deep sustained boom
+  var baseFreq = Math.max(30, 200 - (mag * 22)); // M3=134Hz, M5=90Hz, M7=46Hz, M9=2Hz→clamped 30
+  var duration = Math.min(1.5, 0.15 + mag * 0.15); // M3=0.6s, M7=1.2s
+  var gain = Math.min(0.6, 0.05 + mag * 0.07); // M3=0.26, M7=0.54
+
+  // Depth modulates: shallow = sharper attack, deep = more sub-bass
+  var depthFactor = Math.min(1, depth / 300);
+  baseFreq = baseFreq * (1 - depthFactor * 0.3); // deeper quakes = lower pitch
+
+  var now = audioCtx.currentTime;
+  var osc = audioCtx.createOscillator();
+  var gainNode = audioCtx.createGain();
+  var filter = audioCtx.createBiquadFilter();
+
+  // Spatial panning: earthquake rumble from its geographic direction
+  var dest = audioCtx.destination;
+  if (audioCtx.createStereoPanner && lat !== undefined && lon !== undefined) {
+    var panNode = audioCtx.createStereoPanner();
+    panNode.pan.setValueAtTime(getQuakePan(lat, lon), now);
+    panNode.connect(audioCtx.destination);
+    dest = panNode;
+  }
+
+  // Use triangle wave for rumble feel
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(baseFreq, now);
+  // Pitch drops during rumble
+  osc.frequency.exponentialRampToValueAtTime(Math.max(20, baseFreq * 0.4), now + duration);
+
+  // Low-pass filter for sub-bass feel
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(baseFreq * 3, now);
+  filter.frequency.exponentialRampToValueAtTime(baseFreq, now + duration);
+  filter.Q.value = 1.5;
+
+  // Envelope: sharp attack, sustained, fade
+  gainNode.gain.setValueAtTime(0, now);
+  gainNode.gain.linearRampToValueAtTime(gain, now + 0.02); // fast attack
+  gainNode.gain.setValueAtTime(gain * 0.8, now + duration * 0.3); // sustain
+  gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration); // fade
+
+  osc.connect(filter);
+  filter.connect(gainNode);
+  gainNode.connect(dest);
+
+  osc.start(now);
+  osc.stop(now + duration + 0.05);
+
+  // For M6+, add a second sub-harmonic for that chest-hit feeling
+  if (mag >= 6) {
+    var osc2 = audioCtx.createOscillator();
+    var gain2 = audioCtx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(baseFreq * 0.5, now);
+    osc2.frequency.exponentialRampToValueAtTime(20, now + duration * 1.2);
+    gain2.gain.setValueAtTime(0, now);
+    gain2.gain.linearRampToValueAtTime(gain * 0.5, now + 0.04);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + duration * 1.2);
+    osc2.connect(gain2);
+    gain2.connect(dest);
+    osc2.start(now);
+    osc2.stop(now + duration * 1.2 + 0.05);
+  }
+}
+
+// Simplified continent outlines (lon, lat pairs as polygons)
+// Rough shapes for visual reference
+var continents = [
+  // North America
+  [[-130,50],[-125,60],[-100,65],[-80,60],[-60,50],[-65,45],[-70,30],[-80,25],[-100,20],[-105,25],[-120,35],[-125,45],[-130,50]],
+  // South America  
+  [[-80,10],[-60,5],[-35,-5],[-35,-20],[-40,-25],[-50,-30],[-55,-35],[-65,-55],[-75,-45],[-70,-15],[-80,0],[-80,10]],
+  // Europe
+  [[-10,35],[0,40],[5,45],[10,48],[15,55],[30,60],[40,65],[50,60],[40,50],[30,45],[25,35],[10,35],[0,35],[-10,35]],
+  // Africa
+  [[-15,15],[-15,10],[-5,5],[10,5],[20,0],[30,-5],[35,-15],[30,-25],[25,-35],[20,-35],[15,-30],[10,-5],[0,5],[-10,10],[-15,15]],
+  // Asia
+  [[40,30],[50,40],[60,50],[70,55],[80,50],[90,45],[100,35],[110,25],[120,30],[130,35],[140,45],[150,60],[170,65],[180,65],[180,10],[140,15],[120,10],[100,10],[80,20],[60,25],[40,30]],
+  // Australia
+  [[115,-15],[130,-12],[150,-15],[155,-25],[150,-35],[140,-38],[130,-35],[115,-25],[115,-15]]
+];
+
+function lonToX(lon) { return ((lon + 180) / 360) * (W - 20) + 10; }
+function latToY(lat) { return ((90 - lat) / 180) * (H - 100) + 50; }
+
+function depthColor(depth) {
+  if (depth < 10) return '#00ff88';
+  if (depth < 30) return '#88ff00';
+  if (depth < 70) return '#ffcc00';
+  if (depth < 150) return '#ff6600';
+  if (depth < 300) return '#ff2200';
+  return '#cc0044';
+}
+
+function magRadius(mag) {
+  return Math.max(3, Math.min(18, mag * 3));
+}
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  var R = 6371;
+  var dLat = (lat2 - lat1) * Math.PI / 180;
+  var dLon = (lon2 - lon1) * Math.PI / 180;
+  var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function bearingFromUser(lat, lon) {
+  if (userLat === null || userLon === null) return null;
+  var dLon = (lon - userLon) * Math.PI / 180;
+  var lat1r = userLat * Math.PI / 180;
+  var lat2r = lat * Math.PI / 180;
+  var y = Math.sin(dLon) * Math.cos(lat2r);
+  var x = Math.cos(lat1r) * Math.sin(lat2r) - Math.sin(lat1r) * Math.cos(lat2r) * Math.cos(dLon);
+  return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
+}
+
+function bearingLabel(deg) {
+  var dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg / 22.5) % 16];
+}
+
+function getQuakePan(lat, lon) {
+  var bearing = bearingFromUser(lat, lon);
+  if (bearing !== null && compassHeading !== null) {
+    // Head-tracked: earthquake direction relative to where you're facing
+    var rel = ((bearing - compassHeading + 540) % 360) - 180;
+    return Math.max(-1, Math.min(1, Math.sin(rel * Math.PI / 180)));
+  }
+  if (bearing !== null) {
+    // Geographic: east=right, west=left (matches north-up map orientation)
+    return Math.max(-1, Math.min(1, Math.sin(bearing * Math.PI / 180)));
+  }
+  // Fallback: map screen X position
+  var sx = lonToX(lon);
+  return Math.max(-1, Math.min(1, (sx - W / 2) / (W / 2)));
+}
+
+function distLabel(q) {
+  if (userLat === null || !q.coords) return '';
+  var km = haversineKm(userLat, userLon, q.coords[1], q.coords[0]);
+  if (km < 1) return ' · <1km away';
+  if (km < 100) return ' · ' + Math.round(km) + 'km away';
+  if (km < 1000) return ' · ' + Math.round(km) + 'km';
+  return ' · ' + (km / 1000).toFixed(1) + 'K km';
+}
+
+function fetchQuakes() {
+  loading = true;
+  error = false;
+  // Try to get user location (once)
+  if (!geoRequested) {
+    geoRequested = true;
+    try {
+      navigator.geolocation.getCurrentPosition(function(pos) {
+        userLat = pos.coords.latitude;
+        userLon = pos.coords.longitude;
+        sortQuakes();
+      }, function() {
+        sortMode = 'time';
+      }, { timeout: 10000 });
+    } catch(e) {}
+  }
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', feeds[feedIdx].url);
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      try {
+        var data = JSON.parse(xhr.responseText);
+        quakes = [];
+        maxMag = 0;
+        for (var i = 0; i < data.features.length; i++) {
+          var f = data.features[i];
+          var p = f.properties;
+          var c = f.geometry.coordinates;
+          var mag = p.mag || 0;
+          if (mag > maxMag) maxMag = mag;
+          quakes.push({
+            lon: c[0], lat: c[1], depth: c[2],
+            coords: c,
+            mag: mag,
+            place: p.place || 'Unknown',
+            time: new Date(p.time)
+          });
+        }
+        focusIdx = 0;
+        listScroll = 0;
+        sortQuakes();
+        checkWatchZoneAlerts();
+      } catch(e) { error = true; }
+    } else { error = true; }
+    loading = false;
+  };
+  xhr.onerror = function() { error = true; loading = false; };
+  xhr.send();
+}
+
+function drawMap() {
+  // Grid lines
+  ctx.strokeStyle = '#1a1a2a';
+  ctx.lineWidth = 0.5;
+  for (var lon = -180; lon <= 180; lon += 30) {
+    ctx.beginPath();
+    ctx.moveTo(lonToX(lon), 50);
+    ctx.lineTo(lonToX(lon), H - 50);
+    ctx.stroke();
+  }
+  for (var lat = -90; lat <= 90; lat += 30) {
+    ctx.beginPath();
+    ctx.moveTo(10, latToY(lat));
+    ctx.lineTo(W - 10, latToY(lat));
+    ctx.stroke();
+  }
+
+  // Continents
+  ctx.strokeStyle = '#334';
+  ctx.lineWidth = 1.5;
+  ctx.fillStyle = 'rgba(40,40,60,0.3)';
+  for (var ci = 0; ci < continents.length; ci++) {
+    var pts = continents[ci];
+    ctx.beginPath();
+    ctx.moveTo(lonToX(pts[0][0]), latToY(pts[0][1]));
+    for (var pi = 1; pi < pts.length; pi++) {
+      ctx.lineTo(lonToX(pts[pi][0]), latToY(pts[pi][1]));
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+function drawQuakes() {
+  var pulse = Math.sin(tick * 0.08) * 0.3 + 0.7;
+  for (var i = 0; i < quakes.length; i++) {
+    var q = quakes[i];
+    var x = lonToX(q.lon);
+    var y = latToY(q.lat);
+    var r = magRadius(q.mag);
+    var col = depthColor(q.depth);
+
+    // Glow
+    ctx.globalAlpha = 0.2 * pulse;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 2, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.fill();
+
+    // Dot
+    ctx.globalAlpha = i === focusIdx ? 1.0 : 0.7;
+    ctx.beginPath();
+    ctx.arc(x, y, r * (i === focusIdx ? pulse * 0.3 + 0.85 : 1), 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.fill();
+
+    // Selected ring
+    if (i === focusIdx) {
+      ctx.strokeStyle = '#4a9eff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, r + 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Watch zone indicator — gold ring for quakes in watched regions
+    if (watchZones.length > 0 && isInAnyWatchZone(q)) {
+      ctx.strokeStyle = 'rgba(255, 200, 50, ' + (pulse * 0.6) + ')';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(x, y, r + 3, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
+  // User location marker
+  if (userLat !== null) {
+    var ux = lonToX(userLon);
+    var uy = latToY(userLat);
+    // Pulsing blue dot
+    var pulse = Math.sin(tick * 0.08) * 0.3 + 0.7;
+    ctx.globalAlpha = pulse * 0.3;
+    ctx.fillStyle = '#4a9eff';
+    ctx.beginPath();
+    ctx.arc(ux, uy, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#4a9eff';
+    ctx.beginPath();
+    ctx.arc(ux, uy, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+}
+
+function drawHeader() {
+  // Top bar
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, 46);
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, 46);
+  ctx.lineTo(W, 46);
+  ctx.stroke();
+
+  ctx.font = '600 20px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🌍 Earthquakes', 14, 23);
+
+  // Proximity indicator — show nearest quake "felt" status
+  if (userLat !== null && quakes.length > 0 && sortMode === 'proximity') {
+    var nearest = quakes[0];
+    var nearDist = haversineKm(userLat, userLon, nearest.lat, nearest.lon);
+    var mmi = estimateIntensity(nearest.mag, nearDist, nearest.depth);
+    var info = intensityLabel(mmi);
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = info.color;
+    ctx.textAlign = 'left';
+    var nearStr = 'M' + nearest.mag.toFixed(1) + ' · ' + Math.round(nearDist) + 'km · ' + info.text;
+    ctx.fillText(nearStr, 14, 42);
+  }
+
+  // Audio indicator
+  if (audioInited) {
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.fillStyle = '#4a9eff';
+    ctx.textAlign = 'left';
+    ctx.fillText('🔊', 195, 23);
+  }
+
+  // Sort mode indicator
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillStyle = sortMode === 'proximity' ? '#4a9eff' : '#888';
+  ctx.textAlign = 'right';
+  ctx.fillText(sortMode === 'proximity' ? '📍 Nearest' : '🕐 Recent', W - 14, 42);
+
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.textAlign = 'right';
+  ctx.fillText(feeds[feedIdx].label, W - 14, 16);
+
+  if (!loading && !error) {
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.fillStyle = '#888';
+    ctx.fillText(quakes.length + ' quakes · max M' + maxMag.toFixed(1), W - 14, 34);
+  }
+}
+
+function drawFooter() {
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, H - 36, W, 36);
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, H - 36);
+  ctx.lineTo(W, H - 36);
+  ctx.stroke();
+
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('↑↓ Select  ←→ Feed  Enter Details  Esc Back', W / 2, H - 18);
+
+  // Watch zone indicator (right side of footer)
+  if (watchZones.length > 0) {
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = '#ffc832';
+    ctx.textAlign = 'right';
+    ctx.fillText('⭐ ' + watchZones.length + ' zone' + (watchZones.length > 1 ? 's' : ''), W - 14, H - 18);
+  }
+}
+
+function drawDetail() {
+  if (!showDetail || quakes.length === 0) return;
+  var q = quakes[focusIdx];
+
+  // Overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.85)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Card
+  var cx = 60, cy = 120, cw = W - 120, ch = 340;
+  ctx.fillStyle = '#1a1a2a';
+  ctx.strokeStyle = '#4a9eff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(cx, cy, cw, ch, 12);
+  ctx.fill();
+  ctx.stroke();
+
+  var tx = W / 2;
+  var ty = cy + 40;
+
+  // Magnitude
+  ctx.font = '800 48px -apple-system, sans-serif';
+  ctx.fillStyle = depthColor(q.depth);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('M ' + q.mag.toFixed(1), tx, ty);
+  ty += 50;
+
+  // Place
+  ctx.font = '600 18px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  var place = q.place;
+  if (place.length > 35) place = place.substring(0, 35) + '…';
+  ctx.fillText(place, tx, ty);
+  ty += 36;
+
+  // Depth + Distance
+  ctx.font = '16px -apple-system, sans-serif';
+  ctx.fillStyle = '#aaa';
+  var depthStr = 'Depth: ' + q.depth.toFixed(1) + ' km';
+  var dl = distLabel(q);
+  if (dl) depthStr += dl;
+  ctx.fillText(depthStr, tx, ty);
+  ty += 30;
+
+  // Coordinates
+  ctx.fillText(q.lat.toFixed(3) + '°, ' + q.lon.toFixed(3) + '°', tx, ty);
+  ty += 30;
+
+  // "Did you feel it?" estimation
+  if (userLat !== null) {
+    var qDist = haversineKm(userLat, userLon, q.lat, q.lon);
+    var mmi = estimateIntensity(q.mag, qDist, q.depth);
+    var info = intensityLabel(mmi);
+    ctx.font = '600 16px -apple-system, sans-serif';
+    ctx.fillStyle = info.color;
+    ctx.fillText(info.text + (info.felt ? ' at your location' : ''), tx, ty);
+    ty += 30;
+  }
+
+  // Bearing direction from user (spatial audio indicator)
+  if (userLat !== null) {
+    var brng = bearingFromUser(q.lat, q.lon);
+    if (brng !== null) {
+      ctx.font = '14px -apple-system, sans-serif';
+      ctx.fillStyle = '#4a9eff';
+      ctx.fillText('\uD83D\uDD0A ' + bearingLabel(brng) + ' ' + Math.round(brng) + '\u00B0' + (compassHeading !== null ? ' \uD83E\uDDED' : ''), tx, ty);
+      ty += 25;
+    }
+  }
+
+  // Time
+  var hrs = q.time.getUTCHours();
+  var mins = q.time.getUTCMinutes();
+  var dateStr = q.time.toISOString().split('T')[0] + ' ' +
+    (hrs < 10 ? '0' : '') + hrs + ':' + (mins < 10 ? '0' : '') + mins + ' UTC';
+  ctx.fillText(dateStr, tx, ty);
+  ty += 40;
+
+  // Depth bar
+  ctx.fillStyle = '#333';
+  ctx.fillRect(cx + 40, ty - 5, cw - 80, 10);
+  var depthPct = Math.min(q.depth / 600, 1);
+  ctx.fillStyle = depthColor(q.depth);
+  ctx.fillRect(cx + 40, ty - 5, (cw - 80) * depthPct, 10);
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.textAlign = 'left';
+  ctx.fillText('0 km', cx + 40, ty + 18);
+  ctx.textAlign = 'right';
+  ctx.fillText('600 km', cx + cw - 40, ty + 18);
+  ctx.textAlign = 'center';
+
+  // Close hint
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.fillText('↑↓ Navigate  Esc Close', tx, cy + ch - 20);
+
+  // Watch zone status for this quake
+  var wzIdx = findWatchZoneAt(q.lat, q.lon);
+  var isWatched = isInAnyWatchZone(q);
+
+  // Watch zone action prompt
+  ctx.font = '13px -apple-system, sans-serif';
+  if (wzIdx >= 0) {
+    var wz = watchZones[wzIdx];
+    var threshold = wz.minMag !== undefined ? wz.minMag : 3.0;
+    ctx.fillStyle = '#ffc832';
+    ctx.fillText('⭐ Watched · Alert ≥M' + threshold.toFixed(1) + ' · ←→ Adjust', tx, cy + ch + 16);
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = '#888';
+    ctx.fillText('Enter to unwatch', tx, cy + ch + 34);
+  } else if (watchZones.length < MAX_WATCH_ZONES) {
+    ctx.fillStyle = isWatched ? '#ffc832' : '#888';
+    ctx.fillText((isWatched ? '⭐ In zone · ' : '') + 'Enter to watch (' + watchZones.length + '/' + MAX_WATCH_ZONES + ')', tx, cy + ch + 20);
+  } else {
+    ctx.fillStyle = '#666';
+    ctx.fillText('Watch zones full (' + MAX_WATCH_ZONES + '/' + MAX_WATCH_ZONES + ')', tx, cy + ch + 20);
+  }
+}
+
+function drawLoading() {
+  ctx.font = '18px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  var dots = '';
+  for (var d = 0; d < ((tick / 15) % 4); d++) dots += '.';
+  ctx.fillText('Loading earthquakes' + dots, W / 2, H / 2);
+}
+
+function drawError() {
+  ctx.font = '18px -apple-system, sans-serif';
+  ctx.fillStyle = '#ff4444';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Failed to load data', W / 2, H / 2 - 10);
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.fillText('Enter to retry', W / 2, H / 2 + 15);
+}
+
+// Legend
+function drawLegend() {
+  var lx = 12, ly = H - 80;
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  var items = [
+    ['#00ff88', '<10km'],
+    ['#ffcc00', '30-70km'],
+    ['#ff2200', '150-300km'],
+    ['#cc0044', '>300km']
+  ];
+  for (var i = 0; i < items.length; i++) {
+    ctx.fillStyle = items[i][0];
+    ctx.beginPath();
+    ctx.arc(lx + 6, ly + i * 14, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#888';
+    ctx.fillText(items[i][1], lx + 16, ly + i * 14);
+  }
+}
+
+function drawWatchZones() {
+  if (watchZones.length === 0) return;
+  for (var i = 0; i < watchZones.length; i++) {
+    var wz = watchZones[i];
+    var wx = lonToX(wz.lon);
+    var wy = latToY(wz.lat);
+    // Approximate radius in pixels (WATCH_RADIUS_KM -> degrees latitude ~ /111)
+    var degRadius = WATCH_RADIUS_KM / 111;
+    var ry = Math.abs(latToY(wz.lat - degRadius) - latToY(wz.lat));
+    var rx = Math.abs(lonToX(wz.lon + degRadius / Math.cos(wz.lat * Math.PI / 180)) - lonToX(wz.lon));
+    // Dashed ring
+    var pulse = Math.sin(tick * 0.04 + i) * 0.15 + 0.35;
+    ctx.save();
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = 'rgba(255, 200, 50, ' + pulse + ')';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(wx, wy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Center crosshair
+    ctx.strokeStyle = 'rgba(255, 200, 50, 0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(wx - 4, wy); ctx.lineTo(wx + 4, wy);
+    ctx.moveTo(wx, wy - 4); ctx.lineTo(wx, wy + 4);
+    ctx.stroke();
+    // Label
+    ctx.font = '9px -apple-system, sans-serif';
+    ctx.fillStyle = 'rgba(255, 200, 50, 0.7)';
+    ctx.textAlign = 'center';
+    var zoneCount = countQuakesInZone(wz);
+    var alertCount = countQuakesAboveThresholdInZone(wz);
+    var threshold = wz.minMag !== undefined ? wz.minMag : 3.0;
+    var lbl = '⭐ ' + (wz.label || 'Zone ' + (i+1));
+    if (alertCount > 0) {
+      ctx.fillStyle = 'rgba(255, 100, 50, 0.9)';
+      lbl += ' 🔴' + alertCount + '≥M' + threshold.toFixed(0);
+    } else {
+      lbl += ' (' + zoneCount + ')';
+    }
+    ctx.fillText(lbl, wx, wy - ry - 6);
+    ctx.restore();
+  }
+}
+
+function drawWatchStrip() {
+  if (watchZones.length === 0) return;
+  // Draw a compact strip above the footer showing watch zone summaries
+  var stripY = H - 58;
+  var stripH = 20;
+  ctx.fillStyle = 'rgba(17, 17, 17, 0.8)';
+  ctx.fillRect(0, stripY, W, stripH);
+
+  var slotW = W / Math.max(watchZones.length, 1);
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textBaseline = 'middle';
+  for (var i = 0; i < watchZones.length; i++) {
+    var wz = watchZones[i];
+    var cx = slotW * i + slotW / 2;
+    var cy = stripY + stripH / 2;
+    var alertCnt = countQuakesAboveThresholdInZone(wz);
+    var total = countQuakesInZone(wz);
+    var mm = maxMagInZone(wz);
+    var threshold = wz.minMag !== undefined ? wz.minMag : 3.0;
+
+    ctx.textAlign = 'center';
+    if (alertCnt > 0) {
+      ctx.fillStyle = '#ff6600';
+      ctx.fillText('⭐' + (wz.label || '?').substring(0, 10) + ' ' + alertCnt + '⚠ M' + mm.toFixed(1), cx, cy);
+    } else if (total > 0) {
+      ctx.fillStyle = '#ffc832';
+      ctx.fillText('⭐' + (wz.label || '?').substring(0, 10) + ' ' + total + ' M' + mm.toFixed(1), cx, cy);
+    } else {
+      ctx.fillStyle = '#555';
+      ctx.fillText('⭐' + (wz.label || '?').substring(0, 10) + ' quiet', cx, cy);
+    }
+  }
+}
+
+function draw() {
+  tick++;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  if (loading) {
+    drawHeader();
+    drawLoading();
+    drawFooter();
+  } else if (error) {
+    drawHeader();
+    drawError();
+    drawFooter();
+  } else {
+    drawMap();
+    drawWatchZones();
+    drawQuakes();
+    drawLegend();
+    drawWatchStrip();
+    drawHeader();
+    drawFooter();
+    if (showDetail) drawDetail();
+  }
+  requestAnimationFrame(draw);
+}
+
+// Input
+document.addEventListener('keydown', function(e) {
+  e.preventDefault();
+  if (showDetail) {
+    if (e.key === 'Escape' || e.key === 'Backspace') {
+      showDetail = false;
+    } else if (e.key === 'Enter') {
+      // Toggle watch zone at current quake's location
+      initAudio();
+      var q = quakes[focusIdx];
+      var wzIdx = findWatchZoneAt(q.lat, q.lon);
+      if (wzIdx >= 0) {
+        watchZones.splice(wzIdx, 1);
+        saveWatchZones();
+        playBookmarkChime(false);
+      } else if (watchZones.length < MAX_WATCH_ZONES) {
+        var label = q.place.length > 20 ? q.place.substring(0, 20) : q.place;
+        watchZones.push({lat: q.lat, lon: q.lon, label: label, addedAt: Date.now(), minMag: 3.0});
+        saveWatchZones();
+        playBookmarkChime(true);
+      }
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      // Adjust watch zone alert threshold if this quake is in a watched zone
+      var q = quakes[focusIdx];
+      var wzIdx = findWatchZoneAt(q.lat, q.lon);
+      if (wzIdx >= 0) {
+        initAudio();
+        var step = e.key === 'ArrowRight' ? 0.5 : -0.5;
+        var wz = watchZones[wzIdx];
+        if (wz.minMag === undefined) wz.minMag = 3.0;
+        wz.minMag = Math.max(1.0, Math.min(7.0, wz.minMag + step));
+        saveWatchZones();
+        // Audio feedback: pitch encodes threshold level
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 300 + (wz.minMag - 1) * 80;
+        gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 0.15);
+      }
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      // Navigate quakes while in detail view
+      if (e.key === 'ArrowDown' && focusIdx < quakes.length - 1) {
+        focusIdx++;
+        playQuakeRumble(quakes[focusIdx].mag, quakes[focusIdx].depth, quakes[focusIdx].lat, quakes[focusIdx].lon);
+      } else if (e.key === 'ArrowUp' && focusIdx > 0) {
+        focusIdx--;
+        playQuakeRumble(quakes[focusIdx].mag, quakes[focusIdx].depth, quakes[focusIdx].lat, quakes[focusIdx].lon);
+      }
+    }
+    return;
+  }
+  if (e.key === 'ArrowDown') {
+    initAudio();
+    if (quakes.length > 0) {
+      focusIdx = Math.min(quakes.length - 1, focusIdx + 1);
+      playQuakeRumble(quakes[focusIdx].mag, quakes[focusIdx].depth, quakes[focusIdx].lat, quakes[focusIdx].lon);
+    }
+  } else if (e.key === 'ArrowUp') {
+    initAudio();
+    if (quakes.length > 0) {
+      focusIdx = Math.max(0, focusIdx - 1);
+      playQuakeRumble(quakes[focusIdx].mag, quakes[focusIdx].depth, quakes[focusIdx].lat, quakes[focusIdx].lon);
+    }
+  } else if (e.key === 'ArrowRight') {
+    feedIdx = Math.min(feeds.length - 1, feedIdx + 1);
+    fetchQuakes();
+  } else if (e.key === 'ArrowLeft') {
+    feedIdx = Math.max(0, feedIdx - 1);
+    fetchQuakes();
+  } else if (e.key === 'Enter') {
+    initAudio();
+    if (error) { fetchQuakes(); return; }
+    if (quakes.length > 0) {
+      showDetail = true;
+      playQuakeRumble(quakes[focusIdx].mag, quakes[focusIdx].depth, quakes[focusIdx].lat, quakes[focusIdx].lon);
+    }
+  } else if (e.key === 'Escape' || e.key === 'Backspace') {
+    window.location.href = '../';
+  }
+});
+
+// roundRect polyfill
+if (!ctx.roundRect) {
+  ctx.roundRect = function(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  };
+}
+
+// Auto-refresh every 60s
+setInterval(fetchQuakes, 60000);
+fetchQuakes();
+draw();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

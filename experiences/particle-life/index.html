@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/experiences/particle-life/" />
+  <meta property="og:title" content="Particle Life — Evolving Ecosystem" />
+  <meta property="og:url" content="https://liveinthefuture.org/experiences/particle-life/" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Particle Life — Evolving Ecosystem</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0d0d0d;
+  color: #e8e8e8;
+  width: 600px;
+  height: 600px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+canvas { display: block; }
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+var cv = document.getElementById('c');
+var ctx = cv.getContext('2d');
+var W = 600, H = 600;
+
+// Particle config
+var NUM_TYPES = 6;
+var PARTICLES_PER_TYPE = 50;
+var TOTAL = NUM_TYPES * PARTICLES_PER_TYPE;
+var FRICTION = 0.05;
+var MAX_RADIUS = 80;
+var MIN_RADIUS = 20;
+var FORCE_SCALE = 0.008;
+var DT = 1;
+
+var COLORS = [
+  [255, 80, 80],   // red
+  [80, 200, 255],  // cyan
+  [80, 255, 120],  // green
+  [255, 200, 60],  // gold
+  [200, 100, 255], // purple
+  [255, 140, 200]  // pink
+];
+var NAMES = ['Red', 'Cyan', 'Green', 'Gold', 'Purple', 'Pink'];
+
+// State
+var rules = [];
+var particles = [];
+var tick = 0;
+var generation = 1;
+
+// Species selection & survival
+var chosenSpecies = -1; // -1 = not chosen yet, 0-5 = selected
+var speciesAlive = true;
+var survivalGen = 0;
+var bestSurvival = parseInt(localStorage.getItem('pl_best') || '0', 10);
+var gameState = 'select'; // 'select' | 'running' | 'extinct'
+var selectIdx = 0;
+var extinctFlash = 0;
+
+// Rank progression — cumulative generations survived
+var RANK_NAMES = ['Observer', 'Watcher', 'Nurturer', 'Symbiont', 'Ecologist', 'Cultivator', 'Gaia', 'Archon'];
+var RANK_THRESHOLDS = [0, 30, 80, 180, 350, 600, 1000, 1800];
+var totalGenerations = parseInt(localStorage.getItem('pl_totalGen') || '0', 10);
+var rankUpShow = 0;
+
+function getRank() {
+  for (var i = RANK_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (totalGenerations >= RANK_THRESHOLDS[i]) return i;
+  }
+  return 0;
+}
+
+function getRankBonuses() {
+  var rank = getRank();
+  return {
+    shepherdRadius: 1 + rank * 0.05,
+    shepherdForce: 1 + rank * 0.06,
+    extinctionDelay: rank
+  };
+}
+
+function playRankUpChime() {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var notes = [523.25, 659.25, 783.99, 1046.50];
+  for (var i = 0; i < notes.length; i++) {
+    var osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = notes[i];
+    var g = audioCtx.createGain();
+    g.gain.value = 0;
+    osc.connect(g);
+    g.connect(audioCtx.destination);
+    osc.start(t + i * 0.12);
+    g.gain.setTargetAtTime(0.08, t + i * 0.12, 0.02);
+    g.gain.setTargetAtTime(0, t + i * 0.12 + 0.15, 0.06);
+    osc.stop(t + i * 0.12 + 0.5);
+  }
+}
+
+// Audio state
+var audioCtx = null;
+var analyser = null;
+var micStream = null;
+var micActive = false;
+var micFailed = false;
+var micAttempted = false;
+var freqData = null;
+var smoothBass = 0;
+var smoothMid = 0;
+var smoothTreble = 0;
+var smoothVol = 0;
+var mutationTimer = 0;
+var MUTATION_INTERVAL = 120; // frames between mutations
+var LERP = 0.08;
+
+// Audio output — ecosystem drone + event sounds through bone conduction
+var outReady = false;
+var speciesOscs = [];
+var speciesGains = [];
+var speciesPans = [];
+var outMasterGain = null;
+var SPECIES_FREQS = [130.81, 196.00, 261.63, 329.63, 392.00, 523.25]; // C3,G3,C4,E4,G4,C5 — 3 octaves, consonant intervals for bone conduction distinguishability
+
+// Population tracking
+var typeCounts = [];
+var avgNeighbors = [];
+var speciesCenterX = [];
+var speciesCenterY = [];
+
+// Shepherd cursor — player agency during running state
+var shepherdX = W / 2;
+var shepherdY = H / 2;
+var shepherdActive = false;  // becomes true on first D-pad press during running
+var BASE_SHEPHERD_FORCE = 0.15;   // attraction strength toward cursor
+var BASE_SHEPHERD_RADIUS = 120;   // max distance for shepherd effect
+var shepherdNearby = 0;      // count of your species near cursor
+var shepherdPulse = 0;       // animation phase
+
+// Shepherd Pulse ability — Enter activates a strong burst
+var pulseActive = false;
+var pulseCooldown = 0;       // frames until pulse available again
+var pulseTimer = 0;          // frames remaining on active pulse
+var PULSE_DURATION = 45;     // ~0.75 seconds at 60fps
+var PULSE_COOLDOWN = 180;    // 3 seconds cooldown
+var PULSE_MULT = 3.5;        // force multiplier during pulse
+var PULSE_RADIUS_MULT = 1.6; // radius multiplier during pulse
+var pulseFlash = 0;          // visual flash timer
+
+function randomRule() {
+  return Math.random() * 2 - 1;
+}
+
+function generateRules() {
+  rules = [];
+  for (var i = 0; i < NUM_TYPES; i++) {
+    rules[i] = [];
+    for (var j = 0; j < NUM_TYPES; j++) {
+      rules[i][j] = randomRule();
+    }
+  }
+}
+
+function spawnParticles() {
+  particles = [];
+  for (var t = 0; t < NUM_TYPES; t++) {
+    for (var i = 0; i < PARTICLES_PER_TYPE; i++) {
+      particles.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        vx: 0, vy: 0,
+        type: t
+      });
+    }
+  }
+}
+
+// --- Audio ---
+function initMic() {
+  if (micActive || micFailed || micAttempted) return;
+  micAttempted = true;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      micStream = stream;
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.85;
+      var src = audioCtx.createMediaStreamSource(stream);
+      src.connect(analyser);
+      freqData = new Uint8Array(analyser.frequencyBinCount);
+      micActive = true;
+      initAudioOutput();
+    }).catch(function() {
+      micFailed = true;
+      initAudioOutput();
+    });
+  } catch (e) {
+    micFailed = true;
+  }
+}
+
+function initAudioOutput() {
+  if (outReady || !audioCtx) return;
+  outMasterGain = audioCtx.createGain();
+  outMasterGain.gain.value = 0;
+  outMasterGain.connect(audioCtx.destination);
+  for (var i = 0; i < NUM_TYPES; i++) {
+    var osc = audioCtx.createOscillator();
+    osc.type = (i % 2 === 0) ? 'sine' : 'triangle';
+    osc.frequency.value = SPECIES_FREQS[i];
+    var g = audioCtx.createGain();
+    g.gain.value = 0;
+    var pan = null;
+    if (audioCtx.createStereoPanner) {
+      pan = audioCtx.createStereoPanner();
+      pan.pan.value = 0;
+      osc.connect(g);
+      g.connect(pan);
+      pan.connect(outMasterGain);
+    } else {
+      osc.connect(g);
+      g.connect(outMasterGain);
+    }
+    osc.start();
+    speciesOscs.push(osc);
+    speciesGains.push(g);
+    speciesPans.push(pan);
+  }
+  outMasterGain.gain.setTargetAtTime(0.12, audioCtx.currentTime, 0.3);
+  outReady = true;
+}
+
+function updateEcosystemAudio() {
+  if (!outReady) return;
+  var t = audioCtx.currentTime;
+  var maxN = 1;
+  for (var i = 0; i < NUM_TYPES; i++) {
+    if ((avgNeighbors[i] || 0) > maxN) maxN = avgNeighbors[i];
+  }
+  for (var i = 0; i < NUM_TYPES; i++) {
+    var connectivity = maxN > 0 ? (avgNeighbors[i] || 0) / maxN : 0;
+    var targetVol = connectivity * 0.6;
+    // Chosen species louder, others dimmer
+    if (gameState === 'running' && chosenSpecies >= 0) {
+      targetVol = (i === chosenSpecies) ? targetVol * 1.4 : targetVol * 0.3;
+    }
+    targetVol = Math.min(targetVol, 0.7);
+    speciesGains[i].gain.setTargetAtTime(targetVol, t, 0.4);
+    // Detune slightly by connectivity for organic feel
+    var detune = (connectivity - 0.5) * 30;
+    speciesOscs[i].detune.setTargetAtTime(detune, t, 0.5);
+    // Spatial stereo panning: species cluster X position → L/R pan
+    if (speciesPans[i] && typeCounts[i] > 0) {
+      var panVal = ((speciesCenterX[i] || W/2) / W) * 2 - 1; // 0→-1, 300→0, 600→+1
+      panVal = Math.max(-1, Math.min(1, panVal));
+      speciesPans[i].pan.setTargetAtTime(panVal, t, 0.5);
+    }
+  }
+  // Master volume: overall ecosystem health
+  var totalConnectivity = 0;
+  for (var i = 0; i < NUM_TYPES; i++) totalConnectivity += (avgNeighbors[i] || 0);
+  var healthNorm = Math.min(totalConnectivity / (maxN * NUM_TYPES), 1);
+  var masterVol = 0.04 + healthNorm * 0.10;
+  outMasterGain.gain.setTargetAtTime(masterVol, t, 0.5);
+}
+
+function playSelectionTone(idx) {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  var freq = SPECIES_FREQS[idx] * 2;
+  var osc = audioCtx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.value = freq;
+  var g = audioCtx.createGain();
+  g.gain.value = 0.08;
+  osc.connect(g);
+  g.connect(audioCtx.destination);
+  osc.start();
+  g.gain.setTargetAtTime(0, audioCtx.currentTime + 0.08, 0.04);
+  osc.stop(audioCtx.currentTime + 0.2);
+}
+
+function playBondChime() {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var freq = SPECIES_FREQS[chosenSpecies];
+  var notes = [freq, freq * 1.25, freq * 1.5, freq * 2]; // root, 3rd, 5th, octave
+  for (var i = 0; i < notes.length; i++) {
+    var osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = notes[i];
+    var g = audioCtx.createGain();
+    g.gain.value = 0;
+    osc.connect(g);
+    g.connect(audioCtx.destination);
+    osc.start(t + i * 0.1);
+    g.gain.setTargetAtTime(0.08, t + i * 0.1, 0.02);
+    g.gain.setTargetAtTime(0, t + i * 0.1 + 0.15, 0.06);
+    osc.stop(t + i * 0.1 + 0.5);
+  }
+}
+
+function playExtinctionSweep() {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var osc = audioCtx.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.value = SPECIES_FREQS[chosenSpecies] * 2;
+  var g = audioCtx.createGain();
+  g.gain.value = 0.06;
+  var lp = audioCtx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 2000;
+  osc.connect(lp);
+  lp.connect(g);
+  g.connect(audioCtx.destination);
+  osc.start(t);
+  osc.frequency.setTargetAtTime(40, t, 0.4);
+  lp.frequency.setTargetAtTime(200, t, 0.3);
+  g.gain.setTargetAtTime(0, t + 0.6, 0.2);
+  osc.stop(t + 1.5);
+}
+
+function playMutationTick() {
+  if (!audioCtx || !outReady) return;
+  var t = audioCtx.currentTime;
+  var intensity = smoothVol * 3;
+  if (intensity < 0.1) return;
+  var osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.value = 800 + intensity * 1200;
+  var g = audioCtx.createGain();
+  g.gain.value = 0.03 + intensity * 0.02;
+  osc.connect(g);
+  g.connect(audioCtx.destination);
+  osc.start(t);
+  g.gain.setTargetAtTime(0, t + 0.02, 0.015);
+  osc.stop(t + 0.1);
+}
+
+function playPulseSound() {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var freq = SPECIES_FREQS[chosenSpecies] * 2;
+  // Rising whoosh + resonant ping
+  var osc = audioCtx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.value = freq * 0.5;
+  osc.frequency.setTargetAtTime(freq * 1.5, t, 0.08);
+  var g = audioCtx.createGain();
+  g.gain.value = 0.1;
+  g.gain.setTargetAtTime(0, t + 0.15, 0.08);
+  osc.connect(g);
+  g.connect(audioCtx.destination);
+  osc.start(t);
+  osc.stop(t + 0.5);
+  // Resonant ping at species frequency
+  var ping = audioCtx.createOscillator();
+  ping.type = 'sine';
+  ping.frequency.value = freq;
+  var pg = audioCtx.createGain();
+  pg.gain.value = 0;
+  pg.gain.setTargetAtTime(0.08, t + 0.05, 0.01);
+  pg.gain.setTargetAtTime(0, t + 0.1, 0.12);
+  ping.connect(pg);
+  pg.connect(audioCtx.destination);
+  ping.start(t + 0.05);
+  ping.stop(t + 0.6);
+}
+
+function updateAudio() {
+  if (!micActive || !analyser) return;
+  analyser.getByteFrequencyData(freqData);
+  var bins = freqData.length;
+  var bassEnd = Math.floor(bins * 0.15);
+  var midEnd = Math.floor(bins * 0.5);
+
+  var bassSum = 0, midSum = 0, trebSum = 0, total = 0;
+  for (var i = 0; i < bins; i++) {
+    var v = freqData[i] / 255;
+    total += v;
+    if (i < bassEnd) bassSum += v;
+    else if (i < midEnd) midSum += v;
+    else trebSum += v;
+  }
+
+  var bassAvg = bassSum / bassEnd;
+  var midAvg = midSum / (midEnd - bassEnd);
+  var trebAvg = trebSum / (bins - midEnd);
+  var volAvg = total / bins;
+
+  smoothBass = smoothBass + (bassAvg - smoothBass) * LERP;
+  smoothMid = smoothMid + (midAvg - smoothMid) * LERP;
+  smoothTreble = smoothTreble + (trebAvg - smoothTreble) * LERP;
+  smoothVol = smoothVol + (volAvg - smoothVol) * LERP;
+}
+
+function mutateRules() {
+  if (!micActive) return;
+  // Sound shapes evolution:
+  // Bass = attraction pressure (warm, clustering)
+  // Treble = repulsion pressure (scattering, chaos)
+  // Volume = mutation intensity
+  var intensity = smoothVol * 3; // 0-1 range roughly
+  if (intensity < 0.05) return; // silence = stability
+
+  var numMutations = Math.max(1, Math.round(intensity * 4));
+  for (var m = 0; m < numMutations; m++) {
+    var i = Math.floor(Math.random() * NUM_TYPES);
+    var j = Math.floor(Math.random() * NUM_TYPES);
+    var shift = 0;
+
+    // Bass pushes rules toward attraction (+)
+    shift += smoothBass * 0.3;
+    // Treble pushes toward repulsion (-)
+    shift -= smoothTreble * 0.3;
+    // Mid = randomness
+    shift += (Math.random() - 0.5) * smoothMid * 0.4;
+
+    rules[i][j] = Math.max(-1, Math.min(1, rules[i][j] + shift * intensity));
+  }
+  generation++;
+  playMutationTick();
+}
+
+// --- Population analysis ---
+function analyzePopulation() {
+  // Count "effective" population: particles with neighbors
+  for (var t = 0; t < NUM_TYPES; t++) {
+    typeCounts[t] = 0;
+    avgNeighbors[t] = 0;
+    speciesCenterX[t] = 0;
+    speciesCenterY[t] = 0;
+  }
+  for (var i = 0; i < TOTAL; i++) {
+    var p = particles[i];
+    typeCounts[p.type]++;
+    speciesCenterX[p.type] += p.x;
+    speciesCenterY[p.type] += p.y;
+    var neighbors = 0;
+    for (var j = 0; j < TOTAL; j++) {
+      if (i === j) continue;
+      var b = particles[j];
+      var dx = b.x - p.x;
+      var dy = b.y - p.y;
+      if (dx > W/2) dx -= W;
+      if (dx < -W/2) dx += W;
+      if (dy > H/2) dy -= H;
+      if (dy < -H/2) dy += H;
+      var d2 = dx*dx + dy*dy;
+      if (d2 < MAX_RADIUS * MAX_RADIUS) neighbors++;
+    }
+    avgNeighbors[p.type] += neighbors;
+  }
+
+  var maxN = 0;
+  for (var t = 0; t < NUM_TYPES; t++) {
+    if (typeCounts[t] > 0) {
+      avgNeighbors[t] /= typeCounts[t];
+      speciesCenterX[t] /= typeCounts[t];
+      speciesCenterY[t] /= typeCounts[t];
+    }
+    if (avgNeighbors[t] > maxN) {
+      maxN = avgNeighbors[t];
+    }
+  }
+
+  // Check species extinction: if chosen species has <3 neighbors avg, it's dying
+  if (gameState === 'running' && chosenSpecies >= 0) {
+    survivalGen = generation;
+    // Extinction = chosen species is least connected (isolated, scattered)
+    var chosenN = avgNeighbors[chosenSpecies] || 0;
+    var aliveCount = 0;
+    var weakerCount = 0;
+    for (var t = 0; t < NUM_TYPES; t++) {
+      if (avgNeighbors[t] > 0) aliveCount++;
+      if (avgNeighbors[t] < chosenN) weakerCount++;
+    }
+    // Extinct if chosen species has lowest neighbor count AND generation > 5 + rank bonus
+    var rb = getRankBonuses();
+    var extinctionThreshold = 5 + rb.extinctionDelay * 2;
+    if (aliveCount > 1 && weakerCount === 0 && generation > extinctionThreshold) {
+      gameState = 'extinct';
+      speciesAlive = false;
+      extinctFlash = 60;
+      // Save cumulative generations before extinction
+      var oldRank = getRank();
+      totalGenerations += survivalGen;
+      try { localStorage.setItem('pl_totalGen', String(totalGenerations)); } catch(e) {}
+      // Check for rank up
+      var newRank = getRank();
+      if (newRank > oldRank) {
+        rankUpShow = 180; // 3 seconds
+        playRankUpChime();
+      }
+      playExtinctionSweep();
+      // Fade out ecosystem drones
+      if (outReady) {
+        var ct = audioCtx.currentTime;
+        for (var tt = 0; tt < NUM_TYPES; tt++) {
+          speciesGains[tt].gain.setTargetAtTime(0, ct, 0.3);
+        }
+      }
+      if (survivalGen > bestSurvival) {
+        bestSurvival = survivalGen;
+        try { localStorage.setItem('pl_best', String(bestSurvival)); } catch(e) {}
+      }
+    }
+  }
+}
+
+// --- Physics ---
+function applyForces() {
+  // Audio modulation: bass boosts attraction, treble boosts repulsion
+  var attractMod = micActive ? (1 + smoothBass * 1.5) : 1;
+  var repelMod = micActive ? (1 + smoothTreble * 1.5) : 1;
+
+  for (var i = 0; i < TOTAL; i++) {
+    var a = particles[i];
+    var fx = 0, fy = 0;
+    for (var j = 0; j < TOTAL; j++) {
+      if (i === j) continue;
+      var b = particles[j];
+      var dx = b.x - a.x;
+      var dy = b.y - a.y;
+      if (dx > W/2) dx -= W;
+      if (dx < -W/2) dx += W;
+      if (dy > H/2) dy -= H;
+      if (dy < -H/2) dy += H;
+      var dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > 0 && dist < MAX_RADIUS) {
+        var rule = rules[a.type][b.type];
+        var force = 0;
+        if (dist < MIN_RADIUS) {
+          force = (dist / MIN_RADIUS - 1) * 0.5 * repelMod;
+        } else {
+          var t = (dist - MIN_RADIUS) / (MAX_RADIUS - MIN_RADIUS);
+          force = rule * (1 - Math.abs(2*t - 1));
+          if (force > 0) force *= attractMod;
+          else force *= repelMod;
+        }
+        fx += (dx / dist) * force;
+        fy += (dy / dist) * force;
+      }
+    }
+    // Volume adds energy
+    var energyMod = micActive ? (1 + smoothVol * 0.5) : 1;
+    a.vx = (a.vx + fx * FORCE_SCALE * energyMod) * (1 - FRICTION);
+    a.vy = (a.vy + fy * FORCE_SCALE * energyMod) * (1 - FRICTION);
+
+    // Shepherd force — pull chosen species toward cursor
+    if (shepherdActive && a.type === chosenSpecies && gameState === 'running') {
+      var rb = getRankBonuses();
+      var sRadius = BASE_SHEPHERD_RADIUS * rb.shepherdRadius;
+      var sForce = BASE_SHEPHERD_FORCE * rb.shepherdForce;
+      // Pulse ability amplifies force and radius
+      if (pulseActive && pulseTimer > 0) {
+        sRadius *= PULSE_RADIUS_MULT;
+        sForce *= PULSE_MULT;
+      }
+      var sdx = shepherdX - a.x;
+      var sdy = shepherdY - a.y;
+      if (sdx > W/2) sdx -= W;
+      if (sdx < -W/2) sdx += W;
+      if (sdy > H/2) sdy -= H;
+      if (sdy < -H/2) sdy += H;
+      var sdist = Math.sqrt(sdx*sdx + sdy*sdy);
+      if (sdist > 0 && sdist < sRadius) {
+        var sFactor = sForce * (1 - sdist / sRadius);
+        a.vx += (sdx / sdist) * sFactor;
+        a.vy += (sdy / sdist) * sFactor;
+      }
+    }
+  }
+}
+
+function moveParticles() {
+  for (var i = 0; i < TOTAL; i++) {
+    var p = particles[i];
+    p.x += p.vx * DT;
+    p.y += p.vy * DT;
+    if (p.x < 0) p.x += W;
+    if (p.x >= W) p.x -= W;
+    if (p.y < 0) p.y += H;
+    if (p.y >= H) p.y -= H;
+  }
+}
+
+// --- Drawing ---
+function drawParticles() {
+  for (var i = 0; i < TOTAL; i++) {
+    var p = particles[i];
+    var c = COLORS[p.type];
+    var spd = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
+    var alpha = 0.5 + Math.min(spd * 0.12, 0.5);
+    var r = 2.5 + Math.min(spd * 0.4, 2);
+    var isChosen = (p.type === chosenSpecies && gameState === 'running');
+
+    // Glow for fast particles or chosen species
+    if (spd > 2 || isChosen) {
+      ctx.globalAlpha = isChosen ? alpha * 0.5 : alpha * 0.3;
+      ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r + (isChosen ? 4 : 3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Dim non-chosen species slightly
+    ctx.globalAlpha = isChosen ? Math.min(alpha + 0.2, 1) : (gameState === 'running' ? alpha * 0.6 : alpha);
+    ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, isChosen ? r + 0.5 : r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawShepherd() {
+  if (!shepherdActive || gameState !== 'running') return;
+  shepherdPulse += 0.06;
+  var rb = getRankBonuses();
+  var sRadius = BASE_SHEPHERD_RADIUS * rb.shepherdRadius;
+  var isPulsing = pulseActive && pulseTimer > 0;
+  var drawRadius = isPulsing ? sRadius * PULSE_RADIUS_MULT : sRadius;
+
+  // Count nearby chosen species
+  shepherdNearby = 0;
+  for (var i = 0; i < TOTAL; i++) {
+    var p = particles[i];
+    if (p.type !== chosenSpecies) continue;
+    var dx = p.x - shepherdX;
+    var dy = p.y - shepherdY;
+    if (dx > W/2) dx -= W;
+    if (dx < -W/2) dx += W;
+    if (dy > H/2) dy -= H;
+    if (dy < -H/2) dy += H;
+    var d = Math.sqrt(dx*dx + dy*dy);
+    if (d < drawRadius) shepherdNearby++;
+  }
+
+  var c = COLORS[chosenSpecies];
+  var pulse = 0.3 + 0.2 * Math.sin(shepherdPulse);
+
+  // Pulse shockwave ring expanding outward
+  if (pulseFlash > 0) {
+    var flashPct = pulseFlash / 30;
+    var ringRadius = drawRadius * (1 - flashPct * 0.3);
+    ctx.globalAlpha = flashPct * 0.4;
+    ctx.strokeStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+    ctx.lineWidth = 3 * flashPct;
+    ctx.beginPath();
+    ctx.arc(shepherdX, shepherdY, ringRadius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Outer radius ring — brighter during pulse
+  ctx.globalAlpha = isPulsing ? pulse * 0.35 : pulse * 0.15;
+  ctx.strokeStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+  ctx.lineWidth = isPulsing ? 2 : 1;
+  ctx.beginPath();
+  ctx.arc(shepherdX, shepherdY, drawRadius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Inner pulsing ring — brighter when more species nearby
+  var innerAlpha = pulse * (0.3 + Math.min(shepherdNearby / 15, 0.7));
+  ctx.globalAlpha = isPulsing ? innerAlpha * 1.5 : innerAlpha;
+  ctx.beginPath();
+  ctx.arc(shepherdX, shepherdY, 8 + 4 * Math.sin(shepherdPulse * 1.5), 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Center dot — filled during pulse
+  ctx.globalAlpha = 0.8;
+  ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+  ctx.beginPath();
+  ctx.arc(shepherdX, shepherdY, isPulsing ? 5 : 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Cooldown arc around center dot
+  if (pulseCooldown > 0 && !isPulsing) {
+    var cdPct = pulseCooldown / PULSE_COOLDOWN;
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(shepherdX, shepherdY, 10, -Math.PI/2, -Math.PI/2 + Math.PI * 2 * (1 - cdPct));
+    ctx.stroke();
+  } else if (pulseCooldown === 0 && !isPulsing) {
+    // Ready indicator — subtle glow
+    ctx.globalAlpha = 0.3 + 0.15 * Math.sin(shepherdPulse * 2);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(shepherdX, shepherdY, 10, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Nearby count label
+  if (shepherdNearby > 0) {
+    ctx.globalAlpha = 0.7;
+    ctx.font = '10px -apple-system, sans-serif';
+    ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+    ctx.textAlign = 'center';
+    ctx.fillText(shepherdNearby + ' nearby', shepherdX, shepherdY - 16);
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+function drawRuleMatrix() {
+  var sz = 8;
+  var gap = 2;
+  var startX = 12;
+  var startY = 42;
+  for (var i = 0; i < NUM_TYPES; i++) {
+    for (var j = 0; j < NUM_TYPES; j++) {
+      var v = rules[i][j];
+      if (v > 0) {
+        ctx.fillStyle = 'rgba(80,255,120,' + (v * 0.8) + ')';
+      } else {
+        ctx.fillStyle = 'rgba(255,80,80,' + (-v * 0.8) + ')';
+      }
+      ctx.fillRect(startX + j * (sz + gap), startY + i * (sz + gap), sz, sz);
+    }
+  }
+  // Type color dots on left and top
+  for (var i = 0; i < NUM_TYPES; i++) {
+    var c = COLORS[i];
+    ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+    ctx.beginPath();
+    ctx.arc(startX - 6, startY + i * (sz + gap) + sz/2, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(startX + i * (sz + gap) + sz/2, startY - 6, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawAudioBars() {
+  if (!micActive || !freqData) return;
+  var barCount = 24;
+  var barW = 8;
+  var barGap = 2;
+  var totalW = barCount * (barW + barGap);
+  var startX = W - totalW - 14;
+  var startY = H - 42;
+  var maxH = 20;
+
+  for (var i = 0; i < barCount; i++) {
+    var idx = Math.floor(i * freqData.length / barCount);
+    var v = freqData[idx] / 255;
+    var h = v * maxH;
+    // Color: green→yellow→red
+    var r, g;
+    if (i < barCount * 0.4) { r = 80; g = 255; }
+    else if (i < barCount * 0.7) { r = 255; g = 200; }
+    else { r = 255; g = 80; }
+    ctx.globalAlpha = 0.6 + v * 0.4;
+    ctx.fillStyle = 'rgb(' + r + ',' + g + ',80)';
+    ctx.fillRect(startX + i * (barW + barGap), startY + maxH - h, barW, h);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawHeader() {
+  ctx.fillStyle = 'rgba(13,13,13,0.8)';
+  ctx.fillRect(0, 0, W, 38);
+
+  if (gameState === 'select') {
+    // Species selection header
+    ctx.font = '600 14px -apple-system, sans-serif';
+    ctx.fillStyle = '#e8e8e8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Choose your species', W / 2, 12);
+
+    // Rank display
+    var rank = getRank();
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = '#4aff4a';
+    ctx.textAlign = 'left';
+    ctx.fillText(RANK_NAMES[rank], 14, 28);
+    // Progress to next rank
+    if (rank < RANK_THRESHOLDS.length - 1) {
+      var cur = totalGenerations - RANK_THRESHOLDS[rank];
+      var needed = RANK_THRESHOLDS[rank + 1] - RANK_THRESHOLDS[rank];
+      var pct = Math.min(cur / needed, 1);
+      ctx.fillStyle = '#333';
+      ctx.fillRect(80, 24, 60, 6);
+      ctx.fillStyle = '#4aff4a';
+      ctx.fillRect(80, 24, 60 * pct, 6);
+      ctx.font = '9px -apple-system, sans-serif';
+      ctx.fillStyle = '#666';
+      ctx.textAlign = 'left';
+      ctx.fillText('→ ' + RANK_NAMES[rank + 1], 144, 28);
+    }
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#888';
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillText('←→ select · Enter to bond', W / 2, 28);
+    return;
+  }
+
+  ctx.font = '600 14px -apple-system, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+
+  if (gameState === 'extinct') {
+    var flash = extinctFlash > 0 ? (extinctFlash % 10 < 5 ? '#ff4444' : '#e8e8e8') : '#ff4444';
+    ctx.fillStyle = flash;
+    ctx.fillText('💀 ' + NAMES[chosenSpecies] + ' extinct · Gen ' + survivalGen, 14, 14);
+    ctx.font = '11px -apple-system, sans-serif';
+    // Show rank and rank-up
+    var rank = getRank();
+    if (rankUpShow > 0) {
+      ctx.fillStyle = '#4aff4a';
+      ctx.fillText('★ ' + RANK_NAMES[rank] + '! · Best: Gen ' + bestSurvival + ' · Enter: retry', 14, 30);
+    } else {
+      ctx.fillStyle = '#888';
+      var genToNext = '';
+      if (rank < RANK_THRESHOLDS.length - 1) {
+        genToNext = ' · ' + (RANK_THRESHOLDS[rank + 1] - totalGenerations) + ' gen to ' + RANK_NAMES[rank + 1];
+      }
+      ctx.fillText(RANK_NAMES[rank] + genToNext + ' · Enter: retry', 14, 30);
+    }
+  } else {
+    var dc = COLORS[chosenSpecies];
+    ctx.fillStyle = 'rgb(' + dc[0] + ',' + dc[1] + ',' + dc[2] + ')';
+    ctx.fillText('● ' + NAMES[chosenSpecies] + ' · Gen ' + generation, 14, 14);
+
+    // Rank indicator
+    var rank = getRank();
+    var myN = avgNeighbors[chosenSpecies] || 0;
+    var standing = 1;
+    for (var t = 0; t < NUM_TYPES; t++) {
+      if (t !== chosenSpecies && (avgNeighbors[t] || 0) > myN) standing++;
+    }
+    ctx.font = '11px -apple-system, sans-serif';
+    var rankColors = ['#4aff4a', '#8aff4a', '#ffff4a', '#ffa04a', '#ff4a4a', '#ff0000'];
+    ctx.fillStyle = rankColors[standing - 1] || '#888';
+    ctx.fillText(RANK_NAMES[rank] + ' · #' + standing + '/6 · ' + (standing <= 2 ? 'thriving' : standing <= 4 ? 'surviving' : 'endangered'), 14, 30);
+  }
+
+  // Right side: mic status
+  ctx.textAlign = 'right';
+  ctx.font = '12px -apple-system, sans-serif';
+  if (micActive) {
+    var volPct = Math.round(smoothVol * 100);
+    ctx.fillStyle = '#4a9eff';
+    ctx.fillText('🎤 ' + volPct + '%', W - 14, 14);
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = '#888';
+    var pressureText = '';
+    if (smoothBass > smoothTreble + 0.05) pressureText = '▲ clustering';
+    else if (smoothTreble > smoothBass + 0.05) pressureText = '▼ scattering';
+    else pressureText = '● stable';
+    ctx.fillText(pressureText, W - 14, 30);
+  } else if (micFailed) {
+    ctx.fillStyle = '#666';
+    ctx.fillText('🎤 off', W - 14, 14);
+  } else {
+    ctx.fillStyle = '#f0a030';
+    ctx.fillText('Press key for mic', W - 14, 14);
+  }
+}
+
+function drawPopulationBars() {
+  if (gameState === 'select') return;
+  // Thin population bars on left edge
+  var barH = 4;
+  var gap = 2;
+  var startY = 44;
+  var maxW = 80;
+  var maxN = 1;
+  for (var t = 0; t < NUM_TYPES; t++) {
+    if ((avgNeighbors[t] || 0) > maxN) maxN = avgNeighbors[t];
+  }
+  for (var t = 0; t < NUM_TYPES; t++) {
+    var w = maxN > 0 ? (avgNeighbors[t] || 0) / maxN * maxW : 0;
+    var c = COLORS[t];
+    var alpha = (t === chosenSpecies) ? 0.9 : 0.3;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+    ctx.fillRect(4, startY + t * (barH + gap), w, barH);
+    // Highlight chosen species
+    if (t === chosenSpecies) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(3, startY + t * (barH + gap) - 1, maxW + 2, barH + 2);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawSelectScreen() {
+  if (gameState !== 'select') return;
+  // Show 6 species options in a row, highlight selected
+  var boxW = 80;
+  var boxH = 60;
+  var gap = 10;
+  var totalW = NUM_TYPES * boxW + (NUM_TYPES - 1) * gap;
+  var startX = (W - totalW) / 2;
+  var startY = (H - boxH) / 2 - 20;
+
+  for (var t = 0; t < NUM_TYPES; t++) {
+    var x = startX + t * (boxW + gap);
+    var c = COLORS[t];
+    var selected = (t === selectIdx);
+
+    // Box
+    ctx.fillStyle = selected ? 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',0.2)' : 'rgba(30,30,30,0.8)';
+    ctx.fillRect(x, startY, boxW, boxH);
+
+    // Border
+    if (selected) {
+      ctx.strokeStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, startY, boxW, boxH);
+    }
+
+    // Particle preview dots
+    ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+    for (var d = 0; d < 8; d++) {
+      var px = x + 15 + Math.cos(tick * 0.02 + d * 0.8 + t) * 12;
+      var py = startY + 25 + Math.sin(tick * 0.02 + d * 0.8 + t * 1.3) * 10;
+      ctx.beginPath();
+      ctx.arc(px, py, selected ? 3 : 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Name
+    ctx.font = selected ? '600 11px -apple-system, sans-serif' : '11px -apple-system, sans-serif';
+    ctx.fillStyle = selected ? '#fff' : '#888';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(NAMES[t], x + boxW / 2, startY + boxH - 8);
+  }
+
+  // Best survival record
+  if (bestSurvival > 0) {
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.fillStyle = '#666';
+    ctx.textAlign = 'center';
+    ctx.fillText('Best: Gen ' + bestSurvival, W / 2, startY + boxH + 24);
+  }
+}
+
+function drawFooter() {
+  ctx.fillStyle = 'rgba(13,13,13,0.8)';
+  ctx.fillRect(0, H - 30, W, 30);
+
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  if (gameState === 'select') {
+    ctx.fillText('←→ choose species · Enter to bond · Esc back', W / 2, H - 15);
+  } else if (gameState === 'extinct') {
+    ctx.fillText('Enter: new ecosystem · Esc back', W / 2, H - 15);
+  } else {
+    ctx.fillText('D-pad: shepherd · Enter: pulse · Esc back', W / 2, H - 15);
+  }
+}
+
+// --- Main loop ---
+function frame() {
+  tick++;
+
+  // Trail fade
+  ctx.fillStyle = 'rgba(13,13,13,0.12)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Audio processing
+  updateAudio();
+
+  // Periodic mutations from sound
+  mutationTimer++;
+  if (mutationTimer >= MUTATION_INTERVAL) {
+    mutationTimer = 0;
+    mutateRules();
+  }
+
+  applyForces();
+  moveParticles();
+
+  // Population analysis every 60 frames
+  if (tick % 60 === 0) {
+    analyzePopulation();
+    updateEcosystemAudio();
+  }
+
+  drawParticles();
+  drawShepherd();
+  drawHeader();
+  drawPopulationBars();
+  drawSelectScreen();
+  drawRuleMatrix();
+  drawAudioBars();
+  drawFooter();
+
+  if (extinctFlash > 0) extinctFlash--;
+  if (rankUpShow > 0) rankUpShow--;
+
+  // Pulse ability timers
+  if (pulseTimer > 0) {
+    pulseTimer--;
+    if (pulseTimer <= 0) {
+      pulseActive = false;
+      pulseCooldown = PULSE_COOLDOWN;
+    }
+  }
+  if (pulseCooldown > 0) pulseCooldown--;
+  if (pulseFlash > 0) pulseFlash--;
+
+  requestAnimationFrame(frame);
+}
+
+// --- Input ---
+document.addEventListener('keydown', function(e) {
+  e.preventDefault();
+
+  // Init mic on any keypress
+  if (!micActive && !micFailed && !micAttempted) {
+    initMic();
+  }
+
+  if (gameState === 'select') {
+    if (e.key === 'ArrowLeft') {
+      selectIdx = (selectIdx - 1 + NUM_TYPES) % NUM_TYPES;
+      playSelectionTone(selectIdx);
+    } else if (e.key === 'ArrowRight') {
+      selectIdx = (selectIdx + 1) % NUM_TYPES;
+      playSelectionTone(selectIdx);
+    } else if (e.key === 'Enter') {
+      chosenSpecies = selectIdx;
+      gameState = 'running';
+      speciesAlive = true;
+      survivalGen = 0;
+      generation = 1;
+      generateRules();
+      spawnParticles();
+      analyzePopulation();
+      playBondChime();
+      initAudioOutput();
+    } else if (e.key === 'Escape' || e.key === 'Backspace') {
+      window.location.href = '../';
+    }
+    return;
+  }
+
+  if (gameState === 'extinct') {
+    if (e.key === 'Enter') {
+      gameState = 'select';
+      pulseActive = false;
+      pulseTimer = 0;
+      pulseCooldown = 0;
+      shepherdActive = false;
+    } else if (e.key === 'Escape' || e.key === 'Backspace') {
+      window.location.href = '../';
+    }
+    return;
+  }
+
+  // Running state — D-pad moves shepherd cursor
+  var STEP = 12;
+  if (e.key === 'ArrowUp') {
+    shepherdActive = true;
+    shepherdY = (shepherdY - STEP + H) % H;
+  } else if (e.key === 'ArrowDown') {
+    shepherdActive = true;
+    shepherdY = (shepherdY + STEP) % H;
+  } else if (e.key === 'ArrowLeft') {
+    shepherdActive = true;
+    shepherdX = (shepherdX - STEP + W) % W;
+  } else if (e.key === 'ArrowRight') {
+    shepherdActive = true;
+    shepherdX = (shepherdX + STEP) % W;
+  } else if (e.key === 'Enter') {
+    // Shepherd Pulse — burst of attraction if shepherd active and off cooldown
+    if (shepherdActive && pulseCooldown <= 0 && !pulseActive) {
+      pulseActive = true;
+      pulseTimer = PULSE_DURATION;
+      pulseFlash = 30;
+      playPulseSound();
+    } else if (!shepherdActive) {
+      // First Enter activates shepherd at center
+      shepherdActive = true;
+    }
+  } else if (e.key === 'Escape' || e.key === 'Backspace') {
+    window.location.href = '../';
+  }
+});
+
+// Init
+generateRules();
+spawnParticles();
+for (var t = 0; t < NUM_TYPES; t++) { typeCounts[t] = 0; avgNeighbors[t] = 0; }
+analyzePopulation();
+ctx.fillStyle = '#0d0d0d';
+ctx.fillRect(0, 0, W, H);
+frame();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

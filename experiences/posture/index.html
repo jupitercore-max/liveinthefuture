@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Posture Coach — LITF</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;color:#e0e0e0;font-family:system-ui,-apple-system,sans-serif}
+canvas{display:block}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// States
+var STATE_CALIBRATE = 0;
+var STATE_MONITOR = 1;
+var STATE_PAUSED = 2;
+var STATE_SUMMARY = 3;
+var state = STATE_CALIBRATE;
+
+// Orientation data
+var hasOrientation = false;
+var currentPitch = 0; // forward/back tilt (beta)
+var currentRoll = 0;  // side tilt (gamma)
+var basePitch = 0;
+var baseRoll = 0;
+var smoothPitch = 0;
+var smoothRoll = 0;
+
+// Settings
+var sensitivity = 3; // 1-5, maps to threshold degrees
+var thresholds = [25, 20, 15, 10, 7]; // degrees from baseline
+var nudgeInterval = 10000; // ms between nudges when slouching
+var lastNudge = 0;
+
+// Session stats
+var sessionStart = 0;
+var goodPostureTime = 0;
+var lastGoodCheck = 0;
+var nudgeCount = 0;
+var currentStreak = 0;
+var bestStreak = 0;
+var isGoodPosture = true;
+var streakStart = 0;
+var usedMaxSens = false;
+
+// Audio
+var audioCtx = null;
+
+// History for mini chart (last 60 samples, 1 per second)
+var history = [];
+var historyMax = 120;
+
+// Animation
+var calibrateCountdown = 0;
+var calibrating = false;
+var calibrateSamples = [];
+var nudgeFlash = 0;
+
+// Badges / Achievements
+var BADGES = [
+  { id: 'first_session',  emoji: '🌱', name: 'First Steps',    desc: 'Complete your first session',        check: function(s,r) { return s.totalSessions >= 1; } },
+  { id: 'iron_minute',    emoji: '🪨', name: 'Iron Minute',    desc: '1-minute good posture streak',       check: function(s,r) { return r.bestStreak >= 60000; } },
+  { id: 'no_nudge',       emoji: '🤫', name: 'Self-Aware',     desc: 'Finish a session with 0 nudges',     check: function(s,r) { return r.sessionDone && r.nudges === 0; } },
+  { id: 'five_sessions',  emoji: '📅', name: 'Habit Forming',  desc: 'Complete 5 sessions',                check: function(s,r) { return s.totalSessions >= 5; } },
+  { id: 'five_min_streak',emoji: '⚡', name: 'Locked In',      desc: '5-minute good posture streak',       check: function(s,r) { return r.bestStreak >= 300000; } },
+  { id: 'grade_a',        emoji: '🏅', name: 'Grade A',        desc: 'Earn an A or A+ session grade',      check: function(s,r) { return r.sessionDone && r.goodPct >= 80; } },
+  { id: 'strict_master',  emoji: '🎯', name: 'Strict Master',  desc: 'Run a session at max sensitivity',   check: function(s,r) { return r.sessionDone && r.usedSens5; } },
+  { id: 'ten_min_streak', emoji: '🔥', name: 'Spine of Steel', desc: '10-minute good posture streak',      check: function(s,r) { return r.bestStreak >= 600000; } },
+  { id: 'twenty_sessions',emoji: '💎', name: 'Dedicated',      desc: 'Complete 20 sessions',               check: function(s,r) { return s.totalSessions >= 20; } },
+  { id: 'grade_a_strict', emoji: '👑', name: 'Posture Royalty', desc: 'A+ grade at sensitivity 5',          check: function(s,r) { return r.sessionDone && r.goodPct >= 90 && r.usedSens5; } }
+];
+
+var badgeToast = null;    // { emoji, name, timer }
+var badgeToastDuration = 3; // seconds
+var showBadgeGallery = false;
+
+// localStorage
+var STORAGE_KEY = 'litf_posture';
+var allTimeStats = loadStats();
+
+// Load persisted sensitivity preference
+try { var _sv = localStorage.getItem('litf_posture_sens'); if (_sv) sensitivity = Math.max(1, Math.min(5, parseInt(_sv))); } catch(e) {}
+
+function loadStats() {
+  try {
+    var s = localStorage.getItem(STORAGE_KEY);
+    if (s) return JSON.parse(s);
+  } catch(e) {}
+  return { totalSessions: 0, totalGoodTime: 0, totalNudges: 0, bestStreak: 0, badges: {} };
+}
+
+function saveStats() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allTimeStats));
+  } catch(e) {}
+}
+
+function initAudio() {
+  if (audioCtx) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  } catch(e) {}
+}
+
+function playNudge() {
+  if (!audioCtx) return;
+  try {
+    // Gentle double-tap tone — like a polite shoulder tap
+    var now = audioCtx.currentTime;
+    for (var i = 0; i < 2; i++) {
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(520, now + i * 0.15);
+      osc.frequency.exponentialRampToValueAtTime(440, now + i * 0.15 + 0.1);
+      gain.gain.setValueAtTime(0, now + i * 0.15);
+      gain.gain.linearRampToValueAtTime(0.08, now + i * 0.15 + 0.02);
+      gain.gain.linearRampToValueAtTime(0, now + i * 0.15 + 0.12);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now + i * 0.15);
+      osc.stop(now + i * 0.15 + 0.15);
+    }
+  } catch(e) {}
+}
+
+function playCalibrateDone() {
+  if (!audioCtx) return;
+  try {
+    var now = audioCtx.currentTime;
+    var notes = [523, 659, 784]; // C5 E5 G5
+    for (var i = 0; i < 3; i++) {
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = notes[i];
+      gain.gain.setValueAtTime(0, now + i * 0.1);
+      gain.gain.linearRampToValueAtTime(0.06, now + i * 0.1 + 0.02);
+      gain.gain.linearRampToValueAtTime(0, now + i * 0.1 + 0.2);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now + i * 0.1);
+      osc.stop(now + i * 0.1 + 0.25);
+    }
+  } catch(e) {}
+}
+
+function playBadgeUnlock() {
+  if (!audioCtx) return;
+  try {
+    var now = audioCtx.currentTime;
+    var notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
+    for (var i = 0; i < 4; i++) {
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = notes[i];
+      gain.gain.setValueAtTime(0, now + i * 0.1);
+      gain.gain.linearRampToValueAtTime(0.07, now + i * 0.1 + 0.02);
+      gain.gain.linearRampToValueAtTime(0, now + i * 0.1 + 0.25);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now + i * 0.1);
+      osc.stop(now + i * 0.1 + 0.3);
+    }
+  } catch(e) {}
+}
+
+function checkBadges(runCtx) {
+  if (!allTimeStats.badges) allTimeStats.badges = {};
+  for (var i = 0; i < BADGES.length; i++) {
+    var b = BADGES[i];
+    if (allTimeStats.badges[b.id]) continue;
+    if (b.check(allTimeStats, runCtx)) {
+      allTimeStats.badges[b.id] = Date.now();
+      saveStats();
+      playBadgeUnlock();
+      badgeToast = { emoji: b.emoji, name: b.name, timer: badgeToastDuration };
+    }
+  }
+}
+
+function getUnlockedCount() {
+  if (!allTimeStats.badges) return 0;
+  var c = 0;
+  for (var k in allTimeStats.badges) c++;
+  return c;
+}
+
+function playGoodChime() {
+  if (!audioCtx) return;
+  try {
+    var now = audioCtx.currentTime;
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 660;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.04, now + 0.02);
+    gain.gain.linearRampToValueAtTime(0, now + 0.3);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.35);
+  } catch(e) {}
+}
+
+// Orientation handler
+function onOrientation(e) {
+  hasOrientation = true;
+  currentPitch = e.beta || 0;  // -180 to 180, forward tilt
+  currentRoll = e.gamma || 0;  // -90 to 90, side tilt
+}
+
+window.addEventListener('deviceorientation', onOrientation);
+
+// Demo mode (no sensor)
+var demoMode = false;
+var demoAngle = 0;
+setTimeout(function() {
+  if (!hasOrientation) {
+    demoMode = true;
+    // Simulate gentle swaying
+  }
+}, 2000);
+
+function getThreshold() {
+  return thresholds[sensitivity - 1];
+}
+
+function getDeviation() {
+  var dp = smoothPitch - basePitch;
+  var dr = smoothRoll - baseRoll;
+  return Math.sqrt(dp * dp + dr * dr);
+}
+
+function startCalibration() {
+  calibrating = true;
+  calibrateCountdown = 3;
+  calibrateSamples = [];
+  initAudio();
+}
+
+function finishCalibration() {
+  if (calibrateSamples.length > 0) {
+    var sumP = 0, sumR = 0;
+    for (var i = 0; i < calibrateSamples.length; i++) {
+      sumP += calibrateSamples[i].p;
+      sumR += calibrateSamples[i].r;
+    }
+    basePitch = sumP / calibrateSamples.length;
+    baseRoll = sumR / calibrateSamples.length;
+  } else {
+    basePitch = smoothPitch;
+    baseRoll = smoothRoll;
+  }
+  calibrating = false;
+  state = STATE_MONITOR;
+  sessionStart = Date.now();
+  lastGoodCheck = Date.now();
+  goodPostureTime = 0;
+  nudgeCount = 0;
+  currentStreak = 0;
+  bestStreak = 0;
+  streakStart = Date.now();
+  history = [];
+  usedMaxSens = (sensitivity === 5);
+  playCalibrateDone();
+}
+
+function formatTime(ms) {
+  var s = Math.floor(ms / 1000);
+  var m = Math.floor(s / 60);
+  var h = Math.floor(m / 60);
+  s = s % 60;
+  m = m % 60;
+  if (h > 0) return h + 'h ' + m + 'm';
+  if (m > 0) return m + 'm ' + s + 's';
+  return s + 's';
+}
+
+// Input
+document.addEventListener('keydown', function(e) {
+  var key = e.key;
+  
+  if (state === STATE_CALIBRATE) {
+    if (key === 'Enter' && !calibrating) {
+      startCalibration();
+    }
+    return;
+  }
+  
+  if (state === STATE_SUMMARY) {
+    if (key === 'Enter') {
+      state = STATE_CALIBRATE;
+    }
+    return;
+  }
+  
+  if (state === STATE_PAUSED) {
+    if (key === 'Enter') {
+      state = STATE_MONITOR;
+      lastGoodCheck = Date.now();
+      streakStart = Date.now();
+    }
+    if (key === 'ArrowDown') {
+      showBadgeGallery = !showBadgeGallery;
+    }
+    if (key === 'Escape') {
+      // End session
+      endSession();
+    }
+    return;
+  }
+  
+  if (state === STATE_MONITOR) {
+    if (key === 'ArrowLeft') {
+      sensitivity = Math.max(1, sensitivity - 1);
+      try { localStorage.setItem('litf_posture_sens', String(sensitivity)); } catch(e) {}
+    } else if (key === 'ArrowRight') {
+      sensitivity = Math.min(5, sensitivity + 1);
+      if (sensitivity === 5) usedMaxSens = true;
+      try { localStorage.setItem('litf_posture_sens', String(sensitivity)); } catch(e) {}
+    } else if (key === 'ArrowDown') {
+      showBadgeGallery = !showBadgeGallery;
+    } else if (key === 'Enter') {
+      // Re-calibrate
+      state = STATE_CALIBRATE;
+      calibrating = false;
+    } else if (key === 'Escape') {
+      state = STATE_PAUSED;
+    }
+  }
+});
+
+function endSession() {
+  allTimeStats.totalSessions++;
+  allTimeStats.totalGoodTime += goodPostureTime;
+  allTimeStats.totalNudges += nudgeCount;
+  if (bestStreak > allTimeStats.bestStreak) {
+    allTimeStats.bestStreak = bestStreak;
+  }
+  saveStats();
+  
+  var elapsed = Date.now() - sessionStart;
+  var goodPct = elapsed > 0 ? Math.round((goodPostureTime / elapsed) * 100) : 100;
+  checkBadges({
+    bestStreak: bestStreak,
+    sessionDone: true,
+    nudges: nudgeCount,
+    goodPct: goodPct,
+    usedSens5: usedMaxSens
+  });
+  
+  state = STATE_SUMMARY;
+  showBadgeGallery = false;
+}
+
+// Calibration timer
+var calibrateTimer = 0;
+setInterval(function() {
+  if (calibrating && calibrateCountdown > 0) {
+    calibrateTimer++;
+    if (calibrateTimer >= 10) { // 1 second (10 × 100ms)
+      calibrateTimer = 0;
+      calibrateCountdown--;
+      if (calibrateCountdown === 0) {
+        finishCalibration();
+      }
+    }
+    // Collect samples during countdown
+    calibrateSamples.push({ p: currentPitch, r: currentRoll });
+  }
+}, 100);
+
+// History sampling (every 1s)
+setInterval(function() {
+  if (state === STATE_MONITOR) {
+    var dev = getDeviation();
+    var thresh = getThreshold();
+    history.push({ dev: dev, thresh: thresh, good: dev <= thresh });
+    if (history.length > historyMax) history.shift();
+  }
+}, 1000);
+
+// Main loop
+var lastTime = 0;
+var sampleCounter = 0;
+
+function frame(ts) {
+  requestAnimationFrame(frame);
+  var dt = lastTime ? (ts - lastTime) / 1000 : 0.016;
+  lastTime = ts;
+  
+  // Smooth orientation
+  var lerpRate = 0.15;
+  if (demoMode) {
+    demoAngle += dt * 0.3;
+    currentPitch = basePitch + Math.sin(demoAngle) * 12 + Math.sin(demoAngle * 0.7) * 5;
+    currentRoll = baseRoll + Math.cos(demoAngle * 0.5) * 4;
+  }
+  smoothPitch += (currentPitch - smoothPitch) * lerpRate;
+  smoothRoll += (currentRoll - smoothRoll) * lerpRate;
+  
+  // Nudge flash decay
+  if (nudgeFlash > 0) nudgeFlash -= dt * 2;
+  
+  // Badge toast decay
+  if (badgeToast) {
+    badgeToast.timer -= dt;
+    if (badgeToast.timer <= 0) badgeToast = null;
+  }
+  
+  // Monitor logic
+  if (state === STATE_MONITOR) {
+    var dev = getDeviation();
+    var thresh = getThreshold();
+    var wasGood = isGoodPosture;
+    isGoodPosture = dev <= thresh;
+    
+    var now = Date.now();
+    
+    if (isGoodPosture) {
+      goodPostureTime += now - lastGoodCheck;
+      currentStreak = now - streakStart;
+      if (currentStreak > bestStreak) bestStreak = currentStreak;
+    } else {
+      streakStart = now;
+      currentStreak = 0;
+    }
+    lastGoodCheck = now;
+    
+    // Nudge when slouching
+    if (!isGoodPosture && now - lastNudge > nudgeInterval) {
+      playNudge();
+      nudgeFlash = 1;
+      nudgeCount++;
+      lastNudge = now;
+    }
+    
+    // Chime when returning to good posture
+    if (isGoodPosture && !wasGood) {
+      playGoodChime();
+      streakStart = now;
+    }
+    
+    // Check streak-based badges during monitoring
+    checkBadges({
+      bestStreak: bestStreak,
+      sessionDone: false,
+      nudges: nudgeCount,
+      goodPct: 0,
+      usedSens5: usedMaxSens
+    });
+  }
+  
+  // Draw
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, 600, 600);
+  
+  if (state === STATE_CALIBRATE) {
+    drawCalibrate();
+  } else if (state === STATE_MONITOR) {
+    drawMonitor();
+    if (showBadgeGallery) drawBadgeGallery();
+  } else if (state === STATE_PAUSED) {
+    drawPaused();
+  } else if (state === STATE_SUMMARY) {
+    drawSummary();
+  }
+  
+  // Badge toast overlay (on top of everything)
+  if (badgeToast) {
+    var alpha = Math.min(badgeToast.timer, 1);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(30,30,30,0.92)';
+    var tw = 300, th = 56;
+    var tx = 300 - tw/2, ty = 40;
+    ctx.beginPath();
+    ctx.moveTo(tx + 10, ty);
+    ctx.lineTo(tx + tw - 10, ty);
+    ctx.quadraticCurveTo(tx + tw, ty, tx + tw, ty + 10);
+    ctx.lineTo(tx + tw, ty + th - 10);
+    ctx.quadraticCurveTo(tx + tw, ty + th, tx + tw - 10, ty + th);
+    ctx.lineTo(tx + 10, ty + th);
+    ctx.quadraticCurveTo(tx, ty + th, tx, ty + th - 10);
+    ctx.lineTo(tx, ty + 10);
+    ctx.quadraticCurveTo(tx, ty, tx + 10, ty);
+    ctx.fill();
+    ctx.strokeStyle = '#ffd54f';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 18px system-ui';
+    ctx.fillStyle = '#ffd54f';
+    ctx.fillText('🏆 ' + badgeToast.emoji + ' ' + badgeToast.name + ' unlocked!', 300, ty + 35);
+    ctx.restore();
+  }
+}
+
+function drawBadgeGallery() {
+  // Semi-transparent overlay
+  ctx.fillStyle = 'rgba(13,13,13,0.93)';
+  ctx.fillRect(0, 0, 600, 600);
+  
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 24px system-ui';
+  ctx.fillStyle = '#ffd54f';
+  ctx.fillText('🏆 Achievements', 300, 60);
+  
+  ctx.font = '14px system-ui';
+  ctx.fillStyle = '#888';
+  ctx.fillText(getUnlockedCount() + ' / ' + BADGES.length + ' unlocked', 300, 85);
+  
+  var cols = 2, padX = 40, padY = 110, cardW = 250, cardH = 46, gapX = 20, gapY = 10;
+  for (var i = 0; i < BADGES.length; i++) {
+    var b = BADGES[i];
+    var col = i % cols;
+    var row = Math.floor(i / cols);
+    var x = padX + col * (cardW + gapX);
+    var y = padY + row * (cardH + gapY);
+    var unlocked = allTimeStats.badges && allTimeStats.badges[b.id];
+    
+    // Card bg
+    ctx.fillStyle = unlocked ? 'rgba(255,213,79,0.08)' : 'rgba(40,40,40,0.6)';
+    ctx.fillRect(x, y, cardW, cardH);
+    ctx.strokeStyle = unlocked ? 'rgba(255,213,79,0.3)' : '#222';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, cardW, cardH);
+    
+    // Emoji
+    ctx.font = '20px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = unlocked ? '#fff' : '#555';
+    ctx.fillText(unlocked ? b.emoji : '🔒', x + 10, y + 29);
+    
+    // Name
+    ctx.font = 'bold 14px system-ui';
+    ctx.fillStyle = unlocked ? '#ffd54f' : '#555';
+    ctx.fillText(unlocked ? b.name : '???', x + 38, y + 20);
+    
+    // Desc
+    ctx.font = '11px system-ui';
+    ctx.fillStyle = unlocked ? '#aaa' : '#444';
+    ctx.fillText(unlocked ? b.desc : '???', x + 38, y + 36);
+  }
+  
+  ctx.textAlign = 'center';
+  ctx.font = '14px system-ui';
+  ctx.fillStyle = '#555';
+  ctx.fillText('↓ close', 300, 580);
+}
+
+function drawCalibrate() {
+  ctx.textAlign = 'center';
+  
+  // Title
+  ctx.font = 'bold 36px system-ui';
+  ctx.fillStyle = '#4fc3f7';
+  ctx.fillText('🧍 Posture Coach', 300, 160);
+  
+  if (calibrating) {
+    ctx.font = 'bold 120px system-ui';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(calibrateCountdown || '✓', 300, 340);
+    
+    ctx.font = '18px system-ui';
+    ctx.fillStyle = '#888';
+    ctx.fillText('Hold still... calibrating good posture', 300, 400);
+  } else {
+    // Instructions
+    ctx.font = '20px system-ui';
+    ctx.fillStyle = '#ccc';
+    ctx.fillText('Sit or stand with good posture', 300, 240);
+    ctx.fillText('Look straight ahead', 300, 270);
+    
+    ctx.font = 'bold 22px system-ui';
+    ctx.fillStyle = '#4fc3f7';
+    ctx.fillText('Press ENTER to calibrate', 300, 340);
+    
+    if (!hasOrientation && !demoMode) {
+      ctx.font = '16px system-ui';
+      ctx.fillStyle = '#ff9800';
+      ctx.fillText('Waiting for orientation sensor...', 300, 400);
+    } else if (demoMode) {
+      ctx.font = '16px system-ui';
+      ctx.fillStyle = '#ff9800';
+      ctx.fillText('Demo mode — no sensor detected', 300, 400);
+    }
+    
+    // All-time stats
+    if (allTimeStats.totalSessions > 0) {
+      ctx.font = '15px system-ui';
+      ctx.fillStyle = '#666';
+      ctx.fillText(allTimeStats.totalSessions + ' sessions · ' + formatTime(allTimeStats.totalGoodTime) + ' good posture', 300, 480);
+      ctx.fillText('Best streak: ' + formatTime(allTimeStats.bestStreak) + '  ·  🏆 ' + getUnlockedCount() + '/' + BADGES.length, 300, 504);
+    }
+  }
+  
+  // Back hint
+  ctx.font = '14px system-ui';
+  ctx.fillStyle = '#555';
+  ctx.fillText('ESC to go back', 300, 570);
+}
+
+function drawMonitor() {
+  var dev = getDeviation();
+  var thresh = getThreshold();
+  var ratio = Math.min(dev / (thresh * 2), 1);
+  
+  // Nudge flash overlay
+  if (nudgeFlash > 0) {
+    ctx.fillStyle = 'rgba(255,87,34,' + (nudgeFlash * 0.15) + ')';
+    ctx.fillRect(0, 0, 600, 600);
+  }
+  
+  // === Big posture gauge (center) ===
+  var cx = 300, cy = 240;
+  var outerR = 140;
+  
+  // Background ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 20;
+  ctx.stroke();
+  
+  // Colored arc based on deviation
+  var startAngle = -Math.PI * 0.75;
+  var fullSweep = Math.PI * 1.5;
+  var fillAngle = startAngle + fullSweep * (1 - ratio);
+  
+  var color;
+  if (ratio < 0.3) color = '#4caf50';       // Green — great
+  else if (ratio < 0.5) color = '#8bc34a';   // Light green — good
+  else if (ratio < 0.7) color = '#ff9800';   // Orange — slouching
+  else color = '#f44336';                      // Red — bad
+  
+  ctx.beginPath();
+  ctx.arc(cx, cy, outerR, startAngle, fillAngle);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 20;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+  
+  // Threshold tick mark
+  var threshRatio = thresh / (thresh * 2);
+  var threshAngle = startAngle + fullSweep * (1 - threshRatio);
+  var tickInner = outerR - 14;
+  var tickOuter = outerR + 14;
+  ctx.beginPath();
+  ctx.moveTo(cx + Math.cos(threshAngle) * tickInner, cy + Math.sin(threshAngle) * tickInner);
+  ctx.lineTo(cx + Math.cos(threshAngle) * tickOuter, cy + Math.sin(threshAngle) * tickOuter);
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  
+  // Center text
+  ctx.textAlign = 'center';
+  if (isGoodPosture) {
+    ctx.font = 'bold 42px system-ui';
+    ctx.fillStyle = '#4caf50';
+    ctx.fillText('✓', cx, cy - 10);
+    ctx.font = '18px system-ui';
+    ctx.fillStyle = '#888';
+    ctx.fillText('Good posture', cx, cy + 25);
+  } else {
+    ctx.font = 'bold 42px system-ui';
+    ctx.fillStyle = '#f44336';
+    ctx.fillText(Math.round(dev) + '°', cx, cy - 5);
+    ctx.font = '16px system-ui';
+    ctx.fillStyle = '#ff9800';
+    ctx.fillText('Straighten up!', cx, cy + 25);
+  }
+  
+  // === Direction indicator (tilt visualization) ===
+  var dp = smoothPitch - basePitch;
+  var dr = smoothRoll - baseRoll;
+  var dotX = cx + Math.min(Math.max(dr, -30), 30) * 2;
+  var dotY = cy + Math.min(Math.max(dp, -30), 30) * 2;
+  
+  // Crosshair
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - 20, cy);
+  ctx.lineTo(cx + 20, cy);
+  ctx.moveTo(cx, cy - 20);
+  ctx.lineTo(cx, cy + 20);
+  ctx.stroke();
+  
+  // Tilt dot
+  ctx.beginPath();
+  ctx.arc(dotX, dotY, 6, 0, Math.PI * 2);
+  ctx.fillStyle = isGoodPosture ? '#4caf50' : '#f44336';
+  ctx.fill();
+  
+  // === Stats bar ===
+  var elapsed = Date.now() - sessionStart;
+  var goodPct = elapsed > 0 ? Math.round((goodPostureTime / elapsed) * 100) : 100;
+  
+  ctx.font = '15px system-ui';
+  ctx.fillStyle = '#888';
+  ctx.textAlign = 'left';
+  ctx.fillText('⏱ ' + formatTime(elapsed), 30, 430);
+  
+  ctx.textAlign = 'center';
+  ctx.fillStyle = goodPct >= 80 ? '#4caf50' : goodPct >= 60 ? '#ff9800' : '#f44336';
+  ctx.font = 'bold 15px system-ui';
+  ctx.fillText(goodPct + '% good', 300, 430);
+  
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#888';
+  ctx.font = '15px system-ui';
+  ctx.fillText('🔔 ' + nudgeCount + ' nudges', 570, 430);
+  
+  // Streak
+  ctx.textAlign = 'center';
+  ctx.font = '14px system-ui';
+  ctx.fillStyle = '#666';
+  if (isGoodPosture && currentStreak > 5000) {
+    ctx.fillStyle = '#4caf50';
+    ctx.fillText('🔥 Streak: ' + formatTime(currentStreak), 300, 455);
+  } else if (bestStreak > 0) {
+    ctx.fillText('Best streak: ' + formatTime(bestStreak), 300, 455);
+  }
+  
+  // === History chart ===
+  if (history.length > 1) {
+    var chartX = 30;
+    var chartY = 475;
+    var chartW = 540;
+    var chartH = 70;
+    
+    // Background
+    ctx.fillStyle = '#111';
+    ctx.fillRect(chartX, chartY, chartW, chartH);
+    
+    // Threshold line
+    var threshY = chartY + chartH * 0.5;
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(chartX, threshY);
+    ctx.lineTo(chartX + chartW, threshY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Label
+    ctx.font = '10px system-ui';
+    ctx.fillStyle = '#444';
+    ctx.textAlign = 'right';
+    ctx.fillText('threshold', chartX + chartW - 4, threshY - 3);
+    
+    // Draw history
+    var step = chartW / historyMax;
+    for (var i = 0; i < history.length; i++) {
+      var h = history[i];
+      var hx = chartX + (historyMax - history.length + i) * step;
+      var ratio2 = Math.min(h.dev / (h.thresh * 2), 1);
+      var hy = chartY + chartH * (1 - ratio2);
+      var barH = chartY + chartH - hy;
+      
+      ctx.fillStyle = h.good ? 'rgba(76,175,80,0.5)' : 'rgba(244,67,54,0.5)';
+      ctx.fillRect(hx, hy, Math.max(step - 1, 2), barH);
+    }
+    
+    // Border
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(chartX, chartY, chartW, chartH);
+  }
+  
+  // === Controls ===
+  ctx.textAlign = 'center';
+  ctx.font = '13px system-ui';
+  ctx.fillStyle = '#555';
+  
+  // Sensitivity
+  var sensText = '← Sensitivity: ';
+  for (var s = 1; s <= 5; s++) {
+    sensText += s <= sensitivity ? '●' : '○';
+  }
+  sensText += ' →';
+  ctx.fillText(sensText, 300, 565);
+  
+  ctx.fillText('↓ badges · ENTER recalibrate · ESC pause', 300, 585);
+}
+
+function drawPaused() {
+  ctx.textAlign = 'center';
+  
+  ctx.font = 'bold 32px system-ui';
+  ctx.fillStyle = '#ff9800';
+  ctx.fillText('⏸ Paused', 300, 220);
+  
+  var elapsed = Date.now() - sessionStart;
+  var goodPct = elapsed > 0 ? Math.round((goodPostureTime / elapsed) * 100) : 100;
+  
+  ctx.font = '20px system-ui';
+  ctx.fillStyle = '#ccc';
+  ctx.fillText('Session: ' + formatTime(elapsed), 300, 280);
+  ctx.fillText('Good posture: ' + goodPct + '%', 300, 310);
+  ctx.fillText('Nudges: ' + nudgeCount, 300, 340);
+  ctx.fillText('Best streak: ' + formatTime(bestStreak), 300, 370);
+  
+  ctx.font = 'bold 20px system-ui';
+  ctx.fillStyle = '#4fc3f7';
+  ctx.fillText('ENTER to resume', 300, 440);
+  
+  ctx.font = '18px system-ui';
+  ctx.fillStyle = '#888';
+  ctx.fillText('ESC to end session', 300, 475);
+}
+
+function drawSummary() {
+  ctx.textAlign = 'center';
+  
+  ctx.font = 'bold 30px system-ui';
+  ctx.fillStyle = '#4fc3f7';
+  ctx.fillText('🧍 Session Complete', 300, 120);
+  
+  var elapsed = Date.now() - sessionStart;
+  var goodPct = elapsed > 0 ? Math.round((goodPostureTime / elapsed) * 100) : 100;
+  
+  // Grade
+  var grade, gradeColor;
+  if (goodPct >= 90) { grade = 'A+'; gradeColor = '#4caf50'; }
+  else if (goodPct >= 80) { grade = 'A'; gradeColor = '#4caf50'; }
+  else if (goodPct >= 70) { grade = 'B'; gradeColor = '#8bc34a'; }
+  else if (goodPct >= 60) { grade = 'C'; gradeColor = '#ff9800'; }
+  else if (goodPct >= 50) { grade = 'D'; gradeColor = '#ff5722'; }
+  else { grade = 'F'; gradeColor = '#f44336'; }
+  
+  ctx.font = 'bold 72px system-ui';
+  ctx.fillStyle = gradeColor;
+  ctx.fillText(grade, 300, 220);
+  
+  ctx.font = '18px system-ui';
+  ctx.fillStyle = '#ccc';
+  var y = 275;
+  var lines = [
+    '⏱ Duration: ' + formatTime(elapsed),
+    '✓ Good posture: ' + goodPct + '%',
+    '🔔 Nudges: ' + nudgeCount,
+    '🔥 Best streak: ' + formatTime(bestStreak),
+    '🏆 Badges: ' + getUnlockedCount() + '/' + BADGES.length,
+    '',
+    '📊 All-time:',
+    allTimeStats.totalSessions + ' sessions · ' + formatTime(allTimeStats.totalGoodTime) + ' good',
+    'Best ever: ' + formatTime(allTimeStats.bestStreak)
+  ];
+  
+  for (var i = 0; i < lines.length; i++) {
+    if (lines[i] === '') { y += 10; continue; }
+    ctx.fillStyle = i >= 5 ? '#888' : '#ccc';
+    ctx.font = i === 5 ? 'bold 16px system-ui' : '18px system-ui';
+    ctx.fillText(lines[i], 300, y);
+    y += 30;
+  }
+  
+  ctx.font = 'bold 20px system-ui';
+  ctx.fillStyle = '#4fc3f7';
+  ctx.fillText('ENTER for new session', 300, 540);
+}
+
+requestAnimationFrame(frame);
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

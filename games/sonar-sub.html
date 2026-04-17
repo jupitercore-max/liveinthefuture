@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Sonar Sub — LITF Games</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;font-family:system-ui,-apple-system,sans-serif;color:#e0e0e0}
+canvas{display:block}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+// === BGM System ===
+var bgmAudio = null, bgmGameover = null, bgmMuted = false, bgmStarted = false;
+function bgmInit() {
+  bgmAudio = new Audio('audio/sonar-sub-bgm.mp3');
+  bgmAudio.loop = true;
+  bgmAudio.volume = 0.15;
+  bgmGameover = new Audio('audio/gameover-dark.mp3');
+  bgmGameover.volume = 0.25;
+}
+function bgmPlay() {
+  if (bgmMuted || !bgmAudio) return;
+  if (!bgmStarted) { bgmAudio.currentTime = 0; bgmStarted = true; }
+  bgmAudio.play().catch(function(){});
+}
+function bgmStop() { if (bgmAudio) { bgmAudio.pause(); } bgmStarted = false; }
+function bgmGameOver() {
+  bgmStop();
+  if (bgmMuted || !bgmGameover) return;
+  bgmGameover.currentTime = 0;
+  bgmGameover.play().catch(function(){});
+}
+function bgmToggle() {
+  bgmMuted = !bgmMuted;
+  if (bgmMuted) { if (bgmAudio) bgmAudio.pause(); }
+  else bgmPlay();
+}
+
+(function(){
+"use strict";
+
+var W = 600, H = 600;
+var canvas = document.getElementById("c");
+var ctx = canvas.getContext("2d");
+
+// Audio context
+var audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === "suspended") audioCtx.resume();
+}
+
+// === MIC (water turbulence) ===
+var micLevel = 0;       // smoothed 0-1
+var micRaw = 0;
+var micStream = null;
+var micAnalyser = null;
+var micData = null;
+var micFailed = false;
+var micActive = false;
+
+function initMic() {
+  if (micActive || micFailed) return;
+  micFailed = true; // set before async call
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+    micFailed = false;
+    micActive = true;
+    micStream = stream;
+    ensureAudio();
+    var src = audioCtx.createMediaStreamSource(stream);
+    micAnalyser = audioCtx.createAnalyser();
+    micAnalyser.fftSize = 256;
+    micAnalyser.smoothingTimeConstant = 0.8;
+    src.connect(micAnalyser);
+    micData = new Uint8Array(micAnalyser.frequencyBinCount);
+  }).catch(function() { micFailed = true; });
+}
+
+function updateMic() {
+  if (!micActive || !micAnalyser || !micData) return;
+  micAnalyser.getByteTimeDomainData(micData);
+  var sum = 0;
+  for (var mi = 0; mi < micData.length; mi++) {
+    var v = (micData[mi] - 128) / 128;
+    sum += v * v;
+  }
+  micRaw = Math.sqrt(sum / micData.length);
+  micLevel += (micRaw - micLevel) * 0.08;
+}
+
+// Turbulence: 0 (calm) to 1 (rough) derived from mic
+function getTurbulence() {
+  if (!micActive) return 0;
+  // Map micLevel 0-0.5 to turbulence 0-1 (clamp)
+  return Math.min(1, micLevel * 2);
+}
+
+// === WATER AMBIENCE (turbulence drone) ===
+var waterNoiseNode = null;
+var waterNoiseGain = null;
+var waterNoiseFilter = null;
+
+function startWaterAmbience() {
+  if (waterNoiseNode || !audioCtx) return;
+  // Create filtered noise for water ambience
+  var bufSize = audioCtx.sampleRate * 2;
+  var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  var data = buf.getChannelData(0);
+  for (var wi = 0; wi < bufSize; wi++) data[wi] = Math.random() * 2 - 1;
+  waterNoiseNode = audioCtx.createBufferSource();
+  waterNoiseNode.buffer = buf;
+  waterNoiseNode.loop = true;
+  waterNoiseFilter = audioCtx.createBiquadFilter();
+  waterNoiseFilter.type = "bandpass";
+  waterNoiseFilter.frequency.value = 200;
+  waterNoiseFilter.Q.value = 0.8;
+  waterNoiseGain = audioCtx.createGain();
+  waterNoiseGain.gain.value = 0;
+  waterNoiseNode.connect(waterNoiseFilter);
+  waterNoiseFilter.connect(waterNoiseGain);
+  waterNoiseGain.connect(audioCtx.destination);
+  waterNoiseNode.start();
+}
+
+function updateWaterAmbience() {
+  if (!waterNoiseGain || !audioCtx) return;
+  var turb = getTurbulence();
+  // Volume: 0 calm → 0.06 max (subtle, won't mask game sounds)
+  var targetVol = turb * 0.06;
+  waterNoiseGain.gain.setTargetAtTime(targetVol, audioCtx.currentTime, 0.3);
+  // Filter opens with turbulence: 200Hz calm → 800Hz rough
+  var targetFreq = 200 + turb * 600;
+  waterNoiseFilter.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.3);
+}
+
+function stopWaterAmbience() {
+  if (waterNoiseNode) {
+    try { waterNoiseNode.stop(); } catch(e) {}
+    waterNoiseNode = null;
+    waterNoiseGain = null;
+    waterNoiseFilter = null;
+  }
+}
+
+// === GAME CONFIG ===
+var CELL = 12;
+var COLS = Math.floor(W / CELL);  // 50
+var ROWS = Math.floor(H / CELL);  // 50
+var PING_RANGE = 14;
+var PING_COOLDOWN = 60; // frames
+var PASSIVE_RANGE = 3;
+var SUB_SPEED = 1;
+var DEPTH_PER_LEVEL = 50; // meters per level
+var SONAR_FADE = 120; // frames before sonar echo fades
+
+// === STATE ===
+var state = "title"; // title, playing, dead, win
+var sub = { x: 0, y: 0 };
+var exit = { x: 0, y: 0 };
+var map = [];
+var revealed = [];  // 0 = hidden, >0 = frames since revealed (fades)
+var pingTimer = 0;
+var pingWave = null; // { x, y, radius, maxRadius }
+var depth = 0;
+var level = 1;
+var moveTimer = 0;
+var MOVE_DELAY = 4;
+var keyHeld = { up: false, down: false, left: false, right: false };
+var totalPings = 0;
+var frameCount = 0;
+var treasures = [];
+var treasuresCollected = 0;
+var oxygenMax = 1800; // 30 seconds at 60fps
+var oxygen = oxygenMax;
+var oxygenBubbles = [];
+var shakeFrames = 0;
+var shakeX = 0, shakeY = 0;
+var bestDepth = 0;
+try { bestDepth = parseInt(localStorage.getItem("sonar_best") || "0"); } catch(e) {}
+
+// === DEPTH UNLOCKS ===
+var UNLOCKS = [
+  { depth: 100,  label: "🔊 Sonar Boost",    desc: "Ping range +2",       stat: "ping",    bonus: 2 },
+  { depth: 200,  label: "🫧 Deep Lungs",      desc: "Oxygen tank +15%",    stat: "oxygen",  bonus: 0.15 },
+  { depth: 350,  label: "👂 Keen Ears",        desc: "Passive sonar +1",    stat: "passive", bonus: 1 },
+  { depth: 500,  label: "🔊 Echo Master",      desc: "Ping range +2 more",  stat: "ping",    bonus: 2 },
+  { depth: 750,  label: "🫧 Iron Lungs",       desc: "Oxygen tank +20%",    stat: "oxygen",  bonus: 0.20 },
+  { depth: 1000, label: "🌊 Abyssal Sense",    desc: "Passive sonar +2",    stat: "passive", bonus: 2 },
+  { depth: 1500, label: "⚡ Rapid Ping",       desc: "Ping cooldown -25%",  stat: "cooldown", bonus: 0.25 },
+  { depth: 2000, label: "🏆 Depth Legend",      desc: "All stats +10%",      stat: "all",     bonus: 0.10 }
+];
+var unlockedDepths = {};
+try {
+  var ud = JSON.parse(localStorage.getItem("sonar_unlocks") || "{}");
+  for (var uk in ud) unlockedDepths[uk] = ud[uk];
+} catch(e) {}
+var newUnlockMsg = null;
+var newUnlockTimer = 0;
+
+// === DISCOVERY SYSTEM ===
+var bioZones = [];        // bioluminescent cave patches
+var relics = [];          // ancient artifacts on map
+var creatureSighting = null; // active creature flyby
+var creatureCooldown = 0;
+var discoveryLog = {};    // persistent relic collection
+try {
+  var dl = JSON.parse(localStorage.getItem("sonar_discoveries") || "{}");
+  for (var dk in dl) discoveryLog[dk] = dl[dk];
+} catch(e) {}
+
+var RELIC_TYPES = [
+  { id: "nav_stone",   glyph: "⬡", color: "#c0f0ff", name: "Navigation Stone",    lore: "Ancient mariners carved depth markings into these." },
+  { id: "coral_idol",  glyph: "♜", color: "#ff80c0", name: "Coral Idol",           lore: "Shaped by currents over centuries, not by hands." },
+  { id: "brass_lens",  glyph: "◎", color: "#ffd700", name: "Brass Lens",           lore: "Still focuses light after a thousand years underwater." },
+  { id: "iron_bell",   glyph: "♫", color: "#c0c0c0", name: "Iron Bell",            lore: "Strike it and the cave hums back." },
+  { id: "bone_flute",  glyph: "♪", color: "#e0d0b0", name: "Bone Flute",           lore: "Five holes. The sixth was drilled by something else." },
+  { id: "glass_eye",   glyph: "◉", color: "#80ffcc", name: "Glass Eye",            lore: "It watched the ocean floor before anyone else did." },
+  { id: "salt_crystal",glyph: "◇", color: "#e0e0ff", name: "Salt Crystal",         lore: "Formed in an air pocket. Perfectly cubic." },
+  { id: "anchor_shard",glyph: "⚓", color: "#a0a0a0", name: "Anchor Shard",         lore: "From a ship that never made it back." },
+  { id: "pearl_black", glyph: "●", color: "#404060", name: "Black Pearl",           lore: "The oyster that made this is long gone." },
+  { id: "star_map",    glyph: "✦", color: "#ffffaa", name: "Carved Star Map",       lore: "Someone navigated by stars even down here." },
+  { id: "trident_tip", glyph: "Ψ", color: "#40c0ff", name: "Trident Tip",          lore: "Bronze. Still sharp." },
+  { id: "sealed_jar",  glyph: "⬢", color: "#d0a060", name: "Sealed Jar",           lore: "Whatever is inside still sloshes." }
+];
+
+var CREATURE_TYPES = [
+  { name: "Leviathan",   size: 8, speed: 0.6, freq: 60,  color: "rgba(0,100,160," },
+  { name: "Abyssal Eel", size: 12, speed: 1.2, freq: 120, color: "rgba(80,0,120," },
+  { name: "Ghost Whale",  size: 10, speed: 0.4, freq: 40,  color: "rgba(60,80,100," }
+];
+
+var relicFoundMsg = null;
+var relicFoundTimer = 0;
+
+function checkUnlocks(currentDepth) {
+  for (var ui = 0; ui < UNLOCKS.length; ui++) {
+    var u = UNLOCKS[ui];
+    if (currentDepth >= u.depth && !unlockedDepths[u.depth]) {
+      unlockedDepths[u.depth] = true;
+      try { localStorage.setItem("sonar_unlocks", JSON.stringify(unlockedDepths)); } catch(e) {}
+      newUnlockMsg = u.label + " — " + u.desc;
+      newUnlockTimer = 180; // 3 seconds
+      // Play unlock chime
+      if (audioCtx) {
+        var uo1 = audioCtx.createOscillator();
+        var uo2 = audioCtx.createOscillator();
+        var ug = audioCtx.createGain();
+        uo1.type = "sine"; uo1.frequency.value = 523;
+        uo2.type = "sine"; uo2.frequency.value = 659;
+        ug.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        ug.gain.exponentialDecayTo && ug.gain.exponentialDecayTo || ug.gain.setTargetAtTime(0.001, audioCtx.currentTime + 0.3, 0.1);
+        uo1.connect(ug); uo2.connect(ug); ug.connect(audioCtx.destination);
+        uo1.start(); uo2.start();
+        uo1.stop(audioCtx.currentTime + 0.5);
+        uo2.stop(audioCtx.currentTime + 0.5);
+      }
+    }
+  }
+}
+
+function getUpgradeValues() {
+  var pingBonus = 0, oxygenMult = 1, passiveBonus = 0, cooldownMult = 1;
+  for (var gi = 0; gi < UNLOCKS.length; gi++) {
+    var gu = UNLOCKS[gi];
+    if (!unlockedDepths[gu.depth]) continue;
+    if (gu.stat === "ping") pingBonus += gu.bonus;
+    else if (gu.stat === "oxygen") oxygenMult += gu.bonus;
+    else if (gu.stat === "passive") passiveBonus += gu.bonus;
+    else if (gu.stat === "cooldown") cooldownMult -= gu.bonus;
+    else if (gu.stat === "all") {
+      pingBonus += Math.round(UNLOCKS[0].bonus * gu.bonus); // +10% of base
+      oxygenMult += gu.bonus;
+      passiveBonus += 1;
+      cooldownMult -= gu.bonus;
+    }
+  }
+  return { pingBonus: pingBonus, oxygenMult: oxygenMult, passiveBonus: passiveBonus, cooldownMult: Math.max(0.5, cooldownMult) };
+}
+
+// === MAP GENERATION (cave system) ===
+// === DISCOVERY PLACEMENT ===
+function placeBioZones(openCells) {
+  bioZones = [];
+  // 1-2 bioluminescent zones per level, more at deeper levels
+  var numZones = 1 + (level > 5 ? 1 : 0);
+  for (var bz = 0; bz < numZones && bz < openCells.length - 20; bz++) {
+    var center = openCells[openCells.length - 1 - bz]; // pick from end (unused)
+    var zone = { cx: center.x, cy: center.y, radius: 3 + Math.floor(Math.random() * 2), pulse: Math.random() * Math.PI * 2 };
+    bioZones.push(zone);
+  }
+}
+
+function placeRelics(openCells, usedCount) {
+  relics = [];
+  // 30% chance per level, guaranteed on level 3, 7, 12...
+  if (level % 5 === 3 || level % 5 === 2 || Math.random() < 0.3) {
+    // Pick a relic type not yet discovered (prefer undiscovered)
+    var undiscovered = [];
+    var all = [];
+    for (var ri = 0; ri < RELIC_TYPES.length; ri++) {
+      all.push(RELIC_TYPES[ri]);
+      if (!discoveryLog[RELIC_TYPES[ri].id]) undiscovered.push(RELIC_TYPES[ri]);
+    }
+    var pool = undiscovered.length > 0 ? undiscovered : all;
+    var chosen = pool[Math.floor(Math.random() * pool.length)];
+    var idx = usedCount + 3;
+    if (idx < openCells.length) {
+      relics.push({ x: openCells[idx].x, y: openCells[idx].y, type: chosen, collected: false });
+    }
+  }
+}
+
+function tryCreatureSighting() {
+  if (creatureSighting || creatureCooldown > 0) return;
+  // Chance increases with depth. Min level 3.
+  if (level < 3) return;
+  var chance = 0.0008 + level * 0.0002; // ~5% per 60 frames at level 10
+  if (Math.random() > chance) return;
+  var ct = CREATURE_TYPES[Math.floor(Math.random() * CREATURE_TYPES.length)];
+  // Spawn off-screen, swim across
+  var fromLeft = Math.random() < 0.5;
+  var yPos = sub.y + Math.floor((Math.random() - 0.5) * 20);
+  creatureSighting = {
+    type: ct,
+    x: fromLeft ? sub.x - 30 : sub.x + 30,
+    y: Math.max(2, Math.min(ROWS - 2, yPos)),
+    dx: fromLeft ? ct.speed : -ct.speed,
+    life: 180, // 3 seconds
+    announced: false
+  };
+  creatureCooldown = 600; // 10 seconds between sightings
+}
+
+function generateMap() {
+  map = [];
+  revealed = [];
+  treasures = [];
+  oxygenBubbles = [];
+  var i, j, k;
+  // Start with solid
+  for (i = 0; i < ROWS; i++) {
+    map[i] = [];
+    revealed[i] = [];
+    for (j = 0; j < COLS; j++) {
+      map[i][j] = Math.random() < 0.42 ? 0 : 1; // 0=wall, 1=open
+      revealed[i][j] = 0;
+    }
+  }
+  // Cellular automata smoothing (4 iterations)
+  for (k = 0; k < 4; k++) {
+    var newMap = [];
+    for (i = 0; i < ROWS; i++) {
+      newMap[i] = [];
+      for (j = 0; j < COLS; j++) {
+        var walls = 0;
+        for (var di = -1; di <= 1; di++) {
+          for (var dj = -1; dj <= 1; dj++) {
+            var ni = i + di, nj = j + dj;
+            if (ni < 0 || ni >= ROWS || nj < 0 || nj >= COLS) { walls++; }
+            else if (map[ni][nj] === 0) { walls++; }
+          }
+        }
+        newMap[i][j] = walls >= 5 ? 0 : 1;
+      }
+    }
+    map = newMap;
+  }
+  // Ensure border is wall
+  for (i = 0; i < ROWS; i++) { map[i][0] = 0; map[i][COLS-1] = 0; }
+  for (j = 0; j < COLS; j++) { map[0][j] = 0; map[ROWS-1][j] = 0; }
+
+  // Find start position (open cell near top-left)
+  sub.x = 3; sub.y = 3;
+  for (i = 2; i < ROWS/2; i++) {
+    for (j = 2; j < COLS/2; j++) {
+      if (map[i][j] === 1) { sub.x = j; sub.y = i; i = ROWS; break; }
+    }
+  }
+  // Carve area around start
+  carveArea(sub.y, sub.x, 2);
+
+  // Find exit (open cell near bottom-right)
+  exit.x = COLS - 4; exit.y = ROWS - 4;
+  for (i = ROWS - 3; i > ROWS/2; i--) {
+    for (j = COLS - 3; j > COLS/2; j--) {
+      if (map[i][j] === 1) { exit.x = j; exit.y = i; i = 0; break; }
+    }
+  }
+  // Carve area around exit
+  carveArea(exit.y, exit.x, 2);
+
+  // Ensure path exists using flood fill, carve if needed
+  ensurePath();
+
+  // Place treasures (3 per level in open cells)
+  var openCells = [];
+  for (i = 2; i < ROWS-2; i++) {
+    for (j = 2; j < COLS-2; j++) {
+      if (map[i][j] === 1 && !(i === sub.y && j === sub.x) && !(i === exit.y && j === exit.x)) {
+        openCells.push({x: j, y: i});
+      }
+    }
+  }
+  shuffle(openCells);
+  var numTreasures = Math.min(3 + Math.floor(level / 2), openCells.length);
+  for (i = 0; i < numTreasures && i < openCells.length; i++) {
+    treasures.push({ x: openCells[i].x, y: openCells[i].y, collected: false });
+  }
+
+  // Place oxygen bubbles
+  var numO2 = Math.min(2 + Math.floor(level / 3), openCells.length - numTreasures);
+  for (i = numTreasures; i < numTreasures + numO2 && i < openCells.length; i++) {
+    oxygenBubbles.push({ x: openCells[i].x, y: openCells[i].y, collected: false });
+  }
+
+  oxygen = oxygenMax;
+  treasuresCollected = 0;
+  totalPings = 0;
+  creatureSighting = null;
+  creatureCooldown = 0;
+  relicFoundMsg = null;
+  relicFoundTimer = 0;
+  placeBioZones(openCells);
+  placeRelics(openCells, numTreasures + numO2);
+}
+
+function carveArea(cy, cx, r) {
+  for (var dy = -r; dy <= r; dy++) {
+    for (var dx = -r; dx <= r; dx++) {
+      var ny = cy + dy, nx = cx + dx;
+      if (ny > 0 && ny < ROWS-1 && nx > 0 && nx < COLS-1) {
+        map[ny][nx] = 1;
+      }
+    }
+  }
+}
+
+function ensurePath() {
+  // BFS from sub to exit
+  var visited = [];
+  for (var i = 0; i < ROWS; i++) { visited[i] = []; for (var j = 0; j < COLS; j++) visited[i][j] = false; }
+  var queue = [{x: sub.x, y: sub.y}];
+  var parent = {};
+  visited[sub.y][sub.x] = true;
+  var found = false;
+  while (queue.length > 0) {
+    var cur = queue.shift();
+    if (cur.x === exit.x && cur.y === exit.y) { found = true; break; }
+    var dirs = [[0,-1],[0,1],[-1,0],[1,0]];
+    for (var d = 0; d < 4; d++) {
+      var nx = cur.x + dirs[d][0], ny = cur.y + dirs[d][1];
+      if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && !visited[ny][nx] && map[ny][nx] === 1) {
+        visited[ny][nx] = true;
+        parent[ny + "," + nx] = cur;
+        queue.push({x: nx, y: ny});
+      }
+    }
+  }
+  if (!found) {
+    // Carve a corridor
+    var cx = sub.x, cy = sub.y;
+    while (cx !== exit.x || cy !== exit.y) {
+      if (cx < exit.x) cx++; else if (cx > exit.x) cx--;
+      if (cy < exit.y) cy++; else if (cy > exit.y) cy--;
+      map[cy][cx] = 1;
+      if (cy > 0) map[cy-1][cx] = 1;
+      if (cx > 0) map[cy][cx-1] = 1;
+    }
+  }
+}
+
+function shuffle(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  }
+}
+
+// === SONAR SOUNDS ===
+function playPing() {
+  ensureAudio();
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.15);
+  gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.4);
+}
+
+function playEcho(dist, angle) {
+  // dist: 0-1 (0=close, 1=far). angle: -1 to 1 (left to right)
+  ensureAudio();
+  var turb = getTurbulence();
+  var delay = 0.05 + dist * 0.3;
+  var vol = 0.2 * (1 - dist * 0.7);
+  var freq = 600 + (1 - dist) * 400;
+
+  // Turbulence distorts echoes: random pitch/volume jitter, reduced clarity
+  var jitter = turb * 0.25;
+  vol *= (1 - turb * 0.3); // quieter in rough waters
+  freq *= (1 + (Math.random() - 0.5) * jitter); // pitch wobble
+
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  var pan = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime + delay);
+  osc.frequency.exponentialRampToValueAtTime(freq * 0.6, audioCtx.currentTime + delay + 0.2);
+  gain.gain.setValueAtTime(0, audioCtx.currentTime);
+  gain.gain.setValueAtTime(vol, audioCtx.currentTime + delay);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + 0.3);
+  osc.connect(gain);
+  if (pan) {
+    pan.pan.value = Math.max(-1, Math.min(1, angle));
+    gain.connect(pan);
+    pan.connect(audioCtx.destination);
+  } else {
+    gain.connect(audioCtx.destination);
+  }
+  osc.start(audioCtx.currentTime + delay);
+  osc.stop(audioCtx.currentTime + delay + 0.3);
+}
+
+function playCollect() {
+  ensureAudio();
+  var t = audioCtx.currentTime;
+  [800, 1000, 1200].forEach(function(f, i) {
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = f;
+    gain.gain.setValueAtTime(0.15, t + i * 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.15);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t + i * 0.08); osc.stop(t + i * 0.08 + 0.15);
+  });
+}
+
+function playDeath() {
+  ensureAudio();
+  var t = audioCtx.currentTime;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = "sawtooth";
+  osc.frequency.setValueAtTime(200, t);
+  osc.frequency.exponentialRampToValueAtTime(40, t + 0.8);
+  gain.gain.setValueAtTime(0.25, t);
+  gain.gain.linearRampToValueAtTime(0, t + 0.8);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(t); osc.stop(t + 0.8);
+}
+
+function playWin() {
+  ensureAudio();
+  var t = audioCtx.currentTime;
+  [523, 659, 784, 1047].forEach(function(f, i) {
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = f;
+    gain.gain.setValueAtTime(0.15, t + i * 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.12 + 0.3);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t + i * 0.12); osc.stop(t + i * 0.12 + 0.3);
+  });
+}
+
+function playRelicFind() {
+  ensureAudio();
+  var t = audioCtx.currentTime;
+  // Mysterious ascending tones — different from collect
+  var notes = [440, 554, 659, 880];
+  for (var ri = 0; ri < notes.length; ri++) {
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = "triangle";
+    osc.frequency.value = notes[ri];
+    gain.gain.setValueAtTime(0.1, t + ri * 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + ri * 0.15 + 0.4);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t + ri * 0.15); osc.stop(t + ri * 0.15 + 0.4);
+  }
+}
+
+function playCreatureSound(creature) {
+  ensureAudio();
+  var t = audioCtx.currentTime;
+  // Deep whale-like call — low frequency, long sustain
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(creature.freq, t);
+  osc.frequency.exponentialRampToValueAtTime(creature.freq * 0.7, t + 2);
+  gain.gain.setValueAtTime(0.06, t);
+  gain.gain.setTargetAtTime(0.001, t + 1.5, 0.3);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(t); osc.stop(t + 2.5);
+  // Harmonic overtone
+  var osc2 = audioCtx.createOscillator();
+  var gain2 = audioCtx.createGain();
+  osc2.type = "sine";
+  osc2.frequency.setValueAtTime(creature.freq * 1.5, t + 0.2);
+  osc2.frequency.exponentialRampToValueAtTime(creature.freq, t + 2);
+  gain2.gain.setValueAtTime(0.03, t + 0.2);
+  gain2.gain.setTargetAtTime(0.001, t + 1.5, 0.3);
+  osc2.connect(gain2); gain2.connect(audioCtx.destination);
+  osc2.start(t + 0.2); osc2.stop(t + 2.5);
+}
+
+function playPassivePing(wallDist, dir) {
+  // Subtle ambient sonar — very quiet tick indicating nearby walls
+  ensureAudio();
+  if (Math.random() > 0.3) return; // Only sometimes
+  var vol = 0.04 * (1 - wallDist / PASSIVE_RANGE);
+  var freq = 400 + (1 - wallDist / PASSIVE_RANGE) * 300;
+  var pan = 0;
+  if (dir === "left") pan = -0.8;
+  else if (dir === "right") pan = 0.8;
+  else if (dir === "up") pan = 0;
+  else if (dir === "down") pan = 0;
+
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  var panner = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+  osc.type = "sine";
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+  osc.connect(gain);
+  if (panner) {
+    panner.pan.value = pan;
+    gain.connect(panner);
+    panner.connect(audioCtx.destination);
+  } else {
+    gain.connect(audioCtx.destination);
+  }
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.1);
+}
+
+// === ACTIVE PING: reveal cells and play directional echoes ===
+function doPing() {
+  if (pingTimer > 0) return;
+  pingTimer = PING_COOLDOWN;
+  totalPings++;
+  playPing();
+
+  // Expanding wave visual
+  pingWave = { x: sub.x, y: sub.y, radius: 0, maxRadius: PING_RANGE };
+
+  // Reveal cells in range and play echoes for walls
+  var wallHits = [];
+  for (var dy = -PING_RANGE; dy <= PING_RANGE; dy++) {
+    for (var dx = -PING_RANGE; dx <= PING_RANGE; dx++) {
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > PING_RANGE) continue;
+      var cy = sub.y + dy, cx = sub.x + dx;
+      if (cy < 0 || cy >= ROWS || cx < 0 || cx >= COLS) continue;
+      revealed[cy][cx] = 1; // Will start fading
+
+      // Collect wall boundary hits for echo sounds
+      if (map[cy][cx] === 0) {
+        // Check if adjacent to open
+        var adjOpen = false;
+        var dirs = [[0,-1],[0,1],[-1,0],[1,0]];
+        for (var d = 0; d < 4; d++) {
+          var nx = cx + dirs[d][0], ny = cy + dirs[d][1];
+          if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS && map[ny][nx] === 1) { adjOpen = true; break; }
+        }
+        if (adjOpen) {
+          wallHits.push({ dx: dx, dy: dy, dist: dist });
+        }
+      }
+    }
+  }
+
+  // Play directional echoes for nearest walls in each quadrant
+  var quadrants = [
+    { name: "right", filter: function(h) { return h.dx > Math.abs(h.dy); } },
+    { name: "left", filter: function(h) { return h.dx < -Math.abs(h.dy); } },
+    { name: "down", filter: function(h) { return h.dy > Math.abs(h.dx); } },
+    { name: "up", filter: function(h) { return h.dy < -Math.abs(h.dx); } }
+  ];
+
+  quadrants.forEach(function(q) {
+    var hits = wallHits.filter(q.filter);
+    if (hits.length > 0) {
+      hits.sort(function(a, b) { return a.dist - b.dist; });
+      var nearest = hits[0];
+      var normDist = nearest.dist / PING_RANGE;
+      var angle = (q.name === "right") ? 1 : (q.name === "left") ? -1 : 0;
+      playEcho(normDist, angle);
+    }
+  });
+}
+
+// === PASSIVE SONAR ===
+function passiveSonar() {
+  if (frameCount % 20 !== 0) return;
+  var turb = getTurbulence();
+  // Turbulence degrades passive sonar: full range at calm, -2 at max roughness
+  var effectivePassive = Math.max(1, Math.round(PASSIVE_RANGE - turb * 2));
+  var dirs = [
+    { name: "up", dx: 0, dy: -1 },
+    { name: "down", dx: 0, dy: 1 },
+    { name: "left", dx: -1, dy: 0 },
+    { name: "right", dx: 1, dy: 0 }
+  ];
+  dirs.forEach(function(d) {
+    for (var i = 1; i <= effectivePassive; i++) {
+      var nx = sub.x + d.dx * i, ny = sub.y + d.dy * i;
+      if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS || map[ny][nx] === 0) {
+        playPassivePing(i, d.name);
+        // Reveal immediate neighbors passively
+        for (var r = -1; r <= 1; r++) {
+          for (var c = -1; c <= 1; c++) {
+            var ry = sub.y + r, rx = sub.x + c;
+            if (ry >= 0 && ry < ROWS && rx >= 0 && rx < COLS) {
+              revealed[ry][rx] = 1;
+            }
+          }
+        }
+        break;
+      }
+    }
+  });
+}
+
+// === INPUT ===
+document.addEventListener("keydown", function(e) {
+  if (k === 'm' || k === 'M') { bgmToggle(); return; }
+  var k = e.key;
+  if (state === "title") {
+    if (k === "Enter") { startGame(); }
+    e.preventDefault();
+    return;
+  }
+  if (state === "dead" || state === "win") {
+    if (k === "Enter") {
+      if (state === "win") {
+        level++;
+        depth += DEPTH_PER_LEVEL;
+        generateMap();
+        state = "playing"; bgmPlay();
+        startWaterAmbience();
+      } else {
+        // Reapply upgrades on death restart
+        var upg = getUpgradeValues();
+        PING_RANGE = 14 + upg.pingBonus;
+        PASSIVE_RANGE = 3 + upg.passiveBonus;
+        oxygenMax = Math.round(1800 * upg.oxygenMult);
+        PING_COOLDOWN = Math.round(60 * upg.cooldownMult);
+        level = 1;
+        depth = 0;
+        generateMap();
+        state = "playing";
+        startWaterAmbience();
+      }
+    }
+    if (k === "Escape") { state = "title"; stopWaterAmbience(); }
+    e.preventDefault();
+    return;
+  }
+  if (state === "playing") {
+    if (k === "ArrowUp") keyHeld.up = true;
+    else if (k === "ArrowDown") keyHeld.down = true;
+    else if (k === "ArrowLeft") keyHeld.left = true;
+    else if (k === "ArrowRight") keyHeld.right = true;
+    else if (k === "Enter") doPing();
+    else if (k === "Escape") { state = "title"; stopWaterAmbience(); }
+    e.preventDefault();
+  }
+});
+
+document.addEventListener("keyup", function(e) {
+  var k = e.key;
+  if (k === "ArrowUp") keyHeld.up = false;
+  if (k === "ArrowDown") keyHeld.down = false;
+  if (k === "ArrowLeft") keyHeld.left = false;
+  if (k === "ArrowRight") keyHeld.right = false;
+});
+
+// === MOVEMENT ===
+function moveSub() {
+  moveTimer++;
+  if (moveTimer < MOVE_DELAY) return;
+  moveTimer = 0;
+  var dx = 0, dy = 0;
+  if (keyHeld.up) dy = -1;
+  else if (keyHeld.down) dy = 1;
+  if (keyHeld.left) dx = -1;
+  else if (keyHeld.right) dx = 1;
+  if (dx === 0 && dy === 0) return;
+
+  var nx = sub.x + dx, ny = sub.y + dy;
+  if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && map[ny][nx] === 1) {
+    sub.x = nx;
+    sub.y = ny;
+
+    // Check treasure
+    for (var i = 0; i < treasures.length; i++) {
+      if (!treasures[i].collected && treasures[i].x === nx && treasures[i].y === ny) {
+        treasures[i].collected = true;
+        treasuresCollected++;
+        oxygen = Math.min(oxygen + 300, oxygenMax);
+        playCollect();
+      }
+    }
+    // Check O2
+    for (var j = 0; j < oxygenBubbles.length; j++) {
+      if (!oxygenBubbles[j].collected && oxygenBubbles[j].x === nx && oxygenBubbles[j].y === ny) {
+        oxygenBubbles[j].collected = true;
+        oxygen = Math.min(oxygen + 600, oxygenMax);
+        playCollect();
+      }
+    }
+    // Check exit
+    if (nx === exit.x && ny === exit.y) {
+      state = "win";
+      if (depth + DEPTH_PER_LEVEL > bestDepth) {
+        bestDepth = depth + DEPTH_PER_LEVEL;
+        try { localStorage.setItem("sonar_best", String(bestDepth)); } catch(e) {}
+      }
+      checkUnlocks(depth + DEPTH_PER_LEVEL);
+      playWin();
+    }
+    // Check relics
+    for (var ri = 0; ri < relics.length; ri++) {
+      if (!relics[ri].collected && relics[ri].x === nx && relics[ri].y === ny) {
+        relics[ri].collected = true;
+        discoveryLog[relics[ri].type.id] = (discoveryLog[relics[ri].type.id] || 0) + 1;
+        try { localStorage.setItem("sonar_discoveries", JSON.stringify(discoveryLog)); } catch(e) {}
+        relicFoundMsg = relics[ri].type.name + " — " + relics[ri].type.lore;
+        relicFoundTimer = 240; // 4 seconds
+        oxygen = Math.min(oxygen + 200, oxygenMax); // small bonus
+        playRelicFind();
+      }
+    }
+  } else {
+    // Bump into wall — audio feedback
+    shakeFrames = 6;
+    ensureAudio();
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = "square";
+    osc.frequency.value = 80;
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.08);
+  }
+}
+
+function startGame() {
+  ensureAudio();
+  initMic();
+  startWaterAmbience();
+  level = 1;
+  depth = 0;
+  // Apply persistent upgrades
+  var upg = getUpgradeValues();
+  PING_RANGE = 14 + upg.pingBonus;
+  PASSIVE_RANGE = 3 + upg.passiveBonus;
+  oxygenMax = Math.round(1800 * upg.oxygenMult);
+  PING_COOLDOWN = Math.round(60 * upg.cooldownMult);
+  generateMap();
+  state = "playing";
+}
+
+// === RENDER ===
+function drawTitle() {
+  ctx.fillStyle = "#0d0d0d";
+  ctx.fillRect(0, 0, W, H);
+
+  // Animated sonar rings
+  var ringCount = 5;
+  for (var r = 0; r < ringCount; r++) {
+    var phase = (frameCount * 0.02 + r * 0.2) % 1;
+    var radius = phase * 200;
+    var alpha = (1 - phase) * 0.3;
+    ctx.strokeStyle = "rgba(0,180,220," + alpha + ")";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(W/2, H/2 - 40, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = "#00b4dc";
+  ctx.font = "bold 48px system-ui";
+  ctx.textAlign = "center";
+  ctx.fillText("SONAR SUB", W/2, H/2 - 40);
+
+  ctx.fillStyle = "#668";
+  ctx.font = "18px system-ui";
+  ctx.fillText("Navigate by echolocation", W/2, H/2 + 10);
+
+  ctx.fillStyle = "#446";
+  ctx.font = "13px system-ui";
+  ctx.fillText("🎤 Ambient noise = water turbulence", W/2, H/2 + 34);
+
+  ctx.fillStyle = "#0af";
+  ctx.font = "16px system-ui";
+  ctx.fillText("↑↓←→  Move", W/2, H/2 + 70);
+  ctx.fillText("Enter  Ping sonar", W/2, H/2 + 95);
+  ctx.fillText("Esc    Back", W/2, H/2 + 120);
+
+  ctx.fillStyle = "#446";
+  ctx.font = "14px system-ui";
+  ctx.fillText("Press Enter to dive", W/2, H/2 + 170);
+
+  if (bestDepth > 0) {
+    ctx.fillStyle = "#fa0";
+    ctx.font = "14px system-ui";
+    ctx.fillText("Best depth: " + bestDepth + "m", W/2, H/2 + 200);
+  }
+
+  // Show unlocks progress
+  var unlockCount = 0;
+  for (var uki = 0; uki < UNLOCKS.length; uki++) {
+    if (unlockedDepths[UNLOCKS[uki].depth]) unlockCount++;
+  }
+  if (unlockCount > 0 || bestDepth > 0) {
+    ctx.fillStyle = "#446";
+    ctx.font = "12px system-ui";
+    ctx.fillText("Upgrades: " + unlockCount + "/" + UNLOCKS.length, W/2, H/2 + 225);
+    // Show next unlock target
+    var nextUnlock = null;
+    for (var nui = 0; nui < UNLOCKS.length; nui++) {
+      if (!unlockedDepths[UNLOCKS[nui].depth]) { nextUnlock = UNLOCKS[nui]; break; }
+    }
+    if (nextUnlock) {
+      ctx.fillStyle = "#336";
+      ctx.fillText("Next: " + nextUnlock.label + " at " + nextUnlock.depth + "m", W/2, H/2 + 245);
+    } else {
+      ctx.fillStyle = "#0f0";
+      ctx.fillText("All upgrades unlocked! 🏆", W/2, H/2 + 245);
+    }
+  }
+
+  // Discovery log on title
+  var discoveredCount = 0;
+  for (var dci = 0; dci < RELIC_TYPES.length; dci++) {
+    if (discoveryLog[RELIC_TYPES[dci].id]) discoveredCount++;
+  }
+  if (discoveredCount > 0) {
+    ctx.fillStyle = "#a080cc";
+    ctx.font = "12px system-ui";
+    ctx.fillText("Relics: " + discoveredCount + "/" + RELIC_TYPES.length, W/2, H/2 + 265);
+  }
+}
+
+function drawGame() {
+  // Camera offset (shake)
+  if (shakeFrames > 0) {
+    shakeFrames--;
+    shakeX = (Math.random() - 0.5) * 4;
+    shakeY = (Math.random() - 0.5) * 4;
+  } else {
+    shakeX = 0; shakeY = 0;
+  }
+
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+
+  ctx.fillStyle = "#0d0d0d";
+  ctx.fillRect(-5, -5, W + 10, H + 10);
+
+  var camX = sub.x - Math.floor(COLS / 2);
+  var camY = sub.y - Math.floor(ROWS / 2);
+
+  // Draw map
+  for (var row = 0; row < ROWS; row++) {
+    for (var col = 0; col < COLS; col++) {
+      var screenX = (col - camX) * CELL;
+      var screenY = (row - camY) * CELL;
+      if (screenX < -CELL || screenX > W || screenY < -CELL || screenY > H) continue;
+
+      var revealAge = revealed[row][col];
+      if (revealAge === 0) continue; // Not revealed
+
+      var fade = Math.max(0, 1 - (revealAge / SONAR_FADE));
+      if (fade <= 0) continue;
+
+      if (map[row][col] === 0) {
+        // Wall
+        var wallAlpha = fade * 0.8;
+        ctx.fillStyle = "rgba(0,140,180," + wallAlpha + ")";
+        ctx.fillRect(screenX, screenY, CELL, CELL);
+        // Wall edge glow
+        ctx.fillStyle = "rgba(0,220,255," + (wallAlpha * 0.3) + ")";
+        ctx.fillRect(screenX, screenY, CELL, 1);
+        ctx.fillRect(screenX, screenY, 1, CELL);
+      } else {
+        // Open water — very faint
+        var waterAlpha = fade * 0.08;
+        ctx.fillStyle = "rgba(0,60,80," + waterAlpha + ")";
+        ctx.fillRect(screenX, screenY, CELL, CELL);
+      }
+    }
+  }
+
+  // Draw treasures
+  for (var t = 0; t < treasures.length; t++) {
+    if (treasures[t].collected) continue;
+    var tr = treasures[t];
+    var trAge = revealed[tr.y] ? revealed[tr.y][tr.x] : 0;
+    if (trAge === 0) continue;
+    var trFade = Math.max(0, 1 - (trAge / SONAR_FADE));
+    if (trFade <= 0) continue;
+    var tx = (tr.x - camX) * CELL + CELL/2;
+    var ty = (tr.y - camY) * CELL + CELL/2;
+    ctx.fillStyle = "rgba(255,200,0," + trFade + ")";
+    ctx.font = "bold " + CELL + "px system-ui";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("◆", tx, ty);
+  }
+
+  // Draw O2 bubbles
+  for (var b = 0; b < oxygenBubbles.length; b++) {
+    if (oxygenBubbles[b].collected) continue;
+    var ob = oxygenBubbles[b];
+    var obAge = revealed[ob.y] ? revealed[ob.y][ob.x] : 0;
+    if (obAge === 0) continue;
+    var obFade = Math.max(0, 1 - (obAge / SONAR_FADE));
+    if (obFade <= 0) continue;
+    var ox = (ob.x - camX) * CELL + CELL/2;
+    var oy = (ob.y - camY) * CELL + CELL/2;
+    ctx.fillStyle = "rgba(100,200,255," + obFade + ")";
+    ctx.font = "bold " + CELL + "px system-ui";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("○", ox, oy);
+  }
+
+  // Draw bioluminescent zones (visible without pinging!)
+  for (var bzi = 0; bzi < bioZones.length; bzi++) {
+    var bz = bioZones[bzi];
+    bz.pulse += 0.03;
+    var bzGlow = 0.08 + 0.04 * Math.sin(bz.pulse);
+    for (var bdy = -bz.radius; bdy <= bz.radius; bdy++) {
+      for (var bdx = -bz.radius; bdx <= bz.radius; bdx++) {
+        var bdist = Math.sqrt(bdx * bdx + bdy * bdy);
+        if (bdist > bz.radius) continue;
+        var bry = bz.cy + bdy, brx = bz.cx + bdx;
+        if (bry < 0 || bry >= ROWS || brx < 0 || brx >= COLS) continue;
+        if (map[bry][brx] === 0) continue; // skip walls
+        var bsx = (brx - camX) * CELL;
+        var bsy = (bry - camY) * CELL;
+        if (bsx < -CELL || bsx > W || bsy < -CELL || bsy > H) continue;
+        var bAlpha = bzGlow * (1 - bdist / bz.radius);
+        ctx.fillStyle = "rgba(0,255,180," + bAlpha + ")";
+        ctx.fillRect(bsx, bsy, CELL, CELL);
+        // Auto-reveal bio zones
+        revealed[bry][brx] = 1;
+      }
+    }
+  }
+
+  // Draw relics
+  for (var rli = 0; rli < relics.length; rli++) {
+    if (relics[rli].collected) continue;
+    var rl = relics[rli];
+    var rlAge = revealed[rl.y] ? revealed[rl.y][rl.x] : 0;
+    // Relics glow faintly even when not revealed (nearby)
+    var rlDist = Math.abs(rl.x - sub.x) + Math.abs(rl.y - sub.y);
+    var rlVisible = rlAge > 0 || rlDist < 6;
+    if (!rlVisible) continue;
+    var rlx = (rl.x - camX) * CELL + CELL / 2;
+    var rly = (rl.y - camY) * CELL + CELL / 2;
+    var rlPulse = 0.5 + 0.5 * Math.sin(frameCount * 0.06);
+    var rlAlpha = rlAge > 0 ? Math.max(0.3, 1 - rlAge / SONAR_FADE) : 0.15 + 0.1 * rlPulse;
+    ctx.fillStyle = rl.type.color;
+    ctx.globalAlpha = rlAlpha;
+    ctx.font = "bold " + (CELL + 2) + "px system-ui";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(rl.type.glyph, rlx, rly);
+    ctx.globalAlpha = 1;
+  }
+
+  // Draw creature sighting
+  if (creatureSighting) {
+    var cs = creatureSighting;
+    var csx = (cs.x - camX) * CELL;
+    var csy = (cs.y - camY) * CELL;
+    var csAlpha = Math.min(1, cs.life / 60) * 0.5;
+    // Draw creature as a series of connected segments
+    for (var seg = 0; seg < cs.type.size; seg++) {
+      var segX = csx - seg * CELL * (cs.dx > 0 ? 1 : -1);
+      var segY = csy + Math.sin(frameCount * 0.1 + seg * 0.5) * 4;
+      var segAlpha = csAlpha * (1 - seg / cs.type.size * 0.5);
+      ctx.fillStyle = cs.type.color + segAlpha + ")";
+      ctx.beginPath();
+      ctx.arc(segX, segY, CELL * 0.6 * (1 - seg / cs.type.size * 0.3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Draw exit
+  var exAge = revealed[exit.y] ? revealed[exit.y][exit.x] : 0;
+  if (exAge > 0) {
+    var exFade = Math.max(0, 1 - (exAge / SONAR_FADE));
+    if (exFade > 0) {
+      var ex = (exit.x - camX) * CELL + CELL/2;
+      var ey = (exit.y - camY) * CELL + CELL/2;
+      // Pulsing green
+      var pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.1);
+      ctx.fillStyle = "rgba(0,255,100," + (exFade * (0.5 + pulse * 0.5)) + ")";
+      ctx.beginPath();
+      ctx.arc(ex, ey, CELL * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(0,255,100," + exFade + ")";
+      ctx.font = "bold 10px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("▼", ex, ey);
+    }
+  }
+
+  // Draw ping wave
+  if (pingWave) {
+    var waveProgress = pingWave.radius / pingWave.maxRadius;
+    var waveAlpha = (1 - waveProgress) * 0.6;
+    ctx.strokeStyle = "rgba(0,200,255," + waveAlpha + ")";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    var wxc = (pingWave.x - camX) * CELL + CELL/2;
+    var wyc = (pingWave.y - camY) * CELL + CELL/2;
+    ctx.arc(wxc, wyc, pingWave.radius * CELL, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Draw submarine
+  var sx = (sub.x - camX) * CELL;
+  var sy = (sub.y - camY) * CELL;
+
+  // Water turbulence particles (ambient debris/bubbles in rough water)
+  if (micActive) {
+    var turb = getTurbulence();
+    if (turb > 0.05) {
+      var numParticles = Math.floor(turb * 15);
+      for (var wp = 0; wp < numParticles; wp++) {
+        var px = Math.random() * W;
+        var py = Math.random() * H;
+        var pAlpha = turb * 0.15 * Math.random();
+        var pSize = 1 + Math.random() * 2 * turb;
+        ctx.fillStyle = "rgba(100,180,220," + pAlpha + ")";
+        ctx.beginPath();
+        ctx.arc(px, py, pSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  // Glow
+  var glowAlpha = 0.15 + 0.1 * Math.sin(frameCount * 0.08);
+  ctx.fillStyle = "rgba(0,255,200," + glowAlpha + ")";
+  ctx.beginPath();
+  ctx.arc(sx + CELL/2, sy + CELL/2, CELL * 1.5, 0, Math.PI * 2);
+  ctx.fill();
+  // Sub body
+  ctx.fillStyle = "#0f8";
+  ctx.fillRect(sx + 1, sy + 2, CELL - 2, CELL - 4);
+  ctx.fillStyle = "#0fc";
+  ctx.fillRect(sx + 3, sy + 4, CELL - 6, CELL - 8);
+
+  ctx.restore();
+
+  // HUD
+  drawHUD();
+}
+
+function drawHUD() {
+  // Depth + level
+  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  ctx.fillRect(0, 0, W, 28);
+
+  ctx.fillStyle = "#0af";
+  ctx.font = "bold 14px system-ui";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText("Depth: " + (depth + DEPTH_PER_LEVEL) + "m", 8, 6);
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#668";
+  ctx.fillText("Level " + level, W/2, 6);
+
+  // Treasures
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#fc0";
+  var totalT = treasures.length;
+  ctx.fillText("◆ " + treasuresCollected + "/" + totalT, W - 8, 6);
+
+  // Oxygen bar
+  var barW = W - 16;
+  var barH = 4;
+  var barY = H - 12;
+  var o2pct = oxygen / oxygenMax;
+  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  ctx.fillRect(0, H - 20, W, 20);
+  ctx.fillStyle = "#224";
+  ctx.fillRect(8, barY, barW, barH);
+  var barColor = o2pct > 0.4 ? "#0af" : o2pct > 0.2 ? "#fa0" : "#f44";
+  ctx.fillStyle = barColor;
+  ctx.fillRect(8, barY, barW * o2pct, barH);
+
+  ctx.fillStyle = barColor;
+  ctx.font = "11px system-ui";
+  ctx.textAlign = "left";
+  ctx.fillText("O₂", 8, H - 18);
+  ctx.textAlign = "right";
+  ctx.fillText(Math.ceil(oxygen / 60) + "s", W - 8, H - 18);
+
+  // Ping cooldown indicator
+  if (pingTimer > 0) {
+    ctx.fillStyle = "rgba(0,180,220,0.4)";
+    ctx.font = "12px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("PING " + Math.ceil(pingTimer / 60 * 10) / 10 + "s", W/2, H - 18);
+  } else {
+    ctx.fillStyle = "rgba(0,255,200,0.5)";
+    ctx.font = "12px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("⏎ PING READY", W/2, H - 18);
+  }
+
+  // Turbulence indicator (mic-driven water conditions)
+  if (micActive) {
+    var turb = getTurbulence();
+    var turbLabel = turb < 0.15 ? "CALM" : turb < 0.4 ? "LIGHT CHOP" : turb < 0.7 ? "ROUGH" : "TURBULENT";
+    var turbColor = turb < 0.15 ? "rgba(0,200,100,0.5)" : turb < 0.4 ? "rgba(0,180,220,0.5)" : turb < 0.7 ? "rgba(220,180,0,0.5)" : "rgba(220,80,40,0.5)";
+    ctx.fillStyle = turbColor;
+    ctx.font = "11px system-ui";
+    ctx.textAlign = "left";
+    ctx.fillText("🌊 " + turbLabel, 8, 44);
+    // Small bar showing turbulence level
+    ctx.fillStyle = "rgba(255,255,255,0.1)";
+    ctx.fillRect(8, 50, 60, 3);
+    ctx.fillStyle = turbColor;
+    ctx.fillRect(8, 50, 60 * turb, 3);
+  }
+
+  // Unlock notification
+  if (newUnlockTimer > 0) {
+    newUnlockTimer--;
+    var unlockAlpha = newUnlockTimer > 30 ? 1 : newUnlockTimer / 30;
+    ctx.fillStyle = "rgba(0,40,60," + (0.9 * unlockAlpha) + ")";
+    ctx.fillRect(W/2 - 180, H/2 - 30, 360, 60);
+    ctx.strokeStyle = "rgba(0,255,200," + (0.8 * unlockAlpha) + ")";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(W/2 - 180, H/2 - 30, 360, 60);
+    ctx.fillStyle = "rgba(0,255,200," + unlockAlpha + ")";
+    ctx.font = "bold 16px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("🔓 UPGRADE UNLOCKED", W/2, H/2 - 8);
+    ctx.fillStyle = "rgba(200,220,255," + unlockAlpha + ")";
+    ctx.font = "14px system-ui";
+    ctx.fillText(newUnlockMsg || "", W/2, H/2 + 16);
+  }
+
+  // Relic found notification
+  if (relicFoundTimer > 0) {
+    var rfAlpha = relicFoundTimer > 40 ? 1 : relicFoundTimer / 40;
+    var rfY = H/2 + (newUnlockTimer > 0 ? 50 : 0);
+    ctx.fillStyle = "rgba(30,10,40," + (0.9 * rfAlpha) + ")";
+    ctx.fillRect(W/2 - 200, rfY - 30, 400, 60);
+    ctx.strokeStyle = "rgba(200,160,255," + (0.8 * rfAlpha) + ")";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(W/2 - 200, rfY - 30, 400, 60);
+    ctx.fillStyle = "rgba(200,160,255," + rfAlpha + ")";
+    ctx.font = "bold 14px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("⬡ RELIC DISCOVERED", W/2, rfY - 8);
+    ctx.fillStyle = "rgba(200,220,255," + rfAlpha + ")";
+    ctx.font = "12px system-ui";
+    ctx.fillText(relicFoundMsg || "", W/2, rfY + 14);
+  }
+
+  // Creature sighting name
+  if (creatureSighting && creatureSighting.life > 120) {
+    var csNameAlpha = Math.min(1, (creatureSighting.life - 120) / 30);
+    ctx.fillStyle = "rgba(80,120,160," + csNameAlpha + ")";
+    ctx.font = "italic 13px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("A " + creatureSighting.type.name + " passes through the deep...", W/2, 70);
+  }
+}
+
+function drawDead() {
+  ctx.fillStyle = "#0d0d0d";
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = "#f44";
+  ctx.font = "bold 42px system-ui";
+  ctx.textAlign = "center";
+  ctx.fillText("OXYGEN DEPLETED", W/2, H/2 - 60);
+
+  ctx.fillStyle = "#aaa";
+  ctx.font = "20px system-ui";
+  ctx.fillText("Final depth: " + (depth + DEPTH_PER_LEVEL) + "m", W/2, H/2);
+  ctx.fillText("Pings used: " + totalPings, W/2, H/2 + 30);
+  ctx.fillText("Treasures: " + treasuresCollected, W/2, H/2 + 60);
+
+  if (bestDepth > 0) {
+    ctx.fillStyle = "#fa0";
+    ctx.font = "16px system-ui";
+    ctx.fillText("Best: " + bestDepth + "m", W/2, H/2 + 100);
+  }
+
+  ctx.fillStyle = "#668";
+  ctx.font = "14px system-ui";
+  ctx.fillText("Enter to retry  ·  Esc for title", W/2, H/2 + 150);
+}
+
+function drawWin() {
+  ctx.fillStyle = "#0d0d0d";
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = "#0f8";
+  ctx.font = "bold 42px system-ui";
+  ctx.textAlign = "center";
+  ctx.fillText("CAVE CLEARED", W/2, H/2 - 60);
+
+  ctx.fillStyle = "#aaa";
+  ctx.font = "20px system-ui";
+  ctx.fillText("Depth reached: " + (depth + DEPTH_PER_LEVEL) + "m", W/2, H/2);
+  ctx.fillText("Pings used: " + totalPings, W/2, H/2 + 30);
+  ctx.fillText("Treasures: " + treasuresCollected + "/" + treasures.length, W/2, H/2 + 60);
+
+  ctx.fillStyle = "#0af";
+  ctx.font = "16px system-ui";
+  ctx.fillText("Diving deeper...", W/2, H/2 + 100);
+
+  ctx.fillStyle = "#668";
+  ctx.font = "14px system-ui";
+  ctx.fillText("Enter to continue  ·  Esc for title", W/2, H/2 + 150);
+}
+
+// === MAIN LOOP ===
+function update() {
+  frameCount++;
+
+  if (state === "playing") {
+    // Update mic
+    updateMic();
+    updateWaterAmbience();
+
+    // Move
+    moveSub();
+
+    // Oxygen drain — turbulence increases consumption
+    var turb = getTurbulence();
+    var o2Drain = 1 + turb * 0.35; // 1.0x calm → 1.35x max roughness
+    oxygen -= o2Drain;
+    if (oxygen <= 0) {
+      oxygen = 0;
+      state = "dead"; bgmGameOver();
+      stopWaterAmbience();
+      playDeath();
+      if (depth + DEPTH_PER_LEVEL > bestDepth) {
+        bestDepth = depth + DEPTH_PER_LEVEL;
+        try { localStorage.setItem("sonar_best", String(bestDepth)); } catch(e) {}
+      }
+      checkUnlocks(depth);
+    }
+
+    // Ping cooldown
+    if (pingTimer > 0) pingTimer--;
+
+    // Ping wave animation
+    if (pingWave) {
+      pingWave.radius += 0.4;
+      if (pingWave.radius >= pingWave.maxRadius) pingWave = null;
+    }
+
+    // Fade revealed cells
+    for (var i = 0; i < ROWS; i++) {
+      for (var j = 0; j < COLS; j++) {
+        if (revealed[i][j] > 0) revealed[i][j]++;
+      }
+    }
+
+    // Passive sonar
+    passiveSonar();
+
+    // Creature sightings
+    tryCreatureSighting();
+    if (creatureSighting) {
+      creatureSighting.x += creatureSighting.dx;
+      creatureSighting.life--;
+      if (!creatureSighting.announced) {
+        creatureSighting.announced = true;
+        playCreatureSound(creatureSighting.type);
+      }
+      if (creatureSighting.life <= 0) creatureSighting = null;
+    }
+    if (creatureCooldown > 0) creatureCooldown--;
+
+    // Relic notification timer
+    if (relicFoundTimer > 0) relicFoundTimer--;
+  }
+}
+
+function draw() {
+  if (state === "title") drawTitle();
+  else if (state === "playing") drawGame();
+  else if (state === "dead") drawDead();
+  else if (state === "win") drawWin();
+}
+
+function frame() {
+  update();
+  draw();
+  requestAnimationFrame(frame);
+}
+
+frame();
+
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../touch-controls.js"></script>
+</body>
+</html>

@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/experiences/synth/" />
+  <meta property="og:title" content="Synth - Hypernova WebApp" />
+  <meta property="og:url" content="https://liveinthefuture.org/experiences/synth/" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Synth - Hypernova WebApp</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0d0d0d;
+  color: #e8e8e8;
+  width: 600px;
+  height: 600px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+canvas { display: block; }
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+var cv = document.getElementById('c');
+var ctx = cv.getContext('2d');
+var W = 600, H = 600;
+
+// Audio context
+var audioCtx = null;
+var analyser = null;
+var analyserData = null;
+var delayNode = null;
+var delayFeedback = null;
+var delayWet = null;
+var delayDry = null;
+var delayFilter = null;
+var delayTime = 0.3;
+var delayFeedbackVal = 0.35;
+var delayWetVal = 0.3;
+var delayOn = true;
+
+// Mic-reactive filter
+var synthFilter = null;
+var micFilterActive = false;
+var smoothMicLevel = 0;
+var smoothBassLevel = 0;
+var smoothFilterCutoff = 20000;
+var smoothFilterQ = 0.7;
+var micStream = null;
+var micSource = null;
+var micAnalyser = null;
+var micData = null;
+var micActive = false;
+
+// Notes - 2 octaves starting from C3
+var noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+var octave = 3;
+var totalKeys = 24;
+var cursorIdx = 0;
+var playing = false;
+var currentOsc = null;
+var currentGain = null;
+
+// Waveforms
+var waveforms = ['sine', 'triangle', 'sawtooth', 'square'];
+var waveIdx = 0;
+
+var tick = 0;
+
+// Arpeggiator
+var arpActive = false;
+var arpTimer = null;
+var arpHoldTimer = null;
+var arpStep = 0;
+var arpBPM = 180;
+var arpPatternIdx = 0;
+var arpPatterns = ['UP', 'DOWN', 'UP-DOWN', 'RANDOM'];
+var arpDirection = 1;
+var arpBaseIdx = 0;
+var arpNoteIdx = 0;
+
+// Musical scales for arpeggiator
+var scales = [
+  { name: 'MAJOR', intervals: [0,2,4,5,7,9,11] },
+  { name: 'MINOR', intervals: [0,2,3,5,7,8,10] },
+  { name: 'PENTA', intervals: [0,2,4,7,9] },
+  { name: 'BLUES', intervals: [0,3,5,6,7,10] },
+  { name: 'HARM MIN', intervals: [0,2,3,5,7,8,11] },
+  { name: 'CHROMATIC', intervals: [0,1,2,3,4,5,6,7,8,9,10,11] }
+];
+var scaleIdx = 0;
+
+function getScaleIntervals() {
+  var base = scales[scaleIdx].intervals;
+  var result = [];
+  for (var oct = 0; oct < 3; oct++) {
+    for (var i = 0; i < base.length; i++) {
+      var interval = base[i] + oct * 12;
+      if (interval < totalKeys) result.push(interval);
+    }
+  }
+  return result;
+}
+
+// Persistence
+function savePrefs() {
+  try {
+    localStorage.setItem('synth_prefs', JSON.stringify({
+      w: waveIdx, s: scaleIdx, ap: arpPatternIdx,
+      bpm: arpBPM, dly: delayOn, cur: cursorIdx
+    }));
+  } catch(e) {}
+}
+
+function loadPrefs() {
+  try {
+    var p = JSON.parse(localStorage.getItem('synth_prefs'));
+    if (p) {
+      waveIdx = typeof p.w === 'number' ? p.w % waveforms.length : 0;
+      scaleIdx = typeof p.s === 'number' ? p.s % scales.length : 0;
+      arpPatternIdx = typeof p.ap === 'number' ? p.ap % arpPatterns.length : 0;
+      arpBPM = typeof p.bpm === 'number' ? Math.max(60, Math.min(400, p.bpm)) : 180;
+      delayOn = p.dly !== undefined ? !!p.dly : true;
+      cursorIdx = typeof p.cur === 'number' ? Math.max(0, Math.min(totalKeys - 1, p.cur)) : 0;
+    }
+  } catch(e) {}
+}
+
+loadPrefs();
+
+function noteFreq(noteIdx) {
+  var midi = 48 + noteIdx + (octave - 3) * 12;
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+function isBlackKey(idx) {
+  var n = idx % 12;
+  return n === 1 || n === 3 || n === 6 || n === 8 || n === 10;
+}
+
+function getNoteName(idx) {
+  return noteNames[idx % 12] + (octave + Math.floor(idx / 12));
+}
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 512;
+  analyserData = new Uint8Array(analyser.frequencyBinCount);
+
+  // Synth filter (mic-reactive lowpass)
+  synthFilter = audioCtx.createBiquadFilter();
+  synthFilter.type = 'lowpass';
+  synthFilter.frequency.setValueAtTime(20000, audioCtx.currentTime);
+  synthFilter.Q.setValueAtTime(0.7, audioCtx.currentTime);
+
+  // Stereo ping-pong delay chain
+  delayNode = audioCtx.createDelay(2.0);
+  delayNode.delayTime.setValueAtTime(delayTime, audioCtx.currentTime);
+  delayFeedback = audioCtx.createGain();
+  delayFeedback.gain.setValueAtTime(delayFeedbackVal, audioCtx.currentTime);
+  delayFilter = audioCtx.createBiquadFilter();
+  delayFilter.type = 'lowpass';
+  delayFilter.frequency.setValueAtTime(3000, audioCtx.currentTime);
+  delayWet = audioCtx.createGain();
+  delayWet.gain.setValueAtTime(delayOn ? delayWetVal : 0, audioCtx.currentTime);
+  delayDry = audioCtx.createGain();
+  delayDry.gain.setValueAtTime(1.0, audioCtx.currentTime);
+
+  // Routing: osc → gain → synthFilter → delayDry → analyser → dest
+  //          synthFilter → delayNode → delayFilter → delayFeedback → delayNode (loop)
+  //          delayNode → delayWet → analyser → dest
+  synthFilter.connect(delayDry);
+  synthFilter.connect(delayNode);
+  delayNode.connect(delayFilter);
+  delayFilter.connect(delayFeedback);
+  delayFeedback.connect(delayNode);
+  delayNode.connect(delayWet);
+  delayWet.connect(analyser);
+  delayDry.connect(analyser);
+  analyser.connect(audioCtx.destination);
+}
+
+function playNote() {
+  if (!audioCtx) initAudio();
+  stopNote();
+  currentOsc = audioCtx.createOscillator();
+  currentGain = audioCtx.createGain();
+  currentOsc.type = waveforms[waveIdx];
+  currentOsc.frequency.setValueAtTime(noteFreq(cursorIdx), audioCtx.currentTime);
+  currentGain.gain.setValueAtTime(0, audioCtx.currentTime);
+  currentGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.02);
+  currentOsc.connect(currentGain);
+  currentGain.connect(synthFilter);
+  currentOsc.start();
+  playing = true;
+}
+
+function stopNote() {
+  if (currentOsc) {
+    try {
+      currentGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.08);
+      var osc = currentOsc;
+      setTimeout(function() { try { osc.stop(); } catch(e) {} }, 100);
+    } catch(e) {}
+    currentOsc = null;
+    currentGain = null;
+  }
+  playing = false;
+}
+
+function getArpNotes() {
+  var intervals = getScaleIntervals();
+  var notes = [];
+  for (var i = 0; i < intervals.length; i++) {
+    var idx = cursorIdx + intervals[i];
+    if (idx < totalKeys) notes.push(idx);
+  }
+  return notes.slice(0, 8);
+}
+
+function playArpNote(noteIdx) {
+  if (!audioCtx) initAudio();
+  stopNote();
+  currentOsc = audioCtx.createOscillator();
+  currentGain = audioCtx.createGain();
+  currentOsc.type = waveforms[waveIdx];
+  currentOsc.frequency.setValueAtTime(noteFreq(noteIdx), audioCtx.currentTime);
+  currentGain.gain.setValueAtTime(0, audioCtx.currentTime);
+  currentGain.gain.linearRampToValueAtTime(0.35, audioCtx.currentTime + 0.015);
+  currentGain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.12);
+  currentOsc.connect(currentGain);
+  currentGain.connect(synthFilter);
+  currentOsc.start();
+  playing = true;
+  arpNoteIdx = noteIdx;
+}
+
+function startArp() {
+  if (arpActive) return;
+  if (!audioCtx) initAudio();
+  arpActive = true;
+  arpStep = 0;
+  arpBaseIdx = cursorIdx;
+  arpDirection = 1;
+  var notes = getArpNotes();
+  if (notes.length > 0) playArpNote(notes[0]);
+  arpTimer = setInterval(function() {
+    var notes = getArpNotes();
+    if (notes.length === 0) return;
+    var pattern = arpPatterns[arpPatternIdx];
+    if (pattern === 'UP') {
+      arpStep = (arpStep + 1) % notes.length;
+    } else if (pattern === 'DOWN') {
+      arpStep = arpStep - 1;
+      if (arpStep < 0) arpStep = notes.length - 1;
+    } else if (pattern === 'UP-DOWN') {
+      arpStep += arpDirection;
+      if (arpStep >= notes.length - 1) { arpStep = notes.length - 1; arpDirection = -1; }
+      if (arpStep <= 0) { arpStep = 0; arpDirection = 1; }
+    } else {
+      arpStep = Math.floor(Math.random() * notes.length);
+    }
+    playArpNote(notes[arpStep]);
+  }, Math.floor(60000 / arpBPM));
+}
+
+function stopArp() {
+  arpActive = false;
+  if (arpTimer) { clearInterval(arpTimer); arpTimer = null; }
+  if (arpHoldTimer) { clearTimeout(arpHoldTimer); arpHoldTimer = null; }
+  stopNote();
+  arpStep = 0;
+}
+
+function toggleMicFilter() {
+  if (!audioCtx) initAudio();
+  if (micFilterActive) {
+    if (micStream) {
+      micStream.getTracks().forEach(function(t) { t.stop(); });
+      micStream = null;
+    }
+    if (micSource) { micSource.disconnect(); micSource = null; }
+    if (micAnalyser) { micAnalyser.disconnect(); micAnalyser = null; }
+    micActive = false;
+    micFilterActive = false;
+    micData = null;
+    // Open filter wide
+    synthFilter.frequency.setTargetAtTime(20000, audioCtx.currentTime, 0.1);
+    synthFilter.Q.setTargetAtTime(0.7, audioCtx.currentTime, 0.1);
+    smoothMicLevel = 0;
+    smoothBassLevel = 0;
+    smoothFilterCutoff = 20000;
+    smoothFilterQ = 0.7;
+    return;
+  }
+  try {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      micStream = stream;
+      micSource = audioCtx.createMediaStreamSource(stream);
+      micAnalyser = audioCtx.createAnalyser();
+      micAnalyser.fftSize = 256;
+      micData = new Uint8Array(micAnalyser.frequencyBinCount);
+      micSource.connect(micAnalyser);
+      micActive = true;
+      micFilterActive = true;
+    }).catch(function(err) {
+      micFilterActive = false;
+    });
+  } catch(e) {
+    micFilterActive = false;
+  }
+}
+
+function updateMicFilter() {
+  if (!micFilterActive || !micAnalyser || !micData) return;
+  micAnalyser.getByteFrequencyData(micData);
+
+  // Overall level (0-1)
+  var sum = 0;
+  for (var i = 0; i < micData.length; i++) sum += micData[i];
+  var rawLevel = sum / micData.length / 255;
+
+  // Bass level (first 1/6 of bins)
+  var bassSum = 0;
+  var bassBins = Math.max(1, Math.floor(micData.length / 6));
+  for (var j = 0; j < bassBins; j++) bassSum += micData[j];
+  var rawBass = bassSum / bassBins / 255;
+
+  // Smooth with lerp (heavy smoothing for musical filter sweeps)
+  smoothMicLevel += (rawLevel - smoothMicLevel) * 0.06;
+  smoothBassLevel += (rawBass - smoothBassLevel) * 0.04;
+
+  // Map level to filter cutoff: 200Hz (silent) to 8000Hz (loud)
+  // Exponential mapping for musical feel
+  var targetCutoff = 200 * Math.pow(40, Math.min(1, smoothMicLevel * 2.5));
+  targetCutoff = Math.min(8000, Math.max(200, targetCutoff));
+
+  // Map bass to resonance: 0.7 (no bass) to 10 (heavy bass)
+  var targetQ = 0.7 + smoothBassLevel * 14;
+  targetQ = Math.min(10, Math.max(0.7, targetQ));
+
+  // Extra smooth the actual filter params for zero clicks
+  smoothFilterCutoff += (targetCutoff - smoothFilterCutoff) * 0.08;
+  smoothFilterQ += (targetQ - smoothFilterQ) * 0.06;
+
+  synthFilter.frequency.setTargetAtTime(smoothFilterCutoff, audioCtx.currentTime, 0.03);
+  synthFilter.Q.setTargetAtTime(smoothFilterQ, audioCtx.currentTime, 0.03);
+}
+
+// Drawing
+function drawHeader() {
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, 46);
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, 46); ctx.lineTo(W, 46); ctx.stroke();
+
+  ctx.font = '600 20px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🎹 Synth', 14, 23);
+
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#4a9eff';
+  var labels = waveforms[waveIdx].toUpperCase() + ' · C' + octave + '-B' + (octave + 1);
+  if (delayOn) labels += ' · DLY';
+  if (micFilterActive) labels += ' · 🎤FLT';
+  if (arpActive) labels += ' · ARP ' + arpPatterns[arpPatternIdx] + ' ' + scales[scaleIdx].name + ' ' + arpBPM;
+  ctx.fillText(labels, W - 14, 23);
+}
+
+function drawFooter() {
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, H - 36, W, 36);
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, H - 36); ctx.lineTo(W, H - 36); ctx.stroke();
+
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  if (arpActive) {
+    ctx.fillText('←→ Speed  ↑ Pattern  ↓ Scale  Esc Stop  ' + arpBPM + ' BPM', W / 2, H - 18);
+  } else {
+    ctx.fillText('←→ Note  ↑ Wave  ↓ Delay  Hold=Arp  Esc Mic Filter', W / 2, H - 18);
+  }
+}
+
+function drawFilterIndicator() {
+  // Filter visualization strip between waveform and keyboard (y: 195-210)
+  if (!micFilterActive) return;
+  var fy = 195, fh = 16;
+  ctx.fillStyle = '#0a0a14';
+  ctx.fillRect(0, fy, W, fh);
+
+  // Filter sweep bar — maps 200-8000Hz to 0-W
+  var logMin = Math.log(200);
+  var logMax = Math.log(8000);
+  var logCutoff = Math.log(Math.max(200, smoothFilterCutoff));
+  var barFrac = (logCutoff - logMin) / (logMax - logMin);
+  barFrac = Math.max(0, Math.min(1, barFrac));
+  var barX = barFrac * W;
+
+  // Gradient bar showing filter range
+  var grad = ctx.createLinearGradient(0, fy, W, fy);
+  grad.addColorStop(0, '#ff4466');     // closed = warm red
+  grad.addColorStop(0.5, '#ffaa44');   // mid = orange
+  grad.addColorStop(1, '#44ddff');     // open = bright cyan
+  ctx.globalAlpha = 0.3;
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, fy, barX, fh);
+  ctx.globalAlpha = 1;
+
+  // Cutoff line
+  ctx.strokeStyle = '#ff8844';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(barX, fy);
+  ctx.lineTo(barX, fy + fh);
+  ctx.stroke();
+
+  // Resonance glow at cutoff
+  var qNorm = Math.min(1, (smoothFilterQ - 0.7) / 9.3);
+  if (qNorm > 0.1) {
+    ctx.globalAlpha = qNorm * 0.5;
+    ctx.fillStyle = '#ff6644';
+    var glowW = 10 + qNorm * 30;
+    ctx.fillRect(barX - glowW / 2, fy, glowW, fh);
+    ctx.globalAlpha = 1;
+  }
+
+  // Labels
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.fillStyle = '#ff8844';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(Math.round(smoothFilterCutoff) + 'Hz  Q:' + smoothFilterQ.toFixed(1), 6, fy + fh / 2);
+
+  // Ambient level indicator on right
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#888';
+  var levelPct = Math.round(smoothMicLevel * 200);
+  ctx.fillText('🎤 ' + Math.min(100, levelPct) + '%', W - 6, fy + fh / 2);
+}
+
+function drawWaveform() {
+  var vy = 50, vh = 145;
+  ctx.fillStyle = '#0a0a14';
+  ctx.fillRect(0, vy, W, vh);
+
+  // Filter-tinted background when mic filter is active
+  if (micFilterActive && smoothFilterCutoff < 15000) {
+    var warmth = 1 - (Math.log(Math.max(200, smoothFilterCutoff)) - Math.log(200)) / (Math.log(8000) - Math.log(200));
+    warmth = Math.max(0, Math.min(1, warmth));
+    ctx.globalAlpha = warmth * 0.12;
+    ctx.fillStyle = '#ff4422';
+    ctx.fillRect(0, vy, W, vh);
+    ctx.globalAlpha = 1;
+  }
+
+  if (analyser && playing) {
+    analyser.getByteTimeDomainData(analyserData);
+    // Delay trail
+    if (delayOn) {
+      ctx.strokeStyle = 'rgba(74, 158, 255, 0.15)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      var sliceW2 = W / analyserData.length;
+      for (var i2 = 0; i2 < analyserData.length; i2++) {
+        var v2 = analyserData[i2] / 128.0;
+        var y2 = vy + (v2 * vh / 2);
+        if (i2 === 0) ctx.moveTo(0, y2); else ctx.lineTo(i2 * sliceW2, y2);
+      }
+      ctx.stroke();
+    }
+    // Waveform color shifts with filter cutoff when mic active
+    var waveColor = '#4a9eff';
+    if (micFilterActive) {
+      var frac = (Math.log(Math.max(200, smoothFilterCutoff)) - Math.log(200)) / (Math.log(8000) - Math.log(200));
+      frac = Math.max(0, Math.min(1, frac));
+      // Warm orange when closed → blue when open
+      var r = Math.round(255 - frac * 181);  // 255→74
+      var g = Math.round(100 + frac * 58);    // 100→158
+      var b = Math.round(68 + frac * 187);    // 68→255
+      waveColor = 'rgb(' + r + ',' + g + ',' + b + ')';
+    }
+    ctx.strokeStyle = waveColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    var sliceW = W / analyserData.length;
+    for (var i = 0; i < analyserData.length; i++) {
+      var v = analyserData[i] / 128.0;
+      var y = vy + (v * vh / 2);
+      if (i === 0) ctx.moveTo(0, y); else ctx.lineTo(i * sliceW, y);
+    }
+    ctx.stroke();
+  } else {
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, vy + vh / 2);
+    ctx.lineTo(W, vy + vh / 2);
+    ctx.stroke();
+    ctx.font = '14px -apple-system, sans-serif';
+    ctx.fillStyle = '#444';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(micFilterActive ? 'Play a note — mic shapes the sound' : 'Press Enter to play a note', W / 2, vy + vh / 2);
+  }
+}
+
+function drawKeyboard() {
+  var ky = 215, kh = 340;
+  var whiteW = 0, whiteCount = 0;
+
+  for (var i = 0; i < totalKeys; i++) {
+    if (!isBlackKey(i)) whiteCount++;
+  }
+  whiteW = Math.floor((W - 20) / whiteCount);
+  var kx = 10;
+
+  ctx.font = '600 24px -apple-system, sans-serif';
+  ctx.fillStyle = playing ? '#4a9eff' : '#e8e8e8';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  var displayIdx = arpActive ? arpNoteIdx : cursorIdx;
+  ctx.fillText(getNoteName(displayIdx), W / 2, ky + 20);
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.fillText(noteFreq(displayIdx).toFixed(1) + ' Hz', W / 2, ky + 42);
+
+  var arpNotes = arpActive ? getArpNotes() : [];
+
+  var wx = kx;
+  var whitePositions = [];
+  for (var j = 0; j < totalKeys; j++) {
+    if (!isBlackKey(j)) {
+      var isCursor = j === cursorIdx;
+      var isArpPlaying = arpActive && j === arpNoteIdx;
+      var isArpScale = false;
+      for (var an = 0; an < arpNotes.length; an++) { if (arpNotes[an] === j) isArpScale = true; }
+      var topY = ky + 60;
+      var keyH = kh - 80;
+
+      if (isArpPlaying) {
+        ctx.fillStyle = '#ff8844';
+      } else if (isCursor && playing) {
+        ctx.fillStyle = '#4a9eff';
+      } else if (isCursor) {
+        ctx.fillStyle = '#88aacc';
+      } else if (isArpScale) {
+        ctx.fillStyle = '#bbccdd';
+      } else {
+        ctx.fillStyle = '#ddd';
+      }
+      ctx.fillRect(wx, topY, whiteW - 2, keyH);
+
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(wx, topY, whiteW - 2, keyH);
+
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.fillStyle = isCursor ? '#fff' : '#666';
+      ctx.textAlign = 'center';
+      ctx.fillText(noteNames[j % 12], wx + whiteW / 2 - 1, topY + keyH - 12);
+
+      whitePositions[j] = wx;
+      wx += whiteW;
+    }
+  }
+
+  for (var k = 0; k < totalKeys; k++) {
+    if (isBlackKey(k)) {
+      var prevWhite = -1;
+      for (var pw = k - 1; pw >= 0; pw--) {
+        if (!isBlackKey(pw)) { prevWhite = pw; break; }
+      }
+      if (prevWhite < 0) continue;
+      var bx = whitePositions[prevWhite] + whiteW * 0.65;
+      var bw = whiteW * 0.65;
+      var topY2 = ky + 60;
+      var bh = (kh - 80) * 0.6;
+      var isCur = k === cursorIdx;
+      var isArpPlay = arpActive && k === arpNoteIdx;
+      var isArpSc = false;
+      for (var an2 = 0; an2 < arpNotes.length; an2++) { if (arpNotes[an2] === k) isArpSc = true; }
+
+      if (isArpPlay) {
+        ctx.fillStyle = '#cc6633';
+      } else if (isCur && playing) {
+        ctx.fillStyle = '#3388cc';
+      } else if (isCur) {
+        ctx.fillStyle = '#556688';
+      } else if (isArpSc) {
+        ctx.fillStyle = '#334455';
+      } else {
+        ctx.fillStyle = '#222';
+      }
+      ctx.fillRect(bx, topY2, bw, bh);
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx, topY2, bw, bh);
+    }
+  }
+}
+
+function draw() {
+  tick++;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  // Update mic-reactive filter every frame
+  updateMicFilter();
+
+  drawHeader();
+  drawWaveform();
+  drawFilterIndicator();
+  drawKeyboard();
+  drawFooter();
+  requestAnimationFrame(draw);
+}
+
+// Long press tracking
+var enterDown = false;
+var enterHoldStart = 0;
+
+document.addEventListener('keydown', function(e) {
+  e.preventDefault();
+
+  if (e.key === 'ArrowLeft') {
+    if (arpActive) {
+      arpBPM = Math.max(60, arpBPM - 20);
+      savePrefs();
+      if (arpTimer) { clearInterval(arpTimer); }
+      arpTimer = setInterval(function() {
+        var notes = getArpNotes();
+        if (notes.length === 0) return;
+        var pattern = arpPatterns[arpPatternIdx];
+        if (pattern === 'UP') { arpStep = (arpStep + 1) % notes.length; }
+        else if (pattern === 'DOWN') { arpStep--; if (arpStep < 0) arpStep = notes.length - 1; }
+        else if (pattern === 'UP-DOWN') { arpStep += arpDirection; if (arpStep >= notes.length - 1) { arpStep = notes.length - 1; arpDirection = -1; } if (arpStep <= 0) { arpStep = 0; arpDirection = 1; } }
+        else { arpStep = Math.floor(Math.random() * notes.length); }
+        playArpNote(notes[arpStep]);
+      }, Math.floor(60000 / arpBPM));
+    } else {
+      stopNote();
+      cursorIdx = Math.max(0, cursorIdx - 1);
+      savePrefs();
+    }
+  } else if (e.key === 'ArrowRight') {
+    if (arpActive) {
+      arpBPM = Math.min(400, arpBPM + 20);
+      savePrefs();
+      if (arpTimer) { clearInterval(arpTimer); }
+      arpTimer = setInterval(function() {
+        var notes = getArpNotes();
+        if (notes.length === 0) return;
+        var pattern = arpPatterns[arpPatternIdx];
+        if (pattern === 'UP') { arpStep = (arpStep + 1) % notes.length; }
+        else if (pattern === 'DOWN') { arpStep--; if (arpStep < 0) arpStep = notes.length - 1; }
+        else if (pattern === 'UP-DOWN') { arpStep += arpDirection; if (arpStep >= notes.length - 1) { arpStep = notes.length - 1; arpDirection = -1; } if (arpStep <= 0) { arpStep = 0; arpDirection = 1; } }
+        else { arpStep = Math.floor(Math.random() * notes.length); }
+        playArpNote(notes[arpStep]);
+      }, Math.floor(60000 / arpBPM));
+    } else {
+      stopNote();
+      cursorIdx = Math.min(totalKeys - 1, cursorIdx + 1);
+      savePrefs();
+    }
+  } else if (e.key === 'ArrowUp') {
+    if (arpActive) {
+      arpPatternIdx = (arpPatternIdx + 1) % arpPatterns.length;
+      arpStep = 0;
+      arpDirection = 1;
+      savePrefs();
+    } else {
+      waveIdx = (waveIdx + 1) % waveforms.length;
+      savePrefs();
+      if (playing) playNote();
+    }
+  } else if (e.key === 'ArrowDown') {
+    if (arpActive) {
+      scaleIdx = (scaleIdx + 1) % scales.length;
+      savePrefs();
+    } else {
+      delayOn = !delayOn;
+      savePrefs();
+      if (delayWet) {
+        delayWet.gain.setTargetAtTime(delayOn ? delayWetVal : 0, audioCtx.currentTime, 0.05);
+      }
+    }
+  } else if (e.key === 'Enter') {
+    if (!enterDown) {
+      enterDown = true;
+      enterHoldStart = Date.now();
+      playNote();
+      arpHoldTimer = setTimeout(function() {
+        if (enterDown) {
+          stopNote();
+          startArp();
+        }
+      }, 300);
+    }
+  } else if (e.key === 'Escape' || e.key === 'Backspace') {
+    if (arpActive) {
+      stopArp();
+    } else {
+      toggleMicFilter();
+    }
+  }
+});
+
+document.addEventListener('keyup', function(e) {
+  if (e.key === 'Enter') {
+    enterDown = false;
+    if (arpHoldTimer) { clearTimeout(arpHoldTimer); arpHoldTimer = null; }
+    if (arpActive) {
+      stopArp();
+    } else {
+      stopNote();
+    }
+  }
+});
+
+draw();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

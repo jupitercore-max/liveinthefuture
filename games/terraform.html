@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/games/terraform.html" />
+  <meta property="og:title" content="Terraform - LITF Games" />
+  <meta property="og:url" content="https://liveinthefuture.org/games/terraform.html" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Terraform - LITF Games</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d0d0d;color:#e8e8e8;width:600px;height:600px;overflow:hidden;-webkit-user-select:none;user-select:none}
+canvas{display:block}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+var W = 600, H = 600;
+
+// Audio
+var audioCtx = null;
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+// === BGM System ===
+var bgmAudio = null, bgmGameover = null, bgmMuted = false, bgmStarted = false;
+function bgmInit() {
+  bgmAudio = new Audio('audio/terraform-bgm.mp3');
+  bgmAudio.loop = true;
+  bgmAudio.volume = 0.15;
+  bgmGameover = new Audio('audio/gameover-dark.mp3');
+  bgmGameover.volume = 0.25;
+}
+function bgmPlay() {
+  if (bgmMuted || !bgmAudio) return;
+  if (!bgmStarted) { bgmAudio.currentTime = 0; bgmStarted = true; }
+  bgmAudio.play().catch(function(){});
+}
+function bgmStop() { if (bgmAudio) { bgmAudio.pause(); } bgmStarted = false; }
+function bgmGameOver() {
+  bgmStop();
+  if (bgmMuted || !bgmGameover) return;
+  bgmGameover.currentTime = 0;
+  bgmGameover.play().catch(function(){});
+}
+function bgmToggle() {
+  bgmMuted = !bgmMuted;
+  if (bgmMuted) { if (bgmAudio) bgmAudio.pause(); }
+  else bgmPlay();
+}
+
+function playTone(freq, dur, vol, type) {
+  if (!audioCtx) return;
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.type = type || 'sine';
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(vol || 0.08, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+function sndPlace(elem) {
+  if (elem === WATER) { playTone(300, 0.15, 0.1, 'sine'); playTone(350, 0.2, 0.06, 'sine'); }
+  else if (elem === PLANT) { playTone(440, 0.1, 0.1, 'triangle'); playTone(550, 0.12, 0.06, 'triangle'); }
+  else { playTone(150, 0.12, 0.1, 'square'); }
+}
+function sndGrow() { playTone(520 + Math.random() * 200, 0.08, 0.04, 'sine'); }
+function sndAnimal() { playTone(660, 0.06, 0.06, 'sine'); playTone(880, 0.08, 0.04, 'sine'); }
+function sndWin() {
+  for (var i = 0; i < 5; i++) {
+    (function(i){ setTimeout(function(){ playTone(330 + i * 110, 0.2, 0.08, 'triangle'); }, i * 80); })(i);
+  }
+}
+function sndErr() { playTone(150, 0.15, 0.08, 'sawtooth'); }
+function sndDeath() {
+  playTone(200, 0.4, 0.12, 'sawtooth');
+  setTimeout(function(){ playTone(120, 0.5, 0.1, 'sawtooth'); }, 200);
+  setTimeout(function(){ playTone(80, 0.7, 0.08, 'sawtooth'); }, 450);
+}
+function sndNav() { playTone(280, 0.03, 0.03, 'sine'); }
+
+// ---- AMBIENT ECOSYSTEM SOUNDSCAPE ----
+// Continuous audio layers that evolve with the ecosystem
+var ambientNodes = null;
+var ambientTargets = { wind: 0.015, water: 0, forest: 0, life: 0 };
+var ambientCurrent = { wind: 0, water: 0, forest: 0, life: 0 };
+
+function initAmbient() {
+  if (!audioCtx || ambientNodes) return;
+  ambientNodes = {};
+
+  // Wind — filtered white noise, always present on a living planet
+  var windBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+  var windData = windBuf.getChannelData(0);
+  for (var i = 0; i < windData.length; i++) windData[i] = Math.random() * 2 - 1;
+  var windSrc = audioCtx.createBufferSource();
+  windSrc.buffer = windBuf;
+  windSrc.loop = true;
+  var windFilter = audioCtx.createBiquadFilter();
+  windFilter.type = 'lowpass';
+  windFilter.frequency.value = 400;
+  var windGain = audioCtx.createGain();
+  windGain.gain.value = 0;
+  windSrc.connect(windFilter);
+  windFilter.connect(windGain);
+  windGain.connect(audioCtx.destination);
+  windSrc.start();
+  ambientNodes.windGain = windGain;
+  ambientNodes.windFilter = windFilter;
+
+  // Water — bandpass noise for flowing water sound
+  var waterBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+  var waterData = waterBuf.getChannelData(0);
+  for (var i = 0; i < waterData.length; i++) waterData[i] = Math.random() * 2 - 1;
+  var waterSrc = audioCtx.createBufferSource();
+  waterSrc.buffer = waterBuf;
+  waterSrc.loop = true;
+  var waterBP = audioCtx.createBiquadFilter();
+  waterBP.type = 'bandpass';
+  waterBP.frequency.value = 2000;
+  waterBP.Q.value = 0.5;
+  var waterGain = audioCtx.createGain();
+  waterGain.gain.value = 0;
+  waterSrc.connect(waterBP);
+  waterBP.connect(waterGain);
+  waterGain.connect(audioCtx.destination);
+  waterSrc.start();
+  ambientNodes.waterGain = waterGain;
+
+  // Forest — gentle harmonic drone (triangle wave chord)
+  var forestOsc1 = audioCtx.createOscillator();
+  forestOsc1.type = 'triangle';
+  forestOsc1.frequency.value = 110;
+  var forestOsc2 = audioCtx.createOscillator();
+  forestOsc2.type = 'triangle';
+  forestOsc2.frequency.value = 165; // perfect fifth
+  var forestGain = audioCtx.createGain();
+  forestGain.gain.value = 0;
+  var forestLP = audioCtx.createBiquadFilter();
+  forestLP.type = 'lowpass';
+  forestLP.frequency.value = 300;
+  forestOsc1.connect(forestLP);
+  forestOsc2.connect(forestLP);
+  forestLP.connect(forestGain);
+  forestGain.connect(audioCtx.destination);
+  forestOsc1.start();
+  forestOsc2.start();
+  ambientNodes.forestGain = forestGain;
+
+  // Life — periodic chirps via modulated sine
+  var lifeOsc = audioCtx.createOscillator();
+  lifeOsc.type = 'sine';
+  lifeOsc.frequency.value = 1200;
+  var lifeLFO = audioCtx.createOscillator();
+  lifeLFO.type = 'sine';
+  lifeLFO.frequency.value = 3.5; // chirp rate
+  var lifeLFOGain = audioCtx.createGain();
+  lifeLFOGain.gain.value = 600; // freq modulation depth
+  lifeLFO.connect(lifeLFOGain);
+  lifeLFOGain.connect(lifeOsc.frequency);
+  var lifeGain = audioCtx.createGain();
+  lifeGain.gain.value = 0;
+  lifeOsc.connect(lifeGain);
+  lifeGain.connect(audioCtx.destination);
+  lifeOsc.start();
+  lifeLFO.start();
+  ambientNodes.lifeGain = lifeGain;
+  ambientNodes.lifeLFO = lifeLFO;
+}
+
+function updateAmbient() {
+  if (!ambientNodes) return;
+  var wc = countType(WATER);
+  var tc = countType(TREE);
+  var ac = countType(ANIMAL);
+  var total = ROWS * COLS;
+
+  // Target volumes based on ecosystem (max ~0.04 per layer)
+  ambientTargets.wind = 0.012 + Math.min(0.02, (wc + tc) / total * 0.15);
+  ambientTargets.water = Math.min(0.035, wc / total * 0.25);
+  ambientTargets.forest = Math.min(0.025, tc / total * 0.3);
+  ambientTargets.life = Math.min(0.02, ac / 10 * 0.04);
+
+  // Smooth lerp toward targets (very gentle — 0.03)
+  var keys = ['wind', 'water', 'forest', 'life'];
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    ambientCurrent[k] += (ambientTargets[k] - ambientCurrent[k]) * 0.03;
+  }
+
+  // Apply
+  ambientNodes.windGain.gain.setTargetAtTime(ambientCurrent.wind, audioCtx.currentTime, 0.1);
+  ambientNodes.waterGain.gain.setTargetAtTime(ambientCurrent.water, audioCtx.currentTime, 0.1);
+  ambientNodes.forestGain.gain.setTargetAtTime(ambientCurrent.forest, audioCtx.currentTime, 0.1);
+  ambientNodes.lifeGain.gain.setTargetAtTime(ambientCurrent.life, audioCtx.currentTime, 0.1);
+
+  // Modulate wind filter with weather
+  var windFreq = 300 + weatherMultiplier * 200; // windier in rain
+  ambientNodes.windFilter.frequency.setTargetAtTime(windFreq, audioCtx.currentTime, 0.2);
+
+  // Chirp rate scales with animal count
+  if (ambientNodes.lifeLFO) {
+    var chirpRate = 2 + Math.min(6, ac * 0.8);
+    ambientNodes.lifeLFO.frequency.setTargetAtTime(chirpRate, audioCtx.currentTime, 0.3);
+  }
+
+  // Mute on death/menu/win screens
+  if (state === ST_MENU || state === ST_DEAD || state === ST_OVER) {
+    ambientNodes.windGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.3);
+    ambientNodes.waterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.3);
+    ambientNodes.forestGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.3);
+    ambientNodes.lifeGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.3);
+  }
+}
+
+// Mic / Weather system
+var micStream = null, micAnalyser = null, micData = null;
+var micFailed = false, micLevel = 0, micSmooth = 0;
+var weatherMultiplier = 1.0; // 0.5 (drought) to 2.0 (downpour)
+var raindrops = [];
+
+function initMic() {
+  if (micStream || micFailed) return;
+  micFailed = true; // set before call
+  try {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      micFailed = false;
+      micStream = stream;
+      micAnalyser = audioCtx.createAnalyser();
+      micAnalyser.fftSize = 256;
+      micAnalyser.smoothingTimeConstant = 0.85;
+      var src = audioCtx.createMediaStreamSource(stream);
+      src.connect(micAnalyser);
+      micData = new Uint8Array(micAnalyser.frequencyBinCount);
+    }).catch(function() { micFailed = true; });
+  } catch(e) { micFailed = true; }
+}
+
+function updateMic() {
+  if (!micAnalyser || !micData) return;
+  micAnalyser.getByteFrequencyData(micData);
+  var sum = 0;
+  for (var i = 0; i < micData.length; i++) sum += micData[i];
+  micLevel = sum / micData.length / 255; // 0-1
+  micSmooth += (micLevel - micSmooth) * 0.1; // gentle lerp
+  // Map mic 0-1 → weather 0.5-2.0
+  weatherMultiplier = 0.5 + micSmooth * 1.5;
+}
+
+function spawnRaindrops() {
+  // More rain when louder
+  var count = Math.floor(weatherMultiplier * 2);
+  for (var i = 0; i < count; i++) {
+    if (raindrops.length < 60) {
+      raindrops.push({
+        x: OX + Math.random() * (COLS * CELL),
+        y: OY + Math.random() * 20,
+        speed: 3 + Math.random() * 4,
+        len: 4 + Math.random() * 8,
+        alpha: 0.15 + micSmooth * 0.35
+      });
+    }
+  }
+}
+
+function updateRaindrops() {
+  for (var i = raindrops.length - 1; i >= 0; i--) {
+    raindrops[i].y += raindrops[i].speed;
+    if (raindrops[i].y > OY + ROWS * CELL) {
+      raindrops.splice(i, 1);
+    }
+  }
+}
+
+function drawRain() {
+  if (weatherMultiplier < 0.8) return; // no rain in drought
+  ctx.strokeStyle = '#5dade2';
+  ctx.lineWidth = 1;
+  for (var i = 0; i < raindrops.length; i++) {
+    var r = raindrops[i];
+    ctx.globalAlpha = r.alpha;
+    ctx.beginPath();
+    ctx.moveTo(r.x, r.y);
+    ctx.lineTo(r.x - 1, r.y + r.len);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// States
+var ST_MENU = 0, ST_PLAY = 1, ST_OVER = 2, ST_PICKER = 3, ST_DEAD = 4;
+var state = ST_MENU;
+
+// Grid
+var COLS = 20, ROWS = 20;
+var CELL = 26;
+var OX = (W - COLS * CELL) / 2;
+var OY = 46;
+
+// Element types
+var EMPTY = 0, WATER = 1, PLANT = 2, TREE = 3, ANIMAL = 4, ROCK = 5;
+var ELEM_COLORS = ['#1a1a1a', '#3498db', '#2ecc71', '#27ae60', '#e67e22', '#7f8c8d'];
+var ELEM_EMOJIS = ['', '💧', '🌱', '🌳', '🦊', '🪨'];
+var ELEM_NAMES = ['Empty', 'Water', 'Plant', 'Rock'];
+var PLACEABLE = [WATER, PLANT, ROCK];
+var ELEM_COSTS = [0, 5, 8, 0, 0, 3]; // indexed by element type
+
+var grid = [];
+var curR = 0, curC = 0;
+var pickerIdx = 0; // index into PLACEABLE when picker open
+var energy = 50, maxEnergy = 50;
+var simTick = 0;
+var turnCount = 0;
+var biodiversity = 0;
+var targetBio = 5;
+var level = 1;
+var animT = 0;
+var planetHealth = 100;
+var maxPlanetHealth = 100;
+var bestLevel = 0;
+var totalTerraformed = 0;
+try { bestLevel = parseInt(localStorage.getItem('tf_best_level')) || 0; } catch(e){}
+try { totalTerraformed = parseInt(localStorage.getItem('tf_total')) || 0; } catch(e){}
+
+// ---- ECOSYSTEM WONDERS (Discovery System) ----
+// 6 rare phenomena that emerge from specific ecosystem conditions
+var WONDERS = [
+  { id: 'bloom', name: 'Bloom', emoji: '🌸', desc: 'Mass flowering — 4+ plants around water became trees' },
+  { id: 'alpha', name: 'Alpha', emoji: '🐺', desc: 'A pack formed — 3+ adjacent animals merged' },
+  { id: 'eruption', name: 'Eruption', emoji: '🌋', desc: 'A dying rock erupted, clearing and fertilizing' },
+  { id: 'rainbow', name: 'Rainbow', emoji: '🌈', desc: 'A rainbow appeared as the storm cleared' },
+  { id: 'mushroom', name: 'Fungi', emoji: '🍄', desc: 'Mushrooms sprouted from drought-killed plants' },
+  { id: 'migration', name: 'Migration', emoji: '🦢', desc: 'A flock migrated across the sky' }
+];
+var MUSHROOM = 6; // new element type
+ELEM_COLORS.push('#9b59b6'); // purple for mushrooms
+ELEM_EMOJIS.push('🍄');
+
+var wondersFound = {};
+try {
+  var saved = JSON.parse(localStorage.getItem('tf_wonders'));
+  if (saved) wondersFound = saved;
+} catch(e){}
+function saveWonders() { try { localStorage.setItem('tf_wonders', JSON.stringify(wondersFound)); } catch(e){} }
+function wonderCount() { var n = 0; for (var i = 0; i < WONDERS.length; i++) if (wondersFound[WONDERS[i].id]) n++; return n; }
+
+// Toast notification system
+var toasts = [];
+function showToast(emoji, title, desc, color) {
+  toasts.push({ emoji: emoji, title: title, desc: desc, color: color || '#4a9eff', life: 180, maxLife: 180 });
+}
+
+// Wonder-specific audio
+function sndWonder(type) {
+  if (!audioCtx) return;
+  if (type === 'bloom') {
+    for (var i = 0; i < 5; i++) {
+      (function(i){ setTimeout(function(){ playTone(440 + i * 80, 0.15, 0.06, 'sine'); }, i * 60); })(i);
+    }
+  } else if (type === 'alpha') {
+    playTone(150, 0.4, 0.1, 'sawtooth');
+    setTimeout(function(){ playTone(180, 0.3, 0.08, 'sawtooth'); }, 150);
+    setTimeout(function(){ playTone(220, 0.2, 0.06, 'triangle'); }, 300);
+  } else if (type === 'eruption') {
+    playTone(80, 0.6, 0.12, 'sawtooth');
+    setTimeout(function(){ playTone(60, 0.5, 0.1, 'square'); }, 100);
+    setTimeout(function(){ playTone(120, 0.3, 0.08, 'triangle'); }, 350);
+  } else if (type === 'rainbow') {
+    var notes = [262, 330, 392, 523]; // C E G C
+    for (var i = 0; i < notes.length; i++) {
+      (function(i){ setTimeout(function(){ playTone(notes[i], 0.3, 0.05, 'triangle'); }, i * 120); })(i);
+    }
+  } else if (type === 'mushroom') {
+    playTone(330, 0.2, 0.06, 'sine');
+    setTimeout(function(){ playTone(370, 0.15, 0.05, 'sine'); }, 100);
+    setTimeout(function(){ playTone(415, 0.1, 0.04, 'sine'); }, 180);
+  } else if (type === 'migration') {
+    for (var i = 0; i < 4; i++) {
+      (function(i){ setTimeout(function(){ playTone(600 + i * 50, 0.12, 0.04, 'sine'); }, i * 100); })(i);
+    }
+  }
+}
+
+function triggerWonder(id) {
+  var w = null;
+  for (var i = 0; i < WONDERS.length; i++) if (WONDERS[i].id === id) w = WONDERS[i];
+  if (!w) return;
+  var isNew = !wondersFound[id];
+  wondersFound[id] = true;
+  saveWonders();
+  var prefix = isNew ? '✨ NEW WONDER: ' : '';
+  showToast(w.emoji, prefix + w.name, w.desc, isNew ? '#f1c40f' : '#4a9eff');
+  sndWonder(id);
+}
+
+// Rainbow tracking
+var prevWeatherHigh = false;
+// Migration cooldown
+var migrationCooldown = 0;
+// Migration birds visual
+var migrationBirds = [];
+
+// Particles for visual feedback
+var particles = [];
+function addParticle(x, y, color, emoji) {
+  particles.push({ x: x, y: y, vy: -0.8 - Math.random() * 0.6, alpha: 1, color: color, emoji: emoji, life: 40 + Math.random() * 20 });
+}
+
+// Track spawns for audio feedback
+var lastWaterCount = 0, lastPlantCount = 0, lastTreeCount = 0, lastAnimalCount = 0;
+
+function initGrid() {
+  grid = [];
+  for (var r = 0; r < ROWS; r++) {
+    grid[r] = [];
+    for (var c = 0; c < COLS; c++) {
+      grid[r][c] = EMPTY;
+    }
+  }
+  for (var i = 0; i < 12 + level * 2; i++) {
+    grid[Math.floor(Math.random()*ROWS)][Math.floor(Math.random()*COLS)] = ROCK;
+  }
+  curR = Math.floor(ROWS/2);
+  curC = Math.floor(COLS/2);
+  energy = 50 + (level - 1) * 10;
+  maxEnergy = energy;
+  turnCount = 0;
+  simTick = 0;
+  particles = [];
+  planetHealth = 100;
+  maxPlanetHealth = 100;
+  lastWaterCount = 0; lastPlantCount = 0; lastTreeCount = 0; lastAnimalCount = 0;
+}
+
+function countType(type) {
+  var n = 0;
+  for (var r = 0; r < ROWS; r++)
+    for (var c = 0; c < COLS; c++)
+      if (grid[r][c] === type) n++;
+  return n;
+}
+
+function neighbors(r, c) {
+  var nb = [];
+  if (r > 0) nb.push([r-1, c]);
+  if (r < ROWS-1) nb.push([r+1, c]);
+  if (c > 0) nb.push([r, c-1]);
+  if (c < COLS-1) nb.push([r, c+1]);
+  return nb;
+}
+
+function simulate() {
+  var newGrid = [];
+  for (var r = 0; r < ROWS; r++) {
+    newGrid[r] = [];
+    for (var c = 0; c < COLS; c++) {
+      newGrid[r][c] = grid[r][c];
+    }
+  }
+
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      var cell = grid[r][c];
+      var nb = neighbors(r, c);
+
+      // Water spreads — faster in rain, slower in drought
+      if (cell === WATER && Math.random() < 0.18 * weatherMultiplier) {
+        var target = nb[Math.floor(Math.random() * nb.length)];
+        if (grid[target[0]][target[1]] === EMPTY) newGrid[target[0]][target[1]] = WATER;
+      }
+
+      // Plants grow near water (much faster)
+      if (cell === EMPTY) {
+        var hasWater = false, hasPlant = false;
+        for (var i = 0; i < nb.length; i++) {
+          if (grid[nb[i][0]][nb[i][1]] === WATER) hasWater = true;
+          if (grid[nb[i][0]][nb[i][1]] === PLANT || grid[nb[i][0]][nb[i][1]] === TREE) hasPlant = true;
+        }
+        if (hasWater && hasPlant && Math.random() < 0.12 * weatherMultiplier) newGrid[r][c] = PLANT;
+        // Spontaneous plant near water — rain helps
+        if (hasWater && !hasPlant && Math.random() < 0.02 * weatherMultiplier) newGrid[r][c] = PLANT;
+      }
+
+      // Plants become trees (faster)
+      if (cell === PLANT) {
+        var waterCount = 0;
+        for (var i = 0; i < nb.length; i++) {
+          if (grid[nb[i][0]][nb[i][1]] === WATER) waterCount++;
+        }
+        if (waterCount >= 1 && Math.random() < 0.08 * weatherMultiplier) newGrid[r][c] = TREE;
+      }
+
+      // Animals spawn near trees and water (faster)
+      if (cell === EMPTY) {
+        var nearTree = false, nearWater = false, nearAnimal = false;
+        for (var i = 0; i < nb.length; i++) {
+          if (grid[nb[i][0]][nb[i][1]] === TREE) nearTree = true;
+          if (grid[nb[i][0]][nb[i][1]] === WATER) nearWater = true;
+          if (grid[nb[i][0]][nb[i][1]] === ANIMAL) nearAnimal = true;
+        }
+        if (nearTree && nearWater && !nearAnimal && Math.random() < 0.06) newGrid[r][c] = ANIMAL;
+      }
+
+      // Animals move
+      if (cell === ANIMAL && Math.random() < 0.2) {
+        var target = nb[Math.floor(Math.random() * nb.length)];
+        if (grid[target[0]][target[1]] === EMPTY) {
+          newGrid[r][c] = EMPTY;
+          newGrid[target[0]][target[1]] = ANIMAL;
+        }
+      }
+
+      // Plants die without water — drought kills faster
+      if (cell === PLANT) {
+        var anyWater = false;
+        for (var i = 0; i < nb.length; i++) {
+          if (grid[nb[i][0]][nb[i][1]] === WATER) anyWater = true;
+        }
+        var deathRate = weatherMultiplier < 0.8 ? 0.04 : 0.01; // 4× death in drought
+        if (!anyWater && Math.random() < deathRate) newGrid[r][c] = EMPTY;
+      }
+    }
+  }
+
+  grid = newGrid;
+  simTick++;
+
+  // Detect new spawns and add particles + sounds
+  var wc = countType(WATER), pc = countType(PLANT), tc = countType(TREE), ac = countType(ANIMAL);
+  if (tc > lastTreeCount) {
+    sndGrow();
+    // Find new trees for particles
+    for (var r = 0; r < ROWS; r++)
+      for (var c = 0; c < COLS; c++)
+        if (grid[r][c] === TREE) addParticle(OX + c * CELL + CELL/2, OY + r * CELL, '#27ae60', '🌳');
+  }
+  if (ac > lastAnimalCount) {
+    sndAnimal();
+    for (var r = 0; r < ROWS; r++)
+      for (var c = 0; c < COLS; c++)
+        if (grid[r][c] === ANIMAL) addParticle(OX + c * CELL + CELL/2, OY + r * CELL, '#e67e22', '🦊');
+  }
+  lastWaterCount = wc; lastPlantCount = pc; lastTreeCount = tc; lastAnimalCount = ac;
+
+  // ---- WONDER DETECTION ----
+  // 1. Bloom: 4+ plants simultaneously became trees this tick
+  if (tc > lastTreeCount && tc - lastTreeCount >= 4) {
+    triggerWonder('bloom');
+    // Add sparkle particles around new trees
+    for (var r2 = 0; r2 < ROWS; r2++)
+      for (var c2 = 0; c2 < COLS; c2++)
+        if (grid[r2][c2] === TREE && Math.random() < 0.3)
+          addParticle(OX + c2 * CELL + CELL/2, OY + r2 * CELL, '#ff69b4', '🌸');
+  }
+
+  // 2. Alpha Pack: 3+ adjacent animals form a cluster
+  if (ac >= 3) {
+    for (var r2 = 0; r2 < ROWS; r2++) {
+      for (var c2 = 0; c2 < COLS; c2++) {
+        if (grid[r2][c2] === ANIMAL) {
+          var adjAnimal = 0;
+          var nbs = neighbors(r2, c2);
+          for (var n2 = 0; n2 < nbs.length; n2++)
+            if (grid[nbs[n2][0]][nbs[n2][1]] === ANIMAL) adjAnimal++;
+          if (adjAnimal >= 2) { triggerWonder('alpha'); break; }
+        }
+      }
+      if (wondersFound['alpha'] && WONDERS[1].id === 'alpha') break; // avoid double-trigger per tick
+    }
+  }
+
+  // 3. Eruption: rock explodes when planet health is low and rock is surrounded by 3+ plants/trees
+  if (planetHealth < 40 && Math.random() < 0.015) {
+    for (var r2 = 0; r2 < ROWS; r2++) {
+      for (var c2 = 0; c2 < COLS; c2++) {
+        if (grid[r2][c2] === ROCK) {
+          var greenNb = 0;
+          var nbs = neighbors(r2, c2);
+          for (var n2 = 0; n2 < nbs.length; n2++) {
+            var nb2 = grid[nbs[n2][0]][nbs[n2][1]];
+            if (nb2 === PLANT || nb2 === TREE) greenNb++;
+          }
+          if (greenNb >= 3) {
+            triggerWonder('eruption');
+            // Rock explodes: clear a 3x3 area, fertilize edges with water
+            for (var dr = -1; dr <= 1; dr++) {
+              for (var dc = -1; dc <= 1; dc++) {
+                var nr = r2 + dr, nc = c2 + dc;
+                if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                  if (dr === 0 && dc === 0) grid[nr][nc] = EMPTY;
+                  else if (grid[nr][nc] === ROCK || grid[nr][nc] === EMPTY) grid[nr][nc] = WATER;
+                  addParticle(OX + nc * CELL + CELL/2, OY + nr * CELL, '#e74c3c', '💥');
+                }
+              }
+            }
+            r2 = ROWS; break; // one eruption per tick
+          }
+        }
+      }
+    }
+  }
+
+  // 4. Rainbow: weather transitions from >1.5 (storm) to <1.0 (clearing)
+  if (weatherMultiplier > 1.5) prevWeatherHigh = true;
+  if (prevWeatherHigh && weatherMultiplier < 1.0) {
+    prevWeatherHigh = false;
+    if (tc > 3 && wc > 3) { // need some ecosystem to see it
+      triggerWonder('rainbow');
+    }
+  }
+
+  // 5. Mushroom/Fungi: plants die in drought → chance to spawn mushrooms
+  if (weatherMultiplier < 0.8) {
+    for (var r2 = 0; r2 < ROWS; r2++) {
+      for (var c2 = 0; c2 < COLS; c2++) {
+        if (grid[r2][c2] === EMPTY) {
+          var hadPlantNb = false;
+          var nbs = neighbors(r2, c2);
+          for (var n2 = 0; n2 < nbs.length; n2++)
+            if (grid[nbs[n2][0]][nbs[n2][1]] === TREE || grid[nbs[n2][0]][nbs[n2][1]] === PLANT) hadPlantNb = true;
+          if (hadPlantNb && Math.random() < 0.003) {
+            grid[r2][c2] = MUSHROOM;
+            triggerWonder('mushroom');
+            addParticle(OX + c2 * CELL + CELL/2, OY + r2 * CELL, '#9b59b6', '🍄');
+          }
+        }
+      }
+    }
+  }
+  // Mushrooms slowly decay back to empty (or help nearby plant growth)
+  for (var r2 = 0; r2 < ROWS; r2++) {
+    for (var c2 = 0; c2 < COLS; c2++) {
+      if (grid[r2][c2] === MUSHROOM) {
+        // Boost adjacent plant growth
+        var nbs = neighbors(r2, c2);
+        for (var n2 = 0; n2 < nbs.length; n2++) {
+          if (grid[nbs[n2][0]][nbs[n2][1]] === EMPTY && Math.random() < 0.04) {
+            grid[nbs[n2][0]][nbs[n2][1]] = PLANT;
+          }
+        }
+        // Decay after ~20 ticks average
+        if (Math.random() < 0.05) grid[r2][c2] = EMPTY;
+      }
+    }
+  }
+
+  // 6. Migration: large ecosystem (10+ trees, 5+ animals) triggers bird migration across screen
+  if (migrationCooldown > 0) migrationCooldown--;
+  if (tc >= 10 && ac >= 5 && migrationCooldown <= 0 && Math.random() < 0.02) {
+    triggerWonder('migration');
+    migrationCooldown = 60; // prevent spam
+    // Spawn migration birds (visual only)
+    var startY = OY + Math.random() * (ROWS * CELL * 0.5);
+    for (var b = 0; b < 7; b++) {
+      migrationBirds.push({
+        x: -30 - b * 25 - Math.random() * 15,
+        y: startY + (b % 2 === 0 ? -1 : 1) * (b * 5 + Math.random() * 10),
+        speed: 2.5 + Math.random() * 0.5
+      });
+    }
+  }
+
+  // Calc biodiversity
+  biodiversity = 0;
+  if (wc > 0) biodiversity++;
+  if (pc > 0) biodiversity++;
+  if (tc > 0) biodiversity++;
+  if (ac > 0) biodiversity++;
+  if (countType(ROCK) > 0) biodiversity++;
+  if (countType(MUSHROOM) > 0) biodiversity++;
+
+  // Energy regen
+  energy = Math.min(maxEnergy, energy + 1);
+
+  // Planet health: decays without biodiversity, heals with it
+  var healthDelta = (biodiversity - 2) * 0.4; // <2 bio = decay, >2 bio = heal
+  healthDelta -= level * 0.15; // harder levels decay faster
+  if (weatherMultiplier < 0.8) healthDelta -= 0.3; // drought hurts
+  if (weatherMultiplier > 1.4) healthDelta += 0.2; // rain helps slightly
+  planetHealth = Math.max(0, Math.min(maxPlanetHealth, planetHealth + healthDelta));
+}
+
+function placeElement() {
+  var elem = PLACEABLE[pickerIdx];
+  var cost = ELEM_COSTS[elem];
+  if (energy < cost) { sndErr(); return false; }
+  if (grid[curR][curC] !== EMPTY) { sndErr(); return false; }
+  grid[curR][curC] = elem;
+  energy -= cost;
+  turnCount++;
+  sndPlace(elem);
+  addParticle(OX + curC * CELL + CELL/2, OY + curR * CELL, ELEM_COLORS[elem], ELEM_EMOJIS[elem]);
+  // Run sim after placement
+  simulate();
+  return true;
+}
+
+// ---- DRAWING ----
+
+function drawMenu() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  // Animated background cells
+  for (var y = 0; y < 8; y++) {
+    for (var x = 0; x < 8; x++) {
+      var n = Math.sin(x * 2.3 + y * 3.1 + animT * 0.4);
+      if (n > 0.3) {
+        ctx.globalAlpha = 0.08;
+        ctx.fillStyle = ELEM_COLORS[1 + Math.floor(Math.abs(n) * 4) % 5];
+        ctx.fillRect(x * 75, y * 75, 75, 75);
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 48px -apple-system, sans-serif';
+  ctx.fillStyle = '#2ecc71';
+  ctx.fillText('🌍 TERRAFORM', W/2, 160);
+
+  ctx.font = '17px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.fillText('Build an ecosystem on a dead planet', W/2, 210);
+  ctx.fillText('Place water and plants, watch life emerge', W/2, 236);
+  ctx.fillText('🎤 Ambient sound controls the weather', W/2, 262);
+  ctx.fillText('⚠️ Planet health decays — terraform fast!', W/2, 288);
+
+  ctx.font = '600 19px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.fillText('↑↓←→  Move Cursor', W/2, 326);
+  ctx.fillText('Enter  Open Element Picker', W/2, 358);
+  ctx.fillText('↑↓  Cycle Elements  ·  Enter  Place', W/2, 390);
+  ctx.fillText('Esc  Cancel / Back', W/2, 422);
+
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.fillText('💧5  ·  🌱8  ·  🪨3  energy', W/2, 466);
+
+  if (bestLevel > 0) {
+    ctx.fillStyle = '#4a9eff';
+    ctx.fillText('🏆 Best: Level ' + bestLevel + '  ·  Total: ' + totalTerraformed + ' planets', W/2, 492);
+  }
+
+  // Wonder discovery count
+  var wc2 = wonderCount();
+  if (wc2 > 0) {
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillText('🔍 Wonders: ' + wc2 + '/' + WONDERS.length, W/2, 510);
+  }
+
+  var pulse = 0.6 + 0.4 * Math.sin(animT * 3);
+  ctx.globalAlpha = pulse;
+  ctx.font = 'bold 22px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText('Press Enter to Start', W/2, 530);
+  ctx.globalAlpha = 1;
+}
+
+function drawGame() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  // HUD top bar
+  ctx.fillStyle = 'rgba(13,13,13,0.9)';
+  ctx.fillRect(0, 0, W, 42);
+
+  ctx.textAlign = 'left';
+  ctx.font = 'bold 15px -apple-system, sans-serif';
+  // Energy bar
+  var barX = 10, barY = 8, barW = 130, barH = 10;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(barX, barY, barW, barH);
+  var ePct = energy / maxEnergy;
+  ctx.fillStyle = ePct > 0.5 ? '#3498db' : ePct > 0.25 ? '#f39c12' : '#e74c3c';
+  ctx.fillRect(barX, barY, barW * ePct, barH);
+  ctx.fillStyle = '#e8e8e8';
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillText('⚡' + energy, barX, barY + 24);
+
+  // Biodiversity
+  ctx.textAlign = 'right';
+  ctx.font = 'bold 15px -apple-system, sans-serif';
+  ctx.fillStyle = biodiversity >= targetBio ? '#2ecc71' : '#ccc';
+  ctx.fillText('🌿 ' + biodiversity + '/' + targetBio, W - 10, 18);
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.fillText('Lvl ' + level + '  ·  Tick ' + simTick, W - 10, 36);
+
+  // Population counts centered
+  ctx.textAlign = 'center';
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillStyle = '#666';
+  var pop = '💧' + countType(WATER) + '  🌱' + countType(PLANT) + '  🌳' + countType(TREE) + '  🦊' + countType(ANIMAL);
+  ctx.fillText(pop, W/2, 36);
+
+  // Planet health bar (right side, below biodiversity)
+  var hBarX = W - 145, hBarY = 8, hBarW = 130, hBarH = 10;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(hBarX, hBarY - 16, hBarW, hBarH);
+  var hPct = planetHealth / maxPlanetHealth;
+  var hColor = hPct > 0.5 ? '#2ecc71' : hPct > 0.25 ? '#f39c12' : '#e74c3c';
+  ctx.fillStyle = hColor;
+  ctx.fillRect(hBarX, hBarY - 16, hBarW * hPct, hBarH);
+  // Pulse red when low
+  if (hPct < 0.25 && Math.sin(animT * 6) > 0) {
+    ctx.fillStyle = 'rgba(231,76,60,0.3)';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // Grid
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      var x = OX + c * CELL;
+      var y = OY + r * CELL;
+      var cell = grid[r][c];
+
+      // Cell bg
+      if (cell === EMPTY) {
+        ctx.fillStyle = '#111';
+      } else if (cell === WATER) {
+        // Water shimmers
+        var shimmer = 0.85 + 0.15 * Math.sin(animT * 2 + r * 0.5 + c * 0.7);
+        ctx.globalAlpha = shimmer;
+        ctx.fillStyle = '#3498db';
+      } else if (cell === ANIMAL) {
+        // Animals gently pulse
+        var ap = 0.9 + 0.1 * Math.sin(animT * 3 + r + c);
+        ctx.globalAlpha = ap;
+        ctx.fillStyle = ELEM_COLORS[cell];
+      } else if (cell === MUSHROOM) {
+        // Mushrooms pulse purple
+        var mp = 0.8 + 0.2 * Math.sin(animT * 2.5 + r * 1.3 + c * 0.9);
+        ctx.globalAlpha = mp;
+        ctx.fillStyle = '#9b59b6';
+      } else {
+        ctx.fillStyle = ELEM_COLORS[cell];
+      }
+      ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+      ctx.globalAlpha = 1;
+
+      // Subtle grid lines
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
+
+      // Emoji icon
+      if (cell > 0) {
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = '14px -apple-system, sans-serif';
+        ctx.fillText(ELEM_EMOJIS[cell], x + CELL/2, y + CELL/2);
+        ctx.textBaseline = 'alphabetic';
+      }
+    }
+  }
+
+  // Cursor
+  var cx = OX + curC * CELL;
+  var cy = OY + curR * CELL;
+  var pulse = 2 + Math.sin(animT * 4);
+  ctx.strokeStyle = '#4a9eff';
+  ctx.lineWidth = pulse;
+  ctx.strokeRect(cx - 1, cy - 1, CELL + 2, CELL + 2);
+
+  // Ghost preview on empty cell (when NOT in picker)
+  if (state === ST_PLAY && grid[curR][curC] === EMPTY) {
+    ctx.globalAlpha = 0.25;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '16px -apple-system, sans-serif';
+    ctx.fillText('⊕', cx + CELL/2, cy + CELL/2);
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  // Particles
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.y += p.vy;
+    p.life--;
+    p.alpha = p.life / 60;
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    ctx.globalAlpha = p.alpha;
+    ctx.textAlign = 'center';
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.fillText(p.emoji, p.x, p.y);
+    ctx.globalAlpha = 1;
+  }
+
+  // Bottom hint + weather
+  ctx.textAlign = 'center';
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillStyle = '#444';
+  var weatherLabel = weatherMultiplier < 0.8 ? '☀️ Drought' :
+                     weatherMultiplier < 1.2 ? '⛅ Mild' :
+                     weatherMultiplier < 1.6 ? '🌧️ Rain' : '⛈️ Downpour';
+  var weatherColor = weatherMultiplier < 0.8 ? '#e67e22' :
+                     weatherMultiplier < 1.2 ? '#888' :
+                     weatherMultiplier < 1.6 ? '#3498db' : '#2980b9';
+  if (micStream) {
+    ctx.fillStyle = weatherColor;
+    ctx.fillText(weatherLabel + '  ×' + weatherMultiplier.toFixed(1), W/2, H - 20);
+  } else if (!micFailed) {
+    ctx.fillText('🎤 Press any key for weather', W/2, H - 20);
+  }
+  ctx.fillStyle = '#444';
+  ctx.fillText('Enter: place element  ·  Esc: back', W/2, H - 6);
+
+  // Rain overlay
+  drawRain();
+
+  // Migration birds
+  for (var bi = migrationBirds.length - 1; bi >= 0; bi--) {
+    var bird = migrationBirds[bi];
+    bird.x += bird.speed;
+    if (bird.x > W + 40) { migrationBirds.splice(bi, 1); continue; }
+    ctx.font = '16px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🦢', bird.x, bird.y + Math.sin(animT * 3 + bi) * 3);
+  }
+
+  // Toast notifications
+  for (var ti = toasts.length - 1; ti >= 0; ti--) {
+    var t = toasts[ti];
+    t.life--;
+    if (t.life <= 0) { toasts.splice(ti, 1); continue; }
+    var tAlpha = t.life < 30 ? t.life / 30 : (t.life > t.maxLife - 20 ? (t.maxLife - t.life) / 20 : 1);
+    ctx.globalAlpha = tAlpha * 0.95;
+    var ty = 70 + ti * 55;
+    ctx.fillStyle = 'rgba(13,13,13,0.9)';
+    ctx.strokeStyle = t.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(W/2 - 170, ty - 18, 340, 45, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 15px -apple-system, sans-serif';
+    ctx.fillStyle = t.color;
+    ctx.fillText(t.emoji + ' ' + t.title, W/2, ty + 2);
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = '#aaa';
+    ctx.fillText(t.desc, W/2, ty + 18);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawPicker() {
+  // Draw game underneath
+  drawGame();
+
+  // Overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Picker popup centered on cursor
+  var px = OX + curC * CELL + CELL/2;
+  var py = OY + curR * CELL + CELL/2;
+
+  // Clamp popup position so it stays on screen
+  var popW = 180, popH = 140;
+  var popX = Math.max(10, Math.min(px - popW/2, W - popW - 10));
+  var popY = Math.max(50, Math.min(py - popH - 10, H - popH - 10));
+
+  // Popup bg
+  ctx.fillStyle = '#1a1a1a';
+  ctx.strokeStyle = '#4a9eff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(popX, popY, popW, popH, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  // Title
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 14px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText('SELECT ELEMENT', popX + popW/2, popY + 20);
+
+  // Options
+  for (var i = 0; i < PLACEABLE.length; i++) {
+    var elem = PLACEABLE[i];
+    var oy = popY + 38 + i * 30;
+    var selected = (i === pickerIdx);
+
+    if (selected) {
+      ctx.fillStyle = '#4a9eff';
+      ctx.globalAlpha = 0.15;
+      ctx.fillRect(popX + 8, oy - 12, popW - 16, 26);
+      ctx.globalAlpha = 1;
+    }
+
+    // Arrow indicator
+    if (selected) {
+      ctx.fillStyle = '#4a9eff';
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 14px -apple-system, sans-serif';
+      ctx.fillText('▶', popX + 12, oy + 4);
+    }
+
+    // Emoji + name + cost
+    ctx.textAlign = 'left';
+    ctx.font = '14px -apple-system, sans-serif';
+    ctx.fillStyle = selected ? '#e8e8e8' : '#888';
+    ctx.fillText(ELEM_EMOJIS[elem] + ' ' + ELEM_NAMES[i], popX + 30, oy + 4);
+
+    // Cost
+    ctx.textAlign = 'right';
+    var cost = ELEM_COSTS[elem];
+    ctx.fillStyle = energy >= cost ? (selected ? '#3498db' : '#666') : '#cc4444';
+    ctx.fillText('⚡' + cost, popX + popW - 12, oy + 4);
+  }
+
+  // Hint
+  ctx.textAlign = 'center';
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.fillText('↑↓ select  ·  Enter place  ·  Esc cancel', popX + popW/2, popY + popH - 8);
+}
+
+function drawGameOver() {
+  drawGame();
+  ctx.fillStyle = 'rgba(0,0,0,0.85)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#2ecc71';
+  ctx.font = 'bold 42px -apple-system, sans-serif';
+  ctx.fillText('🌍 TERRAFORMED!', W/2, 180);
+
+  ctx.fillStyle = '#e8e8e8';
+  ctx.font = '20px -apple-system, sans-serif';
+  ctx.fillText('Level ' + level + ' Complete', W/2, 230);
+
+  ctx.font = '16px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  var pop = '💧' + countType(WATER) + '  🌱' + countType(PLANT) + '  🌳' + countType(TREE) + '  🦊' + countType(ANIMAL);
+  ctx.fillText(pop, W/2, 270);
+  ctx.fillText('Turns: ' + turnCount + '  ·  Ticks: ' + simTick, W/2, 300);
+
+  // Records
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText('🏆 Best: Level ' + bestLevel + '  ·  Total: ' + totalTerraformed + ' planets', W/2, 340);
+
+  var pulse = 0.6 + 0.4 * Math.sin(animT * 3);
+  ctx.globalAlpha = pulse;
+  ctx.font = 'bold 22px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText('Enter: Next Level', W/2, 400);
+  ctx.globalAlpha = 1;
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#666';
+  ctx.fillText('Esc: Back to Gallery', W/2, 435);
+}
+
+function drawDead() {
+  drawGame();
+  ctx.fillStyle = 'rgba(0,0,0,0.9)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#e74c3c';
+  ctx.font = 'bold 42px -apple-system, sans-serif';
+  ctx.fillText('💀 PLANET LOST', W/2, 160);
+
+  ctx.fillStyle = '#888';
+  ctx.font = '18px -apple-system, sans-serif';
+  ctx.fillText('The ecosystem collapsed', W/2, 210);
+
+  ctx.fillStyle = '#e8e8e8';
+  ctx.font = '22px -apple-system, sans-serif';
+  ctx.fillText('Reached Level ' + level, W/2, 270);
+
+  ctx.font = '16px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  var pop = '💧' + countType(WATER) + '  🌱' + countType(PLANT) + '  🌳' + countType(TREE) + '  🦊' + countType(ANIMAL);
+  ctx.fillText(pop, W/2, 310);
+
+  // Records
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText('🏆 Best: Level ' + bestLevel + '  ·  Total: ' + totalTerraformed + ' planets', W/2, 350);
+
+  var pulse = 0.6 + 0.4 * Math.sin(animT * 3);
+  ctx.globalAlpha = pulse;
+  ctx.font = 'bold 22px -apple-system, sans-serif';
+  ctx.fillStyle = '#e74c3c';
+  ctx.fillText('Enter: Try Again', W/2, 420);
+  ctx.globalAlpha = 1;
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#666';
+  ctx.fillText('Esc: Back to Gallery', W/2, 455);
+}
+
+var simInterval = 0;
+function gameLoop() {
+  animT += 0.016;
+
+  // Auto-simulate every 30 frames (~0.5 sec) for faster ecosystem growth
+  if (state === ST_PLAY || state === ST_PICKER) {
+    updateMic();
+    updateAmbient();
+    spawnRaindrops();
+    updateRaindrops();
+    simInterval++;
+    if (simInterval >= 30) { simulate(); simInterval = 0; }
+    if (biodiversity >= targetBio && countType(ANIMAL) >= 2) {
+      state = ST_OVER;
+      totalTerraformed++;
+      if (level > bestLevel) bestLevel = level;
+      try { localStorage.setItem('tf_best_level', bestLevel); } catch(e){}
+      try { localStorage.setItem('tf_total', totalTerraformed); } catch(e){}
+      sndWin();
+    }
+    if (planetHealth <= 0 && state !== ST_OVER) {
+      state = ST_DEAD; bgmGameOver();
+      updateAmbient(); // fade out
+      if (level > bestLevel) { bestLevel = level; try { localStorage.setItem('tf_best_level', bestLevel); } catch(e){} }
+      sndDeath();
+    }
+  }
+
+  if (state === ST_MENU) drawMenu();
+  else if (state === ST_OVER) drawGameOver();
+  else if (state === ST_DEAD) drawDead();
+  else if (state === ST_PICKER) drawPicker();
+  else drawGame();
+
+  requestAnimationFrame(gameLoop);
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'm' || e.key === 'M') { bgmToggle(); return; }
+  e.preventDefault();
+  initAudio(); if(!bgmAudio) bgmInit();
+  initAmbient();
+  if (!micStream && !micFailed) initMic();
+
+  if (state === ST_MENU) {
+    if (e.key === 'Enter') { initGrid(); state = ST_PLAY; bgmPlay(); playTone(440, 0.1, 0.1); }
+    if (e.key === 'Escape' || e.key === 'Backspace') window.location.href = './';
+    return;
+  }
+
+  if (state === ST_OVER) {
+    if (e.key === 'Enter') {
+      level++;
+      targetBio = Math.min(5, 3 + level);
+      initGrid();
+      state = ST_PLAY;
+    }
+    if (e.key === 'Escape' || e.key === 'Backspace') window.location.href = './';
+    return;
+  }
+
+  if (state === ST_DEAD) {
+    if (e.key === 'Enter') {
+      level = 1;
+      targetBio = 5;
+      initGrid();
+      state = ST_PLAY;
+    }
+    if (e.key === 'Escape' || e.key === 'Backspace') window.location.href = './';
+    return;
+  }
+
+  if (state === ST_PICKER) {
+    if (e.key === 'ArrowUp') {
+      pickerIdx = (pickerIdx - 1 + PLACEABLE.length) % PLACEABLE.length;
+      sndNav();
+    }
+    if (e.key === 'ArrowDown') {
+      pickerIdx = (pickerIdx + 1) % PLACEABLE.length;
+      sndNav();
+    }
+    if (e.key === 'Enter') {
+      if (placeElement()) {
+        state = ST_PLAY;
+      }
+      // Stay in picker if placement failed (not enough energy, etc.)
+    }
+    if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      state = ST_PLAY;
+      sndNav();
+    }
+    return;
+  }
+
+  if (state === ST_PLAY) {
+    if (e.key === 'ArrowUp') { curR = Math.max(0, curR - 1); sndNav(); }
+    if (e.key === 'ArrowDown') { curR = Math.min(ROWS - 1, curR + 1); sndNav(); }
+    if (e.key === 'ArrowLeft') { curC = Math.max(0, curC - 1); sndNav(); }
+    if (e.key === 'ArrowRight') { curC = Math.min(COLS - 1, curC + 1); sndNav(); }
+    if (e.key === 'Enter') {
+      if (grid[curR][curC] === EMPTY) {
+        state = ST_PICKER;
+        pickerIdx = 0;
+        playTone(400, 0.06, 0.06);
+      } else {
+        sndErr();
+      }
+    }
+    if (e.key === 'Escape' || e.key === 'Backspace') window.location.href = './';
+  }
+});
+
+gameLoop();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../touch-controls.js"></script>
+</body>
+</html>

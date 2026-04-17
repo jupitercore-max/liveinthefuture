@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Noise — LITF</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;color:#e0e0e0;font-family:system-ui,-apple-system,sans-serif}
+canvas{display:block}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+var W = 600, H = 600;
+
+// Audio context
+var ac = null;
+var masterGain = null;
+var playing = false;
+var volume = 0.5;
+var currentSound = 0;
+var smoothVol = 0;
+
+// Mic / adaptive masking
+var micStream = null;
+var micAnalyser = null;
+var micData = null;
+var micFailed = true; // assume failed until success
+var micLevel = 0;
+var smoothMicLevel = 0;
+var adaptiveMode = false;
+var baseVolume = 0.5; // user-set volume before adaptive scaling
+var adaptiveVolume = 0.5; // computed volume sent to gain node
+var micAmbient = 0.05; // slow-tracking ambient baseline
+
+// Persistence
+var prefs = loadPrefs();
+currentSound = prefs.sound || 0;
+volume = prefs.volume != null ? prefs.volume : 0.5;
+baseVolume = volume;
+adaptiveVolume = volume;
+adaptiveMode = prefs.adaptive || false;
+var totalListenTime = prefs.totalListenTime || 0;
+var totalSessions = prefs.totalSessions || 0;
+var sessionStart = 0;
+
+function loadPrefs() {
+  try { return JSON.parse(localStorage.getItem('noise_prefs')) || {}; } catch(e) { return {}; }
+}
+function savePrefs() {
+  try {
+    localStorage.setItem('noise_prefs', JSON.stringify({
+      sound: currentSound, volume: baseVolume, adaptive: adaptiveMode,
+      totalListenTime: totalListenTime, totalSessions: totalSessions
+    }));
+  } catch(e) {}
+}
+
+// Sound definitions
+var sounds = [
+  { name: 'White', emoji: '\u26AA', color: '#ffffff', desc: 'Even frequency spread' },
+  { name: 'Pink', emoji: '\uD83E\uDE77', color: '#ff69b4', desc: 'Deeper, warmer' },
+  { name: 'Brown', emoji: '\uD83E\uDD0E', color: '#8B4513', desc: 'Deep rumble, like rain' },
+  { name: 'Ocean', emoji: '\uD83C\uDF0A', color: '#4488cc', desc: 'Rolling wave cycles' },
+  { name: 'Rain', emoji: '\uD83C\uDF27\uFE0F', color: '#6699bb', desc: 'Soft rainfall patter' },
+  { name: 'Stream', emoji: '\uD83D\uDCA7', color: '#44aadd', desc: 'Babbling water flow' },
+  { name: 'Wind', emoji: '\uD83C\uDF43', color: '#88aa66', desc: 'Gentle breeze' },
+  { name: 'Fire', emoji: '\uD83D\uDD25', color: '#ff6633', desc: 'Crackling campfire' }
+];
+
+// Noise nodes
+var noiseNode = null;
+var filterNode = null;
+var lfoGain = null;
+var lfo = null;
+var noiseBuffer = null;
+var extraFilter = null;
+
+function initAudio() {
+  if (ac) return;
+  ac = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = ac.createGain();
+  masterGain.gain.value = volume;
+  masterGain.connect(ac.destination);
+
+  // Create 2 seconds of white noise buffer
+  var sr = ac.sampleRate;
+  var len = sr * 2;
+  noiseBuffer = ac.createBuffer(1, len, sr);
+  var data = noiseBuffer.getChannelData(0);
+  for (var i = 0; i < len; i++) {
+    data[i] = Math.random() * 2 - 1;
+  }
+}
+
+function initMic() {
+  if (micAnalyser) return;
+  micFailed = true;
+  try {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      micStream = stream;
+      micFailed = false;
+      if (!ac) initAudio();
+      var src = ac.createMediaStreamSource(stream);
+      micAnalyser = ac.createAnalyser();
+      micAnalyser.fftSize = 256;
+      micData = new Uint8Array(micAnalyser.frequencyBinCount);
+      src.connect(micAnalyser);
+    }).catch(function() { micFailed = true; });
+  } catch(e) { micFailed = true; }
+}
+
+function updateMic() {
+  if (!micAnalyser || !micData) return;
+  micAnalyser.getByteTimeDomainData(micData);
+  var sum = 0;
+  for (var i = 0; i < micData.length; i++) {
+    var v = (micData[i] - 128) / 128;
+    sum += v * v;
+  }
+  micLevel = Math.sqrt(sum / micData.length);
+  smoothMicLevel += (micLevel - smoothMicLevel) * 0.08;
+
+  // Track ambient baseline (very slow — adapts to room over ~30s)
+  micAmbient += (smoothMicLevel - micAmbient) * 0.003;
+
+  // Adaptive volume: scale noise up when environment gets louder
+  if (adaptiveMode && playing) {
+    // How much louder than ambient baseline
+    var excess = Math.max(0, smoothMicLevel - micAmbient);
+    // Map excess noise to volume boost (0 → +0.4 max)
+    var boost = Math.min(0.4, excess * 4);
+    var target = Math.min(1.0, baseVolume + boost);
+    // Smooth the adaptive volume to prevent jarring changes
+    adaptiveVolume += (target - adaptiveVolume) * 0.04;
+
+    if (masterGain && ac) {
+      masterGain.gain.setTargetAtTime(adaptiveVolume, ac.currentTime, 0.1);
+    }
+  }
+}
+
+function stopSound() {
+  if (noiseNode) { try { noiseNode.stop(); } catch(e){} noiseNode = null; }
+  if (filterNode) { filterNode.disconnect(); filterNode = null; }
+  if (extraFilter) { extraFilter.disconnect(); extraFilter = null; }
+  if (lfo) { try { lfo.stop(); } catch(e){} lfo = null; }
+  if (lfoGain) { lfoGain.disconnect(); lfoGain = null; }
+}
+
+function startSound() {
+  if (!ac) initAudio();
+  stopSound();
+
+  var s = sounds[currentSound];
+  noiseNode = ac.createBufferSource();
+  noiseNode.buffer = noiseBuffer;
+  noiseNode.loop = true;
+
+  filterNode = ac.createBiquadFilter();
+
+  switch(s.name) {
+    case 'White':
+      filterNode.type = 'allpass';
+      noiseNode.connect(filterNode);
+      filterNode.connect(masterGain);
+      break;
+
+    case 'Pink':
+      filterNode.type = 'lowpass';
+      filterNode.frequency.value = 3000;
+      filterNode.Q.value = 0.5;
+      noiseNode.connect(filterNode);
+      filterNode.connect(masterGain);
+      break;
+
+    case 'Brown':
+      filterNode.type = 'lowpass';
+      filterNode.frequency.value = 800;
+      filterNode.Q.value = 0.7;
+      noiseNode.connect(filterNode);
+      filterNode.connect(masterGain);
+      break;
+
+    case 'Ocean':
+      filterNode.type = 'lowpass';
+      filterNode.frequency.value = 600;
+      filterNode.Q.value = 1.0;
+      lfo = ac.createOscillator();
+      lfoGain = ac.createGain();
+      lfo.type = 'sine';
+      lfo.frequency.value = 0.08;
+      lfoGain.gain.value = 500;
+      lfo.connect(lfoGain);
+      lfoGain.connect(filterNode.frequency);
+      lfo.start();
+      noiseNode.connect(filterNode);
+      filterNode.connect(masterGain);
+      break;
+
+    case 'Rain':
+      filterNode.type = 'bandpass';
+      filterNode.frequency.value = 4000;
+      filterNode.Q.value = 0.3;
+      extraFilter = ac.createBiquadFilter();
+      extraFilter.type = 'highpass';
+      extraFilter.frequency.value = 1000;
+      noiseNode.connect(extraFilter);
+      extraFilter.connect(filterNode);
+      filterNode.connect(masterGain);
+      break;
+
+    case 'Stream':
+      filterNode.type = 'bandpass';
+      filterNode.frequency.value = 2500;
+      filterNode.Q.value = 0.8;
+      lfo = ac.createOscillator();
+      lfoGain = ac.createGain();
+      lfo.type = 'sine';
+      lfo.frequency.value = 0.3;
+      lfoGain.gain.value = 800;
+      lfo.connect(lfoGain);
+      lfoGain.connect(filterNode.frequency);
+      lfo.start();
+      noiseNode.connect(filterNode);
+      filterNode.connect(masterGain);
+      break;
+
+    case 'Wind':
+      filterNode.type = 'bandpass';
+      filterNode.frequency.value = 500;
+      filterNode.Q.value = 2.0;
+      lfo = ac.createOscillator();
+      lfoGain = ac.createGain();
+      lfo.type = 'sine';
+      lfo.frequency.value = 0.15;
+      lfoGain.gain.value = 400;
+      lfo.connect(lfoGain);
+      lfoGain.connect(filterNode.frequency);
+      lfo.start();
+      noiseNode.connect(filterNode);
+      filterNode.connect(masterGain);
+      break;
+
+    case 'Fire':
+      filterNode.type = 'lowpass';
+      filterNode.frequency.value = 1200;
+      filterNode.Q.value = 1.5;
+      lfo = ac.createOscillator();
+      lfoGain = ac.createGain();
+      lfo.type = 'sawtooth';
+      lfo.frequency.value = 3.7;
+      lfoGain.gain.value = 900;
+      lfo.connect(lfoGain);
+      lfoGain.connect(filterNode.frequency);
+      lfo.start();
+      noiseNode.connect(filterNode);
+      filterNode.connect(masterGain);
+      break;
+  }
+
+  noiseNode.start();
+  playing = true;
+  sessionStart = Date.now();
+  totalSessions++;
+  savePrefs();
+
+  // Init mic for adaptive mode
+  if (!micAnalyser) initMic();
+}
+
+function togglePlay() {
+  if (!ac) initAudio();
+  if (playing) {
+    // Track listen time
+    if (sessionStart > 0) {
+      totalListenTime += Math.round((Date.now() - sessionStart) / 1000);
+      sessionStart = 0;
+    }
+    stopSound();
+    playing = false;
+    savePrefs();
+  } else {
+    startSound();
+  }
+}
+
+function setBaseVolume(v) {
+  baseVolume = Math.max(0, Math.min(1, v));
+  volume = baseVolume;
+  adaptiveVolume = baseVolume;
+  if (masterGain && ac) {
+    masterGain.gain.setTargetAtTime(volume, ac.currentTime, 0.05);
+  }
+  savePrefs();
+}
+
+function cycleSound(dir) {
+  currentSound = (currentSound + dir + sounds.length) % sounds.length;
+  if (playing) startSound();
+  savePrefs();
+}
+
+function toggleAdaptive() {
+  adaptiveMode = !adaptiveMode;
+  if (adaptiveMode && !micAnalyser) initMic();
+  if (!adaptiveMode && masterGain && ac) {
+    // Reset to base volume
+    adaptiveVolume = baseVolume;
+    masterGain.gain.setTargetAtTime(baseVolume, ac.currentTime, 0.1);
+  }
+  savePrefs();
+}
+
+// Visualization particles
+var particles = [];
+var particleCount = 80;
+for (var i = 0; i < particleCount; i++) {
+  particles.push({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    vx: (Math.random() - 0.5) * 0.5,
+    vy: (Math.random() - 0.5) * 0.5,
+    r: 2 + Math.random() * 4,
+    phase: Math.random() * Math.PI * 2
+  });
+}
+
+var time = 0;
+
+// Sleep timer
+var sleepTimer = 0;
+var sleepInterval = null;
+var sleepOptions = [0, 5, 10, 15, 30, 60];
+var sleepIndex = 0;
+
+function cycleSleepTimer() {
+  sleepIndex = (sleepIndex + 1) % sleepOptions.length;
+  if (sleepInterval) { clearInterval(sleepInterval); sleepInterval = null; }
+  sleepTimer = sleepOptions[sleepIndex] * 60;
+  if (sleepTimer > 0) {
+    sleepInterval = setInterval(function() {
+      sleepTimer--;
+      if (sleepTimer <= 0) {
+        clearInterval(sleepInterval);
+        sleepInterval = null;
+        if (playing) togglePlay();
+      }
+    }, 1000);
+  }
+}
+
+function formatTime(secs) {
+  var h = Math.floor(secs / 3600);
+  var m = Math.floor((secs % 3600) / 60);
+  if (h > 0) return h + 'h ' + m + 'm';
+  return m + 'm';
+}
+
+function draw() {
+  time += 0.016;
+  var displayVol = adaptiveMode && playing ? adaptiveVolume : volume;
+  smoothVol += (displayVol - smoothVol) * 0.1;
+
+  // Update mic
+  updateMic();
+
+  var s = sounds[currentSound];
+  var alpha = playing ? 0.15 + smoothVol * 0.2 : 0.05;
+
+  // Background
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  // Particles — mic-reactive when adaptive
+  var micBoost = adaptiveMode && playing ? smoothMicLevel * 3 : 0;
+  var speed = playing ? 0.3 + smoothVol * 1.5 + micBoost : 0.1;
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    p.phase += 0.01;
+    p.x += p.vx * speed + Math.sin(p.phase + time * 0.5) * 0.3;
+    p.y += p.vy * speed + Math.cos(p.phase + time * 0.3) * 0.3;
+
+    if (p.x < -10) p.x = W + 10;
+    if (p.x > W + 10) p.x = -10;
+    if (p.y < -10) p.y = H + 10;
+    if (p.y > H + 10) p.y = -10;
+
+    var pa = playing ? alpha * (0.4 + 0.6 * Math.sin(p.phase + time)) : 0.08;
+    // Mic makes particles brighter
+    if (adaptiveMode && playing) pa = Math.min(1, pa + smoothMicLevel * 0.5);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * (playing ? 1 + smoothVol * 0.5 : 0.7), 0, Math.PI * 2);
+    var hexA = Math.round(Math.min(1, pa) * 255).toString(16).padStart(2, '0');
+    ctx.fillStyle = s.color + hexA;
+    ctx.fill();
+  }
+
+  // Center ring — breathing pulse (mic-reactive when adaptive)
+  var ringPulse = playing ? Math.sin(time * 0.8) * 20 * smoothVol : 0;
+  if (adaptiveMode && playing) ringPulse += smoothMicLevel * 40;
+  var ringR = 80 + ringPulse;
+  var ringAlpha = playing ? 0.15 + smoothVol * 0.15 : 0.05;
+  ctx.beginPath();
+  ctx.arc(W/2, H/2 - 30, ringR, 0, Math.PI * 2);
+  ctx.strokeStyle = s.color;
+  ctx.globalAlpha = ringAlpha;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  if (playing) {
+    var innerR = ringR * 0.6 + Math.sin(time * 1.2) * 10 * smoothVol;
+    ctx.beginPath();
+    ctx.arc(W/2, H/2 - 30, innerR, 0, Math.PI * 2);
+    ctx.globalAlpha = ringAlpha * 0.6;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // Sound emoji + name
+  ctx.textAlign = 'center';
+  ctx.font = '48px system-ui';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(s.emoji, W/2, H/2 - 30);
+
+  ctx.font = 'bold 28px system-ui';
+  ctx.fillStyle = s.color;
+  ctx.fillText(s.name, W/2, H/2 + 20);
+
+  ctx.font = '16px system-ui';
+  ctx.fillStyle = '#888888';
+  ctx.fillText(s.desc, W/2, H/2 + 48);
+
+  // Play state + adaptive badge
+  ctx.font = 'bold 20px system-ui';
+  if (playing) {
+    ctx.fillStyle = '#4CAF50';
+    ctx.fillText('\u25B6 Playing', W/2, H/2 + 85);
+  } else {
+    ctx.fillStyle = '#666666';
+    ctx.fillText('\u23F8 Paused', W/2, H/2 + 85);
+  }
+
+  // Adaptive mode indicator
+  if (adaptiveMode) {
+    var adaptColor = playing && !micFailed ? '#4CAF50' : '#888888';
+    ctx.font = 'bold 14px system-ui';
+    ctx.fillStyle = adaptColor;
+    var adaptLabel = '\uD83C\uDF99 Adaptive';
+    if (playing && !micFailed) {
+      adaptLabel += ' ' + Math.round(adaptiveVolume * 100) + '%';
+    }
+    ctx.fillText(adaptLabel, W/2, H/2 + 105);
+
+    // Mic level mini-bar
+    if (playing && !micFailed) {
+      var mbW = 100, mbH = 4;
+      var mbX = (W - mbW) / 2, mbY = H/2 + 112;
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(mbX, mbY, mbW, mbH);
+      var micFill = Math.min(1, smoothMicLevel * 5);
+      var micColor = micFill > 0.6 ? '#ff6633' : micFill > 0.3 ? '#ffaa00' : '#4CAF50';
+      ctx.fillStyle = micColor;
+      ctx.globalAlpha = 0.7;
+      ctx.fillRect(mbX, mbY, mbW * micFill, mbH);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // Volume bar
+  var barY = adaptiveMode ? H/2 + 128 : H/2 + 115;
+  var barW = 200;
+  var barH = 8;
+  var barX = (W - barW) / 2;
+
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(barX, barY, barW, barH);
+
+  ctx.fillStyle = s.color;
+  ctx.globalAlpha = 0.7;
+  ctx.fillRect(barX, barY, barW * baseVolume, barH);
+
+  // Show adaptive overlay on volume bar
+  if (adaptiveMode && playing && adaptiveVolume > baseVolume) {
+    ctx.fillStyle = '#ffffff';
+    ctx.globalAlpha = 0.3;
+    ctx.fillRect(barX + barW * baseVolume, barY, barW * (adaptiveVolume - baseVolume), barH);
+  }
+  ctx.globalAlpha = 1;
+
+  // Volume label
+  ctx.font = '14px system-ui';
+  ctx.fillStyle = '#888888';
+  var volLabel = 'Vol ' + Math.round(baseVolume * 100) + '%';
+  if (adaptiveMode && playing && Math.abs(adaptiveVolume - baseVolume) > 0.02) {
+    volLabel += ' \u2192 ' + Math.round(adaptiveVolume * 100) + '%';
+  }
+  ctx.fillText(volLabel, W/2, barY + 22);
+
+  // Sound navigation arrows
+  ctx.font = '24px system-ui';
+  ctx.fillStyle = '#555555';
+  ctx.fillText('\u25C0', W/2 - 140, H/2 - 25);
+  ctx.fillText('\u25B6', W/2 + 140, H/2 - 25);
+
+  // Header
+  ctx.font = 'bold 18px system-ui';
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'left';
+  ctx.fillText('\uD83D\uDD0A Noise Generator', 20, 35);
+
+  // Session count + listen time
+  ctx.textAlign = 'right';
+  ctx.font = '12px system-ui';
+  ctx.fillStyle = '#444444';
+  var runTime = totalListenTime;
+  if (playing && sessionStart > 0) runTime += Math.round((Date.now() - sessionStart) / 1000);
+  if (runTime >= 60) {
+    ctx.fillText(totalSessions + ' sessions \u00B7 ' + formatTime(runTime), W - 20, 30);
+  }
+
+  ctx.textAlign = 'left';
+  ctx.font = '13px system-ui';
+  ctx.fillStyle = '#555555';
+  ctx.fillText((currentSound + 1) + '/' + sounds.length, W - 50, 35);
+
+  // Controls hint
+  ctx.textAlign = 'center';
+  ctx.font = '13px system-ui';
+  ctx.fillStyle = '#444444';
+  ctx.fillText('\u2190\u2192 Sound  \u2191 Adaptive  \u2193 Sleep  Enter Play', W/2, H - 20);
+
+  // Sleep timer
+  if (sleepTimer > 0) {
+    var mins = Math.ceil(sleepTimer / 60);
+    ctx.font = '14px system-ui';
+    ctx.fillStyle = '#ffaa00';
+    ctx.fillText('\uD83D\uDCA4 Sleep in ' + mins + 'min', W/2, H - 45);
+  }
+
+  requestAnimationFrame(draw);
+}
+
+// Key handler
+document.addEventListener('keydown', function(e) {
+  switch(e.key) {
+    case 'ArrowLeft':
+      cycleSound(-1);
+      e.preventDefault();
+      break;
+    case 'ArrowRight':
+      cycleSound(1);
+      e.preventDefault();
+      break;
+    case 'ArrowUp':
+      toggleAdaptive();
+      e.preventDefault();
+      break;
+    case 'ArrowDown':
+      cycleSleepTimer();
+      e.preventDefault();
+      break;
+    case 'Enter':
+      togglePlay();
+      e.preventDefault();
+      break;
+    case 'Escape':
+      if (playing) {
+        if (sessionStart > 0) {
+          totalListenTime += Math.round((Date.now() - sessionStart) / 1000);
+          sessionStart = 0;
+        }
+        stopSound();
+        playing = false;
+        savePrefs();
+      }
+      if (window.history.length > 1) window.history.back();
+      else window.location.href = '/experiences/';
+      e.preventDefault();
+      break;
+    case ' ':
+      cycleSleepTimer();
+      e.preventDefault();
+      break;
+  }
+});
+
+draw();
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

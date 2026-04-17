@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/experiences/metronome/" />
+  <meta property="og:title" content="Metronome - Live in the Future" />
+  <meta property="og:url" content="https://liveinthefuture.org/experiences/metronome/" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Metronome - Live in the Future</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0d0d0d;
+  color: #e8e8e8;
+  width: 600px;
+  height: 600px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+canvas { display: block; }
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+var cv = document.getElementById('c');
+var ctx = cv.getContext('2d');
+var W = 600, H = 600;
+
+// Audio output
+var audioCtx = null;
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+// Woodblock-style click: noise burst + resonant body + quick decay
+function woodblock(freq, vol, sharp) {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  // Noise transient (the "attack" snap)
+  var bufSize = audioCtx.sampleRate * 0.015;
+  var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  var data = buf.getChannelData(0);
+  for (var i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+  var noise = audioCtx.createBufferSource();
+  noise.buffer = buf;
+  var nFilt = audioCtx.createBiquadFilter();
+  nFilt.type = 'bandpass';
+  nFilt.frequency.value = freq * 1.5;
+  nFilt.Q.value = sharp ? 3 : 1.5;
+  var nGain = audioCtx.createGain();
+  nGain.gain.setValueAtTime(vol * 0.8, t);
+  nGain.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
+  noise.connect(nFilt); nFilt.connect(nGain); nGain.connect(audioCtx.destination);
+  noise.start(t); noise.stop(t + 0.02);
+  // Resonant body (the "tone")
+  var o = audioCtx.createOscillator();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(freq, t);
+  o.frequency.exponentialRampToValueAtTime(freq * 0.7, t + 0.06);
+  var g = audioCtx.createGain();
+  g.gain.setValueAtTime(vol * 0.5, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t + 0.07);
+}
+function clickHi() { woodblock(1600, 0.35, true); woodblock(2400, 0.12, true); }
+function clickLo() { woodblock(1100, 0.22, false); }
+// Legacy compat for subdivision clicks
+function click1(freq, vol) { woodblock(freq, vol * 0.6, false); }
+
+// Mic input for tap tempo
+var micStream = null;
+var micAnalyser = null;
+var micData = null;
+var micLevel = 0;
+var micSmooth = 0;
+var micActive = false;
+var micFailed = false;
+var micIniting = false;
+var tapThreshold = 0.35;  // amplitude spike threshold
+var tapCooldown = 150;     // ms between detected taps
+var lastTapDetect = 0;
+var tapFlash = 0;          // visual feedback for detected tap
+var ambientLevel = 0.05;   // running ambient baseline
+
+function initMic() {
+  if (micActive || micFailed || micIniting) return;
+  micIniting = true;
+  try {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      micStream = stream;
+      var mCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (!audioCtx) audioCtx = mCtx;
+      var src = mCtx.createMediaStreamSource(stream);
+      micAnalyser = mCtx.createAnalyser();
+      micAnalyser.fftSize = 512;
+      micAnalyser.smoothingTimeConstant = 0.3;
+      src.connect(micAnalyser);
+      micData = new Uint8Array(micAnalyser.fftSize);
+      micActive = true;
+      micIniting = false;
+    }).catch(function() {
+      micFailed = true;
+      micIniting = false;
+    });
+  } catch(e) {
+    micFailed = true;
+    micIniting = false;
+  }
+}
+
+function updateMic() {
+  if (!micActive || !micAnalyser) return;
+  micAnalyser.getByteTimeDomainData(micData);
+  var sum = 0;
+  for (var i = 0; i < micData.length; i++) {
+    var v = (micData[i] - 128) / 128;
+    sum += v * v;
+  }
+  micLevel = Math.sqrt(sum / micData.length);
+  micSmooth += (micLevel - micSmooth) * 0.15;
+
+  // Update ambient baseline slowly
+  ambientLevel += (micSmooth - ambientLevel) * 0.005;
+
+  // Detect sharp transient (tap on glasses frame)
+  var now = performance.now();
+  var spike = micLevel - ambientLevel;
+  if (spike > tapThreshold && now - lastTapDetect > tapCooldown) {
+    lastTapDetect = now;
+    tapFlash = 1.0;
+    tapTempo();
+  }
+}
+
+// Persistence
+function savePrefs() {
+  try {
+    localStorage.setItem('metronome_prefs', JSON.stringify({
+      bpm: bpm, beats: beatsPerMeasure, sub: subdivision, preset: currentPreset
+    }));
+  } catch(e) {}
+}
+function loadPrefs() {
+  try {
+    var d = JSON.parse(localStorage.getItem('metronome_prefs'));
+    if (d) {
+      bpm = d.bpm || 120;
+      beatsPerMeasure = d.beats || 4;
+      subdivision = d.sub || 1;
+      currentPreset = d.preset || -1;
+    }
+  } catch(e) {}
+}
+function savePractice() {
+  try {
+    localStorage.setItem('metronome_practice', JSON.stringify(practice));
+  } catch(e) {}
+}
+function loadPractice() {
+  try {
+    var d = JSON.parse(localStorage.getItem('metronome_practice'));
+    if (d) practice = d;
+  } catch(e) {}
+}
+
+// Practice tracking
+var practice = {
+  totalMinutes: 0,
+  sessionsCount: 0,
+  streak: 0,
+  lastDate: null,
+  todayMinutes: 0,
+  todayDate: null,
+  longestStreak: 0
+};
+var sessionStartTime = 0;
+var sessionAccum = 0; // seconds accumulated this session
+
+function updatePracticeDay() {
+  var today = new Date().toISOString().slice(0, 10);
+  if (practice.todayDate !== today) {
+    // New day — check streak
+    if (practice.lastDate) {
+      var last = new Date(practice.lastDate);
+      var now = new Date(today);
+      var diff = Math.round((now - last) / 86400000);
+      if (diff === 1) {
+        practice.streak++;
+      } else if (diff > 1) {
+        practice.streak = 0;
+      }
+    }
+    practice.todayMinutes = 0;
+    practice.todayDate = today;
+  }
+}
+
+function recordPractice(seconds) {
+  if (seconds < 5) return; // ignore tiny sessions
+  var mins = seconds / 60;
+  updatePracticeDay();
+  practice.todayMinutes += mins;
+  practice.totalMinutes += mins;
+  practice.sessionsCount++;
+  practice.lastDate = practice.todayDate;
+  if (practice.streak + 1 > practice.longestStreak) practice.longestStreak = practice.streak + 1;
+  savePractice();
+}
+
+// Tempo presets (discoverable via ↑ when not playing)
+var presets = [
+  { name: 'Warm-up', bpm: 60, beats: 4, sub: 1 },
+  { name: 'Scales', bpm: 80, beats: 4, sub: 2 },
+  { name: 'Ballad', bpm: 72, beats: 3, sub: 1 },
+  { name: 'Pop', bpm: 120, beats: 4, sub: 1 },
+  { name: 'Rock', bpm: 140, beats: 4, sub: 1 },
+  { name: 'Jazz Swing', bpm: 132, beats: 4, sub: 4 },
+  { name: 'Waltz', bpm: 96, beats: 3, sub: 1 },
+  { name: 'March', bpm: 120, beats: 2, sub: 1 },
+  { name: 'Fast Drill', bpm: 180, beats: 4, sub: 1 },
+  { name: 'Slow Practice', bpm: 50, beats: 4, sub: 1 }
+];
+var currentPreset = -1; // -1 = custom
+var presetFlash = 0;
+var showStats = false;
+
+// State
+var bpm = 120;
+var beatsPerMeasure = 4;
+var currentBeat = 0;
+var playing = false;
+var lastBeatTime = 0;
+var flashIntensity = 0;
+var pendulumAngle = 0;
+var pendulumTarget = 1;
+var tapTimes = [];
+var tapTempoDisplay = 0; // flash when tap tempo sets BPM
+var subdivision = 1;      // 1 = quarter, 2 = eighth, 3 = triplet, 4 = swing
+var subdivNames = ['♩', '♪♪', '♪♪♪', 'Sw'];
+var subTick = 0;
+
+// Load saved state
+loadPractice();
+loadPrefs();
+updatePracticeDay();
+
+// Common tempos
+var tempoNames = [
+  [40, 'Grave'], [60, 'Largo'], [66, 'Larghetto'], [76, 'Adagio'],
+  [92, 'Andante'], [108, 'Moderato'], [120, 'Allegretto'], [132, 'Allegro'],
+  [160, 'Vivace'], [176, 'Presto'], [200, 'Prestissimo']
+];
+
+function getTempoName(b) {
+  var name = 'Prestissimo';
+  for (var i = tempoNames.length - 1; i >= 0; i--) {
+    if (b >= tempoNames[i][0]) { name = tempoNames[i][1]; break; }
+  }
+  return name;
+}
+
+function beat() {
+  currentBeat = (currentBeat % beatsPerMeasure) + 1;
+  subTick = 0;
+  if (currentBeat === 1) {
+    clickHi();
+    flashIntensity = 1.0;
+  } else {
+    clickLo();
+    flashIntensity = 0.6;
+  }
+  pendulumTarget = -pendulumTarget;
+}
+
+function subBeat() {
+  // Softer click for subdivisions
+  click1(1000, 0.1);
+  flashIntensity = Math.max(flashIntensity, 0.2);
+}
+
+function update() {
+  var now = performance.now();
+  var interval = 60000 / bpm;
+  var subInterval = interval / subdivision;
+
+  if (playing && now - lastBeatTime >= interval) {
+    beat();
+    lastBeatTime = now;
+  }
+
+  // Subdivisions (swing = 2/3 + 1/3 triplet feel)
+  if (playing && subdivision > 1) {
+    var elapsed = now - lastBeatTime;
+    if (subdivision === 4) {
+      // Swing: offbeat at 2/3 of the interval
+      var swingPoint = interval * 0.667;
+      if (subTick === 0 && elapsed >= swingPoint) {
+        subTick = 1;
+        subBeat();
+      }
+    } else {
+      var expectedSub = Math.floor(elapsed / subInterval);
+      if (expectedSub > subTick && expectedSub < subdivision) {
+        subTick = expectedSub;
+        subBeat();
+      }
+    }
+  }
+
+  // Decay flash
+  flashIntensity *= 0.92;
+  if (flashIntensity < 0.01) flashIntensity = 0;
+
+  // Decay tap flash
+  tapFlash *= 0.9;
+  if (tapFlash < 0.01) tapFlash = 0;
+
+  // Decay tap tempo display
+  tapTempoDisplay *= 0.95;
+  if (tapTempoDisplay < 0.01) tapTempoDisplay = 0;
+
+  // Decay preset flash
+  presetFlash *= 0.93;
+  if (presetFlash < 0.01) presetFlash = 0;
+
+  // Smooth pendulum swing
+  var swingSpeed = 0.08 + (bpm / 300) * 0.12;
+  pendulumAngle += (pendulumTarget * 0.6 - pendulumAngle) * swingSpeed;
+
+  // Mic
+  updateMic();
+}
+
+function draw() {
+  update();
+
+  // Background
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  // Tap detect flash — full screen orange border
+  if (tapFlash > 0.01) {
+    ctx.save();
+    ctx.globalAlpha = tapFlash * 0.4;
+    ctx.strokeStyle = '#ff8c00';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(3, 3, W - 6, H - 6);
+    ctx.restore();
+  }
+
+  // Beat flash ring
+  if (flashIntensity > 0.01) {
+    var flashColor = currentBeat === 1 ? '74, 158, 255' : '180, 180, 200';
+    ctx.save();
+    ctx.globalAlpha = flashIntensity * 0.3;
+    ctx.strokeStyle = 'rgb(' + flashColor + ')';
+    ctx.lineWidth = 4 + flashIntensity * 8;
+    ctx.beginPath();
+    ctx.arc(W / 2, H / 2, 200 + flashIntensity * 30, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Pendulum
+  var pivotX = W / 2, pivotY = 100;
+  var armLen = 240;
+  var bobX = pivotX + Math.sin(pendulumAngle) * armLen;
+  var bobY = pivotY + Math.cos(pendulumAngle) * armLen;
+
+  // Arm
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(pivotX, pivotY);
+  ctx.lineTo(bobX, bobY);
+  ctx.stroke();
+
+  // Pivot
+  ctx.fillStyle = '#555';
+  ctx.beginPath();
+  ctx.arc(pivotX, pivotY, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bob
+  var bobColor = currentBeat === 1 && flashIntensity > 0.1 ? '#4a9eff' : '#e8e8e8';
+  ctx.fillStyle = bobColor;
+  ctx.beginPath();
+  ctx.arc(bobX, bobY, 14, 0, Math.PI * 2);
+  ctx.fill();
+  if (flashIntensity > 0.1) {
+    ctx.save();
+    ctx.globalAlpha = flashIntensity * 0.5;
+    ctx.fillStyle = currentBeat === 1 ? '#4a9eff' : '#aaa';
+    ctx.beginPath();
+    ctx.arc(bobX, bobY, 14 + flashIntensity * 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Mic level indicator (top right)
+  if (micActive) {
+    var barH = 40;
+    var barW = 4;
+    var barX = W - 30;
+    var barY = 20;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(barX, barY, barW, barH);
+    var fillH = Math.min(barH, micSmooth * barH * 4);
+    var micColor = micSmooth > tapThreshold + ambientLevel ? '#ff8c00' : '#4a9eff';
+    ctx.fillStyle = micColor;
+    ctx.fillRect(barX, barY + barH - fillH, barW, fillH);
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = '#666';
+    ctx.textAlign = 'center';
+    ctx.fillText('🎤', barX + 2, barY - 6);
+  }
+
+  // BPM display
+  ctx.font = '700 72px -apple-system, sans-serif';
+  ctx.fillStyle = tapTempoDisplay > 0.1 ? '#ff8c00' : '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(bpm, W / 2, 440);
+
+  ctx.font = '20px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.fillText('BPM', W / 2, 478);
+
+  // Tempo name
+  ctx.font = '600 18px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText(getTempoName(bpm), W / 2, 412);
+
+  // Subdivision indicator
+  ctx.font = '18px -apple-system, sans-serif';
+  ctx.fillStyle = subdivision > 1 ? '#ff8c00' : '#444';
+  ctx.fillText(subdivNames[subdivision - 1], W / 2 + 80, 440);
+
+  // Beat dots
+  var dotSpacing = 30;
+  var dotsStartX = W / 2 - ((beatsPerMeasure - 1) * dotSpacing) / 2;
+  for (var i = 0; i < beatsPerMeasure; i++) {
+    var dx = dotsStartX + i * dotSpacing;
+    var dy = 510;
+    var isActive = playing && (i + 1) === currentBeat;
+    ctx.fillStyle = isActive ? '#4a9eff' : '#333';
+    ctx.beginPath();
+    ctx.arc(dx, dy, isActive ? 8 : 5, 0, Math.PI * 2);
+    ctx.fill();
+    if (isActive && flashIntensity > 0.1) {
+      ctx.save();
+      ctx.globalAlpha = flashIntensity * 0.4;
+      ctx.fillStyle = '#4a9eff';
+      ctx.beginPath();
+      ctx.arc(dx, dy, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // Preset name (below tempo name)
+  if (currentPreset >= 0 && presetFlash > 0.01) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, presetFlash);
+    ctx.font = '600 16px -apple-system, sans-serif';
+    ctx.fillStyle = '#ff8c00';
+    ctx.textAlign = 'center';
+    ctx.fillText('♪ ' + presets[currentPreset].name, W / 2, 395);
+    ctx.restore();
+  } else if (currentPreset >= 0 && !playing) {
+    ctx.font = '14px -apple-system, sans-serif';
+    ctx.fillStyle = '#666';
+    ctx.textAlign = 'center';
+    ctx.fillText(presets[currentPreset].name, W / 2, 395);
+  }
+
+  // Practice stats mini indicator (top left)
+  if (practice.totalMinutes > 0) {
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.fillStyle = '#444';
+    ctx.textAlign = 'left';
+    var totalMins = Math.round(practice.totalMinutes);
+    var streakText = practice.streak > 0 ? ' 🔥' + (practice.streak + 1) : '';
+    ctx.fillText(totalMins + 'min total' + streakText, 20, 58);
+  }
+
+  // Playing timer
+  if (playing) {
+    var elapsed = Math.floor((performance.now() - sessionStartTime) / 1000);
+    var m = Math.floor(elapsed / 60);
+    var s = elapsed % 60;
+    ctx.font = '14px -apple-system, sans-serif';
+    ctx.fillStyle = '#555';
+    ctx.textAlign = 'right';
+    ctx.fillText(m + ':' + (s < 10 ? '0' : '') + s, W - 20, 30);
+  }
+
+  // Stats overlay
+  if (showStats) {
+    ctx.fillStyle = 'rgba(13,13,13,0.92)';
+    ctx.fillRect(40, 80, W - 80, 420);
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(40, 80, W - 80, 420);
+
+    ctx.font = '600 20px -apple-system, sans-serif';
+    ctx.fillStyle = '#4a9eff';
+    ctx.textAlign = 'center';
+    ctx.fillText('Practice Stats', W / 2, 115);
+
+    ctx.font = '16px -apple-system, sans-serif';
+    ctx.fillStyle = '#e8e8e8';
+    ctx.textAlign = 'left';
+    var sx = 80, sy = 155;
+    var gap = 32;
+
+    ctx.fillText('Total Practice:', sx, sy);
+    ctx.fillStyle = '#4a9eff'; ctx.textAlign = 'right';
+    var hrs = Math.floor(practice.totalMinutes / 60);
+    var mins = Math.round(practice.totalMinutes % 60);
+    ctx.fillText(hrs > 0 ? hrs + 'h ' + mins + 'm' : mins + ' min', W - 80, sy);
+
+    sy += gap; ctx.fillStyle = '#e8e8e8'; ctx.textAlign = 'left';
+    ctx.fillText('Sessions:', sx, sy);
+    ctx.fillStyle = '#4a9eff'; ctx.textAlign = 'right';
+    ctx.fillText('' + practice.sessionsCount, W - 80, sy);
+
+    sy += gap; ctx.fillStyle = '#e8e8e8'; ctx.textAlign = 'left';
+    ctx.fillText('Today:', sx, sy);
+    ctx.fillStyle = '#4a9eff'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(practice.todayMinutes) + ' min', W - 80, sy);
+
+    sy += gap; ctx.fillStyle = '#e8e8e8'; ctx.textAlign = 'left';
+    ctx.fillText('Current Streak:', sx, sy);
+    ctx.fillStyle = practice.streak > 0 ? '#ff8c00' : '#4a9eff'; ctx.textAlign = 'right';
+    ctx.fillText((practice.streak > 0 ? practice.streak + 1 : practice.lastDate ? 1 : 0) + ' days', W - 80, sy);
+
+    sy += gap; ctx.fillStyle = '#e8e8e8'; ctx.textAlign = 'left';
+    ctx.fillText('Longest Streak:', sx, sy);
+    ctx.fillStyle = '#4a9eff'; ctx.textAlign = 'right';
+    ctx.fillText(practice.longestStreak + ' days', W - 80, sy);
+
+    sy += gap + 10;
+    ctx.font = '600 18px -apple-system, sans-serif';
+    ctx.fillStyle = '#4a9eff';
+    ctx.textAlign = 'center';
+    ctx.fillText('Presets', W / 2, sy);
+
+    sy += 28;
+    ctx.font = '14px -apple-system, sans-serif';
+    for (var pi = 0; pi < presets.length; pi++) {
+      var pp = presets[pi];
+      var isActive = pi === currentPreset;
+      ctx.fillStyle = isActive ? '#ff8c00' : '#999';
+      ctx.textAlign = 'left';
+      ctx.fillText(pp.name, sx, sy);
+      ctx.textAlign = 'right';
+      ctx.fillText(pp.bpm + ' BPM  ' + pp.beats + '/4  ' + subdivNames[pp.sub - 1], W - 80, sy);
+      sy += 24;
+    }
+
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.fillStyle = '#555';
+    ctx.textAlign = 'center';
+    ctx.fillText('↓ close • ↑ select preset • Enter start', W / 2, H - 25);
+    requestAnimationFrame(draw);
+    return; // skip normal footer when stats shown
+  }
+
+  // Time signature
+  ctx.font = '16px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.fillText(beatsPerMeasure + '/4', W / 2, 540);
+
+  // Play/pause indicator
+  ctx.font = '24px -apple-system, sans-serif';
+  ctx.fillStyle = playing ? '#4a9eff' : '#555';
+  ctx.textAlign = 'left';
+  ctx.fillText(playing ? '▶' : '⏸', 20, 30);
+
+  // Tap tempo hint
+  if (micActive && !playing) {
+    ctx.font = '14px -apple-system, sans-serif';
+    ctx.fillStyle = '#ff8c00';
+    ctx.textAlign = 'center';
+    ctx.fillText('🎤 Tap glasses frame to set tempo', W / 2, 560);
+  } else if (!micActive && !micFailed) {
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.fillStyle = '#555';
+    ctx.textAlign = 'center';
+    ctx.fillText('Enter to start • ↑ presets • ↓ stats', W / 2, 560);
+  } else if (!playing) {
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.fillStyle = '#444';
+    ctx.textAlign = 'center';
+    ctx.fillText('↑ presets • ↓ stats • Enter start • Esc back', W / 2, H - 10);
+  } else {
+    // Controls hint
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.fillStyle = '#444';
+    ctx.textAlign = 'center';
+    ctx.fillText('←→ BPM  ↑ subdiv  ↓ time sig  Enter stop', W / 2, H - 10);
+  }
+
+  requestAnimationFrame(draw);
+}
+
+// Tap tempo (called by mic OR could be called by input)
+function tapTempo() {
+  var now = performance.now();
+  tapTimes.push(now);
+  if (tapTimes.length > 6) tapTimes.shift();
+  if (tapTimes.length >= 2) {
+    var intervals = [];
+    for (var i = 1; i < tapTimes.length; i++) {
+      var diff = tapTimes[i] - tapTimes[i - 1];
+      if (diff < 2000) intervals.push(diff);
+    }
+    if (intervals.length > 0) {
+      var avg = 0;
+      for (var j = 0; j < intervals.length; j++) avg += intervals[j];
+      avg /= intervals.length;
+      bpm = Math.round(60000 / avg);
+      bpm = Math.max(20, Math.min(300, bpm));
+      tapTempoDisplay = 1.0;
+    }
+  }
+}
+
+// Input
+var holdTimer = null;
+var holdInterval = null;
+var holdDir = 0;
+
+function adjustBPM(dir) {
+  bpm = Math.max(20, Math.min(300, bpm + dir));
+  currentPreset = -1; // manual adjustment breaks preset
+  savePrefs();
+}
+
+document.addEventListener('keydown', function(e) {
+  e.preventDefault();
+  if (e.repeat) return;
+
+  if (e.key === 'ArrowLeft') {
+    adjustBPM(-1);
+    holdDir = -1;
+    clearTimeout(holdTimer);
+    clearInterval(holdInterval);
+    holdTimer = setTimeout(function() {
+      holdInterval = setInterval(function() { adjustBPM(holdDir * 5); }, 80);
+    }, 400);
+  } else if (e.key === 'ArrowRight') {
+    adjustBPM(1);
+    holdDir = 1;
+    clearTimeout(holdTimer);
+    clearInterval(holdInterval);
+    holdTimer = setTimeout(function() {
+      holdInterval = setInterval(function() { adjustBPM(holdDir * 5); }, 80);
+    }, 400);
+  } else if (e.key === 'ArrowUp') {
+    if (!playing) {
+      // Cycle presets when stopped
+      currentPreset = (currentPreset + 1) % presets.length;
+      var p = presets[currentPreset];
+      bpm = p.bpm;
+      beatsPerMeasure = p.beats;
+      subdivision = p.sub;
+      presetFlash = 1.0;
+      savePrefs();
+    } else {
+      // Cycle subdivision when playing
+      subdivision = subdivision >= 4 ? 1 : subdivision + 1;
+      subTick = 0;
+      savePrefs();
+    }
+  } else if (e.key === 'ArrowDown') {
+    if (!playing) {
+      showStats = !showStats;
+    } else {
+      beatsPerMeasure = beatsPerMeasure >= 8 ? 1 : beatsPerMeasure + 1;
+      currentBeat = 0;
+      savePrefs();
+    }
+  } else if (e.key === 'Enter') {
+    initAudio();
+    initMic();
+    showStats = false;
+    if (playing) {
+      playing = false;
+      // Record practice time
+      var elapsed = (performance.now() - sessionStartTime) / 1000;
+      sessionAccum += elapsed;
+      recordPractice(sessionAccum);
+      sessionAccum = 0;
+      currentBeat = 0;
+      flashIntensity = 0;
+    } else {
+      playing = true;
+      sessionStartTime = performance.now();
+      lastBeatTime = performance.now();
+      currentBeat = 0;
+      beat();
+    }
+  } else if (e.key === 'Escape' || e.key === 'Backspace') {
+    window.location.href = '../';
+  }
+});
+
+document.addEventListener('keyup', function(e) {
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    clearTimeout(holdTimer);
+    clearInterval(holdInterval);
+  }
+});
+
+// Init
+draw();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

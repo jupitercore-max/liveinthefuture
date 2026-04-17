@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>STALK — Stealth Audio Game</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;font-family:system-ui,-apple-system,sans-serif}
+canvas{display:block}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+var W = 600, H = 600;
+var TILE = 30;
+var COLS = 20, ROWS = 18;
+var MAP_Y = 60; // top offset for HUD
+
+// Audio
+var audioCtx = null;
+var analyser = null;
+var micStream = null;
+var micFailed = false;
+var micActive = false;
+var micLevel = 0;
+var smoothLevel = 0;
+var noiseThreshold = 0.15;
+var dataArray = null;
+
+// Game state
+var STATE_TITLE = 0, STATE_PLAY = 1, STATE_CAUGHT = 2, STATE_WIN = 3;
+var state = STATE_TITLE;
+var level = 1;
+var detections = 0;
+var maxDetections = 3;
+var peekCooldown = 0;
+var peekActive = 0;
+var alertFlash = 0;
+var moveDelay = 0;
+var steps = 0;
+
+// Persistence & Ranks
+var RANKS = [
+  {name:'Rookie',      ghosts:0,  bonus:''},
+  {name:'Shadow',      ghosts:3,  bonus:'Peek +50%'},
+  {name:'Phantom',     ghosts:8,  bonus:'Noise -15%'},
+  {name:'Wraith',      ghosts:15, bonus:'FOV +1 tile'},
+  {name:'Spectre',     ghosts:25, bonus:'+1 detection'},
+  {name:'Ghost',       ghosts:40, bonus:'Peek +100%'},
+  {name:'Shade',       ghosts:60, bonus:'Noise -30%'},
+  {name:'Unseen',      ghosts:100,bonus:'All bonuses max'}
+];
+var stats = {totalMissions:0, ghostMissions:0, bestLevel:0, totalSteps:0, rank:0};
+
+function loadStats() {
+  try {
+    var s = localStorage.getItem('stalk_stats');
+    if (s) { var p = JSON.parse(s); for (var k in p) { if (stats.hasOwnProperty(k)) stats[k] = p[k]; } }
+  } catch(e) {}
+  updateRank();
+}
+function saveStats() {
+  try { localStorage.setItem('stalk_stats', JSON.stringify(stats)); } catch(e) {}
+}
+function updateRank() {
+  stats.rank = 0;
+  for (var i = RANKS.length - 1; i >= 0; i--) {
+    if (stats.ghostMissions >= RANKS[i].ghosts) { stats.rank = i; break; }
+  }
+}
+function getRankBonus(type) {
+  var r = stats.rank;
+  if (type === 'peek') return r >= 5 ? 2.0 : (r >= 1 ? 1.5 : 1.0);
+  if (type === 'noise') return r >= 6 ? 0.70 : (r >= 2 ? 0.85 : 1.0);
+  if (type === 'fov') return r >= 3 ? 1 : 0;
+  if (type === 'detect') return r >= 4 ? 1 : 0;
+  return 0;
+}
+function nextRankGhosts() {
+  for (var i = 0; i < RANKS.length; i++) {
+    if (stats.ghostMissions < RANKS[i].ghosts) return RANKS[i].ghosts;
+  }
+  return null;
+}
+
+var wasGhostRun = true;
+
+// Guard types
+var GUARD_TYPES = {
+  patrol:   {name:'Patrol',   color:'rgba(255,50,50,',  stepFreq:50, stepType:'triangle', detectMult:1.0},
+  listener: {name:'Listener', color:'rgba(180,50,255,', stepFreq:0,  stepType:'sine',     detectMult:2.0},
+  tracker:  {name:'Tracker',  color:'rgba(255,160,30,', stepFreq:65, stepType:'sawtooth', detectMult:1.0}
+};
+
+// Map
+var map = [];
+var player = {x:1, y:1};
+var exitPos = {x:0, y:0};
+var guards = [];
+var visited = [];
+var fogRevealed = [];
+var newTypeIntro = ''; // flash text when new guard type first appears
+var newTypeIntroTimer = 0;
+
+// Special floor tiles
+var creakyTiles = [];
+var shadowTiles = [];
+var creakyRevealed = []; // only show creaky tiles after stepping/peeking
+var firstCreaky = true; // discovery text flag
+var firstShadow = true;
+
+// Sound
+var lastFootstep = 0;
+
+// Simulated noise fallback (when mic not available)
+var simNoise = 0;
+var simNoiseTarget = 0.2;
+var simNoiseTimer = 0;
+
+function updateSimulatedNoise() {
+  simNoiseTimer++;
+  if (simNoiseTimer > 120 + Math.random() * 180) {
+    simNoiseTimer = 0;
+    simNoiseTarget = 0.08 + Math.random() * 0.35;
+  }
+  simNoise += (simNoiseTarget - simNoise) * 0.02;
+}
+
+function initAudio() {
+  if (audioCtx || micFailed) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.8;
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+    micFailed = true; // assume failure until getUserMedia succeeds
+    navigator.mediaDevices.getUserMedia({audio:true}
+// === BGM System ===
+var bgmAudio = null, bgmGameover = null, bgmMuted = false, bgmStarted = false;
+function bgmInit() {
+  bgmAudio = new Audio('audio/stalk-bgm.mp3');
+  bgmAudio.loop = true;
+  bgmAudio.volume = 0.15;
+  bgmGameover = new Audio('audio/gameover-horror.mp3');
+  bgmGameover.volume = 0.25;
+}
+function bgmPlay() {
+  if (bgmMuted || !bgmAudio) return;
+  if (!bgmStarted) { bgmAudio.currentTime = 0; bgmStarted = true; }
+  bgmAudio.play().catch(function(){});
+}
+function bgmStop() { if (bgmAudio) { bgmAudio.pause(); } bgmStarted = false; }
+function bgmGameOver() {
+  bgmStop();
+  if (bgmMuted || !bgmGameover) return;
+  bgmGameover.currentTime = 0;
+  bgmGameover.play().catch(function(){});
+}
+function bgmToggle() {
+  bgmMuted = !bgmMuted;
+  if (bgmMuted) { if (bgmAudio) bgmAudio.pause(); }
+  else bgmPlay();
+}
+).then(function(stream){
+      micStream = stream;
+      var src = audioCtx.createMediaStreamSource(stream);
+      src.connect(analyser);
+      micActive = true;
+      micFailed = false;
+    }).catch(function(){
+      micFailed = true;
+    });
+  } catch(e) {
+    micFailed = true;
+  }
+}
+
+function updateMicLevel() {
+  if (!micActive || !analyser) {
+    // Use simulated noise when mic unavailable
+    updateSimulatedNoise();
+    micLevel = simNoise;
+    smoothLevel += (simNoise - smoothLevel) * 0.15;
+    return;
+  }
+  analyser.getByteFrequencyData(dataArray);
+  var sum = 0;
+  for (var i = 0; i < dataArray.length; i++) sum += dataArray[i];
+  var raw = sum / (dataArray.length * 255);
+  micLevel = raw;
+  smoothLevel += (raw - smoothLevel) * 0.15;
+}
+
+function playTone(freq, dur, vol, type) {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(vol || 0.1, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + dur);
+}
+
+function playFootstep() {
+  playTone(80 + Math.random()*40, 0.08, 0.05, 'triangle');
+}
+
+function playAlert() {
+  playTone(600, 0.15, 0.2, 'square');
+  setTimeout(function(){ playTone(800, 0.15, 0.2, 'square'); }, 150);
+}
+
+function playCaught() {
+  playTone(200, 0.4, 0.3, 'sawtooth');
+  setTimeout(function(){ playTone(150, 0.4, 0.3, 'sawtooth'); }, 200);
+}
+
+function playWin() {
+  playTone(523, 0.15, 0.15, 'sine');
+  setTimeout(function(){ playTone(659, 0.15, 0.15, 'sine'); }, 150);
+  setTimeout(function(){ playTone(784, 0.3, 0.2, 'sine'); }, 300);
+}
+
+function playRankUp() {
+  playTone(523, 0.12, 0.15, 'sine');
+  setTimeout(function(){ playTone(659, 0.12, 0.15, 'sine'); }, 120);
+  setTimeout(function(){ playTone(784, 0.12, 0.15, 'sine'); }, 240);
+  setTimeout(function(){ playTone(1047, 0.4, 0.2, 'sine'); }, 360);
+}
+
+function playCreak() {
+  if (!audioCtx) return;
+  // Loud creaky floor noise — wooden crack + resonance
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.15);
+  gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.25);
+  // Second click for realism
+  setTimeout(function(){
+    playTone(90, 0.1, 0.15, 'triangle');
+  }, 50);
+}
+
+function playShadowEnter() {
+  // Soft low whoosh — entering shadow
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(250, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.2);
+  gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.3);
+}
+
+function playGuardStep(gx, gy, guardType) {
+  // Spatial: pan based on relative position to player
+  if (!audioCtx) return;
+  var dx = gx - player.x;
+  var dy = gy - player.y;
+  var dist = Math.sqrt(dx*dx + dy*dy);
+  if (dist > 8) return; // too far to hear
+  var vol = Math.max(0.01, 0.12 * (1 - dist/8));
+  var pan = Math.max(-1, Math.min(1, dx / 6));
+  
+  // Type-specific step sound
+  var gt = GUARD_TYPES[guardType || 'patrol'];
+  var freq = gt.stepFreq + Math.random()*20;
+  if (freq <= 0) return; // listener doesn't step
+  
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  var panner = audioCtx.createStereoPanner();
+  osc.type = gt.stepType || 'triangle';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+  panner.pan.value = pan;
+  osc.connect(gain);
+  gain.connect(panner);
+  panner.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.15);
+}
+
+// Map generation
+function generateMap() {
+  map = [];
+  visited = [];
+  fogRevealed = [];
+  for (var y = 0; y < ROWS; y++) {
+    map[y] = [];
+    visited[y] = [];
+    fogRevealed[y] = [];
+    for (var x = 0; x < COLS; x++) {
+      map[y][x] = 1; // wall
+      visited[y][x] = false;
+      fogRevealed[y][x] = false;
+    }
+  }
+  
+  // Recursive backtracker maze
+  var stack = [];
+  var sx = 1, sy = 1;
+  map[sy][sx] = 0;
+  stack.push({x:sx, y:sy});
+  
+  while (stack.length > 0) {
+    var cur = stack[stack.length - 1];
+    var neighbors = [];
+    var dirs = [{dx:0,dy:-2},{dx:0,dy:2},{dx:-2,dy:0},{dx:2,dy:0}];
+    for (var d = 0; d < dirs.length; d++) {
+      var nx = cur.x + dirs[d].dx;
+      var ny = cur.y + dirs[d].dy;
+      if (nx > 0 && nx < COLS-1 && ny > 0 && ny < ROWS-1 && map[ny][nx] === 1) {
+        neighbors.push({x:nx, y:ny, wx: cur.x + dirs[d].dx/2, wy: cur.y + dirs[d].dy/2});
+      }
+    }
+    if (neighbors.length > 0) {
+      var chosen = neighbors[Math.floor(Math.random() * neighbors.length)];
+      map[chosen.wy][chosen.wx] = 0;
+      map[chosen.y][chosen.x] = 0;
+      stack.push({x:chosen.x, y:chosen.y});
+    } else {
+      stack.pop();
+    }
+  }
+  
+  // Open extra passages for more space (scale with level)
+  var extraPasses = 10 + level * 3;
+  for (var i = 0; i < extraPasses; i++) {
+    var rx = 1 + Math.floor(Math.random() * (COLS - 2));
+    var ry = 1 + Math.floor(Math.random() * (ROWS - 2));
+    if (map[ry][rx] === 1) {
+      // Check if opening this creates a path (at least 2 adjacent open)
+      var adj = 0;
+      if (ry > 0 && map[ry-1][rx] === 0) adj++;
+      if (ry < ROWS-1 && map[ry+1][rx] === 0) adj++;
+      if (rx > 0 && map[ry][rx-1] === 0) adj++;
+      if (rx < COLS-1 && map[ry][rx+1] === 0) adj++;
+      if (adj >= 2) map[ry][rx] = 0;
+    }
+  }
+  
+  // Place player
+  player.x = 1;
+  player.y = 1;
+  map[1][1] = 0;
+  
+  // Place exit far from player
+  var bestDist = 0;
+  exitPos = {x: COLS-2, y: ROWS-2};
+  for (var ey = 1; ey < ROWS-1; ey++) {
+    for (var ex = 1; ex < COLS-1; ex++) {
+      if (map[ey][ex] === 0) {
+        var d = Math.abs(ex - player.x) + Math.abs(ey - player.y);
+        if (d > bestDist) {
+          bestDist = d;
+          exitPos = {x: ex, y: ey};
+        }
+      }
+    }
+  }
+  
+  // Place guards
+  guards = [];
+  var numGuards = Math.min(2 + level, 8);
+  for (var g = 0; g < numGuards; g++) {
+    // Determine guard type based on level and slot
+    var gtype = 'patrol';
+    if (level >= 3 && g === numGuards - 1) gtype = 'tracker';
+    else if (level >= 2 && g === numGuards - (level >= 3 ? 2 : 1)) gtype = 'listener';
+    
+    var tries = 0;
+    while (tries < 100) {
+      var gx = 1 + Math.floor(Math.random() * (COLS - 2));
+      var gy = 1 + Math.floor(Math.random() * (ROWS - 2));
+      if (map[gy][gx] === 0 && !(gx === player.x && gy === player.y) && !(gx === exitPos.x && gy === exitPos.y)) {
+        var tooClose = false;
+        var pd = Math.abs(gx - player.x) + Math.abs(gy - player.y);
+        if (pd < 5) tooClose = true;
+        if (!tooClose) {
+          guards.push({
+            x: gx, y: gy,
+            dir: Math.floor(Math.random() * 4), // 0=up,1=right,2=down,3=left
+            alert: 0,
+            moveTimer: 0,
+            speed: gtype === 'listener' ? 999 : (gtype === 'tracker' ? Math.max(12, 25 - level * 2) : Math.max(15, 30 - level * 2)),
+            patrol: gtype === 'patrol' && Math.random() < 0.5,
+            type: gtype,
+            lastKnownX: -1, lastKnownY: -1, // tracker: last known player position
+            hunting: false // tracker: actively hunting last known pos
+          });
+          break;
+        }
+      }
+      tries++;
+    }
+  }
+  
+  // Reveal area around player (rank bonus: FOV +1)
+  revealAround(player.x, player.y, 2 + getRankBonus('fov'));
+  detections = 0;
+  maxDetections = 3 + getRankBonus('detect');
+  peekCooldown = 0;
+  peekActive = 0;
+  steps = 0;
+  wasGhostRun = true;
+  
+  // Generate special floor tiles
+  creakyTiles = [];
+  shadowTiles = [];
+  creakyRevealed = [];
+  for (var cy = 0; cy < ROWS; cy++) {
+    creakyRevealed[cy] = [];
+    for (var cx = 0; cx < COLS; cx++) creakyRevealed[cy][cx] = false;
+  }
+  // Creaky floors: stepping on them makes a loud noise regardless of mic level
+  var numCreaky = 3 + Math.min(level, 5);
+  for (var ci = 0; ci < numCreaky; ci++) {
+    var ct = 0;
+    while (ct < 80) {
+      var crx = 1 + Math.floor(Math.random() * (COLS - 2));
+      var cry = 1 + Math.floor(Math.random() * (ROWS - 2));
+      if (map[cry][crx] === 0 && !(crx === player.x && cry === player.y) && !(crx === exitPos.x && cry === exitPos.y)) {
+        var dup = false;
+        for (var ck = 0; ck < creakyTiles.length; ck++) { if (creakyTiles[ck].x === crx && creakyTiles[ck].y === cry) dup = true; }
+        if (!dup) { creakyTiles.push({x: crx, y: cry}); break; }
+      }
+      ct++;
+    }
+  }
+  // Shadow zones: stepping on them reduces player noise multiplier
+  var numShadow = 2 + Math.min(level, 4);
+  for (var si = 0; si < numShadow; si++) {
+    var st = 0;
+    while (st < 80) {
+      var srx = 1 + Math.floor(Math.random() * (COLS - 2));
+      var sry = 1 + Math.floor(Math.random() * (ROWS - 2));
+      if (map[sry][srx] === 0 && !(srx === player.x && sry === player.y) && !(srx === exitPos.x && sry === exitPos.y)) {
+        var sdup = false;
+        for (var sk = 0; sk < shadowTiles.length; sk++) { if (shadowTiles[sk].x === srx && shadowTiles[sk].y === sry) sdup = true; }
+        for (var ck2 = 0; ck2 < creakyTiles.length; ck2++) { if (creakyTiles[ck2].x === srx && creakyTiles[ck2].y === sry) sdup = true; }
+        if (!sdup) { shadowTiles.push({x: srx, y: sry}); break; }
+      }
+      st++;
+    }
+  }
+  
+  // New guard type intro
+  newTypeIntro = '';
+  newTypeIntroTimer = 0;
+  if (level === 2) { newTypeIntro = '⚠ NEW: LISTENER — stationary, 2× hearing range'; newTypeIntroTimer = 180; }
+  if (level === 3) { newTypeIntro = '⚠ NEW: TRACKER — remembers where you were'; newTypeIntroTimer = 180; }
+}
+
+function revealAround(cx, cy, radius) {
+  for (var dy = -radius; dy <= radius; dy++) {
+    for (var dx = -radius; dx <= radius; dx++) {
+      var ny = cy + dy;
+      var nx = cx + dx;
+      if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) {
+        fogRevealed[ny][nx] = true;
+        visited[ny][nx] = true;
+      }
+    }
+  }
+}
+
+function canMove(x, y) {
+  return x >= 0 && x < COLS && y >= 0 && y < ROWS && map[y][x] === 0;
+}
+
+// Guard AI
+var guardTick = 0;
+function updateGuards() {
+  guardTick++;
+  
+  for (var i = 0; i < guards.length; i++) {
+    var g = guards[i];
+    
+    // Check if guard detects player based on mic level
+    var dx = Math.abs(g.x - player.x);
+    var dy = Math.abs(g.y - player.y);
+    var dist = Math.sqrt(dx*dx + dy*dy);
+    
+    // Detection radius increases with mic level (rank dampening applied)
+    // Guard type multiplier: listener has 2× detection range
+    var effectiveNoise = smoothLevel * getRankBonus('noise');
+    // Shadow zone dampening: if player is on a shadow tile, halve effective noise
+    var onShadow = false;
+    for (var si2 = 0; si2 < shadowTiles.length; si2++) {
+      if (shadowTiles[si2].x === player.x && shadowTiles[si2].y === player.y) { onShadow = true; break; }
+    }
+    if (onShadow) effectiveNoise *= 0.4;
+    var typeMult = GUARD_TYPES[g.type || 'patrol'].detectMult;
+    // Minimum detection: guards have base awareness of 1.5 tiles even in silence
+    var detectRadius = (1.5 + effectiveNoise * 10) * typeMult;
+    // Guards detect if player is within radius AND either making noise OR very close (adjacent)
+    var isAdjacent = dist <= 1.5;
+    
+    if (dist <= detectRadius && (effectiveNoise > noiseThreshold || isAdjacent)) {
+      // Adjacent detection builds slower (visual only, no sound)
+      var alertGain = isAdjacent && effectiveNoise <= noiseThreshold ? 3 : (effectiveNoise * 15);
+      g.alert = Math.min(100, g.alert + alertGain);
+      // Tracker: remember player position when detecting noise
+      if (g.type === 'tracker' && g.alert > 30) {
+        g.lastKnownX = player.x;
+        g.lastKnownY = player.y;
+        g.hunting = true;
+      }
+      if (g.alert >= 100) {
+        // Detected!
+        detections++;
+        wasGhostRun = false;
+        alertFlash = 30;
+        playAlert();
+        g.alert = 0;
+        if (detections >= maxDetections) {
+          state = STATE_CAUGHT; bgmGameOver();
+          stats.totalMissions++;
+          if (level > stats.bestLevel) stats.bestLevel = level;
+          stats.totalSteps += steps;
+          saveStats();
+          playCaught();
+        }
+      }
+    } else {
+      g.alert = Math.max(0, g.alert - 1);
+    }
+    
+    // Move guard
+    g.moveTimer++;
+    if (g.moveTimer >= g.speed) {
+      g.moveTimer = 0;
+      
+      // Listener guards are stationary — never move
+      if (g.type === 'listener') {
+        // No movement — they just listen
+      } else if (g.alert > 50) {
+        // Chase toward player
+        var bestDir = -1;
+        var bestD = 999;
+        var ddirs = [{dx:0,dy:-1},{dx:1,dy:0},{dx:0,dy:1},{dx:-1,dy:0}];
+        for (var d = 0; d < 4; d++) {
+          var nx = g.x + ddirs[d].dx;
+          var ny = g.y + ddirs[d].dy;
+          if (canMove(nx, ny)) {
+            var nd = Math.abs(nx - player.x) + Math.abs(ny - player.y);
+            if (nd < bestD) { bestD = nd; bestDir = d; }
+          }
+        }
+        if (bestDir >= 0) {
+          g.x += ddirs[bestDir].dx;
+          g.y += ddirs[bestDir].dy;
+          g.dir = bestDir;
+          playGuardStep(g.x, g.y, g.type);
+        }
+      } else if (g.type === 'tracker' && g.hunting && g.lastKnownX >= 0) {
+        // Tracker: move toward last known player position
+        var ddirs4 = [{dx:0,dy:-1},{dx:1,dy:0},{dx:0,dy:1},{dx:-1,dy:0}];
+        var bestDir4 = -1;
+        var bestD4 = 999;
+        for (var d4 = 0; d4 < 4; d4++) {
+          var nx4 = g.x + ddirs4[d4].dx;
+          var ny4 = g.y + ddirs4[d4].dy;
+          if (canMove(nx4, ny4)) {
+            var nd4 = Math.abs(nx4 - g.lastKnownX) + Math.abs(ny4 - g.lastKnownY);
+            if (nd4 < bestD4) { bestD4 = nd4; bestDir4 = d4; }
+          }
+        }
+        if (bestDir4 >= 0) {
+          g.x += ddirs4[bestDir4].dx;
+          g.y += ddirs4[bestDir4].dy;
+          g.dir = bestDir4;
+          playGuardStep(g.x, g.y, g.type);
+        }
+        // Arrived at last known position — stop hunting
+        if (g.x === g.lastKnownX && g.y === g.lastKnownY) {
+          g.hunting = false;
+          g.lastKnownX = -1;
+          g.lastKnownY = -1;
+        }
+      } else if (g.patrol) {
+        // Patrol: keep going in current direction, turn if blocked
+        var ddirs2 = [{dx:0,dy:-1},{dx:1,dy:0},{dx:0,dy:1},{dx:-1,dy:0}];
+        var nx2 = g.x + ddirs2[g.dir].dx;
+        var ny2 = g.y + ddirs2[g.dir].dy;
+        if (canMove(nx2, ny2)) {
+          g.x = nx2;
+          g.y = ny2;
+          playGuardStep(g.x, g.y, g.type);
+        } else {
+          // Try turning
+          var turned = false;
+          var tryDirs = [(g.dir + 1) % 4, (g.dir + 3) % 4, (g.dir + 2) % 4];
+          for (var t = 0; t < tryDirs.length; t++) {
+            var tx = g.x + ddirs2[tryDirs[t]].dx;
+            var ty = g.y + ddirs2[tryDirs[t]].dy;
+            if (canMove(tx, ty)) {
+              g.dir = tryDirs[t];
+              g.x = tx;
+              g.y = ty;
+              playGuardStep(g.x, g.y, g.type);
+              turned = true;
+              break;
+            }
+          }
+        }
+      } else {
+        // Random walk
+        var ddirs3 = [{dx:0,dy:-1},{dx:1,dy:0},{dx:0,dy:1},{dx:-1,dy:0}];
+        var openDirs = [];
+        for (var d2 = 0; d2 < 4; d2++) {
+          if (canMove(g.x + ddirs3[d2].dx, g.y + ddirs3[d2].dy)) openDirs.push(d2);
+        }
+        if (openDirs.length > 0) {
+          var pick = openDirs[Math.floor(Math.random() * openDirs.length)];
+          g.x += ddirs3[pick].dx;
+          g.y += ddirs3[pick].dy;
+          g.dir = pick;
+          playGuardStep(g.x, g.y, g.type);
+        }
+      }
+      
+      // Guard catches player if on same tile
+      if (g.x === player.x && g.y === player.y) {
+        detections = maxDetections;
+        wasGhostRun = false;
+        state = STATE_CAUGHT;
+        stats.totalMissions++;
+        if (level > stats.bestLevel) stats.bestLevel = level;
+        stats.totalSteps += steps;
+        saveStats();
+        playCaught();
+        alertFlash = 30;
+      }
+    }
+  }
+}
+
+// Drawing
+function drawTile(x, y, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x * TILE, MAP_Y + y * TILE, TILE, TILE);
+}
+
+function draw() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  
+  if (state === STATE_TITLE) {
+    drawTitle();
+    return;
+  }
+  
+  // Draw map
+  for (var y = 0; y < ROWS; y++) {
+    for (var x = 0; x < COLS; x++) {
+      if (!fogRevealed[y][x] && peekActive <= 0) {
+        // Fog
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(x * TILE, MAP_Y + y * TILE, TILE, TILE);
+        continue;
+      }
+      
+      var alpha = (fogRevealed[y][x]) ? 1 : 0.4;
+      
+      if (map[y][x] === 1) {
+        ctx.fillStyle = 'rgba(40,40,50,' + alpha + ')';
+        ctx.fillRect(x * TILE, MAP_Y + y * TILE, TILE, TILE);
+        // Wall edge highlight
+        ctx.fillStyle = 'rgba(60,60,75,' + (alpha * 0.5) + ')';
+        ctx.fillRect(x * TILE, MAP_Y + y * TILE, TILE, 1);
+        ctx.fillRect(x * TILE, MAP_Y + y * TILE, 1, TILE);
+      } else {
+        // Floor
+        var floorBright = visited[y][x] ? 18 : 14;
+        ctx.fillStyle = 'rgb(' + floorBright + ',' + floorBright + ',' + (floorBright+2) + ')';
+        ctx.fillRect(x * TILE, MAP_Y + y * TILE, TILE, TILE);
+        
+        // Shadow zone — dark purple tint (always visible when revealed)
+        var isShadow = false;
+        for (var sw = 0; sw < shadowTiles.length; sw++) {
+          if (shadowTiles[sw].x === x && shadowTiles[sw].y === y) { isShadow = true; break; }
+        }
+        if (isShadow && fogRevealed[y][x]) {
+          var sPulse = 0.08 + 0.04 * Math.sin(Date.now() / 800 + x * 0.5 + y * 0.7);
+          ctx.fillStyle = 'rgba(60,20,120,' + sPulse + ')';
+          ctx.fillRect(x * TILE, MAP_Y + y * TILE, TILE, TILE);
+          // Subtle corner marks
+          ctx.fillStyle = 'rgba(100,40,180,0.15)';
+          ctx.fillRect(x * TILE, MAP_Y + y * TILE, 3, 3);
+          ctx.fillRect(x * TILE + TILE - 3, MAP_Y + y * TILE, 3, 3);
+          ctx.fillRect(x * TILE, MAP_Y + y * TILE + TILE - 3, 3, 3);
+          ctx.fillRect(x * TILE + TILE - 3, MAP_Y + y * TILE + TILE - 3, 3, 3);
+        }
+        
+        // Creaky floor — only revealed after stepping on or peeking
+        var isCreaky = false;
+        for (var cw = 0; cw < creakyTiles.length; cw++) {
+          if (creakyTiles[cw].x === x && creakyTiles[cw].y === y) { isCreaky = true; break; }
+        }
+        if (isCreaky && (creakyRevealed[y][x] || peekActive > 0)) {
+          ctx.fillStyle = 'rgba(180,120,40,0.2)';
+          ctx.fillRect(x * TILE + 2, MAP_Y + y * TILE + 2, TILE - 4, TILE - 4);
+          // Crack lines
+          ctx.strokeStyle = 'rgba(180,120,40,0.3)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x * TILE + 5, MAP_Y + y * TILE + 8);
+          ctx.lineTo(x * TILE + TILE - 5, MAP_Y + y * TILE + TILE - 8);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(x * TILE + TILE - 8, MAP_Y + y * TILE + 5);
+          ctx.lineTo(x * TILE + 8, MAP_Y + y * TILE + TILE - 5);
+          ctx.stroke();
+        }
+        
+        // Grid line
+        ctx.fillStyle = 'rgba(255,255,255,0.02)';
+        ctx.fillRect(x * TILE + TILE - 1, MAP_Y + y * TILE, 1, TILE);
+        ctx.fillRect(x * TILE, MAP_Y + y * TILE + TILE - 1, TILE, 1);
+      }
+    }
+  }
+  
+  // Draw exit
+  var exitPulse = 0.5 + 0.5 * Math.sin(Date.now() / 300);
+  ctx.fillStyle = 'rgba(0,255,100,' + (0.3 + exitPulse * 0.4) + ')';
+  ctx.fillRect(exitPos.x * TILE + 4, MAP_Y + exitPos.y * TILE + 4, TILE - 8, TILE - 8);
+  ctx.strokeStyle = 'rgba(0,255,100,' + (0.5 + exitPulse * 0.3) + ')';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(exitPos.x * TILE + 2, MAP_Y + exitPos.y * TILE + 2, TILE - 4, TILE - 4);
+  
+  // Draw guards
+  for (var i = 0; i < guards.length; i++) {
+    var g = guards[i];
+    var gVisible = fogRevealed[g.y][g.x] || peekActive > 0;
+    if (!gVisible) continue;
+    
+    // Guard body — color by type
+    var gt = GUARD_TYPES[g.type || 'patrol'];
+    var alertColor = g.alert > 50 ? gt.color + '0.9)' : g.alert > 20 ? gt.color + '0.8)' : gt.color + '0.6)';
+    ctx.fillStyle = alertColor;
+    ctx.beginPath();
+    ctx.arc(g.x * TILE + TILE/2, MAP_Y + g.y * TILE + TILE/2, TILE/3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Type-specific visual indicators
+    if (g.type === 'listener') {
+      // Concentric rings to show "always listening"
+      var listenPulse = 0.3 + 0.3 * Math.sin(Date.now() / 400);
+      ctx.strokeStyle = 'rgba(180,50,255,' + (listenPulse * 0.3) + ')';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(g.x * TILE + TILE/2, MAP_Y + g.y * TILE + TILE/2, TILE * 0.7, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (g.type === 'tracker' && g.hunting) {
+      // Tracking indicator: small triangle pointing toward last known pos
+      ctx.fillStyle = 'rgba(255,160,30,0.6)';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('◎', g.x * TILE + TILE/2, MAP_Y + g.y * TILE - 2);
+    }
+    
+    // Detection radius indicator (subtle) — color matches type
+    if (g.alert > 0) {
+      var typeDetectMult = GUARD_TYPES[g.type || 'patrol'].detectMult;
+      var detectR = (2 + smoothLevel * 10) * typeDetectMult * TILE;
+      var rColor = g.type === 'listener' ? '180,50,255' : g.type === 'tracker' ? '255,160,30' : '255,50,50';
+      ctx.strokeStyle = 'rgba(' + rColor + ',' + (g.alert / 300) + ')';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(g.x * TILE + TILE/2, MAP_Y + g.y * TILE + TILE/2, detectR, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    
+    // Alert indicator
+    if (g.alert > 20) {
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 14px system-ui';
+      ctx.textAlign = 'center';
+      var alertText = g.alert > 70 ? '!!' : '?';
+      ctx.fillText(alertText, g.x * TILE + TILE/2, MAP_Y + g.y * TILE - 4);
+    }
+  }
+  
+  // Draw player
+  var playerPulse = 0.8 + 0.2 * Math.sin(Date.now() / 200);
+  ctx.fillStyle = 'rgba(80,180,255,' + playerPulse + ')';
+  ctx.beginPath();
+  ctx.arc(player.x * TILE + TILE/2, MAP_Y + player.y * TILE + TILE/2, TILE/3, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Player glow based on noise
+  if (smoothLevel > noiseThreshold) {
+    var glowR = smoothLevel * 60;
+    var glowAlpha = Math.min(0.3, smoothLevel * 0.5);
+    ctx.strokeStyle = 'rgba(255,200,50,' + glowAlpha + ')';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(player.x * TILE + TILE/2, MAP_Y + player.y * TILE + TILE/2, glowR, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  
+  // Alert flash
+  if (alertFlash > 0) {
+    ctx.fillStyle = 'rgba(255,0,0,' + (alertFlash / 60) + ')';
+    ctx.fillRect(0, 0, W, H);
+    alertFlash--;
+  }
+  
+  // Peek flash
+  if (peekActive > 0) {
+    ctx.fillStyle = 'rgba(80,180,255,0.05)';
+    ctx.fillRect(0, 0, W, H);
+    peekActive--;
+  }
+  
+  // HUD
+  drawHUD();
+  
+  // New guard type intro flash
+  if (newTypeIntroTimer > 0 && state === STATE_PLAY) {
+    newTypeIntroTimer--;
+    var introAlpha = Math.min(1, newTypeIntroTimer / 30);
+    var introColor = level === 2 ? '180,50,255' : '255,160,30';
+    ctx.fillStyle = 'rgba(' + introColor + ',' + (introAlpha * 0.1) + ')';
+    ctx.fillRect(0, H/2 - 30, W, 50);
+    ctx.fillStyle = 'rgba(' + introColor + ',' + introAlpha + ')';
+    ctx.font = 'bold 14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(newTypeIntro, W/2, H/2 - 2);
+  }
+  
+  // State overlays
+  if (state === STATE_CAUGHT) {
+    var caughtSub = 'Level ' + level + ' · ' + RANKS[stats.rank].name + ' (' + stats.ghostMissions + ' ghosts)';
+    drawOverlay('DETECTED', '#ff3333', caughtSub, 'Enter to retry');
+  } else if (state === STATE_WIN) {
+    var ghostStr = (wasGhostRun && detections === 0) ? '👻 GHOST RUN! · ' : '';
+    var nextG = nextRankGhosts();
+    var rankStr = RANKS[stats.rank].name;
+    var progStr = nextG ? ' · ' + stats.ghostMissions + '/' + nextG + ' → ' + RANKS[stats.rank + 1].name : ' · MAX RANK';
+    var winSub = ghostStr + 'Level ' + level + ' · Steps: ' + steps + rankStr + progStr;
+    drawOverlay('ESCAPED', '#00ff66', winSub, 'Enter for next level');
+  }
+}
+
+function drawHUD() {
+  // Background
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, MAP_Y);
+  
+  // Level
+  ctx.fillStyle = '#888';
+  ctx.font = '13px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText('LEVEL ' + level, 8, 18);
+  
+  // Steps
+  ctx.fillText('STEPS: ' + steps, 8, 36);
+  
+  // Rank
+  ctx.fillStyle = stats.rank >= 5 ? '#ffd700' : stats.rank >= 3 ? '#4af' : '#666';
+  ctx.font = '10px system-ui';
+  ctx.fillText(RANKS[stats.rank].name, 8, 50);
+  
+  // Detections
+  ctx.textAlign = 'center';
+  for (var i = 0; i < maxDetections; i++) {
+    ctx.fillStyle = i < detections ? '#ff3333' : '#333';
+    ctx.fillText('◆', W/2 - 20 + i * 20, 18);
+  }
+  ctx.fillStyle = '#666';
+  ctx.font = '10px system-ui';
+  ctx.fillText(detections + '/' + maxDetections + ' detections', W/2, 36);
+  
+  // Mic level
+  ctx.textAlign = 'right';
+  var micStr = micActive ? '🎤' : (micFailed ? '🔇' : '🎤?');
+  ctx.fillStyle = '#888';
+  ctx.font = '13px system-ui';
+  ctx.fillText(micStr, W - 8, 18);
+  
+  // Noise bar
+  var barW = 80;
+  var barX = W - barW - 8;
+  var barY = 26;
+  var barH = 8;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(barX, barY, barW, barH);
+  var noiseW = Math.min(barW, smoothLevel * barW * 3);
+  var barColor = smoothLevel > noiseThreshold * 2 ? '#ff3333' : smoothLevel > noiseThreshold ? '#ff9933' : '#33ff66';
+  ctx.fillStyle = barColor;
+  ctx.fillRect(barX, barY, noiseW, barH);
+  // Threshold marker
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(barX + noiseThreshold * barW * 3, barY - 1, 1, barH + 2);
+  
+  // Peek cooldown
+  if (peekCooldown > 0) {
+    ctx.fillStyle = '#555';
+    ctx.font = '11px system-ui';
+    ctx.fillText('PEEK: ' + Math.ceil(peekCooldown / 60) + 's', W - 8, 52);
+  } else {
+    ctx.fillStyle = '#4af';
+    ctx.font = '11px system-ui';
+    ctx.fillText('ENTER: peek', W - 8, 52);
+  }
+  
+  // Shadow zone indicator
+  var hudShadow = false;
+  for (var hs = 0; hs < shadowTiles.length; hs++) {
+    if (shadowTiles[hs].x === player.x && shadowTiles[hs].y === player.y) { hudShadow = true; break; }
+  }
+  if (hudShadow) {
+    ctx.fillStyle = 'rgba(100,40,180,0.8)';
+    ctx.font = 'bold 11px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('🌑 SHADOW — 60% noise reduction', W/2, 52);
+  }
+  
+  // Separator
+  ctx.fillStyle = '#222';
+  ctx.fillRect(0, MAP_Y - 1, W, 1);
+}
+
+function drawOverlay(title, color, sub, hint) {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+  
+  ctx.fillStyle = color;
+  ctx.font = 'bold 36px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText(title, W/2, H/2 - 20);
+  
+  ctx.fillStyle = '#aaa';
+  ctx.font = '16px system-ui';
+  ctx.fillText(sub, W/2, H/2 + 20);
+  
+  ctx.fillStyle = '#666';
+  ctx.font = '13px system-ui';
+  ctx.fillText(hint, W/2, H/2 + 50);
+}
+
+function drawTitle() {
+  // Background
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  
+  // Title
+  ctx.fillStyle = '#4af';
+  ctx.font = 'bold 48px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('STALK', W/2, 180);
+  
+  // Subtitle
+  ctx.fillStyle = '#888';
+  ctx.font = '16px system-ui';
+  ctx.fillText('stealth audio game', W/2, 220);
+  
+  // Rank display
+  var rk = RANKS[stats.rank];
+  ctx.fillStyle = stats.rank >= 5 ? '#ffd700' : stats.rank >= 3 ? '#4af' : '#888';
+  ctx.font = 'bold 15px system-ui';
+  ctx.fillText('Agent Rank: ' + rk.name + (rk.bonus ? ' — ' + rk.bonus : ''), W/2, 250);
+  var nextG = nextRankGhosts();
+  if (nextG) {
+    // Progress bar
+    var pct = stats.ghostMissions / nextG;
+    var barW2 = 200, barH2 = 6, barX2 = W/2 - barW2/2, barY2 = 260;
+    ctx.fillStyle = '#222'; ctx.fillRect(barX2, barY2, barW2, barH2);
+    ctx.fillStyle = '#4af'; ctx.fillRect(barX2, barY2, barW2 * pct, barH2);
+    ctx.fillStyle = '#555'; ctx.font = '11px system-ui';
+    ctx.fillText(stats.ghostMissions + '/' + nextG + ' ghost runs → ' + RANKS[stats.rank + 1].name, W/2, 282);
+  } else {
+    ctx.fillStyle = '#ffd700'; ctx.font = '11px system-ui';
+    ctx.fillText('★ MAX RANK — ' + stats.ghostMissions + ' ghost runs ★', W/2, 282);
+  }
+  
+  // Concept
+  ctx.fillStyle = '#666';
+  ctx.font = '14px system-ui';
+  ctx.fillText('Be quiet in real life to stay hidden', W/2, 310);
+  ctx.fillText('Your mic detects noise — guards hear you', W/2, 332);
+  ctx.fillStyle = '#555';
+  ctx.font = '12px system-ui';
+  ctx.fillText('🔴 Patrol · 🟣 Listener (2× range) · 🟠 Tracker (hunts)', W/2, 352);
+  ctx.fillText('🟤 Creaky floors alert guards · 🟣 Shadows muffle you', W/2, 368);
+  
+  // Controls
+  ctx.fillStyle = '#555';
+  ctx.font = '13px system-ui';
+  ctx.fillText('↑↓←→  Move', W/2, 390);
+  ctx.fillText('Enter  Peek (reveal guards & creaky floors)', W/2, 412);
+  ctx.fillText('Esc    Back to gallery', W/2, 434);
+  
+  // Mic status
+  var micPulse = 0.5 + 0.5 * Math.sin(Date.now() / 500);
+  if (micActive) {
+    ctx.fillStyle = 'rgba(50,255,100,' + micPulse + ')';
+    ctx.fillText('🎤 Mic active — noise level: ' + Math.round(smoothLevel * 100) + '%', W/2, 470);
+  } else if (micFailed) {
+    ctx.fillStyle = '#ff5555';
+    ctx.fillText('🔇 Mic unavailable — simulated noise active', W/2, 470);
+  } else {
+    ctx.fillStyle = 'rgba(255,200,50,' + micPulse + ')';
+    ctx.fillText('Press Enter to enable mic & start', W/2, 470);
+  }
+  
+  // Start
+  ctx.fillStyle = '#4af';
+  ctx.font = 'bold 18px system-ui';
+  ctx.fillText('Press Enter to start', W/2, 530);
+}
+
+// Input
+var keys = {};
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'm' || e.key === 'M') { bgmToggle(); return; }
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter','Escape'].indexOf(e.key) >= 0) {
+    e.preventDefault();
+  }
+  
+  if (!audioCtx && !micFailed) initAudio(); if(!bgmAudio) bgmInit();
+  
+  if (state === STATE_TITLE && e.key === 'Enter') {
+    state = STATE_PLAY; bgmPlay();
+    generateMap();
+    return;
+  }
+  
+  if (state === STATE_CAUGHT && e.key === 'Enter') {
+    level = 1;
+    state = STATE_PLAY;
+    generateMap();
+    return;
+  }
+  
+  if (state === STATE_WIN && e.key === 'Enter') {
+    level++;
+    state = STATE_PLAY;
+    generateMap();
+    return;
+  }
+  
+  if (e.key === 'Escape') {
+    if (state === STATE_PLAY) {
+      state = STATE_TITLE;
+    } else {
+      window.location.href = '/games/';
+    }
+    return;
+  }
+  
+  if (state !== STATE_PLAY) return;
+  if (moveDelay > 0) return;
+  
+  var dx = 0, dy = 0;
+  if (e.key === 'ArrowUp') dy = -1;
+  else if (e.key === 'ArrowDown') dy = 1;
+  else if (e.key === 'ArrowLeft') dx = -1;
+  else if (e.key === 'ArrowRight') dx = 1;
+  else if (e.key === 'Enter') {
+    // Peek (rank bonus extends duration)
+    if (peekCooldown <= 0) {
+      peekActive = Math.round(45 * getRankBonus('peek')); // frames
+      peekCooldown = 300; // ~5 seconds at 60fps
+      playTone(1200, 0.1, 0.08, 'sine');
+      // Peek also reveals nearby creaky tiles permanently
+      for (var pci = 0; pci < creakyTiles.length; pci++) {
+        var pcDist = Math.abs(creakyTiles[pci].x - player.x) + Math.abs(creakyTiles[pci].y - player.y);
+        if (pcDist <= 4 + getRankBonus('fov')) creakyRevealed[creakyTiles[pci].y][creakyTiles[pci].x] = true;
+      }
+    }
+    return;
+  }
+  
+  if (dx !== 0 || dy !== 0) {
+    var nx = player.x + dx;
+    var ny = player.y + dy;
+    if (canMove(nx, ny)) {
+      player.x = nx;
+      player.y = ny;
+      steps++;
+      moveDelay = 6;
+      revealAround(player.x, player.y, 2);
+      playFootstep();
+      
+      // Check creaky floor — spike alert for all guards
+      var onCreaky = false;
+      for (var cki = 0; cki < creakyTiles.length; cki++) {
+        if (creakyTiles[cki].x === nx && creakyTiles[cki].y === ny) { onCreaky = true; break; }
+      }
+      if (onCreaky) {
+        creakyRevealed[ny][nx] = true;
+        playCreak();
+        // Spike all guards' alert — loud noise
+        for (var gci = 0; gci < guards.length; gci++) {
+          var gcDist = Math.sqrt(Math.pow(guards[gci].x - nx, 2) + Math.pow(guards[gci].y - ny, 2));
+          if (gcDist < 10) {
+            guards[gci].alert = Math.min(100, guards[gci].alert + Math.max(5, 40 - gcDist * 4));
+            if (guards[gci].type === 'tracker') { guards[gci].lastKnownX = nx; guards[gci].lastKnownY = ny; guards[gci].hunting = true; }
+          }
+        }
+        alertFlash = 10;
+        if (firstCreaky) {
+          firstCreaky = false;
+          newTypeIntro = '⚠ CREAKY FLOOR! Guards heard that — plan your route';
+          newTypeIntroTimer = 150;
+        }
+      }
+      
+      // Check shadow zone entry
+      var onShadow2 = false;
+      for (var ski = 0; ski < shadowTiles.length; ski++) {
+        if (shadowTiles[ski].x === nx && shadowTiles[ski].y === ny) { onShadow2 = true; break; }
+      }
+      if (onShadow2) {
+        playShadowEnter();
+        if (firstShadow) {
+          firstShadow = false;
+          newTypeIntro = '🌑 SHADOW ZONE — noise reduced by 60%';
+          newTypeIntroTimer = 120;
+        }
+      }
+      
+      // Check collision with guards (player walked onto guard)
+      for (var gi = 0; gi < guards.length; gi++) {
+        if (guards[gi].x === player.x && guards[gi].y === player.y) {
+          detections = maxDetections;
+          wasGhostRun = false;
+          state = STATE_CAUGHT;
+          stats.totalMissions++;
+          if (level > stats.bestLevel) stats.bestLevel = level;
+          stats.totalSteps += steps;
+          saveStats();
+          playCaught();
+          alertFlash = 30;
+          return;
+        }
+      }
+      
+      // Check exit
+      if (player.x === exitPos.x && player.y === exitPos.y) {
+        state = STATE_WIN;
+        stats.totalMissions++;
+        stats.totalSteps += steps;
+        if (wasGhostRun && detections === 0) stats.ghostMissions++;
+        if (level > stats.bestLevel) stats.bestLevel = level;
+        var oldRank = stats.rank;
+        updateRank();
+        saveStats();
+        if (stats.rank > oldRank) {
+          // Rank up chime
+          playRankUp();
+        }
+        playWin();
+      }
+    }
+  }
+});
+
+// Game loop
+function update() {
+  updateMicLevel();
+  
+  if (state === STATE_PLAY) {
+    if (moveDelay > 0) moveDelay--;
+    if (peekCooldown > 0) peekCooldown--;
+    updateGuards();
+  }
+}
+
+var lastTime = 0;
+var accumulator = 0;
+var TICK = 1000 / 60;
+
+function frame(time) {
+  var dt = time - lastTime;
+  lastTime = time;
+  if (dt > 100) dt = 100;
+  accumulator += dt;
+  
+  while (accumulator >= TICK) {
+    update();
+    accumulator -= TICK;
+  }
+  
+  draw();
+  requestAnimationFrame(frame);
+}
+
+requestAnimationFrame(function(t) {
+  loadStats();
+  lastTime = t;
+  frame(t);
+});
+
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../touch-controls.js"></script>
+</body>
+</html>

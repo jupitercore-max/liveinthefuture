@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Pulse — LITF Games</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d0d0d;color:#e8e8e8;width:600px;height:600px;overflow:hidden;-webkit-user-select:none;user-select:none}
+canvas{display:block}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+var c=document.getElementById('c'),ctx=c.getContext('2d');
+var W=600,H=600;
+
+// Audio context
+var audioCtx=null,analyser=null,micLevel=0,micSmooth=0;
+function initAudio(){
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  navigator.mediaDevices.getUserMedia({audio:true}
+// === BGM System ===
+var bgmAudio = null, bgmGameover = null, bgmMuted = false, bgmStarted = false;
+function bgmInit() {
+  bgmAudio = new Audio('audio/pulse-bgm.mp3');
+  bgmAudio.loop = true;
+  bgmAudio.volume = 0.15;
+  bgmGameover = new Audio('audio/gameover-dark.mp3');
+  bgmGameover.volume = 0.25;
+}
+function bgmPlay() {
+  if (bgmMuted || !bgmAudio) return;
+  if (!bgmStarted) { bgmAudio.currentTime = 0; bgmStarted = true; }
+  bgmAudio.play().catch(function(){});
+}
+function bgmStop() { if (bgmAudio) { bgmAudio.pause(); } bgmStarted = false; }
+function bgmGameOver() {
+  bgmStop();
+  if (bgmMuted || !bgmGameover) return;
+  bgmGameover.currentTime = 0;
+  bgmGameover.play().catch(function(){});
+}
+function bgmToggle() {
+  bgmMuted = !bgmMuted;
+  if (bgmMuted) { if (bgmAudio) bgmAudio.pause(); }
+  else bgmPlay();
+}
+).then(function(stream){
+    var src=audioCtx.createMediaStreamSource(stream);
+    analyser=audioCtx.createAnalyser();
+    analyser.fftSize=256;
+    src.connect(analyser);
+  }).catch(function(){});
+}
+function readMic(){
+  if(!analyser)return;
+  var d=new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteTimeDomainData(d);
+  var sum=0;
+  for(var i=0;i<d.length;i++){var v=(d[i]-128)/128;sum+=v*v;}
+  micLevel=Math.sqrt(sum/d.length);
+  micSmooth+=(micLevel-micSmooth)*0.08;
+}
+
+// Sound synthesis
+function playHeartbeat(quality){
+  if(!audioCtx)return;
+  var t=audioCtx.currentTime;
+  // Lub
+  var osc1=audioCtx.createOscillator();
+  var g1=audioCtx.createGain();
+  osc1.type='sine';osc1.frequency.setValueAtTime(80,t);
+  osc1.frequency.exponentialRampToValueAtTime(40,t+0.12);
+  g1.gain.setValueAtTime(0.4,t);g1.gain.exponentialRampToValueAtTime(0.001,t+0.15);
+  osc1.connect(g1);g1.connect(audioCtx.destination);
+  osc1.start(t);osc1.stop(t+0.15);
+  // Dub
+  var osc2=audioCtx.createOscillator();
+  var g2=audioCtx.createGain();
+  osc2.type='sine';osc2.frequency.setValueAtTime(60,t+0.1);
+  osc2.frequency.exponentialRampToValueAtTime(30,t+0.22);
+  g2.gain.setValueAtTime(0.3,t+0.1);g2.gain.exponentialRampToValueAtTime(0.001,t+0.25);
+  osc2.connect(g2);g2.connect(audioCtx.destination);
+  osc2.start(t+0.1);osc2.stop(t+0.25);
+  // Quality feedback
+  if(quality>0.8){
+    var osc3=audioCtx.createOscillator();
+    var g3=audioCtx.createGain();
+    osc3.type='triangle';osc3.frequency.value=440;
+    g3.gain.setValueAtTime(0.05*quality,t);g3.gain.exponentialRampToValueAtTime(0.001,t+0.1);
+    osc3.connect(g3);g3.connect(audioCtx.destination);
+    osc3.start(t);osc3.stop(t+0.1);
+  }
+}
+function playFlatline(){
+  if(!audioCtx)return;
+  var t=audioCtx.currentTime;
+  var osc=audioCtx.createOscillator();
+  var g=audioCtx.createGain();
+  osc.type='sine';osc.frequency.value=440;
+  g.gain.setValueAtTime(0.15,t);g.gain.linearRampToValueAtTime(0,t+2);
+  osc.connect(g);g.connect(audioCtx.destination);
+  osc.start(t);osc.stop(t+2);
+}
+function playWarning(){
+  if(!audioCtx)return;
+  var t=audioCtx.currentTime;
+  var osc=audioCtx.createOscillator();
+  var g=audioCtx.createGain();
+  osc.type='square';osc.frequency.value=220;
+  g.gain.setValueAtTime(0.06,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.08);
+  osc.connect(g);g.connect(audioCtx.destination);
+  osc.start(t);osc.stop(t+0.08);
+}
+function playConditionChime(){
+  if(!audioCtx)return;
+  var t=audioCtx.currentTime;
+  var osc=audioCtx.createOscillator();
+  var g=audioCtx.createGain();
+  osc.type='triangle';osc.frequency.setValueAtTime(330,t);
+  osc.frequency.exponentialRampToValueAtTime(660,t+0.15);
+  g.gain.setValueAtTime(0.08,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+  osc.connect(g);g.connect(audioCtx.destination);
+  osc.start(t);osc.stop(t+0.2);
+}
+// Continuous guide metronome
+var guideEnabled=true,guideInterval=null,guideNextTick=0;
+function playGuideTick(loud){
+  if(!audioCtx)return;
+  var t=audioCtx.currentTime;
+  // Soft woodblock-style tick: noise transient + resonant body
+  // Pitch encodes condition category via condition color
+  var baseFreq=condition?({
+    '#4a9eff':600,'#5cb85c':700,'#f0ad4e':900,'#d9534f':1100,
+    '#9b59b6':500,'#e67e22':800,'#ff4444':1200,'#1abc9c':550
+  }[condition.color]||700):700;
+  // Noise transient (click attack)
+  var bufLen=audioCtx.sampleRate*0.008;
+  var buf=audioCtx.createBuffer(1,bufLen,audioCtx.sampleRate);
+  var d=buf.getChannelData(0);
+  for(var i=0;i<bufLen;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/bufLen,3);
+  var nSrc=audioCtx.createBufferSource();nSrc.buffer=buf;
+  var nG=audioCtx.createGain();
+  nG.gain.setValueAtTime(0.025,t);nG.gain.exponentialRampToValueAtTime(0.001,t+0.015);
+  var nF=audioCtx.createBiquadFilter();nF.type='bandpass';nF.frequency.value=baseFreq*1.5;nF.Q.value=2;
+  nSrc.connect(nF);nF.connect(nG);nG.connect(audioCtx.destination);
+  nSrc.start(t);nSrc.stop(t+0.015);
+  // Resonant body (triangle)
+  var osc=audioCtx.createOscillator();
+  var og=audioCtx.createGain();
+  osc.type='triangle';osc.frequency.setValueAtTime(baseFreq,t);
+  osc.frequency.exponentialRampToValueAtTime(baseFreq*0.7,t+0.04);
+  og.gain.setValueAtTime(0.03,t);og.gain.exponentialRampToValueAtTime(0.001,t+0.05);
+  osc.connect(og);og.connect(audioCtx.destination);
+  osc.start(t);osc.stop(t+0.05);
+}
+
+function playRankUp(){
+  if(!audioCtx)return;
+  var t=audioCtx.currentTime;
+  [262,330,392,523].forEach(function(f,i){
+    var osc=audioCtx.createOscillator();
+    var g=audioCtx.createGain();
+    osc.type='triangle';osc.frequency.value=f;
+    g.gain.setValueAtTime(0.1,t+i*0.12);g.gain.exponentialRampToValueAtTime(0.001,t+i*0.12+0.3);
+    osc.connect(g);g.connect(audioCtx.destination);
+    osc.start(t+i*0.12);osc.stop(t+i*0.12+0.3);
+  });
+}
+
+// Game state
+var STATE_MENU=0,STATE_PLAY=1,STATE_OVER=2;
+var state=STATE_MENU;
+
+// Patient conditions
+var CONDITIONS=[
+  {name:'Resting',emoji:'😴',targetBPM:65,color:'#4a9eff',desc:'Calm and sleeping'},
+  {name:'Walking',emoji:'🚶',targetBPM:85,color:'#5cb85c',desc:'Light activity'},
+  {name:'Exercise',emoji:'🏃',targetBPM:120,color:'#f0ad4e',desc:'Working out'},
+  {name:'Panic',emoji:'😰',targetBPM:140,color:'#d9534f',desc:'Anxiety attack'},
+  {name:'Meditation',emoji:'🧘',targetBPM:55,color:'#9b59b6',desc:'Deep calm'},
+  {name:'Fever',emoji:'🤒',targetBPM:100,color:'#e67e22',desc:'Body fighting infection'},
+  {name:'Shock',emoji:'⚡',targetBPM:150,color:'#ff4444',desc:'Emergency!'},
+  {name:'Recovery',emoji:'💤',targetBPM:70,color:'#1abc9c',desc:'Post-surgery rest'}
+];
+
+// Rank system
+var RANKS=[
+  {name:'Intern',kills:0,emoji:'🩺',bonus:'None'},
+  {name:'Resident',kills:5,emoji:'💉',bonus:'+5% tolerance'},
+  {name:'Attending',kills:15,emoji:'⚕️',bonus:'+10% tolerance'},
+  {name:'Specialist',kills:30,emoji:'🏥',bonus:'+1 miss allowed'},
+  {name:'Consultant',kills:50,emoji:'📋',bonus:'+15% tolerance'},
+  {name:'Surgeon',kills:80,emoji:'🔬',bonus:'+2 miss allowed'},
+  {name:'Chief',kills:120,emoji:'👨‍⚕️',bonus:'All bonuses'},
+  {name:'Legend',kills:200,emoji:'🫀',bonus:'Max everything'}
+];
+
+function loadStats(){
+  try{
+    var s=JSON.parse(localStorage.getItem('pulse_stats'));
+    return s||{totalPatients:0,bestStreak:0,bestScore:0};
+  }catch(e){return{totalPatients:0,bestStreak:0,bestScore:0};}
+}
+function saveStats(s){
+  try{localStorage.setItem('pulse_stats',JSON.stringify(s));}catch(e){}
+}
+function getRank(stats){
+  var r=RANKS[0];
+  for(var i=RANKS.length-1;i>=0;i--){
+    if(stats.totalPatients>=RANKS[i].kills){r=RANKS[i];break;}
+  }
+  return r;
+}
+function getNextRank(stats){
+  for(var i=0;i<RANKS.length;i++){
+    if(stats.totalPatients<RANKS[i].kills)return RANKS[i];
+  }
+  return null;
+}
+function getRankBonuses(stats){
+  var r=getRank(stats);
+  var idx=RANKS.indexOf(r);
+  var toleranceBonus=0;
+  var extraMisses=0;
+  if(idx>=1)toleranceBonus+=0.05;
+  if(idx>=2)toleranceBonus+=0.05;
+  if(idx>=3)extraMisses+=1;
+  if(idx>=4)toleranceBonus+=0.05;
+  if(idx>=5)extraMisses+=1;
+  if(idx>=6){toleranceBonus=0.2;extraMisses=2;}
+  if(idx>=7){toleranceBonus=0.25;extraMisses=3;}
+  return{toleranceBonus:toleranceBonus,extraMisses:extraMisses};
+}
+
+var stats=loadStats();
+try{guideEnabled=localStorage.getItem('pulse_guide')!=='0';}catch(ex){}
+
+// Medical Emergencies system
+var EMERGENCIES=[
+  {name:'DEFIB',emoji:'⚡',key:'ArrowUp',keyLabel:'↑',color:'#ffd700',desc:'Cardiac arrest!',sound:1200},
+  {name:'VENTILATE',emoji:'🫁',key:'ArrowDown',keyLabel:'↓',color:'#00bfff',desc:'Respiratory failure!',sound:800},
+  {name:'PUSH EPI',emoji:'💉',key:'ArrowLeft',keyLabel:'←',color:'#ff6b6b',desc:'Epinephrine needed!',sound:1000},
+  {name:'TRANSFUSE',emoji:'🩸',key:'ArrowRight',keyLabel:'→',color:'#ff8c42',desc:'Blood loss critical!',sound:600}
+];
+var activeEmergency=null,emergencyTimer=0,emergencyWindow=4000;
+var nextEmergencyAt=0,emergencyResponseTimer=0;
+var emergenciesHandled=0,emergenciesMissed=0;
+var emergencyFlash=0,emergencyResult='',emergencyResultTimer=0;
+// Discovery tracking
+function loadEmergencyDiscovery(){
+  try{var d=JSON.parse(localStorage.getItem('pulse_emergencies'));return d||{};}catch(e){return{};}
+}
+function saveEmergencyDiscovery(d){
+  try{localStorage.setItem('pulse_emergencies',JSON.stringify(d));}catch(e){}
+}
+var emergencyDiscovery=loadEmergencyDiscovery();
+function countDiscovered(){var n=0;for(var i=0;i<EMERGENCIES.length;i++){if(emergencyDiscovery[EMERGENCIES[i].name])n++;}return n;}
+
+function playEmergencyAlarm(freq){
+  if(!audioCtx)return;
+  var t=audioCtx.currentTime;
+  // Urgent two-tone alarm
+  for(var i=0;i<3;i++){
+    var osc=audioCtx.createOscillator();
+    var g=audioCtx.createGain();
+    osc.type='square';
+    osc.frequency.setValueAtTime(freq,t+i*0.2);
+    osc.frequency.setValueAtTime(freq*0.7,t+i*0.2+0.1);
+    g.gain.setValueAtTime(0.08,t+i*0.2);
+    g.gain.exponentialRampToValueAtTime(0.001,t+i*0.2+0.19);
+    osc.connect(g);g.connect(audioCtx.destination);
+    osc.start(t+i*0.2);osc.stop(t+i*0.2+0.2);
+  }
+}
+function playEmergencySuccess(){
+  if(!audioCtx)return;
+  var t=audioCtx.currentTime;
+  [523,659,784].forEach(function(f,i){
+    var osc=audioCtx.createOscillator();
+    var g=audioCtx.createGain();
+    osc.type='triangle';osc.frequency.value=f;
+    g.gain.setValueAtTime(0.1,t+i*0.08);g.gain.exponentialRampToValueAtTime(0.001,t+i*0.08+0.2);
+    osc.connect(g);g.connect(audioCtx.destination);
+    osc.start(t+i*0.08);osc.stop(t+i*0.08+0.2);
+  });
+}
+function playEmergencyFail(){
+  if(!audioCtx)return;
+  var t=audioCtx.currentTime;
+  var osc=audioCtx.createOscillator();
+  var g=audioCtx.createGain();
+  osc.type='sawtooth';osc.frequency.setValueAtTime(200,t);
+  osc.frequency.exponentialRampToValueAtTime(80,t+0.4);
+  g.gain.setValueAtTime(0.08,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.4);
+  osc.connect(g);g.connect(audioCtx.destination);
+  osc.start(t);osc.stop(t+0.4);
+}
+
+function triggerEmergency(){
+  var idx=Math.floor(Math.random()*EMERGENCIES.length);
+  activeEmergency=EMERGENCIES[idx];
+  emergencyTimer=emergencyWindow;
+  playEmergencyAlarm(activeEmergency.sound);
+}
+
+function handleEmergencyInput(key){
+  if(!activeEmergency)return false;
+  if(key===activeEmergency.key){
+    // Correct response
+    emergenciesHandled++;
+    score+=25;
+    health=Math.min(100,health+15);
+    emergencyResult='✓ '+activeEmergency.name;
+    emergencyResultTimer=1.2;
+    emergencyFlash=0.4;
+    // Track discovery
+    if(!emergencyDiscovery[activeEmergency.name]){
+      emergencyDiscovery[activeEmergency.name]=true;
+      saveEmergencyDiscovery(emergencyDiscovery);
+    }
+    playEmergencySuccess();
+    activeEmergency=null;
+    emergencyTimer=0;
+    return true;
+  } else if(key==='ArrowUp'||key==='ArrowDown'||key==='ArrowLeft'||key==='ArrowRight'){
+    // Wrong direction
+    emergenciesMissed++;
+    health-=15;
+    emergencyResult='✗ WRONG';
+    emergencyResultTimer=1.2;
+    playEmergencyFail();
+    activeEmergency=null;
+    emergencyTimer=0;
+    if(health<=0){health=0;endGame();}
+    return true;
+  }
+  return false;
+}
+
+// Gameplay vars
+var condition=null,conditionIdx=0;
+var targetBPM=70,currentTargetBPM=70;
+var targetInterval=60/70*1000; // ms between beats
+var lastBeatTime=0,beatTimes=[];
+var playerBPM=0;
+var health=100,maxHealth=100;
+var score=0,streak=0,bestStreak=0;
+var misses=0,maxMisses=3;
+var conditionTimer=0,conditionDuration=8000; // 8s per condition
+var gameTime=0;
+var ecgPoints=[];
+var ecgPhase=0;
+var screenFlash=0;
+var healthWarning=false;
+var conditionTransition=0;
+var conditionText='';
+var beatQuality=0; // 0-1 quality of last beat
+var perfectBeats=0;
+var goodBeats=0;
+var okBeats=0;
+var missedBeats=0;
+var comboText='';
+var comboTimer=0;
+var menuSel=0;
+
+// ECG waveform generation
+function getECGValue(phase){
+  // Simplified ECG waveform: P-QRS-T
+  var p=phase%1;
+  if(p<0.1)return Math.sin(p/0.1*Math.PI)*0.15; // P wave
+  if(p<0.15)return 0;
+  if(p<0.18)return -0.1; // Q
+  if(p<0.22)return 1.0*Math.sin((p-0.18)/0.04*Math.PI); // R spike
+  if(p<0.25)return -0.15; // S
+  if(p<0.35)return 0;
+  if(p<0.5)return Math.sin((p-0.35)/0.15*Math.PI)*0.25; // T wave
+  return 0;
+}
+
+// Menu
+function drawMenu(){
+  ctx.fillStyle='#0d0d0d';ctx.fillRect(0,0,W,H);
+
+  // Title
+  ctx.textAlign='center';
+  ctx.font='bold 48px -apple-system,sans-serif';
+  ctx.fillStyle='#ff4444';
+  ctx.fillText('🫀',W/2,120);
+  ctx.font='bold 40px -apple-system,sans-serif';
+  ctx.fillStyle='#e8e8e8';
+  ctx.fillText('PULSE',W/2,175);
+  ctx.font='16px -apple-system,sans-serif';
+  ctx.fillStyle='#888';
+  ctx.fillText('Keep the patient alive',W/2,200);
+
+  // Animated heartbeat line
+  var t=Date.now()/1000;
+  ctx.beginPath();
+  ctx.strokeStyle='rgba(255,68,68,0.5)';
+  ctx.lineWidth=2;
+  for(var x=0;x<W;x++){
+    var phase=((x/W*2)+t*0.8)%1;
+    var v=getECGValue(phase);
+    var y=235-v*25;
+    if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+
+  // Rank display
+  var rank=getRank(stats);
+  var next=getNextRank(stats);
+  ctx.font='bold 18px -apple-system,sans-serif';
+  ctx.fillStyle='#e8e8e8';
+  ctx.fillText(rank.emoji+' '+rank.name,W/2,280);
+  if(next){
+    var prog=stats.totalPatients/next.kills;
+    ctx.font='13px -apple-system,sans-serif';
+    ctx.fillStyle='#666';
+    ctx.fillText('Patients saved: '+stats.totalPatients+' / '+next.kills+' for '+next.name,W/2,305);
+    // Progress bar
+    var bw=200,bh=6,bx=W/2-bw/2,by=315;
+    ctx.fillStyle='#222';ctx.fillRect(bx,by,bw,bh);
+    ctx.fillStyle='#ff4444';ctx.fillRect(bx,by,bw*Math.min(prog,1),bh);
+  }
+
+  // Stats
+  if(stats.bestScore>0){
+    ctx.font='14px -apple-system,sans-serif';
+    ctx.fillStyle='#666';
+    ctx.fillText('Best Score: '+stats.bestScore+'  |  Best Streak: '+stats.bestStreak,W/2,350);
+  }
+
+  // Emergency discovery counter
+  var disc=countDiscovered();
+  if(disc>0){
+    ctx.font='13px -apple-system,sans-serif';
+    ctx.fillStyle='#888';
+    ctx.fillText('🚨 '+disc+'/4 emergencies discovered',W/2,372);
+  }
+
+  // Play button
+  var items=['▶ Play','ℹ How to Play'];
+  for(var i=0;i<items.length;i++){
+    var y=400+i*50;
+    ctx.fillStyle=i===menuSel?'rgba(255,68,68,0.15)':'#1a1a1a';
+    ctx.strokeStyle=i===menuSel?'#ff4444':'transparent';
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.roundRect(W/2-120,y-20,240,44,8);
+    ctx.fill();ctx.stroke();
+    ctx.font='bold 18px -apple-system,sans-serif';
+    ctx.fillStyle=i===menuSel?'#ff4444':'#888';
+    ctx.fillText(items[i],W/2,y+7);
+  }
+
+  ctx.font='13px -apple-system,sans-serif';
+  ctx.fillStyle='#444';
+  ctx.fillText('↑↓←→ Emergencies · ↑ Guide (no emergency) · Enter Beat · Esc Back',W/2,560);
+}
+
+var showHelp=false;
+function drawHelp(){
+  ctx.fillStyle='#0d0d0d';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.font='bold 28px -apple-system,sans-serif';
+  ctx.fillStyle='#ff4444';
+  ctx.fillText('How to Play',W/2,50);
+
+  ctx.textAlign='left';
+  ctx.font='16px -apple-system,sans-serif';
+  ctx.fillStyle='#ccc';
+  var lines=[
+    '🫀 You ARE the heartbeat.',
+    '',
+    'Press ENTER to beat. Match the target rhythm.',
+    '',
+    'Patient conditions change every few seconds:',
+    '  😴 Resting (~65 BPM)  🏃 Exercise (~120 BPM)',
+    '  😰 Panic (~140 BPM)   🧘 Meditation (~55 BPM)',
+    '',
+    '🚨 EMERGENCIES pop up randomly!',
+    '  ⚡ DEFIB → ↑   🫁 VENTILATE → ↓',
+    '  💉 PUSH EPI → ←   🩸 TRANSFUSE → →',
+    '  Respond fast — keep beating through them!',
+    '',
+    '🎤 Room noise = patient stress level.',
+    '',
+    'Miss 3 beats → flatline → game over.',
+    'Earn ranks from Intern to Legend.',
+  ];
+  for(var i=0;i<lines.length;i++){
+    ctx.fillText(lines[i],50,95+i*28);
+  }
+
+  ctx.textAlign='center';
+  ctx.font='13px -apple-system,sans-serif';
+  ctx.fillStyle='#444';
+  ctx.fillText('Press any key to go back',W/2,570);
+}
+
+// Start game
+function startGame(){
+  if(!audioCtx)initAudio(); if(!bgmAudio) bgmInit(); bgmPlay();
+  state=STATE_PLAY;
+  health=100;score=0;streak=0;bestStreak=0;
+  misses=0;
+  var bonuses=getRankBonuses(stats);
+  maxMisses=3+bonuses.extraMisses;
+  conditionIdx=0;
+  setCondition(0);
+  lastBeatTime=0;beatTimes=[];
+  playerBPM=0;gameTime=0;ecgPoints=[];ecgPhase=0;
+  screenFlash=0;conditionTransition=0;
+  perfectBeats=0;goodBeats=0;okBeats=0;missedBeats=0;
+  comboText='';comboTimer=0;
+  guideNextTick=0;
+  // Emergency system reset
+  activeEmergency=null;emergencyTimer=0;
+  nextEmergencyAt=gameTime+20000+Math.random()*15000; // first at 20-35s
+  emergenciesHandled=0;emergenciesMissed=0;
+  emergencyFlash=0;emergencyResult='';emergencyResultTimer=0;
+}
+
+function setCondition(idx){
+  // Apply mic stress: higher ambient noise shifts target up
+  var stressMod=micSmooth*80; // 0-20 BPM shift based on noise
+  conditionIdx=idx%CONDITIONS.length;
+  condition=CONDITIONS[conditionIdx];
+  targetBPM=condition.targetBPM+stressMod;
+  targetInterval=60/targetBPM*1000;
+  conditionTimer=0;
+  // Vary duration: 6-12s, shorter in louder rooms
+  conditionDuration=8000+Math.random()*4000-micSmooth*3000;
+  conditionDuration=Math.max(5000,Math.min(12000,conditionDuration));
+  conditionTransition=1;
+  conditionText=condition.emoji+' '+condition.name;
+  guideNextTick=0; // re-sync guide metronome
+  playConditionChime();
+}
+
+function nextCondition(){
+  // Pick a random different condition
+  var choices=[];
+  for(var i=0;i<CONDITIONS.length;i++){
+    if(i!==conditionIdx)choices.push(i);
+  }
+  var pick=choices[Math.floor(Math.random()*choices.length)];
+  setCondition(pick);
+}
+
+// Beat input
+function onBeat(){
+  var now=Date.now();
+  if(lastBeatTime===0){
+    lastBeatTime=now;
+    playHeartbeat(1);
+    screenFlash=0.3;
+    return;
+  }
+  var interval=now-lastBeatTime;
+  lastBeatTime=now;
+  beatTimes.push(interval);
+  if(beatTimes.length>6)beatTimes.shift();
+
+  // Calculate player BPM from recent beats
+  if(beatTimes.length>=2){
+    var avg=0;
+    for(var i=0;i<beatTimes.length;i++)avg+=beatTimes[i];
+    avg/=beatTimes.length;
+    playerBPM=60000/avg;
+  }
+
+  // Score the beat
+  var diff=Math.abs(interval-targetInterval);
+  var toleranceBase=targetInterval*0.2; // 20% base tolerance
+  var bonuses=getRankBonuses(stats);
+  var tolerance=toleranceBase*(1+bonuses.toleranceBonus);
+
+  if(diff<tolerance*0.4){
+    // Perfect
+    beatQuality=1;
+    score+=10+Math.floor(streak/3);
+    streak++;
+    perfectBeats++;
+    comboText='PERFECT';
+    comboTimer=0.8;
+    screenFlash=0.4;
+    health=Math.min(100,health+3);
+  } else if(diff<tolerance*0.7){
+    // Good
+    beatQuality=0.7;
+    score+=5+Math.floor(streak/5);
+    streak++;
+    goodBeats++;
+    comboText='GOOD';
+    comboTimer=0.6;
+    screenFlash=0.25;
+    health=Math.min(100,health+1);
+  } else if(diff<tolerance){
+    // OK
+    beatQuality=0.4;
+    score+=2;
+    okBeats++;
+    comboText='OK';
+    comboTimer=0.5;
+    screenFlash=0.15;
+    streak=0;
+  } else {
+    // Miss
+    beatQuality=0;
+    misses++;
+    missedBeats++;
+    comboText='MISS';
+    comboTimer=0.8;
+    streak=0;
+    health-=15;
+    screenFlash=0.5;
+    playWarning();
+    if(misses>=maxMisses||health<=0){
+      endGame();
+      return;
+    }
+  }
+
+  if(streak>bestStreak)bestStreak=streak;
+  playHeartbeat(beatQuality);
+}
+
+function endGame(){
+  state=STATE_OVER; bgmGameOver();
+  playFlatline();
+  // Update stats
+  var patientsThisRound=Math.floor(score/50); // 1 patient per 50 points
+  if(patientsThisRound<1&&score>20)patientsThisRound=1;
+  var oldRank=getRank(stats);
+  stats.totalPatients+=patientsThisRound;
+  if(score>stats.bestScore)stats.bestScore=score;
+  if(bestStreak>stats.bestStreak)stats.bestStreak=bestStreak;
+  var newRank=getRank(stats);
+  saveStats(stats);
+  if(RANKS.indexOf(newRank)>RANKS.indexOf(oldRank)){
+    setTimeout(playRankUp,1500);
+  }
+}
+
+// Game update
+var lastTime=Date.now();
+function update(){
+  var now=Date.now();
+  var dt=Math.min(now-lastTime,50);
+  lastTime=now;
+
+  if(state!==STATE_PLAY)return;
+
+  readMic();
+  gameTime+=dt;
+  conditionTimer+=dt;
+
+  // Smoothly transition target BPM with mic stress
+  var stressMod=micSmooth*80;
+  var newTarget=condition.targetBPM+stressMod;
+  currentTargetBPM+=(newTarget-currentTargetBPM)*0.05;
+  targetBPM=currentTargetBPM;
+  targetInterval=60/targetBPM*1000;
+
+  // Condition change
+  if(conditionTimer>=conditionDuration){
+    nextCondition();
+  }
+
+  // Health decay if not beating
+  if(lastBeatTime>0){
+    var sinceLastBeat=now-lastBeatTime;
+    if(sinceLastBeat>targetInterval*2){
+      health-=dt*0.015; // Slow decay
+      if(sinceLastBeat>targetInterval*3){
+        health-=dt*0.03; // Faster decay
+      }
+    }
+  }
+
+  // Health warning
+  healthWarning=health<30;
+
+  if(health<=0){
+    health=0;
+    endGame();
+  }
+
+  // Emergency system
+  if(!activeEmergency&&gameTime>=nextEmergencyAt){
+    triggerEmergency();
+  }
+  if(activeEmergency){
+    emergencyTimer-=dt;
+    if(emergencyTimer<=0){
+      // Timed out
+      emergenciesMissed++;
+      health-=15;
+      emergencyResult='✗ TOO SLOW';
+      emergencyResultTimer=1.2;
+      playEmergencyFail();
+      activeEmergency=null;
+      if(health<=0){health=0;endGame();return;}
+    }
+  }
+  if(!activeEmergency&&emergencyTimer<=0&&gameTime>5000){
+    // Schedule next emergency 20-40s after last one
+    if(nextEmergencyAt<=gameTime){
+      nextEmergencyAt=gameTime+20000+Math.random()*20000;
+    }
+  }
+  if(emergencyFlash>0)emergencyFlash-=dt*0.003;
+  if(emergencyResultTimer>0)emergencyResultTimer-=dt/1000;
+
+  // Guide metronome tick at target BPM
+  if(guideEnabled&&condition){
+    var guideIntervalMs=60000/targetBPM;
+    if(guideNextTick===0)guideNextTick=now+guideIntervalMs;
+    if(now>=guideNextTick){
+      playGuideTick();
+      guideNextTick=now+guideIntervalMs;
+    }
+  }
+
+  // ECG animation
+  ecgPhase+=(targetBPM/60)*dt/1000;
+
+  // Screen flash decay
+  if(screenFlash>0)screenFlash-=dt*0.003;
+  if(conditionTransition>0)conditionTransition-=dt*0.002;
+  if(comboTimer>0)comboTimer-=dt/1000;
+}
+
+// Drawing
+function drawGame(){
+  // Background with flash
+  var flashR=0,flashG=0,flashB=0;
+  if(screenFlash>0){
+    if(comboText==='MISS'){
+      flashR=Math.floor(screenFlash*100);
+    } else if(comboText==='PERFECT'){
+      flashG=Math.floor(screenFlash*60);
+      flashR=Math.floor(screenFlash*30);
+    } else {
+      flashG=Math.floor(screenFlash*40);
+    }
+  }
+  ctx.fillStyle='rgb('+(13+flashR)+','+(13+flashG)+','+(13+flashB)+')';
+  ctx.fillRect(0,0,W,H);
+
+  // ECG trace
+  ctx.beginPath();
+  ctx.strokeStyle=healthWarning?'rgba(255,68,68,0.6)':'rgba(74,158,255,0.4)';
+  ctx.lineWidth=2;
+  var ecgWidth=W-40;
+  for(var x=0;x<ecgWidth;x++){
+    var phase=((x/ecgWidth*2)+ecgPhase)%1;
+    var v=getECGValue(phase);
+    var y=H/2-v*60;
+    if(x===0)ctx.moveTo(20+x,y);else ctx.lineTo(20+x,y);
+  }
+  ctx.stroke();
+
+  // Grid lines (subtle)
+  ctx.strokeStyle='rgba(255,255,255,0.03)';
+  ctx.lineWidth=1;
+  for(var gy=100;gy<H;gy+=100){
+    ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();
+  }
+  for(var gx=100;gx<W;gx+=100){
+    ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H);ctx.stroke();
+  }
+
+  // Top HUD
+  ctx.textAlign='left';
+
+  // Condition badge
+  if(condition){
+    var badgeW=180;
+    ctx.fillStyle='rgba(0,0,0,0.6)';
+    ctx.beginPath();ctx.roundRect(15,12,badgeW,36,8);ctx.fill();
+    ctx.strokeStyle=condition.color;ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.roundRect(15,12,badgeW,36,8);ctx.stroke();
+    ctx.font='bold 16px -apple-system,sans-serif';
+    ctx.fillStyle=condition.color;
+    ctx.textAlign='center';
+    ctx.fillText(condition.emoji+' '+condition.name,15+badgeW/2,36);
+
+    // Condition transition flash
+    if(conditionTransition>0){
+      ctx.fillStyle='rgba('+hexToRGB(condition.color)+','+conditionTransition*0.3+')';
+      ctx.fillRect(0,0,W,H);
+    }
+  }
+
+  // Score
+  ctx.textAlign='right';
+  ctx.font='bold 24px -apple-system,sans-serif';
+  ctx.fillStyle='#e8e8e8';
+  ctx.fillText(score,W-20,38);
+  ctx.font='12px -apple-system,sans-serif';
+  ctx.fillStyle='#666';
+  ctx.fillText('SCORE',W-20,18);
+
+  // Health bar
+  var hbW=W-40,hbH=8,hbX=20,hbY=58;
+  ctx.fillStyle='#1a1a1a';
+  ctx.beginPath();ctx.roundRect(hbX,hbY,hbW,hbH,4);ctx.fill();
+  var hCol=health>60?'#5cb85c':health>30?'#f0ad4e':'#d9534f';
+  ctx.fillStyle=hCol;
+  ctx.beginPath();ctx.roundRect(hbX,hbY,hbW*(health/100),hbH,4);ctx.fill();
+
+  // Heartbeat indicator area (center)
+  var cx=W/2,cy=H/2;
+
+  // Target zone ring
+  var ringR=90;
+  var targetAngle=(Date.now()/targetInterval*Math.PI*2)%( Math.PI*2);
+  // Pulsing ring at target BPM
+  var pulsePhase=ecgPhase%1;
+  var pulseScale=1+getECGValue(pulsePhase)*0.15;
+
+  ctx.beginPath();
+  ctx.arc(cx,cy,ringR*pulseScale,0,Math.PI*2);
+  ctx.strokeStyle=condition?condition.color+'66':'#4a9eff66';
+  ctx.lineWidth=3;
+  ctx.stroke();
+
+  // Inner beating heart
+  var heartScale=1+getECGValue(pulsePhase)*0.3;
+  ctx.font=(40*heartScale)+'px -apple-system,sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('🫀',cx,cy+15*heartScale);
+
+  // BPM displays
+  ctx.textAlign='center';
+
+  // Target BPM
+  ctx.font='13px -apple-system,sans-serif';
+  ctx.fillStyle='#666';
+  ctx.fillText('TARGET',cx-100,cy-80);
+  ctx.font='bold 28px -apple-system,sans-serif';
+  ctx.fillStyle=condition?condition.color:'#4a9eff';
+  ctx.fillText(Math.round(targetBPM),cx-100,cy-50);
+  ctx.font='12px -apple-system,sans-serif';
+  ctx.fillStyle='#666';
+  ctx.fillText('BPM',cx-100,cy-35);
+
+  // Player BPM
+  ctx.font='13px -apple-system,sans-serif';
+  ctx.fillStyle='#666';
+  ctx.fillText('YOUR',cx+100,cy-80);
+  ctx.font='bold 28px -apple-system,sans-serif';
+  var bpmDiff=Math.abs(playerBPM-targetBPM);
+  var bpmCol=bpmDiff<10?'#5cb85c':bpmDiff<25?'#f0ad4e':'#d9534f';
+  ctx.fillStyle=playerBPM>0?bpmCol:'#444';
+  ctx.fillText(playerBPM>0?Math.round(playerBPM):'--',cx+100,cy-50);
+  ctx.font='12px -apple-system,sans-serif';
+  ctx.fillStyle='#666';
+  ctx.fillText('BPM',cx+100,cy-35);
+
+  // Streak
+  if(streak>2){
+    ctx.font='bold 14px -apple-system,sans-serif';
+    ctx.fillStyle='#f0ad4e';
+    ctx.fillText('🔥 '+streak+' STREAK',cx,cy+70);
+  }
+
+  // Combo text
+  if(comboTimer>0){
+    var ct=comboTimer;
+    ctx.font='bold 24px -apple-system,sans-serif';
+    var comboColor='#5cb85c';
+    if(comboText==='PERFECT')comboColor='#ffd700';
+    else if(comboText==='MISS')comboColor='#d9534f';
+    else if(comboText==='OK')comboColor='#f0ad4e';
+    ctx.fillStyle=comboColor;
+    ctx.globalAlpha=Math.min(1,ct*2);
+    ctx.fillText(comboText,cx,cy+100-Math.max(0,(1-ct*2)*10));
+    ctx.globalAlpha=1;
+  }
+
+  // Guide metronome indicator
+  if(guideEnabled&&!activeEmergency){
+    var tickAge=now-guideNextTick+60000/targetBPM;
+    var tickFlash=Math.max(0,1-tickAge/200);
+    if(tickFlash>0){
+      ctx.beginPath();
+      ctx.arc(cx,cy,ringR*pulseScale+8,0,Math.PI*2);
+      ctx.strokeStyle='rgba(255,255,255,'+tickFlash*0.3+')';
+      ctx.lineWidth=2;
+      ctx.stroke();
+    }
+    ctx.font='11px -apple-system,sans-serif';
+    ctx.textAlign='center';
+    ctx.fillStyle='#555';
+    ctx.fillText('♩ GUIDE ON (↑ toggle)',cx,cy+130);
+  }
+
+  // Emergency overlay
+  if(activeEmergency){
+    // Pulsing border
+    var urgPulse=Math.sin(Date.now()/150)*0.3+0.7;
+    ctx.strokeStyle=activeEmergency.color;
+    ctx.lineWidth=4*urgPulse;
+    ctx.strokeRect(4,4,W-8,H-8);
+
+    // Emergency panel (center-top area)
+    var epY=80;
+    ctx.fillStyle='rgba(0,0,0,0.85)';
+    ctx.beginPath();ctx.roundRect(W/2-180,epY,360,120,12);ctx.fill();
+    ctx.strokeStyle=activeEmergency.color;ctx.lineWidth=2;
+    ctx.beginPath();ctx.roundRect(W/2-180,epY,360,120,12);ctx.stroke();
+
+    // Emergency text
+    ctx.textAlign='center';
+    ctx.font='bold 20px -apple-system,sans-serif';
+    ctx.fillStyle=activeEmergency.color;
+    ctx.fillText('🚨 EMERGENCY: '+activeEmergency.emoji+' '+activeEmergency.name,W/2,epY+30);
+    ctx.font='14px -apple-system,sans-serif';
+    ctx.fillStyle='#ccc';
+    ctx.fillText(activeEmergency.desc,W/2,epY+55);
+    ctx.font='bold 22px -apple-system,sans-serif';
+    ctx.fillStyle='#fff';
+    ctx.fillText('Press '+activeEmergency.keyLabel+' NOW!',W/2,epY+85);
+
+    // Urgency bar (draining)
+    var ubW=300,ubH=8,ubX=W/2-ubW/2,ubY=epY+100;
+    ctx.fillStyle='#333';ctx.fillRect(ubX,ubY,ubW,ubH);
+    var ubFrac=Math.max(0,emergencyTimer/emergencyWindow);
+    var ubCol=ubFrac>0.5?activeEmergency.color:ubFrac>0.25?'#f0ad4e':'#d9534f';
+    ctx.fillStyle=ubCol;ctx.fillRect(ubX,ubY,ubW*ubFrac,ubH);
+  }
+
+  // Emergency result flash
+  if(emergencyResultTimer>0){
+    ctx.textAlign='center';
+    ctx.font='bold 20px -apple-system,sans-serif';
+    var isSuccess=emergencyResult.indexOf('✓')===0;
+    ctx.fillStyle=isSuccess?'#5cb85c':'#d9534f';
+    ctx.globalAlpha=Math.min(1,emergencyResultTimer*2);
+    ctx.fillText(emergencyResult,W/2,cy-110);
+    ctx.globalAlpha=1;
+  }
+
+  // Emergency flash overlay
+  if(emergencyFlash>0){
+    ctx.fillStyle='rgba(80,255,80,'+emergencyFlash*0.15+')';
+    ctx.fillRect(0,0,W,H);
+  }
+
+  // Bottom bar: misses, time, mic
+  var by2=H-50;
+  ctx.fillStyle='rgba(0,0,0,0.5)';
+  ctx.fillRect(0,by2-5,W,60);
+
+  // Misses (hearts)
+  ctx.textAlign='left';
+  ctx.font='18px -apple-system,sans-serif';
+  var hearts='';
+  for(var mi=0;mi<maxMisses;mi++){
+    hearts+=mi<(maxMisses-misses)?'❤️':'🖤';
+  }
+  ctx.fillText(hearts,20,by2+22);
+
+  // Game time
+  ctx.textAlign='center';
+  ctx.font='16px -apple-system,sans-serif';
+  ctx.fillStyle='#888';
+  var secs=Math.floor(gameTime/1000);
+  var mins=Math.floor(secs/60);
+  secs=secs%60;
+  ctx.fillText((mins<10?'0':'')+mins+':'+(secs<10?'0':'')+secs,W/2,by2+22);
+
+  // Mic level indicator
+  ctx.textAlign='right';
+  ctx.font='12px -apple-system,sans-serif';
+  ctx.fillStyle='#555';
+  ctx.fillText('🎤 STRESS',W-20,by2+10);
+  var micBarW=80,micBarH=6;
+  ctx.fillStyle='#222';ctx.fillRect(W-20-micBarW,by2+16,micBarW,micBarH);
+  ctx.fillStyle=micSmooth>0.15?'#d9534f':micSmooth>0.08?'#f0ad4e':'#5cb85c';
+  ctx.fillRect(W-20-micBarW,by2+16,micBarW*Math.min(1,micSmooth*5),micBarH);
+
+  // Health warning flash
+  if(healthWarning){
+    var wFlash=Math.sin(Date.now()/200)*0.1+0.1;
+    ctx.fillStyle='rgba(255,0,0,'+wFlash+')';
+    ctx.fillRect(0,0,W,H);
+  }
+}
+
+function drawGameOver(){
+  ctx.fillStyle='#0d0d0d';ctx.fillRect(0,0,W,H);
+
+  // Flatline
+  ctx.beginPath();
+  ctx.strokeStyle='rgba(255,68,68,0.3)';
+  ctx.lineWidth=2;
+  ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);
+  ctx.stroke();
+
+  ctx.textAlign='center';
+  ctx.font='bold 36px -apple-system,sans-serif';
+  ctx.fillStyle='#d9534f';
+  ctx.fillText('FLATLINE',W/2,100);
+
+  ctx.font='18px -apple-system,sans-serif';
+  ctx.fillStyle='#888';
+  ctx.fillText('Time of death: '+formatTime(gameTime),W/2,135);
+
+  // Score
+  ctx.font='bold 48px -apple-system,sans-serif';
+  ctx.fillStyle='#e8e8e8';
+  ctx.fillText(score,W/2,200);
+  ctx.font='14px -apple-system,sans-serif';
+  ctx.fillStyle='#666';
+  ctx.fillText('SCORE',W/2,220);
+
+  // Stats grid
+  var sy=260;
+  var statItems=[
+    ['Best Streak','🔥 '+bestStreak],
+    ['Perfect','💛 '+perfectBeats],
+    ['Good','💚 '+goodBeats],
+    ['Emergencies','🚨 '+emergenciesHandled+'/'+(emergenciesHandled+emergenciesMissed)],
+    ['Missed Beats','💔 '+missedBeats]
+  ];
+  ctx.font='14px -apple-system,sans-serif';
+  for(var i=0;i<statItems.length;i++){
+    var sx=i<3?150:400;
+    var ssy=sy+(i<3?i:i-3)*35;
+    ctx.textAlign='left';
+    ctx.fillStyle='#666';ctx.fillText(statItems[i][0],sx-60,ssy);
+    ctx.textAlign='right';
+    ctx.fillStyle='#ccc';ctx.fillText(statItems[i][1],sx+80,ssy);
+  }
+
+  // Rank progress
+  var rank=getRank(stats);
+  var next=getNextRank(stats);
+  ctx.textAlign='center';
+  ctx.font='bold 20px -apple-system,sans-serif';
+  ctx.fillStyle='#e8e8e8';
+  ctx.fillText(rank.emoji+' '+rank.name,W/2,400);
+
+  if(next){
+    ctx.font='13px -apple-system,sans-serif';
+    ctx.fillStyle='#666';
+    ctx.fillText(stats.totalPatients+' / '+next.kills+' patients → '+next.name,W/2,425);
+    var bw=200,bh=6,bx=W/2-bw/2,bpy=435;
+    ctx.fillStyle='#222';ctx.fillRect(bx,bpy,bw,bh);
+    ctx.fillStyle='#ff4444';ctx.fillRect(bx,bpy,bw*Math.min(1,stats.totalPatients/next.kills),bh);
+  }
+
+  // Best score
+  if(score>=stats.bestScore){
+    ctx.font='bold 16px -apple-system,sans-serif';
+    ctx.fillStyle='#ffd700';
+    ctx.fillText('⭐ NEW BEST SCORE! ⭐',W/2,480);
+  }
+
+  ctx.font='13px -apple-system,sans-serif';
+  ctx.fillStyle='#444';
+  ctx.fillText('Enter Retry · Esc Back',W/2,560);
+}
+
+function formatTime(ms){
+  var s=Math.floor(ms/1000);
+  var m=Math.floor(s/60);s=s%60;
+  return (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+}
+
+function hexToRGB(hex){
+  var r=parseInt(hex.slice(1,3),16)||0;
+  var g=parseInt(hex.slice(3,5),16)||0;
+  var b=parseInt(hex.slice(5,7),16)||0;
+  return r+','+g+','+b;
+}
+
+// Input
+document.addEventListener('keydown',function(e){
+  if (e.key === 'm' || e.key === 'M') { bgmToggle(); return; }
+  e.preventDefault();
+  if(showHelp){
+    showHelp=false;
+    return;
+  }
+  if(state===STATE_MENU){
+    if(e.key==='ArrowUp')menuSel=Math.max(0,menuSel-1);
+    else if(e.key==='ArrowDown')menuSel=Math.min(1,menuSel+1);
+    else if(e.key==='Enter'){
+      if(menuSel===0)startGame();
+      else showHelp=true;
+    } else if(e.key==='Escape'||e.key==='Backspace'){
+      window.location.href='index.html';
+    }
+  } else if(state===STATE_PLAY){
+    if(e.key==='Enter'){
+      onBeat();
+    } else if(e.key==='ArrowUp'||e.key==='ArrowDown'||e.key==='ArrowLeft'||e.key==='ArrowRight'){
+      // During active emergency, route to emergency handler
+      if(activeEmergency){
+        handleEmergencyInput(e.key);
+      } else if(e.key==='ArrowUp'){
+        // Toggle guide when no emergency active
+        guideEnabled=!guideEnabled;
+        try{localStorage.setItem('pulse_guide',guideEnabled?'1':'0');}catch(ex){}
+      }
+    } else if(e.key==='Escape'||e.key==='Backspace'){
+      state=STATE_MENU;
+    }
+  } else if(state===STATE_OVER){
+    if(e.key==='Enter')startGame();
+    else if(e.key==='Escape'||e.key==='Backspace')state=STATE_MENU;
+  }
+});
+
+// Main loop
+function loop(){
+  update();
+  if(showHelp){drawHelp();}
+  else if(state===STATE_MENU)drawMenu();
+  else if(state===STATE_PLAY)drawGame();
+  else if(state===STATE_OVER)drawGameOver();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../touch-controls.js"></script>
+</body>
+</html>

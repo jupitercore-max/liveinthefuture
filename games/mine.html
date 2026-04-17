@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<link rel="canonical" href="https://liveinthefuture.org/games/mine.html" />
+<meta property="og:title" content="Mine — LITF Games" />
+<meta property="og:url" content="https://liveinthefuture.org/games/mine.html" />
+<meta property="og:site_name" content="Live in the Future" />
+<meta name="twitter:card" content="summary" />
+<title>Mine — LITF Games</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;font-family:system-ui,-apple-system,sans-serif;color:#e0e0e0}
+canvas{display:block}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// Audio context
+var audioCtx = null;
+var micLevel = 0;
+var micActive = false;
+var micFailed = false;
+var analyser = null;
+var micData = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+// === BGM System ===
+var bgmAudio = null, bgmGameover = null, bgmMuted = false, bgmStarted = false;
+function bgmInit() {
+  bgmAudio = new Audio('audio/mine-bgm.mp3');
+  bgmAudio.loop = true;
+  bgmAudio.volume = 0.15;
+  bgmGameover = new Audio('audio/gameover-dark.mp3');
+  bgmGameover.volume = 0.25;
+}
+function bgmPlay() {
+  if (bgmMuted || !bgmAudio) return;
+  if (!bgmStarted) { bgmAudio.currentTime = 0; bgmStarted = true; }
+  bgmAudio.play().catch(function(){});
+}
+function bgmStop() { if (bgmAudio) { bgmAudio.pause(); } bgmStarted = false; }
+function bgmGameOver() {
+  bgmStop();
+  if (bgmMuted || !bgmGameover) return;
+  bgmGameover.currentTime = 0;
+  bgmGameover.play().catch(function(){});
+}
+function bgmToggle() {
+  bgmMuted = !bgmMuted;
+  if (bgmMuted) { if (bgmAudio) bgmAudio.pause(); }
+  else bgmPlay();
+}
+
+
+function initMic() {
+  if (micActive || micFailed) return;
+  micFailed = true; // prevent retries
+  try {
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      micFailed = false;
+      micActive = true;
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.85;
+      micData = new Uint8Array(analyser.frequencyBinCount);
+      var src = audioCtx.createMediaStreamSource(stream);
+      src.connect(analyser);
+    }).catch(function(){ micFailed = true; });
+  } catch(e) { micFailed = true; }
+}
+
+function updateMic() {
+  if (!analyser) return;
+  analyser.getByteFrequencyData(micData);
+  var sum = 0;
+  for (var i = 0; i < micData.length; i++) sum += micData[i];
+  var raw = sum / micData.length / 255;
+  micLevel += (raw - micLevel) * 0.08;
+}
+
+// Sound effects
+function playTone(freq, dur, type, vol, pan) {
+  if (!audioCtx) return;
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  var p = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+  o.type = type || 'sine';
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(vol || 0.15, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  o.connect(g);
+  if (p) { g.connect(p); p.pan.value = pan || 0; p.connect(audioCtx.destination); }
+  else { g.connect(audioCtx.destination); }
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+
+function playNoise(dur, freq, vol) {
+  if (!audioCtx) return;
+  var bufSize = audioCtx.sampleRate * dur;
+  var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  var data = buf.getChannelData(0);
+  for (var i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+  var src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  var filt = audioCtx.createBiquadFilter();
+  filt.type = 'bandpass';
+  filt.frequency.value = freq || 2000;
+  filt.Q.value = 2;
+  var g = audioCtx.createGain();
+  g.gain.setValueAtTime(vol || 0.1, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  src.connect(filt); filt.connect(g); g.connect(audioCtx.destination);
+  src.start(); src.stop(audioCtx.currentTime + dur);
+}
+
+function playMineHit(blockType) {
+  if (!audioCtx) return;
+  if (blockType === BLOCK_GEM) {
+    // Crystalline chime
+    playTone(880, 0.4, 'sine', 0.2, 0);
+    playTone(1320, 0.3, 'sine', 0.12, 0);
+    playTone(1760, 0.25, 'sine', 0.08, 0);
+  } else if (blockType === BLOCK_RARE_GEM) {
+    // Sparkling arpeggio
+    playTone(880, 0.5, 'sine', 0.2, 0);
+    setTimeout(function(){ playTone(1100, 0.4, 'sine', 0.15, 0); }, 80);
+    setTimeout(function(){ playTone(1320, 0.35, 'sine', 0.12, 0); }, 160);
+    setTimeout(function(){ playTone(1760, 0.3, 'sine', 0.1, 0); }, 240);
+  } else if (blockType === BLOCK_GAS) {
+    // Dangerous hiss + low rumble
+    playNoise(0.8, 3000, 0.2);
+    playTone(60, 0.6, 'sawtooth', 0.15, 0);
+  } else if (blockType === BLOCK_HARD) {
+    // Dense clunk
+    playTone(120, 0.15, 'triangle', 0.2, 0);
+    playNoise(0.08, 800, 0.1);
+  } else {
+    // Regular rock tap
+    playTone(200, 0.12, 'triangle', 0.15, 0);
+    playNoise(0.06, 1200, 0.08);
+  }
+}
+
+function playProximitySound(blockType, dx, dy) {
+  if (!audioCtx) return;
+  var pan = Math.max(-1, Math.min(1, dx * 0.5));
+  var dist = Math.sqrt(dx*dx + dy*dy);
+  var range = getRankBonus().proxRange;
+  var vol = Math.max(0.02, 0.08 - dist * (0.06 / range));
+  if (blockType === BLOCK_GEM) {
+    playTone(660 + Math.random()*100, 0.15, 'sine', vol, pan);
+  } else if (blockType === BLOCK_RARE_GEM) {
+    playTone(880 + Math.random()*100, 0.2, 'sine', vol * 1.3, pan);
+  } else if (blockType === BLOCK_GAS) {
+    playNoise(0.2, 4000, vol * 0.8);
+  } else if (blockType === BLOCK_HARD) {
+    playTone(100 + Math.random()*30, 0.1, 'triangle', vol * 0.6, pan);
+  }
+}
+
+// Constants
+var COLS = 20;
+var ROWS = 40; // visible rows (we generate more)
+var CELL = 28;
+var VIEW_ROWS = 20; // visible rows on screen
+var HUD_H = 40;
+var GAME_Y = HUD_H;
+var GAME_H = 600 - HUD_H;
+
+var BLOCK_EMPTY = 0;
+var BLOCK_ROCK = 1;
+var BLOCK_HARD = 2;
+var BLOCK_GEM = 3;
+var BLOCK_RARE_GEM = 4;
+var BLOCK_GAS = 5;
+var BLOCK_BEDROCK = 6;
+
+var BLOCK_COLORS = {};
+BLOCK_COLORS[BLOCK_EMPTY] = '#1a1a1a';
+BLOCK_COLORS[BLOCK_ROCK] = '#3d3225';
+BLOCK_COLORS[BLOCK_HARD] = '#4a4a4a';
+BLOCK_COLORS[BLOCK_GEM] = '#1a3d1a';
+BLOCK_COLORS[BLOCK_RARE_GEM] = '#2a1a3d';
+BLOCK_COLORS[BLOCK_GAS] = '#3d3d1a';
+BLOCK_COLORS[BLOCK_BEDROCK] = '#222';
+
+// Game state
+var STATE_TITLE = 0;
+var STATE_PLAY = 1;
+var STATE_DEAD = 2;
+
+var state = STATE_TITLE;
+var grid = [];
+var totalRows = 0;
+var playerX = 10;
+var playerY = 0;
+var cameraY = 0;
+var depth = 0;
+var pickHP = 100;
+var pickMaxHP = 100;
+var gems = 0;
+var rareGems = 0;
+var score = 0;
+var gasTimer = 0;
+var gasOverlay = 0;
+var shakeTimer = 0;
+var floatingTexts = [];
+var proximitySoundTimer = 0;
+var titleBlink = 0;
+var deathReason = '';
+
+// Persistence
+var bestDepth = 0;
+var totalGems = 0;
+var runs = 0;
+try {
+  bestDepth = parseInt(localStorage.getItem('mine_best_depth')) || 0;
+  totalGems = parseInt(localStorage.getItem('mine_total_gems')) || 0;
+  runs = parseInt(localStorage.getItem('mine_runs')) || 0;
+} catch(e) {}
+
+// --- Rank System ---
+var RANKS = [
+  {name:'Prospector', threshold:0, pickBonus:0, gemMult:1.0, proxRange:2, digReduce:0},
+  {name:'Tunneler', threshold:15, pickBonus:10, gemMult:1.0, proxRange:2, digReduce:0},
+  {name:'Excavator', threshold:50, pickBonus:20, gemMult:1.15, proxRange:2, digReduce:1},
+  {name:'Spelunker', threshold:120, pickBonus:30, gemMult:1.3, proxRange:3, digReduce:1},
+  {name:'Geologist', threshold:250, pickBonus:40, gemMult:1.4, proxRange:3, digReduce:1},
+  {name:'Vein Finder', threshold:500, pickBonus:50, gemMult:1.5, proxRange:3, digReduce:2},
+  {name:'Deep Miner', threshold:1000, pickBonus:70, gemMult:1.6, proxRange:4, digReduce:2},
+  {name:'Mine Lord', threshold:2000, pickBonus:100, gemMult:1.8, proxRange:4, digReduce:3}
+];
+var rankIdx = 0;
+var prevRankIdx = 0;
+var sessionGems = 0;
+
+function calcRank(total) {
+  for (var i = RANKS.length - 1; i >= 0; i--) {
+    if (total >= RANKS[i].threshold) return i;
+  }
+  return 0;
+}
+
+function getRankBonus() { return RANKS[rankIdx]; }
+
+function gemsToNext() {
+  if (rankIdx >= RANKS.length - 1) return 0;
+  return RANKS[rankIdx + 1].threshold - totalGems;
+}
+
+function playRankUpChime() {
+  if (!audioCtx) return;
+  var now = audioCtx.currentTime;
+  var notes = [523.25, 659.25, 783.99, 1046.50]; // C5-E5-G5-C6
+  for (var i = 0; i < notes.length; i++) {
+    (function(idx){
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.type = 'sine';
+      o.frequency.value = notes[idx];
+      g.gain.setValueAtTime(0, now + idx * 0.12);
+      g.gain.linearRampToValueAtTime(0.08, now + idx * 0.12 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.35);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(now + idx * 0.12); o.stop(now + idx * 0.12 + 0.4);
+    })(i);
+  }
+}
+
+function savePersist() {
+  try {
+    if (depth > bestDepth) { bestDepth = depth; localStorage.setItem('mine_best_depth', bestDepth); }
+    localStorage.setItem('mine_total_gems', totalGems);
+    localStorage.setItem('mine_runs', runs);
+  } catch(e) {}
+  rankIdx = calcRank(totalGems);
+}
+
+rankIdx = calcRank(totalGems);
+
+// Level generation
+function generateRows(startRow, count) {
+  for (var r = startRow; r < startRow + count; r++) {
+    if (!grid[r]) grid[r] = [];
+    var depthFactor = Math.min(r / 100, 1); // 0-1 over 100 rows
+    for (var c = 0; c < COLS; c++) {
+      if (r === 0) {
+        // Surface - all empty
+        grid[r][c] = BLOCK_EMPTY;
+      } else {
+        var roll = Math.random();
+        var gasChance = 0.02 + depthFactor * 0.06;
+        var gemChance = 0.06 + depthFactor * 0.02;
+        var rareChance = 0.01 + depthFactor * 0.03;
+        var hardChance = 0.1 + depthFactor * 0.25;
+        
+        if (roll < gasChance) {
+          grid[r][c] = BLOCK_GAS;
+        } else if (roll < gasChance + rareChance) {
+          grid[r][c] = BLOCK_RARE_GEM;
+        } else if (roll < gasChance + rareChance + gemChance) {
+          grid[r][c] = BLOCK_GEM;
+        } else if (roll < gasChance + rareChance + gemChance + hardChance) {
+          grid[r][c] = BLOCK_HARD;
+        } else {
+          grid[r][c] = BLOCK_ROCK;
+        }
+      }
+    }
+    // Ensure at least one path exists (empty column near player start)
+    if (r > 0 && r < 5) {
+      grid[r][10] = BLOCK_ROCK; // easy dig near start
+    }
+  }
+  totalRows = startRow + count;
+}
+
+function initGame() {
+  grid = [];
+  totalRows = 0;
+  generateRows(0, 60);
+  playerX = 10;
+  playerY = 0;
+  cameraY = 0;
+  depth = 0;
+  pickMaxHP = 100 + getRankBonus().pickBonus;
+  pickHP = pickMaxHP;
+  gems = 0;
+  rareGems = 0;
+  score = 0;
+  gasTimer = 0;
+  gasOverlay = 0;
+  floatingTexts = [];
+  deathReason = '';
+  state = STATE_PLAY; bgmPlay();
+  runs++;
+  prevRankIdx = rankIdx;
+  sessionGems = 0;
+}
+
+// Mining mechanics
+function getHardness(blockType) {
+  var base = 1;
+  if (blockType === BLOCK_HARD) base = 3;
+  else if (blockType === BLOCK_GEM) base = 2;
+  else if (blockType === BLOCK_RARE_GEM) base = 2;
+  else if (blockType === BLOCK_GAS) base = 1;
+  else if (blockType === BLOCK_BEDROCK) base = 999;
+  // Mic ambient noise = harder rock
+  var micMod = 1 + micLevel * 1.5;
+  var raw = Math.ceil(base * micMod);
+  // Rank dig reduction
+  return Math.max(1, raw - getRankBonus().digReduce);
+}
+
+function tryMine(tx, ty) {
+  if (ty < 0 || ty >= totalRows || tx < 0 || tx >= COLS) return false;
+  var block = grid[ty][tx];
+  if (block === BLOCK_EMPTY) return false;
+  if (block === BLOCK_BEDROCK) {
+    playTone(80, 0.1, 'square', 0.1, 0);
+    addFloat(tx, ty, '⛔', '#ff4444');
+    return false;
+  }
+  
+  var hardness = getHardness(block);
+  var dmg = Math.max(1, hardness);
+  pickHP -= dmg;
+  
+  playMineHit(block);
+  shakeTimer = 5;
+  
+  if (block === BLOCK_GAS) {
+    gasTimer = 90; // 1.5 seconds of gas
+    gasOverlay = 1;
+    addFloat(tx, ty, '☠️ GAS!', '#ffff00');
+    pickHP -= 15; // extra damage
+  } else if (block === BLOCK_GEM) {
+    gems++;
+    totalGems++;
+    sessionGems++;
+    var gemPts = Math.round(10 * getRankBonus().gemMult);
+    score += gemPts;
+    addFloat(tx, ty, '💎 +' + gemPts, '#44ff88');
+  } else if (block === BLOCK_RARE_GEM) {
+    rareGems++;
+    totalGems++;
+    sessionGems++;
+    var rarePts = Math.round(50 * getRankBonus().gemMult);
+    score += rarePts;
+    addFloat(tx, ty, '✨ +' + rarePts, '#bb88ff');
+  } else if (block === BLOCK_HARD) {
+    score += 2;
+    addFloat(tx, ty, '-' + dmg + '⛏️', '#aaaaaa');
+  } else {
+    score += 1;
+  }
+  
+  grid[ty][tx] = BLOCK_EMPTY;
+  
+  // Check if pickaxe broke
+  if (pickHP <= 0) {
+    pickHP = 0;
+    deathReason = 'Pickaxe broke at depth ' + depth + 'm';
+    state = STATE_DEAD; bgmGameOver();
+    savePersist();
+    // Check for rank up
+    if (rankIdx > prevRankIdx) {
+      setTimeout(function(){ playRankUpChime(); }, 400);
+    }
+    playTone(150, 0.5, 'sawtooth', 0.15, 0);
+    setTimeout(function(){ playTone(100, 0.5, 'sawtooth', 0.12, 0); }, 200);
+  }
+  
+  return true;
+}
+
+function tryMove(dx, dy) {
+  var nx = playerX + dx;
+  var ny = playerY + dy;
+  if (nx < 0 || nx >= COLS || ny < 0) return;
+  
+  // Generate more rows if needed
+  if (ny >= totalRows - 10) {
+    generateRows(totalRows, 40);
+  }
+  
+  var block = grid[ny] ? grid[ny][nx] : BLOCK_ROCK;
+  
+  if (block === BLOCK_EMPTY) {
+    playerX = nx;
+    playerY = ny;
+    depth = Math.max(depth, playerY);
+    
+    // Proximity sounds for nearby interesting blocks
+    proximitySoundTimer++;
+    if (proximitySoundTimer % 3 === 0) {
+      scanProximity();
+    }
+  } else {
+    // Mine the block
+    tryMine(nx, ny);
+  }
+  
+  // Camera follow
+  var targetCam = Math.max(0, playerY - Math.floor(VIEW_ROWS / 2) + 2);
+  cameraY = targetCam;
+  
+  // Gas damage over time
+  if (gasTimer > 0) {
+    gasTimer--;
+    gasOverlay = gasTimer / 90;
+  }
+}
+
+function scanProximity() {
+  var range = getRankBonus().proxRange;
+  for (var dy = -range; dy <= range; dy++) {
+    for (var dx = -range; dx <= range; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      var r = playerY + dy;
+      var c = playerX + dx;
+      if (r >= 0 && r < totalRows && c >= 0 && c < COLS) {
+        var b = grid[r][c];
+        if (b === BLOCK_GEM || b === BLOCK_RARE_GEM || b === BLOCK_GAS || b === BLOCK_HARD) {
+          playProximitySound(b, dx, dy);
+        }
+      }
+    }
+  }
+}
+
+function addFloat(cx, cy, text, color) {
+  floatingTexts.push({
+    x: (cx - (cameraY > 0 ? 0 : 0)) * CELL + CELL/2,
+    y: (cy - cameraY) * CELL + GAME_Y,
+    text: text,
+    color: color,
+    life: 40,
+    maxLife: 40
+  });
+}
+
+
+// Fog of war: special blocks hidden until within sonar range or exposed
+function isBlockRevealed(row, col) {
+  var dx = Math.abs(col - playerX);
+  var dy = Math.abs(row - playerY);
+  if (dx + dy <= getRankBonus().proxRange) return true;
+  // Adjacent to an empty cell = exposed surface
+  var dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+  for (var i = 0; i < dirs.length; i++) {
+    var nr = row + dirs[i][0];
+    var nc = col + dirs[i][1];
+    if (nr >= 0 && nr < totalRows && nc >= 0 && nc < COLS) {
+      if (grid[nr][nc] === BLOCK_EMPTY) return true;
+    }
+  }
+  return false;
+}
+
+// Rendering
+function draw() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, 600, 600);
+  
+  if (state === STATE_TITLE) {
+    drawTitle();
+    return;
+  }
+  
+  if (state === STATE_DEAD) {
+    drawGame();
+    drawDeath();
+    return;
+  }
+  
+  drawGame();
+  drawHUD();
+}
+
+function drawTitle() {
+  titleBlink += 0.05;
+  
+  // Title
+  ctx.fillStyle = '#e0e0e0';
+  ctx.font = 'bold 48px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('⛏️ MINE', 300, 150);
+  
+  ctx.font = '16px system-ui';
+  ctx.fillStyle = '#888';
+  ctx.fillText('Dig deep. Listen for gems.', 300, 190);
+  ctx.fillText('Avoid the gas.', 300, 212);
+  
+  // Rank display
+  var rank = RANKS[rankIdx];
+  ctx.fillStyle = '#64b4ff';
+  ctx.font = 'bold 18px system-ui';
+  ctx.fillText('⛏️ ' + rank.name, 300, 260);
+  
+  // Progress bar to next rank
+  if (rankIdx < RANKS.length - 1) {
+    var next = RANKS[rankIdx + 1];
+    var pct = (totalGems - rank.threshold) / (next.threshold - rank.threshold);
+    pct = Math.max(0, Math.min(1, pct));
+    var barW = 200, barH = 8, barX = 200, barY = 275;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#44aa88';
+    ctx.fillRect(barX, barY, barW * pct, barH);
+    ctx.fillStyle = '#555';
+    ctx.font = '11px system-ui';
+    ctx.fillText(totalGems + ' / ' + next.threshold + ' gems → ' + next.name, 300, 298);
+  } else {
+    ctx.fillStyle = '#ffcc44';
+    ctx.font = '12px system-ui';
+    ctx.fillText('MAX RANK — ' + totalGems + ' gems total', 300, 298);
+  }
+  
+  // Controls
+  ctx.font = '14px system-ui';
+  ctx.fillStyle = '#666';
+  ctx.fillText('←→↑↓  Move & Mine', 300, 340);
+  ctx.fillText('Gems are hidden — sonar reveals nearby', 300, 362);
+  ctx.fillText('🎤 Louder room = harder rock', 300, 384);
+  
+  // Stats
+  if (bestDepth > 0) {
+    ctx.fillStyle = '#555';
+    ctx.fillText('Best: ' + bestDepth + 'm  |  Gems: ' + totalGems + '  |  Runs: ' + runs, 300, 430);
+  }
+  
+  // Start prompt
+  var alpha = 0.5 + Math.sin(titleBlink) * 0.5;
+  ctx.fillStyle = 'rgba(100,180,255,' + alpha + ')';
+  ctx.font = 'bold 18px system-ui';
+  ctx.fillText('Press ENTER to dig', 300, 490);
+  
+  ctx.fillStyle = '#444';
+  ctx.font = '12px system-ui';
+  ctx.fillText('ESC to quit  |  🎤 shapes difficulty', 300, 560);
+}
+
+function drawGame() {
+  var ox = (600 - COLS * CELL) / 2;
+  var sy = shakeTimer > 0 ? (Math.random() - 0.5) * 4 : 0;
+  var sx = shakeTimer > 0 ? (Math.random() - 0.5) * 4 : 0;
+  if (shakeTimer > 0) shakeTimer--;
+  
+  ctx.save();
+  ctx.translate(sx, sy);
+  
+  // Draw grid
+  for (var r = 0; r < VIEW_ROWS; r++) {
+    var worldR = r + cameraY;
+    for (var c = 0; c < COLS; c++) {
+      var x = ox + c * CELL;
+      var y = GAME_Y + r * CELL;
+      
+      if (worldR < 0 || worldR >= totalRows) {
+        ctx.fillStyle = '#0d0d0d';
+        ctx.fillRect(x, y, CELL, CELL);
+        continue;
+      }
+      
+      var block = grid[worldR][c];
+      var displayBlock = block;
+      
+      // Fog of war: hide special blocks until sonar-revealed or exposed
+      if ((block === BLOCK_GEM || block === BLOCK_RARE_GEM || block === BLOCK_GAS) && !isBlockRevealed(worldR, c)) {
+        displayBlock = BLOCK_ROCK;
+      }
+      
+      // Background
+      ctx.fillStyle = BLOCK_COLORS[displayBlock] || '#1a1a1a';
+      ctx.fillRect(x, y, CELL, CELL);
+      
+      // Block content
+      if (displayBlock !== BLOCK_EMPTY) {
+        // Depth shading - deeper = darker
+        var depthShade = Math.min(0.3, worldR * 0.003);
+        ctx.fillStyle = 'rgba(0,0,0,' + depthShade + ')';
+        ctx.fillRect(x, y, CELL, CELL);
+        
+        // Icons for special blocks (only when revealed)
+        if (displayBlock === BLOCK_GEM || displayBlock === BLOCK_RARE_GEM || displayBlock === BLOCK_GAS) {
+          ctx.font = '16px system-ui';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          if (displayBlock === BLOCK_GEM) ctx.fillText('💎', x + CELL/2, y + CELL/2);
+          else if (displayBlock === BLOCK_RARE_GEM) ctx.fillText('✨', x + CELL/2, y + CELL/2);
+          else if (displayBlock === BLOCK_GAS) ctx.fillText('💨', x + CELL/2, y + CELL/2);
+        }
+        
+        // Grid lines for rock
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+        ctx.strokeRect(x, y, CELL, CELL);
+      }
+    }
+  }
+  
+  // Player
+  var px = ox + playerX * CELL;
+  var py = GAME_Y + (playerY - cameraY) * CELL;
+  
+  // Player glow
+  ctx.fillStyle = 'rgba(100,180,255,0.15)';
+  ctx.beginPath();
+  ctx.arc(px + CELL/2, py + CELL/2, CELL * 0.8, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Player
+  ctx.font = '20px system-ui';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('⛏️', px + CELL/2, py + CELL/2);
+  
+  ctx.restore();
+  
+  // Gas overlay
+  if (gasOverlay > 0) {
+    ctx.fillStyle = 'rgba(180,180,0,' + gasOverlay * 0.3 + ')';
+    ctx.fillRect(0, 0, 600, 600);
+    gasOverlay *= 0.95;
+  }
+  
+  // Floating texts
+  ctx.textAlign = 'center';
+  for (var i = floatingTexts.length - 1; i >= 0; i--) {
+    var ft = floatingTexts[i];
+    ft.life--;
+    ft.y -= 1.2;
+    var alpha = ft.life / ft.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = ft.color;
+    ctx.font = 'bold 14px system-ui';
+    ctx.fillText(ft.text, ft.x + (600 - COLS * CELL) / 2, ft.y);
+    if (ft.life <= 0) floatingTexts.splice(i, 1);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawHUD() {
+  // HUD background
+  ctx.fillStyle = 'rgba(13,13,13,0.9)';
+  ctx.fillRect(0, 0, 600, HUD_H);
+  
+  ctx.font = '13px system-ui';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  
+  // Depth
+  ctx.fillStyle = '#64b4ff';
+  ctx.fillText('⛏️ ' + depth + 'm', 10, 20);
+  
+  // Rank label
+  ctx.fillStyle = '#44aa88';
+  ctx.font = '10px system-ui';
+  ctx.fillText(RANKS[rankIdx].name, 10, 34);
+  
+  // Pick HP bar
+  var barX = 90;
+  var barW = 100;
+  var barH = 12;
+  var hpPct = pickHP / pickMaxHP;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(barX, 14, barW, barH);
+  ctx.fillStyle = hpPct > 0.5 ? '#44aa44' : hpPct > 0.25 ? '#aaaa44' : '#aa4444';
+  ctx.fillRect(barX, 14, barW * hpPct, barH);
+  ctx.fillStyle = '#ccc';
+  ctx.font = '10px system-ui';
+  ctx.fillText(pickHP + '/' + pickMaxHP, barX + barW + 4, 20);
+  
+  // Gems
+  ctx.font = '13px system-ui';
+  ctx.fillStyle = '#44ff88';
+  ctx.fillText('💎 ' + gems, 250, 20);
+  
+  // Rare
+  ctx.fillStyle = '#bb88ff';
+  ctx.fillText('✨ ' + rareGems, 310, 20);
+  
+  // Score
+  ctx.fillStyle = '#ffcc44';
+  ctx.fillText('⭐ ' + score, 380, 20);
+  
+  // Mic level
+  if (micActive) {
+    ctx.fillStyle = '#555';
+    ctx.fillText('🎤', 460, 20);
+    var micBarW = 60;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(480, 14, micBarW, barH);
+    var micColor = micLevel < 0.3 ? '#44aa44' : micLevel < 0.6 ? '#aaaa44' : '#aa4444';
+    ctx.fillStyle = micColor;
+    ctx.fillRect(480, 14, micBarW * Math.min(1, micLevel * 2), barH);
+  }
+  
+  // Best depth indicator
+  if (bestDepth > 0 && depth > 0) {
+    ctx.textAlign = 'right';
+    ctx.fillStyle = depth >= bestDepth ? '#ffcc44' : '#555';
+    ctx.font = '11px system-ui';
+    ctx.fillText('Best: ' + bestDepth + 'm', 590, 20);
+  }
+  ctx.textAlign = 'left';
+}
+
+function drawDeath() {
+  ctx.fillStyle = 'rgba(13,0,0,0.7)';
+  ctx.fillRect(0, 0, 600, 600);
+  
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ff4444';
+  ctx.font = 'bold 36px system-ui';
+  ctx.fillText('💀 MINE OVER', 300, 170);
+  
+  ctx.fillStyle = '#ccc';
+  ctx.font = '16px system-ui';
+  ctx.fillText(deathReason, 300, 210);
+  
+  ctx.fillStyle = '#64b4ff';
+  ctx.font = 'bold 24px system-ui';
+  ctx.fillText('Depth: ' + depth + 'm', 300, 260);
+  
+  ctx.font = '18px system-ui';
+  ctx.fillStyle = '#44ff88';
+  ctx.fillText('💎 ' + gems + '   ✨ ' + rareGems + '   ⭐ ' + score, 300, 295);
+  
+  if (depth >= bestDepth && depth > 0) {
+    ctx.fillStyle = '#ffcc44';
+    ctx.font = 'bold 16px system-ui';
+    ctx.fillText('🏆 NEW BEST DEPTH!', 300, 330);
+  }
+  
+  // Rank progress
+  ctx.fillStyle = '#44aa88';
+  ctx.font = '15px system-ui';
+  ctx.fillText('⛏️ ' + RANKS[rankIdx].name, 300, 370);
+  
+  if (sessionGems > 0) {
+    ctx.fillStyle = '#888';
+    ctx.font = '13px system-ui';
+    ctx.fillText('+' + sessionGems + ' gems this run', 300, 392);
+  }
+  
+  // Rank-up announcement
+  if (rankIdx > prevRankIdx) {
+    ctx.fillStyle = '#ffcc44';
+    ctx.font = 'bold 18px system-ui';
+    var glow = 0.5 + 0.5 * Math.sin(Date.now() / 200);
+    ctx.shadowColor = 'rgba(255,204,68,' + glow + ')';
+    ctx.shadowBlur = 12;
+    ctx.fillText('⭐ RANK UP: ' + RANKS[rankIdx].name + '! ⭐', 300, 418);
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+    // Show what bonus unlocked
+    var bonus = RANKS[rankIdx];
+    var bonusText = '';
+    if (bonus.pickBonus > RANKS[rankIdx-1].pickBonus) bonusText += '+Pick HP ';
+    if (bonus.gemMult > RANKS[rankIdx-1].gemMult) bonusText += '+Gem Value ';
+    if (bonus.proxRange > RANKS[rankIdx-1].proxRange) bonusText += '+Sonar Range ';
+    if (bonus.digReduce > RANKS[rankIdx-1].digReduce) bonusText += '+Dig Efficiency ';
+    if (bonusText) {
+      ctx.fillStyle = '#aaa';
+      ctx.font = '12px system-ui';
+      ctx.fillText(bonusText.trim(), 300, 440);
+    }
+  } else if (rankIdx < RANKS.length - 1) {
+    // Progress to next rank
+    var next = RANKS[rankIdx + 1];
+    var pct = (totalGems - RANKS[rankIdx].threshold) / (next.threshold - RANKS[rankIdx].threshold);
+    pct = Math.max(0, Math.min(1, pct));
+    var barW = 180, barH = 6, barX = 210, barY = 408;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#44aa88';
+    ctx.fillRect(barX, barY, barW * pct, barH);
+    ctx.fillStyle = '#555';
+    ctx.font = '11px system-ui';
+    ctx.fillText(gemsToNext() + ' gems to ' + next.name, 300, 430);
+  }
+  
+  // Stats
+  ctx.fillStyle = '#666';
+  ctx.font = '13px system-ui';
+  ctx.fillText('Total gems: ' + totalGems + '  |  Runs: ' + runs, 300, 470);
+  
+  var alpha = 0.5 + Math.sin(Date.now() / 300) * 0.5;
+  ctx.fillStyle = 'rgba(100,180,255,' + alpha + ')';
+  ctx.font = 'bold 16px system-ui';
+  ctx.fillText('ENTER to dig again  |  ESC for title', 300, 520);
+}
+
+// Input
+var keys = {};
+var keyRepeat = {};
+var REPEAT_DELAY = 180;
+var REPEAT_RATE = 80;
+
+document.addEventListener('keydown', function(e) {
+  e.preventDefault();
+  
+  if (!audioCtx) initAudio(); if(!bgmAudio) bgmInit();
+  if (!micActive && !micFailed) initMic();
+  
+  var key = e.key;
+  
+  if (state === STATE_TITLE) {
+    if (key === 'Enter') {
+      initGame();
+    }
+    return;
+  }
+  
+  if (state === STATE_DEAD) {
+    if (key === 'Enter') {
+      initGame();
+    } else if (key === 'Escape') {
+      state = STATE_TITLE;
+    }
+    return;
+  }
+  
+  if (state === STATE_PLAY) {
+    if (key === 'Escape') {
+      state = STATE_TITLE;
+      savePersist();
+      return;
+    }
+    
+    if (!keys[key]) {
+      keys[key] = true;
+      handleMove(key);
+      keyRepeat[key] = Date.now() + REPEAT_DELAY;
+    }
+  }
+});
+
+document.addEventListener('keyup', function(e) {
+  keys[e.key] = false;
+  delete keyRepeat[e.key];
+});
+
+function handleMove(key) {
+  if (key === 'ArrowLeft') tryMove(-1, 0);
+  else if (key === 'ArrowRight') tryMove(1, 0);
+  else if (key === 'ArrowUp') tryMove(0, -1);
+  else if (key === 'ArrowDown') tryMove(0, 1);
+  else if (key === 'Enter') tryMove(0, 1); // Enter = dig down
+}
+
+// Key repeat for held keys
+function checkKeyRepeat() {
+  var now = Date.now();
+  var moveKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
+  for (var i = 0; i < moveKeys.length; i++) {
+    var k = moveKeys[i];
+    if (keys[k] && keyRepeat[k] && now > keyRepeat[k]) {
+      handleMove(k);
+      keyRepeat[k] = now + REPEAT_RATE;
+    }
+  }
+}
+
+// Game loop
+function frame() {
+  updateMic();
+  checkKeyRepeat();
+  draw();
+  requestAnimationFrame(frame);
+}
+
+requestAnimationFrame(frame);
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../touch-controls.js"></script>
+</body>
+</html>

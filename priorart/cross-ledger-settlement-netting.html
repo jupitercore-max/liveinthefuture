@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-006: Real-Time Multilateral Settlement Netting via Graph-Based Obligation Compression | Live in the Future</title>
+  <meta name="description" content="Defensive prior art disclosure: A settlement engine that ingests payment obligations from multiple rails and computes optimal multilateral netting sets reducing gross settlement volume by 60-80%.">
+  <meta property="og:title" content="System and Method for Real-Time Multilateral Settlement Netting Across Heterogeneous Payment Rails Using Graph-Based Obligation Compression">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/cross-ledger-settlement-netting.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/cross-ledger-settlement-netting.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/priorart-settlement.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">← Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-006 · FinTech / Infrastructure</span>
+      <h1>System and Method for Real-Time Multilateral Settlement Netting Across Heterogeneous Payment Rails Using Graph-Based Obligation Compression</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-03-31">Published March 31, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/priorart-settlement.jpg" alt="Financial network topology diagram with settlement nodes" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>⚖️ Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. § 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above. This disclosure is intended to prevent the patenting of these concepts by any party.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a settlement engine that ingests payment obligations from multiple heterogeneous payment rails (ACH, Fedwire, SWIFT gpi, RTP/FedNow, and stablecoin ledgers), constructs a real-time directed obligation graph, and computes optimal multilateral netting sets using cycle detection and minimum-cost flow algorithms. The system reduces gross settlement volume by 60-80% by identifying circular obligation chains and offsetting them to net positions, lowering systemic liquidity requirements without requiring participants to share a single ledger or trust framework. A zero-knowledge proof layer enables participants to validate netting calculations without exposing bilateral obligation amounts to other participants or the netting operator.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to financial market infrastructure, specifically to cross-rail payment netting systems that reduce settlement liquidity requirements through graph-theoretic obligation compression with cryptographic privacy preservation.</p>
+
+      <h2>Background</h2>
+
+      <p>The global payments system processes approximately <a href="https://www.bis.org/cpmi/publ/d213.pdf">$12.6 trillion daily</a> across multiple rails (BIS CPMI Red Book, 2023). Each rail operates independently with separate settlement cycles: Fedwire settles in real time, ACH settles in 1-2 business days, SWIFT gpi targets same-day, and RTP/FedNow provide instant settlement. This fragmentation creates systemic inefficiency: a bank may simultaneously owe $100M to Bank B via Fedwire while Bank B owes $95M back via ACH, requiring $195M in gross liquidity when only $5M in net flow is economically necessary.</p>
+
+      <p>Netting is not new. <a href="https://www.cls-group.com/">CLS Group</a> nets foreign exchange obligations, reducing $6.5 trillion daily gross volume to approximately $100 billion in net settlements (98.5% compression). <a href="https://www.dtcc.com/">DTCC</a> provides multilateral netting for equities settlement. However, these systems operate within single asset classes and single settlement networks. No existing system provides cross-rail netting across heterogeneous payment infrastructure.</p>
+
+      <p>Relevant prior art:</p>
+      <ul>
+        <li><a href="https://patents.google.com/patent/US7685052B2">US7685052B2</a> (CLS): Multicurrency settlement netting. Single-rail (FX), bilateral netting only, no graph-based multilateral optimization.</li>
+        <li><a href="https://patents.google.com/patent/US10915891B2">US10915891B2</a> (R3/Corda): Distributed ledger netting. Requires all participants on same DLT platform. Does not bridge existing rails.</li>
+        <li><a href="https://patents.google.com/patent/US20210182849A1">US20210182849A1</a> (Fnality): Tokenized settlement asset for cross-rail netting. Requires new central bank-backed settlement token, not yet operational.</li>
+        <li><a href="https://www.bis.org/publ/bppdf/bispap128.pdf">BIS Working Paper 128</a> (2023): "Multi-CBDC arrangements" exploring cross-border netting. Theoretical framework without implementation architecture for existing rails.</li>
+      </ul>
+
+      <p>The gap in the art is a system that: (a) ingests obligations from existing heterogeneous payment rails without requiring rail modification, (b) computes optimal multilateral netting across rails in real time, (c) preserves bilateral obligation privacy using zero-knowledge proofs, and (d) produces settlement instructions executable on each participant's existing rail connections.</p>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. Obligation Ingestion Layer</h3>
+
+      <p>The system connects to existing payment rails via standardized interfaces: SWIFT Alliance Lite2 (for SWIFT gpi obligations), Federal Reserve's FedLine (for Fedwire and FedNow obligations), NACHA Direct Access (for ACH obligations), and blockchain RPC endpoints (for stablecoin obligations on Ethereum, Solana, and Stellar). Each participant submits obligation records containing: debtor identifier, creditor identifier, amount, currency, value date, and originating rail. Obligations are normalized to a common schema with ISO 20022 identifiers.</p>
+
+      <p>A real-time streaming pipeline (implemented on Apache Kafka with exactly-once semantics) ingests obligations as they are created on each rail and maintains an in-memory obligation graph updated within 50 ms of obligation creation.</p>
+
+      <h3>2. Obligation Graph Construction</h3>
+
+      <p>The system maintains a directed weighted multigraph G = (V, E) where vertices V represent financial institutions and edges E represent payment obligations. Each edge e = (u, v, w, r, t) encodes: source institution u, destination institution v, amount w, originating rail r, and value date t. Multiple edges may exist between the same vertex pair (different amounts, rails, and value dates).</p>
+
+      <p>The graph is partitioned by value date and currency. Netting operates independently on each (currency, value date) partition. For multi-currency netting, the system applies FX conversion at real-time mid-market rates from a price oracle (Bloomberg B-PIPE or Refinitiv Elektron) with configurable tolerance bands (default: ±50 basis points).</p>
+
+      <h3>3. Multilateral Netting Algorithm</h3>
+
+      <p>The netting engine performs the following steps on each graph partition:</p>
+
+      <ol>
+        <li><strong>Cycle detection:</strong> Johnson's algorithm (<a href="https://doi.org/10.1137/0204007">SIAM Journal on Computing, 1975</a>) enumerates all elementary cycles in the obligation graph. Each cycle represents a circular obligation chain where obligations can be fully or partially offset.</li>
+        <li><strong>Cycle valuation:</strong> For each cycle, the maximum offsetable amount is the minimum edge weight in the cycle (bottleneck). The total nettable amount across all non-overlapping cycles is computed using a maximum weight independent set formulation.</li>
+        <li><strong>Minimum-cost flow optimization:</strong> The remaining graph after cycle elimination is optimized using the successive shortest path algorithm to compute minimum-cost multilateral net positions. Each institution's net position across all counterparties is computed, reducing a dense obligation graph to a sparse net settlement graph with at most N-1 edges (where N is the number of participants).</li>
+        <li><strong>Settlement instruction generation:</strong> Net positions are decomposed into executable settlement instructions for each rail, respecting rail-specific constraints (Fedwire: real-time, unlimited amount; ACH: batch, $25M default limit; RTP: real-time, $1M limit; stablecoin: real-time, gas-dependent).</li>
+      </ol>
+
+      <p>The algorithm runs continuously with a configurable netting cycle (default: every 15 minutes during market hours, every 60 minutes overnight). Each netting cycle processes the accumulated obligation graph and produces a settlement instruction set.</p>
+
+      <h3>4. Zero-Knowledge Privacy Layer</h3>
+
+      <p>Participants submit obligations encrypted with their public key. The netting engine operates on encrypted obligations using a multi-party computation (MPC) protocol based on Shamir's secret sharing (threshold: 3-of-5 netting operator nodes). Net positions are revealed only to the relevant pair of counterparties using Pedersen commitments and Bulletproof range proofs (<a href="https://eprint.iacr.org/2017/1066">Bünz et al., IEEE S&P 2018</a>).</p>
+
+      <p>Each participant can verify that their net position was correctly computed from their submitted obligations without learning any other participant's bilateral obligations. The verification protocol produces a non-interactive zero-knowledge proof that the sum of all net positions across the system equals zero (conservation of value).</p>
+
+      <h3>5. Regulatory Compliance Module</h3>
+
+      <p>The system maintains a regulatory reporting layer that provides supervisory authorities with aggregate netting statistics (total gross volume, net volume, compression ratio, participation rates) without exposing bilateral obligation data. For jurisdictions requiring transaction-level reporting (e.g., <a href="https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1010/subpart-C">31 CFR 1010</a>, BSA/AML), the system generates compliant reports from pre-netting obligation data held by each participant, not from the netting engine.</p>
+
+      <h3>6. Figures Description</h3>
+
+      <ul>
+        <li><strong>Figure 1:</strong> System architecture showing obligation ingestion from five payment rails, streaming pipeline, obligation graph engine, netting optimizer, ZK privacy layer, and settlement instruction output to each rail.</li>
+        <li><strong>Figure 2:</strong> Example obligation graph with 6 institutions showing 15 bilateral obligations totaling $2.3B gross, reduced to 4 net settlement instructions totaling $380M (83.5% compression).</li>
+        <li><strong>Figure 3:</strong> Cycle detection illustration showing a 4-party circular obligation chain (A→B: $50M, B→C: $30M, C→D: $45M, D→A: $35M) being offset by $30M (the bottleneck) and the resulting residual graph.</li>
+        <li><strong>Figure 4:</strong> Compression ratio as a function of participant count and obligation density, showing that compression improves super-linearly with network size (Metcalfe's law analogy for netting value).</li>
+      </ul>
+
+      <h2>Claims</h2>
+
+      <ol>
+        <li>A settlement system comprising: an obligation ingestion layer connected to a plurality of heterogeneous payment rails; a real-time directed obligation graph maintained in memory; a multilateral netting engine that detects cycles in the obligation graph and computes minimum-cost net positions; and a settlement instruction generator that produces rail-specific executable instructions from net positions.</li>
+
+        <li>The system of claim 1, wherein the heterogeneous payment rails include at least two of: ACH, Fedwire, SWIFT gpi, RTP/FedNow, and stablecoin blockchain ledgers.</li>
+
+        <li>The system of claim 1, wherein the multilateral netting engine employs Johnson's algorithm for cycle enumeration, computes maximum offsetable amounts as cycle bottleneck values, and applies successive shortest path minimum-cost flow optimization to compute final net positions.</li>
+
+        <li>The system of claim 1, further comprising a zero-knowledge privacy layer using multi-party computation and Pedersen commitments that enables each participant to verify their net position was correctly computed without learning any other participant's bilateral obligation amounts.</li>
+
+        <li>The system of claim 4, wherein the zero-knowledge privacy layer produces a non-interactive proof that the sum of all net positions across the system equals zero, verifiable by any participant.</li>
+
+        <li>A method for reducing gross settlement volume across heterogeneous payment infrastructure, comprising: ingesting payment obligations from multiple payment rails in real time; constructing a directed weighted obligation graph partitioned by currency and value date; detecting circular obligation chains and computing maximum offset amounts; optimizing residual obligations to minimum-cost multilateral net positions; and generating executable settlement instructions for each originating rail.</li>
+
+        <li>The method of claim 6, wherein the netting cycle runs at configurable intervals and achieves 60-80% gross volume reduction for networks with 20 or more active participants.</li>
+
+        <li>The method of claim 6, further comprising multi-currency netting using real-time FX rates with configurable tolerance bands to net obligations denominated in different currencies.</li>
+
+        <li>The system of claim 1, wherein the obligation ingestion layer connects to existing payment rail interfaces without requiring modification to the rails themselves, using standardized connectivity including SWIFT Alliance Lite2, Federal Reserve FedLine, NACHA Direct Access, and blockchain RPC endpoints.</li>
+      </ol>
+
+      <h2>Prior Art References</h2>
+
+      <ol>
+        <li><a href="https://www.bis.org/cpmi/publ/d213.pdf">BIS CPMI Red Book 2023</a> — $12.6T daily global payment volume</li>
+        <li><a href="https://www.cls-group.com/">CLS Group</a> — FX settlement netting (98.5% compression)</li>
+        <li><a href="https://www.dtcc.com/">DTCC</a> — Equities multilateral netting</li>
+        <li><a href="https://patents.google.com/patent/US7685052B2">US7685052B2</a> — CLS — Multicurrency settlement netting</li>
+        <li><a href="https://patents.google.com/patent/US10915891B2">US10915891B2</a> — R3/Corda — Distributed ledger netting</li>
+        <li><a href="https://patents.google.com/patent/US20210182849A1">US20210182849A1</a> — Fnality — Tokenized settlement asset</li>
+        <li><a href="https://www.bis.org/publ/bppdf/bispap128.pdf">BIS Working Paper 128 (2023)</a> — Multi-CBDC arrangements</li>
+        <li><a href="https://doi.org/10.1137/0204007">Johnson, SIAM J. Computing 1975</a> — Elementary cycle enumeration algorithm</li>
+        <li><a href="https://eprint.iacr.org/2017/1066">Bünz et al., IEEE S&P 2018</a> — Bulletproofs: Short proofs for confidential transactions</li>
+        <li><a href="https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1010/subpart-C">31 CFR 1010</a> — BSA/AML reporting requirements</li>
+        <li><a href="https://www.federalreserve.gov/paymentsystems/fedfunds_about.htm">Federal Reserve FedLine</a> — Fedwire/FedNow connectivity</li>
+        <li><a href="https://www.nacha.org/">NACHA</a> — ACH network operator and standards</li>
+      </ol>
+
+    </div>
+  </article>
+
+<script src="../story.js"></script>
+</body>
+</html>

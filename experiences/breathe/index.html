@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/experiences/breathe/" />
+  <meta property="og:title" content="Breathe - Hypernova WebApp" />
+  <meta property="og:url" content="https://liveinthefuture.org/experiences/breathe/" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Breathe - Hypernova WebApp</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0d0d0d;
+  color: #e8e8e8;
+  width: 600px;
+  height: 600px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+canvas { display: block; }
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+var cv = document.getElementById('c');
+var ctx = cv.getContext('2d');
+var W = 600, H = 600;
+var CX = W / 2, CY = H / 2 - 20;
+
+// ── Breathing patterns ──
+var patterns = [
+  { name: 'Box Breathing', steps: [
+    { phase: 'INHALE', dur: 4 },
+    { phase: 'HOLD', dur: 4 },
+    { phase: 'EXHALE', dur: 4 },
+    { phase: 'HOLD', dur: 4 }
+  ], desc: '4-4-4-4 · Navy SEAL focus technique' },
+  { name: '4-7-8 Calm', steps: [
+    { phase: 'INHALE', dur: 4 },
+    { phase: 'HOLD', dur: 7 },
+    { phase: 'EXHALE', dur: 8 }
+  ], desc: '4-7-8 · Dr. Weil relaxation method' },
+  { name: 'Coherent', steps: [
+    { phase: 'INHALE', dur: 5 },
+    { phase: 'EXHALE', dur: 5 }
+  ], desc: '5-5 · Heart rate variability optimization' },
+  { name: 'Energize', steps: [
+    { phase: 'INHALE', dur: 2 },
+    { phase: 'EXHALE', dur: 2 }
+  ], desc: '2-2 · Quick energy boost' },
+  { name: 'Deep Calm', steps: [
+    { phase: 'INHALE', dur: 4 },
+    { phase: 'HOLD', dur: 2 },
+    { phase: 'EXHALE', dur: 8 },
+    { phase: 'HOLD', dur: 2 }
+  ], desc: '4-2-8-2 · Extended exhale for deep relaxation' }
+];
+
+var patIdx = 0;
+var running = false;
+var showingSummary = false;
+var stepIdx = 0;
+var stepTime = 0;
+var totalBreaths = 0;
+var sessionTime = 0;
+var tick = 0;
+
+// Circle animation
+var circleRadius = 60;
+var minR = 60, maxR = 140;
+
+// Particles for ambient effect
+var particles = [];
+for (var i = 0; i < 40; i++) {
+  particles.push({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    r: Math.random() * 2 + 0.5,
+    speed: Math.random() * 0.3 + 0.1,
+    alpha: Math.random() * 0.3 + 0.1,
+    angle: Math.random() * Math.PI * 2
+  });
+}
+
+// ── Audio (mic) ──
+var audioCtx = null;
+var analyser = null;
+var freqData = null;
+var micActive = false;
+var micFailed = false;
+var micLevel = 0;
+var smoothLevel = 0;
+
+// ── Breath sync system ──
+var syncScore = 0;          // 0-1, current sync quality
+var smoothSync = 0;         // display smoothed
+var syncSamples = [];       // per-frame sync scores for session average
+var syncStreak = 0;         // frames in sync (>0.5)
+var bestStreak = 0;         // best streak this session
+var breathTrend = 0;        // smoothed derivative of mic level (+ = rising = inhaling, - = falling = exhaling)
+var prevSmooth = 0;         // previous smooth level for derivative
+var trendSmooth = 0;        // smoothed trend
+
+function initMic() {
+  if (micActive || micFailed) return;
+  micFailed = true;
+  try {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      var src = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.85;
+      src.connect(analyser);
+      freqData = new Uint8Array(analyser.frequencyBinCount);
+      micActive = true;
+      micFailed = false;
+    }).catch(function() { micActive = false; });
+  } catch(e) { micActive = false; }
+}
+
+function updateMic() {
+  if (!micActive || !analyser) return;
+  analyser.getByteFrequencyData(freqData);
+  var sum = 0;
+  for (var i = 0; i < freqData.length; i++) sum += freqData[i];
+  micLevel = sum / (freqData.length * 255);
+  prevSmooth = smoothLevel;
+  smoothLevel = smoothLevel * 0.88 + micLevel * 0.12;
+
+  // Compute breath trend (derivative of volume)
+  var rawTrend = smoothLevel - prevSmooth;
+  trendSmooth = trendSmooth * 0.85 + rawTrend * 0.15;
+}
+
+function computeSync(phase) {
+  if (!micActive) return 0.5; // neutral if no mic
+
+  var bonuses = getRankBonuses();
+  var trendMag = Math.abs(trendSmooth);
+  var trendThreshold = 0.0003;
+  var raw;
+
+  if (phase === 'INHALE') {
+    if (trendSmooth > trendThreshold) raw = Math.min(1, 0.6 + trendSmooth * 800);
+    else if (trendSmooth > -trendThreshold) raw = 0.4;
+    else raw = Math.max(0, 0.3 - trendMag * 400);
+  } else if (phase === 'EXHALE') {
+    if (trendSmooth < -trendThreshold) raw = Math.min(1, 0.6 + trendMag * 800);
+    else if (trendSmooth < trendThreshold) raw = 0.4;
+    else raw = Math.max(0, 0.3 - trendSmooth * 400);
+  } else {
+    if (trendMag < trendThreshold) raw = 0.9;
+    else if (trendMag < trendThreshold * 3) raw = 0.6;
+    else raw = Math.max(0.1, 0.4 - trendMag * 600);
+  }
+
+  // Apply rank bonuses: boost multiplier + minimum floor
+  raw = Math.min(1, raw * bonuses.syncBoost);
+  raw = Math.max(raw, bonuses.syncFloor);
+  return raw;
+}
+
+// ── Audio feedback (gentle tones) ──
+var toneCtx = null;
+function playTone(freq, dur, vol) {
+  if (!toneCtx) toneCtx = new (window.AudioContext || window.webkitAudioContext)();
+  var o = toneCtx.createOscillator();
+  var g = toneCtx.createGain();
+  o.type = 'sine';
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(vol || 0.06, toneCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, toneCtx.currentTime + dur);
+  o.connect(g);
+  g.connect(toneCtx.destination);
+  o.start();
+  o.stop(toneCtx.currentTime + dur);
+}
+
+// ── Continuous audio guide ──
+var guideEnabled = true;
+try { var ge = localStorage.getItem('breathe_guide'); if (ge !== null) guideEnabled = ge === '1'; } catch(e) {}
+var guideOsc = null;
+var guideGain = null;
+var guideLowHz = 220;
+var guideHighHz = 440;
+var guideVol = 0.04;
+
+function initGuide() {
+  if (guideOsc) return;
+  if (!toneCtx) toneCtx = new (window.AudioContext || window.webkitAudioContext)();
+  guideOsc = toneCtx.createOscillator();
+  guideGain = toneCtx.createGain();
+  guideOsc.type = 'sine';
+  guideOsc.frequency.value = guideLowHz;
+  guideGain.gain.value = 0;
+  guideOsc.connect(guideGain);
+  guideGain.connect(toneCtx.destination);
+  guideOsc.start();
+}
+
+function stopGuide() {
+  if (guideOsc) {
+    try { guideOsc.stop(); } catch(e) {}
+    guideOsc = null;
+    guideGain = null;
+  }
+}
+
+function updateGuide(phase, progress) {
+  if (!guideEnabled || !guideOsc || !guideGain) return;
+  var targetFreq = guideLowHz;
+  var targetVol = guideVol;
+  if (phase === 'INHALE') {
+    targetFreq = guideLowHz + (guideHighHz - guideLowHz) * progress;
+    targetVol = guideVol;
+  } else if (phase === 'EXHALE') {
+    targetFreq = guideHighHz - (guideHighHz - guideLowHz) * progress;
+    targetVol = guideVol;
+  } else {
+    targetFreq = guideOsc.frequency.value;
+    targetVol = guideVol * 0.5;
+  }
+  guideOsc.frequency.setTargetAtTime(targetFreq, toneCtx.currentTime, 0.05);
+  guideGain.gain.setTargetAtTime(targetVol, toneCtx.currentTime, 0.05);
+}
+
+// ── Sync feedback tone (harmonizes when in sync) ──
+var syncOsc = null;
+var syncGain = null;
+
+function initSyncTone() {
+  if (syncOsc) return;
+  if (!toneCtx) toneCtx = new (window.AudioContext || window.webkitAudioContext)();
+  syncOsc = toneCtx.createOscillator();
+  syncGain = toneCtx.createGain();
+  syncOsc.type = 'triangle';
+  syncOsc.frequency.value = guideLowHz * 1.5; // perfect fifth above guide
+  syncGain.gain.value = 0;
+  syncOsc.connect(syncGain);
+  syncGain.connect(toneCtx.destination);
+  syncOsc.start();
+}
+
+function stopSyncTone() {
+  if (syncOsc) {
+    try { syncOsc.stop(); } catch(e) {}
+    syncOsc = null;
+    syncGain = null;
+  }
+}
+
+function updateSyncTone(phase, progress) {
+  if (!syncOsc || !syncGain || !guideOsc) return;
+  // Sync tone is a perfect fifth above the guide — only audible when in sync AND guide is on
+  if (!guideEnabled) {
+    syncGain.gain.setTargetAtTime(0, toneCtx.currentTime, 0.08);
+    return;
+  }
+  var baseFreq = guideOsc.frequency.value || guideLowHz;
+  var targetFreq = baseFreq * 1.5;
+  var targetVol = smoothSync > 0.5 ? (smoothSync - 0.5) * 2 * 0.025 : 0;
+  syncOsc.frequency.setTargetAtTime(targetFreq, toneCtx.currentTime, 0.08);
+  syncGain.gain.setTargetAtTime(targetVol, toneCtx.currentTime, 0.08);
+}
+
+function phaseChime(phase) {
+  if (phase === 'INHALE') playTone(528, 0.4, 0.08);
+  else if (phase === 'EXHALE') playTone(396, 0.4, 0.08);
+  else playTone(432, 0.2, 0.04);
+}
+
+// ── Phase colors ──
+function phaseColor(phase, alpha) {
+  if (phase === 'INHALE') return 'rgba(100, 200, 255, ' + alpha + ')';
+  if (phase === 'EXHALE') return 'rgba(150, 100, 255, ' + alpha + ')';
+  return 'rgba(200, 200, 200, ' + alpha + ')';
+}
+
+function phaseGlow(phase) {
+  if (phase === 'INHALE') return '#4ac8ff';
+  if (phase === 'EXHALE') return '#9664ff';
+  return '#aaaaaa';
+}
+
+// ── Sync color (green when synced, dims when not) ──
+function syncColor(sync, alpha) {
+  var r = Math.round(100 + (1 - sync) * 155);
+  var g = Math.round(80 + sync * 175);
+  var b = Math.round(60 + sync * 80);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+}
+
+// ── Persistence ──
+function loadBest(patternName) {
+  try {
+    var data = JSON.parse(localStorage.getItem('breathe_stats') || '{}');
+    return data[patternName] || null;
+  } catch(e) { return null; }
+}
+
+function saveBest(patternName, avg, grade) {
+  try {
+    var data = JSON.parse(localStorage.getItem('breathe_stats') || '{}');
+    var prev = data[patternName];
+    if (!prev || avg > prev.avg) {
+      data[patternName] = { avg: avg, grade: grade, date: Date.now() };
+    }
+    // Track total sessions
+    data._sessions = (data._sessions || 0) + 1;
+    data._totalBreaths = (data._totalBreaths || 0) + totalBreaths;
+    localStorage.setItem('breathe_stats', JSON.stringify(data));
+  } catch(e) {}
+}
+
+function getTotalSessions() {
+  try {
+    var data = JSON.parse(localStorage.getItem('breathe_stats') || '{}');
+    return data._sessions || 0;
+  } catch(e) { return 0; }
+}
+
+function getTotalBreaths() {
+  try {
+    var data = JSON.parse(localStorage.getItem('breathe_stats') || '{}');
+    return data._totalBreaths || 0;
+  } catch(e) { return 0; }
+}
+
+// ── Rank progression ──
+var rankDefs = [
+  { name: 'Beginner', threshold: 0, syncBoost: 1.0, syncFloor: 0.0 },
+  { name: 'Breather', threshold: 5, syncBoost: 1.05, syncFloor: 0.04 },
+  { name: 'Practitioner', threshold: 15, syncBoost: 1.10, syncFloor: 0.07 },
+  { name: 'Adept', threshold: 30, syncBoost: 1.15, syncFloor: 0.10 },
+  { name: 'Mindful', threshold: 60, syncBoost: 1.20, syncFloor: 0.13 },
+  { name: 'Centered', threshold: 120, syncBoost: 1.25, syncFloor: 0.16 },
+  { name: 'Transcendent', threshold: 250, syncBoost: 1.30, syncFloor: 0.18 },
+  { name: 'Breathwork Master', threshold: 500, syncBoost: 1.35, syncFloor: 0.20 }
+];
+var currentRankIdx = 0;
+var prevRankIdx = 0;
+var sessionRankedUp = false;
+
+function getRankIdx(sessions) {
+  var r = 0;
+  for (var i = rankDefs.length - 1; i >= 0; i--) {
+    if (sessions >= rankDefs[i].threshold) { r = i; break; }
+  }
+  return r;
+}
+
+function getRankBonuses() { return rankDefs[currentRankIdx]; }
+
+function updateCurrentRank() { currentRankIdx = getRankIdx(getTotalSessions()); }
+
+updateCurrentRank();
+
+function calcGrade(avg) {
+  if (avg >= 0.9) return 'S';
+  if (avg >= 0.8) return 'A';
+  if (avg >= 0.65) return 'B';
+  if (avg >= 0.5) return 'C';
+  if (avg >= 0.35) return 'D';
+  return 'F';
+}
+
+function gradeColor(grade) {
+  if (grade === 'S') return '#ffd700';
+  if (grade === 'A') return '#4aff88';
+  if (grade === 'B') return '#4ac8ff';
+  if (grade === 'C') return '#ffaa44';
+  if (grade === 'D') return '#ff6644';
+  return '#888';
+}
+
+// ── Session summary data ──
+var summaryAvg = 0;
+var summaryGrade = '';
+var summaryBreaths = 0;
+var summaryTime = 0;
+var summaryBestStreak = 0;
+var summaryBest = null;
+var summaryIsNew = false;
+
+// ── Update ──
+function update() {
+  tick++;
+  if (!running || showingSummary) return;
+
+  var dt = 1 / 60;
+  sessionTime += dt;
+  stepTime += dt;
+
+  var pat = patterns[patIdx];
+  var step = pat.steps[stepIdx];
+  var progress = Math.min(stepTime / step.dur, 1);
+
+  // Animate circle
+  if (step.phase === 'INHALE') {
+    circleRadius = minR + (maxR - minR) * easeInOut(progress);
+  } else if (step.phase === 'EXHALE') {
+    circleRadius = maxR - (maxR - minR) * easeInOut(progress);
+  }
+
+  // Update mic
+  updateMic();
+
+  // Compute sync
+  syncScore = computeSync(step.phase);
+  smoothSync = smoothSync * 0.9 + syncScore * 0.1;
+
+  // Track sync samples (skip first 2 seconds for calibration)
+  if (sessionTime > 2 && micActive) {
+    syncSamples.push(syncScore);
+    if (syncScore > 0.5) {
+      syncStreak++;
+      if (syncStreak > bestStreak) bestStreak = syncStreak;
+    } else {
+      syncStreak = 0;
+    }
+  }
+
+  // Update audio
+  updateGuide(step.phase, progress);
+  updateSyncTone(step.phase, progress);
+
+  // Advance step
+  if (stepTime >= step.dur) {
+    stepTime = 0;
+    stepIdx++;
+    if (stepIdx >= pat.steps.length) {
+      stepIdx = 0;
+      totalBreaths++;
+    }
+    phaseChime(pat.steps[stepIdx].phase);
+  }
+}
+
+function easeInOut(t) {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
+// ── Draw ──
+function draw() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  // Ambient particles
+  var pat = running ? patterns[patIdx] : patterns[patIdx];
+  var step = running ? pat.steps[stepIdx] : null;
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    p.x += Math.cos(p.angle) * p.speed;
+    p.y += Math.sin(p.angle) * p.speed;
+    p.angle += (Math.random() - 0.5) * 0.02;
+    if (p.x < -10) p.x = W + 10;
+    if (p.x > W + 10) p.x = -10;
+    if (p.y < -10) p.y = H + 10;
+    if (p.y > H + 10) p.y = -10;
+    ctx.globalAlpha = p.alpha * (running ? 0.8 : 0.3);
+    // Tint particles by sync quality when running
+    if (running && micActive && !showingSummary) {
+      var pr = Math.round(100 + (1 - smoothSync) * 100);
+      var pg = Math.round(150 + smoothSync * 105);
+      var pb = Math.round(200 + smoothSync * 55);
+      ctx.fillStyle = 'rgb(' + pr + ',' + pg + ',' + pb + ')';
+    } else {
+      ctx.fillStyle = '#4ac8ff';
+    }
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  if (showingSummary) {
+    drawSummary();
+  } else if (!running) {
+    drawMenu();
+  } else {
+    drawSession();
+  }
+
+  drawFooter();
+  requestAnimationFrame(draw);
+}
+
+function drawMenu() {
+  // Title
+  ctx.font = '600 28px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🫁 Breathe', CX, 60);
+
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#666';
+  ctx.fillText('Guided breathing with biofeedback', CX, 88);
+
+  // Total stats
+  var ts = getTotalSessions();
+  var tb = getTotalBreaths();
+
+  // Rank display
+  updateCurrentRank();
+  var rank = rankDefs[currentRankIdx];
+  ctx.font = '600 14px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText(rank.name, CX, 108);
+
+  if (currentRankIdx < rankDefs.length - 1) {
+    var nextRank = rankDefs[currentRankIdx + 1];
+    var rProg = (ts - rank.threshold) / (nextRank.threshold - rank.threshold);
+    rProg = Math.max(0, Math.min(1, rProg));
+    // Progress bar
+    var barW = 200, barH = 6, barX = CX - barW / 2, barY = 120;
+    ctx.fillStyle = '#1a1a1a';
+    roundRect(ctx, barX, barY, barW, barH, 3);
+    ctx.fill();
+    ctx.fillStyle = '#4a9eff';
+    if (rProg > 0) {
+      roundRect(ctx, barX, barY, Math.max(6, barW * rProg), barH, 3);
+      ctx.fill();
+    }
+    ctx.font = '10px -apple-system, sans-serif';
+    ctx.fillStyle = '#555';
+    ctx.fillText(ts + '/' + nextRank.threshold + ' sessions → ' + nextRank.name, CX, 138);
+  } else {
+    ctx.font = '10px -apple-system, sans-serif';
+    ctx.fillStyle = '#555';
+    ctx.fillText(ts + ' sessions · ' + tb + ' breaths', CX, 126);
+  }
+
+  // Pattern list
+  for (var i = 0; i < patterns.length; i++) {
+    var p = patterns[i];
+    var y = 152 + i * 72;
+    var selected = i === patIdx;
+
+    if (selected) {
+      ctx.fillStyle = 'rgba(74, 158, 255, 0.1)';
+      ctx.strokeStyle = '#4a9eff';
+      ctx.lineWidth = 2;
+      roundRect(ctx, 40, y - 22, W - 80, 60, 10);
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#1a1a1a';
+      roundRect(ctx, 40, y - 22, W - 80, 60, 10);
+      ctx.fill();
+    }
+
+    ctx.font = '600 18px -apple-system, sans-serif';
+    ctx.fillStyle = selected ? '#4a9eff' : '#ccc';
+    ctx.textAlign = 'left';
+    ctx.fillText(p.name, 64, y);
+
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.fillStyle = '#888';
+    ctx.fillText(p.desc, 64, y + 20);
+
+    // Best score badge
+    var best = loadBest(p.name);
+    if (best) {
+      ctx.textAlign = 'right';
+      ctx.font = '600 14px -apple-system, sans-serif';
+      ctx.fillStyle = gradeColor(best.grade);
+      ctx.fillText(best.grade, W - 64, y - 2);
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.fillStyle = '#555';
+      ctx.fillText(Math.round(best.avg * 100) + '% sync', W - 64, y + 14);
+    } else {
+      // Steps preview
+      var stepsText = p.steps.map(function(s) { return s.dur + 's'; }).join(' · ');
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#555';
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.fillText(stepsText, W - 64, y);
+    }
+  }
+  ctx.textAlign = 'center';
+
+  // Mic hint
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = '#444';
+  ctx.fillText('🎤 Mic tracks your breathing for sync score', CX, H - 44);
+}
+
+function drawSession() {
+  var pat = patterns[patIdx];
+  var step = pat.steps[stepIdx];
+  var progress = Math.min(stepTime / step.dur, 1);
+  var glow = phaseGlow(step.phase);
+
+  // Sync ring (outer) — color shifts with sync quality
+  if (micActive) {
+    var syncAlpha = 0.15 + smoothSync * 0.25;
+    ctx.strokeStyle = syncColor(smoothSync, syncAlpha);
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(CX, CY, circleRadius + 24, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Sync arc (shows sync level as partial ring)
+    ctx.strokeStyle = syncColor(smoothSync, 0.6);
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(CX, CY, circleRadius + 24, -Math.PI / 2, -Math.PI / 2 + smoothSync * Math.PI * 2);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+  }
+
+  // Outer glow ring (phase color)
+  ctx.globalAlpha = 0.12 + Math.sin(tick * 0.03) * 0.04;
+  ctx.strokeStyle = glow;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(CX, CY, circleRadius + 16, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Main circle
+  var grad = ctx.createRadialGradient(CX, CY, 0, CX, CY, circleRadius);
+  grad.addColorStop(0, phaseColor(step.phase, 0.25));
+  grad.addColorStop(0.7, phaseColor(step.phase, 0.12));
+  grad.addColorStop(1, phaseColor(step.phase, 0.02));
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(CX, CY, circleRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Circle border
+  ctx.strokeStyle = phaseColor(step.phase, 0.5);
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(CX, CY, circleRadius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Progress arc
+  ctx.strokeStyle = glow;
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(CX, CY, circleRadius + 8, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  // Phase text
+  ctx.font = '600 24px -apple-system, sans-serif';
+  ctx.fillStyle = glow;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(step.phase, CX, CY - 10);
+
+  // Countdown
+  var remaining = Math.ceil(step.dur - stepTime);
+  ctx.font = '700 38px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.fillText(remaining, CX, CY + 26);
+
+  // Pattern name + rank + stats
+  ctx.font = '600 15px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.fillText(pat.name, CX, 24);
+
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText(rankDefs[currentRankIdx].name, CX, 42);
+
+  var mins = Math.floor(sessionTime / 60);
+  var secs = Math.floor(sessionTime % 60);
+  var timeStr = mins + ':' + (secs < 10 ? '0' : '') + secs;
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.fillText(totalBreaths + ' breaths · ' + timeStr, CX, 58);
+
+  // Sync score display
+  if (micActive && sessionTime > 2) {
+    var syncPct = Math.round(smoothSync * 100);
+    var currentGrade = calcGrade(smoothSync);
+
+    // Sync percentage
+    ctx.font = '600 16px -apple-system, sans-serif';
+    ctx.fillStyle = syncColor(smoothSync, 1);
+    ctx.fillText(syncPct + '% sync', CX, H - 88);
+
+    // Running average
+    if (syncSamples.length > 30) {
+      var runAvg = 0;
+      for (var s = 0; s < syncSamples.length; s++) runAvg += syncSamples[s];
+      runAvg /= syncSamples.length;
+      ctx.font = '12px -apple-system, sans-serif';
+      ctx.fillStyle = '#666';
+      ctx.fillText('avg ' + Math.round(runAvg * 100) + '% · grade ' + calcGrade(runAvg), CX, H - 70);
+    }
+  } else if (!micActive) {
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.fillStyle = '#444';
+    ctx.fillText('🎤 Mic needed for sync tracking', CX, H - 80);
+  }
+
+  // Step indicators
+  var dotY = H - 50;
+  var totalW = pat.steps.length * 24;
+  var startX = CX - totalW / 2 + 12;
+  for (var i = 0; i < pat.steps.length; i++) {
+    var dx = startX + i * 24;
+    ctx.fillStyle = i === stepIdx ? glow : '#333';
+    ctx.beginPath();
+    ctx.arc(dx, dotY, i === stepIdx ? 5 : 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Audio guide indicator
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = guideEnabled ? '#4a9eff' : '#333';
+  ctx.fillText(guideEnabled ? '🔊 Audio Guide' : '🔇 Guide Off', CX - 80, dotY);
+  ctx.textAlign = 'center';
+}
+
+function drawSummary() {
+  // Session Summary screen
+  ctx.font = '600 26px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Session Complete', CX, 60);
+
+  // Grade (big)
+  ctx.font = '700 72px -apple-system, sans-serif';
+  ctx.fillStyle = gradeColor(summaryGrade);
+  ctx.fillText(summaryGrade, CX, 150);
+
+  if (summaryIsNew) {
+    ctx.font = '600 14px -apple-system, sans-serif';
+    ctx.fillStyle = '#ffd700';
+    ctx.fillText('★ NEW BEST ★', CX, 200);
+  }
+
+  // Stats
+  var statY = 240;
+  var stats = [
+    ['Sync Score', Math.round(summaryAvg * 100) + '%'],
+    ['Breaths', '' + summaryBreaths],
+    ['Duration', formatTime(summaryTime)],
+    ['Pattern', patterns[patIdx].name]
+  ];
+
+  if (micActive) {
+    stats.push(['Best Streak', Math.round(summaryBestStreak / 60) + 's in sync']);
+  }
+
+  for (var i = 0; i < stats.length; i++) {
+    var sy = statY + i * 38;
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.fillStyle = '#888';
+    ctx.textAlign = 'left';
+    ctx.fillText(stats[i][0], 130, sy);
+    ctx.font = '600 16px -apple-system, sans-serif';
+    ctx.fillStyle = '#e8e8e8';
+    ctx.textAlign = 'right';
+    ctx.fillText(stats[i][1], W - 130, sy);
+  }
+
+  // Previous best
+  if (summaryBest) {
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.fillStyle = '#555';
+    ctx.textAlign = 'center';
+    ctx.fillText('Previous best: ' + Math.round(summaryBest.avg * 100) + '% (' + summaryBest.grade + ')', CX, statY + stats.length * 38 + 20);
+  }
+
+  // Rank progress
+  var rankY = statY + stats.length * 38 + (summaryBest ? 50 : 24);
+  var rank = rankDefs[currentRankIdx];
+
+  if (sessionRankedUp) {
+    ctx.font = '600 16px -apple-system, sans-serif';
+    ctx.fillStyle = '#ffd700';
+    ctx.textAlign = 'center';
+    ctx.fillText('⬆ RANK UP: ' + rank.name + ' ⬆', CX, rankY);
+    // Show what you unlocked
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = '#888';
+    var bonusText = 'Sync ×' + rank.syncBoost.toFixed(2) + ' · Floor ' + Math.round(rank.syncFloor * 100) + '%';
+    ctx.fillText(bonusText, CX, rankY + 20);
+  } else {
+    ctx.font = '600 13px -apple-system, sans-serif';
+    ctx.fillStyle = '#4a9eff';
+    ctx.textAlign = 'center';
+    ctx.fillText(rank.name, CX, rankY);
+
+    if (currentRankIdx < rankDefs.length - 1) {
+      var nextRank = rankDefs[currentRankIdx + 1];
+      var ts2 = getTotalSessions();
+      var rProg2 = (ts2 - rank.threshold) / (nextRank.threshold - rank.threshold);
+      rProg2 = Math.max(0, Math.min(1, rProg2));
+      var barW2 = 180, barH2 = 5, barX2 = CX - barW2 / 2, barY2 = rankY + 14;
+      ctx.fillStyle = '#1a1a1a';
+      roundRect(ctx, barX2, barY2, barW2, barH2, 3);
+      ctx.fill();
+      ctx.fillStyle = '#4a9eff';
+      if (rProg2 > 0) {
+        roundRect(ctx, barX2, barY2, Math.max(5, barW2 * rProg2), barH2, 3);
+        ctx.fill();
+      }
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.fillStyle = '#555';
+      ctx.fillText(ts2 + '/' + nextRank.threshold + ' → ' + nextRank.name, CX, barY2 + 16);
+    }
+  }
+
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText('Enter to continue', CX, H - 50);
+}
+
+function formatTime(secs) {
+  var m = Math.floor(secs / 60);
+  var s = Math.floor(secs % 60);
+  return m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function drawFooter() {
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillStyle = '#444';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  if (showingSummary) {
+    ctx.fillText('Enter Continue · Esc Back', CX, H - 16);
+  } else if (!running) {
+    ctx.fillText('↑↓ Select · Enter Start · Esc Back', CX, H - 16);
+  } else {
+    ctx.fillText('Esc End Session · ←→ Audio Guide', CX, H - 16);
+  }
+}
+
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y);
+  c.quadraticCurveTo(x + w, y, x + w, y + r);
+  c.lineTo(x + w, y + h - r);
+  c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  c.lineTo(x + r, y + h);
+  c.quadraticCurveTo(x, y + h, x, y + h - r);
+  c.lineTo(x, y + r);
+  c.quadraticCurveTo(x, y, x + r, y);
+  c.closePath();
+}
+
+function endSession() {
+  running = false;
+  stopGuide();
+  stopSyncTone();
+
+  // Save pre-session rank for rank-up detection
+  prevRankIdx = currentRankIdx;
+  sessionRankedUp = false;
+
+  // Compute summary
+  summaryBreaths = totalBreaths;
+  summaryTime = sessionTime;
+  summaryBestStreak = bestStreak;
+
+  if (syncSamples.length > 0 && micActive) {
+    var avg = 0;
+    for (var i = 0; i < syncSamples.length; i++) avg += syncSamples[i];
+    avg /= syncSamples.length;
+    summaryAvg = avg;
+    summaryGrade = calcGrade(avg);
+  } else {
+    summaryAvg = 0;
+    summaryGrade = '-';
+  }
+
+  // Check if new best
+  summaryBest = loadBest(patterns[patIdx].name);
+  summaryIsNew = !summaryBest || summaryAvg > summaryBest.avg;
+
+  // Save if we had enough data (at least 1 breath)
+  if (totalBreaths >= 1 && micActive && syncSamples.length > 0) {
+    saveBest(patterns[patIdx].name, summaryAvg, summaryGrade);
+  }
+
+  // Update rank after save
+  updateCurrentRank();
+  if (currentRankIdx > prevRankIdx) {
+    sessionRankedUp = true;
+    // Rank up chime: C-E-G-C ascending
+    playTone(523, 0.25, 0.08);
+    setTimeout(function() { playTone(659, 0.25, 0.08); }, 130);
+    setTimeout(function() { playTone(784, 0.25, 0.08); }, 260);
+    setTimeout(function() { playTone(1047, 0.5, 0.10); }, 400);
+  } else {
+    // Play completion chime
+    if (summaryGrade === 'S' || summaryGrade === 'A') {
+      playTone(523, 0.3, 0.08);
+      setTimeout(function() { playTone(659, 0.3, 0.08); }, 150);
+      setTimeout(function() { playTone(784, 0.5, 0.08); }, 300);
+    } else {
+      playTone(440, 0.5, 0.06);
+    }
+  }
+
+  showingSummary = true;
+}
+
+// ── Input ──
+document.addEventListener('keydown', function(e) {
+  e.preventDefault();
+
+  if (showingSummary) {
+    if (e.key === 'Enter' || e.key === 'Escape' || e.key === 'Backspace') {
+      showingSummary = false;
+    }
+    return;
+  }
+
+  if (!running) {
+    if (e.key === 'ArrowUp') {
+      patIdx = (patIdx - 1 + patterns.length) % patterns.length;
+    } else if (e.key === 'ArrowDown') {
+      patIdx = (patIdx + 1) % patterns.length;
+    } else if (e.key === 'Enter') {
+      running = true;
+      showingSummary = false;
+      stepIdx = 0;
+      stepTime = 0;
+      totalBreaths = 0;
+      sessionTime = 0;
+      circleRadius = minR;
+      syncScore = 0;
+      smoothSync = 0;
+      syncSamples = [];
+      syncStreak = 0;
+      bestStreak = 0;
+      trendSmooth = 0;
+      prevSmooth = smoothLevel;
+      if (!micActive && !micFailed) initMic();
+      initGuide();
+      initSyncTone();
+      phaseChime(patterns[patIdx].steps[0].phase);
+    } else if (e.key === 'Escape' || e.key === 'Backspace') {
+      window.location.href = '../';
+    }
+  } else {
+    if (e.key === 'Escape' || e.key === 'Backspace') {
+      endSession();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      guideEnabled = !guideEnabled;
+      try { localStorage.setItem('breathe_guide', guideEnabled ? '1' : '0'); } catch(e2) {}
+      if (!guideEnabled) {
+        if (guideGain) guideGain.gain.setTargetAtTime(0, toneCtx.currentTime, 0.05);
+      } else {
+        if (!guideOsc) initGuide();
+      }
+    }
+  }
+});
+
+// ── Game loop ──
+setInterval(function() { update(); }, 1000 / 60);
+requestAnimationFrame(draw);
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

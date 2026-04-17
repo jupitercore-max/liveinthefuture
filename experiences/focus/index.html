@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Focus Timer — LITF Experiences</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;color:#e0e0e0;font-family:system-ui,-apple-system,sans-serif}
+canvas{display:block;width:600px;height:600px}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var W = 600, H = 600, CX = 300, CY = 270;
+
+  // State
+  var state = 'idle'; // idle, focus, break, longbreak, paused
+  var pausedFrom = '';
+  var focusMinutes = 25;
+  var breakMinutes = 5;
+  var longBreakMinutes = 15;
+  var sessionsBeforeLong = 4;
+  var timeLeft = focusMinutes * 60;
+  var totalTime = focusMinutes * 60;
+  var sessionsCompleted = 0;
+  var todaySessions = 0;
+  var bestStreak = 0;
+  var lastTick = 0;
+  var selectedOption = 0; // 0=focus time, 1=break time
+
+  // Audio
+  var audioCtx = null;
+
+  // --- Mic system ---
+  var micFailed = true;
+  var micEnabled = false;
+  var micAnalyser = null;
+  var micLevel = 0;
+  var smoothMicLevel = 0;
+  var ambientBaseline = 0.05;
+  var micTimeDomain = null;
+
+  // --- Ambient focus drone ---
+  var ambientEnabled = true;
+  var ambientType = 0; // 0=warm, 1=rain, 2=wind
+  var ambientTypeNames = ['WARM', 'RAIN', 'WIND'];
+  var ambientTypeEmoji = ['\u{1F525}', '\u{1F327}', '\u{1F32C}'];
+  var ambientVolume = 0.5;
+  var ambientGainNode = null;
+  var ambientSource = null;
+  var ambientFilter = null;
+  var ambientFilter2 = null;
+  var ambientActive = false;
+  var noiseBuf = null;
+  var ambientFadeTarget = 0;
+
+  // Ambient persistence
+  try {
+    var ap = JSON.parse(localStorage.getItem('litf_focus_ambient'));
+    if (ap) {
+      ambientEnabled = ap.enabled !== false;
+      ambientType = typeof ap.type === 'number' ? ap.type : 0;
+      ambientVolume = typeof ap.volume === 'number' ? ap.volume : 0.5;
+    }
+  } catch(e) {}
+
+  function saveAmbientPrefs() {
+    try {
+      localStorage.setItem('litf_focus_ambient', JSON.stringify({
+        enabled: ambientEnabled, type: ambientType, volume: ambientVolume
+      }));
+    } catch(e) {}
+  }
+
+  function initAudio() {
+    if (audioCtx) return;
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      initMic();
+    } catch(e) {}
+  }
+
+  function initMic() {
+    if (!audioCtx) return;
+    micFailed = true;
+    try {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+        micFailed = false;
+        micAnalyser = audioCtx.createAnalyser();
+        micAnalyser.fftSize = 256;
+        micTimeDomain = new Uint8Array(micAnalyser.fftSize);
+        var src = audioCtx.createMediaStreamSource(stream);
+        src.connect(micAnalyser);
+        micEnabled = true;
+      }).catch(function() { micFailed = true; });
+    } catch(e) { micFailed = true; }
+  }
+
+  function updateMic() {
+    if (!micEnabled || !micAnalyser) return;
+    micAnalyser.getByteTimeDomainData(micTimeDomain);
+    var sum = 0;
+    for (var i = 0; i < micTimeDomain.length; i++) {
+      var v = (micTimeDomain[i] - 128) / 128;
+      sum += v * v;
+    }
+    micLevel = Math.sqrt(sum / micTimeDomain.length);
+    smoothMicLevel = smoothMicLevel * 0.95 + micLevel * 0.05;
+    ambientBaseline = ambientBaseline * 0.997 + smoothMicLevel * 0.003;
+  }
+
+  // --- Noise buffer ---
+  function createNoiseBuffer() {
+    var sr = audioCtx.sampleRate;
+    var len = sr * 2;
+    var buf = audioCtx.createBuffer(1, len, sr);
+    var data = buf.getChannelData(0);
+    for (var i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    return buf;
+  }
+
+  // --- Ambient drone control ---
+  function startAmbientDrone() {
+    if (!audioCtx || !ambientEnabled) return;
+    stopAmbientDrone();
+    if (!noiseBuf) noiseBuf = createNoiseBuffer();
+
+    ambientSource = audioCtx.createBufferSource();
+    ambientSource.buffer = noiseBuf;
+    ambientSource.loop = true;
+
+    ambientFilter = audioCtx.createBiquadFilter();
+    ambientFilter2 = audioCtx.createBiquadFilter();
+    ambientGainNode = audioCtx.createGain();
+
+    // Configure filter chain by type
+    switch (ambientType) {
+      case 0: // Warm — deep brown noise, meditative
+        ambientFilter.type = 'lowpass';
+        ambientFilter.frequency.value = 180;
+        ambientFilter.Q.value = 0.7;
+        ambientFilter2.type = 'lowpass';
+        ambientFilter2.frequency.value = 300;
+        ambientFilter2.Q.value = 0.5;
+        break;
+      case 1: // Rain — bandpass at high freq + some low
+        ambientFilter.type = 'bandpass';
+        ambientFilter.frequency.value = 4500;
+        ambientFilter.Q.value = 0.4;
+        ambientFilter2.type = 'highpass';
+        ambientFilter2.frequency.value = 800;
+        ambientFilter2.Q.value = 0.3;
+        break;
+      case 2: // Wind — low bandpass with slow modulation
+        ambientFilter.type = 'lowpass';
+        ambientFilter.frequency.value = 600;
+        ambientFilter.Q.value = 0.8;
+        ambientFilter2.type = 'lowpass';
+        ambientFilter2.frequency.value = 1200;
+        ambientFilter2.Q.value = 0.3;
+        break;
+    }
+
+    // Fade in from 0
+    ambientGainNode.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    var targetVol = ambientVolume * 0.05;
+    ambientGainNode.gain.setTargetAtTime(targetVol, audioCtx.currentTime, 0.8);
+    ambientFadeTarget = targetVol;
+
+    ambientSource.connect(ambientFilter);
+    ambientFilter.connect(ambientFilter2);
+    ambientFilter2.connect(ambientGainNode);
+    ambientGainNode.connect(audioCtx.destination);
+    ambientSource.start();
+    ambientActive = true;
+  }
+
+  function stopAmbientDrone() {
+    if (!ambientActive) return;
+    try {
+      if (ambientGainNode) {
+        ambientGainNode.gain.setTargetAtTime(0.0001, audioCtx.currentTime, 0.3);
+        var src = ambientSource;
+        setTimeout(function() {
+          try { src.stop(); src.disconnect(); } catch(e) {}
+        }, 1500);
+      }
+    } catch(e) {
+      try { if (ambientSource) { ambientSource.stop(); ambientSource.disconnect(); } } catch(e2) {}
+    }
+    ambientSource = null;
+    ambientFilter = null;
+    ambientFilter2 = null;
+    ambientGainNode = null;
+    ambientActive = false;
+  }
+
+  function updateAmbientDrone() {
+    if (!ambientActive || !ambientGainNode) return;
+
+    // Mic-adaptive volume: louder room = louder masking
+    var adaptiveBoost = 0;
+    if (micEnabled && smoothMicLevel > ambientBaseline * 1.2) {
+      adaptiveBoost = Math.min(0.5, (smoothMicLevel - ambientBaseline) * 4);
+    }
+
+    var targetVol = ambientVolume * 0.05 * (1 + adaptiveBoost);
+    targetVol = Math.min(targetVol, 0.08); // cap for bone conduction safety
+    ambientFadeTarget = targetVol;
+    ambientGainNode.gain.setTargetAtTime(targetVol, audioCtx.currentTime, 0.5);
+
+    // Wind LFO modulation
+    if (ambientType === 2 && ambientFilter) {
+      var lfo = 500 + Math.sin(Date.now() * 0.0008) * 250 + Math.sin(Date.now() * 0.0003) * 150;
+      ambientFilter.frequency.setTargetAtTime(lfo, audioCtx.currentTime, 0.4);
+    }
+
+    // Rain subtle variation
+    if (ambientType === 1 && ambientFilter) {
+      var rl = 4200 + Math.sin(Date.now() * 0.0005) * 600;
+      ambientFilter.frequency.setTargetAtTime(rl, audioCtx.currentTime, 0.6);
+    }
+  }
+
+  // --- Standard audio effects ---
+  function playTick() {
+    if (!audioCtx) return;
+    try {
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 800;
+      gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.08);
+    } catch(e) {}
+  }
+
+  function playChime(freq, dur) {
+    if (!audioCtx) return;
+    try {
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + dur);
+    } catch(e) {}
+  }
+
+  function playSessionComplete() {
+    if (!audioCtx) return;
+    var notes = [523, 659, 784];
+    for (var i = 0; i < notes.length; i++) {
+      (function(idx) {
+        setTimeout(function() { playChime(notes[idx], 0.6); }, idx * 200);
+      })(i);
+    }
+  }
+
+  function playBreakOver() {
+    if (!audioCtx) return;
+    var notes = [784, 659, 523];
+    for (var i = 0; i < notes.length; i++) {
+      (function(idx) {
+        setTimeout(function() { playChime(notes[idx], 0.4); }, idx * 150);
+      })(i);
+    }
+  }
+
+  function playAmbientToggle(on) {
+    if (!audioCtx) return;
+    try {
+      var osc = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = on ? 660 : 440;
+      g.gain.setValueAtTime(0.06, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+      osc.connect(g); g.connect(audioCtx.destination);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.15);
+    } catch(e) {}
+  }
+
+  function playTypeSwitch() {
+    if (!audioCtx) return;
+    try {
+      var t = audioCtx.currentTime;
+      var notes = [440, 550];
+      for (var i = 0; i < 2; i++) {
+        var osc = audioCtx.createOscillator();
+        var g = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = notes[i];
+        g.gain.setValueAtTime(0, t + i * 0.08);
+        g.gain.linearRampToValueAtTime(0.05, t + i * 0.08 + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.1);
+        osc.connect(g); g.connect(audioCtx.destination);
+        osc.start(t + i * 0.08);
+        osc.stop(t + i * 0.08 + 0.12);
+      }
+    } catch(e) {}
+  }
+
+  // --- Challenge system ---
+  var challengeActive = false;
+  var challengeType = null; // 'skip_break', 'sprint', 'zen', 'double_down'
+  var challengeOffer = null; // shown between sessions
+  var challengeOfferIdx = 0;
+  var challengeCompleted = false;
+
+  var challengeTypes = [
+    { id: 'skip_break', name: 'SKIP BREAK', desc: 'Skip break, double session credit', icon: '\u26A1' },
+    { id: 'sprint', name: 'SPRINT', desc: '10min hyper-focus, 3x credit', icon: '\uD83C\uDFC3' },
+    { id: 'zen', name: 'ZEN MODE', desc: 'No timer visible, trust your rhythm', icon: '\uD83E\uDDD8' },
+    { id: 'double_down', name: 'DOUBLE DOWN', desc: 'Double focus time, earn 3 sessions', icon: '\uD83C\uDFB2' }
+  ];
+
+  function rollChallenge() {
+    // 40% chance to offer a challenge after a completed session
+    if (Math.random() < 0.4 && sessionsCompleted > 0) {
+      challengeOffer = challengeTypes[Math.floor(Math.random() * challengeTypes.length)];
+      challengeOfferIdx = 0; // 0 = accept highlighted
+    } else {
+      challengeOffer = null;
+    }
+  }
+
+  // --- Achievements system ---
+  var achievements = [
+    { id: 'first_focus', name: 'First Focus', desc: 'Complete your first session', icon: '\uD83C\uDF1F' },
+    { id: 'streak_3', name: 'Hat Trick', desc: '3 sessions in a row', icon: '\uD83C\uDFA9' },
+    { id: 'streak_7', name: 'Weekly Warrior', desc: '7 sessions in one day', icon: '\uD83D\uDD25' },
+    { id: 'deep_work', name: 'Deep Worker', desc: 'Complete a 45+ minute session', icon: '\uD83E\uDDE0' },
+    { id: 'night_owl', name: 'Night Owl', desc: 'Focus session after 10 PM', icon: '\uD83E\uDD89' },
+    { id: 'early_bird', name: 'Early Bird', desc: 'Focus session before 7 AM', icon: '\uD83D\uDC26' },
+    { id: 'challenge_master', name: 'Challenge Master', desc: 'Complete 3 challenges', icon: '\uD83C\uDFC6' },
+    { id: 'zen_master', name: 'Zen Master', desc: 'Complete Zen Mode challenge', icon: '\u2638\uFE0F' }
+  ];
+  var unlockedAchievements = {};
+  var achievementToast = null;
+  var achievementToastTime = 0;
+  var challengesCompleted = 0;
+  var showBadges = false;
+
+  function loadAchievements() {
+    try {
+      var d = JSON.parse(localStorage.getItem('litf_focus_achievements'));
+      if (d) {
+        unlockedAchievements = d.unlocked || {};
+        challengesCompleted = d.challengesCompleted || 0;
+      }
+    } catch(e) {}
+  }
+
+  function saveAchievements() {
+    try {
+      localStorage.setItem('litf_focus_achievements', JSON.stringify({
+        unlocked: unlockedAchievements,
+        challengesCompleted: challengesCompleted
+      }));
+    } catch(e) {}
+  }
+
+  function unlockAchievement(id) {
+    if (unlockedAchievements[id]) return;
+    unlockedAchievements[id] = Date.now();
+    saveAchievements();
+    achievementToast = achievements.find(function(a) { return a.id === id; });
+    achievementToastTime = Date.now();
+    // Play unlock chime (C5-E5-G5)
+    if (audioCtx) {
+      var notes = [523, 659, 784];
+      for (var i = 0; i < 3; i++) {
+        (function(idx) {
+          setTimeout(function() {
+            try {
+              var osc = audioCtx.createOscillator();
+              var g = audioCtx.createGain();
+              osc.type = 'sine';
+              osc.frequency.value = notes[idx];
+              g.gain.setValueAtTime(0.08, audioCtx.currentTime);
+              g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+              osc.connect(g); g.connect(audioCtx.destination);
+              osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+            } catch(e) {}
+          }, idx * 120);
+        })(i);
+      }
+    }
+  }
+
+  function checkAchievements() {
+    if (todaySessions >= 1) unlockAchievement('first_focus');
+    if (todaySessions >= 3) unlockAchievement('streak_3');
+    if (todaySessions >= 7) unlockAchievement('streak_7');
+    if (focusMinutes >= 45) unlockAchievement('deep_work');
+    var hr = new Date().getHours();
+    if (hr >= 22 || hr < 4) unlockAchievement('night_owl');
+    if (hr >= 4 && hr < 7) unlockAchievement('early_bird');
+    if (challengesCompleted >= 3) unlockAchievement('challenge_master');
+  }
+
+  loadAchievements();
+
+  // Persistence
+  function loadStats() {
+    try {
+      var data = localStorage.getItem('litf_focus_stats');
+      if (data) {
+        var d = JSON.parse(data);
+        var today = new Date().toISOString().slice(0, 10);
+        if (d.date === today) {
+          todaySessions = d.today || 0;
+        }
+        bestStreak = d.best || 0;
+      }
+    } catch(e) {}
+  }
+
+  function saveStats() {
+    try {
+      var today = new Date().toISOString().slice(0, 10);
+      localStorage.setItem('litf_focus_stats', JSON.stringify({
+        date: today,
+        today: todaySessions,
+        best: bestStreak
+      }));
+    } catch(e) {}
+  }
+
+  loadStats();
+
+  function fmtTime(secs) {
+    var m = Math.floor(secs / 60);
+    var s = secs % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function drawArc(cx, cy, r, startAngle, endAngle, color, width) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, startAngle, endAngle, false);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+
+  // Volume bar helper
+  function drawVolBar(x, y, w, h, val, color) {
+    // Background
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(x, y, w, h);
+    // Fill
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y + h * (1 - val), w, h * val);
+  }
+
+  // Main render
+  var frame = 0;
+  function draw() {
+    frame++;
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(0, 0, W, H);
+
+    var now = Date.now();
+
+    // Update mic
+    updateMic();
+
+    // Update ambient drone
+    if (ambientActive) updateAmbientDrone();
+
+    // Update timer
+    if ((state === 'focus' || state === 'break' || state === 'longbreak') && timeLeft > 0) {
+      if (now - lastTick >= 1000) {
+        lastTick = now;
+        timeLeft--;
+
+        if (state === 'focus') {
+          if (timeLeft <= 60 && timeLeft % 10 === 0) playTick();
+          else if (timeLeft <= 300 && timeLeft % 30 === 0) playTick();
+          else if (timeLeft % 60 === 0) playTick();
+        }
+
+        if (timeLeft <= 0) {
+          if (state === 'focus') {
+            sessionsCompleted++;
+            todaySessions++;
+            if (challengeActive && challengeType) {
+              challengesCompleted++;
+              if (challengeType === 'sprint') todaySessions += 2; // 3x total
+              else if (challengeType === 'skip_break') todaySessions += 1; // 2x total
+              else if (challengeType === 'double_down') todaySessions += 2; // 3 sessions total
+              if (challengeType === 'zen') unlockAchievement('zen_master');
+              challengeActive = false;
+              challengeType = null;
+              challengeCompleted = true;
+              saveAchievements();
+            }
+            if (todaySessions > bestStreak) bestStreak = todaySessions;
+            checkAchievements();
+            saveStats();
+            playSessionComplete();
+            stopAmbientDrone();
+            rollChallenge();
+            if (sessionsCompleted % sessionsBeforeLong === 0) {
+              state = 'longbreak';
+              timeLeft = longBreakMinutes * 60;
+              totalTime = longBreakMinutes * 60;
+            } else {
+              state = 'break';
+              timeLeft = breakMinutes * 60;
+              totalTime = breakMinutes * 60;
+            }
+          } else {
+            playBreakOver();
+            state = 'idle';
+            timeLeft = focusMinutes * 60;
+            totalTime = focusMinutes * 60;
+          }
+        }
+      }
+    }
+
+    var progress = totalTime > 0 ? 1 - (timeLeft / totalTime) : 0;
+    var isRunning = state === 'focus' || state === 'break' || state === 'longbreak';
+    var isFocus = state === 'focus';
+    var isBreak = state === 'break' || state === 'longbreak';
+
+    var mainColor = isFocus ? '#4fc3f7' : isBreak ? '#66bb6a' : '#666';
+    var dimColor = isFocus ? '#1a3a4a' : isBreak ? '#1a3a1a' : '#1a1a1a';
+    var urgentColor = (isFocus && timeLeft <= 60) ? '#ef5350' : mainColor;
+
+    // Background arc
+    var R = 170;
+    var startAngle = -Math.PI / 2;
+    drawArc(CX, CY, R, 0, Math.PI * 2, dimColor, 16);
+
+    // Progress arc
+    if (progress > 0) {
+      var endAngle = startAngle + progress * Math.PI * 2;
+      drawArc(CX, CY, R, startAngle, endAngle, urgentColor, 16);
+    }
+
+    // Pulsing dot at progress tip
+    if (isRunning) {
+      var tipAngle = startAngle + progress * Math.PI * 2;
+      var pulse = 1 + Math.sin(frame * 0.08) * 0.3;
+      var dotX = CX + Math.cos(tipAngle) * R;
+      var dotY = CY + Math.sin(tipAngle) * R;
+      ctx.beginPath();
+      ctx.arc(dotX, dotY, 5 * pulse, 0, Math.PI * 2);
+      ctx.fillStyle = urgentColor;
+      ctx.fill();
+    }
+
+    // Time display
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 68px system-ui';
+    ctx.fillStyle = urgentColor;
+    ctx.fillText(fmtTime(timeLeft), CX, CY - 10);
+
+    // State label
+    ctx.font = '18px system-ui';
+    ctx.fillStyle = mainColor;
+    var label = '';
+    if (state === 'idle') label = 'READY';
+    else if (state === 'focus') label = 'FOCUS';
+    else if (state === 'break') label = 'SHORT BREAK';
+    else if (state === 'longbreak') label = 'LONG BREAK';
+    else if (state === 'paused') label = '\u23F8 PAUSED';
+    ctx.fillText(label, CX, CY + 38);
+
+    // Session dots
+    var dotY2 = CY + 70;
+    var dotSpacing = 28;
+    var totalDots = sessionsBeforeLong;
+    var dotsStartX = CX - ((totalDots - 1) * dotSpacing) / 2;
+    for (var i = 0; i < totalDots; i++) {
+      var dx = dotsStartX + i * dotSpacing;
+      ctx.beginPath();
+      ctx.arc(dx, dotY2, 7, 0, Math.PI * 2);
+      ctx.fillStyle = i < (sessionsCompleted % sessionsBeforeLong) ? '#4fc3f7' : '#2a2a2a';
+      ctx.fill();
+    }
+
+    // --- Ambient focus drone indicator (during focus or paused-from-focus) ---
+    if (isFocus || (state === 'paused' && pausedFrom === 'focus')) {
+      var ambY = CY + 100;
+
+      if (ambientEnabled && ambientActive) {
+        // Type + adaptive label
+        ctx.font = 'bold 14px system-ui';
+        ctx.fillStyle = '#5a8a6a';
+        var typeLabel = ambientTypeEmoji[ambientType] + ' ' + ambientTypeNames[ambientType];
+        ctx.fillText(typeLabel, CX - 40, ambY);
+
+        // Volume indicator (tiny horizontal bar)
+        var vbX = CX + 20, vbY = ambY - 5, vbW = 60, vbH = 6;
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(vbX, vbY, vbW, vbH);
+        ctx.fillStyle = '#5a8a6a';
+        ctx.fillRect(vbX, vbY, vbW * ambientVolume, vbH);
+        // Volume label
+        ctx.font = '10px system-ui';
+        ctx.fillStyle = '#5a8a6a';
+        ctx.textAlign = 'left';
+        ctx.fillText(Math.round(ambientVolume * 100) + '%', vbX + vbW + 6, ambY);
+        ctx.textAlign = 'center';
+
+        // Adaptive indicator
+        if (micEnabled) {
+          var boost = 0;
+          if (smoothMicLevel > ambientBaseline * 1.2) {
+            boost = Math.min(0.5, (smoothMicLevel - ambientBaseline) * 4);
+          }
+          if (boost > 0.05) {
+            var adaptAlpha = 0.4 + Math.sin(frame * 0.06) * 0.2;
+            ctx.font = '11px system-ui';
+            ctx.fillStyle = 'rgba(90,180,130,' + adaptAlpha + ')';
+            ctx.fillText('ADAPTIVE +' + Math.round(boost * 100) + '%', CX, ambY + 18);
+          }
+        }
+
+        // Mic level mini indicator (dot)
+        if (micEnabled) {
+          var micDotX = CX + 120, micDotY = ambY;
+          var micR = 4 + smoothMicLevel * 15;
+          micR = Math.min(micR, 10);
+          ctx.beginPath();
+          ctx.arc(micDotX, micDotY, micR, 0, Math.PI * 2);
+          ctx.fillStyle = smoothMicLevel > ambientBaseline * 1.5 ? '#ff9800' : '#4a7a5a';
+          ctx.fill();
+        }
+      } else if (!ambientEnabled) {
+        ctx.font = '11px system-ui';
+        ctx.fillStyle = '#444';
+        ctx.fillText('\uD83D\uDD07 Ambient off  (\u2191 to enable)', CX, ambY);
+      }
+    }
+
+    // Stats footer
+    ctx.font = '14px system-ui';
+    ctx.fillStyle = '#666';
+    ctx.textAlign = 'center';
+    ctx.fillText('Today: ' + todaySessions + ' sessions  \u00B7  Best streak: ' + bestStreak, CX, 490);
+
+    // Controls
+    ctx.font = '12px system-ui';
+    ctx.fillStyle = '#555';
+    if (state === 'idle') {
+      ctx.fillText('Enter: Start  \u00B7  \u2190\u2192: Adjust  \u00B7  \u2191: Select  \u00B7  \u2193: Badges', CX, 540);
+      // Show adjustable times
+      ctx.font = '16px system-ui';
+      ctx.fillStyle = selectedOption === 0 ? '#4fc3f7' : '#444';
+      ctx.fillText('Focus: ' + focusMinutes + 'min', CX - 100, CY + 110);
+      ctx.fillStyle = selectedOption === 1 ? '#4fc3f7' : '#444';
+      ctx.fillText('Break: ' + breakMinutes + 'min', CX + 100, CY + 110);
+      var selX = selectedOption === 0 ? CX - 100 : CX + 100;
+      ctx.fillStyle = '#4fc3f7';
+      ctx.font = '10px system-ui';
+      ctx.fillText('\u25B2', selX, CY + 95);
+
+      // Ambient preview
+      ctx.font = '11px system-ui';
+      ctx.fillStyle = '#444';
+      var ambLabel = ambientEnabled
+        ? (ambientTypeEmoji[ambientType] + ' Ambient: ' + ambientTypeNames[ambientType] + ' ' + Math.round(ambientVolume * 100) + '%')
+        : '\uD83D\uDD07 Ambient: OFF';
+      ctx.fillText(ambLabel, CX, CY + 140);
+    } else if (isFocus) {
+      ctx.fillText('Enter: Pause  \u00B7  \u2191: Ambient  \u00B7  \u2193: Sound  \u00B7  \u2190\u2192: Volume  \u00B7  Esc: Stop', CX, 540);
+    } else if (isBreak) {
+      ctx.fillText('Enter: Pause  \u00B7  Esc: Stop', CX, 540);
+    } else if (state === 'paused') {
+      ctx.fillText('Enter: Resume  \u00B7  Esc: Stop', CX, 540);
+    }
+
+    // Header
+    ctx.font = 'bold 16px system-ui';
+    ctx.fillStyle = '#888';
+    var achCount = Object.keys(unlockedAchievements).length;
+    ctx.fillText('\uD83C\uDFAF Focus Timer' + (achCount > 0 ? '  \uD83C\uDFC5 ' + achCount + '/8' : ''), CX, 30);
+
+    // --- Challenge offer overlay (during break) ---
+    if (challengeOffer && isBreak) {
+      ctx.fillStyle = 'rgba(13,13,13,0.85)';
+      ctx.fillRect(100, 370, 400, 100);
+      ctx.strokeStyle = '#ff9800';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(100, 370, 400, 100);
+
+      ctx.font = 'bold 16px system-ui';
+      ctx.fillStyle = '#ff9800';
+      ctx.textAlign = 'center';
+      ctx.fillText(challengeOffer.icon + ' CHALLENGE: ' + challengeOffer.name, CX, 395);
+
+      ctx.font = '13px system-ui';
+      ctx.fillStyle = '#ccc';
+      ctx.fillText(challengeOffer.desc, CX, 415);
+
+      ctx.font = '14px system-ui';
+      // Accept
+      ctx.fillStyle = challengeOfferIdx === 0 ? '#ff9800' : '#666';
+      ctx.fillText(challengeOfferIdx === 0 ? '\u25B6 ACCEPT' : '  ACCEPT', CX - 60, 445);
+      // Decline
+      ctx.fillStyle = challengeOfferIdx === 1 ? '#4fc3f7' : '#666';
+      ctx.fillText(challengeOfferIdx === 1 ? '\u25B6 SKIP' : '  SKIP', CX + 60, 445);
+
+      ctx.font = '10px system-ui';
+      ctx.fillStyle = '#555';
+      ctx.fillText('\u2190\u2192 select  \u00B7  Enter confirm', CX, 462);
+    }
+
+    // --- Zen mode overlay (hide timer) ---
+    if (isFocus && challengeActive && challengeType === 'zen') {
+      // Cover the time display
+      ctx.fillStyle = '#0d0d0d';
+      ctx.fillRect(CX - 150, CY - 55, 300, 80);
+      ctx.font = 'bold 28px system-ui';
+      ctx.fillStyle = '#8a6a9a';
+      ctx.textAlign = 'center';
+      ctx.fillText('\uD83E\uDDD8 Trust Your Flow', CX, CY);
+      ctx.font = '12px system-ui';
+      ctx.fillStyle = '#6a5a7a';
+      ctx.fillText('Timer hidden \u2014 feel the time', CX, CY + 22);
+    }
+
+    // --- Active challenge indicator ---
+    if (isFocus && challengeActive && challengeType && challengeType !== 'zen') {
+      ctx.font = 'bold 12px system-ui';
+      ctx.fillStyle = '#ff9800';
+      ctx.textAlign = 'center';
+      var ch = challengeTypes.find(function(c) { return c.id === challengeType; });
+      if (ch) ctx.fillText(ch.icon + ' ' + ch.name + ' active', CX, 55);
+    }
+
+    // --- Achievement toast ---
+    if (achievementToast && Date.now() - achievementToastTime < 3000) {
+      var toastAlpha = 1;
+      var elapsed = Date.now() - achievementToastTime;
+      if (elapsed > 2500) toastAlpha = 1 - (elapsed - 2500) / 500;
+      ctx.globalAlpha = toastAlpha;
+      ctx.fillStyle = 'rgba(30,30,30,0.95)';
+      ctx.fillRect(120, 500, 360, 45);
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(120, 500, 360, 45);
+      ctx.font = 'bold 14px system-ui';
+      ctx.fillStyle = '#ffd700';
+      ctx.textAlign = 'center';
+      ctx.fillText(achievementToast.icon + ' ' + achievementToast.name + ' Unlocked!', CX, 520);
+      ctx.font = '11px system-ui';
+      ctx.fillStyle = '#aaa';
+      ctx.fillText(achievementToast.desc, CX, 537);
+      ctx.globalAlpha = 1;
+    }
+
+    // --- Badge gallery (press Esc on idle, or ↓ during idle) ---
+    if (showBadges) {
+      ctx.fillStyle = 'rgba(13,13,13,0.95)';
+      ctx.fillRect(30, 60, 540, 460);
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(30, 60, 540, 460);
+
+      ctx.font = 'bold 20px system-ui';
+      ctx.fillStyle = '#ffd700';
+      ctx.textAlign = 'center';
+      ctx.fillText('\uD83C\uDFC5 Achievements (' + achCount + '/8)', CX, 95);
+
+      for (var ai = 0; ai < achievements.length; ai++) {
+        var ach = achievements[ai];
+        var ax = 70 + (ai % 2) * 260;
+        var ay = 130 + Math.floor(ai / 2) * 90;
+        var unlocked = !!unlockedAchievements[ach.id];
+
+        ctx.font = '24px system-ui';
+        ctx.fillStyle = unlocked ? '#ffd700' : '#333';
+        ctx.textAlign = 'left';
+        ctx.fillText(ach.icon, ax, ay + 5);
+
+        ctx.font = 'bold 14px system-ui';
+        ctx.fillStyle = unlocked ? '#e0e0e0' : '#444';
+        ctx.fillText(ach.name, ax + 36, ay);
+
+        ctx.font = '11px system-ui';
+        ctx.fillStyle = unlocked ? '#888' : '#333';
+        ctx.fillText(unlocked ? ach.desc : '???', ax + 36, ay + 18);
+      }
+
+      ctx.font = '12px system-ui';
+      ctx.fillStyle = '#555';
+      ctx.textAlign = 'center';
+      ctx.fillText('Press any key to close', CX, 500);
+    }
+
+    // Last-minute warning glow
+    if (isFocus && timeLeft <= 60 && timeLeft > 0) {
+      var glowAlpha = 0.05 + Math.sin(frame * 0.12) * 0.03;
+      ctx.fillStyle = 'rgba(239,83,80,' + glowAlpha + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // Ambient visualization — very subtle breathing particles during focus when ambient active
+    if (isFocus && ambientActive) {
+      var particleAlpha = 0.03 + Math.sin(frame * 0.02) * 0.015;
+      var breathScale = 1 + Math.sin(frame * 0.015) * 0.08;
+      var pc = ambientType === 0 ? [255, 120, 50] : ambientType === 1 ? [100, 160, 220] : [160, 200, 160];
+      for (var pi = 0; pi < 6; pi++) {
+        var angle = (Math.PI * 2 / 6) * pi + frame * 0.002;
+        var pDist = R + 30 + Math.sin(frame * 0.01 + pi) * 10;
+        pDist *= breathScale;
+        var px = CX + Math.cos(angle) * pDist;
+        var py = CY + Math.sin(angle) * pDist;
+        var pSize = 3 + Math.sin(frame * 0.03 + pi * 0.5) * 1.5;
+        ctx.beginPath();
+        ctx.arc(px, py, pSize, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(' + pc[0] + ',' + pc[1] + ',' + pc[2] + ',' + particleAlpha + ')';
+        ctx.fill();
+      }
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  // Input
+  document.addEventListener('keydown', function(e) {
+    initAudio();
+    var key = e.key;
+
+    // Badge gallery dismiss
+    if (showBadges) {
+      showBadges = false;
+      e.preventDefault();
+      return;
+    }
+
+    // Challenge offer input during break
+    if (challengeOffer && (state === 'break' || state === 'longbreak')) {
+      if (key === 'ArrowLeft') { challengeOfferIdx = 0; e.preventDefault(); return; }
+      if (key === 'ArrowRight') { challengeOfferIdx = 1; e.preventDefault(); return; }
+      if (key === 'Enter') {
+        e.preventDefault();
+        if (challengeOfferIdx === 0) {
+          // Accept challenge
+          challengeActive = true;
+          challengeType = challengeOffer.id;
+          challengeOffer = null;
+          // Apply challenge modifiers
+          if (challengeType === 'skip_break') {
+            state = 'focus';
+            timeLeft = focusMinutes * 60;
+            totalTime = focusMinutes * 60;
+            lastTick = Date.now();
+            if (ambientEnabled) startAmbientDrone();
+            playTick();
+          } else if (challengeType === 'sprint') {
+            state = 'focus';
+            timeLeft = 10 * 60; // 10 minutes
+            totalTime = 10 * 60;
+            lastTick = Date.now();
+            if (ambientEnabled) startAmbientDrone();
+            playTick();
+          } else if (challengeType === 'double_down') {
+            state = 'focus';
+            timeLeft = focusMinutes * 2 * 60;
+            totalTime = focusMinutes * 2 * 60;
+            lastTick = Date.now();
+            if (ambientEnabled) startAmbientDrone();
+            playTick();
+          } else if (challengeType === 'zen') {
+            state = 'focus';
+            timeLeft = focusMinutes * 60;
+            totalTime = focusMinutes * 60;
+            lastTick = Date.now();
+            if (ambientEnabled) startAmbientDrone();
+            playTick();
+          }
+        } else {
+          // Decline challenge
+          challengeOffer = null;
+          challengeActive = false;
+          challengeType = null;
+          playTick();
+        }
+        return;
+      }
+    }
+
+    if (key === 'Enter') {
+      e.preventDefault();
+      if (state === 'idle') {
+        state = 'focus';
+        timeLeft = focusMinutes * 60;
+        totalTime = focusMinutes * 60;
+        lastTick = Date.now();
+        challengeActive = false;
+        challengeType = null;
+        challengeOffer = null;
+        playTick();
+        if (ambientEnabled) startAmbientDrone();
+      } else if (state === 'focus' || state === 'break' || state === 'longbreak') {
+        pausedFrom = state;
+        state = 'paused';
+        // Don't stop ambient drone during pause — keep the soundscape
+      } else if (state === 'paused') {
+        state = pausedFrom;
+        lastTick = Date.now();
+      }
+    } else if (key === 'Escape') {
+      e.preventDefault();
+      if (state !== 'idle') {
+        state = 'idle';
+        sessionsCompleted = 0;
+        timeLeft = focusMinutes * 60;
+        totalTime = focusMinutes * 60;
+        challengeActive = false;
+        challengeType = null;
+        challengeOffer = null;
+        stopAmbientDrone();
+        playChime(400, 0.2);
+      }
+    } else if (key === 'ArrowLeft') {
+      e.preventDefault();
+      if (state === 'idle') {
+        if (selectedOption === 0) {
+          focusMinutes = Math.max(5, focusMinutes - 5);
+          timeLeft = focusMinutes * 60;
+          totalTime = focusMinutes * 60;
+        } else {
+          breakMinutes = Math.max(1, breakMinutes - 1);
+        }
+        playTick();
+      } else if (state === 'focus' || (state === 'paused' && pausedFrom === 'focus')) {
+        // Decrease ambient volume
+        ambientVolume = Math.max(0.1, Math.round((ambientVolume - 0.1) * 10) / 10);
+        saveAmbientPrefs();
+        if (ambientActive && ambientGainNode) {
+          var tv = ambientVolume * 0.05;
+          ambientGainNode.gain.setTargetAtTime(tv, audioCtx.currentTime, 0.2);
+        }
+        playTick();
+      }
+    } else if (key === 'ArrowRight') {
+      e.preventDefault();
+      if (state === 'idle') {
+        if (selectedOption === 0) {
+          focusMinutes = Math.min(90, focusMinutes + 5);
+          timeLeft = focusMinutes * 60;
+          totalTime = focusMinutes * 60;
+        } else {
+          breakMinutes = Math.min(15, breakMinutes + 1);
+        }
+        playTick();
+      } else if (state === 'focus' || (state === 'paused' && pausedFrom === 'focus')) {
+        // Increase ambient volume
+        ambientVolume = Math.min(1.0, Math.round((ambientVolume + 0.1) * 10) / 10);
+        saveAmbientPrefs();
+        if (ambientActive && ambientGainNode) {
+          var tv = ambientVolume * 0.05;
+          ambientGainNode.gain.setTargetAtTime(tv, audioCtx.currentTime, 0.2);
+        }
+        playTick();
+      }
+    } else if (key === 'ArrowUp') {
+      e.preventDefault();
+      if (state === 'idle') {
+        selectedOption = selectedOption === 0 ? 1 : 0;
+        playTick();
+      } else if (state === 'focus' || (state === 'paused' && pausedFrom === 'focus')) {
+        // Toggle ambient drone
+        ambientEnabled = !ambientEnabled;
+        saveAmbientPrefs();
+        playAmbientToggle(ambientEnabled);
+        if (ambientEnabled && !ambientActive && state === 'focus') {
+          startAmbientDrone();
+        } else if (!ambientEnabled && ambientActive) {
+          stopAmbientDrone();
+        }
+      }
+    } else if (key === 'ArrowDown') {
+      e.preventDefault();
+      if (state === 'idle') {
+        showBadges = true;
+      } else if (state === 'focus' || (state === 'paused' && pausedFrom === 'focus')) {
+        // Cycle ambient type
+        ambientType = (ambientType + 1) % ambientTypeNames.length;
+        saveAmbientPrefs();
+        playTypeSwitch();
+        if (ambientEnabled && state === 'focus') {
+          startAmbientDrone();
+        }
+      }
+    }
+  });
+
+  draw();
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

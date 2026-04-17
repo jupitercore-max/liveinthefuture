@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Beacon — LITF Games</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d0d0d;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:system-ui,-apple-system,sans-serif}
+canvas{display:block;image-rendering:pixelated}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+var W = 600, H = 600, CX = 300, CY = 520;
+
+// Audio
+var audioCtx = null;
+var micLevel = 0;
+var micActive = false;
+var micFailed = false;
+var analyser = null;
+var micData = null;
+
+function initAudio() {
+  try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+// === BGM System ===
+var bgmAudio = null, bgmGameover = null, bgmMuted = false, bgmStarted = false;
+function bgmInit() {
+  bgmAudio = new Audio('audio/beacon-bgm.mp3');
+  bgmAudio.loop = true;
+  bgmAudio.volume = 0.15;
+  bgmGameover = new Audio('audio/gameover-gentle.mp3');
+  bgmGameover.volume = 0.25;
+}
+function bgmPlay() {
+  if (bgmMuted || !bgmAudio) return;
+  if (!bgmStarted) { bgmAudio.currentTime = 0; bgmStarted = true; }
+  bgmAudio.play().catch(function(){});
+}
+function bgmStop() { if (bgmAudio) { bgmAudio.pause(); } bgmStarted = false; }
+function bgmGameOver() {
+  bgmStop();
+  if (bgmMuted || !bgmGameover) return;
+  bgmGameover.currentTime = 0;
+  bgmGameover.play().catch(function(){});
+}
+function bgmToggle() {
+  bgmMuted = !bgmMuted;
+  if (bgmMuted) { if (bgmAudio) bgmAudio.pause(); }
+  else bgmPlay();
+}
+ catch(e) {}
+}
+
+function initMic() {
+  if (micActive || micFailed || !audioCtx) return;
+  try {
+    micFailed = true;
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      micFailed = false;
+      micActive = true;
+      var src = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.85;
+      src.connect(analyser);
+      micData = new Uint8Array(analyser.frequencyBinCount);
+    }).catch(function(){ micFailed = true; });
+  } catch(e) { micFailed = true; }
+}
+
+function updateMic() {
+  if (!analyser || !micData) return;
+  analyser.getByteFrequencyData(micData);
+  var sum = 0;
+  for (var i = 0; i < micData.length; i++) sum += micData[i];
+  var raw = sum / micData.length / 255;
+  micLevel += (raw - micLevel) * 0.1;
+}
+
+// Sound effects
+function playFoghorn(pan, dist, freq) {
+  if (!audioCtx) return;
+  var now = audioCtx.currentTime;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  var panner = audioCtx.createStereoPanner();
+  osc.type = 'sawtooth';
+  var baseFreq = freq || 85; osc.frequency.setValueAtTime(baseFreq + Math.random()*20, now);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(20, baseFreq - 15), now + 1.5);
+  gain.gain.setValueAtTime(Math.max(0.01, 0.25 * (1 - dist/350)), now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
+  panner.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), now);
+  osc.connect(gain);
+  gain.connect(panner);
+  panner.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 2);
+}
+
+function playCrash() {
+  if (!audioCtx) return;
+  var now = audioCtx.currentTime;
+  var bufSize = audioCtx.sampleRate * 0.5;
+  var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  var data = buf.getChannelData(0);
+  for (var i = 0; i < bufSize; i++) data[i] = (Math.random()*2-1) * Math.exp(-i/(bufSize*0.15));
+  var src = audioCtx.createBufferSource();
+  var gain = audioCtx.createGain();
+  var filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(800, now);
+  filter.frequency.exponentialRampToValueAtTime(200, now + 0.5);
+  src.buffer = buf;
+  gain.gain.setValueAtTime(0.4, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+  src.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioCtx.destination);
+  src.start(now);
+}
+
+function playSaved() {
+  if (!audioCtx) return;
+  var now = audioCtx.currentTime;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(523, now);
+  osc.frequency.setValueAtTime(659, now + 0.1);
+  osc.frequency.setValueAtTime(784, now + 0.2);
+  gain.gain.setValueAtTime(0.15, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 0.5);
+}
+
+function playFlare() {
+  if (!audioCtx) return;
+  var now = audioCtx.currentTime;
+  // Ascending whistle
+  var osc1 = audioCtx.createOscillator();
+  var g1 = audioCtx.createGain();
+  osc1.type = 'sine';
+  osc1.frequency.setValueAtTime(400, now);
+  osc1.frequency.exponentialRampToValueAtTime(1800, now + 0.5);
+  g1.gain.setValueAtTime(0.12, now);
+  g1.gain.setTargetAtTime(0.06, now + 0.3, 0.1);
+  g1.gain.setTargetAtTime(0, now + 0.5, 0.05);
+  osc1.connect(g1); g1.connect(audioCtx.destination);
+  osc1.start(now); osc1.stop(now + 0.7);
+  // Pop burst
+  var bufSize = Math.floor(audioCtx.sampleRate * 0.15);
+  var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  var d = buf.getChannelData(0);
+  for (var i = 0; i < bufSize; i++) d[i] = (Math.random()*2-1) * Math.exp(-i/(bufSize*0.08));
+  var src = audioCtx.createBufferSource();
+  var g2 = audioCtx.createGain();
+  var flt = audioCtx.createBiquadFilter();
+  flt.type = 'bandpass'; flt.frequency.value = 2000; flt.Q.value = 1;
+  src.buffer = buf;
+  g2.gain.setValueAtTime(0.25, now + 0.45);
+  g2.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+  src.connect(flt); flt.connect(g2); g2.connect(audioCtx.destination);
+  src.start(now + 0.45);
+}
+
+function playWaveAmbience() {
+  if (!audioCtx) return;
+  var now = audioCtx.currentTime;
+  var bufSize = audioCtx.sampleRate * 3;
+  var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  var data = buf.getChannelData(0);
+  for (var i = 0; i < bufSize; i++) {
+    var t = i / audioCtx.sampleRate;
+    data[i] = (Math.random()*2-1) * 0.03 * (0.5 + 0.5*Math.sin(t*0.8));
+  }
+  var src = audioCtx.createBufferSource();
+  var filter = audioCtx.createBiquadFilter();
+  var gain = audioCtx.createGain();
+  filter.type = 'lowpass';
+  filter.frequency.value = 400;
+  gain.gain.value = 0.2;
+  src.buffer = buf;
+  src.loop = true;
+  src.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioCtx.destination);
+  src.start();
+  return src;
+}
+
+// Game state
+var STATE_TITLE = 0, STATE_PLAY = 1, STATE_OVER = 2;
+var state = STATE_TITLE;
+var beamAngle = -Math.PI/2; // pointing up
+var beamSpeed = 0;
+var beamWidth = 0.35; // radians
+var beamRange = 280;
+var fogDensity = 0.3;
+var night = 1;
+var score = 0;
+var shipsSaved = 0;
+var shipsLost = 0;
+var maxShipsLost = 3;
+var ships = [];
+var rocks = [];
+var particles = [];
+var spawnTimer = 0;
+var spawnInterval = 180;
+var nightTimer = 0;
+var nightDuration = 1800; // 30 seconds per night at 60fps
+var foghornTimers = {};
+var ambience = null;
+var best = 0;
+var totalSaved = 0;
+
+// Flare system
+var flares = 1;
+var maxFlares = 3;
+var flareCooldown = 0;
+var FLARE_COOLDOWN = 180; // 3 seconds at 60fps
+var activeFlare = null; // {x, y, phase, timer, radius}
+var flareShipsSaved = 0; // counter toward earning next flare
+var FLARE_EARN_EVERY = 3; // earn 1 flare every N ships saved
+
+// Keeper rank progression
+var RANKS = [
+  {name: 'Wick Lighter', req: 0, bonus: null, desc: ''},
+  {name: 'Lamp Trimmer', req: 20, bonus: 'range', desc: 'Beam +15 range'},
+  {name: 'Watch Keeper', req: 60, bonus: 'speed', desc: 'Rotate 20% faster'},
+  {name: 'Fog Runner', req: 120, bonus: 'width', desc: 'Start beam wider'},
+  {name: 'Light Keeper', req: 200, bonus: 'wreck', desc: '+1 wreck allowed'},
+  {name: 'Storm Warden', req: 350, bonus: 'range2', desc: 'Beam +30 range'},
+  {name: 'Coast Captain', req: 550, bonus: 'speed2', desc: 'Rotate 40% faster'},
+  {name: 'Harbor Master', req: 800, bonus: 'all', desc: 'All bonuses max'}
+];
+var rankIndex = 0;
+var rankUpShow = 0;
+var rankUpName = '';
+
+function getRankIndex(ts) {
+  for (var i = RANKS.length - 1; i >= 0; i--) {
+    if (ts >= RANKS[i].req) return i;
+  }
+  return 0;
+}
+
+function applyRankBonuses() {
+  // Reset to defaults
+  beamRange = 280;
+  beamWidth = 0.35;
+  maxShipsLost = 3;
+  for (var i = 0; i <= rankIndex; i++) {
+    var b = RANKS[i].bonus;
+    if (b === 'range') beamRange += 15;
+    if (b === 'width') beamWidth = 0.42;
+    if (b === 'wreck') maxShipsLost = 4;
+    if (b === 'range2') beamRange += 30;
+    if (b === 'all') { beamRange += 15; beamWidth = 0.48; maxShipsLost = 4; }
+  }
+}
+
+try {
+  best = parseInt(localStorage.getItem('beacon_best')) || 0;
+  totalSaved = parseInt(localStorage.getItem('beacon_total')) || 0;
+  rankIndex = getRankIndex(totalSaved);
+} catch(e) {}
+
+function saveBest() {
+  try {
+    localStorage.setItem('beacon_best', best);
+    localStorage.setItem('beacon_total', totalSaved);
+  } catch(e) {}
+}
+
+// Rocks (permanent obstacles around the harbor)
+function generateRocks() {
+  rocks = [];
+  var numRocks = 8 + night * 3;
+  if (numRocks > 25) numRocks = 25;
+  for (var i = 0; i < numRocks; i++) {
+    var angle = Math.random() * Math.PI * 2;
+    var dist = 100 + Math.random() * 200;
+    var rx = CX + Math.cos(angle) * dist;
+    var ry = CY - 80 + Math.sin(angle) * dist;
+    // Keep rocks away from center lighthouse and bottom
+    if (ry > 480 || (Math.abs(rx - CX) < 40 && ry > 440)) continue;
+    if (ry < 20) ry = 20;
+    if (rx < 20) rx = 20;
+    if (rx > 580) rx = 580;
+    rocks.push({x: rx, y: ry, r: 8 + Math.random()*12, visible: 0});
+  }
+}
+
+// Ships
+function spawnShip() {
+  var side = Math.floor(Math.random() * 3); // 0=top, 1=left, 2=right
+  var sx, sy, tx, ty;
+  if (side === 0) { sx = 50 + Math.random()*500; sy = -20; }
+  else if (side === 1) { sx = -20; sy = 50 + Math.random()*350; }
+  else { sx = 620; sy = 50 + Math.random()*350; }
+  
+  // Target is the harbor (near lighthouse)
+  tx = CX + (Math.random()-0.5)*60;
+  ty = CY - 40;
+  
+  var dx = tx - sx;
+  var dy = ty - sy;
+  var len = Math.sqrt(dx*dx + dy*dy);
+  
+  // Ship types: 0=fishing boat, 1=cargo barge (night 2+), 2=speed cutter (night 3+)
+  // Barges need WIDE beam (good steering only with wide cone)
+  // Cutters need NARROW beam (long range to catch them before they hit distant rocks)
+  var type = 0;
+  if (night >= 3 && Math.random() < 0.3) type = 2;
+  else if (night >= 2 && Math.random() < 0.35) type = 1;
+  
+  var speed, size, scoreVal, foghornFreq;
+  if (type === 1) { // Cargo barge — slow, wide, needs wide beam
+    speed = 0.15 + Math.random()*0.15 + night*0.02;
+    size = 12;
+    scoreVal = 200;
+    foghornFreq = 55; // deep horn
+  } else if (type === 2) { // Speed cutter — fast, small, needs long range
+    speed = 0.7 + Math.random()*0.3 + night*0.06;
+    size = 3;
+    scoreVal = 150;
+    foghornFreq = 150; // high-pitched horn
+  } else { // Fishing boat — default
+    speed = 0.3 + Math.random()*0.3 + night*0.05;
+    size = 6;
+    scoreVal = 100;
+    foghornFreq = 85; // standard horn
+  }
+  if (speed > 1.5) speed = 1.5;
+  
+  ships.push({
+    x: sx, y: sy,
+    vx: dx/len * speed,
+    vy: dy/len * speed,
+    speed: speed,
+    lit: 0,
+    foghornTime: 0,
+    alive: true,
+    saved: false,
+    size: size,
+    type: type,
+    scoreVal: scoreVal,
+    foghornFreq: foghornFreq,
+    trail: []
+  });
+}
+
+function launchFlare() {
+  if (flares <= 0 || flareCooldown > 0 || activeFlare) return;
+  flares--;
+  flareCooldown = FLARE_COOLDOWN;
+  // Flare launches above lighthouse, bursts at a point ahead of beam direction
+  var fx = CX + Math.cos(beamAngle) * 140;
+  var fy = CY + Math.sin(beamAngle) * 140;
+  // Clamp to screen
+  if (fy < 40) fy = 40;
+  if (fy > 480) fy = 480;
+  if (fx < 40) fx = 40;
+  if (fx > 560) fx = 560;
+  activeFlare = {x: fx, y: fy, phase: 0, timer: 0, radius: 0, maxRadius: 200, duration: 180};
+  playFlare();
+  // Spark particles rising toward burst point
+  for (var p = 0; p < 6; p++) {
+    particles.push({
+      x: CX, y: CY - 70,
+      vx: (fx - CX) / 30 + (Math.random()-0.5)*1,
+      vy: (fy - CY + 70) / 30 + (Math.random()-0.5)*1,
+      life: 25,
+      r: 255, g: 200 + Math.random()*55, b: 80
+    });
+  }
+}
+
+function updateFlare() {
+  if (flareCooldown > 0) flareCooldown--;
+  if (!activeFlare) return;
+  var f = activeFlare;
+  f.timer++;
+  if (f.timer < 30) {
+    // Phase 0: rising (wait for burst)
+    f.phase = 0;
+    f.radius = 0;
+  } else if (f.timer < 30 + f.duration) {
+    // Phase 1: burst — illuminated area
+    f.phase = 1;
+    var burstAge = f.timer - 30;
+    // Radius expands quickly then holds
+    f.radius = f.maxRadius * Math.min(1, burstAge / 15);
+    // Ember particles
+    if (burstAge % 6 === 0) {
+      var angle = Math.random() * Math.PI * 2;
+      var dist = Math.random() * f.radius * 0.5;
+      particles.push({
+        x: f.x + Math.cos(angle)*dist,
+        y: f.y + Math.sin(angle)*dist,
+        vx: (Math.random()-0.5)*0.5,
+        vy: 0.3 + Math.random()*0.3,
+        life: 30,
+        r: 255, g: 180 + Math.random()*70, b: 50
+      });
+    }
+  } else {
+    // Phase 2: fading out
+    f.phase = 2;
+    var fadeAge = f.timer - 30 - f.duration;
+    f.radius *= 0.95;
+    if (fadeAge > 30) activeFlare = null;
+  }
+}
+
+function isFlareIlluminated(x, y) {
+  if (!activeFlare || activeFlare.phase === 0) return 0;
+  var dx = x - activeFlare.x;
+  var dy = y - activeFlare.y;
+  var dist = Math.sqrt(dx*dx + dy*dy);
+  if (dist > activeFlare.radius) return 0;
+  var intensity = 1 - (dist / activeFlare.radius);
+  if (activeFlare.phase === 2) {
+    var fadeAge = activeFlare.timer - 30 - activeFlare.duration;
+    intensity *= Math.max(0, 1 - fadeAge / 30);
+  }
+  return intensity;
+}
+
+function resetGame() {
+  state = STATE_PLAY; bgmPlay();
+  beamAngle = -Math.PI/2;
+  beamSpeed = 0;
+  score = 0;
+  shipsSaved = 0;
+  shipsLost = 0;
+  night = 1;
+  nightTimer = 0;
+  spawnInterval = 180;
+  ships = [];
+  rocks = [];
+  particles = [];
+  foghornTimers = {};
+  fogDensity = 0.3;
+  flares = 1;
+  flareCooldown = 0;
+  activeFlare = null;
+  flareShipsSaved = 0;
+  applyRankBonuses();
+  generateRocks();
+  if (!ambience && audioCtx) ambience = playWaveAmbience();
+}
+
+// Update
+function update() {
+  if (state !== STATE_PLAY) return;
+  
+  updateMic();
+  
+  // Fog from mic (louder = foggier)
+  var targetFog = 0.2 + micLevel * 2.5;
+  if (targetFog > 0.85) targetFog = 0.85;
+  fogDensity += (targetFog - fogDensity) * 0.05;
+  
+  // Update flare
+  updateFlare();
+  
+  // Beam rotation
+  beamAngle += beamSpeed;
+  if (beamAngle > Math.PI*2) beamAngle -= Math.PI*2;
+  if (beamAngle < -Math.PI*2) beamAngle += Math.PI*2;
+  
+  // Spawn ships
+  spawnTimer++;
+  if (spawnTimer >= spawnInterval) {
+    spawnTimer = 0;
+    spawnShip();
+  }
+  
+  // Night progression
+  nightTimer++;
+  if (nightTimer >= nightDuration) {
+    nightTimer = 0;
+    night++;
+    spawnInterval = Math.max(60, 180 - night * 12);
+    generateRocks();
+  }
+  
+  // Update ships
+  for (var i = ships.length - 1; i >= 0; i--) {
+    var s = ships[i];
+    if (!s.alive) continue;
+    
+    // Move toward harbor
+    s.x += s.vx;
+    s.y += s.vy;
+    
+    // Trail
+    s.trail.push({x: s.x, y: s.y, a: 1});
+    if (s.trail.length > 20) s.trail.shift();
+    for (var t = 0; t < s.trail.length; t++) s.trail[t].a *= 0.95;
+    
+    // Check if in beam
+    var dx = s.x - CX;
+    var dy = s.y - CY;
+    var dist = Math.sqrt(dx*dx + dy*dy);
+    var angle = Math.atan2(dy, dx);
+    var diff = angle - beamAngle;
+    while (diff > Math.PI) diff -= Math.PI*2;
+    while (diff < -Math.PI) diff += Math.PI*2;
+    
+    if (Math.abs(diff) < beamWidth/2 && dist < beamRange) {
+      s.lit = 1;
+      // Steer ship away from rocks when illuminated
+      // Barges need wide beam for effective steering — narrow beam = poor visibility for large vessels
+      var steerStr = 0.02;
+      if (s.type === 1) steerStr *= Math.max(0.2, Math.min(1, (beamWidth - 0.1) / 0.4));
+      for (var r = 0; r < rocks.length; r++) {
+        var rdx = s.x - rocks[r].x;
+        var rdy = s.y - rocks[r].y;
+        var rdist = Math.sqrt(rdx*rdx + rdy*rdy);
+        if (rdist < 60) {
+          s.vx += (rdx/rdist) * steerStr;
+          s.vy += (rdy/rdist) * steerStr;
+          // Re-normalize speed
+          var sl = Math.sqrt(s.vx*s.vx + s.vy*s.vy);
+          s.vx = s.vx/sl * s.speed;
+          s.vy = s.vy/sl * s.speed;
+        }
+      }
+    } else {
+      // Check flare illumination
+      var flareVis = isFlareIlluminated(s.x, s.y);
+      if (flareVis > 0.3) {
+        s.lit = Math.max(s.lit, flareVis);
+        // Ships also steer away from rocks when flare-illuminated
+        for (var r = 0; r < rocks.length; r++) {
+          var rdx2 = s.x - rocks[r].x;
+          var rdy2 = s.y - rocks[r].y;
+          var rdist2 = Math.sqrt(rdx2*rdx2 + rdy2*rdy2);
+          if (rdist2 < 60) {
+            s.vx += (rdx2/rdist2) * 0.015 * flareVis;
+            s.vy += (rdy2/rdist2) * 0.015 * flareVis;
+            var sl2 = Math.sqrt(s.vx*s.vx + s.vy*s.vy);
+            s.vx = s.vx/sl2 * s.speed;
+            s.vy = s.vy/sl2 * s.speed;
+          }
+        }
+      } else {
+        s.lit *= 0.95;
+      }
+    }
+    
+    // Foghorn (spatial audio)
+    s.foghornTime++;
+    if (s.foghornTime > 180 + Math.random()*120) {
+      s.foghornTime = 0;
+      var pan = (s.x - CX) / 300;
+      playFoghorn(pan, dist, s.foghornFreq);
+    }
+    
+    // Check rock collision
+    for (var r = 0; r < rocks.length; r++) {
+      var rdx = s.x - rocks[r].x;
+      var rdy = s.y - rocks[r].y;
+      var rdist = Math.sqrt(rdx*rdx + rdy*rdy);
+      if (rdist < rocks[r].r + s.size) {
+        s.alive = false;
+        shipsLost++;
+        playCrash();
+        // Debris particles
+        for (var p = 0; p < 15; p++) {
+          particles.push({
+            x: s.x, y: s.y,
+            vx: (Math.random()-0.5)*3,
+            vy: (Math.random()-0.5)*3,
+            life: 60,
+            r: 200+Math.random()*55, g: 100+Math.random()*50, b: 0
+          });
+        }
+        break;
+      }
+    }
+    
+    // Check if reached harbor safely
+    if (s.alive && dist < 35 && s.y > CY - 60) {
+      s.alive = false;
+      s.saved = true;
+      shipsSaved++;
+      score += (s.scoreVal || 100) * night;
+      playSaved();
+      // Earn flares
+      flareShipsSaved++;
+      if (flareShipsSaved >= FLARE_EARN_EVERY) {
+        flareShipsSaved = 0;
+        if (flares < maxFlares) flares++;
+      }
+      for (var p = 0; p < 8; p++) {
+        particles.push({
+          x: s.x, y: s.y,
+          vx: (Math.random()-0.5)*2,
+          vy: -Math.random()*2,
+          life: 40,
+          r: 100, g: 200+Math.random()*55, b: 100
+        });
+      }
+    }
+    
+    // Remove ships that go off screen
+    if (s.x < -50 || s.x > 650 || s.y < -50 || s.y > 650) {
+      ships.splice(i, 1);
+    }
+  }
+  
+  // Remove dead ships
+  ships = ships.filter(function(s) { return s.alive; });
+  
+  // Update particles
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+  
+  // Update rock visibility (lit by beam)
+  for (var r = 0; r < rocks.length; r++) {
+    var rdx = rocks[r].x - CX;
+    var rdy = rocks[r].y - CY;
+    var rdist = Math.sqrt(rdx*rdx + rdy*rdy);
+    var rangle = Math.atan2(rdy, rdx);
+    var rdiff = rangle - beamAngle;
+    while (rdiff > Math.PI) rdiff -= Math.PI*2;
+    while (rdiff < -Math.PI) rdiff += Math.PI*2;
+    
+    if (Math.abs(rdiff) < beamWidth/2 && rdist < beamRange) {
+      rocks[r].visible = 1;
+    } else {
+      var rFlareVis = isFlareIlluminated(rocks[r].x, rocks[r].y);
+      if (rFlareVis > 0.2) {
+        rocks[r].visible = Math.max(rocks[r].visible, rFlareVis);
+      } else {
+        rocks[r].visible *= 0.97;
+      }
+    }
+  }
+  
+  // Game over check
+  if (shipsLost >= maxShipsLost) {
+    state = STATE_OVER; bgmGameOver();
+    if (score > best) { best = score; saveBest(); }
+    totalSaved += shipsSaved;
+    saveBest();
+    // Check rank up
+    var newRank = getRankIndex(totalSaved);
+    if (newRank > rankIndex) {
+      rankIndex = newRank;
+      rankUpName = RANKS[rankIndex].name;
+      rankUpShow = 180; // 3 seconds
+      // Rank up chime
+      if (audioCtx) {
+        var freqs = [523, 659, 784, 1047];
+        for (var ri = 0; ri < freqs.length; ri++) {
+          var ro = audioCtx.createOscillator();
+          var rg = audioCtx.createGain();
+          ro.type = 'triangle';
+          ro.frequency.value = freqs[ri];
+          rg.gain.setValueAtTime(0.15, audioCtx.currentTime + ri*0.12);
+          rg.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + ri*0.12 + 0.5);
+          ro.connect(rg); rg.connect(audioCtx.destination);
+          ro.start(audioCtx.currentTime + ri*0.12);
+          ro.stop(audioCtx.currentTime + ri*0.12 + 0.5);
+        }
+      }
+    } else {
+      rankIndex = newRank;
+    }
+    if (ambience) { try { ambience.stop(); } catch(e){} ambience = null; }
+  }
+}
+
+// Draw
+function draw() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  
+  if (state === STATE_TITLE) {
+    drawTitle();
+    return;
+  }
+  
+  // Ocean gradient
+  var grad = ctx.createRadialGradient(CX, CY-80, 20, CX, CY-80, 350);
+  grad.addColorStop(0, '#0a1628');
+  grad.addColorStop(1, '#050a10');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  
+  // Water shimmer
+  ctx.globalAlpha = 0.03;
+  for (var i = 0; i < 30; i++) {
+    var wx = Math.random()*W;
+    var wy = Math.random()*500;
+    ctx.fillStyle = '#3388cc';
+    ctx.fillRect(wx, wy, 2+Math.random()*8, 1);
+  }
+  ctx.globalAlpha = 1;
+  
+  // Draw beam
+  drawBeam();
+  
+  // Draw active flare
+  if (activeFlare && activeFlare.phase > 0) {
+    var f = activeFlare;
+    var fadeAlpha = 1;
+    if (f.phase === 2) {
+      var fadeAge = f.timer - 30 - f.duration;
+      fadeAlpha = Math.max(0, 1 - fadeAge / 30);
+    }
+    // Illumination circle
+    var flareGrad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.radius);
+    flareGrad.addColorStop(0, 'rgba(255,220,120,' + (0.15 * fadeAlpha) + ')');
+    flareGrad.addColorStop(0.5, 'rgba(255,200,80,' + (0.06 * fadeAlpha) + ')');
+    flareGrad.addColorStop(1, 'rgba(255,180,60,0)');
+    ctx.fillStyle = flareGrad;
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, f.radius, 0, Math.PI*2);
+    ctx.fill();
+    // Central flare point
+    ctx.fillStyle = 'rgba(255,240,200,' + (0.8 * fadeAlpha) + ')';
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, 4 + Math.sin(f.timer * 0.2) * 2, 0, Math.PI*2);
+    ctx.fill();
+    // Outer glow ring
+    ctx.strokeStyle = 'rgba(255,200,100,' + (0.2 * fadeAlpha) + ')';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, f.radius, 0, Math.PI*2);
+    ctx.stroke();
+  }
+  
+  // Draw rocks
+  for (var r = 0; r < rocks.length; r++) {
+    var vis = rocks[r].visible;
+    if (vis < 0.02) continue;
+    ctx.globalAlpha = vis * (1 - fogDensity * 0.6);
+    ctx.fillStyle = '#4a3a2a';
+    ctx.beginPath();
+    ctx.arc(rocks[r].x, rocks[r].y, rocks[r].r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#6a5a4a';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  
+  // Draw ships
+  for (var i = 0; i < ships.length; i++) {
+    var s = ships[i];
+    if (!s.alive) continue;
+    
+    // Ship visibility based on beam + fog
+    var shipVis = Math.max(0.15, s.lit) * (1 - fogDensity * 0.5);
+    
+    // Trail
+    ctx.globalAlpha = shipVis * 0.3;
+    for (var t = 0; t < s.trail.length; t++) {
+      ctx.fillStyle = '#2244aa';
+      var tr = s.trail[t];
+      ctx.fillRect(tr.x-1, tr.y-1, 2, 2);
+    }
+    
+    // Ship body
+    ctx.globalAlpha = shipVis;
+    var shipColors = [['#ffffff','#889cbb'],['#ffcc44','#aa8844'],['#44ffee','#44889c']];
+    var sc = shipColors[s.type || 0];
+    ctx.fillStyle = s.lit > 0.5 ? sc[0] : sc[1];
+    ctx.beginPath();
+    var shipAngle = Math.atan2(s.vy, s.vx);
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(shipAngle);
+    ctx.moveTo(s.size, 0);
+    ctx.lineTo(-s.size, -s.size*0.6);
+    ctx.lineTo(-s.size*0.5, 0);
+    ctx.lineTo(-s.size, s.size*0.6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    
+    // Running light
+    var lightColors = [['#ffff88','#ff4444'],['#ffdd44','#ffaa22'],['#88ffff','#44ddff']];
+    var lc = lightColors[s.type || 0];
+    ctx.fillStyle = s.lit > 0.5 ? lc[0] : lc[1];
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 2, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  
+  // Particles
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    ctx.globalAlpha = p.life / 60;
+    ctx.fillStyle = 'rgb('+Math.floor(p.r)+','+Math.floor(p.g)+','+Math.floor(p.b)+')';
+    ctx.fillRect(p.x-2, p.y-2, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+  
+  // Fog overlay
+  if (fogDensity > 0.1) {
+    ctx.globalAlpha = fogDensity * 0.4;
+    ctx.fillStyle = '#8899aa';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+  
+  // Lighthouse
+  drawLighthouse();
+  
+  // HUD
+  drawHUD();
+  
+  if (state === STATE_OVER) drawGameOver();
+}
+
+function drawBeam() {
+  var segments = 30;
+  for (var i = 0; i < segments; i++) {
+    var t = i / segments;
+    var dist = t * beamRange;
+    var fade = (1 - t) * (1 - fogDensity * 0.7);
+    if (fade < 0) fade = 0;
+    
+    var bx = CX + Math.cos(beamAngle) * dist;
+    var by = CY + Math.sin(beamAngle) * dist;
+    var w = beamWidth * dist * 0.5;
+    
+    ctx.globalAlpha = fade * 0.15;
+    ctx.fillStyle = '#ffee88';
+    ctx.beginPath();
+    ctx.arc(bx, by, w, 0, Math.PI*2);
+    ctx.fill();
+  }
+  
+  // Beam cone
+  ctx.globalAlpha = 0.08;
+  ctx.fillStyle = '#ffee88';
+  ctx.beginPath();
+  ctx.moveTo(CX, CY);
+  ctx.lineTo(
+    CX + Math.cos(beamAngle - beamWidth/2) * beamRange,
+    CY + Math.sin(beamAngle - beamWidth/2) * beamRange
+  );
+  ctx.lineTo(
+    CX + Math.cos(beamAngle + beamWidth/2) * beamRange,
+    CY + Math.sin(beamAngle + beamWidth/2) * beamRange
+  );
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function drawLighthouse() {
+  // Base
+  ctx.fillStyle = '#2a2a3a';
+  ctx.fillRect(CX-12, CY-15, 24, 30);
+  
+  // Tower
+  ctx.fillStyle = '#dd3333';
+  ctx.fillRect(CX-8, CY-35, 16, 20);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(CX-8, CY-55, 16, 20);
+  ctx.fillStyle = '#dd3333';
+  ctx.fillRect(CX-8, CY-70, 16, 15);
+  
+  // Light dome
+  ctx.fillStyle = '#ffee44';
+  ctx.beginPath();
+  ctx.arc(CX, CY-72, 8, 0, Math.PI*2);
+  ctx.fill();
+  
+  // Glow
+  ctx.globalAlpha = 0.3 + Math.sin(Date.now()/200)*0.1;
+  var glow = ctx.createRadialGradient(CX, CY-72, 2, CX, CY-72, 30);
+  glow.addColorStop(0, '#ffee44');
+  glow.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow;
+  ctx.fillRect(CX-30, CY-102, 60, 60);
+  ctx.globalAlpha = 1;
+  
+  // Harbor marker
+  ctx.fillStyle = '#224488';
+  ctx.fillRect(CX-25, CY+15, 50, 4);
+}
+
+function drawHUD() {
+  // Top bar
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, 0, W, 36);
+  
+  ctx.font = '14px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#88ccff';
+  ctx.fillText('Night ' + night, 12, 24);
+  
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffee88';
+  ctx.fillText('⚓ ' + shipsSaved + '  |  Score: ' + score, CX, 24);
+  
+  ctx.textAlign = 'right';
+  // Ships lost indicator
+  for (var i = 0; i < maxShipsLost; i++) {
+    ctx.fillStyle = i < shipsLost ? '#ff4444' : '#333';
+    ctx.fillText('💀', W - 12 - (maxShipsLost - 1 - i) * 22, 24);
+  }
+  
+  // Rank name (bottom right)
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#556';
+  ctx.font = '11px system-ui';
+  ctx.fillText(RANKS[rankIndex].name, W - 12, 580);
+  
+  // Fog meter
+  if (micActive) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#8899aa';
+    ctx.font = '11px system-ui';
+    ctx.fillText('🌫️ ' + Math.round(fogDensity*100) + '%', 12, 580);
+  }
+  
+  // Flare indicator (bottom center)
+  ctx.textAlign = 'center';
+  ctx.font = '12px system-ui';
+  var flareStr = '';
+  for (var fi = 0; fi < maxFlares; fi++) {
+    flareStr += fi < flares ? '🔥' : '·';
+  }
+  if (flareCooldown > 0) {
+    ctx.fillStyle = '#665533';
+    ctx.fillText(flareStr + ' ' + Math.ceil(flareCooldown/60) + 's', CX, 580);
+  } else if (flares > 0) {
+    var flareAlpha = 0.7 + 0.3 * Math.sin(Date.now()/300);
+    ctx.fillStyle = 'rgba(255,180,60,' + flareAlpha + ')';
+    ctx.fillText(flareStr + ' Enter', CX, 580);
+  } else {
+    ctx.fillStyle = '#444';
+    ctx.fillText(flareStr, CX, 580);
+  }
+  
+  // Night progress bar
+  var pct = nightTimer / nightDuration;
+  ctx.fillStyle = '#111';
+  ctx.fillRect(100, 585, 400, 4);
+  ctx.fillStyle = '#224488';
+  ctx.fillRect(100, 585, 400 * pct, 4);
+}
+
+function drawTitle() {
+  // Ocean bg
+  var grad = ctx.createRadialGradient(CX, 400, 20, CX, 400, 350);
+  grad.addColorStop(0, '#0a1628');
+  grad.addColorStop(1, '#050a10');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  
+  // Lighthouse preview
+  ctx.fillStyle = '#dd3333';
+  ctx.fillRect(CX-6, 370, 12, 40);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(CX-6, 340, 12, 30);
+  ctx.fillStyle = '#ffee44';
+  ctx.beginPath();
+  ctx.arc(CX, 336, 6, 0, Math.PI*2);
+  ctx.fill();
+  
+  // Beam sweep animation
+  var t = Date.now() / 2000;
+  ctx.globalAlpha = 0.06;
+  ctx.fillStyle = '#ffee88';
+  ctx.beginPath();
+  ctx.moveTo(CX, 336);
+  ctx.lineTo(CX + Math.cos(t)*250, 336 + Math.sin(t)*250);
+  ctx.lineTo(CX + Math.cos(t+0.3)*250, 336 + Math.sin(t+0.3)*250);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  
+  // Title
+  ctx.font = 'bold 48px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffee88';
+  ctx.fillText('BEACON', CX, 140);
+  
+  ctx.font = '16px system-ui';
+  ctx.fillStyle = '#88aacc';
+  ctx.fillText('Guide ships home through the fog', CX, 175);
+  
+  // Controls
+  ctx.font = '14px system-ui';
+  ctx.fillStyle = '#667788';
+  ctx.fillText('← → Rotate beam', CX, 230);
+  ctx.fillText('↑ ↓ Widen / Narrow beam', CX, 250);
+  ctx.fillText('Enter: Launch flare', CX, 270);
+  ctx.fillText('🎤 Room noise = fog density', CX, 295);
+  
+  // Stats
+  if (best > 0) {
+    ctx.fillStyle = '#ffee88';
+    ctx.fillText('Best: ' + best + '  |  Ships Saved: ' + totalSaved, CX, 325);
+  }
+  
+  // Rank display
+  ctx.font = '13px system-ui';
+  ctx.fillStyle = '#ffcc44';
+  ctx.fillText('⚓ ' + RANKS[rankIndex].name, CX, 350);
+  if (rankIndex < RANKS.length - 1) {
+    var nextRank = RANKS[rankIndex + 1];
+    var progress = totalSaved - RANKS[rankIndex].req;
+    var needed = nextRank.req - RANKS[rankIndex].req;
+    var pct = Math.min(1, progress / needed);
+    // Progress bar
+    var barW = 180, barH = 8, barX = CX - barW/2, barY = 360;
+    ctx.fillStyle = '#1a1a2a';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#ffcc44';
+    ctx.fillRect(barX, barY, barW * pct, barH);
+    ctx.strokeStyle = '#334';
+    ctx.strokeRect(barX, barY, barW, barH);
+    ctx.font = '11px system-ui';
+    ctx.fillStyle = '#667';
+    ctx.fillText(nextRank.name + ': ' + nextRank.desc + ' (' + (nextRank.req - totalSaved) + ' ships to go)', CX, 384);
+  } else {
+    ctx.font = '11px system-ui';
+    ctx.fillStyle = '#ffcc44';
+    ctx.fillText('⭐ Maximum rank achieved ⭐', CX, 370);
+  }
+  
+  // Start prompt
+  ctx.globalAlpha = 0.5 + Math.sin(Date.now()/400)*0.5;
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '18px system-ui';
+  ctx.fillText('Press Enter to start', CX, 490);
+  ctx.globalAlpha = 1;
+  
+  // Footer
+  ctx.font = '11px system-ui';
+  ctx.fillStyle = '#334';
+  ctx.fillText('← Back to Games', CX, 570);
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+  
+  // Rank up announcement
+  if (rankUpShow > 0) {
+    rankUpShow--;
+    ctx.font = 'bold 28px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffcc44';
+    ctx.globalAlpha = Math.min(1, rankUpShow / 30);
+    ctx.fillText('⚓ RANK UP! ⚓', CX, 160);
+    ctx.font = 'bold 22px system-ui';
+    ctx.fillText(rankUpName, CX, 195);
+    ctx.font = '14px system-ui';
+    ctx.fillStyle = '#88ccff';
+    ctx.fillText(RANKS[rankIndex].desc, CX, 222);
+    ctx.globalAlpha = 1;
+    
+    ctx.font = '20px system-ui';
+    ctx.fillStyle = '#88ccff';
+    ctx.fillText('Night ' + night + '  |  Score: ' + score, CX, 270);
+    ctx.fillStyle = '#88ffaa';
+    ctx.fillText('Ships Saved: ' + shipsSaved, CX, 300);
+  } else {
+    ctx.font = 'bold 36px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ff6644';
+    ctx.fillText('SHIPS LOST', CX, 200);
+    
+    ctx.font = '20px system-ui';
+    ctx.fillStyle = '#88ccff';
+    ctx.fillText('Night ' + night, CX, 250);
+    
+    ctx.fillStyle = '#ffee88';
+    ctx.fillText('Score: ' + score, CX, 290);
+    
+    ctx.fillStyle = '#88ffaa';
+    ctx.fillText('Ships Saved: ' + shipsSaved, CX, 325);
+    
+    if (score >= best && score > 0) {
+      ctx.fillStyle = '#ffcc00';
+      ctx.font = '16px system-ui';
+      ctx.fillText('⭐ NEW BEST! ⭐', CX, 365);
+    } else if (best > 0) {
+      ctx.fillStyle = '#667';
+      ctx.font = '14px system-ui';
+      ctx.fillText('Best: ' + best, CX, 365);
+    }
+    
+    // Rank + progress
+    ctx.font = '13px system-ui';
+    ctx.fillStyle = '#ffcc44';
+    ctx.fillText('⚓ ' + RANKS[rankIndex].name + '  |  Total: ' + totalSaved + ' ships', CX, 400);
+    if (rankIndex < RANKS.length - 1) {
+      var toNext = RANKS[rankIndex + 1].req - totalSaved;
+      ctx.fillStyle = '#667';
+      ctx.font = '11px system-ui';
+      ctx.fillText(toNext + ' more ships to ' + RANKS[rankIndex + 1].name, CX, 418);
+    }
+  }
+  
+  ctx.globalAlpha = 0.5 + Math.sin(Date.now()/400)*0.5;
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '16px system-ui';
+  ctx.fillText('Enter to play again  |  Esc for menu', CX, 470);
+  ctx.globalAlpha = 1;
+}
+
+// Input
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'm' || e.key === 'M') { bgmToggle(); return; }
+  e.preventDefault();
+  
+  if (!audioCtx) initAudio(); if(!bgmAudio) bgmInit();
+  if (!micActive && !micFailed) initMic();
+  
+  if (state === STATE_TITLE) {
+    if (e.key === 'Enter') {
+      resetGame();
+    } else if (e.key === 'Escape') {
+      window.location.href = '/games/';
+    }
+    return;
+  }
+  
+  if (state === STATE_OVER) {
+    if (e.key === 'Enter') {
+      resetGame();
+    } else if (e.key === 'Escape') {
+      state = STATE_TITLE;
+    }
+    return;
+  }
+  
+  // Playing
+  var rotSpeed = 0.03;
+  if (rankIndex >= 2) rotSpeed = 0.036; // Watch Keeper: 20% faster
+  if (rankIndex >= 6) rotSpeed = 0.042; // Coast Captain: 40% faster
+  if (rankIndex >= 7) rotSpeed = 0.042; // Harbor Master: keeps max
+  if (e.key === 'ArrowLeft') beamSpeed = -rotSpeed;
+  else if (e.key === 'ArrowRight') beamSpeed = rotSpeed;
+  else if (e.key === 'ArrowUp') { beamWidth = Math.min(0.8, beamWidth + 0.05); beamRange = Math.max(150, beamRange - 15); }
+  else if (e.key === 'ArrowDown') { beamWidth = Math.max(0.1, beamWidth - 0.05); beamRange = Math.min(350, beamRange + 15); }
+  else if (e.key === 'Enter') { launchFlare(); }
+  else if (e.key === 'Escape') {
+    state = STATE_OVER;
+    if (score > best) { best = score; saveBest(); }
+    totalSaved += shipsSaved;
+    saveBest();
+  }
+});
+
+document.addEventListener('keyup', function(e) {
+  if (e.key === 'ArrowLeft' && beamSpeed < 0) beamSpeed = 0;
+  if (e.key === 'ArrowRight' && beamSpeed > 0) beamSpeed = 0;
+});
+
+// Game loop
+function frame() {
+  update();
+  draw();
+  requestAnimationFrame(frame);
+}
+frame();
+
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../touch-controls.js"></script>
+</body>
+</html>

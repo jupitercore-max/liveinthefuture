@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Reaction Tester — LITF</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;color:#e0e0e0;font-family:system-ui,-apple-system,sans-serif}
+canvas{display:block;width:600px;height:600px}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+var W = 600, H = 600;
+
+// Audio
+var audioCtx = null;
+function initAudio() {
+  if (audioCtx) return;
+  try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+}
+
+// State
+var STATE_MENU = 0, STATE_WAITING = 1, STATE_READY = 2, STATE_RESULT = 3, STATE_SUMMARY = 4, STATE_FALSE = 5;
+var state = STATE_MENU;
+var mode = 0; // 0=both, 1=audio only, 2=visual only
+var modeNames = ['Audio + Visual', 'Audio Only', 'Visual Only'];
+var menuIdx = 0; // 0=start, 1=mode, 2=records
+
+// Directions: 0=up, 1=down, 2=left, 3=right
+var dirNames = ['↑', '↓', '←', '→'];
+var dirKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+var dirColors = ['#4fc3f7', '#ff7043', '#ab47bc', '#66bb6a'];
+
+// Round state
+var roundNum = 0;
+var totalRounds = 10;
+var targetDir = -1;
+var cueTime = 0;
+var times = [];
+var waitTimeout = null;
+var falseStartTime = 0;
+
+// Game mode: 0=standard, 1=streak
+var gameMode = 0;
+var gameModeNames = ['Standard (10 rounds)', 'Streak (3 lives)'];
+
+// Streak mode state
+var streakLives = 3;
+var streakCombo = 0;
+var streakScore = 0;
+var streakRound = 0;
+var streakBestCombo = 0;
+var STATE_STREAK_OVER = 7;
+var STATE_ACHIEVEMENTS = 8;
+
+// Achievements
+var ACHIEVEMENTS = [
+  { id: 'lightning', icon: '⚡', name: 'Lightning', desc: 'Sub-150ms reaction' },
+  { id: 'flash', icon: '🔥', name: 'Flash', desc: 'Sub-100ms reaction' },
+  { id: 'perfect10', icon: '🎯', name: 'Perfect 10', desc: '10/10 correct in standard' },
+  { id: 'ears_only', icon: '👂', name: 'Ears Only', desc: 'Audio-only session, A grade or better' },
+  { id: 'hot_streak', icon: '🔥', name: 'Hot Streak', desc: '10× combo in streak mode' },
+  { id: 'survivor', icon: '💀', name: 'Survivor', desc: 'Reach round 20 in streak' },
+  { id: 'untouchable', icon: '🏆', name: 'Untouchable', desc: 'Reach round 30 in streak' },
+  { id: 'all_modes', icon: '🎪', name: 'All Modes', desc: 'Complete a session in all 3 input modes' }
+];
+
+// Records
+var records = { best: null, avgBest: null, sessions: 0, achievements: {}, modesCompleted: {}, streakBest: 0, streakBestScore: 0 };
+try {
+  var saved = localStorage.getItem('litf_reaction');
+  if (saved) {
+    var parsed = JSON.parse(saved);
+    records.best = parsed.best || null;
+    records.avgBest = parsed.avgBest || null;
+    records.sessions = parsed.sessions || 0;
+    records.achievements = parsed.achievements || {};
+    records.modesCompleted = parsed.modesCompleted || {};
+    records.streakBest = parsed.streakBest || 0;
+    records.streakBestScore = parsed.streakBestScore || 0;
+  }
+} catch(e) {}
+
+function saveRecords() {
+  try { localStorage.setItem('litf_reaction', JSON.stringify(records)); } catch(e) {}
+}
+
+// Mic integration — environmental interference in Audio Only mode
+var micAnalyser = null;
+var micDataArray = null;
+var ambientLevel = 0;
+var micActive = false;
+var micFailed = false;
+
+function setupMic() {
+  if (micActive || micFailed) return;
+  if (!audioCtx) initAudio();
+  micFailed = true;
+  navigator.mediaDevices.getUserMedia({audio: true}).then(function(stream) {
+    var source = audioCtx.createMediaStreamSource(stream);
+    micAnalyser = audioCtx.createAnalyser();
+    micAnalyser.fftSize = 256;
+    source.connect(micAnalyser);
+    micDataArray = new Uint8Array(micAnalyser.frequencyBinCount);
+    micActive = true;
+    micFailed = false;
+  }).catch(function() {
+    micActive = false;
+  });
+}
+
+function updateMicLevel() {
+  if (!micActive || !micAnalyser) return;
+  micAnalyser.getByteTimeDomainData(micDataArray);
+  var sum = 0;
+  for (var i = 0; i < micDataArray.length; i++) {
+    var v = (micDataArray[i] - 128) / 128;
+    sum += v * v;
+  }
+  var rms = Math.sqrt(sum / micDataArray.length);
+  ambientLevel = ambientLevel * 0.95 + rms * 0.05;
+}
+
+// Achievement unlocking
+var achievementToast = null;
+var achievementToastTime = 0;
+
+function unlockAchievement(id) {
+  if (records.achievements[id]) return;
+  records.achievements[id] = Date.now();
+  saveRecords();
+  // Show toast
+  var ach = null;
+  for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+    if (ACHIEVEMENTS[i].id === id) { ach = ACHIEVEMENTS[i]; break; }
+  }
+  if (ach) {
+    achievementToast = ach;
+    achievementToastTime = performance.now();
+    playAchievementChime();
+  }
+}
+
+function playAchievementChime() {
+  if (!audioCtx) return;
+  var notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+  for (var i = 0; i < notes.length; i++) {
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = notes[i];
+    gain.gain.value = 0;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    var t = audioCtx.currentTime + i * 0.12;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.2, t + 0.03);
+    gain.gain.setTargetAtTime(0, t + 0.1, 0.08);
+    osc.start(t);
+    osc.stop(t + 0.4);
+  }
+}
+
+function getUnlockedCount() {
+  var c = 0;
+  for (var k in records.achievements) { if (records.achievements[k]) c++; }
+  return c;
+}
+
+function checkAchievements(reactionTime) {
+  if (reactionTime < 150 && reactionTime > 0) unlockAchievement('lightning');
+  if (reactionTime < 100 && reactionTime > 0) unlockAchievement('flash');
+  if (gameMode === 1 && streakCombo >= 10) unlockAchievement('hot_streak');
+  if (gameMode === 1 && streakRound >= 20) unlockAchievement('survivor');
+  if (gameMode === 1 && streakRound >= 30) unlockAchievement('untouchable');
+}
+
+// Tones: up=high, down=low, left=left-panned, right=right-panned
+function playCue(dir) {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  var pan = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+  
+  osc.type = 'sine';
+  gain.gain.value = 0.4;
+  
+  if (dir === 0) { osc.frequency.value = 880; } // up = high
+  else if (dir === 1) { osc.frequency.value = 220; } // down = low
+  else if (dir === 2) { osc.frequency.value = 440; if (pan) pan.pan.value = -0.9; } // left
+  else if (dir === 3) { osc.frequency.value = 440; if (pan) pan.pan.value = 0.9; } // right
+  
+  osc.connect(gain);
+  if (pan) { gain.connect(pan); pan.connect(audioCtx.destination); }
+  else { gain.connect(audioCtx.destination); }
+  
+  osc.start();
+  gain.gain.setTargetAtTime(0, audioCtx.currentTime + 0.15, 0.05);
+  osc.stop(audioCtx.currentTime + 0.3);
+  
+  // Environmental interference — mic ambient noise masks directional cues (Audio Only mode)
+  if (mode === 1 && micActive && ambientLevel > 0.005) {
+    var nBuf = audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate * 0.35), audioCtx.sampleRate);
+    var nData = nBuf.getChannelData(0);
+    for (var j = 0; j < nData.length; j++) nData[j] = Math.random() * 2 - 1;
+    var nSrc = audioCtx.createBufferSource();
+    nSrc.buffer = nBuf;
+    var nFilt = audioCtx.createBiquadFilter();
+    nFilt.type = 'bandpass';
+    nFilt.frequency.value = 450; // covers cue range (220-880Hz)
+    nFilt.Q.value = 0.4; // wide band for broad masking
+    var nGain = audioCtx.createGain();
+    var intLevel = Math.min(0.18, ambientLevel * 3);
+    nGain.gain.setValueAtTime(intLevel, audioCtx.currentTime);
+    nGain.gain.setTargetAtTime(0, audioCtx.currentTime + 0.2, 0.06);
+    nSrc.connect(nFilt);
+    nFilt.connect(nGain);
+    nGain.connect(audioCtx.destination);
+    nSrc.start();
+    nSrc.stop(audioCtx.currentTime + 0.35);
+  }
+}
+
+function playCorrect() {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = 660;
+  gain.gain.value = 0.2;
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.frequency.setTargetAtTime(880, audioCtx.currentTime + 0.05, 0.03);
+  gain.gain.setTargetAtTime(0, audioCtx.currentTime + 0.15, 0.04);
+  osc.stop(audioCtx.currentTime + 0.3);
+}
+
+function playWrong() {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.value = 150;
+  gain.gain.value = 0.15;
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  gain.gain.setTargetAtTime(0, audioCtx.currentTime + 0.2, 0.05);
+  osc.stop(audioCtx.currentTime + 0.4);
+}
+
+function startSession() {
+  initAudio();
+  if (mode === 1) setupMic(); // Audio Only mode uses mic for interference
+  roundNum = 0;
+  times = [];
+  if (gameMode === 1) {
+    streakLives = 3;
+    streakCombo = 0;
+    streakScore = 0;
+    streakRound = 0;
+    streakBestCombo = 0;
+  }
+  nextRound();
+}
+
+function nextRound() {
+  if (gameMode === 0 && roundNum >= totalRounds) {
+    showSummary();
+    return;
+  }
+  state = STATE_WAITING;
+  targetDir = -1;
+  // Streak mode: delay shrinks as rounds increase (more pressure)
+  var baseDelay, varDelay;
+  if (gameMode === 1) {
+    baseDelay = Math.max(600, 1500 - streakRound * 30); // accelerates
+    varDelay = Math.max(500, 2500 - streakRound * 50);
+  } else {
+    baseDelay = 1500;
+    varDelay = 2500;
+  }
+  var delay = baseDelay + Math.random() * varDelay;
+  waitTimeout = setTimeout(function() {
+    targetDir = Math.floor(Math.random() * 4);
+    cueTime = performance.now();
+    state = STATE_READY;
+    if (mode !== 2) playCue(targetDir);
+  }, delay);
+}
+
+function handleResponse(dir) {
+  if (state === STATE_WAITING) {
+    // False start!
+    clearTimeout(waitTimeout);
+    if (gameMode === 1) {
+      streakLives--;
+      streakCombo = 0;
+      if (streakLives <= 0) {
+        state = STATE_STREAK_OVER;
+        if (streakRound > records.streakBest) records.streakBest = streakRound;
+        if (streakScore > records.streakBestScore) records.streakBestScore = streakScore;
+        records.sessions = (records.sessions || 0) + 1;
+        saveRecords();
+        playWrong();
+        return;
+      }
+    }
+    state = STATE_FALSE;
+    falseStartTime = performance.now();
+    playWrong();
+    return;
+  }
+  if (state !== STATE_READY) return;
+  
+  var elapsed = performance.now() - cueTime;
+  
+  if (gameMode === 1) {
+    // Streak mode
+    streakRound++;
+    if (dir === targetDir) {
+      streakCombo++;
+      if (streakCombo > streakBestCombo) streakBestCombo = streakCombo;
+      // Score: base 100 + speed bonus + combo multiplier
+      var speedBonus = Math.max(0, Math.round((500 - elapsed) / 2));
+      var comboMult = 1 + (streakCombo - 1) * 0.2; // +20% per combo
+      var roundScore = Math.round((100 + speedBonus) * comboMult);
+      streakScore += roundScore;
+      times.push(Math.round(elapsed));
+      playCorrect();
+      checkAchievements(Math.round(elapsed));
+    } else {
+      streakLives--;
+      streakCombo = 0;
+      times.push(999);
+      playWrong();
+      if (streakLives <= 0) {
+        state = STATE_STREAK_OVER;
+        if (streakRound > records.streakBest) records.streakBest = streakRound;
+        if (streakScore > records.streakBestScore) records.streakBestScore = streakScore;
+        records.sessions = (records.sessions || 0) + 1;
+        saveRecords();
+        return;
+      }
+    }
+    
+    state = STATE_RESULT;
+    roundNum = streakRound;
+    setTimeout(function() {
+      nextRound();
+    }, gameMode === 1 ? 800 : 1200);
+  } else {
+    // Standard mode
+    if (dir === targetDir) {
+      times.push(Math.round(elapsed));
+      playCorrect();
+      checkAchievements(Math.round(elapsed));
+    } else {
+      times.push(999);
+      playWrong();
+    }
+    
+    state = STATE_RESULT;
+    roundNum++;
+    
+    setTimeout(function() {
+      nextRound();
+    }, 1200);
+  }
+}
+
+function showSummary() {
+  state = STATE_SUMMARY;
+  var valid = times.filter(function(t) { return t < 999; });
+  var avg = valid.length > 0 ? Math.round(valid.reduce(function(a,b){return a+b;},0) / valid.length) : 999;
+  var best = valid.length > 0 ? Math.min.apply(null, valid) : 999;
+  var misses = times.filter(function(t) { return t >= 999; }).length;
+  
+  records.sessions = (records.sessions || 0) + 1;
+  if (records.best === null || best < records.best) records.best = best;
+  if (records.avgBest === null || avg < records.avgBest) records.avgBest = avg;
+  
+  // Check perfect 10
+  if (misses === 0 && times.length === 10 && gameMode === 0) unlockAchievement('perfect10');
+  // Check ears only
+  var grade = avg < 200 ? 'S' : avg < 250 ? 'A' : avg < 300 ? 'B' : avg < 350 ? 'C' : 'D';
+  if (mode === 1 && (grade === 'S' || grade === 'A') && gameMode === 0) unlockAchievement('ears_only');
+  // Check all modes
+  if (!records.modesCompleted) records.modesCompleted = {};
+  records.modesCompleted[mode] = true;
+  if (records.modesCompleted[0] && records.modesCompleted[1] && records.modesCompleted[2]) unlockAchievement('all_modes');
+  
+  saveRecords();
+}
+
+// Drawing
+function drawMenu() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  
+  // Title
+  ctx.fillStyle = '#4fc3f7';
+  ctx.font = 'bold 42px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('⚡ REACTION', W/2, 100);
+  ctx.fillStyle = '#e0e0e0';
+  ctx.font = '18px system-ui';
+  ctx.fillText('How fast can you react?', W/2, 135);
+  
+  // Achievement counter
+  var unlocked = getUnlockedCount();
+  if (unlocked > 0) {
+    ctx.fillStyle = '#ffd700';
+    ctx.font = '14px system-ui';
+    ctx.fillText('🏅 ' + unlocked + '/' + ACHIEVEMENTS.length, W/2, 165);
+  }
+  
+  // Direction legend
+  ctx.font = '13px system-ui';
+  ctx.fillStyle = '#555';
+  ctx.fillText('↑ High  ↓ Low  ← Left pan  → Right pan', W/2, 190);
+  
+  // Menu items
+  var items = ['▶ START', '🎮 Mode: ' + modeNames[mode], '⚔ ' + gameModeNames[gameMode], '🏅 Achievements'];
+  for (var i = 0; i < items.length; i++) {
+    var y = 250 + i * 60;
+    var selected = menuIdx === i;
+    
+    if (selected) {
+      ctx.fillStyle = '#1a3a4a';
+      ctx.beginPath();
+      ctx.roundRect(120, y - 26, 360, 48, 8);
+      ctx.fill();
+      ctx.strokeStyle = '#4fc3f7';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    
+    ctx.fillStyle = selected ? '#4fc3f7' : '#888';
+    ctx.font = selected ? 'bold 20px system-ui' : '18px system-ui';
+    ctx.fillText(items[i], W/2, y);
+  }
+  
+  // Streak best display under game mode when selected
+  if (menuIdx === 2 && gameMode === 1 && records.streakBest > 0) {
+    ctx.fillStyle = '#666';
+    ctx.font = '13px system-ui';
+    ctx.fillText('Best: Round ' + records.streakBest + ' · Score: ' + records.streakBestScore, W/2, 250 + 2 * 60 + 28);
+  }
+  
+  // Records at bottom
+  if (records.best !== null) {
+    ctx.fillStyle = '#444';
+    ctx.font = '12px system-ui';
+    ctx.fillText('Best: ' + records.best + 'ms · Best Avg: ' + records.avgBest + 'ms · Sessions: ' + records.sessions, W/2, 545);
+  }
+  
+  ctx.fillStyle = '#555';
+  ctx.font = '13px system-ui';
+  ctx.fillText('↑↓ select · ←→ change · Enter start', W/2, 575);
+}
+
+function drawWaiting() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  
+  // Round counter + streak info
+  ctx.fillStyle = '#555';
+  ctx.font = '16px system-ui';
+  ctx.textAlign = 'center';
+  if (gameMode === 1) {
+    ctx.fillText('Round ' + (streakRound + 1), W/2, 30);
+    // Lives
+    var hearts = '';
+    for (var i = 0; i < 3; i++) hearts += (i < streakLives ? '❤️' : '🖤');
+    ctx.font = '22px system-ui';
+    ctx.fillText(hearts, W/2, 60);
+    // Score + combo
+    ctx.font = '14px system-ui';
+    ctx.fillStyle = streakCombo >= 5 ? '#ffd700' : '#888';
+    ctx.fillText('Score: ' + streakScore + (streakCombo > 1 ? '  ×' + (1 + (streakCombo - 1) * 0.2).toFixed(1) + ' combo' : ''), W/2, 85);
+  } else {
+    ctx.fillText('Round ' + (roundNum + 1) + '/' + totalRounds, W/2, 40);
+  }
+  
+  // Focus dot — pulsing
+  var pulse = 0.5 + 0.5 * Math.sin(performance.now() / 300);
+  var r = 8 + pulse * 4;
+  ctx.beginPath();
+  ctx.arc(W/2, H/2, r, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,' + (0.3 + pulse * 0.3) + ')';
+  ctx.fill();
+  
+  ctx.fillStyle = '#666';
+  ctx.font = '16px system-ui';
+  ctx.fillText('Wait for the cue...', W/2, H/2 + 60);
+  
+  // Mic interference indicator (Audio Only mode)
+  if (mode === 1 && micActive) {
+    var mLvl = Math.min(1, ambientLevel * 15);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(W - 75, 12, 60, 4);
+    ctx.fillStyle = mLvl < 0.3 ? '#66bb6a' : mLvl < 0.7 ? '#ffa726' : '#ff5252';
+    ctx.fillRect(W - 75, 12, 60 * mLvl, 4);
+    ctx.fillStyle = '#555';
+    ctx.font = '9px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText('🎤', W - 79, 17);
+    ctx.textAlign = 'center';
+  }
+}
+
+function drawReady() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  
+  var elapsed = performance.now() - cueTime;
+  
+  // Round counter
+  ctx.fillStyle = '#555';
+  ctx.font = '16px system-ui';
+  ctx.textAlign = 'center';
+  if (gameMode === 1) {
+    ctx.fillText('Round ' + (streakRound + 1), W/2, 30);
+    var hearts = '';
+    for (var i = 0; i < 3; i++) hearts += (i < streakLives ? '❤️' : '🖤');
+    ctx.font = '22px system-ui';
+    ctx.fillText(hearts, W/2, 60);
+  } else {
+    ctx.fillText('Round ' + (roundNum + 1) + '/' + totalRounds, W/2, 40);
+  }
+  
+  // Show direction visually (if not audio-only mode)
+  if (mode !== 1) {
+    // Big arrow
+    ctx.fillStyle = dirColors[targetDir];
+    ctx.font = 'bold 120px system-ui';
+    ctx.fillText(dirNames[targetDir], W/2, H/2 + 40);
+    
+    // Flash ring
+    var flash = Math.max(0, 1 - elapsed / 500);
+    if (flash > 0) {
+      ctx.beginPath();
+      ctx.arc(W/2, H/2, 100 + flash * 50, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(' + (targetDir === 0 ? '79,195,247' : targetDir === 1 ? '255,112,67' : targetDir === 2 ? '171,71,188' : '102,187,106') + ',' + (flash * 0.5) + ')';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+  } else {
+    // Audio only — just show "LISTEN"
+    ctx.fillStyle = '#4fc3f7';
+    ctx.font = 'bold 36px system-ui';
+    ctx.fillText('🔊 LISTEN', W/2, H/2);
+  }
+  
+  // Live timer
+  ctx.fillStyle = '#888';
+  ctx.font = '24px system-ui';
+  ctx.fillText(Math.round(elapsed) + 'ms', W/2, H - 60);
+  
+  // Mic interference indicator (Audio Only mode)
+  if (mode === 1 && micActive) {
+    var mLvl = Math.min(1, ambientLevel * 15);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(W - 75, 12, 60, 4);
+    ctx.fillStyle = mLvl < 0.3 ? '#66bb6a' : mLvl < 0.7 ? '#ffa726' : '#ff5252';
+    ctx.fillRect(W - 75, 12, 60 * mLvl, 4);
+    ctx.fillStyle = '#555';
+    ctx.font = '9px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText('🎤', W - 79, 17);
+    ctx.textAlign = 'center';
+  }
+}
+
+function drawResult() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  
+  var lastTime = times[times.length - 1];
+  var correct = lastTime < 999;
+  
+  // Round counter
+  ctx.fillStyle = '#555';
+  ctx.font = '16px system-ui';
+  ctx.textAlign = 'center';
+  if (gameMode === 1) {
+    ctx.fillText('Round ' + streakRound, W/2, 30);
+    var hearts = '';
+    for (var i = 0; i < 3; i++) hearts += (i < streakLives ? '❤️' : '🖤');
+    ctx.font = '22px system-ui';
+    ctx.fillText(hearts, W/2, 60);
+  } else {
+    ctx.fillText('Round ' + roundNum + '/' + totalRounds, W/2, 40);
+  }
+  
+  if (correct) {
+    // Time display
+    var color = lastTime < 200 ? '#66bb6a' : lastTime < 300 ? '#4fc3f7' : lastTime < 400 ? '#ffa726' : '#ff7043';
+    ctx.fillStyle = color;
+    ctx.font = 'bold 72px system-ui';
+    ctx.fillText(lastTime + 'ms', W/2, H/2);
+    
+    // Rating
+    var rating = lastTime < 150 ? '⚡ INCREDIBLE' : lastTime < 200 ? '🔥 EXCELLENT' : lastTime < 250 ? '✨ GREAT' : lastTime < 300 ? '👍 GOOD' : lastTime < 400 ? '😐 OK' : '🐢 SLOW';
+    ctx.font = '24px system-ui';
+    ctx.fillText(rating, W/2, H/2 + 60);
+  } else {
+    ctx.fillStyle = '#ff5252';
+    ctx.font = 'bold 36px system-ui';
+    ctx.fillText('✗ WRONG DIRECTION', W/2, H/2);
+    ctx.font = '18px system-ui';
+    ctx.fillStyle = '#888';
+    ctx.fillText('Expected ' + dirNames[targetDir], W/2, H/2 + 40);
+  }
+  
+  // Running stats
+  var valid = times.filter(function(t) { return t < 999; });
+  if (valid.length > 0) {
+    var avg = Math.round(valid.reduce(function(a,b){return a+b;},0) / valid.length);
+    ctx.fillStyle = '#555';
+    ctx.font = '14px system-ui';
+    if (gameMode === 1) {
+      ctx.fillText('Score: ' + streakScore + ' · Combo: ' + streakCombo + '× · Best: ' + Math.min.apply(null, valid) + 'ms', W/2, H - 40);
+    } else {
+      ctx.fillText('Avg: ' + avg + 'ms · Best: ' + Math.min.apply(null, valid) + 'ms', W/2, H - 40);
+    }
+  }
+}
+
+function drawFalseStart() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  
+  var elapsed = performance.now() - falseStartTime;
+  var shake = elapsed < 300 ? Math.sin(elapsed / 20) * 5 : 0;
+  
+  ctx.save();
+  ctx.translate(shake, 0);
+  
+  ctx.fillStyle = '#ff5252';
+  ctx.font = 'bold 36px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('⚠ TOO EARLY!', W/2, H/2 - 20);
+  
+  ctx.fillStyle = '#888';
+  ctx.font = '18px system-ui';
+  ctx.fillText('Wait for the cue before pressing', W/2, H/2 + 30);
+  
+  ctx.restore();
+  
+  if (elapsed > 1500) {
+    nextRound();
+  }
+}
+
+function drawSummary() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  
+  var valid = times.filter(function(t) { return t < 999; });
+  var avg = valid.length > 0 ? Math.round(valid.reduce(function(a,b){return a+b;},0) / valid.length) : 0;
+  var best = valid.length > 0 ? Math.min.apply(null, valid) : 0;
+  var worst = valid.length > 0 ? Math.max.apply(null, valid) : 0;
+  var misses = times.filter(function(t) { return t >= 999; }).length;
+  
+  ctx.textAlign = 'center';
+  
+  // Title
+  ctx.fillStyle = '#4fc3f7';
+  ctx.font = 'bold 32px system-ui';
+  ctx.fillText('SESSION COMPLETE', W/2, 60);
+  
+  // Grade
+  var grade = avg < 200 ? 'S' : avg < 250 ? 'A' : avg < 300 ? 'B' : avg < 350 ? 'C' : 'D';
+  var gradeColor = grade === 'S' ? '#ffd700' : grade === 'A' ? '#66bb6a' : grade === 'B' ? '#4fc3f7' : grade === 'C' ? '#ffa726' : '#ff7043';
+  ctx.fillStyle = gradeColor;
+  ctx.font = 'bold 80px system-ui';
+  ctx.fillText(grade, W/2, 160);
+  
+  // Stats
+  ctx.font = '20px system-ui';
+  ctx.fillStyle = '#e0e0e0';
+  var statY = 210;
+  
+  ctx.fillText('Average: ' + avg + 'ms', W/2, statY);
+  ctx.fillText('Best: ' + best + 'ms', W/2, statY + 35);
+  ctx.fillText('Worst: ' + worst + 'ms', W/2, statY + 70);
+  if (misses > 0) {
+    ctx.fillStyle = '#ff7043';
+    ctx.fillText('Misses: ' + misses, W/2, statY + 105);
+  }
+  
+  // Per-round bars
+  var barY = 360;
+  var barW = 400;
+  var barH = 16;
+  var maxTime = 500;
+  ctx.font = '11px system-ui';
+  
+  for (var i = 0; i < times.length; i++) {
+    var t = times[i];
+    var x = (W - barW) / 2;
+    var y = barY + i * (barH + 4);
+    var w = t < 999 ? Math.min(barW, (t / maxTime) * barW) : barW;
+    var c = t >= 999 ? '#ff5252' : t < 200 ? '#66bb6a' : t < 300 ? '#4fc3f7' : t < 400 ? '#ffa726' : '#ff7043';
+    
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(x, y, barW, barH);
+    ctx.fillStyle = c;
+    ctx.fillRect(x, y, w, barH);
+    
+    ctx.fillStyle = '#888';
+    ctx.textAlign = 'left';
+    ctx.fillText((i+1) + '.', x - 22, y + 12);
+    ctx.textAlign = 'right';
+    ctx.fillText(t < 999 ? t + 'ms' : 'MISS', x + barW + 45, y + 12);
+  }
+  
+  ctx.textAlign = 'center';
+  
+  // Records
+  if (records.best !== null) {
+    ctx.fillStyle = '#555';
+    ctx.font = '13px system-ui';
+    ctx.fillText('All-time best: ' + records.best + 'ms · Best avg: ' + records.avgBest + 'ms · Sessions: ' + records.sessions, W/2, H - 40);
+  }
+  
+  ctx.fillStyle = '#666';
+  ctx.font = '14px system-ui';
+  ctx.fillText('Enter: retry · Esc: menu', W/2, H - 15);
+}
+
+function drawStreakOver() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  
+  // Title
+  ctx.fillStyle = '#ff5252';
+  ctx.font = 'bold 36px system-ui';
+  ctx.fillText('GAME OVER', W/2, 70);
+  
+  // Final score
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 64px system-ui';
+  ctx.fillText(streakScore, W/2, 160);
+  ctx.fillStyle = '#888';
+  ctx.font = '16px system-ui';
+  ctx.fillText('SCORE', W/2, 185);
+  
+  // Stats
+  ctx.font = '20px system-ui';
+  ctx.fillStyle = '#e0e0e0';
+  ctx.fillText('Rounds Survived: ' + streakRound, W/2, 230);
+  ctx.fillText('Best Combo: ' + streakBestCombo + '×', W/2, 260);
+  
+  var valid = times.filter(function(t) { return t < 999; });
+  if (valid.length > 0) {
+    var avg = Math.round(valid.reduce(function(a,b){return a+b;},0) / valid.length);
+    var best = Math.min.apply(null, valid);
+    ctx.fillText('Avg: ' + avg + 'ms · Best: ' + best + 'ms', W/2, 290);
+  }
+  
+  // New record?
+  if (streakRound === records.streakBest && streakRound > 0) {
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 18px system-ui';
+    ctx.fillText('🏆 NEW RECORD!', W/2, 330);
+  }
+  
+  // Per-round bars (last 15 max)
+  var barY = 360;
+  var showTimes = times.slice(-15);
+  var barW = 360;
+  var barH = 12;
+  var maxTime = 500;
+  ctx.font = '10px system-ui';
+  
+  for (var i = 0; i < showTimes.length; i++) {
+    var t = showTimes[i];
+    var x = (W - barW) / 2;
+    var y = barY + i * (barH + 2);
+    var w = t < 999 ? Math.min(barW, (t / maxTime) * barW) : barW;
+    var c = t >= 999 ? '#ff5252' : t < 200 ? '#66bb6a' : t < 300 ? '#4fc3f7' : t < 400 ? '#ffa726' : '#ff7043';
+    
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(x, y, barW, barH);
+    ctx.fillStyle = c;
+    ctx.fillRect(x, y, w, barH);
+  }
+  
+  // Records
+  ctx.fillStyle = '#555';
+  ctx.font = '12px system-ui';
+  ctx.fillText('All-time: Round ' + records.streakBest + ' · Score ' + records.streakBestScore, W/2, H - 40);
+  
+  ctx.fillStyle = '#666';
+  ctx.font = '14px system-ui';
+  ctx.fillText('Enter: retry · Esc: menu', W/2, H - 15);
+}
+
+function drawAchievements() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 28px system-ui';
+  ctx.fillText('🏅 Achievements', W/2, 50);
+  ctx.fillStyle = '#888';
+  ctx.font = '14px system-ui';
+  ctx.fillText(getUnlockedCount() + '/' + ACHIEVEMENTS.length + ' unlocked', W/2, 75);
+  
+  for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+    var ach = ACHIEVEMENTS[i];
+    var unlocked = !!records.achievements[ach.id];
+    var y = 110 + i * 58;
+    
+    if (unlocked) {
+      ctx.fillStyle = '#1a2a1a';
+      ctx.beginPath();
+      ctx.roundRect(60, y - 18, 480, 50, 8);
+      ctx.fill();
+      ctx.strokeStyle = '#66bb6a44';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#1a1a1a';
+      ctx.beginPath();
+      ctx.roundRect(60, y - 18, 480, 50, 8);
+      ctx.fill();
+    }
+    
+    ctx.textAlign = 'left';
+    ctx.font = '22px system-ui';
+    ctx.fillStyle = unlocked ? '#e0e0e0' : '#444';
+    ctx.fillText(unlocked ? ach.icon : '🔒', 80, y + 10);
+    
+    ctx.font = 'bold 16px system-ui';
+    ctx.fillStyle = unlocked ? '#e0e0e0' : '#555';
+    ctx.fillText(unlocked ? ach.name : '???', 115, y + 4);
+    
+    ctx.font = '13px system-ui';
+    ctx.fillStyle = unlocked ? '#888' : '#444';
+    ctx.fillText(unlocked ? ach.desc : 'Keep playing to discover', 115, y + 22);
+    
+    ctx.textAlign = 'center';
+  }
+  
+  ctx.fillStyle = '#555';
+  ctx.font = '13px system-ui';
+  ctx.fillText('Esc: back to menu', W/2, H - 15);
+}
+
+function drawToast() {
+  if (!achievementToast) return;
+  var elapsed = performance.now() - achievementToastTime;
+  if (elapsed > 3000) { achievementToast = null; return; }
+  
+  var alpha = elapsed < 300 ? elapsed / 300 : elapsed > 2500 ? 1 - (elapsed - 2500) / 500 : 1;
+  var slideY = elapsed < 300 ? 20 - (elapsed / 300) * 20 : 0;
+  
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#1a3a1a';
+  ctx.beginPath();
+  ctx.roundRect(120, 500 + slideY, 360, 50, 10);
+  ctx.fill();
+  ctx.strokeStyle = '#66bb6a';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 16px system-ui';
+  ctx.fillText(achievementToast.icon + ' ' + achievementToast.name + ' Unlocked!', W/2, 530 + slideY);
+  ctx.restore();
+}
+
+function draw() {
+  updateMicLevel();
+  if (state === STATE_MENU) drawMenu();
+  else if (state === STATE_WAITING) drawWaiting();
+  else if (state === STATE_READY) drawReady();
+  else if (state === STATE_RESULT) drawResult();
+  else if (state === STATE_FALSE) drawFalseStart();
+  else if (state === STATE_SUMMARY) drawSummary();
+  else if (state === STATE_STREAK_OVER) drawStreakOver();
+  else if (state === STATE_ACHIEVEMENTS) drawAchievements();
+  
+  // Achievement toast overlay
+  drawToast();
+  
+  requestAnimationFrame(draw);
+}
+
+// Input
+document.addEventListener('keydown', function(e) {
+  e.preventDefault();
+  initAudio();
+  
+  if (state === STATE_MENU) {
+    if (e.key === 'ArrowUp') menuIdx = (menuIdx + 3) % 4;
+    else if (e.key === 'ArrowDown') menuIdx = (menuIdx + 1) % 4;
+    else if (e.key === 'ArrowLeft' && menuIdx === 1) mode = (mode + 2) % 3;
+    else if (e.key === 'ArrowRight' && menuIdx === 1) mode = (mode + 1) % 3;
+    else if (e.key === 'ArrowLeft' && menuIdx === 2) gameMode = (gameMode + 1) % 2;
+    else if (e.key === 'ArrowRight' && menuIdx === 2) gameMode = (gameMode + 1) % 2;
+    else if (e.key === 'Enter') {
+      if (menuIdx === 0) startSession();
+      else if (menuIdx === 1) mode = (mode + 1) % 3;
+      else if (menuIdx === 2) gameMode = (gameMode + 1) % 2;
+      else if (menuIdx === 3) state = STATE_ACHIEVEMENTS;
+    }
+    return;
+  }
+  
+  if (state === STATE_ACHIEVEMENTS) {
+    if (e.key === 'Escape') { state = STATE_MENU; }
+    return;
+  }
+  
+  if (state === STATE_SUMMARY || state === STATE_STREAK_OVER) {
+    if (e.key === 'Enter') startSession();
+    else if (e.key === 'Escape') { state = STATE_MENU; menuIdx = 0; }
+    return;
+  }
+  
+  if (e.key === 'Escape') {
+    clearTimeout(waitTimeout);
+    state = STATE_MENU;
+    menuIdx = 0;
+    return;
+  }
+  
+  // D-pad response during waiting or ready
+  var dirIdx = dirKeys.indexOf(e.key);
+  if (dirIdx >= 0) {
+    handleResponse(dirIdx);
+  }
+});
+
+// Start
+draw();
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

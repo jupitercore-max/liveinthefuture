@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Step Counter — LITF</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;color:#e0e0e0;font-family:system-ui,-apple-system,sans-serif;user-select:none}
+canvas{display:block}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+var canvas=document.getElementById('c'),ctx=canvas.getContext('2d'),W=600,H=600;
+
+// --- Rank System ---
+var RANKS=[
+  {name:'Couch Potato',threshold:0,emoji:'🥔',progressFreq:500,strideMult:1.0},
+  {name:'Ambler',threshold:1000,emoji:'🚶',progressFreq:450,strideMult:1.03},
+  {name:'Walker',threshold:5000,emoji:'🏃',progressFreq:400,strideMult:1.05},
+  {name:'Strider',threshold:20000,emoji:'🥾',progressFreq:350,strideMult:1.08},
+  {name:'Trekker',threshold:50000,emoji:'🧭',progressFreq:300,strideMult:1.12},
+  {name:'Marathoner',threshold:100000,emoji:'🏅',progressFreq:250,strideMult:1.15},
+  {name:'Pathfinder',threshold:250000,emoji:'⭐',progressFreq:200,strideMult:1.18},
+  {name:'Road Legend',threshold:500000,emoji:'👑',progressFreq:150,strideMult:1.20}
+];
+function getRankIdx(t){for(var i=RANKS.length-1;i>=0;i--)if(t>=RANKS[i].threshold)return i;return 0}
+
+// --- Daily Challenges ---
+var walkStreakMs=0,walkStreakStart=0,burstStamps=[],zonesHit={STROLL:false,WALK:false,BRISK:false,RUN:false};
+var CHALLENGES=[
+  {name:'Speed Walker',desc:'Reach BRISK pace',icon:'⚡',check:function(){return smoothPace>=110}},
+  {name:'Century',desc:'100 session steps',icon:'💯',check:function(){return sessionSteps>=100}},
+  {name:'Steady March',desc:'WALK 60s straight',icon:'🎯',check:function(){return walkStreakMs>=60000}},
+  {name:'Quick Burst',desc:'50 steps in 60s',icon:'🔥',check:function(){var n=Date.now();while(burstStamps.length&&n-burstStamps[0]>60000)burstStamps.shift();return burstStamps.length>=50}},
+  {name:'Halfway',desc:'Reach 50% of goal',icon:'🏔',check:function(){return steps>=goal/2}},
+  {name:'Zone Tour',desc:'Hit all 4 pace zones',icon:'🌈',check:function(){return zonesHit.STROLL&&zonesHit.WALK&&zonesHit.BRISK&&zonesHit.RUN}},
+  {name:'Thousand',desc:'1,000 steps today',icon:'🏁',check:function(){return steps>=1000}}
+];
+var dailyChallenge=null,challengeComplete=false,challengeFlash=0;
+
+// --- Walk Quests ---
+var QUESTS=[
+  {id:'sprint',name:'Sprint Burst',desc:'Reach BRISK pace',icon:'⚡',timeLimitS:20,bonus:50,
+    check:function(q){return smoothPace>=110},progress:function(q){return smoothPace>=110?1:smoothPace/110}},
+  {id:'steady',name:'Steady Walker',desc:'Hold WALK pace 30s',icon:'🎯',timeLimitS:45,bonus:75,
+    check:function(q){return q.holdMs>=30000},progress:function(q){return Math.min(1,q.holdMs/30000)},
+    init:function(q){q.holdMs=0;q.lastTick=Date.now()},
+    tick:function(q){var n=Date.now();if(smoothPace>=80&&smoothPace<130){q.holdMs+=n-q.lastTick}else{q.holdMs=Math.max(0,q.holdMs-200)};q.lastTick=n}},
+  {id:'switch',name:'Pace Switch',desc:'Change zones 3 times',icon:'🔀',timeLimitS:35,bonus:60,
+    check:function(q){return q.switches>=3},progress:function(q){return Math.min(1,q.switches/3)},
+    init:function(q){q.switches=0;q.lastZone=paceZone}},
+  {id:'flurry',name:'Step Flurry',desc:'30 steps in 20s',icon:'🔥',timeLimitS:25,bonus:40,
+    check:function(q){return q.count>=30},progress:function(q){return Math.min(1,q.count/30)},
+    init:function(q){q.count=0}},
+  {id:'cooldown',name:'Cool Down',desc:'Slow to STROLL for 15s',icon:'🧊',timeLimitS:30,bonus:35,
+    check:function(q){return q.coolMs>=15000},progress:function(q){return Math.min(1,q.coolMs/15000)},
+    init:function(q){q.coolMs=0;q.lastTick=Date.now()},
+    tick:function(q){var n=Date.now();if(smoothPace>0&&smoothPace<80){q.coolMs+=n-q.lastTick}else{q.coolMs=Math.max(0,q.coolMs-300)};q.lastTick=n}},
+  {id:'power',name:'Power Walk',desc:'50 steps above WALK',icon:'💪',timeLimitS:40,bonus:80,
+    check:function(q){return q.count>=50&&!q.dropped},progress:function(q){return q.dropped?0:Math.min(1,q.count/50)},
+    init:function(q){q.count=0;q.dropped=false}},
+  {id:'interval',name:'Interval',desc:'BRISK→STROLL→BRISK',icon:'📈',timeLimitS:45,bonus:70,
+    check:function(q){return q.phase>=3},progress:function(q){return Math.min(1,q.phase/3)},
+    init:function(q){q.phase=0}},
+  {id:'endurance',name:'Endurance',desc:'200 steps non-stop',icon:'🏔',timeLimitS:180,bonus:100,
+    check:function(q){return q.count>=200},progress:function(q){return Math.min(1,q.count/200)},
+    init:function(q){q.count=0;q.gapMs=0;q.lastStep=Date.now()}}
+];
+var activeQuest=null,questCooldown=0,nextQuestAt=0,questsCompleted=0;
+var questDiscovery={};
+try{var qd=JSON.parse(localStorage.getItem('litf_steps_quests'));if(qd)questDiscovery=qd}catch(e){}
+function questDiscoveredCount(){var c=0;for(var k in questDiscovery)if(questDiscovery[k])c++;return c}
+var nextQuestAtInit=50+Math.floor(Math.random()*50);
+function spawnQuest(){
+  if(activeQuest||questCooldown>0)return;
+  // Pick a random quest not recently done
+  var idx=Math.floor(Math.random()*QUESTS.length);
+  var q=Object.assign({},QUESTS[idx]);
+  q.startTime=Date.now();q.elapsed=0;
+  if(q.init)q.init(q);
+  activeQuest=q;
+  playQuestAppear();
+  addNotification(q.icon+' QUEST: '+q.name,'#e0a0ff');
+  nextQuestAt=sessionSteps+150+Math.floor(Math.random()*100);
+}
+function tickQuest(){
+  if(!activeQuest)return;
+  var q=activeQuest;
+  q.elapsed=(Date.now()-q.startTime)/1000;
+  if(q.tick)q.tick(q);
+  // Zone switch tracking
+  if(q.id==='switch'&&paceZone!==q.lastZone&&paceZone!=='IDLE'){q.switches++;q.lastZone=paceZone}
+  // Interval tracking
+  if(q.id==='interval'){
+    if(q.phase===0&&smoothPace>=110)q.phase=1;
+    else if(q.phase===1&&smoothPace<80&&smoothPace>0)q.phase=2;
+    else if(q.phase===2&&smoothPace>=110)q.phase=3;
+  }
+  // Check completion
+  if(q.check(q)){
+    questsCompleted++;
+    steps+=q.bonus;
+    if(!questDiscovery[q.id]){questDiscovery[q.id]=true;try{localStorage.setItem('litf_steps_quests',JSON.stringify(questDiscovery))}catch(e){}}
+    playQuestComplete();
+    addNotification('✓ '+q.icon+' +'+q.bonus+' bonus steps!','#a0ffb0');
+    activeQuest=null;questCooldown=30;
+    save();return;
+  }
+  // Check timeout
+  if(q.elapsed>=q.timeLimitS){
+    playQuestFail();
+    addNotification('✗ '+q.icon+' Quest expired','#ff6666');
+    activeQuest=null;questCooldown=60;
+  }
+}
+function questStepRegistered(){
+  if(!activeQuest)return;
+  var q=activeQuest;
+  if(q.id==='flurry')q.count++;
+  if(q.id==='power'){if(smoothPace>=80)q.count++;else q.dropped=true}
+  if(q.id==='endurance'){var n=Date.now();if(n-q.lastStep>3000)q.count=0;else q.count++;q.lastStep=n}
+}
+
+// --- State ---
+var steps=0,goal=10000,sessionSteps=0,sessionStart=Date.now();
+var pace=0,recentSteps=[],smoothPace=0;
+var strideBase=0.75,caloriesPerStep=0.04;
+var goalOptions=[1000,2000,3000,5000,7500,10000,15000,20000],goalIndex=5;
+
+// Step detection
+var lastStepTime=0,stepThreshold=1.2,minStepInterval=280;
+var peakDetected=false,smoothAccel=9.81;
+var demoMode=false,demoTimer=0,motionAvailable=false;
+
+// Cadence audio
+var cadenceAudioEnabled=true;
+var paceZone='IDLE';
+var paceZoneColors={IDLE:'#555',STROLL:'#78909c',WALK:'#4fc3f7',BRISK:'#66bb6a',RUN:'#ff7043'};
+var paceZonePitch={STROLL:220,WALK:330,BRISK:440,RUN:550};
+try{var cp=localStorage.getItem('litf_steps_cadence');if(cp!==null)cadenceAudioEnabled=cp==='1'}catch(e){}
+
+// Audio
+var audioCtx=null,audioInited=false;
+
+// Milestones
+var milestones=[100,500,1000,2000,3000,5000,7500,10000,15000,20000];
+var lastMilestone=0;
+var goalReached=false,goalFlashTime=0;
+
+// Notifications
+var notifications=[];
+function addNotification(text,color){notifications.push({text:text,color:color||'#4fc3f7',y:280,alpha:1,age:0})}
+
+// --- Persistence ---
+var today=new Date().toISOString().slice(0,10);
+var savedData=null;
+try{savedData=JSON.parse(localStorage.getItem('litf_steps_'+today))}catch(e){}
+if(savedData){steps=savedData.steps||0;goal=savedData.goal||10000;goalIndex=goalOptions.indexOf(goal);if(goalIndex<0)goalIndex=5}
+
+// Lifetime stats
+var lifeStats={totalSteps:0,totalDays:1,bestDay:0,currentStreak:0,longestStreak:0,lastDay:today};
+try{var ls=JSON.parse(localStorage.getItem('litf_steps_life'));if(ls)for(var k in ls)lifeStats[k]=ls[k]}catch(e){}
+// Track new day
+if(lifeStats.lastDay!==today){lifeStats.totalDays++;lifeStats.lastDay=today}
+var stepsAtLoad=steps; // steps already counted today before this session
+var lifetimePriorDays=lifeStats.totalSteps; // lifetime total at start of today (approximation)
+
+// Streak calculation — scan localStorage for consecutive goal-met days
+function calcStreak(){
+  try{
+    var metDays={};
+    for(var i=0;i<localStorage.length;i++){
+      var key=localStorage.key(i);
+      if(key&&key.indexOf('litf_steps_20')===0){
+        var dk=key.replace('litf_steps_','');
+        if(dk.length===10){var d=JSON.parse(localStorage.getItem(key));if(d&&d.steps>=(d.goal||10000))metDays[dk]=true}
+      }
+    }
+    // Count backward from yesterday
+    var streak=0,d=new Date();d.setDate(d.getDate()-1);
+    while(true){var ds=d.toISOString().slice(0,10);if(metDays[ds]){streak++;d.setDate(d.getDate()-1)}else break}
+    if(steps>=goal)streak++; // today counts if goal met
+    lifeStats.currentStreak=streak;
+    if(streak>lifeStats.longestStreak)lifeStats.longestStreak=streak;
+  }catch(e){}
+}
+calcStreak();
+if(steps>lifeStats.bestDay)lifeStats.bestDay=steps;
+
+// Rank
+var currentRankIdx=getRankIdx(lifeStats.totalSteps);
+
+// Daily challenge — deterministic by date
+(function(){
+  var dn=parseInt(today.replace(/-/g,''));
+  dailyChallenge=CHALLENGES[dn%CHALLENGES.length];
+  try{if(localStorage.getItem('litf_steps_ch_'+today)==='1')challengeComplete=true}catch(e){}
+})();
+
+function saveLife(){try{localStorage.setItem('litf_steps_life',JSON.stringify(lifeStats))}catch(e){}}
+
+function save(){
+  try{
+    localStorage.setItem('litf_steps_'+today,JSON.stringify({steps:steps,goal:goal}));
+    if(steps>lifeStats.bestDay)lifeStats.bestDay=steps;
+    lifeStats.totalSteps=lifetimePriorDays+steps;
+    // Check rank up
+    var nr=getRankIdx(lifeStats.totalSteps);
+    if(nr>currentRankIdx){currentRankIdx=nr;playRankUp();addNotification('⬆ '+RANKS[nr].emoji+' '+RANKS[nr].name+'!','#ffd700')}
+    currentRankIdx=nr;
+    calcStreak();
+    saveLife();
+  }catch(e){}
+}
+
+// --- Audio ---
+function initAudio(){if(audioInited)return;try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();audioInited=true}catch(e){}}
+
+function playTone(freq,dur,vol,type,delay){
+  if(!audioCtx)return;var o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.connect(g);g.connect(audioCtx.destination);o.type=type||'triangle';o.frequency.value=freq;
+  var t=audioCtx.currentTime+(delay||0);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol||0.1,t+0.02);
+  g.gain.exponentialRampToValueAtTime(0.001,t+(dur||0.3));o.start(t);o.stop(t+(dur||0.3)+0.05);
+}
+
+function playRankUp(){
+  if(!audioCtx)return;
+  var notes=[523,659,784,1047];
+  for(var i=0;i<notes.length;i++)playTone(notes[i],0.45,0.14,'triangle',i*0.12);
+}
+
+function playChallengeWin(){
+  if(!audioCtx)return;
+  var notes=[659,784,1047,1319];
+  for(var i=0;i<notes.length;i++)playTone(notes[i],0.35,0.12,'sine',i*0.1);
+}
+
+function playMilestone(level){
+  if(!audioCtx)return;
+  var notes=[523,659,784];
+  if(level>=5000)notes.push(1047);
+  if(level>=10000)notes.push(1319);
+  for(var i=0;i<notes.length;i++)playTone(notes[i],0.35,0.12,'triangle',i*0.15);
+}
+
+function playGoalReached(){
+  if(!audioCtx)return;
+  var notes=[523,659,784,1047,1047],durs=[0.15,0.15,0.15,0.15,0.4];
+  var t=0;for(var i=0;i<notes.length;i++){playTone(notes[i],durs[i],0.15,'triangle',t);t+=durs[i]}
+}
+
+function playCadenceTick(){
+  if(!audioCtx||!cadenceAudioEnabled||paceZone==='IDLE')return;
+  var freq=paceZonePitch[paceZone]||330;
+  // Richer tick at higher ranks — add a harmonic
+  var o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.connect(g);g.connect(audioCtx.destination);o.type='triangle';o.frequency.value=freq;
+  var t=audioCtx.currentTime;
+  g.gain.setValueAtTime(0.02,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.05);
+  o.start(t);o.stop(t+0.06);
+  if(currentRankIdx>=4){
+    // Harmonic overtone for Trekker+
+    var o2=audioCtx.createOscillator(),g2=audioCtx.createGain();
+    o2.connect(g2);g2.connect(audioCtx.destination);o2.type='sine';o2.frequency.value=freq*1.5;
+    g2.gain.setValueAtTime(0.008,t);g2.gain.exponentialRampToValueAtTime(0.001,t+0.04);
+    o2.start(t);o2.stop(t+0.05);
+  }
+}
+
+function playPaceZoneChange(oldZ,newZ){
+  if(!audioCtx||!cadenceAudioEnabled)return;
+  var f1=paceZonePitch[oldZ]||220,f2=paceZonePitch[newZ]||330;
+  playTone(f1,0.15,0.08,'sine',0);playTone(f2,0.15,0.08,'sine',0.12);
+}
+
+function playQuestAppear(){
+  if(!audioCtx)return;
+  playTone(330,0.12,0.1,'sine',0);playTone(440,0.12,0.1,'sine',0.1);playTone(554,0.15,0.1,'sine',0.2);
+}
+function playQuestComplete(){
+  if(!audioCtx)return;
+  var notes=[523,659,784,1047];
+  for(var i=0;i<notes.length;i++)playTone(notes[i],0.3,0.13,'triangle',i*0.1);
+}
+function playQuestFail(){
+  if(!audioCtx)return;
+  playTone(330,0.2,0.08,'sawtooth',0);playTone(220,0.3,0.08,'sawtooth',0.15);
+}
+
+function getPaceZone(p){if(p<10)return'IDLE';if(p<80)return'STROLL';if(p<110)return'WALK';if(p<130)return'BRISK';return'RUN'}
+
+function isOnPace(){
+  var now=new Date(),hrsLeft=Math.max(0.5,(23-now.getHours())+(60-now.getMinutes())/60);
+  return steps+pace*hrsLeft*60>=goal;
+}
+
+function playProgressChime(){
+  if(!audioCtx||!cadenceAudioEnabled)return;
+  var op=isOnPace();
+  var notes=op?[440,554]:[440,349];
+  playTone(notes[0],0.2,0.1,'triangle',0);playTone(notes[1],0.2,0.1,'triangle',0.15);
+  addNotification(op?'✓ ON PACE':'⚠ BEHIND PACE',op?'#66bb6a':'#ff7043');
+}
+
+// --- Step Registration ---
+function registerStep(){
+  steps++;sessionSteps++;
+  var rankMult=RANKS[currentRankIdx].strideMult;
+  var stride=strideBase*rankMult;
+  var now=Date.now();
+  recentSteps.push(now);
+  burstStamps.push(now);
+  while(recentSteps.length>0&&now-recentSteps[0]>60000)recentSteps.shift();
+  pace=recentSteps.length;
+
+  playCadenceTick();
+
+  questStepRegistered();
+
+  smoothPace=smoothPace*0.7+pace*0.3;
+  var newZone=getPaceZone(smoothPace);
+  if(newZone!=='IDLE')zonesHit[newZone]=true;
+
+  // Walk streak tracking for challenge
+  if(newZone==='WALK'){
+    if(!walkStreakStart)walkStreakStart=now;
+    walkStreakMs=now-walkStreakStart;
+  }else{walkStreakStart=0;walkStreakMs=0}
+
+  if(newZone!==paceZone&&newZone!=='IDLE'&&paceZone!=='IDLE'){
+    playPaceZoneChange(paceZone,newZone);
+    addNotification(newZone+' PACE',paceZoneColors[newZone]);
+  }
+  paceZone=newZone;
+
+  // Progress chime at rank-specific frequency
+  var freq=RANKS[currentRankIdx].progressFreq;
+  if(steps%freq===0&&steps>0)playProgressChime();
+
+  // Milestone check
+  for(var i=0;i<milestones.length;i++){
+    if(steps>=milestones[i]&&lastMilestone<milestones[i]){
+      lastMilestone=milestones[i];
+      if(milestones[i]===goal)playGoalReached();else playMilestone(milestones[i]);
+    }
+  }
+
+  // Challenge check
+  if(!challengeComplete&&dailyChallenge&&dailyChallenge.check()){
+    challengeComplete=true;challengeFlash=150;
+    playChallengeWin();
+    addNotification('✓ '+dailyChallenge.icon+' CHALLENGE COMPLETE!','#ffd700');
+    try{localStorage.setItem('litf_steps_ch_'+today,'1')}catch(e){}
+  }
+
+  save();
+}
+
+// --- DeviceMotion ---
+function initMotion(){
+  if(typeof DeviceMotionEvent!=='undefined'){
+    if(typeof DeviceMotionEvent.requestPermission==='function'){
+      DeviceMotionEvent.requestPermission().then(function(s){
+        if(s==='granted'){window.addEventListener('devicemotion',onMotion);motionAvailable=true}else demoMode=true;
+      }).catch(function(){demoMode=true});
+    }else{
+      window.addEventListener('devicemotion',onMotion);
+      setTimeout(function(){if(!motionAvailable)demoMode=true},2000);
+    }
+  }else demoMode=true;
+}
+function onMotion(e){
+  var a=e.accelerationIncludingGravity;
+  if(!a||a.x===null){demoMode=true;return}
+  motionAvailable=true;
+  var mag=Math.sqrt(a.x*a.x+a.y*a.y+a.z*a.z);
+  smoothAccel=smoothAccel*0.8+mag*0.2;
+  var diff=Math.abs(mag-smoothAccel),now=Date.now();
+  if(diff>stepThreshold&&!peakDetected&&now-lastStepTime>minStepInterval){
+    peakDetected=true;lastStepTime=now;registerStep();
+  }
+  if(diff<stepThreshold*0.5)peakDetected=false;
+}
+function demoStep(){if(!demoMode)return;demoTimer++;if(demoTimer%30===0)registerStep()}
+
+// --- Update ---
+function update(){
+  var now=Date.now();
+  while(recentSteps.length>0&&now-recentSteps[0]>60000)recentSteps.shift();
+  pace=recentSteps.length;
+  if(recentSteps.length===0&&smoothPace>0){smoothPace*=0.995;if(smoothPace<1)smoothPace=0}
+  var z=getPaceZone(smoothPace);
+  if(z!==paceZone)paceZone=z;
+  // Walk streak decay
+  if(paceZone!=='WALK'){walkStreakStart=0;walkStreakMs=0}
+  // Quest system
+  if(questCooldown>0)questCooldown--;
+  tickQuest();
+  if(!activeQuest&&sessionSteps>=nextQuestAt&&sessionSteps>=nextQuestAtInit)spawnQuest();
+}
+
+// --- Render ---
+function formatTime(ms){
+  var s=Math.floor(ms/1000),m=Math.floor(s/60),h=Math.floor(m/60);m%=60;s%=60;
+  if(h>0)return h+':'+(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  return m+':'+(s<10?'0':'')+s;
+}
+
+function draw(){
+  ctx.fillStyle='#0d0d0d';ctx.fillRect(0,0,W,H);
+
+  var progress=Math.min(steps/goal,1),pct=Math.round(progress*100);
+
+  if(steps>=goal&&!goalReached){goalReached=true;goalFlashTime=120;addNotification('🎉 GOAL REACHED!','#ffd700')}
+
+  // --- Header: Rank + Streak ---
+  ctx.textAlign='center';ctx.textBaseline='middle';
+
+  var rank=RANKS[currentRankIdx];
+  var nextRank=currentRankIdx<RANKS.length-1?RANKS[currentRankIdx+1]:null;
+  var totalNow=lifeStats.totalSteps;
+
+  // Rank badge
+  ctx.font='bold 14px system-ui';ctx.fillStyle='#888';
+  ctx.fillText('🚶 STEP COUNTER',W/2,20);
+
+  ctx.font='bold 13px system-ui';ctx.fillStyle='#aaa';
+  ctx.fillText(rank.emoji+' '+rank.name,W/2,40);
+
+  // Rank progress bar
+  if(nextRank){
+    var rp=(totalNow-rank.threshold)/(nextRank.threshold-rank.threshold);
+    rp=Math.max(0,Math.min(1,rp));
+    var rpW=160,rpH=4,rpX=(W-rpW)/2,rpY=50;
+    ctx.fillStyle='#1a1a1a';ctx.beginPath();ctx.roundRect(rpX,rpY,rpW,rpH,2);ctx.fill();
+    ctx.fillStyle='#4a9eff';ctx.beginPath();ctx.roundRect(rpX,rpY,rpW*rp,rpH,2);ctx.fill();
+    ctx.font='9px system-ui';ctx.fillStyle='#555';
+    ctx.fillText(totalNow.toLocaleString()+' / '+nextRank.threshold.toLocaleString()+' → '+nextRank.emoji+' '+nextRank.name,W/2,64);
+  }else{
+    ctx.font='9px system-ui';ctx.fillStyle='#ffd700';
+    ctx.fillText('MAX RANK — '+totalNow.toLocaleString()+' lifetime steps',W/2,64);
+  }
+
+  // Streak + best day
+  var streakStr=lifeStats.currentStreak>0?('🔥 '+lifeStats.currentStreak+' day streak'):'';
+  var bestStr='Best: '+lifeStats.bestDay.toLocaleString();
+  ctx.font='11px system-ui';ctx.fillStyle=lifeStats.currentStreak>=7?'#ff7043':lifeStats.currentStreak>=3?'#ffab40':'#666';
+  if(streakStr)ctx.fillText(streakStr+'  •  '+bestStr,W/2,80);
+  else ctx.fillText(bestStr+'  •  Longest streak: '+lifeStats.longestStreak,W/2,80);
+
+  // --- Progress Ring ---
+  var cx=W/2,cy=200,radius=110,lineWidth=16;
+
+  ctx.beginPath();ctx.arc(cx,cy,radius,0,Math.PI*2);ctx.strokeStyle='#1a1a1a';ctx.lineWidth=lineWidth;ctx.stroke();
+
+  var startAngle=-Math.PI/2,endAngle=startAngle+progress*Math.PI*2;
+  var gradient=ctx.createLinearGradient(cx-radius,cy,cx+radius,cy);
+  if(progress<0.5){gradient.addColorStop(0,'#4fc3f7');gradient.addColorStop(1,'#29b6f6')}
+  else if(progress<1){gradient.addColorStop(0,'#66bb6a');gradient.addColorStop(1,'#43a047')}
+  else{gradient.addColorStop(0,'#ffd700');gradient.addColorStop(1,'#ffab00')}
+  ctx.beginPath();ctx.arc(cx,cy,radius,startAngle,endAngle);ctx.strokeStyle=gradient;ctx.lineWidth=lineWidth;ctx.lineCap='round';ctx.stroke();
+
+  if(goalFlashTime>0){goalFlashTime--;var fa=(Math.sin(goalFlashTime*0.3)+1)/2*0.15;
+    ctx.beginPath();ctx.arc(cx,cy,radius+20,0,Math.PI*2);ctx.fillStyle='rgba(255,215,0,'+fa+')';ctx.fill()}
+
+  ctx.font='bold 58px system-ui';ctx.fillStyle=progress>=1?'#ffd700':'#e0e0e0';
+  ctx.fillText(steps.toLocaleString(),cx,cy-8);
+  ctx.font='14px system-ui';ctx.fillStyle='#666';ctx.fillText('steps',cx,cy+28);
+  ctx.font='bold 18px system-ui';ctx.fillStyle=progress>=1?'#ffd700':'#4fc3f7';
+  ctx.fillText(pct+'%',cx,cy+50);
+
+  // Pace zone in ring
+  if(paceZone!=='IDLE'){
+    ctx.font='bold 13px system-ui';ctx.fillStyle=paceZoneColors[paceZone];
+    ctx.fillText('♪ '+paceZone,cx,cy+70);
+  }
+
+  // --- Daily Challenge ---
+  if(dailyChallenge){
+    var chY=325;
+    if(challengeFlash>0){challengeFlash--;ctx.globalAlpha=0.05+0.05*Math.sin(challengeFlash*0.3)}
+    if(challengeComplete){
+      ctx.font='bold 13px system-ui';ctx.fillStyle='#ffd700';
+      ctx.fillText('✓ '+dailyChallenge.icon+' '+dailyChallenge.name+' — COMPLETE!',W/2,chY);
+    }else{
+      ctx.font='bold 13px system-ui';ctx.fillStyle='#4a9eff';
+      ctx.fillText('TODAY: '+dailyChallenge.icon+' '+dailyChallenge.name,W/2,chY);
+      ctx.font='11px system-ui';ctx.fillStyle='#666';
+      ctx.fillText(dailyChallenge.desc,W/2,chY+16);
+    }
+    ctx.globalAlpha=1;
+  }
+
+  // --- Active Quest ---
+  if(activeQuest){
+    var qY=348;
+    var q=activeQuest;
+    var timeLeft=Math.max(0,q.timeLimitS-q.elapsed);
+    var prog=q.progress(q);
+    var urgent=timeLeft<5;
+    // Quest background
+    ctx.fillStyle=urgent?'rgba(255,60,60,0.08)':'rgba(180,120,255,0.06)';
+    ctx.beginPath();ctx.roundRect(50,qY-12,500,30,6);ctx.fill();
+    // Progress bar
+    var qBarW=180,qBarH=4,qBarX=W/2-qBarW/2,qBarY=qY+12;
+    ctx.fillStyle='#222';ctx.beginPath();ctx.roundRect(qBarX,qBarY,qBarW,qBarH,2);ctx.fill();
+    ctx.fillStyle=urgent?'#ff4444':'#c080ff';ctx.beginPath();ctx.roundRect(qBarX,qBarY,qBarW*prog,qBarH,2);ctx.fill();
+    // Quest text
+    ctx.font='bold 12px system-ui';ctx.fillStyle=urgent?'#ff6666':'#c080ff';
+    ctx.fillText(q.icon+' '+q.name+': '+q.desc,W/2,qY);
+    ctx.font='10px system-ui';ctx.fillStyle=urgent?'#ff4444':'#888';
+    ctx.fillText(Math.ceil(timeLeft)+'s left  •  '+Math.round(prog*100)+'%',W/2,qY+24);
+  }else if(sessionSteps>10&&questDiscoveredCount()>0){
+    // Show quest discovery count when no active quest
+    ctx.font='10px system-ui';ctx.fillStyle='#555';
+    ctx.fillText('🗺 Quests: '+questDiscoveredCount()+'/'+QUESTS.length+(questsCompleted>0?' • '+questsCompleted+' done this session':''),W/2,350);
+  }
+
+  // --- Stats row ---
+  var rankMult=RANKS[currentRankIdx].strideMult;
+  var dist=steps*strideBase*rankMult;
+  var cal=Math.round(steps*caloriesPerStep);
+  var statsY=370;
+  var stats=[
+    {label:'DISTANCE',value:dist>=1000?(dist/1000).toFixed(1)+' km':Math.round(dist)+' m'},
+    {label:'PACE',value:pace+' /min'},
+    {label:'CALORIES',value:cal},
+    {label:'TIME',value:formatTime(Date.now()-sessionStart)}
+  ];
+  var statWidth=W/stats.length;
+  for(var i=0;i<stats.length;i++){
+    var sx=statWidth*i+statWidth/2;
+    ctx.font='10px system-ui';ctx.fillStyle='#555';ctx.fillText(stats[i].label,sx,statsY);
+    ctx.font='bold 20px system-ui';ctx.fillStyle='#aaa';ctx.fillText(stats[i].value,sx,statsY+22);
+  }
+
+  // --- Pace zone bar ---
+  var pzY=418,pzW=400,pzH=5,pzX=(W-pzW)/2;
+  var zones=['STROLL','WALK','BRISK','RUN'];
+  var segW=pzW/zones.length;
+  for(var zi=0;zi<zones.length;zi++){
+    var isActive=paceZone===zones[zi];
+    ctx.fillStyle=isActive?paceZoneColors[zones[zi]]:'#1a1a1a';
+    ctx.globalAlpha=isActive?1:0.4;
+    ctx.beginPath();ctx.roundRect(pzX+zi*segW+1,pzY,segW-2,pzH,3);ctx.fill();
+    ctx.globalAlpha=1;
+    ctx.font='9px system-ui';ctx.fillStyle=isActive?paceZoneColors[zones[zi]]:'#333';
+    ctx.fillText(zones[zi],pzX+zi*segW+segW/2,pzY+15);
+    // Checkmark if zone visited (for Zone Tour challenge)
+    if(zonesHit[zones[zi]]){
+      ctx.font='8px system-ui';ctx.fillStyle='#4a7';
+      ctx.fillText('✓',pzX+zi*segW+segW/2+20,pzY+15);
+    }
+  }
+
+  // --- Goal bar ---
+  var barY=455,barW=400,barH=7,barX=(W-barW)/2;
+  ctx.fillStyle='#1a1a1a';ctx.beginPath();ctx.roundRect(barX,barY,barW,barH,4);ctx.fill();
+  ctx.fillStyle=progress>=1?'#ffd700':'#4fc3f7';ctx.beginPath();ctx.roundRect(barX,barY,barW*progress,barH,4);ctx.fill();
+
+  ctx.font='11px system-ui';ctx.fillStyle='#555';ctx.textAlign='left';
+  ctx.fillText('Goal: '+goal.toLocaleString(),barX,barY+22);
+  ctx.textAlign='right';
+  ctx.fillText(goal-steps>0?(goal-steps).toLocaleString()+' to go':'✓ Complete!',barX+barW,barY+22);
+  ctx.textAlign='center';
+
+  // On-pace indicator
+  if(steps>50&&paceZone!=='IDLE'){
+    var onPace=isOnPace();
+    ctx.font='11px system-ui';ctx.fillStyle=onPace?'#4a7':'#c64';
+    ctx.fillText(onPace?'✓ On pace':'⚠ Behind pace',W/2,barY+38);
+  }
+
+  // --- Lifetime stats row ---
+  var lsY=510;
+  ctx.font='10px system-ui';ctx.fillStyle='#444';
+  ctx.fillText('Lifetime: '+lifeStats.totalSteps.toLocaleString()+' steps  •  '+lifeStats.totalDays+' days  •  Best streak: '+lifeStats.longestStreak,W/2,lsY);
+
+  // --- Bottom controls ---
+  ctx.font='10px system-ui';ctx.fillStyle='#333';
+  ctx.fillText('←→ Goal  •  ↑ Audio  •  ↓ Check  •  Enter: Reset session  •  Esc: Back',W/2,535);
+
+  // Demo mode
+  if(demoMode){ctx.font='10px system-ui';ctx.fillStyle='#444';ctx.fillText('📱 Demo — no accelerometer',W/2,555)}
+
+  // Audio off indicator
+  if(!cadenceAudioEnabled){ctx.font='10px system-ui';ctx.fillStyle='#444';ctx.fillText('🔇 cadence off (↑ to enable)',W/2,570)}
+
+  // --- Floating notifications ---
+  for(var n=notifications.length-1;n>=0;n--){
+    var notif=notifications[n];notif.age++;notif.y-=0.5;
+    notif.alpha=Math.max(0,1-notif.age/120);
+    if(notif.alpha<=0){notifications.splice(n,1);continue}
+    ctx.globalAlpha=notif.alpha;ctx.font='bold 24px system-ui';ctx.fillStyle=notif.color;
+    ctx.fillText(notif.text,W/2,notif.y);ctx.globalAlpha=1;
+  }
+}
+
+// --- Input ---
+document.addEventListener('keydown',function(e){
+  initAudio();var key=e.key;
+  if(key==='ArrowLeft'){
+    goalIndex=Math.max(0,goalIndex-1);goal=goalOptions[goalIndex];
+    goalReached=steps>=goal;lastMilestone=0;
+    for(var i=0;i<milestones.length;i++)if(steps>=milestones[i])lastMilestone=milestones[i];
+    save();e.preventDefault();
+  }else if(key==='ArrowRight'){
+    goalIndex=Math.min(goalOptions.length-1,goalIndex+1);goal=goalOptions[goalIndex];
+    goalReached=steps>=goal;lastMilestone=0;
+    for(var i=0;i<milestones.length;i++)if(steps>=milestones[i])lastMilestone=milestones[i];
+    save();e.preventDefault();
+  }else if(key==='ArrowUp'){
+    cadenceAudioEnabled=!cadenceAudioEnabled;
+    try{localStorage.setItem('litf_steps_cadence',cadenceAudioEnabled?'1':'0')}catch(e2){}
+    addNotification(cadenceAudioEnabled?'🔊 Cadence ON':'🔇 Cadence OFF','#888');
+    e.preventDefault();
+  }else if(key==='ArrowDown'){
+    if(audioCtx&&steps>0)playProgressChime();e.preventDefault();
+  }else if(key==='Enter'){
+    sessionSteps=0;sessionStart=Date.now();recentSteps=[];pace=0;
+    smoothPace=0;paceZone='IDLE';burstStamps=[];walkStreakMs=0;walkStreakStart=0;
+    e.preventDefault();
+  }else if(key==='Escape'){window.history.back();e.preventDefault()}
+});
+
+// --- Main Loop ---
+function frame(){update();demoStep();draw();requestAnimationFrame(frame)}
+initMotion();frame();
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

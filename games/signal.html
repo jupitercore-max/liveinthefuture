@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Signal — Radar Defense</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;font-family:system-ui,-apple-system,sans-serif;color:#e0e0e0}
+canvas{display:block;margin:0 auto}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+var W = 600, H = 600, CX = 300, CY = 300, R = 240;
+
+// Audio
+var audioCtx = null;
+var masterGain = null;
+
+// Mic
+var micActive = false;
+var micFailed = false;
+var micLevel = 0;
+var micSmooth = 0;
+var analyser = null;
+var micData = null;
+
+// Game state
+var STATE_TITLE = 0, STATE_PLAY = 1, STATE_OVER = 2;
+var state = STATE_TITLE;
+var score = 0;
+var wave = 1;
+var lives = 5;
+var maxLives = 5;
+var ammo = 20;
+var maxAmmo = 20;
+var blips = [];
+var particles = [];
+var sweepAngle = 0;
+var sweepSpeed = 0.015;
+var cursorAngle = 0;
+var cursorDist = R * 0.6;
+var kills = 0;
+var waveKills = 0;
+var waveTotal = 0;
+var waveSpawned = 0;
+var spawnTimer = 0;
+var waveDelay = 0;
+var bestScore = 0;
+var totalKills = 0;
+var comboCount = 0;
+
+// Rank system — persistent upgrades
+var RANKS = [
+  { kills: 0,    name: 'Recruit',        icon: '○', bonus: null },
+  { kills: 50,   name: 'Operator',       icon: '◎', bonus: 'sweep_speed',  desc: '+15% Sweep Speed' },
+  { kills: 150,  name: 'Tracker',        icon: '◉', bonus: 'ammo',         desc: '+4 Starting Ammo' },
+  { kills: 350,  name: 'Sentinel',       icon: '◈', bonus: 'fire_range',   desc: '+20% Fire Range' },
+  { kills: 600,  name: 'Warden',         icon: '◇', bonus: 'extra_life',   desc: '+1 Starting Life' },
+  { kills: 1000, name: 'Commander',      icon: '◆', bonus: 'sweep_speed2', desc: '+15% Sweep Speed' },
+  { kills: 1500, name: 'Admiral',        icon: '★', bonus: 'ammo2',        desc: '+4 Starting Ammo' },
+  { kills: 2500, name: 'Radar Legend',   icon: '✦', bonus: 'extra_life2',  desc: '+1 Starting Life' }
+];
+var currentRank = 0;
+var rankUpShow = 0;
+var rankUpName = '';
+var comboTimer = 0;
+var screenShake = 0;
+var flashAlpha = 0;
+var flashColor = '#00ff88';
+var interferenceLevel = 0;
+var warnTickTimer = 0;
+
+// === RADAR ALERT SYSTEM ===
+var ALERTS = [
+  {id:"emp",     emoji:"⚡", name:"EMP BLACKOUT",  desc:"Sweep offline — listen for threats"},
+  {id:"silence", emoji:"🔇", name:"DEAD AIR",      desc:"Proximity ticks silenced — eyes only"},
+  {id:"decoys",  emoji:"🎯", name:"DECOY SWARM",   desc:"Fake blips — verify by sound before firing"},
+  {id:"reverse", emoji:"🔄", name:"REVERSE SWEEP",  desc:"Radar sweep reversed — reorient"},
+  {id:"barrage", emoji:"💥", name:"BARRAGE",        desc:"Unlimited ammo — enemies tougher"},
+  {id:"orbit",   emoji:"🌀", name:"WARP FIELD",     desc:"Blips spiral inward — predict their path"}
+];
+var activeAlert = null;
+var alertAnnounceTimer = 0;
+var alertDiscovered = JSON.parse(localStorage.getItem("signal_alerts") || "{}");
+var empTimer = 0;
+var empActive = false;
+var decoyBlips = [];
+var STATE_ALERT = 3;
+
+// Timing
+var lastTime = 0;
+var dt = 0;
+
+// Load best
+try { bestScore = parseInt(localStorage.getItem('signal_best') || '0'); } catch(e){}
+try { totalKills = parseInt(localStorage.getItem('signal_kills') || '0'); } catch(e){}
+currentRank = calcRank(totalKills);
+
+function calcRank(k) {
+  var r = 0;
+  for (var i = RANKS.length - 1; i >= 0; i--) {
+    if (k >= RANKS[i].kills) { r = i; break; }
+  }
+  return r;
+}
+
+function getRankBonuses() {
+  var bonuses = { sweepMult: 1, ammoAdd: 0, lifeAdd: 0, rangeMult: 1 };
+  for (var i = 1; i <= currentRank; i++) {
+    var b = RANKS[i].bonus;
+    if (b === 'sweep_speed' || b === 'sweep_speed2') bonuses.sweepMult += 0.15;
+    if (b === 'ammo' || b === 'ammo2') bonuses.ammoAdd += 4;
+    if (b === 'fire_range') bonuses.rangeMult += 0.2;
+    if (b === 'extra_life' || b === 'extra_life2') bonuses.lifeAdd += 1;
+  }
+  return bonuses;
+}
+
+function initAudio() {
+  if (audioCtx) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.3;
+    masterGain.connect(audioCtx.destination);
+  }
+// === BGM System ===
+var bgmAudio = null, bgmGameover = null, bgmMuted = false, bgmStarted = false;
+function bgmInit() {
+  bgmAudio = new Audio('audio/signal-bgm.mp3');
+  bgmAudio.loop = true;
+  bgmAudio.volume = 0.15;
+  bgmGameover = new Audio('audio/gameover-gentle.mp3');
+  bgmGameover.volume = 0.25;
+}
+function bgmPlay() {
+  if (bgmMuted || !bgmAudio) return;
+  if (!bgmStarted) { bgmAudio.currentTime = 0; bgmStarted = true; }
+  bgmAudio.play().catch(function(){});
+}
+function bgmStop() { if (bgmAudio) { bgmAudio.pause(); } bgmStarted = false; }
+function bgmGameOver() {
+  bgmStop();
+  if (bgmMuted || !bgmGameover) return;
+  bgmGameover.currentTime = 0;
+  bgmGameover.play().catch(function(){});
+}
+function bgmToggle() {
+  bgmMuted = !bgmMuted;
+  if (bgmMuted) { if (bgmAudio) bgmAudio.pause(); }
+  else bgmPlay();
+}
+ catch(e) {}
+}
+
+function initMic() {
+  if (micActive || micFailed || !audioCtx) return;
+  micFailed = true;
+  try {
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      micFailed = false;
+      micActive = true;
+      var src = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+      src.connect(analyser);
+      micData = new Uint8Array(analyser.frequencyBinCount);
+    }).catch(function(){ micFailed = true; });
+  } catch(e) { micFailed = true; }
+}
+
+function updateMic() {
+  if (!micActive || !analyser) {
+    micSmooth += (0 - micSmooth) * 0.05;
+    interferenceLevel += (0.1 - interferenceLevel) * 0.05;
+    return;
+  }
+  analyser.getByteFrequencyData(micData);
+  var sum = 0;
+  for (var i = 0; i < micData.length; i++) sum += micData[i];
+  micLevel = sum / (micData.length * 255);
+  micSmooth += (micLevel - micSmooth) * 0.12;
+  interferenceLevel += (Math.min(0.8, micSmooth * 2) - interferenceLevel) * 0.08;
+}
+
+function playTone(freq, dur, type, vol, pan) {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  var p = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+  osc.type = type || 'sine';
+  osc.frequency.value = freq;
+  g.gain.setValueAtTime((vol || 0.15) * 0.5, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (dur || 0.2));
+  osc.connect(g);
+  if (p) {
+    p.pan.value = Math.max(-1, Math.min(1, pan || 0));
+    g.connect(p);
+    p.connect(masterGain);
+  } else {
+    g.connect(masterGain);
+  }
+  osc.start();
+  osc.stop(audioCtx.currentTime + (dur || 0.2));
+}
+
+function playRadarTick() {
+  playTone(1200, 0.03, 'sine', 0.05, 0);
+}
+
+function playBlipSound(blip) {
+  var panVal = Math.cos(blip.angle) * 0.8;
+  if (blip.type === 0) playTone(600, 0.15, 'sine', 0.12, panVal);
+  else if (blip.type === 1) playTone(300, 0.25, 'triangle', 0.12, panVal);
+  else if (blip.type === 2) playTone(900, 0.08, 'square', 0.08, panVal);
+  else if (blip.type === 3) {
+    playTone(500, 0.1, 'sawtooth', 0.06, panVal);
+    setTimeout(function(){ playTone(500, 0.1, 'sawtooth', 0.06, panVal); }, 120);
+  }
+}
+
+function playHit() {
+  playTone(200, 0.3, 'sine', 0.2, 0);
+  playTone(150, 0.4, 'triangle', 0.15, 0);
+}
+
+function playMiss() {
+  playTone(80, 0.5, 'sine', 0.15, 0);
+}
+
+function playBreach() {
+  playTone(60, 0.6, 'sawtooth', 0.2, 0);
+  playTone(40, 0.8, 'triangle', 0.15, 0);
+}
+
+function playWaveClear() {
+  var notes = [523, 659, 784, 1047];
+  for (var i = 0; i < notes.length; i++) {
+    (function(n, d){ setTimeout(function(){ playTone(n, 0.3, 'sine', 0.12, 0); }, d); })(notes[i], i * 120);
+  }
+}
+
+function playGameOver() {
+  var notes = [400, 350, 300, 200];
+  for (var i = 0; i < notes.length; i++) {
+    (function(n, d){ setTimeout(function(){ playTone(n, 0.4, 'triangle', 0.15, 0); }, d); })(notes[i], i * 200);
+  }
+}
+
+// Blip types: 0=scout (fast, weak), 1=heavy (slow, takes 2 hits), 2=dart (very fast), 3=ghost (pulsing, sometimes invisible)
+function spawnBlip() {
+  var angle = Math.random() * Math.PI * 2;
+  var type = 0;
+  var r = Math.random();
+  if (wave >= 3 && r > 0.7) type = 1;
+  if (wave >= 5 && r > 0.85) type = 2;
+  if (wave >= 7 && r > 0.9) type = 3;
+
+  var speed = 0;
+  var hp = 1;
+  if (type === 0) { speed = 18 + wave * 1.5; hp = 1; }
+  else if (type === 1) { speed = 10 + wave; hp = 2; }
+  else if (type === 2) { speed = 30 + wave * 2; hp = 1; }
+  else if (type === 3) { speed = 15 + wave; hp = 1; }
+
+  // Barrage alert: double all HP
+  if (activeAlert && activeAlert.id === "barrage") {
+    hp = hp * 2;
+  }
+
+  blips.push({
+    angle: angle,
+    dist: R + 20,
+    speed: speed,
+    type: type,
+    hp: hp,
+    maxHp: hp,
+    visible: true,
+    pulsePhase: Math.random() * Math.PI * 2,
+    hitFlash: 0,
+    orbitDir: (Math.random() > 0.5 ? 1 : -1) * (0.3 + Math.random() * 0.5)
+  });
+  
+  // Decoy alert: spawn a fake blip alongside ~40% of real spawns
+  if (activeAlert && activeAlert.id === "decoys" && Math.random() < 0.4) {
+    var da = Math.random() * Math.PI * 2;
+    decoyBlips.push({
+      angle: da,
+      dist: R + 20,
+      speed: 12 + wave,
+      type: Math.floor(Math.random() * 3), // look like scouts/heavies/darts
+      visible: true,
+      pulsePhase: Math.random() * Math.PI * 2,
+      hitFlash: 0
+    });
+  }
+}
+
+function getWaveConfig() {
+  var count = 5 + wave * 2;
+  var interval = Math.max(0.3, 1.5 - wave * 0.08);
+  return { count: count, interval: interval };
+}
+
+function rollAlert() {
+  activeAlert = null;
+  empTimer = 0;
+  empActive = false;
+  decoyBlips = [];
+  if (wave >= 3 && Math.random() < 0.25) {
+    activeAlert = ALERTS[Math.floor(Math.random() * ALERTS.length)];
+    if (!alertDiscovered[activeAlert.id]) {
+      alertDiscovered[activeAlert.id] = true;
+      localStorage.setItem("signal_alerts", JSON.stringify(alertDiscovered));
+    }
+  }
+}
+
+function getAlertDiscoveryCount() {
+  var c = 0;
+  for (var k in alertDiscovered) { if (alertDiscovered[k]) c++; }
+  return c;
+}
+
+function playAlertChime() {
+  if (!audioCtx) return;
+  // Ominous descending tone
+  var freqs = [880, 660, 440];
+  for (var i = 0; i < freqs.length; i++) {
+    (function(f, d) {
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.type = "sawtooth";
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0.1, audioCtx.currentTime + d);
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + d + 0.25);
+      o.connect(g); g.connect(masterGain);
+      o.start(audioCtx.currentTime + d);
+      o.stop(audioCtx.currentTime + d + 0.25);
+    })(freqs[i], i * 0.15);
+  }
+}
+
+function startWave() {
+  var cfg = getWaveConfig();
+  waveTotal = cfg.count;
+  waveSpawned = 0;
+  waveKills = 0;
+  spawnTimer = 0;
+  var b = getRankBonuses();
+  ammo = 20 + b.ammoAdd + wave * 2;
+  maxAmmo = ammo;
+  
+  // Roll for alert
+  rollAlert();
+  if (activeAlert) {
+    // Apply alert-specific wave adjustments
+    if (activeAlert.id === "barrage") {
+      ammo = 9999;
+      maxAmmo = 9999;
+    }
+    // Show announcement
+    state = STATE_ALERT;
+    alertAnnounceTimer = 0;
+    playAlertChime();
+    return;
+  }
+}
+
+function startGame() {
+  state = STATE_PLAY; bgmPlay();
+  score = 0;
+  wave = 1;
+  var b = getRankBonuses();
+  maxLives = 5 + b.lifeAdd;
+  lives = maxLives;
+  sweepSpeed = 0.015 * b.sweepMult;
+  kills = 0;
+  blips = [];
+  particles = [];
+  comboCount = 0;
+  comboTimer = 0;
+  warnTickTimer = 0;
+  activeAlert = null;
+  empTimer = 0;
+  empActive = false;
+  decoyBlips = [];
+  startWave();
+}
+
+function addParticles(x, y, color, count) {
+  for (var i = 0; i < count; i++) {
+    var a = Math.random() * Math.PI * 2;
+    var spd = 40 + Math.random() * 80;
+    particles.push({
+      x: x, y: y,
+      vx: Math.cos(a) * spd,
+      vy: Math.sin(a) * spd,
+      life: 0.4 + Math.random() * 0.4,
+      maxLife: 0.4 + Math.random() * 0.4,
+      color: color,
+      size: 1.5 + Math.random() * 2
+    });
+  }
+}
+
+function fire() {
+  if (ammo <= 0) {
+    playTone(100, 0.1, 'square', 0.05, 0);
+    return;
+  }
+  ammo--;
+  playTone(800, 0.08, 'square', 0.1, 0);
+
+  var hitDist = 35 * getRankBonuses().rangeMult;
+  var hit = null;
+  var hitIdx = -1;
+  var hitDecoy = false;
+  var hitDecoyIdx = -1;
+  
+  // Check real blips
+  for (var i = 0; i < blips.length; i++) {
+    var b = blips[i];
+    var bx = CX + Math.cos(b.angle) * b.dist;
+    var by = CY + Math.sin(b.angle) * b.dist;
+    var tx = CX + Math.cos(cursorAngle) * cursorDist;
+    var ty = CY + Math.sin(cursorAngle) * cursorDist;
+    var dx = bx - tx;
+    var dy = by - ty;
+    var d = Math.sqrt(dx * dx + dy * dy);
+    if (d < hitDist) {
+      hitDist = d;
+      hit = b;
+      hitIdx = i;
+      hitDecoy = false;
+    }
+  }
+  
+  // Check decoy blips (same range)
+  for (var j = 0; j < decoyBlips.length; j++) {
+    var db = decoyBlips[j];
+    var dbx = CX + Math.cos(db.angle) * db.dist;
+    var dby = CY + Math.sin(db.angle) * db.dist;
+    var tx2 = CX + Math.cos(cursorAngle) * cursorDist;
+    var ty2 = CY + Math.sin(cursorAngle) * cursorDist;
+    var ddx = dbx - tx2;
+    var ddy = dby - ty2;
+    var dd = Math.sqrt(ddx * ddx + ddy * ddy);
+    if (dd < hitDist) {
+      hitDist = dd;
+      hit = db;
+      hitDecoyIdx = j;
+      hitDecoy = true;
+      hitIdx = -1; // not a real blip
+    }
+  }
+
+  // Fire particle
+  var fx = CX + Math.cos(cursorAngle) * cursorDist;
+  var fy = CY + Math.sin(cursorAngle) * cursorDist;
+  addParticles(fx, fy, '#ffaa00', 5);
+
+  if (hit) {
+    if (hitDecoy) {
+      // Decoy hit — wasted ammo! Visual feedback but no kill
+      var dbx2 = CX + Math.cos(hit.angle) * hit.dist;
+      var dby2 = CY + Math.sin(hit.angle) * hit.dist;
+      addParticles(dbx2, dby2, '#ff6644', 8);
+      decoyBlips.splice(hitDecoyIdx, 1);
+      playTone(200, 0.15, 'sawtooth', 0.08, 0); // error-ish sound
+      flashAlpha = 0.2;
+      flashColor = '#ff6644';
+      screenShake = 2;
+    } else {
+    hit.hp--;
+    hit.hitFlash = 0.2;
+    if (hit.hp <= 0) {
+      var bx2 = CX + Math.cos(hit.angle) * hit.dist;
+      var by2 = CY + Math.sin(hit.angle) * hit.dist;
+      addParticles(bx2, by2, '#00ff88', 12);
+      blips.splice(hitIdx, 1);
+      waveKills++;
+      kills++;
+      comboCount++;
+      comboTimer = 2;
+      var pts = 10 * wave + comboCount * 5;
+      score += pts;
+      playHit();
+      flashAlpha = 0.3;
+      flashColor = '#00ff88';
+      screenShake = 3;
+    } else {
+      playTone(400, 0.1, 'triangle', 0.08, 0);
+      screenShake = 1.5;
+    }
+    }
+  } else {
+    playMiss();
+  }
+}
+
+function update() {
+  if (state !== STATE_PLAY) return;
+
+  updateMic();
+  
+  var silenceActive = activeAlert && activeAlert.id === "silence";
+
+  // Sweep
+  var prevSweep = sweepAngle;
+  var sweepDir = 1;
+  if (activeAlert && activeAlert.id === "reverse") sweepDir = -1;
+  
+  // EMP: freeze sweep for 6 seconds starting mid-wave
+  if (activeAlert && activeAlert.id === "emp") {
+    empTimer += dt;
+    if (empTimer > 2 && empTimer < 8) {
+      empActive = true;
+      sweepDir = 0; // freeze
+    } else {
+      empActive = false;
+    }
+  }
+  
+  sweepAngle += (sweepSpeed + micSmooth * 0.005) * sweepDir;
+  if (sweepAngle > Math.PI * 2) sweepAngle -= Math.PI * 2;
+  if (sweepAngle < 0) sweepAngle += Math.PI * 2;
+
+  // Radar tick every quarter
+  var prevQ = Math.floor(prevSweep / (Math.PI / 2));
+  var curQ = Math.floor(sweepAngle / (Math.PI / 2));
+  if (curQ !== prevQ) playRadarTick();
+
+  // Spawn
+  var cfg = getWaveConfig();
+  if (waveSpawned < waveTotal) {
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      spawnBlip();
+      waveSpawned++;
+      spawnTimer = cfg.interval;
+    }
+  }
+
+  // Move blips
+  for (var i = blips.length - 1; i >= 0; i--) {
+    var b = blips[i];
+    b.dist -= b.speed * dt;
+    b.hitFlash = Math.max(0, b.hitFlash - dt);
+    b.pulsePhase += dt * 3;
+    
+    // Orbit alert: blips spiral instead of straight approach
+    if (activeAlert && activeAlert.id === "orbit") {
+      b.angle += b.orbitDir * dt * (0.5 + (R - b.dist) / R * 1.5);
+    }
+
+    // Ghost visibility
+    if (b.type === 3) {
+      b.visible = Math.sin(b.pulsePhase) > -0.3;
+    }
+
+    // Interference hides blips
+    if (interferenceLevel > 0.3 && b.type !== 3) {
+      var noise = Math.sin(b.angle * 7 + sweepAngle * 3) * interferenceLevel;
+      if (noise > 0.4) b.visible = false;
+      else b.visible = true;
+    }
+    
+    // EMP blackout: all blips invisible during active phase
+    if (empActive) {
+      b.visible = false;
+    }
+
+    // Play sound when sweep passes blip (suppressed during SILENCE alert)
+    if (!silenceActive) {
+    var angleDiff = Math.abs(sweepAngle - ((b.angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2));
+    if (angleDiff < 0.05 || angleDiff > Math.PI * 2 - 0.05) {
+      if (b.dist > 20 && b.dist < R + 10) {
+        playBlipSound(b);
+      }
+    }
+    }
+
+    // Breach
+    if (b.dist <= 15) {
+      blips.splice(i, 1);
+      lives--;
+      screenShake = 8;
+      flashAlpha = 0.5;
+      flashColor = '#ff3333';
+      playBreach();
+      comboCount = 0;
+      if (lives <= 0) {
+        state = STATE_OVER; bgmGameOver();
+        if (score > bestScore) {
+          bestScore = score;
+          try { localStorage.setItem('signal_best', String(bestScore)); } catch(e){}
+        }
+        totalKills += kills;
+        try { localStorage.setItem('signal_kills', String(totalKills)); } catch(e){}
+        var newRank = calcRank(totalKills);
+        if (newRank > currentRank) {
+          rankUpShow = 3;
+          rankUpName = RANKS[newRank].name;
+          currentRank = newRank;
+          // Play rank up chime
+          if (audioCtx && masterGain) {
+            var notes = [523, 659, 784, 1047];
+            for (var ni = 0; ni < notes.length; ni++) {
+              (function(freq, delay) {
+                var o = audioCtx.createOscillator();
+                var g = audioCtx.createGain();
+                o.type = 'sine'; o.frequency.value = freq;
+                g.gain.setValueAtTime(0.15, audioCtx.currentTime + delay);
+                g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + 0.4);
+                o.connect(g); g.connect(masterGain);
+                o.start(audioCtx.currentTime + delay);
+                o.stop(audioCtx.currentTime + delay + 0.4);
+              })(notes[ni], ni * 0.12);
+            }
+          }
+        } else {
+          currentRank = newRank;
+        }
+        playGameOver();
+      }
+    }
+  }
+
+  // Proximity warnings — escalating ticks as threats approach center
+  // SILENCE alert: skip all proximity audio
+  warnTickTimer -= dt;
+  if (warnTickTimer <= 0 && !silenceActive) {
+    var closestDist = R + 100;
+    var closestAngle = 0;
+    for (var wi = 0; wi < blips.length; wi++) {
+      if (blips[wi].dist < closestDist) {
+        closestDist = blips[wi].dist;
+        closestAngle = blips[wi].angle;
+      }
+    }
+    if (closestDist < 100) {
+      // Proximity factor: 1.0 at edge (100), 0.0 at center (15)
+      var proxFactor = Math.max(0, (closestDist - 15) / 85);
+      // Tick interval: 0.5s at edge → 0.08s at center
+      warnTickTimer = 0.08 + proxFactor * 0.42;
+      // Pitch: 400Hz at edge → 1600Hz at center
+      var warnFreq = 400 + (1 - proxFactor) * 1200;
+      var warnPan = Math.cos(closestAngle) * 0.9;
+      var warnVol = 0.04 + (1 - proxFactor) * 0.08;
+      playTone(warnFreq, 0.04, 'triangle', warnVol, warnPan);
+    } else {
+      warnTickTimer = 0.3;
+    }
+  }
+
+  // Wave complete
+  if (waveSpawned >= waveTotal && blips.length === 0 && state === STATE_PLAY) {
+    waveDelay += dt;
+    if (waveDelay > 1.5) {
+      wave++;
+      waveDelay = 0;
+      decoyBlips = [];
+      playWaveClear();
+      startWave();
+    }
+  } else {
+    waveDelay = 0;
+  }
+  
+  // Update decoy blips (move inward, remove when they reach center)
+  for (var di = decoyBlips.length - 1; di >= 0; di--) {
+    var db = decoyBlips[di];
+    db.dist -= db.speed * dt;
+    db.pulsePhase += dt * 3;
+    db.hitFlash = Math.max(0, (db.hitFlash || 0) - dt);
+    if (empActive) db.visible = false;
+    else db.visible = true;
+    if (db.dist <= 15) {
+      // Decoys pass through harmlessly
+      decoyBlips.splice(di, 1);
+    }
+  }
+
+  // Combo decay
+  if (comboTimer > 0) {
+    comboTimer -= dt;
+    if (comboTimer <= 0) comboCount = 0;
+  }
+
+  // Particles
+  for (var j = particles.length - 1; j >= 0; j--) {
+    var p = particles[j];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(j, 1);
+  }
+
+  // Shake decay
+  screenShake *= 0.9;
+  if (screenShake < 0.1) screenShake = 0;
+  flashAlpha *= 0.92;
+}
+
+function draw() {
+  ctx.save();
+  if (screenShake > 0) {
+    ctx.translate((Math.random() - 0.5) * screenShake * 2, (Math.random() - 0.5) * screenShake * 2);
+  }
+
+  // Background
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  if (state === STATE_TITLE) {
+    drawTitle();
+    ctx.restore();
+    return;
+  }
+
+  // Radar circles
+  ctx.strokeStyle = 'rgba(0,255,100,0.08)';
+  ctx.lineWidth = 1;
+  for (var r = 60; r <= R; r += 60) {
+    ctx.beginPath();
+    ctx.arc(CX, CY, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Crosshairs
+  ctx.strokeStyle = 'rgba(0,255,100,0.05)';
+  for (var a = 0; a < 4; a++) {
+    var ang = a * Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(CX, CY);
+    ctx.lineTo(CX + Math.cos(ang) * R, CY + Math.sin(ang) * R);
+    ctx.stroke();
+  }
+
+  // Interference static
+  if (interferenceLevel > 0.15) {
+    ctx.fillStyle = 'rgba(0,255,100,' + (interferenceLevel * 0.06) + ')';
+    for (var s = 0; s < Math.floor(interferenceLevel * 200); s++) {
+      var sa = Math.random() * Math.PI * 2;
+      var sd = Math.random() * R;
+      ctx.fillRect(CX + Math.cos(sa) * sd, CY + Math.sin(sa) * sd, 2, 2);
+    }
+  }
+
+  // Sweep line + trail
+  ctx.save();
+  var grad = ctx.createLinearGradient(CX, CY, CX + Math.cos(sweepAngle) * R, CY + Math.sin(sweepAngle) * R);
+  grad.addColorStop(0, 'rgba(0,255,100,0.5)');
+  grad.addColorStop(1, 'rgba(0,255,100,0.1)');
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(CX, CY);
+  ctx.lineTo(CX + Math.cos(sweepAngle) * R, CY + Math.sin(sweepAngle) * R);
+  ctx.stroke();
+
+  // Sweep trail (cone)
+  ctx.fillStyle = 'rgba(0,255,100,0.03)';
+  ctx.beginPath();
+  ctx.moveTo(CX, CY);
+  ctx.arc(CX, CY, R, sweepAngle - 0.5, sweepAngle);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Blips
+  for (var i = 0; i < blips.length; i++) {
+    var b = blips[i];
+    var bx = CX + Math.cos(b.angle) * b.dist;
+    var by = CY + Math.sin(b.angle) * b.dist;
+
+    if (!b.visible && b.type === 3) {
+      // Ghost — faint outline
+      ctx.strokeStyle = 'rgba(180,100,255,0.15)';
+      ctx.beginPath();
+      ctx.arc(bx, by, 6, 0, Math.PI * 2);
+      ctx.stroke();
+      continue;
+    }
+
+    if (!b.visible) continue;
+
+    var colors = ['#00ff88', '#ff6644', '#44ddff', '#bb66ff'];
+    var col = colors[b.type] || '#00ff88';
+
+    if (b.hitFlash > 0) col = '#ffffff';
+
+    // Glow
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = col;
+
+    // Draw blip
+    ctx.fillStyle = col;
+    var sz = b.type === 1 ? 8 : (b.type === 2 ? 4 : 6);
+    if (b.type === 0) {
+      // Scout — circle
+      ctx.beginPath();
+      ctx.arc(bx, by, sz, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (b.type === 1) {
+      // Heavy — square
+      ctx.fillRect(bx - sz, by - sz, sz * 2, sz * 2);
+    } else if (b.type === 2) {
+      // Dart — triangle
+      ctx.beginPath();
+      ctx.moveTo(bx, by - sz);
+      ctx.lineTo(bx - sz, by + sz);
+      ctx.lineTo(bx + sz, by + sz);
+      ctx.closePath();
+      ctx.fill();
+    } else if (b.type === 3) {
+      // Ghost — pulsing circle
+      var gs = sz * (0.8 + Math.sin(b.pulsePhase) * 0.3);
+      ctx.globalAlpha = 0.5 + Math.sin(b.pulsePhase) * 0.3;
+      ctx.beginPath();
+      ctx.arc(bx, by, gs, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // HP bar for heavies
+    if (b.maxHp > 1) {
+      ctx.fillStyle = '#333';
+      ctx.fillRect(bx - 8, by - 12, 16, 3);
+      ctx.fillStyle = col;
+      ctx.fillRect(bx - 8, by - 12, 16 * (b.hp / b.maxHp), 3);
+    }
+
+    ctx.shadowBlur = 0;
+  }
+
+  // Decoy blips (drawn like normal blips — indistinguishable visually)
+  for (var dbi = 0; dbi < decoyBlips.length; dbi++) {
+    var db = decoyBlips[dbi];
+    if (!db.visible) continue;
+    var dbx = CX + Math.cos(db.angle) * db.dist;
+    var dby = CY + Math.sin(db.angle) * db.dist;
+    var dcol = ['#00ff88', '#ff6644', '#44ddff'][db.type] || '#00ff88';
+    if (db.hitFlash > 0) dcol = '#ffffff';
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = dcol;
+    ctx.fillStyle = dcol;
+    var dsz = db.type === 1 ? 8 : (db.type === 2 ? 4 : 6);
+    if (db.type === 0) {
+      ctx.beginPath(); ctx.arc(dbx, dby, dsz, 0, Math.PI * 2); ctx.fill();
+    } else if (db.type === 1) {
+      ctx.fillRect(dbx - dsz, dby - dsz, dsz * 2, dsz * 2);
+    } else {
+      ctx.beginPath(); ctx.moveTo(dbx, dby - dsz); ctx.lineTo(dbx - dsz, dby + dsz); ctx.lineTo(dbx + dsz, dby + dsz); ctx.closePath(); ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  // Targeting cursor
+  var tx = CX + Math.cos(cursorAngle) * cursorDist;
+  var ty = CY + Math.sin(cursorAngle) * cursorDist;
+  ctx.strokeStyle = ammo > 0 ? 'rgba(255,200,50,0.8)' : 'rgba(255,50,50,0.5)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(tx, ty, 18, 0, Math.PI * 2);
+  ctx.stroke();
+  // Crosshair
+  ctx.beginPath();
+  ctx.moveTo(tx - 24, ty); ctx.lineTo(tx - 10, ty);
+  ctx.moveTo(tx + 10, ty); ctx.lineTo(tx + 24, ty);
+  ctx.moveTo(tx, ty - 24); ctx.lineTo(tx, ty - 10);
+  ctx.moveTo(tx, ty + 10); ctx.lineTo(tx, ty + 24);
+  ctx.stroke();
+
+  // Center beacon
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.beginPath();
+  ctx.arc(CX, CY, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Radar rim
+  ctx.strokeStyle = 'rgba(0,255,100,0.2)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(CX, CY, R, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Particles
+  for (var j = 0; j < particles.length; j++) {
+    var p = particles[j];
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+
+  // Flash
+  if (flashAlpha > 0.01) {
+    ctx.fillStyle = flashColor;
+    ctx.globalAlpha = flashAlpha * 0.15;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+  
+  // EMP blackout visual: heavy static overlay
+  if (empActive) {
+    ctx.fillStyle = 'rgba(30,0,60,0.5)';
+    ctx.fillRect(0, 0, W, H);
+    // Static noise
+    ctx.fillStyle = 'rgba(100,50,150,0.15)';
+    for (var ei = 0; ei < 120; ei++) {
+      var ex = Math.random() * W;
+      var ey = Math.random() * H;
+      ctx.fillRect(ex, ey, 3, 2);
+    }
+  }
+  
+  // Orbit visual: subtle spiral grid lines
+  if (activeAlert && activeAlert.id === "orbit" && state === STATE_PLAY) {
+    ctx.strokeStyle = 'rgba(100,200,255,0.06)';
+    ctx.lineWidth = 1;
+    for (var oi = 0; oi < 8; oi++) {
+      ctx.beginPath();
+      for (var od = 20; od < R; od += 5) {
+        var oa = oi * Math.PI / 4 + od * 0.015;
+        ctx.lineTo(CX + Math.cos(oa) * od, CY + Math.sin(oa) * od);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // HUD
+  drawHUD();
+
+  if (state === STATE_OVER) drawGameOver();
+  if (state === STATE_ALERT) drawAlertAnnounce();
+
+  ctx.restore();
+}
+
+function drawAlertAnnounce() {
+  if (!activeAlert) return;
+  var progress = Math.min(1, alertAnnounceTimer / 400);
+  
+  // Dark overlay
+  ctx.fillStyle = "rgba(0,0,0,0.7)";
+  ctx.fillRect(0, 0, W, H);
+  
+  // Alert box
+  ctx.save();
+  ctx.globalAlpha = progress;
+  ctx.textAlign = "center";
+  
+  // Warning label
+  ctx.font = "bold 14px system-ui";
+  ctx.fillStyle = "#ff6644";
+  ctx.fillText("⚠ RADAR ALERT ⚠", CX, CY - 50);
+  
+  // Emoji + name
+  ctx.font = "bold 28px system-ui";
+  ctx.fillStyle = "#ffaa00";
+  ctx.shadowBlur = 15;
+  ctx.shadowColor = "#ffaa00";
+  ctx.fillText(activeAlert.emoji + " " + activeAlert.name, CX, CY);
+  ctx.shadowBlur = 0;
+  
+  // Description
+  ctx.font = "14px system-ui";
+  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  ctx.fillText(activeAlert.desc, CX, CY + 35);
+  
+  ctx.restore();
+}
+
+function drawHUD() {
+  ctx.font = '13px system-ui';
+
+  // Wave + Score (top)
+  ctx.fillStyle = 'rgba(0,255,100,0.6)';
+  ctx.textAlign = 'left';
+  ctx.fillText('WAVE ' + wave, 15, 22);
+  ctx.textAlign = 'right';
+  ctx.fillText('SCORE ' + score, W - 15, 22);
+
+  // Lives (top left, below wave)
+  ctx.textAlign = 'left';
+  var livesStr = '';
+  for (var i = 0; i < maxLives; i++) livesStr += i < lives ? '●' : '○';
+  ctx.fillStyle = lives <= 2 ? 'rgba(255,80,80,0.8)' : 'rgba(0,255,100,0.5)';
+  ctx.fillText(livesStr, 15, 40);
+
+  // Ammo (top right, below score)
+  ctx.textAlign = 'right';
+  ctx.fillStyle = ammo <= 5 ? 'rgba(255,80,80,0.8)' : 'rgba(255,200,50,0.6)';
+  ctx.fillText('AMMO ' + ammo, W - 15, 40);
+
+  // Combo
+  if (comboCount >= 2) {
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 16px system-ui';
+    ctx.fillStyle = 'rgba(255,200,50,' + Math.min(1, 0.5 + comboCount * 0.1) + ')';
+    ctx.fillText(comboCount + '× COMBO', CX, H - 30);
+  }
+
+  // Rank label (center bottom area)
+  var rkHud = RANKS[currentRank];
+  ctx.textAlign = 'center';
+  ctx.font = '10px system-ui';
+  ctx.fillStyle = 'rgba(255,170,0,0.35)';
+  ctx.fillText(rkHud.icon + ' ' + rkHud.name, CX, 22);
+
+  // Mic indicator
+  if (micActive) {
+    ctx.textAlign = 'left';
+    ctx.font = '11px system-ui';
+    ctx.fillStyle = interferenceLevel > 0.4 ? 'rgba(255,100,50,0.6)' : 'rgba(0,255,100,0.3)';
+    ctx.fillText('🎤 ' + Math.round(micSmooth * 100) + '%' + (interferenceLevel > 0.4 ? ' INTERFERENCE' : ''), 15, H - 12);
+  }
+  
+  // Active alert badge
+  if (activeAlert && state === STATE_PLAY) {
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 11px system-ui';
+    ctx.fillStyle = 'rgba(255,100,50,0.8)';
+    ctx.fillText(activeAlert.emoji + ' ' + activeAlert.name, CX, 55);
+    
+    // EMP countdown
+    if (activeAlert.id === "emp" && empActive) {
+      var empRemaining = Math.max(0, 8 - empTimer);
+      ctx.font = 'bold 16px system-ui';
+      ctx.fillStyle = '#ff3333';
+      ctx.fillText('SWEEP OFFLINE ' + empRemaining.toFixed(1) + 's', CX, CY);
+    }
+    
+    // Silence indicator
+    if (activeAlert.id === "silence") {
+      ctx.font = '11px system-ui';
+      ctx.fillStyle = 'rgba(255,100,50,0.5)';
+      ctx.fillText('🔇 AUDIO OFFLINE', CX, 70);
+    }
+  }
+
+  // Wave progress
+  if (waveTotal > 0) {
+    ctx.textAlign = 'right';
+    ctx.font = '11px system-ui';
+    ctx.fillStyle = 'rgba(0,255,100,0.3)';
+    ctx.fillText(waveKills + '/' + waveTotal + ' cleared', W - 15, H - 12);
+  }
+}
+
+function drawTitle() {
+  // Decorative radar
+  ctx.strokeStyle = 'rgba(0,255,100,0.08)';
+  ctx.lineWidth = 1;
+  for (var r = 60; r <= R; r += 60) {
+    ctx.beginPath();
+    ctx.arc(CX, CY, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Sweep
+  ctx.strokeStyle = 'rgba(0,255,100,0.3)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(CX, CY);
+  ctx.lineTo(CX + Math.cos(sweepAngle) * R, CY + Math.sin(sweepAngle) * R);
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+
+  ctx.font = 'bold 48px system-ui';
+  ctx.fillStyle = '#00ff88';
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = '#00ff88';
+  ctx.fillText('SIGNAL', CX, CY - 80);
+  ctx.shadowBlur = 0;
+
+  ctx.font = '16px system-ui';
+  ctx.fillStyle = 'rgba(0,255,100,0.6)';
+  ctx.fillText('Radar Defense', CX, CY - 50);
+
+  ctx.font = '13px system-ui';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText('↑↓ ←→  Move Targeting Cursor', CX, CY + 10);
+  ctx.fillText('ENTER  Fire', CX, CY + 32);
+  ctx.fillText('ESC  Back to Gallery', CX, CY + 54);
+
+  ctx.font = '12px system-ui';
+  ctx.fillStyle = 'rgba(0,255,100,0.35)';
+  ctx.fillText('Track blips by sound. Eliminate before they reach center.', CX, CY + 90);
+  if (!micFailed) ctx.fillText('🎤 Ambient noise = radar interference', CX, CY + 110);
+
+  ctx.font = 'bold 14px system-ui';
+  ctx.fillStyle = '#00ff88';
+  ctx.fillText('Press ENTER to start', CX, CY + 150);
+
+  if (bestScore > 0) {
+    ctx.font = '12px system-ui';
+    ctx.fillStyle = 'rgba(255,200,50,0.5)';
+    var discCount = getAlertDiscoveryCount();
+    var discStr = discCount > 0 ? ('  ⚠ ' + discCount + '/6') : '';
+    ctx.fillText('Best: ' + bestScore + '  Total Kills: ' + totalKills + discStr, CX, CY + 175);
+  }
+
+  // Rank display
+  var rk = RANKS[currentRank];
+  ctx.font = 'bold 13px system-ui';
+  ctx.fillStyle = '#ffaa00';
+  ctx.fillText(rk.icon + ' ' + rk.name, CX, CY + 200);
+  if (currentRank < RANKS.length - 1) {
+    var next = RANKS[currentRank + 1];
+    var pct = Math.min(1, (totalKills - rk.kills) / (next.kills - rk.kills));
+    ctx.font = '10px system-ui';
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillText('Next: ' + next.name + ' (' + next.desc + ') — ' + totalKills + '/' + next.kills + ' kills', CX, CY + 218);
+    // Progress bar
+    var barW = 160, barH = 4, barX = CX - barW / 2, barY = CY + 225;
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#ffaa00';
+    ctx.fillRect(barX, barY, barW * pct, barH);
+  } else {
+    ctx.font = '10px system-ui';
+    ctx.fillStyle = 'rgba(255,200,50,0.3)';
+    ctx.fillText('MAX RANK', CX, CY + 218);
+  }
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+
+  ctx.font = 'bold 36px system-ui';
+  ctx.fillStyle = '#ff3333';
+  ctx.fillText('SIGNAL LOST', CX, CY - 60);
+
+  ctx.font = '18px system-ui';
+  ctx.fillStyle = '#e0e0e0';
+  ctx.fillText('Score: ' + score, CX, CY - 20);
+  ctx.fillText('Wave: ' + wave + '  Kills: ' + kills, CX, CY + 10);
+
+  if (score >= bestScore && score > 0) {
+    ctx.font = 'bold 14px system-ui';
+    ctx.fillStyle = '#ffaa00';
+    ctx.fillText('★ NEW BEST ★', CX, CY + 40);
+  } else {
+    ctx.font = '13px system-ui';
+    ctx.fillStyle = 'rgba(255,200,50,0.5)';
+    ctx.fillText('Best: ' + bestScore, CX, CY + 40);
+  }
+
+  ctx.font = 'bold 14px system-ui';
+  ctx.fillStyle = '#00ff88';
+  ctx.fillText('ENTER to play again', CX, CY + 80);
+  ctx.fillText('ESC for gallery', CX, CY + 105);
+
+  // Rank info on game over
+  var rk = RANKS[currentRank];
+  ctx.font = '12px system-ui';
+  ctx.fillStyle = '#ffaa00';
+  ctx.fillText(rk.icon + ' ' + rk.name + ' — ' + totalKills + ' total kills', CX, CY + 140);
+
+  if (rankUpShow > 0) {
+    rankUpShow -= dt || 0.016;
+    var alpha = Math.min(1, rankUpShow);
+    ctx.font = 'bold 16px system-ui';
+    ctx.fillStyle = 'rgba(255,170,0,' + alpha + ')';
+    ctx.fillText('★ RANK UP: ' + rankUpName + ' ★', CX, CY + 165);
+    var nextR = RANKS[currentRank];
+    if (nextR && nextR.desc) {
+      ctx.font = '11px system-ui';
+      ctx.fillStyle = 'rgba(0,255,136,' + alpha + ')';
+      ctx.fillText('Unlocked: ' + nextR.desc, CX, CY + 185);
+    }
+  } else if (currentRank < RANKS.length - 1) {
+    var next = RANKS[currentRank + 1];
+    ctx.font = '10px system-ui';
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillText('Next: ' + next.name + ' at ' + next.kills + ' kills', CX, CY + 165);
+  }
+}
+
+// Input
+var keys = {};
+document.addEventListener('keydown', function(e) {
+  if (e.repeat) return;
+  if (k === 'm' || k === 'M') { bgmToggle(); return; }
+  var k = e.key;
+
+  if (k === 'Escape') {
+    if (state === STATE_PLAY) { state = STATE_TITLE; blips = []; particles = []; }
+    else window.location.href = '/games/';
+    e.preventDefault();
+    return;
+  }
+
+  if (k === 'Enter') {
+    e.preventDefault();
+    initAudio(); if(!bgmAudio) bgmInit();
+    initMic();
+    if (state === STATE_TITLE || state === STATE_OVER) {
+      startGame();
+    } else if (state === STATE_PLAY) {
+      fire();
+    }
+    return;
+  }
+
+  if (state === STATE_PLAY) {
+    keys[k] = true;
+    e.preventDefault();
+  }
+});
+
+document.addEventListener('keyup', function(e) {
+  keys[e.key] = false;
+});
+
+function handleInput() {
+  if (state !== STATE_PLAY) return;
+  var rotSpeed = 2.5 * dt;
+  var distSpeed = 120 * dt;
+  if (keys['ArrowLeft']) cursorAngle -= rotSpeed;
+  if (keys['ArrowRight']) cursorAngle += rotSpeed;
+  if (keys['ArrowUp']) cursorDist = Math.max(30, cursorDist - distSpeed);
+  if (keys['ArrowDown']) cursorDist = Math.min(R - 10, cursorDist + distSpeed);
+}
+
+function frame(t) {
+  dt = Math.min(0.05, (t - lastTime) / 1000);
+  lastTime = t;
+
+  // Sweep always moves for title screen decoration
+  if (state === STATE_TITLE) {
+    sweepAngle += 0.01;
+    if (sweepAngle > Math.PI * 2) sweepAngle -= Math.PI * 2;
+  }
+  
+  // Alert announcement timer
+  if (state === STATE_ALERT) {
+    alertAnnounceTimer += dt * 1000;
+    if (alertAnnounceTimer >= 1800) {
+      state = STATE_PLAY;
+    }
+  }
+
+  handleInput();
+  update();
+  draw();
+  requestAnimationFrame(frame);
+}
+
+requestAnimationFrame(function(t) { lastTime = t; frame(t); });
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../touch-controls.js"></script>
+</body>
+</html>

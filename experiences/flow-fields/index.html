@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/experiences/flow-fields/" />
+  <meta property="og:title" content="Flow Fields - Hypernova WebApp" />
+  <meta property="og:url" content="https://liveinthefuture.org/experiences/flow-fields/" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Flow Fields - Hypernova WebApp</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0d0d0d;
+  color: #e8e8e8;
+  width: 600px;
+  height: 600px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+canvas { display: block; }
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+var cv = document.getElementById('c');
+var ctx = cv.getContext('2d');
+var W = 600, H = 600;
+
+// Simplex noise (minimal implementation)
+var perm = [];
+var grad3 = [[1,1,0],[-1,1,0],[1,-1,0],[-1,-1,0],[1,0,1],[-1,0,1],[1,0,-1],[-1,0,-1],[0,1,1],[0,-1,1],[0,1,-1],[0,-1,-1]];
+function initNoise(seed) {
+  var p = [];
+  for (var i = 0; i < 256; i++) p[i] = i;
+  // Fisher-Yates with seed
+  var s = seed;
+  for (var j = 255; j > 0; j--) {
+    s = (s * 16807 + 0) % 2147483647;
+    var k = s % (j + 1);
+    var tmp = p[j]; p[j] = p[k]; p[k] = tmp;
+  }
+  perm = [];
+  for (var m = 0; m < 512; m++) perm[m] = p[m & 255];
+}
+
+function dot2(g, x, y) { return g[0] * x + g[1] * y; }
+function noise2D(xin, yin) {
+  var F2 = 0.5 * (Math.sqrt(3.0) - 1.0);
+  var G2 = (3.0 - Math.sqrt(3.0)) / 6.0;
+  var s = (xin + yin) * F2;
+  var i = Math.floor(xin + s);
+  var j = Math.floor(yin + s);
+  var t = (i + j) * G2;
+  var X0 = i - t, Y0 = j - t;
+  var x0 = xin - X0, y0 = yin - Y0;
+  var i1, j1;
+  if (x0 > y0) { i1 = 1; j1 = 0; } else { i1 = 0; j1 = 1; }
+  var x1 = x0 - i1 + G2, y1 = y0 - j1 + G2;
+  var x2 = x0 - 1.0 + 2.0 * G2, y2 = y0 - 1.0 + 2.0 * G2;
+  var ii = i & 255, jj = j & 255;
+  var gi0 = perm[ii + perm[jj]] % 12;
+  var gi1 = perm[ii + i1 + perm[jj + j1]] % 12;
+  var gi2 = perm[ii + 1 + perm[jj + 1]] % 12;
+  var n0 = 0, n1 = 0, n2 = 0;
+  var t0 = 0.5 - x0 * x0 - y0 * y0;
+  if (t0 >= 0) { t0 *= t0; n0 = t0 * t0 * dot2(grad3[gi0], x0, y0); }
+  var t1 = 0.5 - x1 * x1 - y1 * y1;
+  if (t1 >= 0) { t1 *= t1; n1 = t1 * t1 * dot2(grad3[gi1], x1, y1); }
+  var t2 = 0.5 - x2 * x2 - y2 * y2;
+  if (t2 >= 0) { t2 *= t2; n2 = t2 * t2 * dot2(grad3[gi2], x2, y2); }
+  return 70.0 * (n0 + n1 + n2);
+}
+
+// Palettes
+var palettes = [
+  { name: 'Aurora', colors: ['#00ff88','#00aaff','#8844ff','#ff44aa','#ffcc00'] },
+  { name: 'Ocean', colors: ['#003366','#006699','#0099cc','#00ccff','#66ffff'] },
+  { name: 'Fire', colors: ['#330000','#660000','#cc3300','#ff6600','#ffcc00'] },
+  { name: 'Neon', colors: ['#ff00ff','#00ffff','#ff0066','#66ff00','#ffff00'] },
+  { name: 'Frost', colors: ['#112233','#224466','#4488aa','#88bbdd','#ccddee'] },
+  { name: 'Sunset', colors: ['#1a0533','#4a0e4e','#c2185b','#ff6f00','#ffc107'] },
+  { name: 'Forest', colors: ['#0a1f0a','#1b5e20','#388e3c','#66bb6a','#a5d6a7'] },
+  { name: 'Void', colors: ['#0d0d0d','#1a1a2e','#4a4a8a','#8888cc','#ccccff'] }
+];
+var palIdx = 0;
+
+// Audio (mic)
+var audioCtx = null;
+var analyser = null;
+var freqData = null;
+var micActive = false;
+var micLevel = 0; // 0-1 normalized volume (smoothed)
+var micBass = 0;  // low freq energy (smoothed)
+var micTreble = 0; // high freq energy (smoothed)
+var micBands = new Array(32); // frequency bands for Winamp-style bars
+for (var _b = 0; _b < 32; _b++) micBands[_b] = 0;
+var rawLevel = 0, rawBass = 0, rawTreble = 0;
+
+var micFailed = false;
+
+// Ambient mood classification
+var currentMood = 'Still';
+var moodSmooth = { level: 0, bass: 0, treble: 0, variance: 0 };
+var moodHistory = [];
+var moodGlow = 0; // smooth glow intensity for mood transitions
+
+function classifyMood() {
+  if (!micActive) { currentMood = 'Still'; return; }
+  // Smooth inputs extra for stable classification (avoid flickering)
+  moodSmooth.level += (micLevel - moodSmooth.level) * 0.05;
+  moodSmooth.bass += (micBass - moodSmooth.bass) * 0.05;
+  moodSmooth.treble += (micTreble - moodSmooth.treble) * 0.05;
+  // Track variance (how much the level changes = rhythmic activity)
+  moodHistory.push(micLevel);
+  if (moodHistory.length > 60) moodHistory.shift(); // ~1 second at 60fps
+  var avg = 0;
+  for (var i = 0; i < moodHistory.length; i++) avg += moodHistory[i];
+  avg /= moodHistory.length;
+  var variance = 0;
+  for (var j = 0; j < moodHistory.length; j++) {
+    var d = moodHistory[j] - avg;
+    variance += d * d;
+  }
+  variance /= moodHistory.length;
+  moodSmooth.variance += (variance - moodSmooth.variance) * 0.05;
+
+  var lv = moodSmooth.level;
+  var bass = moodSmooth.bass;
+  var treb = moodSmooth.treble;
+  var vari = moodSmooth.variance;
+
+  // Classification thresholds
+  if (lv < 0.05) {
+    currentMood = 'Still';
+  } else if (vari > 0.008 && bass > 0.15) {
+    currentMood = 'Musical';
+  } else if (lv > 0.35) {
+    currentMood = 'Energetic';
+  } else if (vari > 0.003 || lv > 0.15) {
+    currentMood = 'Social';
+  } else {
+    currentMood = 'Calm';
+  }
+}
+
+var moodColors = {
+  'Still': '#4a5568',
+  'Calm': '#38b2ac',
+  'Social': '#ecc94b',
+  'Energetic': '#e53e3e',
+  'Musical': '#9f7aea'
+};
+var moodEmoji = {
+  'Still': '🌙',
+  'Calm': '🍃',
+  'Social': '☕',
+  'Energetic': '⚡',
+  'Musical': '🎵'
+};
+
+// Generative ambient audio synthesis
+var synthCtx = null;
+var synthOscs = [];
+var synthGain = null;
+var synthFilter = null;
+var synthActive = false;
+var synthEnabled = true; // toggle with ↓
+
+function initSynth() {
+  if (synthActive) return;
+  try {
+    synthCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioCtx) audioCtx = synthCtx;
+
+    synthGain = synthCtx.createGain();
+    synthGain.gain.value = 0;
+
+    synthFilter = synthCtx.createBiquadFilter();
+    synthFilter.type = 'lowpass';
+    synthFilter.frequency.value = 400;
+    synthFilter.Q.value = 1.5;
+
+    // 4 oscillators — each driven by flow angle in a quadrant
+    var baseFreqs = [65.41, 98.00, 130.81, 196.00]; // C2, G2, C3, G3 — open fifth drone
+    var types = ['sine', 'triangle', 'sine', 'triangle'];
+    for (var o = 0; o < 4; o++) {
+      var osc = synthCtx.createOscillator();
+      osc.type = types[o];
+      osc.frequency.value = baseFreqs[o];
+      var oscGain = synthCtx.createGain();
+      oscGain.gain.value = 0.06;
+      osc.connect(oscGain);
+      oscGain.connect(synthFilter);
+      synthOscs.push({ osc: osc, gain: oscGain, baseFreq: baseFreqs[o] });
+      osc.start();
+    }
+    synthFilter.connect(synthGain);
+    synthGain.connect(synthCtx.destination);
+
+    synthActive = true;
+  } catch(e) { /* synth init failed — no audio output */ }
+}
+
+// Flow angle accumulators per quadrant (updated in draw loop)
+var quadAngles = [0, 0, 0, 0];
+var quadCounts = [0, 0, 0, 0];
+
+function updateSynth() {
+  if (!synthActive || !synthEnabled) {
+    if (synthGain) synthGain.gain.setTargetAtTime(0, synthCtx.currentTime, 0.3);
+    return;
+  }
+  // Smoothly bring up volume
+  var targetVol = 0.04 + (micActive ? micLevel * 0.03 : 0.02);
+  synthGain.gain.setTargetAtTime(targetVol, synthCtx.currentTime, 0.5);
+
+  // Modulate filter with mic bass (low = warm muffled, high = bright)
+  var filterTarget = 300 + (micActive ? micBass * 800 : 200) + micTreble * 400;
+  synthFilter.frequency.setTargetAtTime(filterTarget, synthCtx.currentTime, 0.3);
+
+  // Each oscillator freq modulated by average flow angle in its quadrant
+  for (var o = 0; o < synthOscs.length; o++) {
+    var avgAngle = quadCounts[o] > 0 ? quadAngles[o] / quadCounts[o] : 0;
+    // Subtle detuning: ±8% of base frequency based on flow direction
+    var detune = 1.0 + (Math.sin(avgAngle) * 0.08);
+    var newFreq = synthOscs[o].baseFreq * detune;
+    synthOscs[o].osc.frequency.setTargetAtTime(newFreq, synthCtx.currentTime, 0.4);
+  }
+  // Reset accumulators
+  for (var q = 0; q < 4; q++) { quadAngles[q] = 0; quadCounts[q] = 0; }
+}
+
+function initMic() {
+  if (micActive || micFailed) return;
+  micFailed = true; // block retries immediately
+  try {
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    var src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.88;
+    src.connect(analyser);
+    freqData = new Uint8Array(analyser.frequencyBinCount);
+    micActive = true;
+    micFailed = false;
+  }).catch(function() { micActive = false; });
+  } catch(e) { micActive = false; }
+}
+
+function updateMic() {
+  if (!micActive || !analyser) return;
+  analyser.getByteFrequencyData(freqData);
+  var sum = 0, bassSum = 0, trebSum = 0;
+  var bins = freqData.length;
+  for (var i = 0; i < bins; i++) {
+    sum += freqData[i];
+    if (i < bins / 4) bassSum += freqData[i];
+    else if (i > bins * 3 / 4) trebSum += freqData[i];
+  }
+  rawLevel = sum / (bins * 255);
+  rawBass = bassSum / ((bins / 4) * 255);
+  rawTreble = trebSum / ((bins / 4) * 255);
+  // Smooth — lerp toward raw values (Winamp-style gentle response)
+  var smooth = 0.12;
+  micLevel += (rawLevel - micLevel) * smooth;
+  micBass += (rawBass - micBass) * smooth;
+  micTreble += (rawTreble - micTreble) * smooth;
+  // 32 frequency bands (for Winamp bar visualization)
+  var binsPerBand = Math.floor(bins / 32);
+  for (var b = 0; b < 32; b++) {
+    var bandSum = 0;
+    for (var j = 0; j < binsPerBand; j++) {
+      bandSum += freqData[b * binsPerBand + j];
+    }
+    var rawBand = bandSum / (binsPerBand * 255);
+    micBands[b] += (rawBand - micBands[b]) * 0.15;
+  }
+}
+
+// Influence cursor
+var cursorX = 300, cursorY = 300;
+var cursorSpeed = 8;
+var influenceModes = ['attract', 'repel', 'vortex', 'off'];
+var influenceIdx = 0;
+var influenceMode = 'attract';
+var influenceRadius = 120;
+var influenceStrength = 3;
+var influenceColors = { attract: '#00ff88', repel: '#ff4466', vortex: '#aa66ff', off: '#555' };
+var influenceEmoji = { attract: '◉', repel: '◎', vortex: '↻', off: '○' };
+var cursorPulse = 0; // for visual pulse effect
+
+// Particle count (default, overridable from localStorage)
+var particleCount = 800;
+
+// Persistence
+var savedPrefs = null;
+try {
+  savedPrefs = JSON.parse(localStorage.getItem('ff_prefs'));
+} catch(e) {}
+if (savedPrefs) {
+  if (typeof savedPrefs.palIdx === 'number') palIdx = savedPrefs.palIdx % palettes.length;
+  if (typeof savedPrefs.influenceIdx === 'number') { influenceIdx = savedPrefs.influenceIdx % 4; influenceMode = influenceModes[influenceIdx]; }
+  if (typeof savedPrefs.particleCount === 'number') particleCount = Math.min(2000, Math.max(200, savedPrefs.particleCount));
+  if (typeof savedPrefs.synthEnabled === 'boolean') synthEnabled = savedPrefs.synthEnabled;
+}
+function savePrefs() {
+  try { localStorage.setItem('ff_prefs', JSON.stringify({ palIdx: palIdx, influenceIdx: influenceIdx, particleCount: particleCount, synthEnabled: synthEnabled })); } catch(e) {}
+}
+
+// State
+var particles = [];
+var speed = 2;
+var scale = 0.004;
+var seed = Math.floor(Math.random() * 99999);
+var tick = 0;
+var timeOffset = 0;
+var trailAlpha = 0.04;
+
+function resetParticles() {
+  particles = [];
+  for (var i = 0; i < particleCount; i++) {
+    particles.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      age: Math.floor(Math.random() * 200),
+      maxAge: 150 + Math.floor(Math.random() * 150)
+    });
+  }
+}
+
+function getColor(t) {
+  var cols = palettes[palIdx].colors;
+  var idx = t * (cols.length - 1);
+  var i0 = Math.floor(idx);
+  var i1 = Math.min(i0 + 1, cols.length - 1);
+  var f = idx - i0;
+  var c0 = cols[i0], c1 = cols[i1];
+  var r0 = parseInt(c0.substr(1,2),16), g0 = parseInt(c0.substr(3,2),16), b0 = parseInt(c0.substr(5,2),16);
+  var r1 = parseInt(c1.substr(1,2),16), g1 = parseInt(c1.substr(3,2),16), b1 = parseInt(c1.substr(5,2),16);
+  var r = Math.round(r0 + (r1 - r0) * f);
+  var g = Math.round(g0 + (g1 - g0) * f);
+  var b = Math.round(b0 + (b1 - b0) * f);
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+
+function drawHeader() {
+  ctx.fillStyle = 'rgba(13,13,13,0.8)';
+  ctx.fillRect(0, 0, W, 40);
+
+  ctx.font = '600 18px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🌊 Flow Fields', 14, 20);
+
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.textAlign = 'right';
+  var micLabel = micActive ? ' 🎤 ' + Math.round(micLevel * 100) + '%' : '';
+  var synthLabel = synthActive && synthEnabled ? ' 🔊' : synthActive ? ' 🔇' : '';
+  ctx.fillText(palettes[palIdx].name + ' · ' + particleCount + 'p' + micLabel + synthLabel, W - 14, 20);
+
+  // Mood classification display (big, centered, below header)
+  if (micActive) {
+    var mc = moodColors[currentMood] || '#888';
+    var me = moodEmoji[currentMood] || '';
+    // Smooth glow for mood transitions
+    var targetGlow = currentMood === 'Still' ? 0.3 : currentMood === 'Calm' ? 0.5 : currentMood === 'Social' ? 0.7 : currentMood === 'Energetic' ? 0.9 : 0.8;
+    moodGlow += (targetGlow - moodGlow) * 0.05;
+    // Mood label with subtle glow
+    ctx.save();
+    ctx.globalAlpha = 0.15 * moodGlow;
+    ctx.fillStyle = mc;
+    ctx.beginPath();
+    ctx.arc(W / 2, 70, 40, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.font = '600 24px -apple-system, sans-serif';
+    ctx.fillStyle = mc;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(me + ' ' + currentMood, W / 2, 70);
+  }
+}
+
+function drawFooter() {
+  ctx.fillStyle = 'rgba(13,13,13,0.8)';
+  ctx.fillRect(0, H - 32, W, 32);
+
+  // Winamp-style frequency bars (when mic active)
+  if (micActive) {
+    var barW = 14;
+    var gap = 4;
+    var totalW = 32 * barW + 31 * gap;
+    var startX = (W - totalW) / 2;
+    var barMaxH = 80;
+    var barY = H - 36;
+    for (var b = 0; b < 32; b++) {
+      var h = micBands[b] * barMaxH;
+      if (h < 2) h = 2;
+      var hue = 120 - b * 3.5; // green → red across spectrum
+      if (hue < 0) hue += 360;
+      ctx.fillStyle = 'hsla(' + hue + ',80%,55%,' + (0.3 + micBands[b] * 0.5) + ')';
+      ctx.fillRect(startX + b * (barW + gap), barY - h, barW, h);
+    }
+  }
+
+  // Influence mode indicator
+  var icolor = influenceColors[influenceMode];
+  var ilabel = influenceEmoji[influenceMode] + ' ' + influenceMode.charAt(0).toUpperCase() + influenceMode.slice(1);
+  ctx.font = '600 13px -apple-system, sans-serif';
+  ctx.fillStyle = icolor;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(ilabel, 14, H - 16);
+
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'center';
+  ctx.fillText('D-pad Move  Enter Mode  Esc Back', W / 2, H - 16);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText(palettes[palIdx].name, W - 14, H - 16);
+
+  // Mic status
+  if (micFailed) {
+    ctx.fillStyle = '#555';
+    ctx.textAlign = 'center';
+    ctx.fillText('🎤 Mic unavailable — auto mode', W / 2, H - 32);
+  } else if (!micActive) {
+    ctx.fillStyle = '#ff6644';
+    ctx.textAlign = 'center';
+    ctx.fillText('🎤 Press any key to enable mic input', W / 2, H - 32);
+  }
+}
+
+function draw() {
+  tick++;
+  timeOffset += 0.003;
+  updateMic();
+  classifyMood();
+  updateSynth();
+
+  // Mic gently modulates — Winamp chill vibes, not freakout
+  var curSpeed = speed;
+  var curScale = scale;
+  var curTrail = trailAlpha;
+  if (micActive) {
+    curSpeed = speed + micLevel * 1.5;        // gentle speed breathing
+    curScale = scale + micBass * 0.002;       // subtle turbulence shift
+    curTrail = trailAlpha - micTreble * 0.01; // barely perceptible trail change
+    if (curTrail < 0.01) curTrail = 0.01;
+  }
+
+  // Fade trail
+  ctx.fillStyle = 'rgba(13,13,13,' + curTrail + ')';
+  ctx.fillRect(0, 0, W, H);
+
+  // Update and draw particles
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    var angle = noise2D(p.x * curScale, p.y * curScale + timeOffset) * Math.PI * 4;
+
+    // Cursor influence on particles
+    if (influenceMode !== 'off') {
+      var cdx = p.x - cursorX;
+      var cdy = p.y - cursorY;
+      var cdist = Math.sqrt(cdx * cdx + cdy * cdy);
+      if (cdist < influenceRadius && cdist > 1) {
+        var inf = (1 - cdist / influenceRadius) * influenceStrength;
+        var cangle = Math.atan2(cdy, cdx);
+        if (influenceMode === 'attract') {
+          angle = angle + (cangle + Math.PI - angle) * inf * 0.3;
+        } else if (influenceMode === 'repel') {
+          angle = angle + (cangle - angle) * inf * 0.3;
+        } else if (influenceMode === 'vortex') {
+          angle = angle + (cangle + Math.PI * 0.5 - angle) * inf * 0.4;
+        }
+      }
+    }
+
+    var vx = Math.cos(angle) * curSpeed;
+    var vy = Math.sin(angle) * curSpeed;
+
+    // Accumulate flow angles per quadrant for synth modulation
+    var qx = p.x < W / 2 ? 0 : 1;
+    var qy = p.y < H / 2 ? 0 : 1;
+    var qi = qy * 2 + qx;
+    quadAngles[qi] += angle;
+    quadCounts[qi]++;
+
+    var prevX = p.x, prevY = p.y;
+    p.x += vx;
+    p.y += vy;
+    p.age++;
+
+    // Color based on angle
+    var t = (Math.atan2(vy, vx) / Math.PI + 1) / 2; // 0-1
+    var alpha = 1;
+    if (p.age < 10) alpha = p.age / 10;
+    if (p.age > p.maxAge - 20) alpha = (p.maxAge - p.age) / 20;
+    if (alpha < 0) alpha = 0;
+
+    ctx.strokeStyle = getColor(t);
+    ctx.globalAlpha = alpha * 0.6;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(prevX, prevY);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+
+    // Respawn if out of bounds or too old
+    if (p.x < -10 || p.x > W + 10 || p.y < -10 || p.y > H + 10 || p.age > p.maxAge) {
+      p.x = Math.random() * W;
+      p.y = Math.random() * H;
+      p.age = 0;
+      p.maxAge = 150 + Math.floor(Math.random() * 150);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  drawHeader();
+
+  // Draw influence cursor
+  if (influenceMode !== 'off') {
+    cursorPulse += 0.06;
+    var pulseR = influenceRadius + Math.sin(cursorPulse) * 8;
+    var icolor = influenceColors[influenceMode];
+    // Radius ring
+    ctx.beginPath();
+    ctx.arc(cursorX, cursorY, pulseR, 0, Math.PI * 2);
+    ctx.strokeStyle = icolor;
+    ctx.globalAlpha = 0.15 + Math.sin(cursorPulse) * 0.05;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Center dot
+    ctx.beginPath();
+    ctx.arc(cursorX, cursorY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = icolor;
+    ctx.globalAlpha = 0.8;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  } else {
+    // Dim cursor in off mode
+    ctx.beginPath();
+    ctx.arc(cursorX, cursorY, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#555';
+    ctx.globalAlpha = 0.4;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  drawFooter();
+  requestAnimationFrame(draw);
+}
+
+// Input
+document.addEventListener('keydown', function(e) {
+  e.preventDefault();
+  // Init mic and synth on any keypress (needs user gesture for permission)
+  if (!micActive && !micFailed) initMic();
+  if (!synthActive) initSynth();
+  if (e.key === 'ArrowLeft') {
+    cursorX = Math.max(10, cursorX - cursorSpeed);
+  } else if (e.key === 'ArrowRight') {
+    cursorX = Math.min(W - 10, cursorX + cursorSpeed);
+  } else if (e.key === 'ArrowUp') {
+    cursorY = Math.max(10, cursorY - cursorSpeed);
+  } else if (e.key === 'ArrowDown') {
+    cursorY = Math.max(10, cursorY + cursorSpeed);
+    cursorY = Math.min(H - 10, cursorY);
+  } else if (e.key === 'Enter') {
+    // Cycle influence mode: attract → repel → vortex → off → attract
+    influenceIdx = (influenceIdx + 1) % influenceModes.length;
+    influenceMode = influenceModes[influenceIdx];
+    savePrefs();
+  } else if (e.key === 'Escape' || e.key === 'Backspace') {
+    window.location.href = '../';
+  }
+});
+
+// Init
+initNoise(seed);
+resetParticles();
+ctx.fillStyle = '#0d0d0d';
+ctx.fillRect(0, 0, W, H);
+draw();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/experiences/compass/" />
+  <meta property="og:title" content="Compass - Live in the Future" />
+  <meta property="og:url" content="https://liveinthefuture.org/experiences/compass/" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="description" content="Hands-free compass with saved waypoints and audio bearing guidance for glasses" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Compass - Live in the Future</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0d0d0d;
+  color: #e8e8e8;
+  width: 600px;
+  height: 600px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+canvas { display: block; }
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+var cv = document.getElementById('c');
+var ctx = cv.getContext('2d');
+var W = 600, H = 600;
+var CX = W / 2, CY = H / 2;
+
+// State
+var heading = 0;
+var smoothHeading = 0;
+var hasCompass = false;
+var permissionNeeded = false;
+var tilt = { beta: 0, gamma: 0 };
+var demoMode = false;
+var demoAngle = 0;
+
+// Marked bearing
+var markedBearing = -1; // -1 = no mark
+var markedPulse = 0;
+var markedFlash = 0;
+
+// Saved waypoints (persisted in localStorage)
+var savedWaypoints = []; // [{bearing, name, time}]
+var activeWaypointIdx = -1; // -1 = manual mark or none
+var MAX_WAYPOINTS = 8;
+
+function loadWaypoints() {
+  try {
+    var data = localStorage.getItem('compass_waypoints');
+    if (data) savedWaypoints = JSON.parse(data);
+  } catch(e) { savedWaypoints = []; }
+}
+
+function saveWaypointStorage() {
+  try {
+    localStorage.setItem('compass_waypoints', JSON.stringify(savedWaypoints));
+  } catch(e) {}
+}
+
+function directionLabel(deg) {
+  deg = ((deg % 360) + 360) % 360;
+  if (deg >= 337.5 || deg < 22.5) return 'N';
+  if (deg < 67.5) return 'NE';
+  if (deg < 112.5) return 'E';
+  if (deg < 157.5) return 'SE';
+  if (deg < 202.5) return 'S';
+  if (deg < 247.5) return 'SW';
+  if (deg < 292.5) return 'W';
+  return 'NW';
+}
+
+function addWaypoint(bearing) {
+  bearing = Math.round(bearing) % 360;
+  if (bearing < 0) bearing += 360;
+  var wp = { bearing: bearing, name: directionLabel(bearing) + ' ' + bearing + '°', time: Date.now() };
+  // Check if a very close waypoint exists (within 3°)
+  for (var i = 0; i < savedWaypoints.length; i++) {
+    if (Math.abs(angleDiff(savedWaypoints[i].bearing, bearing)) < 3) {
+      savedWaypoints[i] = wp;
+      saveWaypointStorage();
+      return i;
+    }
+  }
+  if (savedWaypoints.length >= MAX_WAYPOINTS) {
+    savedWaypoints.shift(); // remove oldest
+    // Adjust activeWaypointIdx since we removed from the front
+    if (activeWaypointIdx > 0) activeWaypointIdx--;
+    else if (activeWaypointIdx === 0) activeWaypointIdx = -1;
+  }
+  savedWaypoints.push(wp);
+  saveWaypointStorage();
+  return savedWaypoints.length - 1;
+}
+
+// Audio bearing feedback
+var audioCtx = null;
+var lastClickedCardinal = -1;
+var audioReady = false;
+
+// Cardinal points
+var cardinals = [
+  { deg: 0, label: 'N', color: '#ff4444' },
+  { deg: 45, label: 'NE', color: '#888' },
+  { deg: 90, label: 'E', color: '#e8e8e8' },
+  { deg: 135, label: 'SE', color: '#888' },
+  { deg: 180, label: 'S', color: '#e8e8e8' },
+  { deg: 225, label: 'SW', color: '#888' },
+  { deg: 270, label: 'W', color: '#e8e8e8' },
+  { deg: 315, label: 'NW', color: '#888' }
+];
+
+// Smooth angle interpolation (handles 359→0 wrap)
+function lerpAngle(from, to, t) {
+  var diff = to - from;
+  while (diff > 180) diff -= 360;
+  while (diff < -180) diff += 360;
+  return from + diff * t;
+}
+
+function angleDiff(a, b) {
+  var d = b - a;
+  while (d > 180) d -= 360;
+  while (d < -180) d += 360;
+  return d;
+}
+
+// ---- Audio System ----
+function initAudio() {
+  if (audioCtx) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioReady = true;
+  } catch (e) {
+    audioReady = false;
+  }
+}
+
+// Short click sound (like a diving bezel detent)
+function playClick(isCardinal) {
+  if (!audioCtx || !audioReady) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = isCardinal ? 880 : 660;
+  gain.gain.value = isCardinal ? 0.15 : 0.06;
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (isCardinal ? 0.12 : 0.06));
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + (isCardinal ? 0.12 : 0.06));
+}
+
+// Mark bearing sound
+function playMarkSound() {
+  if (!audioCtx || !audioReady) return;
+  var t = audioCtx.currentTime;
+  var osc1 = audioCtx.createOscillator();
+  var osc2 = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc1.type = 'sine';
+  osc2.type = 'sine';
+  osc1.frequency.value = 523; // C5
+  osc2.frequency.value = 659; // E5
+  gain.gain.value = 0.12;
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+  osc1.connect(gain);
+  osc2.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc1.start(t);
+  osc2.start(t + 0.08);
+  osc1.stop(t + 0.2);
+  osc2.stop(t + 0.3);
+}
+
+// Clear bearing sound
+function playClearSound() {
+  if (!audioCtx || !audioReady) return;
+  var t = audioCtx.currentTime;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = 440;
+  osc.frequency.exponentialRampToValueAtTime(220, t + 0.2);
+  gain.gain.value = 0.1;
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(t);
+  osc.stop(t + 0.2);
+}
+
+// Waypoint cycle sound — pitch encodes position in list
+function playWaypointCycle(idx, total) {
+  if (!audioCtx || !audioReady) return;
+  var t = audioCtx.currentTime;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.value = 440 + (idx / Math.max(1, total - 1)) * 440;
+  gain.gain.value = 0.1;
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(t);
+  osc.stop(t + 0.1);
+}
+
+// Geiger-counter bearing guidance
+var bearingClickTimer = 0;
+var bearingClickInterval = 999;
+var lastBearingClickTime = 0;
+
+function playBearingClick(panValue, onTarget) {
+  if (!audioCtx || !audioReady) return;
+  var t = audioCtx.currentTime;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  var panner = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+
+  osc.type = onTarget ? 'sine' : 'triangle';
+  osc.frequency.value = onTarget ? 880 : 660;
+  gain.gain.value = onTarget ? 0.12 : 0.08;
+  gain.gain.exponentialRampToValueAtTime(0.001, t + (onTarget ? 0.15 : 0.08));
+
+  osc.connect(gain);
+  if (panner) {
+    panner.pan.value = Math.max(-1, Math.min(1, panValue));
+    gain.connect(panner);
+    panner.connect(audioCtx.destination);
+  } else {
+    gain.connect(audioCtx.destination);
+  }
+  osc.start(t);
+  osc.stop(t + (onTarget ? 0.15 : 0.08));
+}
+
+function updateBearingGuidance() {
+  if (!audioReady) return;
+  if (markedBearing < 0) return;
+
+  var currentDeg = demoMode ? demoAngle : smoothHeading;
+  var signedDiff = angleDiff(currentDeg, markedBearing);
+  var absDiff = Math.abs(signedDiff);
+
+  if (absDiff < 5) {
+    bearingClickInterval = 4;
+  } else if (absDiff < 15) {
+    bearingClickInterval = 8;
+  } else if (absDiff < 30) {
+    bearingClickInterval = 15;
+  } else if (absDiff < 60) {
+    bearingClickInterval = 30;
+  } else if (absDiff < 120) {
+    bearingClickInterval = 60;
+  } else {
+    bearingClickInterval = 120;
+  }
+
+  bearingClickTimer++;
+  if (bearingClickTimer >= bearingClickInterval) {
+    bearingClickTimer = 0;
+    var onTarget = absDiff < 5;
+    var pan = onTarget ? 0 : Math.max(-1, Math.min(1, signedDiff / 45));
+    playBearingClick(pan, onTarget);
+  }
+}
+
+// Check if we crossed a cardinal point
+function checkCardinalClick(oldHeading, newHeading) {
+  for (var i = 0; i < 8; i++) {
+    var cd = cardinals[i].deg;
+    var oldDiff = angleDiff(oldHeading, cd);
+    var newDiff = angleDiff(newHeading, cd);
+    if (oldDiff * newDiff < 0 && Math.abs(newDiff) < 10) {
+      if (lastClickedCardinal !== i) {
+        lastClickedCardinal = i;
+        playClick(i % 2 === 0);
+        return;
+      }
+    }
+  }
+  var minDist = 360;
+  for (var j = 0; j < 8; j++) {
+    var d = Math.abs(angleDiff(newHeading, cardinals[j].deg));
+    if (d < minDist) minDist = d;
+  }
+  if (minDist > 15) lastClickedCardinal = -1;
+}
+
+// ---- Compass Sensor ----
+function initCompass() {
+  if (typeof DeviceOrientationEvent !== 'undefined') {
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      permissionNeeded = true;
+    } else {
+      startListening();
+    }
+  } else {
+    demoMode = true;
+  }
+}
+
+function startListening() {
+  window.addEventListener('deviceorientation', function(e) {
+    if (e.alpha !== null) {
+      heading = e.alpha;
+      hasCompass = true;
+    }
+    if (e.beta !== null) tilt.beta = e.beta;
+    if (e.gamma !== null) tilt.gamma = e.gamma;
+  });
+  window.addEventListener('deviceorientationabsolute', function(e) {
+    if (e.alpha !== null) {
+      heading = 360 - e.alpha;
+      hasCompass = true;
+    }
+  });
+}
+
+function requestPermission() {
+  DeviceOrientationEvent.requestPermission().then(function(state) {
+    if (state === 'granted') {
+      startListening();
+      permissionNeeded = false;
+    }
+  }).catch(function() {
+    demoMode = true;
+    permissionNeeded = false;
+  });
+}
+
+// ---- Drawing ----
+function drawCompassRing(centerY, radius) {
+  var displayHeading = demoMode ? demoAngle : smoothHeading;
+
+  // Outer ring
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(CX, centerY, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Saved waypoint dots on ring (inactive ones)
+  for (var wi = 0; wi < savedWaypoints.length; wi++) {
+    if (wi === activeWaypointIdx && markedBearing >= 0) continue; // active shown as diamond
+    var wpAngle = (savedWaypoints[wi].bearing - displayHeading) * Math.PI / 180 - Math.PI / 2;
+    var wpx = CX + Math.cos(wpAngle) * radius;
+    var wpy = centerY + Math.sin(wpAngle) * radius;
+    ctx.fillStyle = 'rgba(74,158,255,0.45)';
+    ctx.beginPath();
+    ctx.arc(wpx, wpy, 5, 0, Math.PI * 2);
+    ctx.fill();
+    // Tiny label
+    ctx.font = '9px -apple-system, sans-serif';
+    ctx.fillStyle = 'rgba(74,158,255,0.5)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    var wlR = radius + 22;
+    ctx.fillText(savedWaypoints[wi].name, CX + Math.cos(wpAngle) * wlR, centerY + Math.sin(wpAngle) * wlR);
+  }
+
+  // Marked bearing indicator on ring
+  if (markedBearing >= 0) {
+    var markAngle = (markedBearing - displayHeading) * Math.PI / 180 - Math.PI / 2;
+    var diff = Math.abs(angleDiff(displayHeading, markedBearing));
+    var onTarget = diff < 5;
+    var nearTarget = diff < 30;
+    
+    markedPulse = (markedPulse + 0.04) % (Math.PI * 2);
+    var pulse = 0.5 + 0.5 * Math.sin(markedPulse);
+    
+    // Bearing line from center to ring
+    ctx.strokeStyle = onTarget ? 'rgba(68,204,68,' + (0.4 + pulse * 0.3) + ')' : 
+                      nearTarget ? 'rgba(255,170,0,' + (0.2 + pulse * 0.15) + ')' : 
+                      'rgba(74,158,255,' + (0.15 + pulse * 0.1) + ')';
+    ctx.lineWidth = onTarget ? 3 : 2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(CX, centerY);
+    ctx.lineTo(CX + Math.cos(markAngle) * (radius - 3), centerY + Math.sin(markAngle) * (radius - 3));
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Diamond marker on ring
+    var mx = CX + Math.cos(markAngle) * radius;
+    var my = centerY + Math.sin(markAngle) * radius;
+    var markerSize = onTarget ? 10 + pulse * 4 : 8;
+    ctx.fillStyle = onTarget ? '#44cc44' : nearTarget ? '#ffaa00' : '#4a9eff';
+    ctx.beginPath();
+    ctx.moveTo(mx + Math.cos(markAngle) * markerSize, my + Math.sin(markAngle) * markerSize);
+    ctx.lineTo(mx + Math.cos(markAngle + Math.PI/2) * markerSize * 0.5, my + Math.sin(markAngle + Math.PI/2) * markerSize * 0.5);
+    ctx.lineTo(mx + Math.cos(markAngle + Math.PI) * markerSize * 0.4, my + Math.sin(markAngle + Math.PI) * markerSize * 0.4);
+    ctx.lineTo(mx + Math.cos(markAngle - Math.PI/2) * markerSize * 0.5, my + Math.sin(markAngle - Math.PI/2) * markerSize * 0.5);
+    ctx.closePath();
+    ctx.fill();
+
+    // Bearing degree label near marker
+    ctx.font = 'bold 11px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    var labelR = radius + 30;
+    ctx.fillText(Math.round(markedBearing) + '°', CX + Math.cos(markAngle) * labelR, centerY + Math.sin(markAngle) * labelR);
+  }
+
+  // Tick marks (every 5 degrees, bigger every 15)
+  for (var d = 0; d < 360; d += 5) {
+    var angle = (d - displayHeading) * Math.PI / 180 - Math.PI / 2;
+    var innerR = (d % 15 === 0) ? radius - 18 : radius - 10;
+    var outerR = radius - 3;
+    ctx.strokeStyle = (d % 15 === 0) ? '#666' : '#333';
+    ctx.lineWidth = (d % 15 === 0) ? 2 : 1;
+    ctx.beginPath();
+    ctx.moveTo(CX + Math.cos(angle) * innerR, centerY + Math.sin(angle) * innerR);
+    ctx.lineTo(CX + Math.cos(angle) * outerR, centerY + Math.sin(angle) * outerR);
+    ctx.stroke();
+  }
+
+  // Cardinal labels
+  for (var i = 0; i < cardinals.length; i++) {
+    var c = cardinals[i];
+    var cAngle = (c.deg - displayHeading) * Math.PI / 180 - Math.PI / 2;
+    var cLabelR = radius - 35;
+    var lx = CX + Math.cos(cAngle) * cLabelR;
+    var ly = centerY + Math.sin(cAngle) * cLabelR;
+    ctx.font = (c.label.length === 1) ? 'bold 24px -apple-system, sans-serif' : '16px -apple-system, sans-serif';
+    ctx.fillStyle = c.color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(c.label, lx, ly);
+  }
+
+  // Degree numbers (every 30)
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  for (var d2 = 0; d2 < 360; d2 += 30) {
+    var angle2 = (d2 - displayHeading) * Math.PI / 180 - Math.PI / 2;
+    var numR = radius + 16;
+    ctx.fillText(d2 + '°', CX + Math.cos(angle2) * numR, centerY + Math.sin(angle2) * numR);
+  }
+
+  // North pointer (red triangle)
+  var northAngle = (0 - displayHeading) * Math.PI / 180 - Math.PI / 2;
+  var tipX = CX + Math.cos(northAngle) * (radius + 2);
+  var tipY = centerY + Math.sin(northAngle) * (radius + 2);
+  ctx.fillStyle = '#ff4444';
+  ctx.beginPath();
+  ctx.moveTo(tipX, tipY);
+  ctx.lineTo(CX + Math.cos(northAngle - 0.08) * (radius + 14), centerY + Math.sin(northAngle - 0.08) * (radius + 14));
+  ctx.lineTo(CX + Math.cos(northAngle + 0.08) * (radius + 14), centerY + Math.sin(northAngle + 0.08) * (radius + 14));
+  ctx.closePath();
+  ctx.fill();
+
+  // Center fixed pointer (blue triangle pointing up)
+  ctx.fillStyle = '#4a9eff';
+  ctx.beginPath();
+  ctx.moveTo(CX, centerY - radius + 25);
+  ctx.lineTo(CX - 8, centerY - radius + 40);
+  ctx.lineTo(CX + 8, centerY - radius + 40);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawHeadingDisplay(y) {
+  var displayHeading = demoMode ? demoAngle : smoothHeading;
+  var deg = Math.round(displayHeading) % 360;
+  if (deg < 0) deg += 360;
+
+  ctx.font = 'bold 64px -apple-system, sans-serif';
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(deg + '°', CX, y);
+
+  var dirName = '';
+  if (deg >= 337.5 || deg < 22.5) dirName = 'North';
+  else if (deg < 67.5) dirName = 'Northeast';
+  else if (deg < 112.5) dirName = 'East';
+  else if (deg < 157.5) dirName = 'Southeast';
+  else if (deg < 202.5) dirName = 'South';
+  else if (deg < 247.5) dirName = 'Southwest';
+  else if (deg < 292.5) dirName = 'West';
+  else dirName = 'Northwest';
+
+  ctx.font = '20px -apple-system, sans-serif';
+  ctx.fillStyle = (dirName === 'North') ? '#ff4444' : '#888';
+  ctx.fillText(dirName, CX, y + 42);
+}
+
+function drawBearingInfo(y) {
+  if (markedBearing < 0) {
+    // Show saved waypoint count hint when not navigating
+    if (savedWaypoints.length > 0) {
+      ctx.font = '14px -apple-system, sans-serif';
+      ctx.fillStyle = '#444';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('📍 ' + savedWaypoints.length + ' saved waypoint' + (savedWaypoints.length === 1 ? '' : 's') + ' — ↑↓ to navigate', CX, y);
+    }
+    return;
+  }
+
+  var currentDeg = demoMode ? demoAngle : smoothHeading;
+  var diff = angleDiff(currentDeg, markedBearing);
+  var absDiff = Math.abs(diff);
+
+  // Background bar
+  ctx.fillStyle = 'rgba(30,30,30,0.8)';
+  var bx = CX - 200, by = y - 20, bw = 400, bh = 56, br = 8;
+  ctx.beginPath();
+  ctx.moveTo(bx + br, by);
+  ctx.lineTo(bx + bw - br, by);
+  ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + br);
+  ctx.lineTo(bx + bw, by + bh - br);
+  ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - br, by + bh);
+  ctx.lineTo(bx + br, by + bh);
+  ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - br);
+  ctx.lineTo(bx, by + br);
+  ctx.quadraticCurveTo(bx, by, bx + br, by);
+  ctx.closePath();
+  ctx.fill();
+
+  // Status text
+  var statusText, statusColor;
+  if (absDiff < 5) {
+    statusText = '✓ ON BEARING';
+    statusColor = '#44cc44';
+  } else {
+    var dir = diff > 0 ? '→ Turn Right' : '← Turn Left';
+    statusText = dir + '  ' + Math.round(absDiff) + '° to ' + Math.round(markedBearing) + '°';
+    statusColor = absDiff < 30 ? '#ffaa00' : '#4a9eff';
+  }
+
+  ctx.font = 'bold 18px -apple-system, sans-serif';
+  ctx.fillStyle = statusColor;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(statusText, CX, y);
+
+  // Waypoint name + index (if navigating to a saved waypoint)
+  if (activeWaypointIdx >= 0 && activeWaypointIdx < savedWaypoints.length) {
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.fillStyle = '#777';
+    ctx.fillText('📍 ' + savedWaypoints[activeWaypointIdx].name + '  (' + (activeWaypointIdx + 1) + '/' + savedWaypoints.length + ')', CX, y + 22);
+  }
+
+  // On-target flash effect
+  if (absDiff < 5) {
+    markedFlash = Math.min(1, markedFlash + 0.05);
+  } else {
+    markedFlash = Math.max(0, markedFlash - 0.02);
+  }
+  if (markedFlash > 0) {
+    ctx.fillStyle = 'rgba(68,204,68,' + (markedFlash * 0.06) + ')';
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+function drawHeader() {
+  ctx.fillStyle = 'rgba(13,13,13,0.9)';
+  ctx.fillRect(0, 0, W, 44);
+  ctx.font = '600 18px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🧭 Compass', 14, 22);
+
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.textAlign = 'right';
+  var statusX = W - 14;
+
+  // Waypoint count
+  if (savedWaypoints.length > 0) {
+    ctx.fillStyle = '#4a9eff';
+    ctx.fillText('📍' + savedWaypoints.length, statusX - 90, 22);
+  }
+
+  if (audioReady) {
+    ctx.fillStyle = '#555';
+    ctx.fillText('🔊', statusX - 50, 22);
+  }
+
+  if (demoMode) {
+    ctx.fillStyle = '#ff6644';
+    ctx.fillText('Demo Mode', statusX, 22);
+  } else if (hasCompass) {
+    ctx.fillStyle = '#44cc44';
+    ctx.fillText('● Live', statusX, 22);
+  } else {
+    ctx.fillStyle = '#888';
+    ctx.fillText('Waiting...', statusX, 22);
+  }
+}
+
+function drawFooter() {
+  ctx.fillStyle = 'rgba(13,13,13,0.9)';
+  ctx.fillRect(0, H - 34, W, 34);
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  if (permissionNeeded && !audioReady) {
+    ctx.fillStyle = '#4a9eff';
+    ctx.fillText('Press any key to enable sensors', CX, H - 17);
+  } else if (markedBearing >= 0) {
+    ctx.fillStyle = '#555';
+    ctx.fillText('←→ Adjust   Enter: Clear   ↑↓ Waypoints   Esc: Back', CX, H - 17);
+  } else {
+    ctx.fillStyle = '#555';
+    var wpHint = savedWaypoints.length > 0 ? '   ↑↓ Waypoints' : '';
+    ctx.fillText('Enter: Mark & Save' + wpHint + '   Esc: Back', CX, H - 17);
+  }
+}
+
+// ---- Main Loop ----
+var prevSmooth = 0;
+function frame() {
+  prevSmooth = smoothHeading;
+  var targetHeading = demoMode ? demoAngle : heading;
+  smoothHeading = lerpAngle(smoothHeading, targetHeading, 0.1);
+
+  if (demoMode) {
+    demoAngle = (demoAngle + 0.15) % 360;
+  }
+
+  checkCardinalClick(prevSmooth, smoothHeading);
+  updateBearingGuidance();
+
+  // Clear
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  // Layout
+  var compassCenterY = 230;
+  drawCompassRing(compassCenterY, 165);
+  drawHeadingDisplay(compassCenterY);
+  drawBearingInfo(compassCenterY + 130);
+  drawHeader();
+  drawFooter();
+
+  requestAnimationFrame(frame);
+}
+
+// ---- Input ----
+document.addEventListener('keydown', function(e) {
+  e.preventDefault();
+  initAudio();
+
+  if (permissionNeeded) {
+    requestPermission();
+    return;
+  }
+
+  if (e.key === 'Enter') {
+    if (markedBearing >= 0) {
+      // Clear active navigation
+      markedBearing = -1;
+      activeWaypointIdx = -1;
+      bearingClickTimer = 0;
+      playClearSound();
+    } else {
+      // Mark current bearing + save as waypoint
+      var current = demoMode ? demoAngle : smoothHeading;
+      markedBearing = Math.round(current) % 360;
+      if (markedBearing < 0) markedBearing += 360;
+      activeWaypointIdx = addWaypoint(markedBearing);
+      playMarkSound();
+    }
+  } else if (e.key === 'ArrowLeft') {
+    if (markedBearing >= 0) {
+      markedBearing = (markedBearing - 5 + 360) % 360;
+      // Update saved waypoint if navigating to one
+      if (activeWaypointIdx >= 0 && activeWaypointIdx < savedWaypoints.length) {
+        savedWaypoints[activeWaypointIdx].bearing = markedBearing;
+        savedWaypoints[activeWaypointIdx].name = directionLabel(markedBearing) + ' ' + markedBearing + '°';
+        saveWaypointStorage();
+      }
+      playClick(false);
+    }
+  } else if (e.key === 'ArrowRight') {
+    if (markedBearing >= 0) {
+      markedBearing = (markedBearing + 5) % 360;
+      if (activeWaypointIdx >= 0 && activeWaypointIdx < savedWaypoints.length) {
+        savedWaypoints[activeWaypointIdx].bearing = markedBearing;
+        savedWaypoints[activeWaypointIdx].name = directionLabel(markedBearing) + ' ' + markedBearing + '°';
+        saveWaypointStorage();
+      }
+      playClick(false);
+    }
+  } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    // Cycle through saved waypoints
+    if (savedWaypoints.length > 0) {
+      if (activeWaypointIdx < 0) {
+        // Start cycling from first or last
+        activeWaypointIdx = e.key === 'ArrowUp' ? 0 : savedWaypoints.length - 1;
+      } else {
+        if (e.key === 'ArrowUp') {
+          activeWaypointIdx = (activeWaypointIdx + 1) % savedWaypoints.length;
+        } else {
+          activeWaypointIdx = (activeWaypointIdx - 1 + savedWaypoints.length) % savedWaypoints.length;
+        }
+      }
+      markedBearing = savedWaypoints[activeWaypointIdx].bearing;
+      bearingClickTimer = 0;
+      playWaypointCycle(activeWaypointIdx, savedWaypoints.length);
+    }
+  } else if (e.key === 'Escape' || e.key === 'Backspace') {
+    window.location.href = '../';
+  }
+});
+
+// Init
+loadWaypoints();
+initCompass();
+frame();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

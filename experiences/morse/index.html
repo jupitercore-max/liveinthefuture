@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Morse Trainer — LITF</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;color:#e0e0e0;font-family:system-ui,-apple-system,sans-serif}
+canvas{display:block}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+var W = 600, H = 600;
+
+// Morse code table
+var MORSE = {
+  'A':'.-','B':'-...','C':'-.-.','D':'-..','E':'.','F':'..-.','G':'--.',
+  'H':'....','I':'..','J':'.---','K':'-.-','L':'.-..','M':'--','N':'-.',
+  'O':'---','P':'.--.','Q':'--.-','R':'.-.','S':'...','T':'-',
+  'U':'..-','V':'...-','W':'.--','X':'-..-','Y':'-.--','Z':'--..',
+  '0':'-----','1':'.----','2':'..---','3':'...--','4':'....-',
+  '5':'.....','6':'-....','7':'--...','8':'---..','9':'----.'
+};
+
+var LETTERS = 'ETIANMSURWDKGOHVFLPJBXCYZQ'.split('');
+var ALL_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
+
+// Audio
+var audioCtx = null;
+var ditLen = 100; // ms at ~12 WPM
+var toneFreq = 650;
+
+// State
+var mode = 0; // 0=menu, 1=listen, 2=tap, 3=stats, 4=speed
+var menuIdx = 0;
+var menuItems = ['Listen Mode', 'Speed Challenge', 'Tap Mode', 'Mic Key', 'Stats'];
+
+// Listen mode state
+var listenChar = '';
+var listenOptions = [];
+var listenSelIdx = 0;
+var listenResult = '';
+var listenResultTimer = 0;
+var listenStreak = 0;
+var listenBest = 0;
+var listenTotal = 0;
+var listenCorrect = 0;
+var listenLevel = 0;
+var listenLevelNames = ['Easy (8)', 'Medium (18)', 'Hard (26)', 'Full (36)'];
+var listenPlaying = false;
+
+// Tap mode state
+var tapChar = '';
+var tapInput = '';
+var tapResult = '';
+var tapResultTimer = 0;
+var tapStreak = 0;
+var tapBest = 0;
+var tapTotal = 0;
+var tapCorrect = 0;
+var tapLevel = 0;
+
+// Mic Key state
+var micStream = null;
+var micAnalyser = null;
+var micAudioLevel = 0;
+var micThreshold = 0.12;
+var micKeyDown = false;
+var micKeyStart = 0;
+var micLastSymbol = 0;
+var micAutoTimer = null;
+var micDitMax = 200;
+var micGapMs = 700;
+var micChar = '';
+var micInput = '';
+var micResult = '';
+var micStreak = 0;
+var micBest = 0;
+var micTotal = 0;
+var micCorrect = 0;
+var micDiffLevel = 0;
+var micPending = false;
+var micLiveFreq = 0;
+
+// Speed Challenge state
+var speedActive = false;
+var speedTimeLeft = 0; // ms remaining
+var speedDuration = 60000; // 60 seconds
+var speedStartTime = 0;
+var speedScore = 0;
+var speedCombo = 0;
+var speedBestCombo = 0;
+var speedChar = '';
+var speedOptions = [];
+var speedSelIdx = 0;
+var speedPlaying = false;
+var speedResult = ''; // '', 'correct', 'wrong'
+var speedResultTimer = 0;
+var speedLevel = 0; // uses same level system
+var speedBestScore = 0;
+var speedGamesPlayed = 0;
+var speedShowResult = false; // end screen
+var speedFinalScore = 0;
+var speedFinalCombo = 0;
+var speedFinalGrade = '';
+var speedPenaltyFlash = 0; // for wrong answer visual
+var speedCorrectFlash = 0;
+var speedCountdown = 0; // 3-2-1 countdown before start
+
+// Stats
+var statsScroll = 0;
+
+// Persist
+var saved = null;
+try { saved = JSON.parse(localStorage.getItem('morse_stats')); } catch(e){}
+if (saved) {
+  listenBest = saved.listenBest || 0;
+  listenTotal = saved.listenTotal || 0;
+  listenCorrect = saved.listenCorrect || 0;
+  listenLevel = saved.listenLevel || 0;
+  tapBest = saved.tapBest || 0;
+  tapTotal = saved.tapTotal || 0;
+  tapCorrect = saved.tapCorrect || 0;
+  tapLevel = saved.tapLevel || 0;
+  speedBestScore = saved.speedBestScore || 0;
+  speedGamesPlayed = saved.speedGamesPlayed || 0;
+  speedLevel = saved.speedLevel || 0;
+  micBest = saved.micBest || 0;
+  micTotal = saved.micTotal || 0;
+  micCorrect = saved.micCorrect || 0;
+  micDiffLevel = saved.micDiffLevel || 0;
+}
+
+function saveStats() {
+  try {
+    localStorage.setItem('morse_stats', JSON.stringify({
+      listenBest: listenBest, listenTotal: listenTotal, listenCorrect: listenCorrect, listenLevel: listenLevel,
+      tapBest: tapBest, tapTotal: tapTotal, tapCorrect: tapCorrect, tapLevel: tapLevel,
+      speedBestScore: speedBestScore, speedGamesPlayed: speedGamesPlayed, speedLevel: speedLevel,
+      micBest: micBest, micTotal: micTotal, micCorrect: micCorrect, micDiffLevel: micDiffLevel
+    }));
+  } catch(e){}
+}
+
+function getLevelChars(level) {
+  if (level === 0) return LETTERS.slice(0, 8);
+  if (level === 1) return LETTERS.slice(0, 18);
+  if (level === 2) return LETTERS;
+  return ALL_CHARS;
+}
+
+function initAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+  }
+}
+
+function playTone(freq, duration) {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = freq;
+  gain.gain.value = 0.3;
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration / 1000);
+  osc.stop(audioCtx.currentTime + duration / 1000 + 0.05);
+}
+
+function playMorse(code, callback) {
+  if (!audioCtx) { if (callback) callback(); return; }
+  listenPlaying = true;
+  speedPlaying = true;
+  var idx = 0;
+  function playNext() {
+    if (idx >= code.length) {
+      listenPlaying = false;
+      speedPlaying = false;
+      if (callback) setTimeout(callback, 100);
+      return;
+    }
+    var sym = code[idx];
+    var dur = sym === '.' ? ditLen : ditLen * 3;
+    playTone(toneFreq, dur);
+    idx++;
+    setTimeout(playNext, sym === '.' ? ditLen * 2 : ditLen * 4);
+  }
+  playNext();
+}
+
+function playCorrectSound() {
+  if (!audioCtx) return;
+  playTone(880, 80);
+  setTimeout(function(){ playTone(1100, 80); }, 100);
+  setTimeout(function(){ playTone(1320, 120); }, 200);
+}
+
+function playWrongSound() {
+  if (!audioCtx) return;
+  playTone(300, 150);
+  setTimeout(function(){ playTone(220, 200); }, 180);
+}
+
+function playClickSound() {
+  if (!audioCtx) return;
+  playTone(500, 30);
+}
+
+function playCountdownBeep(final) {
+  if (!audioCtx) return;
+  if (final) {
+    playTone(880, 120);
+    setTimeout(function(){ playTone(1320, 200); }, 150);
+  } else {
+    playTone(660, 80);
+  }
+}
+
+function playSpeedComplete() {
+  if (!audioCtx) return;
+  playTone(523, 100);
+  setTimeout(function(){ playTone(659, 100); }, 120);
+  setTimeout(function(){ playTone(784, 100); }, 240);
+  setTimeout(function(){ playTone(1047, 200); }, 360);
+}
+
+function getGrade(score) {
+  if (score >= 40) return 'S';
+  if (score >= 30) return 'A';
+  if (score >= 22) return 'B';
+  if (score >= 15) return 'C';
+  if (score >= 8) return 'D';
+  return 'F';
+}
+
+function getGradeColor(grade) {
+  if (grade === 'S') return '#ffd740';
+  if (grade === 'A') return '#69f0ae';
+  if (grade === 'B') return '#4fc3f7';
+  if (grade === 'C') return '#fff';
+  if (grade === 'D') return '#ff8a65';
+  return '#ef5350';
+}
+
+// Pick random char, generate 4 options
+function generateRound(level) {
+  var chars = getLevelChars(level);
+  var ch = chars[Math.floor(Math.random() * chars.length)];
+  var options = [ch];
+  while (options.length < Math.min(4, chars.length)) {
+    var c = chars[Math.floor(Math.random() * chars.length)];
+    if (options.indexOf(c) === -1) options.push(c);
+  }
+  for (var i = options.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = options[i];
+    options[i] = options[j];
+    options[j] = tmp;
+  }
+  return { char: ch, options: options };
+}
+
+function newListenRound() {
+  var r = generateRound(listenLevel);
+  listenChar = r.char;
+  listenOptions = r.options;
+  listenSelIdx = 0;
+  listenResult = '';
+  setTimeout(function() {
+    playMorse(MORSE[listenChar]);
+  }, 400);
+}
+
+function newTapRound() {
+  var chars = getLevelChars(tapLevel);
+  tapChar = chars[Math.floor(Math.random() * chars.length)];
+  tapInput = '';
+  tapResult = '';
+}
+
+function newSpeedRound() {
+  var r = generateRound(speedLevel);
+  speedChar = r.char;
+  speedOptions = r.options;
+  speedSelIdx = 0;
+  speedResult = '';
+  setTimeout(function() {
+    if (speedActive) playMorse(MORSE[speedChar]);
+  }, 200);
+}
+
+// Mic Key functions
+function initMic(callback) {
+  if (micStream) { if (callback) callback(true); return; }
+  micPending = true;
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(function(stream) {
+      micStream = stream;
+      initAudio();
+      var source = audioCtx.createMediaStreamSource(stream);
+      micAnalyser = audioCtx.createAnalyser();
+      micAnalyser.fftSize = 512;
+      micAnalyser.smoothingTimeConstant = 0.5;
+      source.connect(micAnalyser);
+      micPending = false;
+      if (callback) callback(true);
+    })
+    .catch(function() {
+      micPending = false;
+      if (callback) callback(false);
+    });
+}
+
+function processMic() {
+  if (!micAnalyser || mode !== 5 || micResult) return;
+  var data = new Uint8Array(micAnalyser.frequencyBinCount);
+  micAnalyser.getByteTimeDomainData(data);
+  var sum = 0;
+  for (var i = 0; i < data.length; i++) {
+    var v = (data[i] - 128) / 128;
+    sum += v * v;
+  }
+  micAudioLevel = Math.sqrt(sum / data.length);
+
+  var now = Date.now();
+
+  if (micAudioLevel >= micThreshold) {
+    if (!micKeyDown) {
+      micKeyDown = true;
+      micKeyStart = now;
+      if (micAutoTimer) { clearTimeout(micAutoTimer); micAutoTimer = null; }
+    }
+    // Play live tone while key is down
+    if (micKeyDown && !micLiveFreq) {
+      micLiveFreq = 1;
+    }
+  } else {
+    if (micKeyDown) {
+      micKeyDown = false;
+      micLiveFreq = 0;
+      var dur = now - micKeyStart;
+      if (dur > 30) {
+        if (dur < micDitMax) {
+          micInput += '.';
+          playTone(toneFreq, ditLen);
+        } else {
+          micInput += '-';
+          playTone(toneFreq, ditLen * 3);
+        }
+        micLastSymbol = now;
+        if (micAutoTimer) clearTimeout(micAutoTimer);
+        micAutoTimer = setTimeout(function() {
+          if (micInput && mode === 5 && !micResult) {
+            submitMicInput();
+          }
+        }, micGapMs);
+      }
+    }
+  }
+}
+
+function submitMicInput() {
+  if (!micInput || micResult) return;
+  micTotal++;
+  if (micInput === MORSE[micChar]) {
+    micResult = 'correct';
+    micStreak++;
+    micCorrect++;
+    if (micStreak > micBest) micBest = micStreak;
+    playCorrectSound();
+  } else {
+    micResult = 'wrong';
+    micStreak = 0;
+    playWrongSound();
+  }
+  saveStats();
+}
+
+function newMicRound() {
+  var chars = getLevelChars(micDiffLevel);
+  micChar = chars[Math.floor(Math.random() * chars.length)];
+  micInput = '';
+  micResult = '';
+  micKeyDown = false;
+  micAudioLevel = 0;
+}
+
+function startSpeedChallenge() {
+  speedActive = true;
+  speedScore = 0;
+  speedCombo = 0;
+  speedBestCombo = 0;
+  speedShowResult = false;
+  speedCountdown = 3;
+  speedPenaltyFlash = 0;
+  speedCorrectFlash = 0;
+
+  // 3-2-1 countdown
+  var countStep = function() {
+    if (speedCountdown > 0) {
+      playCountdownBeep(speedCountdown === 1);
+      speedCountdown--;
+      if (speedCountdown > 0) {
+        setTimeout(countStep, 800);
+      } else {
+        // GO!
+        setTimeout(function() {
+          speedStartTime = Date.now();
+          speedTimeLeft = speedDuration;
+          newSpeedRound();
+        }, 600);
+      }
+    }
+  };
+  countStep();
+}
+
+function endSpeedChallenge() {
+  speedActive = false;
+  speedShowResult = true;
+  speedFinalScore = speedScore;
+  speedFinalCombo = speedBestCombo;
+  speedFinalGrade = getGrade(speedScore);
+  speedGamesPlayed++;
+  if (speedScore > speedBestScore) speedBestScore = speedScore;
+  saveStats();
+  playSpeedComplete();
+}
+
+// Drawing helpers
+function drawText(text, x, y, size, color, align) {
+  ctx.font = size + 'px system-ui, sans-serif';
+  ctx.fillStyle = color || '#e0e0e0';
+  ctx.textAlign = align || 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+}
+
+function drawBoldText(text, x, y, size, color, align) {
+  ctx.font = 'bold ' + size + 'px system-ui, sans-serif';
+  ctx.fillStyle = color || '#e0e0e0';
+  ctx.textAlign = align || 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+}
+
+function drawMorseVisual(code, x, y, size) {
+  var totalW = 0;
+  var gap = size * 0.4;
+  var elements = [];
+  for (var i = 0; i < code.length; i++) {
+    var isDit = code[i] === '.';
+    var w = isDit ? size : size * 3;
+    elements.push({ w: w, dit: isDit });
+    totalW += w + gap;
+  }
+  totalW -= gap;
+  var startX = x - totalW / 2;
+  for (var j = 0; j < elements.length; j++) {
+    var el = elements[j];
+    ctx.fillStyle = '#4fc3f7';
+    if (el.dit) {
+      ctx.beginPath();
+      ctx.arc(startX + el.w / 2, y, size / 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.roundRect(startX, y - size / 2, el.w, size, size / 2);
+      ctx.fill();
+    }
+    startX += el.w + gap;
+  }
+}
+
+function drawFocusBox(x, y, w, h, focused) {
+  ctx.strokeStyle = focused ? '#4fc3f7' : '#333';
+  ctx.lineWidth = focused ? 3 : 1;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 8);
+  ctx.stroke();
+  if (focused) {
+    ctx.fillStyle = 'rgba(79,195,247,0.1)';
+    ctx.fill();
+  }
+}
+
+// Main draw
+function draw() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  if (mode === 0) drawMenu();
+  else if (mode === 1) drawListen();
+  else if (mode === 2) drawTap();
+  else if (mode === 3) drawStats();
+  else if (mode === 4) drawSpeed();
+  else if (mode === 5) drawMicKey();
+
+  // Footer
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, H - 30, W, 30);
+  var footerText = mode === 0 ? '↑↓ Select · Enter Choose' :
+    mode === 1 ? '←→ Select · Enter Guess · ↑ Replay · ↓ Level · Esc Back' :
+    mode === 2 ? '← Dit · → Dah · Enter Submit · ↓ Level · Esc Back' :
+    mode === 3 ? '↑↓ Scroll · Esc Back' :
+    mode === 4 && speedShowResult ? 'Enter Retry · ↓ Level · Esc Menu' :
+    mode === 4 && speedActive ? '←→↑↓ Select · Enter Guess' :
+    mode === 5 ? 'Sound=Key · ←→ Dit/Dah · Enter Submit · ↓ Level · Esc Back' :
+    'Starting...';
+  drawText(footerText, W/2, H - 15, 11, '#888');
+}
+
+function drawMenu() {
+  drawText('MORSE TRAINER', W/2, 70, 36, '#4fc3f7');
+  drawText('·−·· · ·− ·−· −·', W/2, 108, 14, '#666');
+
+  drawMorseVisual('·−·−·−', W/2, 150, 10);
+
+  for (var i = 0; i < menuItems.length; i++) {
+    var y = 200 + i * 54;
+    drawFocusBox(130, y - 25, 340, 50, i === menuIdx);
+    var icon = i === 0 ? '👂' : i === 1 ? '⚡' : i === 2 ? '✋' : i === 3 ? '🎤' : '📊';
+    var label = menuItems[i];
+    drawText(icon + ' ' + label, W/2, y, 20, i === menuIdx ? '#fff' : '#888');
+
+    // Speed challenge best score badge
+    if (i === 1 && speedBestScore > 0) {
+      var badge = 'Best: ' + speedBestScore + ' (' + getGrade(speedBestScore) + ')';
+      drawText(badge, W/2, y + 20, 11, getGradeColor(getGrade(speedBestScore)));
+    }
+  }
+
+  // Overall stats preview
+  var totalAll = listenTotal + tapTotal + micTotal;
+  var correctAll = listenCorrect + tapCorrect + micCorrect;
+  var pct = totalAll > 0 ? Math.round(correctAll / totalAll * 100) : 0;
+  drawText('Lifetime: ' + correctAll + '/' + totalAll + ' (' + pct + '%)', W/2, 490, 14, '#666');
+  drawText('Best streaks: Listen ' + listenBest + ' · Tap ' + tapBest + ' · Mic ' + micBest, W/2, 515, 14, '#666');
+  if (speedGamesPlayed > 0) {
+    drawText('Speed rounds: ' + speedGamesPlayed, W/2, 536, 12, '#555');
+  }
+}
+
+function drawListen() {
+  drawText('LISTEN & IDENTIFY', W/2, 35, 18, '#4fc3f7');
+  drawText(listenLevelNames[listenLevel], W/2, 58, 12, '#666');
+
+  var streakColor = listenStreak >= 10 ? '#ffd740' : listenStreak >= 5 ? '#69f0ae' : '#888';
+  drawText('🔥 ' + listenStreak, W - 60, 35, 16, streakColor);
+  drawText(listenCorrect + '/' + listenTotal, 60, 35, 14, '#888');
+
+  if (listenChar && MORSE[listenChar]) {
+    drawMorseVisual(MORSE[listenChar], W/2, 110, 12);
+  }
+
+  if (listenPlaying) {
+    ctx.fillStyle = '#4fc3f7';
+    ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 150) * 0.5;
+    ctx.beginPath();
+    ctx.arc(W/2, 160, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    drawText('🔊', W/2, 160, 20, '#fff');
+  } else if (!listenResult) {
+    drawText('Press ↑ to replay', W/2, 160, 13, '#555');
+  }
+
+  if (listenOptions.length > 0) {
+    var cols = 2, bw = 120, bh = 90;
+    var startX = W/2 - (cols * bw + 20) / 2;
+    var startY = 200;
+    for (var i = 0; i < listenOptions.length; i++) {
+      var col = i % cols;
+      var row = Math.floor(i / cols);
+      var bx = startX + col * (bw + 20);
+      var by = startY + row * (bh + 20);
+      var focused = i === listenSelIdx;
+
+      var bgColor = '#1a1a1a';
+      if (listenResult === 'correct' && listenOptions[i] === listenChar) bgColor = '#1b5e20';
+      else if (listenResult === 'wrong' && i === listenSelIdx) bgColor = '#b71c1c';
+      else if (listenResult === 'wrong' && listenOptions[i] === listenChar) bgColor = '#1b5e20';
+
+      ctx.fillStyle = bgColor;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, bh, 10);
+      ctx.fill();
+      drawFocusBox(bx, by, bw, bh, focused && !listenResult);
+
+      drawText(listenOptions[i], bx + bw/2, by + 30, 32, focused ? '#fff' : '#aaa');
+      drawText(MORSE[listenOptions[i]] || '', bx + bw/2, by + 62, 13, '#666');
+    }
+  }
+
+  if (listenResult === 'correct') {
+    drawText('✓ Correct!', W/2, 440, 24, '#69f0ae');
+  } else if (listenResult === 'wrong') {
+    drawText('✗ It was ' + listenChar + '  (' + MORSE[listenChar] + ')', W/2, 440, 20, '#ef5350');
+  }
+
+  var wpm = Math.round(1200 / (ditLen * 2));
+  drawText(wpm + ' WPM', W/2, 480, 12, '#555');
+
+  var pct = listenTotal > 0 ? listenCorrect / listenTotal : 0;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(50, 510, W - 100, 8);
+  ctx.fillStyle = pct > 0.8 ? '#69f0ae' : pct > 0.5 ? '#ffd740' : '#ef5350';
+  ctx.fillRect(50, 510, (W - 100) * pct, 8);
+  drawText(Math.round(pct * 100) + '% accuracy', W/2, 535, 11, '#555');
+}
+
+function drawTap() {
+  drawText('TAP IT OUT', W/2, 35, 18, '#4fc3f7');
+  drawText(listenLevelNames[tapLevel], W/2, 58, 12, '#666');
+
+  var streakColor = tapStreak >= 10 ? '#ffd740' : tapStreak >= 5 ? '#69f0ae' : '#888';
+  drawText('🔥 ' + tapStreak, W - 60, 35, 16, streakColor);
+  drawText(tapCorrect + '/' + tapTotal, 60, 35, 14, '#888');
+
+  if (tapChar) {
+    drawText(tapChar, W/2, 130, 72, '#fff');
+    drawText(MORSE[tapChar], W/2, 180, 20, '#666');
+    drawMorseVisual(MORSE[tapChar], W/2, 220, 10);
+  }
+
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.roundRect(100, 260, 400, 80, 12);
+  ctx.fill();
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  drawText('Your input:', W/2, 278, 12, '#666');
+  if (tapInput) {
+    drawText(tapInput, W/2, 310, 28, '#4fc3f7');
+    drawMorseVisual(tapInput, W/2, 340, 8);
+  } else {
+    drawText('← Dit  · → Dah', W/2, 310, 16, '#444');
+  }
+
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.roundRect(100, 370, 190, 60, 8);
+  ctx.fill();
+  drawText('← Dit  ·', 195, 400, 18, '#69f0ae');
+
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.roundRect(310, 370, 190, 60, 8);
+  ctx.fill();
+  drawText('→ Dah  −', 405, 400, 18, '#ffd740');
+
+  if (tapResult === 'correct') {
+    drawText('✓ Correct!', W/2, 460, 24, '#69f0ae');
+  } else if (tapResult === 'wrong') {
+    drawText('✗ Should be: ' + MORSE[tapChar], W/2, 460, 20, '#ef5350');
+  }
+
+  var pct = tapTotal > 0 ? tapCorrect / tapTotal : 0;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(50, 500, W - 100, 8);
+  ctx.fillStyle = pct > 0.8 ? '#69f0ae' : pct > 0.5 ? '#ffd740' : '#ef5350';
+  ctx.fillRect(50, 500, (W - 100) * pct, 8);
+  drawText(Math.round(pct * 100) + '% accuracy', W/2, 525, 11, '#555');
+}
+
+function drawMicKey() {
+  drawText('MIC KEY', W/2, 35, 18, '#4fc3f7');
+  drawText(listenLevelNames[micDiffLevel], W/2, 58, 12, '#666');
+
+  var streakColor = micStreak >= 10 ? '#ffd740' : micStreak >= 5 ? '#69f0ae' : '#888';
+  drawText('\uD83D\uDD25 ' + micStreak, W - 60, 35, 16, streakColor);
+  drawText(micCorrect + '/' + micTotal, 60, 35, 14, '#888');
+
+  if (micPending) {
+    drawText('Requesting microphone...', W/2, 300, 18, '#888');
+    return;
+  }
+  if (!micStream) {
+    drawText('Mic access denied', W/2, 280, 18, '#ef5350');
+    drawText('Press Esc to go back', W/2, 320, 14, '#666');
+    return;
+  }
+
+  // Show target letter
+  if (micChar) {
+    drawBoldText(micChar, W/2, 130, 72, '#fff');
+    drawText(MORSE[micChar], W/2, 180, 20, '#666');
+    drawMorseVisual(MORSE[micChar], W/2, 216, 10);
+  }
+
+  // Mic level meter
+  var meterX = 80, meterW = 440, meterY = 250, meterH = 28;
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.roundRect(meterX, meterY, meterW, meterH, 6);
+  ctx.fill();
+  var lvl = Math.min(1, micAudioLevel * 5);
+  var barColor = micKeyDown ? '#69f0ae' : '#4fc3f7';
+  if (lvl > 0.01) {
+    ctx.fillStyle = barColor;
+    ctx.beginPath();
+    ctx.roundRect(meterX + 2, meterY + 2, Math.max(1, (meterW - 4) * lvl), meterH - 4, 4);
+    ctx.fill();
+  }
+  // Threshold indicator line
+  var threshX = meterX + 2 + (meterW - 4) * Math.min(1, micThreshold * 5);
+  ctx.strokeStyle = '#ffd740';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(threshX, meterY);
+  ctx.lineTo(threshX, meterY + meterH);
+  ctx.stroke();
+
+  // Key state indicator
+  if (micKeyDown) {
+    var pulse = 0.6 + Math.sin(Date.now() / 100) * 0.4;
+    ctx.globalAlpha = pulse;
+    drawText('\u25CF KEY DOWN', W/2, meterY + meterH + 22, 14, '#69f0ae');
+    ctx.globalAlpha = 1;
+  } else {
+    drawText('\u25CB listening...', W/2, meterY + meterH + 22, 13, '#555');
+  }
+
+  // Input display box
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.roundRect(80, 310, 440, 70, 12);
+  ctx.fill();
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  drawText('Your input:', W/2, 325, 12, '#666');
+  if (micInput) {
+    drawText(micInput, W/2, 355, 28, '#4fc3f7');
+  } else {
+    drawText('Tap near mic \u2014 short=dit, long=dah', W/2, 355, 14, '#444');
+  }
+
+  // Result
+  if (micResult === 'correct') {
+    drawText('\u2713 Correct!', W/2, 410, 24, '#69f0ae');
+  } else if (micResult === 'wrong') {
+    drawText('\u2717 Should be: ' + MORSE[micChar], W/2, 410, 20, '#ef5350');
+  }
+
+  // Accuracy bar
+  var pct = micTotal > 0 ? micCorrect / micTotal : 0;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(50, 455, W - 100, 8);
+  ctx.fillStyle = pct > 0.8 ? '#69f0ae' : pct > 0.5 ? '#ffd740' : '#ef5350';
+  ctx.fillRect(50, 455, (W - 100) * pct, 8);
+  drawText(Math.round(pct * 100) + '% accuracy', W/2, 478, 11, '#555');
+
+  // Hint
+  drawText('Auto-submits after silence \u00B7 D-pad also works', W/2, 510, 11, '#444');
+}
+
+function drawSpeed() {
+  var now = Date.now();
+
+  // Countdown phase
+  if (speedCountdown > 0) {
+    // Pulsing countdown number
+    var pulse = 0.7 + Math.sin(now / 100) * 0.3;
+    ctx.globalAlpha = pulse;
+    drawText('⚡ SPEED CHALLENGE ⚡', W/2, 150, 24, '#ffd740');
+    ctx.globalAlpha = 1;
+    drawBoldText(speedCountdown.toString(), W/2, 300, 120, '#4fc3f7');
+    drawText('GET READY', W/2, 400, 18, '#888');
+    drawText(listenLevelNames[speedLevel], W/2, 430, 14, '#555');
+    return;
+  }
+
+  // "GO!" flash for 600ms
+  if (speedActive && speedStartTime > 0 && now - speedStartTime < 600) {
+    var goAlpha = 1 - (now - speedStartTime) / 600;
+    ctx.globalAlpha = goAlpha;
+    drawBoldText('GO!', W/2, 280, 80, '#69f0ae');
+    ctx.globalAlpha = 1;
+  }
+
+  // End result screen
+  if (speedShowResult) {
+    drawSpeedResult();
+    return;
+  }
+
+  if (!speedActive) return;
+
+  // Update timer
+  speedTimeLeft = Math.max(0, speedDuration - (now - speedStartTime));
+  if (speedTimeLeft <= 0) {
+    endSpeedChallenge();
+    return;
+  }
+
+  // Penalty flash
+  if (speedPenaltyFlash > 0) {
+    var pf = speedPenaltyFlash / 300;
+    ctx.fillStyle = 'rgba(239,83,80,' + (pf * 0.15) + ')';
+    ctx.fillRect(0, 0, W, H);
+    speedPenaltyFlash = Math.max(0, speedPenaltyFlash - 16);
+  }
+  // Correct flash
+  if (speedCorrectFlash > 0) {
+    var cf = speedCorrectFlash / 200;
+    ctx.fillStyle = 'rgba(105,240,174,' + (cf * 0.1) + ')';
+    ctx.fillRect(0, 0, W, H);
+    speedCorrectFlash = Math.max(0, speedCorrectFlash - 16);
+  }
+
+  // Timer bar at top
+  var timeRatio = speedTimeLeft / speedDuration;
+  var barColor = timeRatio > 0.5 ? '#4fc3f7' : timeRatio > 0.2 ? '#ffd740' : '#ef5350';
+  ctx.fillStyle = '#222';
+  ctx.fillRect(20, 12, W - 40, 10);
+  ctx.fillStyle = barColor;
+  ctx.fillRect(20, 12, (W - 40) * timeRatio, 10);
+
+  // Timer text
+  var secs = Math.ceil(speedTimeLeft / 1000);
+  var timerColor = secs <= 10 ? '#ef5350' : secs <= 20 ? '#ffd740' : '#4fc3f7';
+  // Pulse when low
+  if (secs <= 10) {
+    ctx.globalAlpha = 0.7 + Math.sin(now / 200) * 0.3;
+  }
+  drawText(secs + 's', W - 50, 40, 18, timerColor);
+  ctx.globalAlpha = 1;
+
+  // Score + combo
+  drawBoldText(speedScore.toString(), 60, 40, 28, '#fff');
+  drawText('pts', 95, 40, 12, '#888');
+  if (speedCombo > 1) {
+    drawText('×' + speedCombo, 60, 62, 14, '#ffd740');
+  }
+
+  // Level indicator
+  drawText(listenLevelNames[speedLevel], W/2, 40, 12, '#555');
+
+  // Morse visual
+  if (speedChar && MORSE[speedChar]) {
+    drawMorseVisual(MORSE[speedChar], W/2, 100, 14);
+  }
+
+  // Playing indicator
+  if (speedPlaying) {
+    ctx.fillStyle = '#4fc3f7';
+    ctx.globalAlpha = 0.5 + Math.sin(now / 150) * 0.5;
+    ctx.beginPath();
+    ctx.arc(W/2, 150, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    drawText('🔊', W/2, 150, 20, '#fff');
+  }
+
+  // 4 options (2x2)
+  if (speedOptions.length > 0) {
+    var cols = 2, bw = 140, bh = 110;
+    var startX = W/2 - (cols * bw + 20) / 2;
+    var startY = 190;
+    for (var i = 0; i < speedOptions.length; i++) {
+      var col = i % cols;
+      var row = Math.floor(i / cols);
+      var bx = startX + col * (bw + 20);
+      var by = startY + row * (bh + 20);
+      var focused = i === speedSelIdx;
+
+      var bgColor = '#1a1a1a';
+      if (speedResult === 'correct' && speedOptions[i] === speedChar) bgColor = '#1b5e20';
+      else if (speedResult === 'wrong' && i === speedSelIdx) bgColor = '#b71c1c';
+      else if (speedResult === 'wrong' && speedOptions[i] === speedChar) bgColor = '#1b5e20';
+
+      ctx.fillStyle = bgColor;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, bh, 12);
+      ctx.fill();
+      drawFocusBox(bx, by, bw, bh, focused && !speedResult);
+
+      drawText(speedOptions[i], bx + bw/2, by + 38, 42, focused ? '#fff' : '#aaa');
+      drawText(MORSE[speedOptions[i]] || '', bx + bw/2, by + 78, 14, '#666');
+    }
+  }
+
+  // Result flash text
+  if (speedResult === 'correct') {
+    var pts = speedCombo > 1 ? '+' + (1 + Math.floor(speedCombo * 0.5)) : '+1';
+    drawText('✓ ' + pts, W/2, 470, 22, '#69f0ae');
+  } else if (speedResult === 'wrong') {
+    drawText('✗ −2s', W/2, 470, 22, '#ef5350');
+  }
+
+  // Best score reference
+  if (speedBestScore > 0) {
+    drawText('Best: ' + speedBestScore, W/2, 510, 12, '#444');
+  }
+}
+
+function drawSpeedResult() {
+  // Grade (large, centered, colored)
+  var gc = getGradeColor(speedFinalGrade);
+
+  drawText('⚡ SPEED CHALLENGE ⚡', W/2, 60, 20, '#4fc3f7');
+  drawText('TIME\'S UP!', W/2, 90, 14, '#888');
+
+  // Grade with glow
+  ctx.shadowColor = gc;
+  ctx.shadowBlur = 20;
+  drawBoldText(speedFinalGrade, W/2, 180, 100, gc);
+  ctx.shadowBlur = 0;
+
+  // Score
+  drawBoldText(speedFinalScore.toString(), W/2, 270, 44, '#fff');
+  drawText('points', W/2, 300, 16, '#888');
+
+  // Best combo
+  if (speedFinalCombo > 1) {
+    drawText('Best combo: ×' + speedFinalCombo, W/2, 335, 16, '#ffd740');
+  }
+
+  // Personal best
+  var isNewBest = speedFinalScore >= speedBestScore;
+  if (isNewBest && speedFinalScore > 0) {
+    var pulse = 0.7 + Math.sin(Date.now() / 200) * 0.3;
+    ctx.globalAlpha = pulse;
+    drawText('★ NEW BEST! ★', W/2, 375, 20, '#ffd740');
+    ctx.globalAlpha = 1;
+  } else if (speedBestScore > 0) {
+    drawText('Personal best: ' + speedBestScore + ' (' + getGrade(speedBestScore) + ')', W/2, 375, 14, '#888');
+  }
+
+  // Games played
+  drawText('Speed rounds played: ' + speedGamesPlayed, W/2, 410, 13, '#555');
+
+  // Level
+  drawText('Level: ' + listenLevelNames[speedLevel], W/2, 440, 13, '#555');
+
+  // Prompt
+  drawText('Enter = Retry  ·  ↓ = Change Level  ·  Esc = Menu', W/2, 500, 13, '#666');
+}
+
+function drawStats() {
+  drawText('📊 STATISTICS', W/2, 40, 22, '#4fc3f7');
+
+  var y = 80 - statsScroll;
+
+  drawText('👂 Listen Mode', W/2, y, 18, '#fff'); y += 30;
+  drawText('Total: ' + listenTotal + ' · Correct: ' + listenCorrect, W/2, y, 14, '#aaa'); y += 22;
+  var lPct = listenTotal > 0 ? Math.round(listenCorrect / listenTotal * 100) : 0;
+  drawText('Accuracy: ' + lPct + '%', W/2, y, 14, lPct > 80 ? '#69f0ae' : '#ffd740'); y += 22;
+  drawText('Best Streak: ' + listenBest, W/2, y, 14, '#ffd740'); y += 40;
+
+  drawText('⚡ Speed Challenge', W/2, y, 18, '#fff'); y += 30;
+  drawText('Games: ' + speedGamesPlayed + ' · Best: ' + speedBestScore, W/2, y, 14, '#aaa'); y += 22;
+  if (speedBestScore > 0) {
+    drawText('Best Grade: ' + getGrade(speedBestScore), W/2, y, 14, getGradeColor(getGrade(speedBestScore))); y += 22;
+  }
+  y += 18;
+
+  drawText('✋ Tap Mode', W/2, y, 18, '#fff'); y += 30;
+  drawText('Total: ' + tapTotal + ' · Correct: ' + tapCorrect, W/2, y, 14, '#aaa'); y += 22;
+  var tPct = tapTotal > 0 ? Math.round(tapCorrect / tapTotal * 100) : 0;
+  drawText('Accuracy: ' + tPct + '%', W/2, y, 14, tPct > 80 ? '#69f0ae' : '#ffd740'); y += 22;
+  drawText('Best Streak: ' + tapBest, W/2, y, 14, '#ffd740'); y += 40;
+
+  drawText('\uD83C\uDFA4 Mic Key', W/2, y, 18, '#fff'); y += 30;
+  drawText('Total: ' + micTotal + ' · Correct: ' + micCorrect, W/2, y, 14, '#aaa'); y += 22;
+  var mPct = micTotal > 0 ? Math.round(micCorrect / micTotal * 100) : 0;
+  drawText('Accuracy: ' + mPct + '%', W/2, y, 14, mPct > 80 ? '#69f0ae' : '#ffd740'); y += 22;
+  drawText('Best Streak: ' + micBest, W/2, y, 14, '#ffd740'); y += 40;
+
+  drawText('MORSE REFERENCE', W/2, y, 16, '#4fc3f7'); y += 30;
+  var refChars = ALL_CHARS;
+  for (var i = 0; i < refChars.length; i++) {
+    var ch = refChars[i];
+    var col = i % 3;
+    var row = Math.floor(i / 3);
+    var rx = 80 + col * 180;
+    var ry = y + row * 28;
+    if (ry > -20 && ry < H - 30) {
+      drawText(ch, rx, ry, 16, '#fff', 'left');
+      drawText(MORSE[ch], rx + 30, ry, 14, '#888', 'left');
+    }
+  }
+}
+
+// Input handling
+document.addEventListener('keydown', function(e) {
+  e.preventDefault();
+  initAudio();
+
+  if (mode === 0) {
+    // Menu
+    if (e.key === 'ArrowUp') {
+      menuIdx = (menuIdx - 1 + menuItems.length) % menuItems.length;
+      playClickSound();
+    } else if (e.key === 'ArrowDown') {
+      menuIdx = (menuIdx + 1) % menuItems.length;
+      playClickSound();
+    } else if (e.key === 'Enter') {
+      if (menuIdx === 0) { mode = 1; newListenRound(); }
+      else if (menuIdx === 1) { mode = 4; startSpeedChallenge(); }
+      else if (menuIdx === 2) { mode = 2; newTapRound(); }
+      else if (menuIdx === 3) {
+        mode = 5;
+        initAudio();
+        initMic(function(ok) {
+          if (ok) newMicRound();
+        });
+      }
+      else { mode = 3; statsScroll = 0; }
+    }
+  } else if (mode === 1) {
+    // Listen mode
+    if (listenResult) {
+      if (e.key !== 'Escape') {
+        listenResult = '';
+        newListenRound();
+        return;
+      }
+    }
+    if (e.key === 'ArrowLeft') {
+      listenSelIdx = (listenSelIdx === 0 || listenSelIdx === 2) ? listenSelIdx + 1 : listenSelIdx - 1;
+      playClickSound();
+    } else if (e.key === 'ArrowRight') {
+      listenSelIdx = (listenSelIdx === 1 || listenSelIdx === 3) ? listenSelIdx - 1 : listenSelIdx + 1;
+      playClickSound();
+    } else if (e.key === 'ArrowUp') {
+      if (listenSelIdx >= 2) { listenSelIdx -= 2; playClickSound(); }
+      else if (!listenPlaying) { playMorse(MORSE[listenChar]); }
+    } else if (e.key === 'ArrowDown') {
+      if (listenSelIdx < 2 && listenOptions.length > 2) { listenSelIdx += 2; playClickSound(); }
+      else {
+        listenLevel = (listenLevel + 1) % 4;
+        playClickSound();
+        saveStats();
+      }
+    } else if (e.key === 'Enter') {
+      if (!listenResult && listenOptions.length > 0) {
+        listenTotal++;
+        if (listenOptions[listenSelIdx] === listenChar) {
+          listenResult = 'correct';
+          listenStreak++;
+          listenCorrect++;
+          if (listenStreak > listenBest) listenBest = listenStreak;
+          playCorrectSound();
+        } else {
+          listenResult = 'wrong';
+          listenStreak = 0;
+          playWrongSound();
+        }
+        saveStats();
+      }
+    } else if (e.key === 'Escape') {
+      mode = 0;
+      listenResult = '';
+    }
+  } else if (mode === 2) {
+    // Tap mode
+    if (tapResult) {
+      if (e.key !== 'Escape') {
+        tapResult = '';
+        newTapRound();
+        return;
+      }
+    }
+    if (e.key === 'ArrowLeft') {
+      tapInput += '.';
+      playTone(toneFreq, ditLen);
+    } else if (e.key === 'ArrowRight') {
+      tapInput += '-';
+      playTone(toneFreq, ditLen * 3);
+    } else if (e.key === 'ArrowUp') {
+      if (tapInput.length > 0) {
+        tapInput = tapInput.slice(0, -1);
+        playClickSound();
+      }
+    } else if (e.key === 'ArrowDown') {
+      tapLevel = (tapLevel + 1) % 4;
+      playClickSound();
+      saveStats();
+    } else if (e.key === 'Enter') {
+      if (tapInput) {
+        tapTotal++;
+        if (tapInput === MORSE[tapChar]) {
+          tapResult = 'correct';
+          tapStreak++;
+          tapCorrect++;
+          if (tapStreak > tapBest) tapBest = tapStreak;
+          playCorrectSound();
+        } else {
+          tapResult = 'wrong';
+          tapStreak = 0;
+          playWrongSound();
+        }
+        saveStats();
+      }
+    } else if (e.key === 'Escape') {
+      mode = 0;
+      tapResult = '';
+    }
+  } else if (mode === 3) {
+    // Stats
+    if (e.key === 'ArrowUp') { statsScroll = Math.max(0, statsScroll - 30); }
+    else if (e.key === 'ArrowDown') { statsScroll += 30; }
+    else if (e.key === 'Escape') { mode = 0; }
+  } else if (mode === 4) {
+    // Speed Challenge
+    if (speedShowResult) {
+      if (e.key === 'Enter') {
+        // Retry
+        startSpeedChallenge();
+      } else if (e.key === 'ArrowDown') {
+        speedLevel = (speedLevel + 1) % 4;
+        playClickSound();
+        saveStats();
+      } else if (e.key === 'Escape') {
+        mode = 0;
+        speedShowResult = false;
+        speedActive = false;
+      }
+      return;
+    }
+
+    // During countdown, only Escape works
+    if (speedCountdown > 0) {
+      if (e.key === 'Escape') {
+        mode = 0;
+        speedActive = false;
+        speedCountdown = 0;
+      }
+      return;
+    }
+
+    if (!speedActive) return;
+
+    // During active speed round
+    if (speedResult) {
+      // Auto-advance after result flash (handled by timer below),
+      // but allow immediate advance
+      speedResult = '';
+      newSpeedRound();
+      return;
+    }
+
+    if (e.key === 'ArrowLeft') {
+      speedSelIdx = (speedSelIdx === 0 || speedSelIdx === 2) ? speedSelIdx + 1 : speedSelIdx - 1;
+      playClickSound();
+    } else if (e.key === 'ArrowRight') {
+      speedSelIdx = (speedSelIdx === 1 || speedSelIdx === 3) ? speedSelIdx - 1 : speedSelIdx + 1;
+      playClickSound();
+    } else if (e.key === 'ArrowUp') {
+      if (speedSelIdx >= 2) { speedSelIdx -= 2; playClickSound(); }
+    } else if (e.key === 'ArrowDown') {
+      if (speedSelIdx < 2 && speedOptions.length > 2) { speedSelIdx += 2; playClickSound(); }
+    } else if (e.key === 'Enter') {
+      if (speedOptions.length > 0 && !speedResult) {
+        if (speedOptions[speedSelIdx] === speedChar) {
+          // Correct
+          speedCombo++;
+          if (speedCombo > speedBestCombo) speedBestCombo = speedCombo;
+          var pts = 1 + Math.floor(speedCombo * 0.5); // combo bonus
+          speedScore += pts;
+          speedResult = 'correct';
+          speedCorrectFlash = 200;
+          playCorrectSound();
+          // Auto-advance after short delay
+          setTimeout(function() {
+            if (speedActive && speedResult === 'correct') {
+              speedResult = '';
+              newSpeedRound();
+            }
+          }, 400);
+        } else {
+          // Wrong: -2 second penalty
+          speedCombo = 0;
+          speedResult = 'wrong';
+          speedPenaltyFlash = 300;
+          speedStartTime -= 2000; // subtract 2 seconds
+          playWrongSound();
+          // Auto-advance after short delay
+          setTimeout(function() {
+            if (speedActive && speedResult === 'wrong') {
+              speedResult = '';
+              newSpeedRound();
+            }
+          }, 600);
+        }
+      }
+    } else if (e.key === 'Escape') {
+      mode = 0;
+      speedActive = false;
+      speedCountdown = 0;
+    }
+  } else if (mode === 5) {
+    // Mic Key mode
+    if (micResult) {
+      if (e.key !== 'Escape') {
+        micResult = '';
+        newMicRound();
+        return;
+      }
+    }
+    if (e.key === 'ArrowLeft') {
+      micInput += '.';
+      playTone(toneFreq, ditLen);
+      if (micAutoTimer) clearTimeout(micAutoTimer);
+      micAutoTimer = setTimeout(function() {
+        if (micInput && mode === 5 && !micResult) submitMicInput();
+      }, micGapMs);
+    } else if (e.key === 'ArrowRight') {
+      micInput += '-';
+      playTone(toneFreq, ditLen * 3);
+      if (micAutoTimer) clearTimeout(micAutoTimer);
+      micAutoTimer = setTimeout(function() {
+        if (micInput && mode === 5 && !micResult) submitMicInput();
+      }, micGapMs);
+    } else if (e.key === 'ArrowUp') {
+      if (micInput.length > 0) {
+        micInput = micInput.slice(0, -1);
+        playClickSound();
+      }
+    } else if (e.key === 'ArrowDown') {
+      micDiffLevel = (micDiffLevel + 1) % 4;
+      playClickSound();
+      saveStats();
+    } else if (e.key === 'Enter') {
+      if (micInput) {
+        if (micAutoTimer) { clearTimeout(micAutoTimer); micAutoTimer = null; }
+        submitMicInput();
+      }
+    } else if (e.key === 'Escape') {
+      if (micAutoTimer) { clearTimeout(micAutoTimer); micAutoTimer = null; }
+      mode = 0;
+      micResult = '';
+    }
+  }
+});
+
+// Animation loop
+function frame() {
+  if (mode === 5) processMic();
+  draw();
+  requestAnimationFrame(frame);
+}
+frame();
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

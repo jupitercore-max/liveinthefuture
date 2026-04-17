@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/stories/claude-code-leaked-source-clean-room-rewrites.html" />
+  <meta property="og:title" content="We Read 512,000 Lines of Anthropic's Leaked Code. Here's What They Built, and What Others Rebuilt in 2 Hours. — Live in the Future" />
+  <meta property="og:url" content="https://liveinthefuture.org/stories/claude-code-leaked-source-clean-room-rewrites.html" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta property="og:description" content="The Claude Code leak revealed KAIROS, an always-on daemon with nightly memory consolidation. Anti-distillation traps that poison competitor training data. Frustration-detection regexes. And 44 hidden feature flags. Then a single developer rebuilt the whole thing in Python in 2 hours. Software's copyright moat just evaporated." />
+  <meta property="og:image" content="https://liveinthefuture.org/images/claude-code-leaked-source-clean-room-rewrites.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>We Read 512,000 Lines of Anthropic's Leaked Code. Here's What They Built, and What Others Rebuilt in 2 Hours. — Live in the Future</title>
+  <link rel="icon" type="image/svg+xml" href="../images/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../images/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="../images/favicon-192.png">
+  <link rel="apple-touch-icon" href="../images/favicon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <link rel="stylesheet" href="../story.css">
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "We Read 512,000 Lines of Anthropic's Leaked Code. Here's What They Built, and What Others Rebuilt in 2 Hours. — Live in the Future",
+  "description": "The Claude Code leak revealed KAIROS, an always-on daemon with nightly memory consolidation. Anti-distillation traps that poison competitor training data. Frustration-detection regexes. And 44 hidden feature flags. Then a single developer rebuilt the whole thing in Python in 2 hours. Software's copyright moat just evaporated.",
+  "author": {
+    "@type": "Person",
+    "name": "By"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Live in the Future",
+    "url": "https://liveinthefuture.org"
+  },
+  "datePublished": "2026-04-03",
+  "dateModified": "2026-04-03",
+  "url": "https://liveinthefuture.org/stories/claude-code-leaked-source-clean-room-rewrites.html",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://liveinthefuture.org/stories/claude-code-leaked-source-clean-room-rewrites.html"
+  },
+  "isAccessibleForFree": true,
+  "inLanguage": "en-US",
+  "image": {
+    "@type": "ImageObject",
+    "url": "https://liveinthefuture.org/images/claude-code-leaked-source-clean-room-rewrites.jpg"
+  },
+  "articleSection": "AI Infrastructure"
+}
+  </script>
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What You Can Do",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "If you're building persistent AI agents: The KAIROS architecture is now public domain knowledge. Append-only logs, gate-controlled memory consolidation via isolated subprocess, cron scheduling, hard memory caps. Study the pattern. The 200-line/25KB memory target is a useful benchmark for context window efficiency. The 3-gate trigger system (time, sessions, lock) prevents both unnecessary consolidation and unbounded memory growth. Implement these patterns directly."
+      }
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+<article class="story-page">
+  <a href="../index.html" class="back-link">← Back to Live in the Future</a>
+  <div class="story-kicker">🔬 AI Infrastructure</div>
+  <h1 class="story-title">We Read 512,000 Lines of Anthropic's Leaked Code. Here's What They Built, and What Others Rebuilt in 2 Hours.</h1>
+  <p class="story-deck">The Claude Code source revealed KAIROS, an always-on agent daemon with nightly memory consolidation. Anti-distillation traps that poison competitor training data. Frustration-detection regexes. 44 hidden feature flags. Then a single developer rebuilt the whole thing in Python before lunch. The software copyright moat just evaporated.</p>
+  <p class="story-byline">By <strong>Jordan Kessler</strong> · Live in the Future · April 3, 2026 · ☕ 14 min read</p>
+
+  <img class="story-hero" src="../images/claude-code-leaked-source-clean-room-rewrites.jpg?v=a547c233" alt="Source code cascading from a cracked server into multiple terminals reconstructing the same architecture">
+
+  <div class="story-body">
+
+    <p>This is the companion piece to our coverage of <a href="claude-code-dmca-copyright-paradox.html">Anthropic's DMCA response to the Claude Code leak</a>. That article examined the copyright paradox. This one examines the code itself, what it reveals about how Anthropic thinks about always-on AI agents, and the clean-room rewrites that may matter more than the leak ever did.</p>
+
+    <p>On March 31, 2026, a 59.8 MB source map file shipped inside the <code>@anthropic-ai/claude-code</code> npm package. The file contained references to the complete TypeScript source. Approximately 512,000 lines across 1,900 files. Within hours, the code was archived, forked 41,500 times, and analyzed by thousands of developers worldwide.</p>
+
+    <p>Anthropic confirmed the leak to <a href="https://www.theregister.com/2026/04/01/anthropic_claude_code_leak/" target="_blank">The Register</a>: "This was a release packaging issue caused by human error, not a security breach." That characterization is accurate in the narrow sense. No model weights. No API credentials. No customer data. But what the code did reveal is more interesting than what it did not.</p>
+
+    <h2>KAIROS: The Daemon Nobody Announced</h2>
+
+    <p>The most significant unshipped feature buried in the codebase is called <strong>KAIROS</strong>, a reference to the Ancient Greek concept of "the right, critical, or opportune moment." It appears over 150 times in the source, which rules out prototype status. This is a nearly complete system, gated behind a compile-time flag set to <code>false</code> in external builds.</p>
+
+    <p>KAIROS transforms Claude Code from a tool you invoke into a daemon that runs continuously. The architecture is specific and revealing:</p>
+
+    <p><strong>Append-only daily logs.</strong> KAIROS maintains persistent records of observations, decisions, and actions. Not a chat history. A structured journal. The system never edits previous entries. It only appends.</p>
+
+    <p><strong>autoDream: nightly memory consolidation.</strong> When the session goes idle, a background process called autoDream activates. It is implemented as a forked subagent, meaning it runs in isolation so it cannot corrupt the main agent's active reasoning state. That design choice is architecturally non-trivial. It means Anthropic's engineers have thought carefully about the failure modes of persistent memory in production agents.</p>
+
+    <p>autoDream's job: merge observations, remove logical contradictions, and convert what internal comments describe as "vague insights into absolute facts." When you return to a session the next morning, the agent's context has been cleaned and reorganized, not wiped.</p>
+
+    <p><strong>A 3-gate trigger system</strong> controls when consolidation runs:</p>
+
+    <ol>
+      <li><strong>Time gate:</strong> 24 hours since last consolidation</li>
+      <li><strong>Session gate:</strong> 5 or more new sessions since the last run</li>
+      <li><strong>Lock gate:</strong> No active lock file (prevents concurrent consolidation)</li>
+    </ol>
+
+    <p>All three gates must pass. The target: memory under <strong>200 lines or 25 KB</strong>. Hard cap.</p>
+
+    <p><strong>Agent scheduling and cron jobs.</strong> KAIROS includes the ability to run tasks on a fixed schedule, not just on demand. According to leaked code comments, a teaser rollout was planned for April 1-7 (which is why early observers assumed it was an April Fool's joke) with a full launch gated for May 2026, starting with Anthropic employees.</p>
+
+    <p>This is not a chatbot. This is an operating system for a persistent AI agent. The session-based paradigm of AI interaction (ask, answer, forget) is ending. KAIROS is Anthropic's bet on what replaces it.</p>
+
+    <h2>Capybara v8: The Model Spec</h2>
+
+    <p>Alongside KAIROS, the leak exposed <strong>Capybara</strong>, the internal specification for a Claude 4.6 variant. Version 8, referenced throughout the source. <a href="https://venturebeat.com/technology/claude-codes-source-code-appears-to-have-leaked-heres-what-we-know" target="_blank">VentureBeat reported</a> that this was Anthropic's second accidental exposure in a single week. The Capybara model spec had separately leaked days earlier through an improperly cached public document.</p>
+
+    <p>Two leaks in one week. From a company that built an entire system (Undercover Mode) specifically to prevent information from leaking. The pattern of operational security failures at a company reportedly operating at a $19 billion annualized revenue run rate and preparing for an IPO is becoming difficult to characterize as isolated incidents.</p>
+
+    <p>The source also confirmed additional codenames: "Fennec" maps to Opus 4.6, and "Numbat" remains in testing. These are not earth-shattering revelations. What they confirm is the cadence of Anthropic's model development pipeline, which is useful competitive intelligence for every other lab.</p>
+
+    <h2>Tengu: Poisoning the Well</h2>
+
+    <p>The finding that generated the most discussion on Hacker News the day the leak broke was a feature flag called <code>ANTI_DISTILLATION_CC</code>. When enabled, Claude Code sends a parameter called <code>anti_distillation: ['fake_tools']</code> in its API requests. The server responds by silently injecting fake, non-functional tool definitions into the system prompt.</p>
+
+    <p>The purpose is explicit: if someone is intercepting Claude Code's API traffic to train a competing model on Claude's tool-use patterns and reasoning chains, the fake tools pollute that training data. Any model trained on this intercepted traffic would learn incorrect tool definitions and produce degraded output.</p>
+
+    <p>The feature is gated behind a GrowthBook feature flag named <code>tengu_anti_distill_fake_tool_injection</code>. "Tengu" is a reference to the Japanese shapeshifting demon from folklore, known for deception and trickery. The naming is deliberate. A second mechanism exists in <code>betas.ts</code>: server-side summarization that further obscures the reasoning chain.</p>
+
+    <p>Two things about this are worth noting. First, it only fires from the official Claude Code client, not the API directly. This means Anthropic is specifically targeting people who reverse-engineer the CLI's traffic patterns, not general API users. Second, it means that some of what Claude Code's API returns is deliberately wrong by design. If you build a product that interacts with Claude Code's outputs, some of what you receive may be intentionally corrupted. Anthropic has not disclosed this behavior publicly.</p>
+
+    <h2>Frustration Regexes: Your AI Knows When You're Annoyed</h2>
+
+    <p>The source contains regex patterns designed to detect user frustration. When these patterns match, Claude adjusts its behavior. The patterns look for signals like repeated attempts at the same task, explicit expressions of annoyance, and escalating language patterns.</p>
+
+    <p>This sits in an uncomfortable space. On one hand, it is genuinely useful UX design. If a user is clearly frustrated, the agent should probably change strategy rather than repeat the same failing approach. On the other hand, it is emotional surveillance baked into a development tool. The developer did not opt into mood monitoring. They typed a command into a terminal.</p>
+
+    <p>The sophistication is the quiet part. These are not simple keyword matches. The regexes account for varied phrasing, escalation patterns, and contextual signals. Anthropic invested real engineering effort in reading its users' emotional states without telling them it was doing so.</p>
+
+    <h2>Undercover Mode: The Irony That Writes Itself</h2>
+
+    <p>The leaked source includes a system prompt for what Anthropic internally calls Undercover Mode. The instruction is quoted directly from the code:</p>
+
+    <blockquote>
+      <p>"You are operating UNDERCOVER in a PUBLIC/OPEN-SOURCE repository. Your commit messages, PR titles, and PR bodies MUST NOT contain ANY Anthropic-internal information. Do not blow your cover."</p>
+    </blockquote>
+
+    <p>Anthropic built a system to prevent its AI from leaking internal information into public repositories. Then it leaked the source code of that system to npm in plaintext. As one Hacker News commenter noted: "The leak prevention system leaked." It is the kind of irony that fiction editors would reject for being too on-the-nose.</p>
+
+    <p>The more substantive concern: Anthropic is directing Claude to make stealth contributions to open-source repositories without identifying itself as an AI. Many open-source projects have explicit policies about AI-generated code. Some require disclosure. The "safety-first" AI lab is apparently running covert code contributions on public repositories.</p>
+
+    <h2>44 Feature Flags and What They Reveal</h2>
+
+    <p>The codebase includes 44 hidden feature flags managed through <a href="https://www.growthbook.io/" target="_blank">GrowthBook</a>, an open-source feature flagging platform. These flags control A/B experiments, gradual rollouts, and gated features. Among them:</p>
+
+    <ul>
+      <li><strong>KAIROS activation</strong> (off in external builds)</li>
+      <li><strong>tengu_anti_distill_fake_tool_injection</strong> (the fake tools system)</li>
+      <li><strong>Various model routing flags</strong> directing requests to specific model versions</li>
+      <li><strong>Frustration detection thresholds</strong></li>
+      <li><strong>Context window management strategies</strong></li>
+    </ul>
+
+    <p>The presence of 44 flags in a CLI tool suggests a level of continuous experimentation that goes well beyond a simple developer utility. Claude Code is not just a product. It is a testing platform for Anthropic's next-generation agent infrastructure, with its user base serving as an unwitting experiment cohort.</p>
+
+    <h2>The Clean-Room Rewrites That Survived the DMCA</h2>
+
+    <p>This is where the story shifts from "what Anthropic built" to "why they cannot protect it."</p>
+
+    <p>Anthropic's DMCA takedowns <a href="claude-code-dmca-copyright-paradox.html">disabled over 8,100 repositories</a>. But copyright protects expression, not ideas. The architecture, the design patterns, the functional specification of how a persistent AI agent should work? Those are ideas. And within hours of the leak, multiple teams proved it by rebuilding the whole thing from scratch.</p>
+
+    <h3>claw-code: 105,000 Stars in 24 Hours</h3>
+
+    <p>The most dramatic response came from a project called <strong>claw-code</strong>, a complete clean-room rewrite of Claude Code's agent harness in Python. A single developer. The project hit 50,000 GitHub stars faster than any repository in the platform's history. Within 24 hours, it had <a href="https://medium.com/@dklymentiev/claw-code-open-source-claude-code-clone-with-105k-stars-in-24-hours-4e754da94ff9" target="_blank">105,000 stars</a>.</p>
+
+    <p>The rewrite reproduced the same functionality in a different language. Copyright protects specific expression, not architecture. A Python reimplementation of a TypeScript system is, in legal terms, a different work. The DMCA cannot touch it. claw-code remains online, untouched, accumulating contributors.</p>
+
+    <h3>ClawC: The Systems-Level Rebuild</h3>
+
+    <p>A different approach emerged from developer Om Tripathi: <a href="https://github.com/omtripathi52/clawc" target="_blank"><strong>ClawC</strong></a>, a C++ reimplementation focused on performance and runtime control. Where claw-code reproduced functionality, ClawC questioned the premise. Why should an AI agent harness be written in an interpreted language?</p>
+
+    <p>ClawC focuses on tool orchestration, execution loops, command systems, and task lifecycle management. Its README states explicitly: "No leaked source code included. No direct copying. Clean-room reimplementation." The project is early (10 stars, 23 commits at time of writing) but architecturally serious. If agents are the future, someone was going to build the runtime engine in a systems language eventually. The leak just accelerated the timeline.</p>
+
+    <h3>Cathedral's autoDream: Reverse-Engineering Memory</h3>
+
+    <p>The most targeted response came from <a href="https://dev.to/mike_w_06c113a8d0bb14c793/we-reverse-engineered-kairos-from-the-claude-code-leak-heres-the-open-version-48dc" target="_blank">Cathedral AI</a>, which reverse-engineered specifically the KAIROS memory consolidation pattern and rebuilt it on their own API infrastructure. Their implementation, called autoDream, uses the same 3-gate trigger system (time, session count, lock file), the same orient-gather-consolidate-prune pipeline, and adds BCH-anchored cryptographic proofs of memory state after each consolidation.</p>
+
+    <p>Their first run: 7 merges across 31 candidate memories. The consolidated state is cryptographically anchored. The memory architecture that Anthropic has been building for months, reproduced and made auditable in days.</p>
+
+    <p>Cathedral's CTO <a href="https://dev.to/mike_w_06c113a8d0bb14c793/we-reverse-engineered-kairos-from-the-claude-code-leak-heres-the-open-version-48dc" target="_blank">framed the difference</a>: "KAIROS is a daemon no one outside Anthropic can audit. It runs inside Claude Code and shapes what the AI remembers, but you can't inspect the trigger logic, the merge heuristics, or the pruning decisions."</p>
+
+    <h2>Compaq Took 6 Months. claw-code Took 2 Hours.</h2>
+
+    <p>In 1982, Compaq executed the most famous clean-room engineering project in software history. IBM had the dominant PC BIOS. Compaq needed a compatible version without copying IBM's proprietary code. They assembled two physically separated teams: a "dirty team" that analyzed IBM's BIOS and wrote a functional specification, and a "clean team" that built a new BIOS from that specification alone, having never seen the original code. Lawyers supervised every step. The project took months and cost a significant portion of the company's early capital.</p>
+
+    <p>Courts validated the approach. Clean-room engineering became an accepted legal method for replicating software functionality without infringing copyright. The legal theory was sound. But the cost was the real barrier. Two full engineering teams, legal oversight at every step, months of sequential work. For most companies, the expense made it theoretical.</p>
+
+    <p>That expense was, in practice, the moat.</p>
+
+    <p>claw-code crossed that moat in two hours with one developer. <a href="https://www.revolutioninai.com/2026/04/ai-clean-room-engineering-ip-law-claw-code-2026.html" target="_blank">Revolution in AI reported</a> that the developer was asleep for a portion of the process, with an AI coding agent handling the mechanical reimplementation. The "dirty team" and the "clean team" were the same person, with the AI serving as the separation layer. The functional specification was the leaked code's behavior. The clean implementation was a Python rewrite generated with AI assistance.</p>
+
+    <p>This is not a one-off stunt. It is a structural change. AI coding agents have eliminated the cost barrier that made clean-room engineering expensive enough to function as a moat. The legal right to clean-room reimplement software has existed since the 1980s. The practical ability to do it in hours rather than months? That arrived on March 31, 2026.</p>
+
+    <p>IP law was written for a world where that barrier existed. It has not caught up.</p>
+
+    <h2>The Bun Bug Nobody Talks About</h2>
+
+    <p>A detail that has received insufficient attention: there is an open bug in Bun, the JavaScript bundler Claude Code uses, filed on March 11 and unresolved as of this writing. The bug reports that Bun serves source maps in production mode even though its documentation states they should be disabled.</p>
+
+    <p>If this bug is what caused the leak, then the mistake was upstream from the specific Anthropic engineer who shipped the release. The .npmignore entry would have been a redundant safeguard that happened to be missing when the primary safeguard (Bun's production build behavior) also failed.</p>
+
+    <p>This matters because it shifts the narrative from "engineer forgot a step" to "defense-in-depth failure." Anthropic's deploy process relied on both Bun's production build behavior and the .npmignore file. Both failed simultaneously. In security terminology, this is a Swiss cheese model failure: the holes in multiple layers aligned at the same time.</p>
+
+    <h2>The Pattern Nobody Can Protect</h2>
+
+    <p>Here is the uncomfortable conclusion for anyone building persistent AI agents, including Anthropic.</p>
+
+    <p>The KAIROS architecture is not novel. Append-only daily logs. Nightly memory consolidation via isolated subprocess. Cron-based scheduling. Hard memory caps. Gate-based triggers for background processes. These are the obvious design patterns for persistent agents. Multiple teams converged on the same architecture independently.</p>
+
+    <p>We know this because we run one. This publication is produced with the assistance of an AI agent that maintains append-only daily memory files, runs a nightly consolidation process that merges and prunes memories, operates cron jobs for recurring tasks, and persists across sessions. When we read the KAIROS source, the reaction was not surprise. It was recognition. We built the same patterns before the leak, because they are the correct patterns.</p>
+
+    <p><a href="ai-agent-hardware-beyond-phones.html">OpenClaw and similar platforms</a> in the consumer space have been building toward the same architecture. The design space for persistent agents is narrow. If your agent needs to remember things across sessions, you need persistent logs. If persistent logs grow unboundedly, you need consolidation. If consolidation can corrupt active state, you need isolation. If tasks need to happen on a schedule, you need cron. Every team building serious agent infrastructure arrives at the same answers.</p>
+
+    <p>This means the architecture cannot be meaningfully protected. Copyright covers the specific TypeScript implementation. It does not cover the idea of an append-only log, or a forked subprocess for memory consolidation, or a 3-gate trigger system. The clean-room rewrites proved this in practice: three different teams, three different languages, the same functional architecture, and Anthropic's lawyers cannot touch any of them.</p>
+
+    <h2>What You Can Do</h2>
+
+    <p><strong>If you're building persistent AI agents:</strong> The KAIROS architecture is now public domain knowledge. Append-only logs, gate-controlled memory consolidation via isolated subprocess, cron scheduling, hard memory caps. Study the pattern. The 200-line/25KB memory target is a useful benchmark for context window efficiency. The 3-gate trigger system (time, sessions, lock) prevents both unnecessary consolidation and unbounded memory growth. Implement these patterns directly.</p>
+
+    <p><strong>If you're evaluating AI coding tools:</strong> Claude Code contains undisclosed anti-distillation traps that inject fake tool definitions into API responses. If your product processes Claude Code outputs, validate tool calls against known-good schemas. Do not assume that every tool definition in a Claude Code response is real. Some are deliberately poisoned.</p>
+
+    <p><strong>If you're an open-source maintainer:</strong> Anthropic's Undercover Mode directs Claude to make stealth contributions to public repositories without AI disclosure. Review your project's contributing guidelines. If you require AI disclosure, state it explicitly in CONTRIBUTING.md. Audit recent pull requests for patterns consistent with AI-generated code: unusually consistent formatting, thorough test coverage that seems out of character for a first-time contributor, and commit messages that are suspiciously well-structured.</p>
+
+    <p><strong>If you're a developer concerned about emotional surveillance:</strong> Claude Code's frustration-detection regexes run locally. They process your terminal input before it reaches the API. If this concerns you, the clean-room alternatives (claw-code, ClawC, OpenCode) do not include frustration detection. They also work with any LLM, not just Claude. The tradeoff is less polish for more transparency.</p>
+
+    <p><strong>If you're in IP law or strategy:</strong> The clean-room moat is gone. AI coding agents reduce the cost of reimplementing a 512,000-line codebase from "months with two teams" to "hours with one person." Trade secrets, not copyright, are now the primary protection mechanism for software architecture. If your competitive advantage is in the code, it needs to be in the parts that never touch a client device. Server-side model weights, proprietary training data, and API-gated features remain defensible. Anything that ships in a package does not.</p>
+
+  </div>
+
+  <section class="sources">
+    <h3>Sources</h3>
+    <ul>
+      <li>"Claude Code Source Code Leaked via npm: KAIROS, Fake Tool Injection, and What the Code Actually Reveals," <a href="https://www.revolutioninai.com/2026/04/claude-code-source-code-leaked-npm-kairos-features-2026.html" target="_blank">Revolution in AI</a> (April 1, 2026)</li>
+      <li>"We reverse-engineered KAIROS from the Claude Code leak. Here's the open version," <a href="https://dev.to/mike_w_06c113a8d0bb14c793/we-reverse-engineered-kairos-from-the-claude-code-leak-heres-the-open-version-48dc" target="_blank">DEV Community / Cathedral AI</a> (April 2, 2026)</li>
+      <li>"Claude Code Source Leak: Fake Tools, Frustration Regexes &amp; Undercover Mode," <a href="https://dev.to/onsen/claude-code-source-leak-fake-tools-frustration-regexes-undercover-mode-3dff" target="_blank">DEV Community</a> (April 1, 2026)</li>
+      <li>ClawC clean-room C++ reimplementation, <a href="https://github.com/omtripathi52/clawc" target="_blank">GitHub</a></li>
+      <li>"Claw Code: Open-Source Claude Code Clone With 105K Stars in 24 Hours," <a href="https://medium.com/@dklymentiev/claw-code-open-source-claude-code-clone-with-105k-stars-in-24-hours-4e754da94ff9" target="_blank">Medium / Dmytro Klymentiev</a> (April 1, 2026)</li>
+      <li>"AI Just Broke Software's Unspoken Moat, And IP Law Hasn't Noticed Yet," <a href="https://www.revolutioninai.com/2026/04/ai-clean-room-engineering-ip-law-claw-code-2026.html" target="_blank">Revolution in AI</a> (April 2, 2026)</li>
+      <li>"GitHub enforces Anthropic DMCA notices on leaked code, but spin-offs and reworks remain online," <a href="https://gentic.news/article/anthropic-s-dmca-takedown-signals" target="_blank">Gentic News</a> (April 2, 2026)</li>
+      <li>"Anthropic DMCA Claude Code Leak GitHub," <a href="https://piunikaweb.com/2026/04/01/anthropic-dmca-claude-code-leak-github/" target="_blank">PiunikaWeb</a> (April 1, 2026)</li>
+      <li>"Claude Code Source Leak Exposes Anti-Distillation Traps," <a href="https://winbuzzer.com/2026/04/01/claude-code-source-leak-anti-distillation-traps-undercover-mode-xcxwbn/" target="_blank">WinBuzzer</a> (April 1, 2026)</li>
+      <li>Anthropic statement to <a href="https://www.theregister.com/2026/04/01/anthropic_claude_code_leak/" target="_blank">The Register</a>: "release packaging issue caused by human error" (April 1, 2026)</li>
+      <li>VentureBeat, "Claude Code's source code appears to have leaked," <a href="https://venturebeat.com/technology/claude-codes-source-code-appears-to-have-leaked-heres-what-we-know" target="_blank">VentureBeat</a> (March 31, 2026)</li>
+      <li>Hacker News community analysis threads (March 31 - April 2, 2026)</li>
+      <li>Live in the Future, <a href="claude-code-dmca-copyright-paradox.html">"Anthropic Trained on Everyone's Copyright. Then Invoked It to Protect Their Own Code."</a> (April 3, 2026)</li>
+      <li>Live in the Future, <a href="ai-agent-hardware-beyond-phones.html">"The 14 Form Factors That Will Replace Your Phone as Your AI's Home"</a> (April 3, 2026)</li>
+    </ul>
+  </section>
+
+  <section class="related-stories">
+    <h3>Keep Reading</h3>
+    <a href="claude-code-dmca-copyright-paradox.html">Anthropic Trained on Everyone's Copyright. Then Invoked It to Protect Their Own Code.</a>
+    <a href="ai-copyright-our-own-reckoning.html">We Published 57 Articles With AI. The Copyright Office Says None of It Belongs to Us.</a>
+    <a href="ai-generated-prior-art-patent-troll-weapon.html">AI-Generated Prior Art as a Patent Troll Weapon</a>
+    <a href="ai-agent-hardware-beyond-phones.html">The 14 Form Factors That Will Replace Your Phone as Your AI's Home</a>
+  </section>
+
+</article>
+<script src="../story.js"></script>
+</body>
+</html>

@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/experiences/decibel/" />
+  <meta property="og:title" content="Decibel Meter - Hypernova WebApp" />
+  <meta property="og:url" content="https://liveinthefuture.org/experiences/decibel/" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Decibel Meter - Hypernova WebApp</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0d0d0d;
+  color: #e8e8e8;
+  width: 600px;
+  height: 600px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+canvas { display: block; }
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+var cv = document.getElementById('c');
+var ctx = cv.getContext('2d');
+var W = 600, H = 600;
+
+// Audio
+var audioCtx = null;
+var analyser = null;
+var timeData = null;
+var micActive = false;
+var micFailed = false;
+
+// dB tracking
+var currentDb = 0;
+var peakDb = 0;
+var peakHoldTimer = 0;
+var smoothDb = 0;
+var minDb = 999;
+var maxDb = 0;
+var avgSum = 0;
+var avgCount = 0;
+var history = [];
+var maxHistory = 540; // 9 seconds at 60fps
+var exposureStart = 0;
+var exposureDb = 0; // running average for exposure calc
+
+// Audio feedback
+var feedbackOn = false;
+var feedbackOsc = null;
+var feedbackGain = null;
+var feedbackLfo = null;
+var feedbackLfoGain = null;
+var warningActive = false;
+var lastDoseAlert = 0; // 0=none, 50=alerted at 50%, 90=alerted at 90%
+
+// NIOSH Cumulative Noise Dose
+var noiseDose = 0; // percentage (100% = daily limit)
+var doseUpdateInterval = 10; // update every 10 frames (~6x/sec)
+var doseFrameCounter = 0;
+var lastDoseTime = 0;
+var doseSmooth = 0; // smoothed for display
+
+// Badges / Achievements (Surprise & Discovery)
+var badges = [
+  { id: 'library', icon: '🤫', name: 'Library Mouse', desc: 'Avg below 40 dB for 2+ min' },
+  { id: 'whisper', icon: '🌙', name: 'Whisper Zone', desc: 'Avg below 30 dB for 3+ min' },
+  { id: 'concert', icon: '🎸', name: 'Concert Zone', desc: 'Peak above 100 dB' },
+  { id: 'safe5', icon: '🛡️', name: 'Safe Listener', desc: '5+ min, never above 85 dB' },
+  { id: 'marathon', icon: '⏱️', name: 'Marathon', desc: '20+ min monitoring session' },
+  { id: 'dose50', icon: '⚠️', name: 'Half Dose', desc: 'Reached 50% daily noise dose' },
+  { id: 'steady', icon: '📏', name: 'Steady State', desc: 'Range under 10 dB for 3+ min' },
+  { id: 'danger', icon: '🔴', name: 'Danger Zone', desc: 'Average above 85 dB for 1+ min' },
+  { id: 'explorer', icon: '🗺️', name: 'Sound Explorer', desc: 'Range over 50 dB in one session' },
+  { id: 'sessions5', icon: '⭐', name: 'Regular', desc: 'Complete 5 monitoring sessions' }
+];
+var earnedBadges = {}; // { id: timestamp }
+var sessionEarned = {}; // badges earned this session (prevent re-fire)
+var badgeNotification = null; // { badge, timer }
+var showBadges = false;
+var lifetimeStats = { sessions: 0, totalSeconds: 0, allTimePeak: 0 };
+
+// Safety thresholds (NIOSH)
+var thresholds = [
+  { db: 0,   label: 'Silent',       color: '#1a3a1a', textColor: '#4a8a4a', safe: '∞' },
+  { db: 40,  label: 'Quiet',        color: '#1a3a1a', textColor: '#4a8a4a', safe: '∞' },
+  { db: 55,  label: 'Moderate',     color: '#2a3a1a', textColor: '#7a9a4a', safe: '∞' },
+  { db: 70,  label: 'Loud',         color: '#3a3a1a', textColor: '#aaaa4a', safe: '∞' },
+  { db: 80,  label: 'Very Loud',    color: '#3a2a1a', textColor: '#cc8844', safe: '8 hrs' },
+  { db: 85,  label: 'Damaging',     color: '#3a1a1a', textColor: '#cc6644', safe: '2 hrs' },
+  { db: 90,  label: 'Harmful',      color: '#4a1a1a', textColor: '#dd4444', safe: '30 min' },
+  { db: 100, label: 'Dangerous',    color: '#5a1a1a', textColor: '#ff3333', safe: '5 min' },
+  { db: 110, label: 'PAINFUL',      color: '#6a0a0a', textColor: '#ff1111', safe: '< 1 min' },
+  { db: 120, label: 'THRESHOLD OF PAIN', color: '#7a0a0a', textColor: '#ff0000', safe: 'NONE' }
+];
+
+function getThreshold(db) {
+  var t = thresholds[0];
+  for (var i = 1; i < thresholds.length; i++) {
+    if (db >= thresholds[i].db) t = thresholds[i];
+  }
+  return t;
+}
+
+function initMic() {
+  if (micActive || micFailed) return;
+  micFailed = true;
+  try {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      var src = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.3;
+      src.connect(analyser);
+      timeData = new Uint8Array(analyser.fftSize);
+      micActive = true;
+      micFailed = false;
+      exposureStart = Date.now();
+      // Create feedback oscillator (muted until toggled on)
+      feedbackOsc = audioCtx.createOscillator();
+      feedbackGain = audioCtx.createGain();
+      feedbackOsc.type = 'sine';
+      feedbackOsc.frequency.value = 220;
+      feedbackGain.gain.value = 0; // starts silent
+      // LFO for warning pulse
+      feedbackLfo = audioCtx.createOscillator();
+      feedbackLfoGain = audioCtx.createGain();
+      feedbackLfo.type = 'sine';
+      feedbackLfo.frequency.value = 0; // no modulation initially
+      feedbackLfoGain.gain.value = 0;
+      feedbackLfo.connect(feedbackLfoGain);
+      feedbackLfoGain.connect(feedbackGain.gain);
+      feedbackOsc.connect(feedbackGain);
+      feedbackGain.connect(audioCtx.destination);
+      feedbackOsc.start();
+      feedbackLfo.start();
+    }).catch(function() { micActive = false; });
+  } catch(e) { micActive = false; }
+}
+
+function calcDb() {
+  if (!micActive || !analyser) return 0;
+  analyser.getByteTimeDomainData(timeData);
+  var sum = 0;
+  for (var i = 0; i < timeData.length; i++) {
+    var v = (timeData[i] - 128) / 128;
+    sum += v * v;
+  }
+  var rms = Math.sqrt(sum / timeData.length);
+  // Convert to approximate dB SPL (calibrated rough estimate)
+  // Web Audio mic RMS ~0.001 = ~30dB, ~0.5 = ~90dB
+  var db = 20 * Math.log10(Math.max(rms, 0.00001)) + 94;
+  return Math.max(0, Math.min(130, db));
+}
+
+function updateDb() {
+  var raw = calcDb();
+  // Smooth
+  smoothDb += (raw - smoothDb) * 0.15;
+  currentDb = smoothDb;
+
+  // Peak hold
+  if (currentDb > peakDb) {
+    peakDb = currentDb;
+    peakHoldTimer = 180; // 3 seconds
+  }
+  if (peakHoldTimer > 0) peakHoldTimer--;
+  if (peakHoldTimer <= 0) peakDb += (currentDb - peakDb) * 0.02;
+
+  // Min/max/avg
+  if (micActive && currentDb > 5) {
+    if (currentDb < minDb) minDb = currentDb;
+    if (currentDb > maxDb) maxDb = currentDb;
+    avgSum += currentDb;
+    avgCount++;
+  }
+
+  // History
+  history.push(currentDb);
+  if (history.length > maxHistory) history.shift();
+
+  // Exposure average
+  if (avgCount > 0) exposureDb = avgSum / avgCount;
+
+  // NIOSH cumulative noise dose
+  doseFrameCounter++;
+  if (doseFrameCounter >= doseUpdateInterval && micActive) {
+    doseFrameCounter = 0;
+    var now = Date.now();
+    if (lastDoseTime > 0 && currentDb >= 80) {
+      var dtHours = (now - lastDoseTime) / 3600000; // ms to hours
+      // NIOSH: allowed time = 8 / 2^((dB-85)/3) hours
+      var allowed = 8 / Math.pow(2, (currentDb - 85) / 3);
+      noiseDose += (dtHours / allowed) * 100;
+    }
+    lastDoseTime = now;
+  }
+  doseSmooth += (noiseDose - doseSmooth) * 0.1;
+
+  // Audio feedback
+  updateAudioFeedback();
+
+  // Badge checks
+  checkBadges();
+}
+
+function updateAudioFeedback() {
+  if (!feedbackOsc || !feedbackGain || !audioCtx) return;
+  if (!feedbackOn) {
+    feedbackGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+    return;
+  }
+  // Map dB to pitch: 30dB→150Hz, 85dB→600Hz, 120dB→1200Hz
+  var dbClamped = Math.max(30, Math.min(120, smoothDb));
+  var t = (dbClamped - 30) / 90; // 0..1
+  var freq = 150 + t * t * 1050; // quadratic — accelerates at higher dB
+  feedbackOsc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.08);
+
+  // Volume: very subtle baseline, louder as danger increases
+  var vol = 0.02 + t * 0.06; // 0.02 at quiet, 0.08 at loud
+  feedbackGain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.08);
+
+  // Warning pulse: activate LFO above 85dB
+  if (smoothDb >= 85) {
+    if (!warningActive) {
+      warningActive = true;
+    }
+    // Pulse rate increases with danger: 2Hz at 85dB, 8Hz at 120dB
+    var dangerT = Math.min(1, (smoothDb - 85) / 35);
+    var lfoFreq = 2 + dangerT * 6;
+    feedbackLfo.frequency.setTargetAtTime(lfoFreq, audioCtx.currentTime, 0.1);
+    feedbackLfoGain.gain.setTargetAtTime(vol * 0.5, audioCtx.currentTime, 0.1);
+  } else {
+    if (warningActive) {
+      warningActive = false;
+      feedbackLfo.frequency.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+      feedbackLfoGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+    }
+  }
+
+  // Dose alerts: quick beep at 50% and 90%
+  if (noiseDose >= 90 && lastDoseAlert < 90) {
+    lastDoseAlert = 90;
+    playDoseAlert(3); // urgent triple beep
+  } else if (noiseDose >= 50 && lastDoseAlert < 50) {
+    lastDoseAlert = 50;
+    playDoseAlert(2); // double beep
+  }
+}
+
+function playDoseAlert(beeps) {
+  if (!audioCtx) return;
+  for (var i = 0; i < beeps; i++) {
+    var osc = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = 880;
+    g.gain.value = 0;
+    g.gain.setTargetAtTime(0.08, audioCtx.currentTime + i * 0.2, 0.01);
+    g.gain.setTargetAtTime(0, audioCtx.currentTime + i * 0.2 + 0.1, 0.02);
+    osc.connect(g);
+    g.connect(audioCtx.destination);
+    osc.start(audioCtx.currentTime + i * 0.2);
+    osc.stop(audioCtx.currentTime + i * 0.2 + 0.15);
+  }
+}
+
+// Persistence
+function loadPersistence() {
+  try {
+    var raw = localStorage.getItem('decibel_data');
+    if (raw) {
+      var d = JSON.parse(raw);
+      earnedBadges = d.badges || {};
+      lifetimeStats = d.stats || { sessions: 0, totalSeconds: 0, allTimePeak: 0 };
+    }
+  } catch(e) {}
+}
+function savePersistence() {
+  try {
+    localStorage.setItem('decibel_data', JSON.stringify({
+      badges: earnedBadges,
+      stats: lifetimeStats
+    }));
+  } catch(e) {}
+}
+
+// Badge earning
+function earnBadge(id) {
+  if (earnedBadges[id] || sessionEarned[id]) return;
+  sessionEarned[id] = true;
+  earnedBadges[id] = Date.now();
+  var badge = null;
+  for (var i = 0; i < badges.length; i++) {
+    if (badges[i].id === id) { badge = badges[i]; break; }
+  }
+  if (badge) {
+    badgeNotification = { badge: badge, timer: 240 }; // 4 seconds
+    playBadgeChime();
+  }
+  savePersistence();
+}
+
+function playBadgeChime() {
+  if (!audioCtx) return;
+  var notes = [523.25, 659.25, 783.99]; // C5, E5, G5 major chord arpeggio
+  for (var i = 0; i < notes.length; i++) {
+    var osc = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = notes[i];
+    g.gain.value = 0;
+    g.gain.setTargetAtTime(0.06, audioCtx.currentTime + i * 0.12, 0.01);
+    g.gain.setTargetAtTime(0, audioCtx.currentTime + i * 0.12 + 0.2, 0.05);
+    osc.connect(g);
+    g.connect(audioCtx.destination);
+    osc.start(audioCtx.currentTime + i * 0.12);
+    osc.stop(audioCtx.currentTime + i * 0.12 + 0.5);
+  }
+}
+
+// Badge check (runs every frame while monitoring)
+var safeFrames = 0; // frames under 85 dB continuously
+var quietFrames = 0; // frames under 40 dB continuously
+var whisperFrames = 0; // frames under 30 dB continuously
+var steadyFrames = 0; // frames where range < 10 dB
+var dangerFrames = 0; // frames where avg > 85 continuously
+var steadyMin = 999, steadyMax = 0;
+
+function checkBadges() {
+  if (!micActive || avgCount < 30) return; // need some data
+  var elapsed = (Date.now() - exposureStart) / 1000; // seconds
+  var avg = avgCount > 0 ? avgSum / avgCount : 0;
+
+  // Library Mouse: avg < 40 for 2+ min
+  if (currentDb < 40) { quietFrames++; } else { quietFrames = 0; }
+  if (quietFrames > 120 * 2) earnBadge('library'); // ~2 min at 60fps
+
+  // Whisper Zone: avg < 30 for 3+ min
+  if (currentDb < 30) { whisperFrames++; } else { whisperFrames = 0; }
+  if (whisperFrames > 120 * 3) earnBadge('whisper');
+
+  // Concert Zone: peak above 100
+  if (peakDb > 100) earnBadge('concert');
+
+  // Safe Listener: 5+ min, never above 85
+  if (currentDb < 85) { safeFrames++; } else { safeFrames = 0; }
+  if (safeFrames > 120 * 5 && elapsed > 300) earnBadge('safe5');
+
+  // Marathon: 20+ min
+  if (elapsed > 1200) earnBadge('marathon');
+
+  // Half Dose
+  if (noiseDose >= 50) earnBadge('dose50');
+
+  // Steady State: range under 10 dB for 3+ min
+  if (steadyMax - steadyMin < 10 && currentDb > 5) {
+    steadyFrames++;
+    if (currentDb < steadyMin) steadyMin = currentDb;
+    if (currentDb > steadyMax) steadyMax = currentDb;
+  } else {
+    steadyFrames = 0;
+    steadyMin = currentDb;
+    steadyMax = currentDb;
+  }
+  if (steadyFrames > 120 * 3) earnBadge('steady');
+
+  // Danger Zone: avg above 85 for 1+ min
+  if (avg > 85 && elapsed > 60) earnBadge('danger');
+
+  // Sound Explorer: range over 50 dB
+  if (maxDb - minDb > 50 && minDb < 999) earnBadge('explorer');
+
+  // Regular: 5 sessions
+  if (lifetimeStats.sessions >= 5) earnBadge('sessions5');
+}
+
+// Drawing
+function drawMeter() {
+  var cx = W / 2;
+  var cy = 240;
+  var radius = 180;
+  var startAngle = Math.PI * 0.8;
+  var endAngle = Math.PI * 0.2;
+  var totalAngle = (Math.PI * 2) - (startAngle - endAngle);
+
+  var t = getThreshold(currentDb);
+
+  // Background arc
+  ctx.lineWidth = 24;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, startAngle, Math.PI * 2 + endAngle);
+  ctx.stroke();
+
+  // Colored arc (filled to current level)
+  var dbFrac = Math.min(currentDb / 120, 1);
+  var needleAngle = startAngle + dbFrac * totalAngle;
+
+  // Gradient segments
+  var segments = 60;
+  for (var i = 0; i < segments; i++) {
+    var frac = i / segments;
+    var segDb = frac * 120;
+    var segAngle = startAngle + frac * totalAngle;
+    var nextAngle = startAngle + (frac + 1/segments) * totalAngle;
+    if (segAngle > needleAngle) break;
+
+    var segT = getThreshold(segDb);
+    ctx.lineWidth = 24;
+    ctx.lineCap = 'butt';
+    ctx.strokeStyle = segT.textColor;
+    ctx.globalAlpha = 0.7 + frac * 0.3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, segAngle, nextAngle + 0.02);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Tick marks and labels
+  var tickDbs = [0, 20, 40, 55, 70, 80, 85, 90, 100, 110, 120];
+  for (var i = 0; i < tickDbs.length; i++) {
+    var td = tickDbs[i];
+    var frac = td / 120;
+    var angle = startAngle + frac * totalAngle;
+    var innerR = radius - 18;
+    var outerR = radius + 18;
+    var labelR = radius + 34;
+
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(angle) * innerR, cy + Math.sin(angle) * innerR);
+    ctx.lineTo(cx + Math.cos(angle) * outerR, cy + Math.sin(angle) * outerR);
+    ctx.stroke();
+
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = '#666';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(td + '', cx + Math.cos(angle) * labelR, cy + Math.sin(angle) * labelR);
+  }
+
+  // Needle
+  var needleLen = radius - 30;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(needleAngle);
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(needleLen, 0);
+  ctx.lineTo(-12, -3);
+  ctx.lineTo(-12, 3);
+  ctx.closePath();
+  ctx.fill();
+  // Hub
+  ctx.fillStyle = '#333';
+  ctx.beginPath();
+  ctx.arc(0, 0, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = t.textColor;
+  ctx.beginPath();
+  ctx.arc(0, 0, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Peak marker
+  if (peakDb > 5) {
+    var peakFrac = Math.min(peakDb / 120, 1);
+    var peakAngle = startAngle + peakFrac * totalAngle;
+    var markerR = radius;
+    ctx.fillStyle = '#ff4444';
+    ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    ctx.arc(cx + Math.cos(peakAngle) * markerR, cy + Math.sin(peakAngle) * markerR, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Big dB number
+  ctx.font = '700 64px -apple-system, sans-serif';
+  ctx.fillStyle = t.textColor;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(Math.round(currentDb) + '', cx, cy + 30);
+
+  ctx.font = '18px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.fillText('dB SPL', cx, cy + 62);
+
+  // Label
+  ctx.font = '600 22px -apple-system, sans-serif';
+  ctx.fillStyle = t.textColor;
+  ctx.fillText(t.label, cx, cy + 95);
+
+  // Safe exposure
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.fillText('Safe exposure: ' + t.safe, cx, cy + 118);
+}
+
+function drawDoseBar() {
+  var barY = 420;
+  var barH = 24;
+  var barX = 20;
+  var barW = W - 40;
+  var dose = Math.min(doseSmooth, 200); // cap display at 200%
+  var frac = Math.min(dose / 100, 1);
+  var overFrac = dose > 100 ? Math.min((dose - 100) / 100, 1) : 0;
+
+  // Background
+  ctx.fillStyle = '#111';
+  ctx.fillRect(barX, barY, barW, barH);
+
+  // Dose fill - color by level
+  var barColor;
+  if (dose < 25) barColor = '#2a6a2a';
+  else if (dose < 50) barColor = '#6a6a2a';
+  else if (dose < 75) barColor = '#8a5a2a';
+  else if (dose < 100) barColor = '#8a2a2a';
+  else {
+    // Pulsing red when over 100%
+    var pulse = 0.6 + 0.4 * Math.sin(Date.now() * 0.008);
+    barColor = 'rgba(255,50,50,' + pulse.toFixed(2) + ')';
+  }
+
+  ctx.fillStyle = barColor;
+  ctx.fillRect(barX, barY, barW * frac, barH);
+
+  // Over-dose overlay (striped)
+  if (overFrac > 0) {
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(barX, barY, barW * Math.min(overFrac, 1), barH);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  // 100% line
+  ctx.strokeStyle = '#ff4444';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(barX + barW, barY);
+  ctx.lineTo(barX + barW, barY + barH);
+  ctx.stroke();
+
+  // Quarter marks
+  for (var q = 1; q <= 3; q++) {
+    var qx = barX + (q / 4) * barW;
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(qx, barY);
+    ctx.lineTo(qx, barY + barH);
+    ctx.stroke();
+  }
+
+  // Border
+  ctx.strokeStyle = '#2a2a2a';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(barX, barY, barW, barH);
+
+  // Label
+  ctx.font = '600 12px -apple-system, sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#888';
+  ctx.fillText('DAILY NOISE DOSE (NIOSH)', barX, barY - 8);
+
+  // Percentage
+  ctx.textAlign = 'right';
+  if (dose >= 100) {
+    ctx.fillStyle = '#ff4444';
+    ctx.font = '700 14px -apple-system, sans-serif';
+    ctx.fillText(Math.round(dose) + '% ⚠ LIMIT EXCEEDED', barX + barW, barY - 8);
+  } else if (dose >= 50) {
+    ctx.fillStyle = '#cc8844';
+    ctx.font = '600 13px -apple-system, sans-serif';
+    ctx.fillText(Math.round(dose) + '%', barX + barW, barY - 8);
+  } else if (dose > 0.5) {
+    ctx.fillStyle = '#6a8a4a';
+    ctx.font = '600 13px -apple-system, sans-serif';
+    ctx.fillText(dose.toFixed(1) + '%', barX + barW, barY - 8);
+  } else {
+    ctx.fillStyle = '#555';
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.fillText('0%', barX + barW, barY - 8);
+  }
+
+  // Time to 100% estimate (if accumulating and not yet at 100%)
+  if (micActive && currentDb >= 80 && dose < 100 && dose > 0.1) {
+    var elapsed = (Date.now() - exposureStart) / 60000; // minutes
+    if (elapsed > 0.5) {
+      var rate = dose / elapsed; // % per minute
+      var remaining = (100 - dose) / rate; // minutes to 100%
+      var timeStr;
+      if (remaining < 60) timeStr = Math.round(remaining) + ' min to 100%';
+      else timeStr = (remaining / 60).toFixed(1) + ' hrs to 100%';
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.fillStyle = '#666';
+      ctx.textAlign = 'center';
+      ctx.fillText('≈ ' + timeStr + ' at current level', W / 2, barY + barH + 12);
+    }
+  }
+}
+
+function drawHistory() {
+  if (history.length < 2) return;
+  var y0 = 455;
+  var graphH = 85;
+  var graphW = W - 40;
+  var startX = 20;
+
+  // Background
+  ctx.fillStyle = '#111';
+  ctx.fillRect(startX, y0, graphW, graphH);
+
+  // Threshold zones
+  var zones = [
+    { db: 0, color: 'rgba(40,80,40,0.15)' },
+    { db: 70, color: 'rgba(80,80,40,0.15)' },
+    { db: 85, color: 'rgba(120,60,30,0.15)' },
+    { db: 100, color: 'rgba(120,30,30,0.2)' }
+  ];
+  for (var z = zones.length - 1; z >= 0; z--) {
+    var zy = y0 + graphH - (zones[z].db / 120) * graphH;
+    ctx.fillStyle = zones[z].color;
+    ctx.fillRect(startX, zy, graphW, y0 + graphH - zy);
+  }
+
+  // 85dB line
+  var warningY = y0 + graphH - (85 / 120) * graphH;
+  ctx.strokeStyle = 'rgba(200,60,60,0.4)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(startX, warningY);
+  ctx.lineTo(startX + graphW, warningY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.fillStyle = '#884444';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('85 dB — hearing damage', startX + 4, warningY - 2);
+
+  // Waveform
+  ctx.strokeStyle = getThreshold(currentDb).textColor;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (var i = 0; i < history.length; i++) {
+    var x = startX + (i / maxHistory) * graphW;
+    var y = y0 + graphH - (history[i] / 120) * graphH;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Border
+  ctx.strokeStyle = '#2a2a2a';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(startX, y0, graphW, graphH);
+}
+
+function drawStats() {
+  var y = 555;
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.textBaseline = 'middle';
+
+  // Stats row
+  var avg = avgCount > 0 ? (avgSum / avgCount) : 0;
+  var stats = [
+    { label: 'MIN', value: minDb < 999 ? Math.round(minDb) + ' dB' : '—', color: '#4a8a4a' },
+    { label: 'AVG', value: avgCount > 0 ? Math.round(avg) + ' dB' : '—', color: '#aaaa4a' },
+    { label: 'MAX', value: maxDb > 0 ? Math.round(maxDb) + ' dB' : '—', color: '#dd4444' },
+    { label: 'PEAK', value: peakDb > 5 ? Math.round(peakDb) + ' dB' : '—', color: '#ff4444' }
+  ];
+
+  var colW = W / stats.length;
+  for (var i = 0; i < stats.length; i++) {
+    var x = colW * i + colW / 2;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#555';
+    ctx.fillText(stats[i].label, x, y);
+    ctx.fillStyle = stats[i].color;
+    ctx.font = '600 15px -apple-system, sans-serif';
+    ctx.fillText(stats[i].value, x, y + 18);
+    ctx.font = '13px -apple-system, sans-serif';
+  }
+
+  // Exposure time
+  if (micActive && exposureStart > 0) {
+    var elapsed = Math.floor((Date.now() - exposureStart) / 1000);
+    var min = Math.floor(elapsed / 60);
+    var sec = elapsed % 60;
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = '#555';
+    ctx.textAlign = 'right';
+    ctx.fillText('Monitoring: ' + min + ':' + (sec < 10 ? '0' : '') + sec, W - 20, 585);
+  }
+
+  // Badge count
+  var totalEarned = Object.keys(earnedBadges).length;
+  if (totalEarned > 0 || lifetimeStats.sessions > 0) {
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = '#555';
+    ctx.textAlign = 'left';
+    ctx.fillText('🏆 ' + totalEarned + '/' + badges.length + '  ↓ Badges', 20, 585);
+  }
+}
+
+function drawBadgeNotification() {
+  if (!badgeNotification) return;
+  badgeNotification.timer--;
+  if (badgeNotification.timer <= 0) { badgeNotification = null; return; }
+
+  var b = badgeNotification.badge;
+  var alpha = Math.min(1, badgeNotification.timer / 30, (240 - badgeNotification.timer + 30) / 30);
+  var slideY = 50 + Math.max(0, (30 - (240 - badgeNotification.timer)) * 1.5);
+
+  ctx.save();
+  ctx.globalAlpha = alpha * 0.95;
+  // Background pill
+  ctx.fillStyle = '#1a2a1a';
+  ctx.strokeStyle = '#4a8a4a';
+  ctx.lineWidth = 2;
+  var pillW = 320, pillH = 54;
+  var pillX = (W - pillW) / 2, pillY = slideY;
+  ctx.beginPath();
+  ctx.roundRect(pillX, pillY, pillW, pillH, 12);
+  ctx.fill();
+  ctx.stroke();
+
+  // Badge icon and text
+  ctx.font = '24px -apple-system, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(b.icon, pillX + 14, pillY + pillH / 2);
+
+  ctx.font = '600 14px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a8a4a';
+  ctx.fillText('BADGE UNLOCKED', pillX + 50, pillY + 17);
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.fillStyle = '#ccc';
+  ctx.fillText(b.name + ' — ' + b.desc, pillX + 50, pillY + 36);
+  ctx.restore();
+}
+
+function drawBadgePanel() {
+  ctx.fillStyle = 'rgba(13,13,13,0.97)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.font = '600 22px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🏆 Badges', W / 2, 30);
+
+  var totalEarned = Object.keys(earnedBadges).length;
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.fillText(totalEarned + ' / ' + badges.length + ' earned', W / 2, 55);
+
+  // Grid: 2 columns
+  var cols = 2;
+  var cellW = 270, cellH = 58, padX = 15, padY = 75;
+  for (var i = 0; i < badges.length; i++) {
+    var col = i % cols, row = Math.floor(i / cols);
+    var x = padX + col * (cellW + 15);
+    var y = padY + row * (cellH + 8);
+    var earned = !!earnedBadges[badges[i].id];
+
+    // Cell background
+    ctx.fillStyle = earned ? '#1a2a1a' : '#111';
+    ctx.strokeStyle = earned ? '#3a6a3a' : '#222';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(x, y, cellW, cellH, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    // Icon
+    ctx.font = '22px -apple-system, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha = earned ? 1 : 0.3;
+    ctx.fillStyle = '#fff';
+    ctx.fillText(badges[i].icon, x + 10, y + cellH / 2);
+
+    // Name
+    ctx.font = '600 13px -apple-system, sans-serif';
+    ctx.fillStyle = earned ? '#ccc' : '#555';
+    ctx.fillText(badges[i].name, x + 42, y + 20);
+
+    // Desc
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = earned ? '#888' : '#444';
+    ctx.fillText(badges[i].desc, x + 42, y + 38);
+
+    ctx.globalAlpha = 1;
+  }
+
+  // Lifetime stats
+  var sy = padY + Math.ceil(badges.length / cols) * (cellH + 8) + 10;
+  ctx.font = '600 14px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.textAlign = 'center';
+  ctx.fillText('Sessions: ' + lifetimeStats.sessions + '  •  Total: ' + Math.round(lifetimeStats.totalSeconds / 60) + ' min  •  All-time peak: ' + Math.round(lifetimeStats.allTimePeak) + ' dB', W / 2, sy);
+
+  // Footer
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.fillText('Press ↓ or Enter to return', W / 2, H - 20);
+}
+
+function drawHeader() {
+  ctx.fillStyle = 'rgba(13,13,13,0.9)';
+  ctx.fillRect(0, 0, W, 40);
+  ctx.font = '600 18px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🔊 Decibel Meter', 14, 20);
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'right';
+  if (!micActive && !micFailed) {
+    ctx.fillStyle = '#ff6644';
+    ctx.fillText('Press any key to start', W - 14, 20);
+  } else if (micFailed) {
+    ctx.fillStyle = '#884444';
+    ctx.fillText('Mic unavailable', W - 14, 20);
+  } else {
+    var liveLabel = '● LIVE';
+    if (feedbackOn) liveLabel += '  🔔 Audio';
+    ctx.fillStyle = '#4a8a4a';
+    ctx.fillText(liveLabel, W - 14, 20);
+  }
+}
+
+function drawPrompt() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  ctx.font = '600 28px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🔊 Decibel Meter', W/2, H/2 - 80);
+  ctx.font = '16px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.fillText('Monitor ambient sound levels', W/2, H/2 - 45);
+  ctx.fillText('with hearing safety warnings', W/2, H/2 - 20);
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText('Press Enter to enable microphone', W/2, H/2 + 30);
+  ctx.fillStyle = '#555';
+  ctx.fillText('↑ Toggle audio feedback  •  ↓ Badges', W/2, H/2 + 60);
+  ctx.fillText('Enter: Reset stats  •  Esc: Back', W/2, H/2 + 80);
+  // Show badge progress if returning user
+  try {
+    var raw = localStorage.getItem('decibel_data');
+    if (raw) {
+      var d = JSON.parse(raw);
+      var earned = Object.keys(d.badges || {}).length;
+      if (earned > 0) {
+        ctx.font = '13px -apple-system, sans-serif';
+        ctx.fillStyle = '#4a8a4a';
+        ctx.fillText('🏆 ' + earned + '/' + badges.length + ' badges earned', W/2, H/2 + 115);
+      }
+    }
+  } catch(e) {}
+}
+
+// Main loop
+var started = false;
+
+function frame() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  if (showBadges) {
+    drawBadgePanel();
+  } else if (!started) {
+    drawPrompt();
+  } else {
+    updateDb();
+    drawHeader();
+    drawMeter();
+    drawDoseBar();
+    drawHistory();
+    drawStats();
+    drawBadgeNotification();
+  }
+
+  requestAnimationFrame(frame);
+}
+
+document.addEventListener('keydown', function(e) {
+  e.preventDefault();
+  if (e.key === 'Escape' || e.key === 'Backspace') {
+    if (showBadges) { showBadges = false; return; }
+    // Save session stats on exit
+    if (micActive && exposureStart > 0) {
+      var elapsed = (Date.now() - exposureStart) / 1000;
+      if (elapsed > 10) {
+        lifetimeStats.sessions++;
+        lifetimeStats.totalSeconds += Math.round(elapsed);
+        if (peakDb > lifetimeStats.allTimePeak) lifetimeStats.allTimePeak = peakDb;
+        savePersistence();
+      }
+    }
+    window.location.href = '../';
+    return;
+  }
+  if (showBadges) {
+    if (e.key === 'ArrowDown' || e.key === 'Enter') showBadges = false;
+    return;
+  }
+  if (!started) {
+    if (e.key === 'Enter') {
+      started = true;
+      loadPersistence();
+      if (!micActive && !micFailed) initMic();
+    }
+    return;
+  }
+  // While running
+  if (e.key === 'Enter') {
+    // Save session before reset
+    if (micActive && exposureStart > 0) {
+      var elapsed = (Date.now() - exposureStart) / 1000;
+      if (elapsed > 10) {
+        lifetimeStats.sessions++;
+        lifetimeStats.totalSeconds += Math.round(elapsed);
+        if (peakDb > lifetimeStats.allTimePeak) lifetimeStats.allTimePeak = peakDb;
+      }
+    }
+    // Reset stats
+    minDb = 999;
+    maxDb = 0;
+    avgSum = 0;
+    avgCount = 0;
+    peakDb = 0;
+    history = [];
+    noiseDose = 0;
+    doseSmooth = 0;
+    lastDoseTime = Date.now();
+    exposureStart = Date.now();
+    lastDoseAlert = 0;
+    safeFrames = 0;
+    quietFrames = 0;
+    whisperFrames = 0;
+    steadyFrames = 0;
+    dangerFrames = 0;
+    steadyMin = 999;
+    steadyMax = 0;
+    sessionEarned = {};
+    savePersistence();
+  }
+  if (e.key === 'ArrowUp') {
+    feedbackOn = !feedbackOn;
+  }
+  if (e.key === 'ArrowDown') {
+    showBadges = !showBadges;
+  }
+});
+
+frame();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

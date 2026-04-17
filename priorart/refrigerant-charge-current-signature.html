@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-012: Non-Invasive Refrigerant Charge Estimation via Compressor Motor Current Signature Analysis | Live in the Future</title>
+  <meta name="description" content="Defensive prior art disclosure: A system that estimates refrigerant charge level in vapor-compression HVAC systems by analyzing compressor motor current waveforms with a non-contact CT clamp and edge-deployed time-frequency neural network, detecting 5% charge deviations without refrigerant-side instrumentation.">
+  <meta property="og:title" content="System and Method for Non-Invasive Refrigerant Charge Estimation in Vapor-Compression HVAC Systems via Compressor Motor Current Signature Analysis and Edge-Deployed Time-Frequency Neural Networks">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/refrigerant-charge-current-signature.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/refrigerant-charge-current-signature.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/priorart-refrigerant-charge.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">← Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-012 &middot; BuildingTech / HVAC AI</span>
+      <h1>System and Method for Non-Invasive Refrigerant Charge Estimation in Vapor-Compression HVAC Systems via Compressor Motor Current Signature Analysis and Edge-Deployed Time-Frequency Neural Networks</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-04-14">Published April 14, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/priorart-refrigerant-charge.jpg" alt="HVAC compressor with current transformer clamp on power cable and digital waveform analysis overlay" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>⚖️ Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. § 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above. This disclosure is intended to prevent the patenting of these concepts by any party.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a system and method for continuously estimating the refrigerant charge level in vapor-compression HVAC systems (residential split systems, commercial rooftop units, chillers) without installing pressure transducers, temperature sensors, or any instrumentation on the refrigerant circuit. The system uses a single split-core current transformer (CT) clamped non-invasively around the compressor motor power conductor to capture the motor current waveform at 10 kHz sampling rate. An edge compute module extracts time-frequency features from the current signal using a Short-Time Fourier Transform (STFT) and continuous wavelet transform (CWT), then feeds these spectrograms to a convolutional neural network (CNN) that estimates refrigerant charge as a percentage of the manufacturer's nominal charge, with a target resolution of ±5% across the 60-120% charge range. The physical basis is that refrigerant charge directly affects evaporator and condenser pressures, which alter compressor mechanical loading, which modulates the motor's electrical current signature in ways that are subtle but consistent and learnable. The system further detects specific fault signatures (liquid slugging, flooded start, short-cycling) from transient current patterns. All inference runs on a low-power edge device (e.g., ESP32-S3 or Raspberry Pi Zero 2W) costing under $15, enabling retrofit deployment on any existing HVAC system with no refrigerant circuit modification, no EPA Section 608 certification requirement for installers, and no system downtime.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to heating, ventilation, and air conditioning (HVAC) system monitoring, specifically to the non-invasive estimation of refrigerant charge level and detection of refrigerant-side faults using electrical current signature analysis of the compressor motor and on-device machine learning inference.</p>
+
+      <h2>Background</h2>
+
+      <p>Refrigerant charge is the single most critical parameter affecting the efficiency, capacity, and longevity of vapor-compression cooling systems. The <a href="https://www.energy.gov/energysaver/maintaining-your-air-conditioner">U.S. Department of Energy estimates</a> that improper refrigerant charge reduces HVAC system efficiency by 5-20%, and that approximately 60% of residential systems in the field have incorrect charge levels (overcharged or undercharged). A <a href="https://www.nrel.gov/docs/fy13osti/56163.pdf">National Renewable Energy Laboratory study (Mowris et al., 2004)</a> found that 57% of residential AC systems tested in California had charge errors exceeding ±10%, with average efficiency degradation of 11%. Given that space cooling accounts for approximately <a href="https://www.eia.gov/consumption/residential/data/2020/hc/pdf/HC%206.1.pdf">15% of U.S. residential electricity consumption (EIA RECS 2020)</a>, improper charge across the installed base represents tens of billions of kilowatt-hours in annual waste.</p>
+
+      <p>Beyond efficiency, refrigerant leakage has direct environmental consequences. Hydrofluorocarbon (HFC) refrigerants are potent greenhouse gases: R-410A has a global warming potential (GWP) of 2,088 relative to CO₂ over 100 years. The <a href="https://www.epa.gov/climate-hfcs-reduction">EPA's AIM Act (2020)</a> mandates an 85% phasedown of HFC production and consumption by 2036, and the <a href="https://www.epa.gov/climate-hfcs-reduction/regulatory-actions-managing-hfc-use-and-reuse">Technology Transitions Rule (2023)</a> tightens leak inspection requirements for systems with charges exceeding 50 pounds. Early leak detection directly reduces both refrigerant loss and the need for virgin HFC procurement.</p>
+
+      <p>Current methods for assessing refrigerant charge share significant practical limitations:</p>
+
+      <ul>
+        <li><strong>Superheat/subcooling measurement:</strong> The standard field method. A technician connects a manifold gauge set to the system's Schrader service ports, measures suction and discharge pressures, clamps a thermocouple to the suction line, and calculates superheat (for TXV systems) or subcooling (for fixed-orifice systems). This requires <a href="https://www.epa.gov/section608/section-608-technician-certification">EPA Section 608 certification</a>, a service call ($150-$300), and 15-30 minutes per system. It provides a snapshot, not continuous monitoring. Every gauge connection is a potential leak source.</li>
+        <li><strong>Refrigerant-side sensors:</strong> Permanent pressure transducers and temperature probes can be installed on the refrigerant lines for continuous monitoring. Commercial building automation systems (Tridium Niagara, Honeywell Forge) support this approach. Cost: $200-$800 per unit for sensors plus installation, which requires brazing into refrigerant lines and recovering/recharging refrigerant. Not economically viable for the ~100 million residential split systems in the U.S.</li>
+        <li><strong>Electronic leak detectors:</strong> Handheld instruments (Inficon D-TEK, Fieldpiece SRL8) detect refrigerant in ambient air around fittings and joints. Useful for locating active leaks during service calls, but they require physical proximity and human operation. They detect the presence of refrigerant vapor, not the charge level.</li>
+        <li><strong>Ultrasonic leak detectors:</strong> Detect the acoustic signature of gas escaping through small orifices. Limited to active leaks large enough to produce audible turbulence. Cannot quantify charge level.</li>
+        <li><strong>Weighing method:</strong> The most accurate method. All refrigerant is recovered, the system is evacuated, and the exact manufacturer-specified charge is weighed back in. Requires a recovery machine, vacuum pump, digital scale, and 2-4 hours of technician time. Used during installation and major repairs, not for routine monitoring.</li>
+      </ul>
+
+      <p>The gap in the art is a system that provides continuous, non-invasive refrigerant charge estimation without any instrumentation on the refrigerant circuit, using only the compressor's electrical connection, which is accessible without EPA certification and without opening the refrigerant system.</p>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. Physical Principle: Refrigerant Charge as Compressor Mechanical Load Modulator</h3>
+
+      <p>A vapor-compression refrigeration cycle operates between two pressure levels: the low-side (evaporator) pressure <em>P<sub>e</sub></em> and the high-side (condenser) pressure <em>P<sub>c</sub></em>. The compressor must move refrigerant mass flow against this pressure differential. The mechanical power required is approximately:</p>
+
+      <p style="text-align: center; font-style: italic;">W<sub>comp</sub> = ṁ × (h<sub>2</sub> - h<sub>1</sub>) / η<sub>is</sub></p>
+
+      <p>where <em>ṁ</em> is refrigerant mass flow rate, <em>h<sub>2</sub> - h<sub>1</sub></em> is the specific enthalpy rise across the compressor, and <em>η<sub>is</sub></em> is the isentropic efficiency. When the system is undercharged, several thermodynamic effects cascade: evaporator pressure drops (reduced refrigerant inventory in the evaporator), superheat at the compressor suction increases, mass flow rate decreases, and the compressor operates at a lower compression ratio. When overcharged, condenser pressure rises (excess refrigerant floods the condenser subcooling section), subcooling increases, and the compressor works against a higher head pressure.</p>
+
+      <p>These thermodynamic changes manifest in the compressor motor's electrical current in three distinct ways. First, the RMS current magnitude changes: undercharge reduces motor loading (lower current), while overcharge increases it. For a typical 3-ton residential scroll compressor (Copeland ZP34K5E), a 20% charge deficit reduces steady-state RMS current by 8-15% relative to nominal. Second, the current waveform's harmonic content shifts. The compressor's scroll, reciprocating, or rotary mechanism produces periodic torque pulsations at integer multiples of the rotational frequency. Charge level affects the pressure-volume work per revolution, altering the amplitude ratios of these mechanical harmonics as reflected in the motor current. Third, transient behaviors during compressor startup and shutdown contain charge-dependent signatures: an undercharged system reaches steady-state current faster (lower suction pressure means less initial loading), while an overcharged system exhibits a characteristic current spike associated with liquid refrigerant present in the compressor sump (liquid slugging).</p>
+
+      <h3>2. Sensor Hardware: Split-Core Current Transformer Module</h3>
+
+      <p>The sensing element is a split-core current transformer (CT) that clamps around one conductor of the compressor motor power supply without interrupting the circuit. The split-core design (e.g., YHDC SCT-013, 100A:50mA ratio, or Talema ACM-3000 series) enables installation by clipping around a single wire in the disconnect box or at the contactor, requiring no electrical work beyond opening a service panel cover. The CT output is conditioned by a burden resistor and anti-aliasing filter (4th-order Butterworth, 5 kHz cutoff), then sampled by an ADC at 10 kHz (12-bit minimum resolution). The 10 kHz sampling rate captures the fundamental (50/60 Hz) plus harmonics up to the 80th order, which is sufficient to characterize both the electrical drive frequency content and the compressor mechanical frequency content.</p>
+
+      <p>A single-axis MEMS accelerometer (ADXL1002, 11 kHz bandwidth, ±50 g) is optionally mounted on the compressor housing or connected line set to capture vibration, providing a secondary channel that directly reflects mechanical dynamics. However, the core system operates from the CT alone, as the accelerometer requires physical attachment to the outdoor unit and access to the compressor.</p>
+
+      <p>An ambient temperature sensor (NTC thermistor, ±0.5°C) and a relative humidity sensor (SHT40, ±1.8% RH) mounted on the edge compute module capture outdoor conditions. These environmental inputs are critical because the condenser pressure, and therefore the compressor's operating point, depends strongly on outdoor air temperature. A 10°F change in outdoor temperature can shift compressor current by 10-20%, which must be factored out to isolate the charge-dependent signal.</p>
+
+      <p>Total hardware BOM cost at volume (1,000+ units): CT ($3), microcontroller with ADC ($5), temperature/humidity sensor ($2), power supply ($2), enclosure ($3). Target retail price: $29-$49 per unit.</p>
+
+      <h3>3. Signal Processing Pipeline</h3>
+
+      <p>The raw current waveform is processed in three parallel branches:</p>
+
+      <p><strong>Branch A: Steady-State Spectral Features.</strong> When the compressor is running in steady state (defined as RMS current variance < 2% over a 10-second window), the system computes a 4,096-point FFT of the current signal (frequency resolution: 2.44 Hz at 10 kHz sampling). From the FFT, it extracts: the fundamental frequency and amplitude; the total harmonic distortion (THD) through the 50th harmonic; the amplitude of each individual harmonic normalized to the fundamental; and the spectral centroid, spectral rolloff (95th percentile frequency), and spectral flatness of the harmonic envelope. These features are computed once per minute during steady-state operation.</p>
+
+      <p><strong>Branch B: Time-Frequency Representation.</strong> A continuous wavelet transform (CWT) using a Morlet wavelet (center frequency ω₀ = 6, bandwidth parameter σ = 1) is computed over a 2-second window, producing a time-frequency scalogram with 128 frequency scales logarithmically spaced from 5 Hz to 5 kHz. The scalogram captures both the harmonic structure (vertical bands at multiples of the fundamental) and transient events (horizontal bands during startup, shutdown, defrost cycles, and reversing-valve transitions). The CWT scalogram is downsampled to a 128 × 128 pixel image for neural network input.</p>
+
+      <p><strong>Branch C: Transient Event Detection.</strong> A sliding-window envelope detector monitors the RMS current at 100 ms resolution. When the envelope derivative exceeds a threshold (set during commissioning), the system captures a 30-second high-resolution event record encompassing the transient. Specific transient classes include: compressor startup (inrush current profile), compressor shutdown (back-EMF decay), defrost cycle initiation (reversing valve current), and short-cycle events (compressor off time < 3 minutes, indicating possible high-pressure cutout or thermal overload). These transient records are stored for batch upload and model retraining.</p>
+
+      <h3>4. Neural Network Architecture for Charge Estimation</h3>
+
+      <p>The charge estimation model uses a dual-input architecture:</p>
+
+      <p><strong>Input 1: CWT scalogram</strong> (128 × 128 × 1, single channel). Processed by a lightweight CNN: 3 convolutional blocks (3×3 kernels, 16/32/64 filters, batch normalization, ReLU, 2×2 max pooling), followed by global average pooling, producing a 64-dimensional feature vector.</p>
+
+      <p><strong>Input 2: Environmental context vector</strong> (4 elements): outdoor temperature, outdoor relative humidity, compressor run time since last start (minutes), and time of day (encoded as sin/cos pair of the hour angle, adding 2 elements for a total of 6). Processed by a 2-layer MLP (32, 16 units, ReLU).</p>
+
+      <p>The CNN and MLP outputs are concatenated (64 + 16 = 80 features) and fed to a final regression head: 2 dense layers (64 units, 32 units, ReLU) outputting a single scalar: estimated charge as a percentage of nominal (target range: 60-130%). A secondary classification head (softmax, 4 classes) simultaneously identifies the operating regime: normal, undercharged (< 90% nominal), overcharged (> 110% nominal), or fault (liquid slugging, loss of charge, restricted metering device).</p>
+
+      <p>The model is trained on data collected from controlled laboratory tests where a reference system (e.g., Carrier 24ACC636A003, 3-ton split system) is operated at precisely measured charge levels from 60% to 130% of nominal in 5% increments, across outdoor temperatures from 65°F to 115°F in 5°F increments, yielding approximately 150 operating conditions. Each condition is held for 30 minutes of steady-state data collection plus startup/shutdown transients. The training dataset is augmented with: Gaussian noise injection (SNR 20 dB), grid voltage variation simulation (±5%), and compressor aging emulation (efficiency degradation up to 15%).</p>
+
+      <p>For deployment across different compressor models, the system uses a transfer learning approach. A base model is pre-trained on laboratory data from 10+ common compressor models (scroll, reciprocating, rotary). During field commissioning, the system runs a 72-hour self-supervised calibration: it observes the compressor across a range of outdoor temperatures during normal operation and fine-tunes the final regression layers using the assumption that the as-found charge is "approximately nominal" (a weak label). Subsequent charge deviations from this baseline are detected with higher confidence than absolute charge estimation.</p>
+
+      <p>Model size after INT8 quantization: approximately 120 KB. Inference time on ESP32-S3 (240 MHz, no FPU): < 200 ms per prediction. Inference time on Raspberry Pi Zero 2W: < 15 ms.</p>
+
+      <h3>5. Fault Detection and Diagnostics</h3>
+
+      <p>Beyond charge estimation, the current signature contains information about several refrigerant-side and mechanical faults:</p>
+
+      <ul>
+        <li><strong>Liquid slugging:</strong> Detected by a characteristic double-peak pattern in the startup inrush current, where the second peak (occurring 0.5-2 seconds after initial inrush) is caused by liquid refrigerant entering the compression chamber. The amplitude ratio of the second peak to the first, combined with the time delay, indicates severity. Liquid slugging causes bearing wear and valve damage, making early detection valuable for preventing compressor failure.</li>
+        <li><strong>Loss of charge (active leak):</strong> Detected by a gradual, monotonic decrease in the charge estimate over hours or days, distinguishable from seasonal temperature effects by the environmental normalization. The rate of charge loss can be estimated from the slope of the charge-vs-time curve, enabling leak severity classification (slow seep vs. rapid leak).</li>
+        <li><strong>Restricted metering device:</strong> A partially blocked TXV or fixed orifice reduces mass flow rate without reducing charge level. The current signature shows reduced steady-state amplitude (similar to undercharge) but with a distinct harmonic pattern: the mass flow reduction is localized at the metering device rather than distributed across the evaporator, producing a different compressor loading profile that the neural network can learn to distinguish from true undercharge.</li>
+        <li><strong>Compressor valve leakage:</strong> Internal leakage past the compressor's discharge or suction valves (scroll tip seal wear, reed valve fatigue) reduces volumetric efficiency. The current signature shows elevated harmonics at the compressor's fundamental rotational frequency (typically 50-60 Hz for a 2-pole motor at 60 Hz line frequency, or 29-30 Hz for a 4-pole motor) due to the blow-back pressure pulse occurring once per revolution.</li>
+        <li><strong>Short-cycling:</strong> The system logs compressor on/off cycles and flags short-cycling (< 3 minutes off time or > 6 starts per hour) as a symptom of high-pressure cutout, low-pressure cutout, or thermostat issues. Short-cycling is detected purely from the current envelope without additional sensors.</li>
+      </ul>
+
+      <h3>6. Cloud Aggregation and Fleet Analytics</h3>
+
+      <p>For property management companies, HVAC contractors, and utility demand-response programs, the edge modules report summarized data (charge estimate, fault flags, operating statistics) to a cloud platform via WiFi or cellular. The cloud platform maintains a fleet dashboard showing charge status across all monitored systems, enabling prioritized dispatching: technicians visit only the systems that need attention, rather than performing routine check-ups on all systems.</p>
+
+      <p>Aggregated fleet data also enables population-level analytics: identifying compressor model lines with higher-than-expected charge loss rates (indicating manufacturing defects or design weaknesses), correlating charge loss with geographic factors (coastal salt air corrosion, thermal cycling stress), and predicting seasonal demand for refrigerant procurement.</p>
+
+      <p>For utility demand-response applications, the charge estimate provides a proxy for system efficiency. A utility can identify the lowest-efficiency systems in its territory (those with the worst charge deviations) and target them for rebate-funded tune-ups, achieving greater demand reduction per dollar than blanket incentive programs.</p>
+
+      <h3>7. Figures Description</h3>
+
+      <ul>
+        <li><strong>Figure 1:</strong> System architecture showing split-core CT installation at compressor disconnect, edge compute module, WiFi uplink to cloud platform, and fleet dashboard with charge status indicators.</li>
+        <li><strong>Figure 2:</strong> Thermodynamic state diagram (P-h) of the vapor-compression cycle showing how undercharge and overcharge shift the operating points, annotated with the corresponding changes in compressor motor current amplitude and harmonic content.</li>
+        <li><strong>Figure 3:</strong> Example CWT scalograms for three charge levels (80%, 100%, 120% of nominal) at the same outdoor temperature (95°F), showing the systematic shift in harmonic amplitude ratios and spectral energy distribution.</li>
+        <li><strong>Figure 4:</strong> Compressor startup current transient profiles for normal charge, undercharge, and liquid slugging conditions, showing the characteristic double-peak signature associated with liquid refrigerant in the compressor sump.</li>
+        <li><strong>Figure 5:</strong> Dual-input neural network architecture diagram showing CWT scalogram CNN branch, environmental context MLP branch, concatenation, and dual output heads (charge regression + fault classification).</li>
+        <li><strong>Figure 6:</strong> Fleet dashboard wireframe showing building portfolio charge status map with color-coded units (green = nominal, yellow = marginal, red = critical deviation or fault).</li>
+      </ul>
+
+      <h2>Claims</h2>
+
+      <ol>
+        <li>A system for estimating refrigerant charge level in a vapor-compression HVAC system, comprising: a split-core current transformer clamped non-invasively around a power conductor of the compressor motor; an analog-to-digital converter sampling the current transformer output at a rate sufficient to capture harmonics of the compressor's mechanical frequency; an edge compute module that extracts time-frequency features from the sampled current waveform and estimates refrigerant charge as a percentage of the manufacturer's nominal charge using a trained neural network; wherein no sensors are installed on the refrigerant circuit, and no modification to the refrigerant piping, fittings, or components is required.</li>
+
+        <li>The system of claim 1, wherein the time-frequency features comprise a continuous wavelet transform scalogram of the current waveform computed over a window of at least one second, and the neural network is a convolutional neural network that ingests the scalogram as a two-dimensional image input.</li>
+
+        <li>The system of claim 1, wherein the neural network further receives environmental context inputs comprising at least outdoor ambient temperature and compressor run time, enabling the model to factor out temperature-dependent variations in compressor loading that are independent of refrigerant charge level.</li>
+
+        <li>The system of claim 1, wherein the neural network produces both a charge level regression output and a fault classification output, the fault classification distinguishing among at least: normal operation, undercharge, overcharge, liquid slugging, and compressor valve leakage.</li>
+
+        <li>The system of claim 1, wherein liquid slugging is detected from a characteristic double-peak pattern in the compressor startup inrush current, the second peak occurring 0.5-2 seconds after the initial inrush peak and indicating liquid refrigerant entering the compression chamber.</li>
+
+        <li>The system of claim 1, further comprising a self-supervised field calibration procedure wherein the edge compute module observes the compressor across a range of operating conditions during an initial monitoring period and fine-tunes the neural network's final layers using the assumption that the as-found charge is approximately nominal, enabling transfer to compressor models not represented in the laboratory training dataset.</li>
+
+        <li>A method for non-invasive refrigerant charge monitoring comprising: clamping a split-core current transformer around a compressor motor power conductor without interrupting the circuit or modifying the refrigerant system; sampling the current waveform at a rate of at least 5 kHz; computing a time-frequency representation of the current waveform; inputting the time-frequency representation and environmental context data to a neural network trained to estimate refrigerant charge level from compressor motor current signatures; and reporting the estimated charge level and any detected fault conditions to a local display or remote monitoring platform.</li>
+
+        <li>The method of claim 7, wherein active refrigerant leaks are detected by monitoring the trend of charge estimates over time and identifying a monotonic decrease that exceeds the rate attributable to seasonal temperature variation, enabling leak detection days to weeks before the system loses sufficient charge to trigger high-pressure or low-pressure safety cutouts.</li>
+
+        <li>The method of claim 7, wherein the system further detects restricted metering device conditions by distinguishing the current signature of reduced mass flow due to metering device restriction from reduced mass flow due to undercharge, the distinction being based on differences in the harmonic loading profile at the compressor's rotational frequency and its multiples.</li>
+
+        <li>The system of claim 1, wherein the edge compute module has a hardware bill of materials cost below $15, requires no EPA Section 608 certification for installation, installs in under 10 minutes by clamping the current transformer and mounting the module in the compressor disconnect box, and operates continuously without user interaction.</li>
+      </ol>
+
+      <h2>Implementation Notes</h2>
+
+      <p>The primary deployment target is the retrofit residential HVAC market: approximately 100 million central air conditioning systems in the United States, the majority of which have no continuous monitoring of any kind. The $29-$49 price point and 10-minute installation make it feasible for HVAC contractors to include the module as part of routine maintenance visits, or for homeowners to self-install (the CT clamp requires only opening the disconnect box cover, with no electrical connections).</p>
+
+      <p>The system operates as a screening and trending tool. It does not replace manifold gauge measurement for precise charge adjustment but provides continuous visibility into charge status between service visits. When the estimated charge deviates beyond a configurable threshold (default: ±10%), the system alerts the building owner or HVAC contractor, enabling proactive service rather than reactive failure response.</p>
+
+      <p>A key limitation is that the current-to-charge relationship varies by compressor model, refrigerant type, and system configuration (duct static pressure, airflow rate, indoor conditions). The transfer learning approach described in Section 4 mitigates this, but absolute charge accuracy in the field is expected to be ±7-10% rather than the ±5% achievable under laboratory conditions. For most practical purposes, distinguishing "nominal," "needs attention (±15-20% deviation)," and "critical (> 25% deviation)" is more valuable than precise percentage estimation.</p>
+
+      <h2>Prior Art References</h2>
+
+      <ol>
+        <li><a href="https://www.energy.gov/energysaver/maintaining-your-air-conditioner">U.S. Department of Energy. "Maintaining Your Air Conditioner."</a> DOE Energy Saver. Efficiency impact of improper refrigerant charge.</li>
+        <li><a href="https://www.nrel.gov/docs/fy13osti/56163.pdf">Mowris, R.J. et al. (2004). "Evaluation of the Enhanced Refrigerant Charge Verification Procedure."</a> NREL/SR-5500-56163. 57% of residential AC systems with charge errors exceeding ±10%.</li>
+        <li><a href="https://www.eia.gov/consumption/residential/data/2020/">U.S. Energy Information Administration. "2020 Residential Energy Consumption Survey (RECS)."</a> Space cooling electricity consumption data.</li>
+        <li><a href="https://www.epa.gov/climate-hfcs-reduction">U.S. EPA. "Protecting Our Climate by Reducing Use of HFCs."</a> AIM Act of 2020, 85% HFC phasedown mandate.</li>
+        <li><a href="https://www.epa.gov/section608/section-608-technician-certification">U.S. EPA. "Section 608 Technician Certification."</a> Certification requirements for refrigerant handling.</li>
+        <li><a href="https://www.mdpi.com/1424-8220/25/4/1130">Manhertz, G. et al. (2025). "An Autoregressive-Based Motor Current Signature Analysis Approach for Fault Diagnosis of Electric Motor-Driven Mechanisms."</a> Sensors 25(4), 1130. MCSA for motor fault diagnosis (not refrigerant-specific).</li>
+        <li><a href="https://patents.google.com/patent/US20190265299A1/en">US20190265299A1. "System and Method for HVAC System Fault Detection Using Motor Current Signature Analysis."</a> Motor current analysis for mechanical fault detection (not charge estimation).</li>
+        <li><a href="https://patents.google.com/patent/EP1733174A1/en">EP1733174A1. "Monitoring Refrigerant Charge."</a> Uses pressure and temperature sensors on the refrigerant circuit (invasive).</li>
+        <li><a href="https://patents.google.com/patent/US20230341160A1/en">US20230341160A1. "Refrigerant Charge Monitoring System."</a> Uses expected vs. measured subcooling relationships (requires refrigerant-side instrumentation).</li>
+        <li><a href="https://patents.google.com/patent/US5586445A/en">US5586445A. "Low Refrigerant Charge Detection Using a Combined Pressure/Temperature Sensor."</a> Requires sensors on the refrigerant circuit.</li>
+        <li><a href="https://www.mdpi.com/2071-1050/17/1/53">Andersen, S.O. et al. (2025). "The Importance of Lifecycle Refrigerant Management in Climate and Ozone Protection."</a> Sustainability 17(1), 53. Environmental impact of refrigerant emissions.</li>
+        <li><a href="https://www.epa.gov/climate-hfcs-reduction/regulatory-actions-managing-hfc-use-and-reuse">U.S. EPA. "Regulatory Actions for Managing HFC Use and Reuse."</a> Technology Transitions Rule and leak inspection requirements.</li>
+        <li><a href="https://www.analog.com/en/products/adxl1002.html">Analog Devices ADXL1002.</a> Wide-bandwidth MEMS accelerometer datasheet (11 kHz, ±50 g).</li>
+        <li><a href="https://www.sensirion.com/products/catalog/SHT40">Sensirion SHT40.</a> Digital humidity and temperature sensor datasheet.</li>
+      </ol>
+
+    </div>
+  </article>
+
+<script src="../story.js"></script>
+</body>
+</html>

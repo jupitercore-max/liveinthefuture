@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/experiences/tuner/" />
+  <meta property="og:title" content="Chromatic Tuner — LITF" />
+  <meta property="og:url" content="https://liveinthefuture.org/experiences/tuner/" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Chromatic Tuner — LITF</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;font-family:system-ui,-apple-system,sans-serif;color:#e0e0e0;user-select:none}
+canvas{display:block;width:600px;height:600px}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var W = 600, H = 600;
+
+  // --- State ---
+  var micActive = false;
+  var micFailed = false;
+  var audioCtx = null;
+  var analyser = null;
+  var micStream = null;
+  var dataBuffer = null;
+  var bufferLength = 0;
+
+  var detectedFreq = 0;
+  var detectedNote = '--';
+  var detectedOctave = 0;
+  var centsOff = 0;
+  var smoothCents = 0;
+  var smoothFreq = 0;
+  var confidence = 0;
+
+  var refFreq = 440; // A4 reference
+  var selectedRef = 0;
+  var refOptions = [440, 432, 442, 444];
+
+  var noteNames = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+
+  // --- Instrument Presets ---
+  var instruments = [
+    {name: 'Guitar', strings: [
+      {note:'E2', freq:82.41}, {note:'A2', freq:110.00}, {note:'D3', freq:146.83},
+      {note:'G3', freq:196.00}, {note:'B3', freq:246.94}, {note:'E4', freq:329.63}
+    ]},
+    {name: 'Drop D', strings: [
+      {note:'D2', freq:73.42}, {note:'A2', freq:110.00}, {note:'D3', freq:146.83},
+      {note:'G3', freq:196.00}, {note:'B3', freq:246.94}, {note:'E4', freq:329.63}
+    ]},
+    {name: 'Bass', strings: [
+      {note:'E1', freq:41.20}, {note:'A1', freq:55.00},
+      {note:'D2', freq:73.42}, {note:'G2', freq:98.00}
+    ]},
+    {name: 'Ukulele', strings: [
+      {note:'G4', freq:392.00}, {note:'C4', freq:261.63},
+      {note:'E4', freq:329.63}, {note:'A4', freq:440.00}
+    ]},
+    {name: 'Violin', strings: [
+      {note:'G3', freq:196.00}, {note:'D4', freq:293.66},
+      {note:'A4', freq:440.00}, {note:'E5', freq:659.26}
+    ]},
+    {name: 'Chromatic', strings: []}
+  ];
+  var selectedInstrument = 0;
+
+  // --- Persistence ---
+  function loadPrefs() {
+    try {
+      var data = JSON.parse(localStorage.getItem('tuner_prefs'));
+      if (data) {
+        if (typeof data.refIdx === 'number' && data.refIdx >= 0 && data.refIdx < refOptions.length) {
+          selectedRef = data.refIdx;
+          refFreq = refOptions[selectedRef];
+        }
+        if (typeof data.instIdx === 'number' && data.instIdx >= 0 && data.instIdx < instruments.length) {
+          selectedInstrument = data.instIdx;
+        }
+      }
+    } catch(e) {}
+  }
+  function savePrefs() {
+    try {
+      localStorage.setItem('tuner_prefs', JSON.stringify({
+        refIdx: selectedRef,
+        instIdx: selectedInstrument
+      }));
+    } catch(e) {}
+  }
+
+  // Session stats
+  var stats = { sessions: 0, totalTunes: 0, bestStreak: 0 };
+  function loadStats() {
+    try {
+      var d = JSON.parse(localStorage.getItem('tuner_stats'));
+      if (d) {
+        stats.sessions = d.sessions || 0;
+        stats.totalTunes = d.totalTunes || 0;
+        stats.bestStreak = d.bestStreak || 0;
+      }
+    } catch(e) {}
+  }
+  function saveStats() {
+    try {
+      localStorage.setItem('tuner_stats', JSON.stringify(stats));
+    } catch(e) {}
+  }
+  loadPrefs();
+  loadStats();
+  stats.sessions++;
+  saveStats();
+
+  // Track in-tune completions (chime played = one successful tune)
+  var sessionTunes = 0;
+  var sessionBestStreak = 0;
+
+  // --- Reference Tone ---
+  var refToneOsc = null;
+  var refToneGain = null;
+  var refTonePlaying = false;
+  var refToneFreq = 0;
+  var refToneFade = 0; // visual fade animation
+
+  // --- In-tune Chime ---
+  var tuneStreak = 0;
+  var tuneChimePlayed = false;
+  var tuneChimeGlow = 0; // visual glow on chime
+
+  var needleAngle = 0;
+  var volumeLevel = 0;
+  var frameCount = 0;
+
+  // --- Mic Init ---
+  function initMic() {
+    if (micActive || micFailed) return;
+    micFailed = true;
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream) {
+        micFailed = false;
+        micActive = true;
+        micStream = stream;
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 4096;
+        analyser.smoothingTimeConstant = 0.1;
+        bufferLength = analyser.fftSize;
+        dataBuffer = new Float32Array(bufferLength);
+        var source = audioCtx.createMediaStreamSource(stream);
+        source.connect(analyser);
+      }).catch(function(e) {
+        micFailed = true;
+        micActive = false;
+      });
+    } catch(e) {
+      micFailed = true;
+      micActive = false;
+    }
+  }
+
+  // --- Pitch Detection (Autocorrelation) ---
+  function detectPitch(buf, sampleRate) {
+    var rms = 0;
+    for (var i = 0; i < buf.length; i++) {
+      rms += buf[i] * buf[i];
+    }
+    rms = Math.sqrt(rms / buf.length);
+    if (rms < 0.01) return {freq: 0, confidence: 0};
+
+    var SIZE = buf.length;
+    var maxSamples = Math.floor(SIZE / 2);
+    var bestOffset = -1;
+    var bestCorrelation = 0;
+    var correlations = new Float32Array(maxSamples);
+    var foundGoodCorrelation = false;
+
+    var minPeriod = Math.floor(sampleRate / 2000);
+    var maxPeriod = Math.floor(sampleRate / 50);
+
+    for (var offset = minPeriod; offset < maxPeriod && offset < maxSamples; offset++) {
+      var correlation = 0;
+      for (var j = 0; j < maxSamples; j++) {
+        correlation += Math.abs((buf[j]) - (buf[j + offset]));
+      }
+      correlation = 1 - (correlation / maxSamples);
+      correlations[offset] = correlation;
+
+      if (correlation > 0.9 && correlation > bestCorrelation) {
+        bestCorrelation = correlation;
+        bestOffset = offset;
+        foundGoodCorrelation = true;
+      } else if (foundGoodCorrelation) {
+        if (correlation < bestCorrelation - 0.1) break;
+      }
+    }
+
+    if (bestCorrelation > 0.8 && bestOffset > 0) {
+      var prev = correlations[bestOffset - 1] || 0;
+      var curr = correlations[bestOffset];
+      var next = correlations[bestOffset + 1] || 0;
+      var shift = (next - prev) / (2 * (2 * curr - next - prev));
+      if (isFinite(shift)) {
+        bestOffset += shift;
+      }
+      return {freq: sampleRate / bestOffset, confidence: bestCorrelation};
+    }
+    return {freq: 0, confidence: 0};
+  }
+
+  function freqToNote(freq) {
+    if (freq <= 0) return {note: '--', octave: 0, cents: 0};
+    var noteNum = 12 * (Math.log(freq / refFreq) / Math.LN2);
+    var roundedNote = Math.round(noteNum);
+    var cents = Math.round((noteNum - roundedNote) * 100);
+    var noteIndex = ((roundedNote % 12) + 12 + 9) % 12;
+    var octave = Math.floor((roundedNote + 9) / 12) + 4;
+    return {
+      note: noteNames[noteIndex],
+      octave: octave,
+      cents: cents
+    };
+  }
+
+  // Get the exact frequency of the nearest note
+  function getNearestNoteFreq(freq) {
+    if (freq <= 0) return 0;
+    var noteNum = 12 * (Math.log(freq / refFreq) / Math.LN2);
+    var roundedNote = Math.round(noteNum);
+    return refFreq * Math.pow(2, roundedNote / 12);
+  }
+
+  // --- Reference Tone ---
+  function startRefTone(freq) {
+    if (!audioCtx) return;
+    stopRefTone();
+    refToneOsc = audioCtx.createOscillator();
+    refToneGain = audioCtx.createGain();
+    refToneOsc.type = 'sine';
+    refToneOsc.frequency.value = freq;
+    refToneGain.gain.value = 0;
+    refToneOsc.connect(refToneGain);
+    refToneGain.connect(audioCtx.destination);
+    refToneOsc.start();
+    // Smooth fade in
+    refToneGain.gain.setTargetAtTime(0.06, audioCtx.currentTime, 0.05);
+    refTonePlaying = true;
+    refToneFreq = freq;
+    refToneFade = 1;
+  }
+
+  function stopRefTone() {
+    if (refToneOsc && refToneGain) {
+      refToneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+      var osc = refToneOsc;
+      setTimeout(function(){ try { osc.stop(); } catch(e){} }, 200);
+    }
+    refToneOsc = null;
+    refToneGain = null;
+    refTonePlaying = false;
+    refToneFreq = 0;
+  }
+
+  function toggleRefTone() {
+    if (!audioCtx) return;
+    if (refTonePlaying) {
+      stopRefTone();
+      return;
+    }
+    // If we have a detected note, play its target
+    if (smoothFreq > 0 && confidence > 0.5) {
+      var targetFreq = getNearestNoteFreq(smoothFreq);
+      startRefTone(targetFreq);
+    } else {
+      // If no detected note, play A4
+      startRefTone(refFreq);
+    }
+  }
+
+  // Update ref tone frequency when detected note changes
+  function updateRefTone() {
+    if (!refTonePlaying || !refToneOsc) return;
+    if (smoothFreq > 0 && confidence > 0.5) {
+      var targetFreq = getNearestNoteFreq(smoothFreq);
+      if (Math.abs(targetFreq - refToneFreq) > 0.5) {
+        refToneOsc.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.08);
+        refToneFreq = targetFreq;
+      }
+    }
+  }
+
+  // --- In-tune Chime ---
+  function playTuneChime() {
+    if (!audioCtx) return;
+    var now = audioCtx.currentTime;
+    // Gentle two-note ascending chime: note + octave above
+    var osc1 = audioCtx.createOscillator();
+    var osc2 = audioCtx.createOscillator();
+    var g1 = audioCtx.createGain();
+    var g2 = audioCtx.createGain();
+
+    osc1.type = 'triangle';
+    osc2.type = 'triangle';
+
+    var baseFreq = getNearestNoteFreq(smoothFreq);
+    osc1.frequency.value = baseFreq;
+    osc2.frequency.value = baseFreq * 2; // octave up
+
+    osc1.connect(g1); g1.connect(audioCtx.destination);
+    osc2.connect(g2); g2.connect(audioCtx.destination);
+
+    g1.gain.value = 0;
+    g2.gain.value = 0;
+
+    // First note
+    g1.gain.setTargetAtTime(0.04, now, 0.01);
+    g1.gain.setTargetAtTime(0, now + 0.15, 0.08);
+
+    // Second note (delayed)
+    g2.gain.setTargetAtTime(0.03, now + 0.12, 0.01);
+    g2.gain.setTargetAtTime(0, now + 0.3, 0.1);
+
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + 0.5);
+    osc2.stop(now + 0.6);
+
+    tuneChimeGlow = 1;
+  }
+
+  // --- Drawing ---
+  function drawBackground() {
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function drawHeader() {
+    ctx.fillStyle = '#888';
+    ctx.font = '16px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText('CHROMATIC TUNER', 20, 30);
+
+    // Instrument name + session stats
+    ctx.fillStyle = '#666';
+    ctx.font = '14px system-ui';
+    ctx.fillText(instruments[selectedInstrument].name, 20, 50);
+
+    // Tune count (subtle)
+    if (stats.totalTunes > 0) {
+      ctx.fillStyle = '#444';
+      ctx.font = '12px system-ui';
+      ctx.fillText('♪ ' + stats.totalTunes + ' tuned · ' + stats.sessions + ' sessions', 20, 68);
+    }
+
+    ctx.textAlign = 'right';
+    if (micActive) {
+      ctx.fillStyle = '#4a4';
+      ctx.fillText('🎤 ' + Math.round(volumeLevel * 100) + '%', 580, 30);
+      // Ref tone indicator
+      if (refTonePlaying) {
+        ctx.fillStyle = '#a84';
+        ctx.font = '13px system-ui';
+        ctx.fillText('♪ REF ' + refToneFreq.toFixed(0) + 'Hz', 580, 48);
+      }
+    } else if (micFailed) {
+      ctx.fillStyle = '#a44';
+      ctx.fillText('🎤 Unavailable', 580, 30);
+    } else {
+      ctx.fillStyle = '#aa4';
+      ctx.fillText('Press any key for mic', 580, 30);
+    }
+  }
+
+  function drawMeter() {
+    var cx = W / 2;
+    var cy = 250;
+    var radius = 170;
+
+    var startAngle = Math.PI * 0.8;
+    var endAngle = Math.PI * 0.2;
+
+    // Colored zones
+    var zones = [
+      {from: 0.8, to: 0.88, color: '#a33'},
+      {from: 0.88, to: 0.94, color: '#a63'},
+      {from: 0.94, to: 0.98, color: '#aa3'},
+      {from: 0.98, to: 1.02, color: '#3a3'},
+      {from: 1.02, to: 1.06, color: '#aa3'},
+      {from: 1.06, to: 1.12, color: '#a63'},
+      {from: 1.12, to: 1.2, color: '#a33'}
+    ];
+
+    zones.forEach(function(zone) {
+      var a1 = startAngle + (zone.from - 0.8) / 0.4 * (2 * Math.PI - (startAngle - endAngle));
+      var a2 = startAngle + (zone.to - 0.8) / 0.4 * (2 * Math.PI - (startAngle - endAngle));
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, a1, a2);
+      ctx.strokeStyle = zone.color;
+      ctx.lineWidth = 12;
+      ctx.globalAlpha = 0.3;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+
+    // Tick marks
+    for (var i = -50; i <= 50; i += 5) {
+      var pct = (i + 50) / 100;
+      var angle = startAngle + pct * (2 * Math.PI - (startAngle - endAngle));
+      var len = (i % 10 === 0) ? 20 : 10;
+      var outerR = radius + 8;
+      var innerR = outerR - len;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(angle) * innerR, cy + Math.sin(angle) * innerR);
+      ctx.lineTo(cx + Math.cos(angle) * outerR, cy + Math.sin(angle) * outerR);
+      ctx.strokeStyle = (i === 0) ? '#4a4' : '#555';
+      ctx.lineWidth = (i % 10 === 0) ? 2 : 1;
+      ctx.stroke();
+
+      if (i % 10 === 0) {
+        ctx.fillStyle = '#888';
+        ctx.font = '12px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        var labelR = outerR + 14;
+        ctx.fillText(i > 0 ? '+' + i : '' + i, cx + Math.cos(angle) * labelR, cy + Math.sin(angle) * labelR);
+      }
+    }
+
+    // In-tune chime glow
+    if (tuneChimeGlow > 0) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius + 25, startAngle, startAngle + (2 * Math.PI - (startAngle - endAngle)));
+      ctx.strokeStyle = 'rgba(68,170,68,' + (tuneChimeGlow * 0.4) + ')';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      tuneChimeGlow *= 0.96;
+      if (tuneChimeGlow < 0.01) tuneChimeGlow = 0;
+    }
+
+    // Center dot
+    ctx.beginPath();
+    ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#333';
+    ctx.fill();
+
+    // Needle
+    var needlePct = (smoothCents + 50) / 100;
+    needlePct = Math.max(0, Math.min(1, needlePct));
+    var targetAngle = startAngle + needlePct * (2 * Math.PI - (startAngle - endAngle));
+    needleAngle += (targetAngle - needleAngle) * 0.15;
+
+    var needleLen = radius - 10;
+    var nx = cx + Math.cos(needleAngle) * needleLen;
+    var ny = cy + Math.sin(needleAngle) * needleLen;
+
+    var inTune = Math.abs(smoothCents) < 3 && confidence > 0.8;
+    if (inTune) {
+      ctx.shadowColor = '#4a4';
+      ctx.shadowBlur = 15;
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(nx, ny);
+    ctx.strokeStyle = inTune ? '#4a4' : (Math.abs(smoothCents) < 10 ? '#aa4' : '#e44');
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+
+    ctx.beginPath();
+    ctx.arc(nx, ny, 4, 0, Math.PI * 2);
+    ctx.fillStyle = inTune ? '#4a4' : '#e44';
+    ctx.fill();
+  }
+
+  function drawNoteDisplay() {
+    var cx = W / 2;
+    var inTune = Math.abs(smoothCents) < 3 && confidence > 0.8;
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 96px system-ui';
+
+    if (detectedNote === '--') {
+      ctx.fillStyle = '#333';
+      ctx.fillText('--', cx, 390);
+    } else {
+      if (inTune) {
+        var pulse = 0.7 + 0.3 * Math.sin(tuneStreak * 0.15);
+        ctx.fillStyle = 'rgba(68,170,68,' + pulse + ')';
+      } else {
+        ctx.fillStyle = '#e0e0e0';
+      }
+      ctx.fillText(detectedNote, cx, 385);
+
+      // Octave number
+      ctx.font = '32px system-ui';
+      ctx.fillStyle = '#888';
+      ctx.fillText(detectedOctave, cx + 70, 405);
+    }
+
+    // Frequency readout
+    ctx.font = '18px system-ui';
+    ctx.fillStyle = '#666';
+    if (smoothFreq > 0) {
+      ctx.fillText(smoothFreq.toFixed(1) + ' Hz', cx, 440);
+    }
+
+    // Cents offset
+    if (detectedNote !== '--') {
+      ctx.font = '24px system-ui';
+      var centsStr = smoothCents > 0 ? '+' + Math.round(smoothCents) : '' + Math.round(smoothCents);
+      ctx.fillStyle = inTune ? '#4a4' : (Math.abs(smoothCents) < 10 ? '#aa4' : '#e44');
+      ctx.fillText(centsStr + ' cents', cx, 470);
+
+      // Direction hint
+      if (!inTune && confidence > 0.8) {
+        ctx.font = '16px system-ui';
+        ctx.fillStyle = '#888';
+        if (smoothCents > 3) {
+          ctx.fillText('↓ tune down', cx, 495);
+        } else if (smoothCents < -3) {
+          ctx.fillText('↑ tune up', cx, 495);
+        }
+      }
+
+      // In-tune indicator
+      if (inTune && tuneStreak > 30) {
+        ctx.font = 'bold 20px system-ui';
+        ctx.fillStyle = '#4a4';
+        ctx.fillText('✓ IN TUNE', cx, 495);
+      }
+    }
+  }
+
+  function drawRefFreq() {
+    ctx.textAlign = 'center';
+    ctx.font = '14px system-ui';
+    ctx.fillStyle = '#555';
+    ctx.fillText('← →  A4 = ' + refFreq + ' Hz    ↑ ↓  Instrument    Enter  Ref tone', W / 2, 530);
+  }
+
+  function drawInstrumentStrings() {
+    var inst = instruments[selectedInstrument];
+    var strings = inst.strings;
+    if (strings.length === 0) return; // Chromatic mode — no strings
+
+    var y = 560;
+    var spacing = Math.min(80, (W - 80) / (strings.length - 1 || 1));
+    var startX = (W - (strings.length - 1) * spacing) / 2;
+
+    ctx.font = '13px system-ui';
+    ctx.textAlign = 'center';
+
+    for (var i = 0; i < strings.length; i++) {
+      var x = startX + i * spacing;
+      var gs = strings[i];
+
+      // Parse note name for matching
+      var sNote = gs.note.replace(/[0-9]/g, '');
+      var sOctave = parseInt(gs.note.replace(/[^0-9]/g, ''));
+
+      // Check if current detected note matches this string
+      var isMatch = detectedNote !== '--' &&
+        sNote === detectedNote &&
+        sOctave === detectedOctave &&
+        Math.abs(smoothCents) < 15;
+
+      // Check if current note is close (same note name, any octave)
+      var isClose = detectedNote !== '--' && sNote === detectedNote && !isMatch;
+
+      if (isMatch) {
+        ctx.fillStyle = '#4a4';
+        ctx.font = 'bold 15px system-ui';
+        // Glow
+        ctx.shadowColor = '#4a4';
+        ctx.shadowBlur = 8;
+      } else if (isClose) {
+        ctx.fillStyle = '#886';
+        ctx.font = '14px system-ui';
+      } else {
+        ctx.fillStyle = '#555';
+        ctx.font = '13px system-ui';
+      }
+
+      ctx.fillText(gs.note, x, y);
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+
+      ctx.font = '11px system-ui';
+      ctx.fillStyle = '#333';
+      ctx.fillText(gs.freq.toFixed(0) + 'Hz', x, y + 14);
+    }
+  }
+
+  function drawRefToneIndicator() {
+    if (!refTonePlaying) return;
+    // Pulsing speaker icon near center
+    var cx = W / 2;
+    refToneFade *= 0.97;
+    if (refToneFade < 0.3) refToneFade = 0.3;
+
+    var pulse = 0.5 + 0.5 * Math.sin(frameCount * 0.08);
+    ctx.textAlign = 'center';
+    ctx.font = '16px system-ui';
+    ctx.fillStyle = 'rgba(170,136,68,' + (0.5 + pulse * 0.5) + ')';
+
+    var noteInfo = freqToNote(refToneFreq);
+    ctx.fillText('♪ ' + noteInfo.note + noteInfo.octave + ' · ' + refToneFreq.toFixed(1) + 'Hz', cx, 510);
+  }
+
+  function drawNoMic() {
+    ctx.textAlign = 'center';
+    ctx.font = '20px system-ui';
+    ctx.fillStyle = '#666';
+    ctx.fillText('🎤 Press any key to start', W / 2, H / 2 - 10);
+    ctx.font = '14px system-ui';
+    ctx.fillStyle = '#444';
+    ctx.fillText('Play a note — the tuner listens', W / 2, H / 2 + 20);
+    ctx.fillText('Enter = reference tone  ↑↓ = instrument', W / 2, H / 2 + 45);
+  }
+
+  // --- Main Loop ---
+  function update() {
+    if (micActive && analyser) {
+      analyser.getFloatTimeDomainData(dataBuffer);
+
+      // Volume
+      var sum = 0;
+      for (var i = 0; i < bufferLength; i++) {
+        sum += dataBuffer[i] * dataBuffer[i];
+      }
+      var rms = Math.sqrt(sum / bufferLength);
+      volumeLevel += (rms - volumeLevel) * 0.2;
+
+      // Pitch detect
+      var result = detectPitch(dataBuffer, audioCtx.sampleRate);
+      if (result.freq > 0 && result.confidence > 0.8) {
+        detectedFreq = result.freq;
+        confidence += (result.confidence - confidence) * 0.3;
+
+        var noteInfo = freqToNote(result.freq);
+        detectedNote = noteInfo.note;
+        detectedOctave = noteInfo.octave;
+        centsOff = noteInfo.cents;
+
+        smoothCents += (centsOff - smoothCents) * 0.2;
+        smoothFreq += (detectedFreq - smoothFreq) * 0.2;
+
+        // In-tune tracking
+        var inTune = Math.abs(smoothCents) < 3 && confidence > 0.8;
+        if (inTune) {
+          tuneStreak++;
+          // Play chime after 1 second of being in-tune (60 frames)
+          if (tuneStreak === 60 && !tuneChimePlayed) {
+            playTuneChime();
+            tuneChimePlayed = true;
+            sessionTunes++;
+            stats.totalTunes++;
+            sessionBestStreak++;
+            if (sessionBestStreak > stats.bestStreak) {
+              stats.bestStreak = sessionBestStreak;
+            }
+            saveStats();
+          }
+        } else {
+          if (tuneStreak > 0) {
+            tuneChimePlayed = false;
+            sessionBestStreak = 0;
+          }
+          tuneStreak = 0;
+        }
+
+        // Update ref tone to track detected note
+        updateRefTone();
+      } else {
+        confidence *= 0.95;
+        if (confidence < 0.3) {
+          detectedNote = '--';
+          detectedOctave = 0;
+          smoothCents *= 0.9;
+          smoothFreq *= 0.95;
+          tuneStreak = 0;
+          tuneChimePlayed = false;
+        }
+      }
+    }
+  }
+
+  function draw() {
+    drawBackground();
+    drawHeader();
+
+    if (!micActive && !micFailed) {
+      drawNoMic();
+    } else {
+      drawMeter();
+      drawNoteDisplay();
+      drawRefToneIndicator();
+      drawRefFreq();
+      drawInstrumentStrings();
+    }
+
+    frameCount++;
+  }
+
+  function frame() {
+    update();
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  // --- Input ---
+  document.addEventListener('keydown', function(e) {
+    e.preventDefault();
+
+    if (!micActive && !micFailed) {
+      initMic();
+    }
+
+    switch(e.key) {
+      case 'ArrowLeft':
+        selectedRef = (selectedRef - 1 + refOptions.length) % refOptions.length;
+        refFreq = refOptions[selectedRef];
+        savePrefs();
+        break;
+      case 'ArrowRight':
+        selectedRef = (selectedRef + 1) % refOptions.length;
+        refFreq = refOptions[selectedRef];
+        savePrefs();
+        break;
+      case 'ArrowUp':
+        selectedInstrument = (selectedInstrument - 1 + instruments.length) % instruments.length;
+        savePrefs();
+        break;
+      case 'ArrowDown':
+        selectedInstrument = (selectedInstrument + 1) % instruments.length;
+        savePrefs();
+        break;
+      case 'Enter':
+        toggleRefTone();
+        break;
+      case 'Escape':
+        stopRefTone();
+        if (window.history.length > 1) window.history.back();
+        else window.location.href = '/experiences/';
+        break;
+    }
+  });
+
+  // --- Start ---
+  frame();
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

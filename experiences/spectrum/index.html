@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/experiences/spectrum/" />
+  <meta property="og:title" content="Spectrum Analyzer - Hypernova WebApp" />
+  <meta property="og:url" content="https://liveinthefuture.org/experiences/spectrum/" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Spectrum Analyzer - Hypernova WebApp</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0d0d0d;
+  color: #e8e8e8;
+  width: 600px;
+  height: 600px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+canvas { display: block; }
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+var cv = document.getElementById('c');
+var ctx = cv.getContext('2d');
+var W = 600, H = 600;
+
+// Audio state
+var audioCtx = null;
+var analyser = null;
+var freqData = null;
+var timeData = null;
+var micActive = false;
+var micFailed = false;
+var micStream = null;
+
+// Viz modes
+var modes = ['bars', 'waterfall', 'circular', 'waveform'];
+var modeNames = ['Bars', 'Waterfall', 'Circular', 'Waveform'];
+var modeIdx = 0;
+
+// Controls
+var zoomLevel = 0; // 0=full, 1=low, 2=mid, 3=high
+var zoomNames = ['Full Range', 'Bass (20-300Hz)', 'Mids (300-4kHz)', 'Treble (4k-20kHz)'];
+var paused = false;
+
+// Waterfall history
+var waterfallRows = [];
+var maxWaterfallRows = 550;
+
+// Peak hold for bars
+var peaks = null;
+var peakDecay = 0.98;
+
+// Demo mode (fallback when mic unavailable)
+var demoPhase = 0;
+
+// ── Achievements ──
+var ACHIEVEMENTS = [
+  { id: 'perfect_pitch', icon: '🎵', name: 'Perfect Pitch', desc: 'Detect a note within ±2¢', unlocked: false },
+  { id: 'sub_bass', icon: '🐋', name: 'Sub-bass Hunter', desc: 'Detect a frequency below 40Hz', unlocked: false },
+  { id: 'ultrasonic', icon: '🦇', name: 'Bat Ears', desc: 'Detect a frequency above 14kHz', unlocked: false },
+  { id: 'dance_beat', icon: '💃', name: 'Dance Floor', desc: 'Detect a steady BPM above 110', unlocked: false },
+  { id: 'pin_drop', icon: '🤫', name: 'Pin Drop', desc: 'Ambient noise below -40dB RMS', unlocked: false },
+  { id: 'full_send', icon: '📢', name: 'Full Send', desc: 'Signal above 95% amplitude', unlocked: false },
+  { id: 'a440', icon: '🔊', name: 'Concert A', desc: 'Detect A4 at 440Hz (±5Hz)', unlocked: false },
+  { id: 'waterfall60', icon: '🌊', name: 'Waterfall Surfer', desc: 'Spend 60s in waterfall mode', unlocked: false },
+  { id: 'all_modes', icon: '🔄', name: 'Mode Master', desc: 'Use all 4 visualization modes', unlocked: false },
+  { id: 'all_zooms', icon: '🔍', name: 'Full Spectrum', desc: 'Use all 4 zoom levels', unlocked: false }
+];
+var achievementToast = null;
+var achievementToastTimer = 0;
+var waterfallTime = 0;
+var modesUsed = {};
+var zoomsUsed = {};
+var showBadgeGallery = false;
+
+// Persistence
+function loadAchievements() {
+  try {
+    var saved = JSON.parse(localStorage.getItem('spectrum_achievements') || '{}');
+    for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+      if (saved[ACHIEVEMENTS[i].id]) ACHIEVEMENTS[i].unlocked = true;
+    }
+    waterfallTime = saved._waterfallTime || 0;
+    modesUsed = saved._modesUsed || {};
+    zoomsUsed = saved._zoomsUsed || {};
+  } catch(e) {}
+}
+function saveAchievements() {
+  var obj = { _waterfallTime: waterfallTime, _modesUsed: modesUsed, _zoomsUsed: zoomsUsed };
+  for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+    if (ACHIEVEMENTS[i].unlocked) obj[ACHIEVEMENTS[i].id] = true;
+  }
+  try { localStorage.setItem('spectrum_achievements', JSON.stringify(obj)); } catch(e) {}
+}
+
+function unlockAchievement(id) {
+  for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+    if (ACHIEVEMENTS[i].id === id && !ACHIEVEMENTS[i].unlocked) {
+      ACHIEVEMENTS[i].unlocked = true;
+      achievementToast = ACHIEVEMENTS[i];
+      achievementToastTimer = 180; // 3 seconds at 60fps
+      saveAchievements();
+      // Unlock chime
+      if (audioCtx) {
+        var o1 = audioCtx.createOscillator();
+        var o2 = audioCtx.createOscillator();
+        var g = audioCtx.createGain();
+        o1.type = 'sine'; o1.frequency.value = 523.25; // C5
+        o2.type = 'sine'; o2.frequency.value = 659.25; // E5
+        g.gain.value = 0.12;
+        g.gain.setTargetAtTime(0, audioCtx.currentTime + 0.3, 0.1);
+        o1.connect(g); o2.connect(g); g.connect(audioCtx.destination);
+        o1.start(); o2.start();
+        o1.stop(audioCtx.currentTime + 0.5);
+        o2.stop(audioCtx.currentTime + 0.5);
+      }
+      return;
+    }
+  }
+}
+
+function checkAchievements() {
+  if (paused) return;
+
+  // Perfect Pitch — note within ±2¢
+  if (peakFreqHz > 20 && Math.abs(peakCents) <= 2) unlockAchievement('perfect_pitch');
+
+  // Sub-bass — below 40Hz
+  if (peakFreqHz > 10 && peakFreqHz < 40 && micActive) unlockAchievement('sub_bass');
+
+  // Bat Ears — above 14kHz
+  if (peakFreqHz > 14000 && micActive) unlockAchievement('ultrasonic');
+
+  // Dance Floor — BPM > 110 with confidence > 0.6
+  if (bpmCurrent > 110 && bpmConfidence > 0.6) unlockAchievement('dance_beat');
+
+  // Pin Drop — RMS below -40dB
+  if (timeData && micActive) {
+    var sum = 0;
+    for (var k = 0; k < timeData.length; k++) {
+      var s = (timeData[k] - 128) / 128;
+      sum += s * s;
+    }
+    var rms = Math.sqrt(sum / timeData.length);
+    var db = 20 * Math.log10(Math.max(rms, 0.0001));
+    if (db < -40) unlockAchievement('pin_drop');
+  }
+
+  // Full Send — any bin above 95% (242/255)
+  if (freqData && micActive) {
+    for (var i = 1; i < freqData.length; i++) {
+      if (freqData[i] > 242) { unlockAchievement('full_send'); break; }
+    }
+  }
+
+  // Concert A — 440Hz ±5Hz
+  if (peakFreqHz > 435 && peakFreqHz < 445 && micActive) unlockAchievement('a440');
+
+  // Waterfall Surfer — 60s in waterfall mode
+  if (modeIdx === 1) {
+    waterfallTime += 1/60;
+    if (waterfallTime >= 60) unlockAchievement('waterfall60');
+  }
+
+  // Mode Master — all 4 modes used
+  modesUsed[modeIdx] = true;
+  if (Object.keys(modesUsed).length >= 4) unlockAchievement('all_modes');
+
+  // Full Spectrum — all 4 zoom levels used
+  zoomsUsed[zoomLevel] = true;
+  if (Object.keys(zoomsUsed).length >= 4) unlockAchievement('all_zooms');
+}
+
+function drawAchievementToast() {
+  if (!achievementToast || achievementToastTimer <= 0) return;
+  achievementToastTimer--;
+  var alpha = achievementToastTimer > 30 ? 1 : achievementToastTimer / 30;
+  var slideY = achievementToastTimer > 150 ? (180 - achievementToastTimer) * 3 : 0;
+
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(34, 197, 94, 0.9)';
+  var tw = 280, th = 50;
+  var tx = (W - tw) / 2, ty = 52 + slideY;
+  ctx.beginPath();
+  ctx.roundRect(tx, ty, tw, th, 10);
+  ctx.fill();
+
+  ctx.font = '600 15px -apple-system, sans-serif';
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(achievementToast.icon + ' ' + achievementToast.name + ' Unlocked!', W / 2, ty + 18);
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.fillText(achievementToast.desc, W / 2, ty + 36);
+  ctx.globalAlpha = 1;
+}
+
+function drawBadgeGallery() {
+  if (!showBadgeGallery) return;
+  ctx.fillStyle = 'rgba(13,13,13,0.95)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.font = '600 20px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🏆 Achievements', W / 2, 30);
+
+  var unlocked = 0;
+  for (var i = 0; i < ACHIEVEMENTS.length; i++) if (ACHIEVEMENTS[i].unlocked) unlocked++;
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText(unlocked + ' / ' + ACHIEVEMENTS.length + ' unlocked', W / 2, 54);
+
+  var cols = 2, padX = 30, padY = 76, cardW = (W - padX * 2 - 20) / cols, cardH = 90;
+  for (var j = 0; j < ACHIEVEMENTS.length; j++) {
+    var a = ACHIEVEMENTS[j];
+    var col = j % cols, row = Math.floor(j / cols);
+    var cx = padX + col * (cardW + 20), cy = padY + row * (cardH + 10);
+
+    ctx.fillStyle = a.unlocked ? 'rgba(34,197,94,0.12)' : 'rgba(40,40,50,0.5)';
+    ctx.strokeStyle = a.unlocked ? '#22c55e' : '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(cx, cy, cardW, cardH, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = '28px -apple-system, sans-serif';
+    ctx.fillStyle = a.unlocked ? '#fff' : '#444';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(a.unlocked ? a.icon : '🔒', cx + cardW / 2, cy + 30);
+
+    ctx.font = '600 12px -apple-system, sans-serif';
+    ctx.fillStyle = a.unlocked ? '#e8e8e8' : '#555';
+    ctx.fillText(a.unlocked ? a.name : '???', cx + cardW / 2, cy + 58);
+
+    ctx.font = '10px -apple-system, sans-serif';
+    ctx.fillStyle = a.unlocked ? '#888' : '#444';
+    ctx.fillText(a.unlocked ? a.desc : 'Keep exploring...', cx + cardW / 2, cy + 76);
+  }
+
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'center';
+  ctx.fillText('Press any key to close', W / 2, H - 20);
+}
+
+function drawBadgeCounter() {
+  var unlocked = 0;
+  for (var i = 0; i < ACHIEVEMENTS.length; i++) if (ACHIEVEMENTS[i].unlocked) unlocked++;
+  if (unlocked === 0) return;
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🏆 ' + unlocked + '/' + ACHIEVEMENTS.length, 14, H - 14);
+}
+
+loadAchievements();
+
+// ── BPM Detection ──
+var bpmEnergyHistory = [];
+var bpmEnergySmooth = 0;
+var bpmBeatTimes = [];
+var bpmCurrent = 0;
+var bpmConfidence = 0;
+var beatFlash = 0;
+var lastBeatTime = 0;
+var bpmHistoryMax = 120; // ~2 seconds of history at 60fps
+var bpmMinInterval = 250; // min ms between beats (240 BPM max)
+var bpmMaxInterval = 1500; // max ms between beats (40 BPM min)
+
+// ── Peak Frequency / Note Detection ──
+var peakFreqHz = 0;
+var peakFreqSmooth = 0;
+var peakNoteName = '--';
+var peakNoteOctave = 0;
+var peakCents = 0;
+var refToneOsc = null;
+var refToneGain = null;
+var refTonePlaying = false;
+var NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+function hzToNote(hz) {
+  if (hz < 20) return { name: '--', octave: 0, cents: 0 };
+  var semitone = 12 * Math.log2(hz / 440);
+  var rounded = Math.round(semitone);
+  var cents = Math.round((semitone - rounded) * 100);
+  var noteIdx = ((rounded % 12) + 12 + 9) % 12; // A=0 offset -> C=0
+  var octave = Math.floor((rounded + 9) / 12) + 4;
+  return { name: NOTE_NAMES[noteIdx], octave: octave, cents: cents };
+}
+
+function findPeakFreq() {
+  if (!freqData) return;
+  var range = getZoomRange();
+  var sampleRate = audioCtx ? audioCtx.sampleRate : 44100;
+  var binHz = sampleRate / ((freqData.length) * 2);
+
+  // Find dominant bin (skip bin 0 = DC offset)
+  var maxVal = 0;
+  var maxBin = 0;
+  for (var i = Math.max(1, range.start); i < range.end; i++) {
+    if (freqData[i] > maxVal) { maxVal = freqData[i]; maxBin = i; }
+  }
+
+  // Parabolic interpolation for sub-bin accuracy
+  var rawHz = maxBin * binHz;
+  if (maxBin > 0 && maxBin < freqData.length - 1 && maxVal > 30) {
+    var a = freqData[maxBin - 1];
+    var b = freqData[maxBin];
+    var c = freqData[maxBin + 1];
+    var denom = a - 2 * b + c;
+    if (denom !== 0) {
+      var delta = 0.5 * (a - c) / denom;
+      rawHz = (maxBin + delta) * binHz;
+    }
+  }
+
+  // Smooth to reduce jitter
+  if (maxVal < 30) {
+    peakFreqSmooth *= 0.95; // decay when quiet
+  } else {
+    peakFreqSmooth = peakFreqSmooth * 0.7 + rawHz * 0.3;
+  }
+  peakFreqHz = peakFreqSmooth;
+
+  var note = hzToNote(peakFreqHz);
+  peakNoteName = note.name;
+  peakNoteOctave = note.octave;
+  peakCents = note.cents;
+}
+
+function toggleRefTone() {
+  if (!audioCtx) return;
+  if (refTonePlaying) {
+    // Stop
+    if (refToneGain) refToneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+    refTonePlaying = false;
+    setTimeout(function() {
+      if (refToneOsc) { try { refToneOsc.stop(); } catch(e) {} refToneOsc = null; }
+      if (refToneGain) { refToneGain.disconnect(); refToneGain = null; }
+    }, 200);
+    return;
+  }
+  if (peakFreqHz < 20) return;
+  // Play reference tone at detected peak frequency
+  refToneOsc = audioCtx.createOscillator();
+  refToneGain = audioCtx.createGain();
+  refToneOsc.type = 'sine';
+  refToneOsc.frequency.value = peakFreqHz;
+  refToneGain.gain.value = 0;
+  refToneGain.gain.setTargetAtTime(0.15, audioCtx.currentTime, 0.05);
+  refToneOsc.connect(refToneGain);
+  refToneGain.connect(audioCtx.destination);
+  refToneOsc.start();
+  refTonePlaying = true;
+}
+
+function initMic() {
+  if (micActive || micFailed) return;
+  try {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      micStream = stream;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      var src = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.8;
+      src.connect(analyser);
+      freqData = new Uint8Array(analyser.frequencyBinCount);
+      timeData = new Uint8Array(analyser.fftSize);
+      peaks = new Float32Array(analyser.frequencyBinCount);
+      micActive = true;
+    }).catch(function() {
+      micFailed = true;
+    });
+  } catch(e) {
+    micFailed = true;
+  }
+}
+
+function getFreqData() {
+  if (micActive && analyser && !paused) {
+    analyser.getByteFrequencyData(freqData);
+    analyser.getByteTimeDomainData(timeData);
+    return freqData;
+  }
+  // Demo mode — generate fake spectrum
+  if (!freqData) freqData = new Uint8Array(1024);
+  if (!timeData) timeData = new Uint8Array(2048);
+  if (!peaks) peaks = new Float32Array(1024);
+  demoPhase += 0.02;
+  for (var i = 0; i < freqData.length; i++) {
+    var f = i / freqData.length;
+    var val = 0;
+    // Simulate music-like spectrum
+    val += Math.max(0, 180 - i * 0.8) * (0.5 + 0.5 * Math.sin(demoPhase * 1.3)); // bass
+    val += 80 * Math.exp(-Math.pow((f - 0.15) * 10, 2)) * (0.5 + 0.5 * Math.sin(demoPhase * 2.1 + 1)); // mid peak
+    val += 60 * Math.exp(-Math.pow((f - 0.35) * 12, 2)) * (0.5 + 0.5 * Math.sin(demoPhase * 3.7 + 2)); // high peak
+    val += Math.random() * 15; // noise floor
+    freqData[i] = Math.min(255, Math.max(0, val));
+  }
+  for (var j = 0; j < timeData.length; j++) {
+    timeData[j] = 128 + 60 * Math.sin(demoPhase * 8 + j * 0.05) * Math.sin(demoPhase * 0.7);
+  }
+  return freqData;
+}
+
+function detectBPM() {
+  if (!freqData) return;
+  // Sum bass energy (bins 1-10, roughly 20-400Hz)
+  var bassEnergy = 0;
+  var bassEnd = Math.min(10, freqData.length);
+  for (var i = 1; i < bassEnd; i++) bassEnergy += freqData[i];
+  bassEnergy = bassEnergy / (bassEnd - 1) / 255;
+
+  // Smooth energy
+  bpmEnergySmooth = bpmEnergySmooth * 0.85 + bassEnergy * 0.15;
+  bpmEnergyHistory.push(bassEnergy);
+  if (bpmEnergyHistory.length > bpmHistoryMax) bpmEnergyHistory.shift();
+
+  // Calculate local average
+  var avg = 0;
+  for (var j = 0; j < bpmEnergyHistory.length; j++) avg += bpmEnergyHistory[j];
+  avg = avg / bpmEnergyHistory.length;
+
+  // Beat onset: current energy > 1.4x local average AND minimum interval passed
+  var now = performance.now();
+  var threshold = avg * 1.4 + 0.05;
+  if (bassEnergy > threshold && (now - lastBeatTime) > bpmMinInterval) {
+    lastBeatTime = now;
+    bpmBeatTimes.push(now);
+    beatFlash = 1.0;
+
+    // Keep last 20 beats
+    if (bpmBeatTimes.length > 20) bpmBeatTimes.shift();
+
+    // Calculate BPM from intervals
+    if (bpmBeatTimes.length >= 4) {
+      var intervals = [];
+      for (var k = 1; k < bpmBeatTimes.length; k++) {
+        var dt = bpmBeatTimes[k] - bpmBeatTimes[k - 1];
+        if (dt >= bpmMinInterval && dt <= bpmMaxInterval) {
+          intervals.push(dt);
+        }
+      }
+      if (intervals.length >= 3) {
+        // Median interval for robustness
+        intervals.sort(function(a, b) { return a - b; });
+        var median = intervals[Math.floor(intervals.length / 2)];
+        var newBPM = Math.round(60000 / median);
+        // Smooth BPM to avoid jitter
+        if (bpmCurrent === 0) {
+          bpmCurrent = newBPM;
+        } else {
+          bpmCurrent = Math.round(bpmCurrent * 0.7 + newBPM * 0.3);
+        }
+        // Confidence = how consistent are the intervals
+        var variance = 0;
+        for (var m = 0; m < intervals.length; m++) {
+          var diff = intervals[m] - median;
+          variance += diff * diff;
+        }
+        variance = Math.sqrt(variance / intervals.length) / median;
+        bpmConfidence = Math.max(0, Math.min(1, 1 - variance * 3));
+      }
+    }
+  }
+
+  // Decay beat flash
+  beatFlash *= 0.88;
+}
+
+function getZoomRange() {
+  var bins = freqData ? freqData.length : 1024;
+  var sampleRate = audioCtx ? audioCtx.sampleRate : 44100;
+  var binHz = sampleRate / (bins * 2);
+  if (zoomLevel === 1) return { start: Math.round(20 / binHz), end: Math.round(300 / binHz) };
+  if (zoomLevel === 2) return { start: Math.round(300 / binHz), end: Math.round(4000 / binHz) };
+  if (zoomLevel === 3) return { start: Math.round(4000 / binHz), end: Math.min(bins, Math.round(20000 / binHz)) };
+  return { start: 0, end: bins };
+}
+
+function freqLabel(binIdx) {
+  var sampleRate = audioCtx ? audioCtx.sampleRate : 44100;
+  var bins = freqData ? freqData.length : 1024;
+  var hz = binIdx * sampleRate / (bins * 2);
+  if (hz >= 1000) return (hz / 1000).toFixed(1) + 'k';
+  return Math.round(hz) + '';
+}
+
+function barColor(val, i, total) {
+  var t = i / total;
+  var v = val / 255;
+  // Green -> Yellow -> Red
+  var r = Math.round(Math.min(255, t < 0.5 ? t * 2 * 255 : 255));
+  var g = Math.round(Math.min(255, t < 0.5 ? 255 : (1 - (t - 0.5) * 2) * 255));
+  var b = Math.round(40 + v * 30);
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+
+function waterfallColor(val) {
+  if (val < 20) return '#0d0d0d';
+  if (val < 80) return 'rgb(0,' + Math.round(val * 2) + ',' + Math.round(val * 3) + ')';
+  if (val < 160) return 'rgb(' + Math.round((val - 80) * 3) + ',' + Math.round(val * 1.5) + ',0)';
+  return 'rgb(255,' + Math.round(255 - (val - 160) * 2.5) + ',0)';
+}
+
+// ── Drawing ──
+
+function drawHeader() {
+  ctx.fillStyle = 'rgba(13,13,13,0.85)';
+  ctx.fillRect(0, 0, W, 44);
+  ctx.font = '600 18px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('📊 Spectrum Analyzer', 14, 22);
+
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.textAlign = 'right';
+  if (micActive) {
+    ctx.fillStyle = '#44ff88';
+    ctx.fillText('🎤 LIVE', W - 14, 16);
+  } else if (micFailed) {
+    ctx.fillStyle = '#666';
+    ctx.fillText('🎤 Demo Mode', W - 14, 16);
+  } else {
+    ctx.fillStyle = '#ff6644';
+    ctx.fillText('🎤 Enter to enable', W - 14, 16);
+  }
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText(modeNames[modeIdx] + ' · ' + zoomNames[zoomLevel], W - 14, 32);
+}
+
+function drawFooter() {
+  ctx.fillStyle = 'rgba(13,13,13,0.85)';
+  ctx.fillRect(0, H - 28, W, 28);
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  var hint = '←→ Mode  ↑ Zoom  ↓ Badges  Enter ' + (!micActive ? 'Mic' : refTonePlaying ? '■ Stop' : '♪ Ref Tone') + '  Esc Back';
+  ctx.fillText(hint, W / 2, H - 14);
+}
+
+function drawFreqAxis(range) {
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.fillStyle = '#444';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  var labels = 8;
+  for (var i = 0; i <= labels; i++) {
+    var binIdx = range.start + (range.end - range.start) * i / labels;
+    var x = (i / labels) * W;
+    ctx.fillText(freqLabel(binIdx) + 'Hz', x, H - 40);
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.moveTo(x, 44);
+    ctx.lineTo(x, H - 42);
+    ctx.stroke();
+  }
+}
+
+function drawBars() {
+  var data = getFreqData();
+  var range = getZoomRange();
+  var count = range.end - range.start;
+  var barW = W / count;
+  var areaH = H - 88;
+
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 44, W, areaH + 4);
+
+  drawFreqAxis(range);
+
+  // dB scale lines
+  ctx.font = '9px -apple-system, sans-serif';
+  ctx.fillStyle = '#333';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (var db = 0; db <= 4; db++) {
+    var y = 44 + areaH * (1 - db / 4);
+    ctx.fillText(Math.round(db * 25) + '', 24, y);
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.moveTo(26, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+
+  for (var i = 0; i < count; i++) {
+    var val = data[range.start + i];
+    var h = (val / 255) * areaH;
+    var x = i * barW;
+    var y = 44 + areaH - h;
+
+    ctx.fillStyle = barColor(val, i, count);
+    if (barW > 3) {
+      ctx.fillRect(x + 0.5, y, barW - 1, h);
+    } else {
+      ctx.fillRect(x, y, Math.max(1, barW), h);
+    }
+
+    // Peak hold
+    var pi = range.start + i;
+    if (val > peaks[pi]) peaks[pi] = val;
+    var peakH = (peaks[pi] / 255) * areaH;
+    var peakY = 44 + areaH - peakH;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(x, peakY, Math.max(1, barW - (barW > 3 ? 1 : 0)), 2);
+    peaks[pi] *= peakDecay;
+  }
+}
+
+function drawWaterfall() {
+  var data = getFreqData();
+  var range = getZoomRange();
+  var count = range.end - range.start;
+  var areaH = H - 72;
+
+  // Add row
+  if (!paused) {
+    var row = new Uint8Array(count);
+    for (var i = 0; i < count; i++) row[i] = data[range.start + i];
+    waterfallRows.unshift(row);
+    if (waterfallRows.length > maxWaterfallRows) waterfallRows.pop();
+  }
+
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 44, W, areaH);
+
+  var rowH = Math.max(1, areaH / waterfallRows.length);
+  var colW = W / count;
+
+  for (var r = 0; r < waterfallRows.length && r * rowH < areaH; r++) {
+    var ry = 44 + r * rowH;
+    var rowData = waterfallRows[r];
+    for (var c = 0; c < count; c++) {
+      ctx.fillStyle = waterfallColor(rowData[c]);
+      ctx.fillRect(c * colW, ry, Math.ceil(colW), Math.ceil(rowH));
+    }
+  }
+
+  drawFreqAxis(range);
+}
+
+function drawCircular() {
+  var data = getFreqData();
+  var range = getZoomRange();
+  var count = range.end - range.start;
+  var cx = W / 2, cy = (H - 28) / 2 + 22;
+  var innerR = 60, outerR = 220;
+
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 44, W, H - 72);
+
+  // Inner circle
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+  ctx.stroke();
+
+  for (var i = 0; i < count; i++) {
+    var val = data[range.start + i];
+    var angle = (i / count) * Math.PI * 2 - Math.PI / 2;
+    var r = innerR + (val / 255) * (outerR - innerR);
+    var x1 = cx + Math.cos(angle) * innerR;
+    var y1 = cy + Math.sin(angle) * innerR;
+    var x2 = cx + Math.cos(angle) * r;
+    var y2 = cy + Math.sin(angle) * r;
+
+    ctx.strokeStyle = barColor(val, i, count);
+    ctx.lineWidth = Math.max(1, (Math.PI * 2 * innerR / count) * 0.8);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  // Center label
+  ctx.font = '600 16px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // Show dominant freq
+  var maxVal = 0, maxBin = 0;
+  for (var j = range.start; j < range.end; j++) {
+    if (data[j] > maxVal) { maxVal = data[j]; maxBin = j; }
+  }
+  ctx.fillText(freqLabel(maxBin) + ' Hz', cx, cy - 8);
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText('Peak', cx, cy + 10);
+}
+
+function drawWaveform() {
+  if (!timeData) getFreqData(); // ensure timeData populated
+  var data = timeData;
+  var areaH = H - 88;
+  var areaY = 44;
+
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, areaY, W, areaH + 4);
+
+  // Zero line
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.moveTo(0, areaY + areaH / 2);
+  ctx.lineTo(W, areaY + areaH / 2);
+  ctx.stroke();
+
+  // Grid
+  ctx.font = '9px -apple-system, sans-serif';
+  ctx.fillStyle = '#333';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (var g = 0; g < 5; g++) {
+    var gy = areaY + areaH * g / 4;
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.moveTo(0, gy);
+    ctx.lineTo(W, gy);
+    ctx.stroke();
+  }
+
+  // Waveform
+  ctx.strokeStyle = '#44ff88';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  var sliceW = W / data.length;
+  for (var i = 0; i < data.length; i++) {
+    var v = data[i] / 128.0;
+    var y = areaY + (v * areaH / 2);
+    if (i === 0) ctx.moveTo(0, y);
+    else ctx.lineTo(i * sliceW, y);
+  }
+  ctx.stroke();
+  ctx.lineWidth = 1;
+
+  // RMS level
+  var sum = 0;
+  for (var k = 0; k < data.length; k++) {
+    var s = (data[k] - 128) / 128;
+    sum += s * s;
+  }
+  var rms = Math.sqrt(sum / data.length);
+  var db = 20 * Math.log10(Math.max(rms, 0.0001));
+
+  ctx.font = '600 20px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(db.toFixed(1) + ' dB RMS', W / 2, areaY + 8);
+}
+
+function drawBPM() {
+  if (bpmCurrent <= 0) return;
+
+  // Beat flash ring
+  if (beatFlash > 0.05) {
+    var cx = W / 2, cy = 82;
+    ctx.globalAlpha = beatFlash * 0.5;
+    ctx.strokeStyle = bpmConfidence > 0.6 ? '#44ff88' : bpmConfidence > 0.3 ? '#ffaa44' : '#ff4444';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 28 + beatFlash * 10, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // BPM badge - positioned below header
+  var bx = W / 2, by = 82;
+  var bgAlpha = 0.7 + beatFlash * 0.3;
+  ctx.fillStyle = 'rgba(13,13,13,' + bgAlpha + ')';
+  ctx.beginPath();
+  ctx.arc(bx, by, 26, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.font = '600 22px -apple-system, sans-serif';
+  ctx.fillStyle = beatFlash > 0.3 ? '#ffffff' : '#e8e8e8';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(bpmCurrent, bx, by - 2);
+
+  ctx.font = '9px -apple-system, sans-serif';
+  ctx.fillStyle = bpmConfidence > 0.6 ? '#44ff88' : bpmConfidence > 0.3 ? '#ffaa44' : '#ff4444';
+  ctx.fillText('BPM', bx, by + 14);
+
+  // Confidence dots
+  var dotY = by + 24;
+  for (var i = 0; i < 5; i++) {
+    var dotX = bx - 16 + i * 8;
+    var filled = (i + 1) / 5 <= bpmConfidence;
+    ctx.fillStyle = filled ? '#44ff88' : '#333';
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawPeakInfo() {
+  if (peakFreqHz < 20) return;
+  // Background panel - right side, below header
+  var px = W - 14, py = 56;
+  ctx.fillStyle = 'rgba(13,13,13,0.85)';
+  ctx.fillRect(W - 145, py - 6, 140, 52);
+
+  // Frequency
+  ctx.font = '600 18px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+  var hzStr = peakFreqHz >= 1000 ? (peakFreqHz / 1000).toFixed(2) + ' kHz' : Math.round(peakFreqHz) + ' Hz';
+  ctx.fillText(hzStr, px, py);
+
+  // Note name + cents
+  ctx.font = '600 14px -apple-system, sans-serif';
+  var centsColor = Math.abs(peakCents) < 5 ? '#44ff88' : Math.abs(peakCents) < 15 ? '#ffaa44' : '#ff6644';
+  ctx.fillStyle = centsColor;
+  var centsStr = peakCents >= 0 ? '+' + peakCents : '' + peakCents;
+  ctx.fillText(peakNoteName + peakNoteOctave + '  ' + centsStr + '¢', px, py + 22);
+
+  // Reference tone indicator
+  if (refTonePlaying) {
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.fillStyle = '#4a9eff';
+    ctx.fillText('🔊 REF TONE', px, py + 40);
+  }
+}
+
+// ── Main loop ──
+
+function frame() {
+  if (showBadgeGallery) {
+    drawBadgeGallery();
+    requestAnimationFrame(frame);
+    return;
+  }
+
+  if (modeIdx === 0) drawBars();
+  else if (modeIdx === 1) drawWaterfall();
+  else if (modeIdx === 2) drawCircular();
+  else if (modeIdx === 3) drawWaveform();
+
+  if (!paused) {
+    detectBPM();
+    findPeakFreq();
+    checkAchievements();
+  }
+  drawHeader();
+  drawBPM();
+  drawPeakInfo();
+  drawFooter();
+  drawBadgeCounter();
+  drawAchievementToast();
+
+  if (paused) {
+    ctx.fillStyle = 'rgba(13,13,13,0.5)';
+    ctx.fillRect(W / 2 - 60, H / 2 - 20, 120, 40);
+    ctx.font = '600 20px -apple-system, sans-serif';
+    ctx.fillStyle = '#ff6644';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⏸ PAUSED', W / 2, H / 2);
+  }
+
+  requestAnimationFrame(frame);
+}
+
+// ── Input ──
+
+document.addEventListener('keydown', function(e) {
+  e.preventDefault();
+  if (showBadgeGallery) {
+    showBadgeGallery = false;
+    return;
+  }
+  if (e.key === 'ArrowLeft') {
+    modeIdx = (modeIdx - 1 + modes.length) % modes.length;
+    waterfallRows = [];
+    modesUsed[modeIdx] = true;
+    saveAchievements();
+  } else if (e.key === 'ArrowRight') {
+    modeIdx = (modeIdx + 1) % modes.length;
+    waterfallRows = [];
+    modesUsed[modeIdx] = true;
+    saveAchievements();
+  } else if (e.key === 'ArrowUp') {
+    zoomLevel = (zoomLevel + 1) % zoomNames.length;
+    waterfallRows = [];
+    zoomsUsed[zoomLevel] = true;
+    saveAchievements();
+  } else if (e.key === 'ArrowDown') {
+    showBadgeGallery = true;
+  } else if (e.key === 'Enter') {
+    if (!micActive && !micFailed) {
+      initMic();
+    } else if (paused) {
+      paused = false;
+    } else {
+      // Long press would be ideal but for simplicity: Enter toggles ref tone
+      // If ref tone playing, stop it; otherwise play ref tone at peak freq
+      toggleRefTone();
+    }
+  } else if (e.key === 'Escape' || e.key === 'Backspace') {
+    window.location.href = '../';
+  }
+});
+
+// Init
+frame();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

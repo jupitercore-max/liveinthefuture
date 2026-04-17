@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Duel — LITF Games</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d0d0d;overflow:hidden;font-family:system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;width:100vw}
+canvas{display:block;image-rendering:pixelated}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+"use strict";
+var canvas = document.getElementById("c");
+var ctx = canvas.getContext("2d");
+var W = 600, H = 600;
+
+// States: title, countdown, wait, draw, result, series_end
+var state = "title";
+var focusIndex = 0; // 0=play, 1=mode
+var modes = ["Classic","Sudden Death","Endurance"];
+var modeIndex = 0;
+var modeDesc = [
+  "10 duels. Best record wins.",
+  "One miss and you're done.",
+  "How many wins in a row?"
+];
+
+// Game state
+var heartRate = 60;
+var heartPhase = 0;
+var countdownTimer = 0;
+var waitTimer = 0;
+var waitDuration = 0;
+var drawTimer = 0;
+var drawWindow = 1200; // ms to react
+var reactionTime = 0;
+var falseStart = false;
+var tooSlow = false;
+var resultTimer = 0;
+
+// Series
+var duelNum = 0;
+var wins = 0;
+var losses = 0;
+var bestTime = 0;
+var worstTime = 0;
+var times = [];
+var seriesSize = 10;
+
+// Endurance
+var endStreak = 0;
+
+// Bluff system
+var willBluff = false;
+var hasBluffed = false;
+var bluffTimer = 0;
+var bluffRevealTimer = 0;
+var bluffAtTime = 0;
+var bluffFooled = false;
+var bluffsCaught = 0;
+var bluffsFooled = 0;
+
+// Persistent
+var allTimeBest = parseInt(localStorage.getItem("duel_best") || "9999");
+var allTimeBestStreak = parseInt(localStorage.getItem("duel_streak") || "0");
+var totalDuels = parseInt(localStorage.getItem("duel_total") || "0");
+var totalWins = parseInt(localStorage.getItem("duel_wins") || "0");
+
+// === RANK SYSTEM ===
+var RANKS = [
+  {name:"Greenhorn", wins:0,   emoji:"🤠", bonus:"None"},
+  {name:"Drifter",   wins:5,   emoji:"🌵", bonus:"+50ms window"},
+  {name:"Deputy",    wins:15,  emoji:"⭐", bonus:"+100ms window"},
+  {name:"Sheriff",   wins:30,  emoji:"🔰", bonus:"+150ms window"},
+  {name:"Ranger",    wins:50,  emoji:"🦅", bonus:"Faster countdown"},
+  {name:"Marshal",   wins:80,  emoji:"🎖️", bonus:"+200ms window"},
+  {name:"Outlaw",    wins:120, emoji:"💀", bonus:"All enhanced"},
+  {name:"Legend",    wins:200, emoji:"⚡", bonus:"Max everything"}
+];
+
+function getRank() {
+  var r = RANKS[0];
+  for (var i = RANKS.length - 1; i >= 0; i--) {
+    if (totalWins >= RANKS[i].wins) { r = RANKS[i]; break; }
+  }
+  return r;
+}
+
+function getRankIndex() {
+  for (var i = RANKS.length - 1; i >= 0; i--) {
+    if (totalWins >= RANKS[i].wins) return i;
+  }
+  return 0;
+}
+
+function getNextRank() {
+  for (var i = 0; i < RANKS.length; i++) {
+    if (totalWins < RANKS[i].wins) return RANKS[i];
+  }
+  return null;
+}
+
+function getRankBonuses() {
+  var idx = getRankIndex();
+  var windowBonus = 0;
+  var countdownBonus = 0; // seconds to subtract from countdown
+  if (idx >= 1) windowBonus += 50;   // Drifter
+  if (idx >= 2) windowBonus += 50;   // Deputy
+  if (idx >= 3) windowBonus += 50;   // Sheriff
+  if (idx >= 4) countdownBonus = 0.5; // Ranger: 2s → 1.5s
+  if (idx >= 5) windowBonus += 50;   // Marshal
+  if (idx >= 6) { windowBonus = 250; countdownBonus = 0.7; } // Outlaw
+  if (idx >= 7) { windowBonus = 300; countdownBonus = 1.0; } // Legend: 2s → 1s
+  return {windowBonus: windowBonus, countdownBonus: countdownBonus};
+}
+
+var rankUpPending = false;
+
+// === MODIFIER SYSTEM ===
+var MODIFIERS = [
+  {id:"fog",       emoji:"🌫️", name:"FOG",         desc:"Draw sound is muffled — listen closely"},
+  {id:"quickdraw", emoji:"⚡",  name:"QUICK DRAW",  desc:"Half the time to react"},
+  {id:"mirror",    emoji:"🪞",  name:"MIRROR",      desc:"Sound lies — watch the color"},
+  {id:"dust",      emoji:"🌪️", name:"DUST STORM",  desc:"Phantom sounds in the wind"},
+  {id:"silence",   emoji:"🔇",  name:"SILENCE",     desc:"No draw sound — eyes only"},
+  {id:"dblbluff",  emoji:"💀",  name:"DOUBLE BLUFF",desc:"60% chance of a fake draw"}
+];
+var activeModifier = null; // null or one of MODIFIERS
+var modifierAnnounceTimer = 0;
+var modifierDiscovered = JSON.parse(localStorage.getItem("duel_mods") || "{}");
+var modifierFogAlpha = 0;
+var modifierDustParticles = [];
+var phantomPopTimer = 0;
+
+function pickModifier() {
+  // 40% chance of getting a modifier per round
+  if (Math.random() > 0.40) { activeModifier = null; return; }
+  activeModifier = MODIFIERS[Math.floor(Math.random() * MODIFIERS.length)];
+  // Track discovery
+  if (!modifierDiscovered[activeModifier.id]) {
+    modifierDiscovered[activeModifier.id] = true;
+    localStorage.setItem("duel_mods", JSON.stringify(modifierDiscovered));
+  }
+}
+
+function getModDiscoveryCount() {
+  var c = 0;
+  for (var k in modifierDiscovered) { if (modifierDiscovered[k]) c++; }
+  return c;
+}
+
+// Audio
+var audioCtx = null;
+var micActive = false;
+var micFailed = false;
+var analyser = null;
+var micLevel = 0;
+var micData = null;
+
+// Animation
+var frameTime = 0;
+var lastFrame = 0;
+var particles = [];
+var flashAlpha = 0;
+var shakeX = 0, shakeY = 0;
+
+// Silhouette positions
+var leftX = 150, rightX = 450, groundY = 420;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+// === BGM System ===
+var bgmAudio = null, bgmGameover = null, bgmMuted = false, bgmStarted = false;
+function bgmInit() {
+  bgmAudio = new Audio('audio/duel-bgm.mp3');
+  bgmAudio.loop = true;
+  bgmAudio.volume = 0.15;
+  bgmGameover = new Audio('audio/gameover-dark.mp3');
+  bgmGameover.volume = 0.25;
+}
+function bgmPlay() {
+  if (bgmMuted || !bgmAudio) return;
+  if (!bgmStarted) { bgmAudio.currentTime = 0; bgmStarted = true; }
+  bgmAudio.play().catch(function(){});
+}
+function bgmStop() { if (bgmAudio) { bgmAudio.pause(); } bgmStarted = false; }
+function bgmGameOver() {
+  bgmStop();
+  if (bgmMuted || !bgmGameover) return;
+  bgmGameover.currentTime = 0;
+  bgmGameover.play().catch(function(){});
+}
+function bgmToggle() {
+  bgmMuted = !bgmMuted;
+  if (bgmMuted) { if (bgmAudio) bgmAudio.pause(); }
+  else bgmPlay();
+}
+
+
+function initMic() {
+  if (micActive || micFailed) return;
+  try {
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      micActive = true;
+      var src = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.85;
+      src.connect(analyser);
+      micData = new Uint8Array(analyser.frequencyBinCount);
+    }).catch(function(){ micFailed = true; });
+  } catch(e) { micFailed = true; }
+}
+
+function updateMic() {
+  if (!analyser || !micData) return;
+  analyser.getByteFrequencyData(micData);
+  var sum = 0;
+  for (var i = 0; i < micData.length; i++) sum += micData[i];
+  var raw = sum / micData.length / 255;
+  micLevel = micLevel * 0.9 + raw * 0.1;
+}
+
+function playHeartbeat(rate) {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.type = "sine";
+  o.frequency.setValueAtTime(55, t);
+  o.frequency.exponentialRampToValueAtTime(35, t + 0.08);
+  g.gain.setValueAtTime(0.3, t);
+  g.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+  o.connect(g);
+  g.connect(audioCtx.destination);
+  o.start(t);
+  o.stop(t + 0.2);
+  // Second thump (lub-dub)
+  var o2 = audioCtx.createOscillator();
+  var g2 = audioCtx.createGain();
+  o2.type = "sine";
+  o2.frequency.setValueAtTime(45, t + 0.12);
+  o2.frequency.exponentialRampToValueAtTime(30, t + 0.2);
+  g2.gain.setValueAtTime(0.2, t + 0.12);
+  g2.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+  o2.connect(g2);
+  g2.connect(audioCtx.destination);
+  o2.start(t + 0.12);
+  o2.stop(t + 0.35);
+}
+
+function playDraw(vol) {
+  if (!audioCtx) return;
+  var v = (vol !== undefined) ? vol : 0.4;
+  var t = audioCtx.currentTime;
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.type = "square";
+  o.frequency.setValueAtTime(800, t);
+  o.frequency.exponentialRampToValueAtTime(1600, t + 0.05);
+  g.gain.setValueAtTime(v, t);
+  g.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+  o.connect(g);
+  g.connect(audioCtx.destination);
+  o.start(t);
+  o.stop(t + 0.2);
+}
+
+function playPhantomPop() {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.type = "square";
+  o.frequency.setValueAtTime(600 + Math.random() * 400, t);
+  o.frequency.exponentialRampToValueAtTime(900 + Math.random() * 500, t + 0.03);
+  g.gain.setValueAtTime(0.15 + Math.random() * 0.1, t);
+  g.gain.exponentialRampToValueAtTime(0.01, t + 0.06);
+  o.connect(g);
+  g.connect(audioCtx.destination);
+  o.start(t);
+  o.stop(t + 0.08);
+}
+
+function playShot(win) {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var bufSize = audioCtx.sampleRate * 0.1;
+  var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  var data = buf.getChannelData(0);
+  for (var i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i/bufSize, 3);
+  var src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  var g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.5, t);
+  g.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+  src.connect(g);
+  g.connect(audioCtx.destination);
+  src.start(t);
+  if (win) {
+    var notes = [523, 659, 784];
+    for (var n = 0; n < 3; n++) {
+      var o = audioCtx.createOscillator();
+      var og = audioCtx.createGain();
+      o.type = "triangle";
+      o.frequency.value = notes[n];
+      og.gain.setValueAtTime(0.15, t + 0.2 + n*0.1);
+      og.gain.exponentialRampToValueAtTime(0.01, t + 0.5 + n*0.1);
+      o.connect(og);
+      og.connect(audioCtx.destination);
+      o.start(t + 0.2 + n*0.1);
+      o.stop(t + 0.6 + n*0.1);
+    }
+  } else {
+    var o = audioCtx.createOscillator();
+    var og = audioCtx.createGain();
+    o.type = "sawtooth";
+    o.frequency.setValueAtTime(300, t + 0.15);
+    o.frequency.exponentialRampToValueAtTime(100, t + 0.5);
+    og.gain.setValueAtTime(0.2, t + 0.15);
+    og.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+    o.connect(og);
+    og.connect(audioCtx.destination);
+    o.start(t + 0.15);
+    o.stop(t + 0.6);
+  }
+}
+
+function playFalseStart() {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.type = "sawtooth";
+  o.frequency.setValueAtTime(200, t);
+  o.frequency.exponentialRampToValueAtTime(80, t + 0.4);
+  g.gain.setValueAtTime(0.3, t);
+  g.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+  o.connect(g);
+  g.connect(audioCtx.destination);
+  o.start(t);
+  o.stop(t + 0.5);
+}
+
+function playBluffCatch() {
+  // Positive feedback: you resisted the bluff
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var o = audioCtx.createOscillator();
+  var og = audioCtx.createGain();
+  o.type = "triangle";
+  o.frequency.value = 660;
+  og.gain.setValueAtTime(0.1, t);
+  og.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+  o.connect(og);
+  og.connect(audioCtx.destination);
+  o.start(t);
+  o.stop(t + 0.25);
+}
+
+function playRankUp() {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var notes = [262, 330, 392, 523];
+  for (var i = 0; i < notes.length; i++) {
+    var o = audioCtx.createOscillator();
+    var og = audioCtx.createGain();
+    o.type = "triangle";
+    o.frequency.value = notes[i];
+    og.gain.setValueAtTime(0.12, t + i * 0.12);
+    og.gain.exponentialRampToValueAtTime(0.01, t + i * 0.12 + 0.3);
+    o.connect(og);
+    og.connect(audioCtx.destination);
+    o.start(t + i * 0.12);
+    o.stop(t + i * 0.12 + 0.35);
+  }
+}
+
+function playModifierAnnounce() {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  // Eerie two-tone warning
+  var o1 = audioCtx.createOscillator();
+  var g1 = audioCtx.createGain();
+  o1.type = "sine";
+  o1.frequency.setValueAtTime(220, t);
+  o1.frequency.setValueAtTime(277, t + 0.15);
+  g1.gain.setValueAtTime(0.15, t);
+  g1.gain.exponentialRampToValueAtTime(0.01, t + 0.35);
+  o1.connect(g1); g1.connect(audioCtx.destination);
+  o1.start(t); o1.stop(t + 0.4);
+  // Low rumble
+  var o2 = audioCtx.createOscillator();
+  var g2 = audioCtx.createGain();
+  o2.type = "sawtooth";
+  o2.frequency.value = 55;
+  g2.gain.setValueAtTime(0.08, t);
+  g2.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+  o2.connect(g2); g2.connect(audioCtx.destination);
+  o2.start(t); o2.stop(t + 0.5);
+}
+
+function startSeries() {
+  duelNum = 0;
+  wins = 0;
+  losses = 0;
+  bestTime = 9999;
+  worstTime = 0;
+  times = [];
+  endStreak = 0;
+  rankUpPending = false;
+  bluffsCaught = 0;
+  bluffsFooled = 0;
+  startDuel();
+}
+
+function startDuel() {
+  pickModifier();
+  modifierFogAlpha = 0;
+  modifierDustParticles = [];
+  if (activeModifier) {
+    state = "modifier_announce";
+    modifierAnnounceTimer = 0;
+    playModifierAnnounce();
+  } else {
+    state = "countdown";
+  }
+  var bonuses = getRankBonuses();
+  countdownTimer = Math.max(1000, 2000 - bonuses.countdownBonus * 1000);
+  heartRate = 60;
+  heartPhase = 0;
+  falseStart = false;
+  tooSlow = false;
+  reactionTime = 0;
+  drawTimer = 0;
+  flashAlpha = 0;
+  shakeX = 0;
+  shakeY = 0;
+}
+
+function startWait() {
+  state = "wait";
+  waitDuration = 1500 + Math.random() * 3000;
+  waitTimer = 0;
+  heartRate = 80;
+  hasBluffed = false;
+  bluffFooled = false;
+  phantomPopTimer = 0;
+  var bonuses = getRankBonuses();
+  // Base window 1200ms, mic reduces, rank bonus adds
+  drawWindow = 1200 + bonuses.windowBonus - micLevel * 400;
+  // QUICK DRAW modifier: halve the window
+  if (activeModifier && activeModifier.id === "quickdraw") {
+    drawWindow = drawWindow * 0.5;
+  }
+  if (drawWindow < 400) drawWindow = 400;
+  if (drawWindow > 1800) drawWindow = 1800;
+  // Bluff: 30% chance normally, 60% with DOUBLE BLUFF modifier
+  var bluffChance = 0.30;
+  if (activeModifier && activeModifier.id === "dblbluff") bluffChance = 0.60;
+  willBluff = Math.random() < bluffChance;
+  if (willBluff) {
+    bluffAtTime = waitDuration * (0.40 + Math.random() * 0.35);
+    bluffTimer = 0;
+    bluffRevealTimer = 0;
+  }
+}
+
+function triggerDraw() {
+  state = "draw";
+  drawTimer = 0;
+  // SILENCE modifier: no draw sound — must rely on visual only
+  // MIRROR modifier: real draw is SILENT (sound lies — both bluffs and real draws invert)
+  if (activeModifier && (activeModifier.id === "silence" || activeModifier.id === "mirror")) {
+    // No draw sound
+  } else if (activeModifier && activeModifier.id === "fog") {
+    playDraw(0.08); // FOG: muffled draw sound — barely audible
+  } else {
+    playDraw();
+  }
+  flashAlpha = 1.0;
+  // Track if the player resisted a bluff this round
+  if (hasBluffed && !bluffFooled) {
+    bluffsCaught++;
+    playBluffCatch();
+  }
+}
+
+function recordResult(won, time) {
+  var oldRankIdx = getRankIndex();
+  duelNum++;
+  totalDuels++;
+  if (won) {
+    wins++;
+    totalWins++;
+    if (time < bestTime) bestTime = time;
+    if (time > worstTime) worstTime = time;
+    times.push(time);
+    if (time < allTimeBest) {
+      allTimeBest = time;
+      localStorage.setItem("duel_best", String(allTimeBest));
+    }
+  } else {
+    losses++;
+  }
+  localStorage.setItem("duel_total", String(totalDuels));
+  localStorage.setItem("duel_wins", String(totalWins));
+
+  // Check for rank up
+  var newRankIdx = getRankIndex();
+  if (newRankIdx > oldRankIdx) {
+    rankUpPending = true;
+  }
+
+  state = "result"; bgmGameOver();
+  resultTimer = 0;
+}
+
+function isSeriesOver() {
+  if (modeIndex === 0) return duelNum >= seriesSize;
+  if (modeIndex === 1) return losses > 0 || duelNum >= 20;
+  if (modeIndex === 2) return losses > 0;
+  return false;
+}
+
+// Modifier announce phase
+function updateModifierAnnounce(dt) {
+  modifierAnnounceTimer += dt * 1000;
+  if (modifierAnnounceTimer >= 1800) {
+    state = "countdown";
+  }
+}
+
+function drawModifierAnnounce() {
+  ctx.textAlign = "center";
+  var progress = Math.min(1, modifierAnnounceTimer / 400);
+  ctx.globalAlpha = progress;
+  ctx.font = "bold 20px system-ui";
+  ctx.fillStyle = "#ff8c00";
+  ctx.fillText("— CONDITION —", W/2, 110);
+  ctx.font = "bold 44px system-ui";
+  ctx.fillStyle = "#ffcc00";
+  ctx.fillText(activeModifier.emoji + " " + activeModifier.name, W/2, 165);
+  ctx.font = "16px system-ui";
+  ctx.fillStyle = "#aaa";
+  ctx.fillText(activeModifier.desc, W/2, 195);
+  ctx.globalAlpha = 1.0;
+}
+
+function drawModifierOverlay() {
+  if (!activeModifier) return;
+  if (state === "title" || state === "series_end" || state === "modifier_announce") return;
+  
+  // FOG: translucent overlay that partially obscures the arena
+  if (activeModifier.id === "fog") {
+    modifierFogAlpha = 0.45 + Math.sin(frameTime / 800) * 0.1;
+    ctx.globalAlpha = modifierFogAlpha;
+    ctx.fillStyle = "#1a1a2a";
+    ctx.fillRect(0, 60, W, H - 120);
+    // Fog wisps
+    for (var i = 0; i < 5; i++) {
+      var fx = (frameTime / (2000 + i * 500) * 100 + i * 130) % (W + 200) - 100;
+      var fy = 200 + i * 60 + Math.sin(frameTime / 1000 + i) * 30;
+      ctx.globalAlpha = 0.15 + Math.sin(frameTime / 600 + i * 2) * 0.08;
+      ctx.fillStyle = "#445";
+      ctx.beginPath();
+      ctx.arc(fx, fy, 60 + i * 10, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1.0;
+  }
+  
+  // DUST STORM: particles blowing across the screen
+  if (activeModifier.id === "dust") {
+    // Spawn dust particles
+    if (Math.random() < 0.4) {
+      modifierDustParticles.push({
+        x: -10, y: 100 + Math.random() * 350,
+        vx: 3 + Math.random() * 4,
+        vy: (Math.random() - 0.5) * 1.5,
+        size: 1 + Math.random() * 3,
+        life: 1.0
+      });
+    }
+    // Update and draw
+    ctx.fillStyle = "#886644";
+    for (var i = modifierDustParticles.length - 1; i >= 0; i--) {
+      var dp = modifierDustParticles[i];
+      dp.x += dp.vx;
+      dp.y += dp.vy;
+      dp.life -= 0.008;
+      if (dp.life <= 0 || dp.x > W + 20) {
+        modifierDustParticles.splice(i, 1);
+        continue;
+      }
+      ctx.globalAlpha = dp.life * 0.5;
+      ctx.fillRect(dp.x, dp.y, dp.size, dp.size * 0.5);
+    }
+    // Overall tint
+    ctx.globalAlpha = 0.12 + Math.sin(frameTime / 500) * 0.04;
+    ctx.fillStyle = "#443322";
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1.0;
+  }
+  
+  // MIRROR: flip indicator at top
+  if (activeModifier.id === "mirror") {
+    ctx.textAlign = "center";
+    ctx.font = "12px system-ui";
+    ctx.fillStyle = "#ff8c00";
+    ctx.globalAlpha = 0.5 + Math.sin(frameTime / 400) * 0.3;
+    ctx.fillText("🪞 MIRRORED", W/2, 50);
+    ctx.globalAlpha = 1.0;
+  }
+  
+  // Active modifier badge (small)
+  if (state !== "result") {
+    ctx.textAlign = "left";
+    ctx.font = "11px system-ui";
+    ctx.fillStyle = "#664400";
+    ctx.fillText(activeModifier.emoji + " " + activeModifier.name, 10, H - 8);
+  }
+}
+
+// Drawing helpers
+function drawSilhouette(x, y, side, armed, hit) {
+  ctx.save();
+  ctx.translate(x, y);
+  if (side === "right") ctx.scale(-1, 1);
+
+  var bodyColor = hit ? "#ff3333" : "#c8c8c8";
+  ctx.fillStyle = bodyColor;
+  ctx.strokeStyle = bodyColor;
+  ctx.lineWidth = 3;
+
+  // Head
+  ctx.beginPath();
+  ctx.arc(0, -65, 14, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hat brim
+  ctx.fillRect(-18, -80, 36, 5);
+  // Hat top
+  ctx.fillRect(-10, -100, 20, 20);
+
+  // Body
+  ctx.beginPath();
+  ctx.moveTo(0, -50);
+  ctx.lineTo(0, 0);
+  ctx.stroke();
+
+  // Legs
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-12, 40);
+  ctx.moveTo(0, 0);
+  ctx.lineTo(12, 40);
+  ctx.stroke();
+
+  // Arms
+  if (armed) {
+    ctx.beginPath();
+    ctx.moveTo(0, -35);
+    ctx.lineTo(20, -15);
+    ctx.lineTo(30, -25);
+    ctx.stroke();
+    ctx.fillRect(28, -30, 12, 4);
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(0, -35);
+    ctx.lineTo(-15, -10);
+    ctx.moveTo(0, -35);
+    ctx.lineTo(15, -10);
+    ctx.stroke();
+  }
+
+  // Poncho/cloak
+  ctx.globalAlpha = 0.3;
+  ctx.fillStyle = bodyColor;
+  ctx.beginPath();
+  ctx.moveTo(-20, -45);
+  ctx.lineTo(20, -45);
+  ctx.lineTo(25, -5);
+  ctx.lineTo(-25, -5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1.0;
+
+  ctx.restore();
+}
+
+function addParticles(x, y, color, count) {
+  for (var i = 0; i < count; i++) {
+    particles.push({
+      x: x, y: y,
+      vx: (Math.random() - 0.5) * 8,
+      vy: -Math.random() * 6 - 2,
+      life: 1.0,
+      color: color,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+function updateParticles(dt) {
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.15;
+    p.life -= dt * 2;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawParticles() {
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1.0;
+}
+
+function getRating(ms) {
+  if (ms < 180) return {text: "⚡ LEGENDARY", color: "#ffd700"};
+  if (ms < 220) return {text: "🔥 BLAZING", color: "#ff6600"};
+  if (ms < 280) return {text: "💨 QUICK", color: "#00ccff"};
+  if (ms < 350) return {text: "👍 DECENT", color: "#66cc66"};
+  if (ms < 500) return {text: "🐌 SLOW", color: "#999"};
+  return {text: "💤 ASLEEP", color: "#666"};
+}
+
+function getGrade() {
+  if (times.length === 0) return {grade: "F", color: "#ff3333"};
+  var avg = 0;
+  for (var i = 0; i < times.length; i++) avg += times[i];
+  avg /= times.length;
+  if (avg < 200) return {grade: "S", color: "#ffd700"};
+  if (avg < 250) return {grade: "A", color: "#00ccff"};
+  if (avg < 300) return {grade: "B", color: "#66cc66"};
+  if (avg < 400) return {grade: "C", color: "#ffaa00"};
+  if (avg < 500) return {grade: "D", color: "#ff6633"};
+  return {grade: "F", color: "#ff3333"};
+}
+
+// Main loop
+function frame(ts) {
+  var dt = lastFrame ? (ts - lastFrame) / 1000 : 0.016;
+  if (dt > 0.1) dt = 0.1;
+  lastFrame = ts;
+  frameTime = ts;
+
+  updateMic();
+  updateParticles(dt);
+
+  shakeX *= 0.85;
+  shakeY *= 0.85;
+
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+
+  ctx.fillStyle = "#0d0d0d";
+  ctx.fillRect(-10, -10, W + 20, H + 20);
+
+  if (flashAlpha > 0) {
+    flashAlpha -= dt * 3;
+    if (flashAlpha < 0) flashAlpha = 0;
+  }
+
+  if (state === "title") {
+    drawTitle();
+  } else if (state === "modifier_announce") {
+    updateModifierAnnounce(dt);
+    drawArena(false, false, false);
+    drawModifierAnnounce();
+  } else if (state === "countdown") {
+    updateCountdown(dt);
+    drawArena(false, false, false);
+    drawCountdownOverlay();
+  } else if (state === "wait") {
+    updateWait(dt);
+    drawArena(false, false, false);
+    drawWaitOverlay();
+  } else if (state === "draw") {
+    updateDrawState(dt);
+    drawArena(true, false, false);
+    drawDrawOverlay();
+  } else if (state === "result") {
+    updateResult(dt);
+    var playerArmed = !falseStart && !tooSlow && !bluffFooled;
+    var enemyHit = playerArmed;
+    var playerHit = falseStart || tooSlow || bluffFooled;
+    drawArena(playerArmed, enemyHit, playerHit);
+    drawResultOverlay();
+  } else if (state === "series_end") {
+    drawSeriesEnd();
+  }
+
+  if (flashAlpha > 0) {
+    ctx.globalAlpha = flashAlpha * 0.3;
+    ctx.fillStyle = state === "draw" ? "#ffff00" : "#ffffff";
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1.0;
+  }
+
+  drawParticles();
+  drawModifierOverlay();
+  drawHUD();
+
+  ctx.restore();
+  requestAnimationFrame(frame);
+}
+
+function drawTitle() {
+  ctx.fillStyle = "#c8c8c8";
+  ctx.font = "bold 52px system-ui";
+  ctx.textAlign = "center";
+  ctx.fillText("DUEL", W/2, 120);
+
+  ctx.font = "16px system-ui";
+  ctx.fillStyle = "#888";
+  ctx.fillText("Quick-draw reaction game", W/2, 148);
+
+  // Rank display
+  var rank = getRank();
+  var next = getNextRank();
+  ctx.font = "bold 20px system-ui";
+  ctx.fillStyle = "#e8e8e8";
+  ctx.fillText(rank.emoji + " " + rank.name, W/2, 182);
+
+  if (next) {
+    var prog = totalWins / next.wins;
+    ctx.font = "13px system-ui";
+    ctx.fillStyle = "#666";
+    ctx.fillText("Wins: " + totalWins + " / " + next.wins + " for " + next.emoji + " " + next.name, W/2, 204);
+    // Progress bar
+    var bw = 200, bh = 6, bx = W/2 - bw/2, by = 212;
+    ctx.fillStyle = "#222";
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = "#ff8c00";
+    ctx.fillRect(bx, by, bw * Math.min(prog, 1), bh);
+  } else {
+    ctx.font = "13px system-ui";
+    ctx.fillStyle = "#ffd700";
+    ctx.fillText("★ " + totalWins + " wins — Maximum rank ★", W/2, 204);
+  }
+
+  // Next rank bonus preview
+  if (next) {
+    ctx.font = "12px system-ui";
+    ctx.fillStyle = "#555";
+    ctx.fillText("Next unlock: " + next.bonus, W/2, 232);
+  }
+
+  // Silhouettes (smaller, moved down)
+  drawSilhouette(200, 340, "left", false, false);
+  drawSilhouette(400, 340, "right", false, false);
+
+  // Dust ground
+  ctx.strokeStyle = "#333";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(50, 382);
+  ctx.lineTo(550, 382);
+  ctx.stroke();
+
+  // Menu
+  var items = ["⏎ DRAW", "← " + modes[modeIndex] + " →"];
+  for (var i = 0; i < items.length; i++) {
+    var y = 430 + i * 50;
+    ctx.font = i === 0 ? "bold 28px system-ui" : "18px system-ui";
+    ctx.fillStyle = focusIndex === i ? "#fff" : "#666";
+    if (focusIndex === i) {
+      ctx.fillStyle = "#00aaff";
+      ctx.fillRect(W/2 - 120, y - 22, 240, 36);
+      ctx.fillStyle = "#fff";
+    }
+    ctx.fillText(items[i], W/2, y);
+  }
+
+  // Mode description
+  ctx.font = "14px system-ui";
+  ctx.fillStyle = "#666";
+  ctx.fillText(modeDesc[modeIndex], W/2, 535);
+
+  // Stats
+  ctx.font = "13px system-ui";
+  ctx.fillStyle = "#555";
+  if (allTimeBest < 9999) {
+    ctx.fillText("Best: " + allTimeBest + "ms  |  " + totalWins + "/" + totalDuels + " wins", W/2, 558);
+  }
+  if (allTimeBestStreak > 0) {
+    ctx.fillText("Best streak: " + allTimeBestStreak, W/2, 575);
+  }
+  ctx.font = "12px system-ui";
+  ctx.fillStyle = "#444";
+  ctx.fillText("Watch your ears — the opponent bluffs", W/2, 592);
+
+  // Modifier discovery tracker
+  var modCount = getModDiscoveryCount();
+  if (modCount > 0) {
+    ctx.font = "12px system-ui";
+    ctx.fillStyle = "#664400";
+    ctx.textAlign = "left";
+    ctx.fillText("✨ Conditions: " + modCount + "/" + MODIFIERS.length, 10, 592);
+    ctx.textAlign = "center";
+  }
+}
+
+function drawArena(playerArmed, enemyHit, playerHit) {
+  ctx.strokeStyle = "#333";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(50, groundY + 42);
+  ctx.lineTo(550, groundY + 42);
+  ctx.stroke();
+
+  // MIRROR modifier: swap silhouette positions
+  var pX = leftX, eX = rightX;
+  if (activeModifier && activeModifier.id === "mirror") {
+    pX = rightX; eX = leftX;
+  }
+
+  if (state === "countdown" || state === "wait") {
+    ctx.fillStyle = "#222";
+    for (var i = 0; i < 5; i++) {
+      var dx = Math.sin(frameTime/1000 + i) * 15;
+      ctx.fillRect(pX + dx - 1, groundY + 38 + Math.random()*4, 2, 2);
+      ctx.fillRect(eX + dx - 1, groundY + 38 + Math.random()*4, 2, 2);
+    }
+  }
+
+  drawSilhouette(pX, groundY, "left", playerArmed, playerHit);
+  drawSilhouette(eX, groundY, "right", state === "result" && !falseStart && !tooSlow, enemyHit);
+
+  if (state === "result" && resultTimer < 0.2) {
+    if (!falseStart && !tooSlow) {
+      ctx.globalAlpha = 1 - resultTimer / 0.2;
+      ctx.fillStyle = "#ffff00";
+      ctx.beginPath();
+      ctx.arc(pX + 42, groundY - 25, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    } else if (tooSlow) {
+      ctx.globalAlpha = 1 - resultTimer / 0.2;
+      ctx.fillStyle = "#ff3333";
+      ctx.beginPath();
+      ctx.arc(eX - 42, groundY - 25, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+function updateCountdown(dt) {
+  countdownTimer -= dt * 1000;
+  heartPhase += dt * (heartRate / 60);
+  if (heartPhase >= 1) {
+    heartPhase -= 1;
+    playHeartbeat();
+    heartRate = Math.min(heartRate + 5, 120);
+  }
+  if (countdownTimer <= 0) {
+    startWait();
+  }
+}
+
+function drawCountdownOverlay() {
+  ctx.textAlign = "center";
+  ctx.font = "bold 80px system-ui";
+  ctx.fillStyle = "#ff3333";
+  var num = Math.ceil(countdownTimer / 1000);
+  if (num > 0) ctx.fillText(String(num), W/2, 200);
+
+  ctx.font = "16px system-ui";
+  ctx.fillStyle = "#666";
+  ctx.fillText("Get ready...", W/2, 240);
+
+  var pulse = Math.sin(heartPhase * Math.PI * 2) * 0.5 + 0.5;
+  ctx.strokeStyle = "rgba(255,50,50," + (0.2 + pulse * 0.3) + ")";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(W/2, groundY - 20, 180 + pulse * 20, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function updateWait(dt) {
+  waitTimer += dt * 1000;
+  heartRate = 80 + (waitTimer / waitDuration) * 80;
+  heartPhase += dt * (heartRate / 60);
+  if (heartPhase >= 1) {
+    heartPhase -= 1;
+    playHeartbeat();
+  }
+  // Bluff: show fake "DRAW!" text at bluffAtTime, NO draw sound
+  if (willBluff && !hasBluffed && waitTimer >= bluffAtTime) {
+    hasBluffed = true;
+    bluffTimer = 0;
+    bluffRevealTimer = 0;
+    flashAlpha = 0.8; // visual flash just like real draw
+    // MIRROR: bluffs play draw sound (sound lies — inverted tells)
+    if (activeModifier && activeModifier.id === "mirror") {
+      playDraw();
+    }
+    // Normal: NO playDraw() — silence is the tell
+  }
+  if (hasBluffed) {
+    bluffTimer += dt * 1000;
+    // Bluff text shows for 600ms then fades
+    if (bluffTimer > 600 && bluffRevealTimer === 0) {
+      bluffRevealTimer = 0.001; // start fade
+    }
+    if (bluffRevealTimer > 0) {
+      bluffRevealTimer += dt;
+    }
+  }
+  // DUST STORM: phantom noise pops during wait — confuse audio processing
+  if (activeModifier && activeModifier.id === "dust") {
+    phantomPopTimer += dt * 1000;
+    if (phantomPopTimer > 800 + Math.random() * 1500) {
+      phantomPopTimer = 0;
+      playPhantomPop();
+    }
+  }
+  if (waitTimer >= waitDuration) {
+    triggerDraw();
+  }
+}
+
+function drawWaitOverlay() {
+  ctx.textAlign = "center";
+
+  // Show bluff "DRAW!" text during the bluff window
+  if (hasBluffed && bluffTimer < 900) {
+    var bluffAlpha = bluffTimer < 600 ? 1.0 : Math.max(0, 1.0 - (bluffTimer - 600) / 300);
+    ctx.globalAlpha = bluffAlpha;
+    ctx.font = "bold 64px system-ui";
+    ctx.fillStyle = (activeModifier && activeModifier.id === "mirror") ? "#ff6600" : "#ffcc00";
+    ctx.fillText("DRAW!", W/2, 180);
+    // Fake urgency bar (shrinks fast to sell the bluff)
+    ctx.fillStyle = "#333";
+    ctx.fillRect(150, 200, 300, 8);
+    var fakeProgress = Math.max(0, 1.0 - bluffTimer / 600);
+    ctx.fillStyle = fakeProgress > 0.5 ? "#00cc66" : fakeProgress > 0.2 ? "#ffaa00" : "#ff3333";
+    ctx.fillRect(150, 200, 300 * fakeProgress, 8);
+    ctx.font = "14px system-ui";
+    ctx.fillStyle = "#888";
+    ctx.fillText("⏎ SHOOT!", W/2, 230);
+    ctx.globalAlpha = 1.0;
+
+    // Show "BLUFF!" reveal after the fake fades
+    if (bluffRevealTimer > 0 && bluffRevealTimer < 1.5 && !bluffFooled) {
+      ctx.globalAlpha = Math.min(1.0, bluffRevealTimer * 3);
+      ctx.font = "bold 20px system-ui";
+      ctx.fillStyle = "#888";
+      ctx.fillText("...bluff", W/2, 210);
+      ctx.globalAlpha = 1.0;
+    }
+  } else {
+    ctx.font = "24px system-ui";
+    ctx.fillStyle = "#666";
+    ctx.fillText("Wait for it...", W/2, 140);
+  }
+
+  var intensity = waitTimer / waitDuration;
+  var pulse = Math.sin(heartPhase * Math.PI * 2) * 0.5 + 0.5;
+  ctx.strokeStyle = "rgba(255," + Math.floor(50 - intensity*50) + "," + Math.floor(50 - intensity*50) + "," + (0.15 + pulse * 0.3 + intensity * 0.2) + ")";
+  ctx.lineWidth = 2 + intensity * 2;
+  ctx.beginPath();
+  ctx.arc(W/2, groundY - 20, 180 + pulse * (15 + intensity * 15), 0, Math.PI * 2);
+  ctx.stroke();
+
+  if (micActive) {
+    ctx.font = "12px system-ui";
+    ctx.fillStyle = "#444";
+    ctx.fillText("🎤 " + Math.round(micLevel * 100) + "%", W/2, 580);
+  }
+}
+
+function updateDrawState(dt) {
+  drawTimer += dt * 1000;
+  if (drawTimer >= drawWindow) {
+    tooSlow = true;
+    playShot(false);
+    shakeX = (Math.random() - 0.5) * 15;
+    shakeY = (Math.random() - 0.5) * 10;
+    addParticles(leftX, groundY - 30, "#ff3333", 15);
+    recordResult(false, 0);
+  }
+}
+
+function drawDrawOverlay() {
+  ctx.textAlign = "center";
+  ctx.font = "bold 64px system-ui";
+  ctx.fillStyle = (activeModifier && activeModifier.id === "mirror") ? "#33ff66" : "#ffcc00";
+  ctx.fillText("DRAW!", W/2, 180);
+
+  var pct = drawTimer / drawWindow;
+  ctx.fillStyle = "#333";
+  ctx.fillRect(150, 200, 300, 8);
+  var barColor = pct < 0.5 ? "#00cc66" : pct < 0.8 ? "#ffaa00" : "#ff3333";
+  ctx.fillStyle = barColor;
+  ctx.fillRect(150, 200, 300 * (1 - pct), 8);
+
+  ctx.font = "14px system-ui";
+  ctx.fillStyle = "#888";
+  ctx.fillText("⏎ SHOOT!", W/2, 230);
+}
+
+function updateResult(dt) {
+  resultTimer += dt;
+}
+
+function drawResultOverlay() {
+  ctx.textAlign = "center";
+
+  if (falseStart) {
+    ctx.font = "bold 36px system-ui";
+    ctx.fillStyle = "#ff3333";
+    ctx.fillText("FALSE START", W/2, 140);
+    ctx.font = "18px system-ui";
+    ctx.fillStyle = "#888";
+    ctx.fillText("Drew before the signal", W/2, 170);
+  } else if (bluffFooled) {
+    ctx.font = "bold 36px system-ui";
+    ctx.fillStyle = "#ff8800";
+    ctx.fillText("BLUFF'D!", W/2, 140);
+    ctx.font = "18px system-ui";
+    ctx.fillStyle = "#888";
+    ctx.fillText(activeModifier && activeModifier.id === "mirror" ? "In MIRROR, sound lies — watch the color" : "Listen for the draw sound — no sound, no draw", W/2, 170);
+  } else if (tooSlow) {
+    ctx.font = "bold 36px system-ui";
+    ctx.fillStyle = "#ff3333";
+    ctx.fillText("TOO SLOW", W/2, 140);
+    ctx.font = "18px system-ui";
+    ctx.fillStyle = "#888";
+    ctx.fillText("Window: " + Math.round(drawWindow) + "ms", W/2, 170);
+  } else {
+    var rating = getRating(reactionTime);
+    ctx.font = "bold 48px system-ui";
+    ctx.fillStyle = rating.color;
+    ctx.fillText(reactionTime + "ms", W/2, 130);
+    ctx.font = "bold 24px system-ui";
+    ctx.fillText(rating.text, W/2, 170);
+
+    if (reactionTime <= allTimeBest) {
+      ctx.font = "bold 16px system-ui";
+      ctx.fillStyle = "#ffd700";
+      ctx.fillText("★ NEW RECORD ★", W/2, 195);
+    }
+  }
+
+  // Rank up notification
+  if (rankUpPending && resultTimer > 0.3) {
+    var rank = getRank();
+    ctx.font = "bold 18px system-ui";
+    ctx.fillStyle = "#ff8c00";
+    ctx.fillText("⬆ RANKED UP: " + rank.emoji + " " + rank.name + " ⬆", W/2, 225);
+    ctx.font = "13px system-ui";
+    ctx.fillStyle = "#888";
+    ctx.fillText(rank.bonus, W/2, 245);
+  }
+
+  if (resultTimer > 0.8) {
+    ctx.font = "16px system-ui";
+    ctx.fillStyle = "#666";
+    if (modeIndex === 2) {
+      ctx.fillText("Streak: " + wins, W/2, 560);
+    } else {
+      ctx.fillText("Duel " + duelNum + "/" + (modeIndex === 1 ? "20" : seriesSize) + "  |  W:" + wins + " L:" + losses, W/2, 560);
+    }
+    ctx.fillText("⏎ Next", W/2, 580);
+  }
+}
+
+function drawSeriesEnd() {
+  ctx.textAlign = "center";
+
+  ctx.font = "bold 36px system-ui";
+  ctx.fillStyle = "#c8c8c8";
+  ctx.fillText("SERIES OVER", W/2, 80);
+
+  var g = getGrade();
+  ctx.font = "bold 72px system-ui";
+  ctx.fillStyle = g.color;
+  ctx.fillText(g.grade, W/2, 165);
+
+  // Stats
+  ctx.font = "18px system-ui";
+  ctx.fillStyle = "#aaa";
+  var statsY = 200;
+  ctx.fillText("Wins: " + wins + "  |  Losses: " + losses, W/2, statsY);
+  if (times.length > 0) {
+    var avg = 0;
+    for (var i = 0; i < times.length; i++) avg += times[i];
+    avg = Math.round(avg / times.length);
+    statsY += 25;
+    ctx.fillText("Avg: " + avg + "ms  |  Best: " + bestTime + "ms  |  Worst: " + worstTime + "ms", W/2, statsY);
+  }
+
+  // Time bars
+  if (times.length > 0) {
+    statsY += 20;
+    var barW = Math.min(30, (400 / times.length) - 2);
+    var startX = W/2 - (times.length * (barW + 2)) / 2;
+    for (var i = 0; i < times.length; i++) {
+      var t = times[i];
+      var h = Math.min(80, t / 5);
+      var rating = getRating(t);
+      ctx.fillStyle = rating.color;
+      ctx.fillRect(startX + i * (barW + 2), statsY + 80 - h, barW, h);
+      ctx.font = "9px system-ui";
+      ctx.fillText(t, startX + i * (barW + 2) + barW/2, statsY + 93);
+    }
+  }
+
+  // Rank progress section
+  var rpY = 430;
+  var rank = getRank();
+  var next = getNextRank();
+  ctx.font = "bold 18px system-ui";
+  ctx.fillStyle = "#e8e8e8";
+  ctx.fillText(rank.emoji + " " + rank.name, W/2, rpY);
+
+  if (next) {
+    var prog = totalWins / next.wins;
+    ctx.font = "13px system-ui";
+    ctx.fillStyle = "#666";
+    ctx.fillText(totalWins + " / " + next.wins + " wins → " + next.emoji + " " + next.name, W/2, rpY + 20);
+    var bw = 200, bh = 6, bx = W/2 - bw/2, by = rpY + 28;
+    ctx.fillStyle = "#222";
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = "#ff8c00";
+    ctx.fillRect(bx, by, bw * Math.min(prog, 1), bh);
+  } else {
+    ctx.font = "13px system-ui";
+    ctx.fillStyle = "#ffd700";
+    ctx.fillText("★ Maximum rank achieved ★", W/2, rpY + 20);
+  }
+
+  // Rank up announcement
+  if (rankUpPending) {
+    ctx.font = "bold 16px system-ui";
+    ctx.fillStyle = "#ff8c00";
+    ctx.fillText("⬆ RANKED UP: " + rank.emoji + " " + rank.name + "! ⬆", W/2, rpY + 55);
+  }
+
+  // All-time stats
+  ctx.font = "14px system-ui";
+  ctx.fillStyle = "#555";
+  ctx.fillText("All-time best: " + (allTimeBest < 9999 ? allTimeBest + "ms" : "--") + "  |  Win rate: " + (totalDuels > 0 ? Math.round(totalWins/totalDuels*100) : 0) + "%", W/2, 510);
+
+  if (modeIndex === 2) {
+    ctx.fillStyle = "#888";
+    ctx.fillText("Streak: " + wins + (wins > allTimeBestStreak ? " ★ NEW BEST" : " (Best: " + allTimeBestStreak + ")"), W/2, 530);
+  }
+
+  // Bluff stats
+  if (bluffsCaught + bluffsFooled > 0) {
+    ctx.font = "13px system-ui";
+    ctx.fillStyle = bluffsCaught > bluffsFooled ? "#66cc66" : "#ff8800";
+    ctx.fillText("Bluffs: " + bluffsCaught + " caught, " + bluffsFooled + " fooled", W/2, 545);
+  }
+
+  ctx.font = "18px system-ui";
+  ctx.fillStyle = "#00aaff";
+  ctx.fillText("⏎ Again  |  Esc Title", W/2, 565);
+}
+
+function drawHUD() {
+  if (state === "title" || state === "series_end") return;
+
+  ctx.textAlign = "left";
+  ctx.font = "14px system-ui";
+  ctx.fillStyle = "#555";
+  if (modeIndex === 2) {
+    ctx.fillText("ENDURANCE  Streak:" + wins, 15, 25);
+  } else {
+    ctx.fillText(modes[modeIndex] + "  " + duelNum + "/" + (modeIndex === 1 ? 20 : seriesSize), 15, 25);
+  }
+
+  ctx.textAlign = "right";
+  ctx.fillText("W:" + wins + " L:" + losses, W - 15, 25);
+
+  // Rank in HUD
+  var rank = getRank();
+  ctx.textAlign = "center";
+  ctx.font = "12px system-ui";
+  ctx.fillStyle = "#444";
+  ctx.fillText(rank.emoji + " " + rank.name, W/2, 590);
+
+  if (micActive && micLevel > 0.05) {
+    ctx.font = "11px system-ui";
+    ctx.fillStyle = "#444";
+    ctx.fillText("🎤 " + Math.round(drawWindow) + "ms window", W/2, 25);
+  }
+}
+
+// Input
+document.addEventListener("keydown", function(e) {
+  if (e.key === 'm' || e.key === 'M') { bgmToggle(); return; }
+  e.preventDefault();
+  initAudio(); if(!bgmAudio) bgmInit(); bgmPlay();
+  initMic();
+
+  if (state === "title") {
+    if (e.key === "ArrowUp") focusIndex = Math.max(0, focusIndex - 1);
+    if (e.key === "ArrowDown") focusIndex = Math.min(1, focusIndex + 1);
+    if (e.key === "ArrowLeft" && focusIndex === 1) modeIndex = (modeIndex + modes.length - 1) % modes.length;
+    if (e.key === "ArrowRight" && focusIndex === 1) modeIndex = (modeIndex + 1) % modes.length;
+    if (e.key === "Enter" && focusIndex === 0) startSeries();
+  } else if (state === "modifier_announce") {
+    // Any key skips the announce (except Escape which exits)
+    if (e.key === "Enter") { state = "countdown"; }
+  } else if (state === "wait") {
+    if (e.key === "Enter") {
+      // Check if player was fooled by a bluff
+      if (hasBluffed && bluffTimer < 900) {
+        // Fooled by bluff — same as false start but different message
+        bluffFooled = true;
+        bluffsFooled++;
+        playFalseStart();
+        shakeX = (Math.random() - 0.5) * 10;
+        shakeY = (Math.random() - 0.5) * 8;
+        addParticles(leftX, groundY - 30, "#ffaa00", 10);
+        recordResult(false, 0);
+      } else {
+        falseStart = true;
+        playFalseStart();
+        shakeX = (Math.random() - 0.5) * 10;
+        shakeY = (Math.random() - 0.5) * 8;
+        addParticles(leftX, groundY - 30, "#ffaa00", 10);
+        recordResult(false, 0);
+      }
+    }
+  } else if (state === "draw") {
+    if (e.key === "Enter") {
+      reactionTime = Math.round(drawTimer);
+      playShot(true);
+      flashAlpha = 0.8;
+      shakeX = (Math.random() - 0.5) * 12;
+      shakeY = (Math.random() - 0.5) * 8;
+      addParticles(rightX, groundY - 30, "#ffcc00", 20);
+      addParticles(leftX + 40, groundY - 25, "#ff6600", 8);
+      recordResult(true, reactionTime);
+    }
+  } else if (state === "result") {
+    if (e.key === "Enter" && resultTimer > 0.5) {
+      if (rankUpPending) {
+        playRankUp();
+        rankUpPending = false;
+      }
+      if (isSeriesOver()) {
+        if (modeIndex === 2 && wins > allTimeBestStreak) {
+          allTimeBestStreak = wins;
+          localStorage.setItem("duel_streak", String(allTimeBestStreak));
+        }
+        state = "series_end";
+      } else {
+        startDuel();
+      }
+    }
+  } else if (state === "series_end") {
+    if (e.key === "Enter") startSeries();
+    if (e.key === "Escape") { state = "title"; focusIndex = 0; }
+  } else if (state === "countdown") {
+    // No input during countdown
+  }
+
+  if (e.key === "Escape" && state !== "title" && state !== "series_end") {
+    state = "title";
+    focusIndex = 0;
+    activeModifier = null;
+  }
+});
+
+requestAnimationFrame(frame);
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../touch-controls.js"></script>
+</body>
+</html>

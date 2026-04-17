@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Fisher — LITF Games</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;font-family:system-ui,-apple-system,sans-serif}
+canvas{display:block}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+var W = 600, H = 600;
+
+// Audio context
+var audioCtx = null;
+var analyser = null;
+var micLevel = 0;
+var micSmooth = 0;
+var micActive = false;
+var micFailed = false;
+
+// Game states
+var STATE_TITLE = 0, STATE_CASTING = 1, STATE_WAITING = 2, STATE_BITE = 3, STATE_REELING = 4, STATE_CAUGHT = 5, STATE_MISSED = 6, STATE_LOG = 7;
+var state = STATE_TITLE;
+
+// Fish species (25 total)
+var FISH = [
+  {name:'Bluegill',     color:'#4488cc', size:1, rarity:1, minDepth:0, maxDepth:2, points:10},
+  {name:'Perch',        color:'#88aa44', size:1, rarity:1, minDepth:0, maxDepth:3, points:15},
+  {name:'Crappie',      color:'#99aacc', size:1, rarity:1, minDepth:0, maxDepth:2, points:12},
+  {name:'Bass',         color:'#448844', size:2, rarity:2, minDepth:1, maxDepth:4, points:25},
+  {name:'Catfish',      color:'#886644', size:2, rarity:2, minDepth:2, maxDepth:5, points:30},
+  {name:'Walleye',      color:'#ccaa44', size:2, rarity:2, minDepth:1, maxDepth:4, points:28},
+  {name:'Trout',        color:'#66aa88', size:2, rarity:2, minDepth:1, maxDepth:3, points:35},
+  {name:'Pike',         color:'#556644', size:3, rarity:3, minDepth:2, maxDepth:5, points:50},
+  {name:'Salmon',       color:'#cc6655', size:3, rarity:3, minDepth:2, maxDepth:5, points:55},
+  {name:'Red Snapper',  color:'#cc4444', size:2, rarity:3, minDepth:3, maxDepth:6, points:60},
+  {name:'Carp',         color:'#aa8844', size:3, rarity:2, minDepth:1, maxDepth:4, points:20},
+  {name:'Striped Bass', color:'#668888', size:3, rarity:3, minDepth:2, maxDepth:5, points:45},
+  {name:'Mahi-Mahi',    color:'#44ccaa', size:3, rarity:4, minDepth:3, maxDepth:6, points:75},
+  {name:'Tuna',         color:'#3366aa', size:4, rarity:4, minDepth:4, maxDepth:6, points:90},
+  {name:'Swordfish',    color:'#5555aa', size:4, rarity:4, minDepth:4, maxDepth:6, points:100},
+  {name:'Barracuda',    color:'#778899', size:3, rarity:3, minDepth:3, maxDepth:5, points:65},
+  {name:'Grouper',      color:'#885544', size:3, rarity:3, minDepth:3, maxDepth:6, points:70},
+  {name:'Flounder',     color:'#998866', size:2, rarity:2, minDepth:2, maxDepth:4, points:40},
+  {name:'Eel',          color:'#445566', size:2, rarity:3, minDepth:3, maxDepth:6, points:55},
+  {name:'Halibut',      color:'#776655', size:4, rarity:4, minDepth:4, maxDepth:6, points:85},
+  {name:'Wahoo',        color:'#3399aa', size:3, rarity:4, minDepth:4, maxDepth:6, points:80},
+  {name:'Tarpon',       color:'#aabbcc', size:4, rarity:4, minDepth:3, maxDepth:5, points:95},
+  {name:'Sailfish',     color:'#4466bb', size:5, rarity:5, minDepth:5, maxDepth:6, points:150},
+  {name:'Marlin',       color:'#2244aa', size:5, rarity:5, minDepth:5, maxDepth:6, points:200},
+  {name:'Giant Squid',  color:'#663366', size:5, rarity:5, minDepth:6, maxDepth:6, points:300}
+];
+
+// Depth spots
+var SPOTS = [
+  {name:'Pond',      depth:1, color:'#1a3344'},
+  {name:'Lake',      depth:2, color:'#163040'},
+  {name:'River',     depth:3, color:'#122a3a'},
+  {name:'Coast',     depth:4, color:'#0e2434'},
+  {name:'Reef',      depth:5, color:'#0a1e2e'},
+  {name:'Deep Sea',  depth:6, color:'#061828'}
+];
+var currentSpot = 0;
+
+// Game vars
+var castAngle = 0;
+var castDir = 1;
+var castPower = 0;
+var castPhase = 0; // 0=aim, 1=power
+var lineX = 300, lineY = 200;
+var bobberX = 0, bobberY = 0;
+var waitTimer = 0;
+var waitDuration = 0;
+var nibbleCount = 0;
+var nibbleTimer = 0;
+var biteTimer = 0;
+var biteWindow = 0;
+var currentFish = null;
+var reelProgress = 0;
+var reelTarget = 0;
+var reelFight = 0;
+var reelFightDir = 0;
+var reelFightTimer = 0;
+var catchAnim = 0;
+var missAnim = 0;
+var sessionCatch = [];
+
+// Legendary Encounters — rare events that transform the fishing loop
+var LEGENDARIES = [
+  {id:'moonBite',    name:'🌕 Moon Frenzy',    desc:'Full moon triggers a feeding frenzy — double bite speed!'},
+  {id:'goldenHook',  name:'🪝 Golden Hook',    desc:'A golden glint on the line — next catch is worth 3×!'},
+  {id:'seaStorm',    name:'⛈️ Squall',         desc:'Storm rolls in — bigger fish, but shorter bite window!'},
+  {id:'ghostShip',   name:'👻 Ghost Ship',     desc:'A spectral vessel passes — all fish flee, then rare ones flood in.'},
+  {id:'doubleLine',  name:'🎣 Double Hook',    desc:'Two fish on one line! Reel both for double the catch.'},
+  {id:'leviathan',   name:'🐉 The Leviathan',  desc:'Something massive stirs the deep...'}
+];
+var legendaryLog = {};
+try { var savedLeg = localStorage.getItem('fisher_legendary'); if (savedLeg) legendaryLog = JSON.parse(savedLeg); } catch(e) {}
+function saveLegendaryLog() { try { localStorage.setItem('fisher_legendary', JSON.stringify(legendaryLog)); } catch(e){} }
+var activeLegendary = null;
+var legendaryTimer = 0;
+var legendaryToast = '';
+var legendaryToastTimer = 0;
+var goldenHookActive = false;
+var doubleHookActive = false;
+var stormActive = false;
+var ghostShipPhase = 0; // 0=none,1=fleeing,2=rare flood
+var ghostShipTimer = 0;
+var leviathanFight = false;
+
+// Rank progression
+var RANKS = [
+  {name:'Novice',     threshold:0,   biteWindow:0,   reelBonus:0,    rarityBonus:0, fightSlow:0},
+  {name:'Angler',     threshold:10,  biteWindow:0.08, reelBonus:0.05, rarityBonus:0.3, fightSlow:0.04},
+  {name:'Deckhand',   threshold:30,  biteWindow:0.15, reelBonus:0.10, rarityBonus:0.6, fightSlow:0.08},
+  {name:'Boatswain',  threshold:60,  biteWindow:0.20, reelBonus:0.15, rarityBonus:1.0, fightSlow:0.12},
+  {name:'Captain',    threshold:120, biteWindow:0.25, reelBonus:0.18, rarityBonus:1.3, fightSlow:0.16},
+  {name:'Skipper',    threshold:200, biteWindow:0.30, reelBonus:0.22, rarityBonus:1.6, fightSlow:0.20},
+  {name:'Admiral',    threshold:350, biteWindow:0.35, reelBonus:0.26, rarityBonus:2.0, fightSlow:0.23},
+  {name:'Sea Legend',  threshold:500, biteWindow:0.40, reelBonus:0.30, rarityBonus:2.5, fightSlow:0.25}
+];
+var stats = {totalCatches:0, totalPoints:0, bestSession:0, gamesPlayed:0};
+try {
+  var savedStats = localStorage.getItem('fisher_stats');
+  if (savedStats) stats = JSON.parse(savedStats);
+} catch(e) {}
+var rankUpPending = false;
+var prevRankIdx = getRankIdx();
+
+function getRankIdx() {
+  for (var i = RANKS.length - 1; i >= 0; i--) {
+    if (stats.totalCatches >= RANKS[i].threshold) return i;
+  }
+  return 0;
+}
+function getRank() { return RANKS[getRankIdx()]; }
+function saveStats() {
+  try { localStorage.setItem('fisher_stats', JSON.stringify(stats)); } catch(e) {}
+}
+
+// Water animation
+var waterTime = 0;
+var ripples = [];
+var bubbles = [];
+var bgFish = [];
+
+// Log
+var logScroll = 0;
+var fishLog = {};
+
+// Load saved log
+try {
+  var saved = localStorage.getItem('fisher_log');
+  if (saved) fishLog = JSON.parse(saved);
+} catch(e) {}
+
+// Audio helpers
+function initAudio() {
+  if (audioCtx) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+// === BGM System ===
+var bgmAudio = null, bgmGameover = null, bgmMuted = false, bgmStarted = false;
+function bgmInit() {
+  bgmAudio = new Audio('audio/fisher-bgm.mp3');
+  bgmAudio.loop = true;
+  bgmAudio.volume = 0.15;
+  bgmGameover = new Audio('audio/gameover-gentle.mp3');
+  bgmGameover.volume = 0.25;
+}
+function bgmPlay() {
+  if (bgmMuted || !bgmAudio) return;
+  if (!bgmStarted) { bgmAudio.currentTime = 0; bgmStarted = true; }
+  bgmAudio.play().catch(function(){});
+}
+function bgmStop() { if (bgmAudio) { bgmAudio.pause(); } bgmStarted = false; }
+function bgmGameOver() {
+  bgmStop();
+  if (bgmMuted || !bgmGameover) return;
+  bgmGameover.currentTime = 0;
+  bgmGameover.play().catch(function(){});
+}
+function bgmToggle() {
+  bgmMuted = !bgmMuted;
+  if (bgmMuted) { if (bgmAudio) bgmAudio.pause(); }
+  else bgmPlay();
+}
+ catch(e) {}
+}
+
+function initMic() {
+  if (micActive || micFailed || !audioCtx) return;
+  micFailed = true;
+  try {
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      micFailed = false;
+      micActive = true;
+      var src = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+      src.connect(analyser);
+    }).catch(function(){micFailed = true;});
+  } catch(e) {micFailed = true;}
+}
+
+function playTone(freq, dur, type, vol) {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(vol || 0.1, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (dur || 0.3));
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + (dur || 0.3));
+}
+
+function playSplash() {
+  if (!audioCtx) return;
+  var bufSize = audioCtx.sampleRate * 0.4;
+  var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  var data = buf.getChannelData(0);
+  for (var i = 0; i < bufSize; i++) {
+    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.15));
+  }
+  var src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  var lp = audioCtx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 800;
+  var gain = audioCtx.createGain();
+  gain.gain.value = 0.15;
+  src.connect(lp);
+  lp.connect(gain);
+  gain.connect(audioCtx.destination);
+  src.start();
+}
+
+function playBubble(pan) {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  var panner = audioCtx.createStereoPanner();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(600 + Math.random() * 400, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.15);
+  gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+  panner.pan.value = pan || 0;
+  osc.connect(gain);
+  gain.connect(panner);
+  panner.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.15);
+}
+
+function playBiteAlert() {
+  if (!audioCtx) return;
+  for (var i = 0; i < 3; i++) {
+    (function(delay){
+      setTimeout(function(){
+        playTone(880, 0.08, 'sine', 0.12);
+      }, delay);
+    })(i * 100);
+  }
+}
+
+function playReelClick() {
+  if (!audioCtx) return;
+  playTone(1200 + Math.random() * 200, 0.03, 'square', 0.04);
+}
+
+function playCatchFanfare(fish) {
+  if (!audioCtx) return;
+  var notes = fish.rarity >= 4 ? [523, 659, 784, 1047] : [523, 659, 784];
+  notes.forEach(function(n, i){
+    setTimeout(function(){ playTone(n, 0.3, 'triangle', 0.1); }, i * 150);
+  });
+}
+
+function playMiss() {
+  if (!audioCtx) return;
+  playTone(300, 0.3, 'sawtooth', 0.06);
+  setTimeout(function(){ playTone(200, 0.4, 'sawtooth', 0.04); }, 150);
+}
+
+function playRankUpChime() {
+  if (!audioCtx) return;
+  var notes = [523, 659, 784, 1047];
+  notes.forEach(function(n, i){
+    setTimeout(function(){ playTone(n, 0.35, 'triangle', 0.12); }, i * 180);
+  });
+}
+
+function playLegendaryChime() {
+  if (!audioCtx) return;
+  // Eerie ascending chime — different from rank up
+  var notes = [330, 440, 554, 660, 880];
+  notes.forEach(function(n, i){
+    setTimeout(function(){ playTone(n, 0.5, 'sine', 0.08); }, i * 120);
+  });
+}
+
+function playStormAmbience() {
+  if (!audioCtx) return;
+  // Low rumble
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.value = 50 + Math.random() * 30;
+  gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + 1.5);
+}
+
+function playGhostShipSound() {
+  if (!audioCtx) return;
+  // Haunting low horn
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(110, audioCtx.currentTime);
+  osc.frequency.linearRampToValueAtTime(98, audioCtx.currentTime + 2);
+  gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 2);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + 2);
+}
+
+function playLeviathanRumble() {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(35, audioCtx.currentTime);
+  osc.frequency.linearRampToValueAtTime(25, audioCtx.currentTime + 3);
+  gain.gain.setValueAtTime(0.07, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 3);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + 3);
+}
+
+// Check if a legendary event triggers during waiting phase
+function tryLegendaryEncounter() {
+  if (activeLegendary) return; // only one per cast
+  // ~20% chance per cast (higher at deeper spots)
+  var chance = 0.12 + currentSpot * 0.03;
+  if (Math.random() > chance) return;
+  // Pick a random legendary
+  var idx = Math.floor(Math.random() * LEGENDARIES.length);
+  var leg = LEGENDARIES[idx];
+  // Leviathan only at depth 5+
+  if (leg.id === 'leviathan' && SPOTS[currentSpot].depth < 5) {
+    idx = Math.floor(Math.random() * (LEGENDARIES.length - 1)); // re-pick excluding leviathan
+    leg = LEGENDARIES[idx];
+  }
+  activeLegendary = leg;
+  legendaryTimer = 0;
+  legendaryToast = leg.name + ' — ' + leg.desc;
+  legendaryToastTimer = 180; // 3 seconds
+  playLegendaryChime();
+  // Track discovery
+  if (!legendaryLog[leg.id]) {
+    legendaryLog[leg.id] = 1;
+    saveLegendaryLog();
+  } else {
+    legendaryLog[leg.id]++;
+    saveLegendaryLog();
+  }
+  // Apply effects
+  if (leg.id === 'goldenHook') goldenHookActive = true;
+  if (leg.id === 'seaStorm') { stormActive = true; playStormAmbience(); }
+  if (leg.id === 'ghostShip') { ghostShipPhase = 1; ghostShipTimer = 0; playGhostShipSound(); }
+  if (leg.id === 'doubleLine') doubleHookActive = true;
+  if (leg.id === 'leviathan') { leviathanFight = true; playLeviathanRumble(); }
+}
+
+// Reel tension audio
+var tensionOsc = null;
+var tensionGain = null;
+var tensionFilter = null;
+var lastFightDir = 1;
+
+function startTensionDrone() {
+  if (!audioCtx || tensionOsc) return;
+  tensionOsc = audioCtx.createOscillator();
+  tensionGain = audioCtx.createGain();
+  tensionFilter = audioCtx.createBiquadFilter();
+  tensionOsc.type = 'sine';
+  tensionOsc.frequency.value = 120;
+  tensionFilter.type = 'lowpass';
+  tensionFilter.frequency.value = 300;
+  tensionGain.gain.value = 0;
+  tensionOsc.connect(tensionFilter);
+  tensionFilter.connect(tensionGain);
+  tensionGain.connect(audioCtx.destination);
+  tensionOsc.start();
+}
+
+function updateTensionAudio(fightPos) {
+  if (!tensionOsc || !audioCtx) return;
+  var t = audioCtx.currentTime;
+  var stress = Math.abs(fightPos) / 50;
+  tensionOsc.frequency.setTargetAtTime(120 + stress * 160, t, 0.1);
+  tensionGain.gain.setTargetAtTime(stress * 0.06, t, 0.08);
+  var newType = stress > 0.6 ? 'sawtooth' : stress > 0.3 ? 'triangle' : 'sine';
+  if (tensionOsc.type !== newType) tensionOsc.type = newType;
+  tensionFilter.frequency.setTargetAtTime(300 + stress * 1200, t, 0.1);
+}
+
+function stopTensionDrone() {
+  if (tensionGain && audioCtx) {
+    tensionGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+  }
+  setTimeout(function(){
+    if (tensionOsc) { try{tensionOsc.stop();}catch(e){} tensionOsc = null; }
+    tensionGain = null; tensionFilter = null;
+  }, 200);
+}
+
+function playTugSound(dir) {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  var panner = audioCtx.createStereoPanner();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.2);
+  gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+  panner.pan.value = dir > 0 ? 0.7 : -0.7;
+  osc.connect(gain);
+  gain.connect(panner);
+  panner.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.2);
+}
+
+function playLineStrain() {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(40 + Math.random() * 20, audioCtx.currentTime);
+  gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.15);
+}
+
+// Water noise
+var waterNoise = null;
+var waterGain = null;
+function startWaterAmbience() {
+  if (!audioCtx || waterNoise) return;
+  var bufSize = audioCtx.sampleRate * 2;
+  var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  var data = buf.getChannelData(0);
+  for (var i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+  waterNoise = audioCtx.createBufferSource();
+  waterNoise.buffer = buf;
+  waterNoise.loop = true;
+  var lp = audioCtx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 400;
+  waterGain = audioCtx.createGain();
+  waterGain.gain.value = 0.02;
+  waterNoise.connect(lp);
+  lp.connect(waterGain);
+  waterGain.connect(audioCtx.destination);
+  waterNoise.start();
+}
+
+// Update mic level
+function updateMic() {
+  if (!analyser) return;
+  var data = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(data);
+  var sum = 0;
+  for (var i = 0; i < data.length; i++) sum += data[i];
+  micLevel = sum / data.length / 255;
+  micSmooth += (micLevel - micSmooth) * 0.08;
+}
+
+// Pick a fish for current spot
+function pickFish() {
+  var spot = SPOTS[currentSpot];
+  var candidates = FISH.filter(function(f){
+    return spot.depth >= f.minDepth && spot.depth <= f.maxDepth;
+  });
+  // Weight by inverse rarity
+  var weighted = [];
+  var rarityBonus = getRank().rarityBonus;
+  candidates.forEach(function(f){
+    var w = Math.max(1, 6 - f.rarity);
+    // Higher rank gives better rare fish chance
+    if (f.rarity >= 3) w += Math.floor(rarityBonus);
+    // Mic: loud environment makes rare fish even rarer
+    if (micActive) w = Math.max(1, w - micSmooth * 3);
+    for (var i = 0; i < w; i++) weighted.push(f);
+  });
+  return weighted[Math.floor(Math.random() * weighted.length)] || FISH[0];
+}
+
+// Background fish
+function spawnBgFish() {
+  if (bgFish.length > 12) return;
+  var spot = SPOTS[currentSpot];
+  var y = 280 + Math.random() * 280;
+  var dir = Math.random() > 0.5 ? 1 : -1;
+  var depth = (y - 280) / 280;
+  bgFish.push({
+    x: dir > 0 ? -20 : W + 20,
+    y: y,
+    vx: (0.3 + Math.random() * 0.8) * dir,
+    size: 4 + Math.random() * 8 + depth * 6,
+    color: FISH[Math.floor(Math.random() * Math.min(FISH.length, spot.depth * 4 + 2))].color,
+    tailPhase: Math.random() * Math.PI * 2
+  });
+}
+
+// Add ripple
+function addRipple(x, y, maxR, speed) {
+  ripples.push({x:x, y:y, r:0, maxR:maxR||30, speed:speed||1, alpha:0.6});
+}
+
+// Input
+var keys = {};
+var keyPressed = {};
+document.addEventListener('keydown', function(e){
+  if (e.key === 'm' || e.key === 'M') { bgmToggle(); return; }
+  if (!keys[e.key]) keyPressed[e.key] = true;
+  keys[e.key] = true;
+  e.preventDefault();
+  initAudio(); if(!bgmAudio) bgmInit();
+  if (!micActive && !micFailed) initMic();
+  startWaterAmbience();
+});
+document.addEventListener('keyup', function(e){
+  keys[e.key] = false;
+});
+
+function wasPressed(key) {
+  if (keyPressed[key]) { keyPressed[key] = false; return true; }
+  return false;
+}
+
+// Draw water
+function drawWater() {
+  var spot = SPOTS[currentSpot];
+  // Sky gradient
+  var skyGrad = ctx.createLinearGradient(0, 0, 0, 260);
+  skyGrad.addColorStop(0, '#0a1520');
+  skyGrad.addColorStop(1, '#102030');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, 260);
+
+  // Stars
+  if (waterTime < 100) {
+    // Seed stars once conceptually — just draw them each frame with fixed seed
+  }
+  for (var s = 0; s < 30; s++) {
+    var sx = ((s * 137 + 42) % W);
+    var sy = ((s * 89 + 17) % 200);
+    var sb = 0.3 + Math.sin(waterTime * 0.02 + s) * 0.2;
+    ctx.fillStyle = 'rgba(255,255,255,' + sb + ')';
+    ctx.fillRect(sx, sy, 1.5, 1.5);
+  }
+
+  // Moon
+  ctx.beginPath();
+  ctx.arc(480, 60, 25, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(220,220,200,0.15)';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(480, 60, 22, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(240,240,220,0.2)';
+  ctx.fill();
+
+  // Water
+  var waterGrad = ctx.createLinearGradient(0, 260, 0, H);
+  waterGrad.addColorStop(0, spot.color);
+  var deepColor = '#040e18';
+  waterGrad.addColorStop(1, deepColor);
+  ctx.fillStyle = waterGrad;
+  ctx.fillRect(0, 260, W, H - 260);
+
+  // Water surface waves
+  ctx.beginPath();
+  ctx.moveTo(0, 260);
+  for (var wx = 0; wx <= W; wx += 4) {
+    var wy = 260 + Math.sin(wx * 0.02 + waterTime * 0.03) * 3 + Math.sin(wx * 0.05 + waterTime * 0.05) * 1.5;
+    ctx.lineTo(wx, wy);
+  }
+  ctx.lineTo(W, 270);
+  ctx.lineTo(0, 270);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(100,180,220,0.08)';
+  ctx.fill();
+
+  // Moon reflection
+  ctx.fillStyle = 'rgba(220,220,200,0.04)';
+  for (var mr = 0; mr < 8; mr++) {
+    var mrx = 480 + Math.sin(waterTime * 0.04 + mr * 0.8) * (10 + mr * 3);
+    var mry = 270 + mr * 15;
+    ctx.fillRect(mrx - 8, mry, 16, 2);
+  }
+}
+
+// Draw background fish
+function drawBgFish() {
+  bgFish.forEach(function(f){
+    f.x += f.vx;
+    f.tailPhase += 0.15;
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    if (f.vx < 0) ctx.scale(-1, 1);
+    ctx.fillStyle = f.color;
+    ctx.globalAlpha = 0.3;
+    // Body
+    ctx.beginPath();
+    ctx.ellipse(0, 0, f.size, f.size * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Tail
+    ctx.beginPath();
+    ctx.moveTo(-f.size * 0.8, 0);
+    var tailY = Math.sin(f.tailPhase) * f.size * 0.3;
+    ctx.lineTo(-f.size * 1.4, -f.size * 0.3 + tailY);
+    ctx.lineTo(-f.size * 1.4, f.size * 0.3 + tailY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  });
+  bgFish = bgFish.filter(function(f){ return f.x > -30 && f.x < W + 30; });
+}
+
+// Draw ripples
+function drawRipples() {
+  ripples.forEach(function(r){
+    r.r += r.speed;
+    r.alpha -= 0.015;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(150,200,230,' + Math.max(0, r.alpha) + ')';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+  ripples = ripples.filter(function(r){ return r.alpha > 0; });
+}
+
+// Draw bubbles
+function drawBubbles() {
+  bubbles.forEach(function(b){
+    b.y -= b.vy;
+    b.x += Math.sin(b.phase) * 0.3;
+    b.phase += 0.08;
+    b.alpha -= 0.008;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(150,200,230,' + Math.max(0, b.alpha) + ')';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  });
+  bubbles = bubbles.filter(function(b){ return b.alpha > 0 && b.y > 260; });
+}
+
+function addBubbles(x, y, count) {
+  for (var i = 0; i < count; i++) {
+    bubbles.push({
+      x: x + (Math.random() - 0.5) * 20,
+      y: y + Math.random() * 10,
+      r: 1 + Math.random() * 3,
+      vy: 0.3 + Math.random() * 0.5,
+      phase: Math.random() * Math.PI * 2,
+      alpha: 0.5 + Math.random() * 0.3
+    });
+  }
+}
+
+// Draw fishing line
+function drawLine(fromX, fromY, toX, toY) {
+  ctx.beginPath();
+  ctx.moveTo(fromX, fromY);
+  var midX = (fromX + toX) / 2;
+  var midY = Math.max(fromY, toY) - 20;
+  ctx.quadraticCurveTo(midX, midY, toX, toY);
+  ctx.strokeStyle = 'rgba(200,200,200,0.5)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+// Draw bobber
+function drawBobber(x, y, biting) {
+  var bobY = y + Math.sin(waterTime * 0.06) * 2;
+  if (biting) bobY += Math.sin(waterTime * 0.4) * 4;
+
+  // Float body
+  ctx.beginPath();
+  ctx.arc(x, bobY - 4, 5, 0, Math.PI * 2);
+  ctx.fillStyle = biting ? '#ff4444' : '#ff6644';
+  ctx.fill();
+
+  // White bottom
+  ctx.beginPath();
+  ctx.arc(x, bobY + 2, 3, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+
+  // Ripple around bobber
+  if (waterTime % 60 < 2) addRipple(x, bobY + 5, 15, 0.5);
+
+  return bobY;
+}
+
+// Draw rod (from shore)
+function drawRod() {
+  var rodBaseX = 80, rodBaseY = 250;
+  var rodTipX = 180, rodTipY = 180;
+  ctx.beginPath();
+  ctx.moveTo(rodBaseX, rodBaseY);
+  ctx.quadraticCurveTo(130, 200, rodTipX, rodTipY);
+  ctx.strokeStyle = '#8B7355';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.strokeStyle = '#A08060';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // Handle
+  ctx.beginPath();
+  ctx.moveTo(rodBaseX, rodBaseY);
+  ctx.lineTo(rodBaseX - 20, rodBaseY + 15);
+  ctx.strokeStyle = '#5C4033';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  // Reel
+  ctx.beginPath();
+  ctx.arc(rodBaseX + 15, rodBaseY - 5, 6, 0, Math.PI * 2);
+  ctx.fillStyle = '#666';
+  ctx.fill();
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  return {tipX: rodTipX, tipY: rodTipY};
+}
+
+// Shore/bank
+function drawShore() {
+  ctx.fillStyle = '#1a1510';
+  ctx.beginPath();
+  ctx.moveTo(0, 260);
+  ctx.quadraticCurveTo(60, 245, 120, 255);
+  ctx.quadraticCurveTo(150, 260, 160, 265);
+  ctx.lineTo(160, H);
+  ctx.lineTo(0, H);
+  ctx.closePath();
+  ctx.fill();
+
+  // Grass tufts
+  ctx.strokeStyle = '#2a3a20';
+  ctx.lineWidth = 1.5;
+  for (var g = 0; g < 8; g++) {
+    var gx = 10 + g * 18;
+    var gy = 248 + Math.sin(g * 1.5) * 5;
+    ctx.beginPath();
+    ctx.moveTo(gx, gy);
+    ctx.lineTo(gx - 3, gy - 12 - Math.sin(waterTime * 0.04 + g) * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(gx + 4, gy);
+    ctx.lineTo(gx + 7, gy - 10 - Math.sin(waterTime * 0.04 + g + 1) * 2);
+    ctx.stroke();
+  }
+}
+
+// HUD
+function drawHUD() {
+  var spot = SPOTS[currentSpot];
+
+  // Spot name
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.font = '12px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText('📍 ' + spot.name + ' (Depth ' + spot.depth + ')', 10, 20);
+
+  // Score
+  ctx.textAlign = 'right';
+  ctx.fillText('🏆 ' + stats.totalPoints, W - 10, 20);
+
+  // Session catch count
+  ctx.fillText('🐟 ' + sessionCatch.length, W - 10, 38);
+
+  // Rank in HUD
+  ctx.fillStyle = 'rgba(255,204,0,0.45)';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'right';
+  ctx.fillText('🏅 ' + getRank().name, W - 10, 54);
+
+  // Mic indicator
+  if (micActive) {
+    var barW = 40;
+    var barH = 4;
+    var bx = 10, by = 32;
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(bx, by, barW, barH);
+    var lvl = Math.min(1, micSmooth * 3);
+    ctx.fillStyle = lvl > 0.6 ? '#ff6644' : lvl > 0.3 ? '#ffaa44' : '#44aa66';
+    ctx.fillRect(bx, by, barW * lvl, barH);
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '9px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText('🎤', bx + barW + 4, by + 4);
+  }
+
+  // Controls hint (bottom)
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'center';
+  if (state === STATE_TITLE) {
+    ctx.fillText('Enter to cast  ·  ←→ change spot  ·  ↓ fish log', W/2, H - 12);
+  } else if (state === STATE_CASTING && castPhase === 0) {
+    ctx.fillText('←→ aim  ·  Enter to set power', W/2, H - 12);
+  } else if (state === STATE_CASTING && castPhase === 1) {
+    ctx.fillText('Enter to cast!', W/2, H - 12);
+  } else if (state === STATE_WAITING) {
+    ctx.fillText('Wait for a bite...  ·  Esc to reel in', W/2, H - 12);
+  } else if (state === STATE_BITE) {
+    ctx.fillText('🔴 BITE! Press Enter NOW!', W/2, H - 12);
+  } else if (state === STATE_REELING) {
+    ctx.fillText('↑ reel in  ·  match the rhythm!', W/2, H - 12);
+  }
+}
+
+// Title screen
+function drawTitle() {
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#e8e0d0';
+  ctx.font = 'bold 48px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('🎣', W/2, 200);
+  ctx.fillText('Fisher', W/2, 260);
+
+  ctx.font = '16px system-ui';
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.fillText('Cast your line. Listen for bites.', W/2, 300);
+
+  if (micActive) {
+    ctx.font = '12px system-ui';
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText('🎤 Quiet = more fish  ·  Loud = rarer catches', W/2, 330);
+  }
+
+  // Best catch
+  var bestFish = null;
+  var bestPts = 0;
+  Object.keys(fishLog).forEach(function(name){
+    var f = FISH.find(function(ff){ return ff.name === name; });
+    if (f && f.points > bestPts) { bestPts = f.points; bestFish = f; }
+  });
+  if (bestFish) {
+    ctx.font = '13px system-ui';
+    ctx.fillStyle = bestFish.color;
+    ctx.fillText('Best catch: ' + bestFish.name + ' (' + Object.keys(fishLog).length + '/25 species)', W/2, 370);
+  }
+
+  // Legendary discovery counter
+  var legCount = Object.keys(legendaryLog).length;
+  if (legCount > 0) {
+    ctx.font = '12px system-ui';
+    ctx.fillStyle = 'rgba(255,220,100,0.6)';
+    ctx.fillText('✨ ' + legCount + '/6 Legendary Encounters', W/2, 385);
+  }
+
+  // Rank display
+  var rIdx = getRankIdx();
+  var rank = RANKS[rIdx];
+  ctx.font = 'bold 14px system-ui';
+  ctx.fillStyle = '#ffcc00';
+  ctx.fillText('🏅 ' + rank.name + ' — ' + stats.totalCatches + ' fish caught', W/2, 395);
+  // Progress bar to next rank
+  if (rIdx < RANKS.length - 1) {
+    var next = RANKS[rIdx + 1];
+    var prog = (stats.totalCatches - rank.threshold) / (next.threshold - rank.threshold);
+    var barW = 180, barH = 6;
+    var barX = W/2 - barW/2, barY = 405;
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#ffcc00';
+    ctx.fillRect(barX, barY, barW * Math.min(1, prog), barH);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.font = '10px system-ui';
+    ctx.fillText((next.threshold - stats.totalCatches) + ' catches to ' + next.name, W/2, barY + 18);
+  } else {
+    ctx.fillStyle = 'rgba(255,204,0,0.5)';
+    ctx.font = '10px system-ui';
+    ctx.fillText('MAX RANK', W/2, 418);
+  }
+
+  // Spot selector
+  ctx.font = '14px system-ui';
+  ctx.fillStyle = '#ffffff';
+  var spot = SPOTS[currentSpot];
+  ctx.fillText('← ' + spot.name + ' (Depth ' + spot.depth + ') →', W/2, 450);
+
+  // Pulsing enter
+  var pulse = 0.5 + Math.sin(waterTime * 0.06) * 0.3;
+  ctx.fillStyle = 'rgba(255,255,255,' + pulse + ')';
+  ctx.font = '18px system-ui';
+  ctx.fillText('Press Enter to Fish', W/2, 500);
+}
+
+// Caught screen
+function drawCaught() {
+  catchAnim += 0.02;
+  var scale = Math.min(1, catchAnim * 2);
+
+  ctx.fillStyle = 'rgba(0,0,0,' + (0.5 * scale) + ')';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.translate(W/2, 250);
+  ctx.scale(scale, scale);
+
+  // Fish
+  var f = currentFish;
+  ctx.fillStyle = f.color;
+  var fSize = 30 + f.size * 15;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, fSize, fSize * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Eye
+  ctx.beginPath();
+  ctx.arc(fSize * 0.6, -fSize * 0.1, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(fSize * 0.6 + 1, -fSize * 0.1, 2, 0, Math.PI * 2);
+  ctx.fillStyle = '#000';
+  ctx.fill();
+  // Tail
+  ctx.beginPath();
+  ctx.moveTo(-fSize * 0.8, 0);
+  ctx.lineTo(-fSize * 1.3, -fSize * 0.35);
+  ctx.lineTo(-fSize * 1.3, fSize * 0.35);
+  ctx.closePath();
+  ctx.fillStyle = f.color;
+  ctx.fill();
+
+  ctx.restore();
+
+  // Text
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 28px system-ui';
+  ctx.fillText(f.name + '!', W/2, 340);
+
+  ctx.font = '16px system-ui';
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  var rarityStars = '';
+  for (var i = 0; i < f.rarity; i++) rarityStars += '⭐';
+  ctx.fillText(rarityStars + '  +' + f.points + ' pts', W/2, 375);
+
+  if (!fishLog[f.name]) {
+    ctx.fillStyle = '#ffcc00';
+    ctx.font = 'bold 14px system-ui';
+    ctx.fillText('✨ NEW SPECIES! ✨', W/2, 405);
+  }
+
+  // Rank progress
+  var rIdx = getRankIdx();
+  var rank = RANKS[rIdx];
+  ctx.font = '12px system-ui';
+  ctx.fillStyle = '#ffcc00';
+  ctx.fillText('🏅 ' + rank.name + ' — ' + stats.totalCatches + ' total catches', W/2, 430);
+  // Progress bar to next rank
+  if (rIdx < RANKS.length - 1) {
+    var next = RANKS[rIdx + 1];
+    var prog = (stats.totalCatches - rank.threshold) / (next.threshold - rank.threshold);
+    var barW = 140, barH = 5;
+    var barX = W/2 - barW/2, barY = 438;
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#ffcc00';
+    ctx.fillRect(barX, barY, barW * Math.min(1, prog), barH);
+  }
+
+  // Rank up announcement
+  if (rankUpPending) {
+    var glow = 0.6 + Math.sin(waterTime * 0.1) * 0.3;
+    ctx.fillStyle = 'rgba(255,204,0,' + glow + ')';
+    ctx.font = 'bold 16px system-ui';
+    ctx.fillText('🎉 RANK UP: ' + rank.name + '! 🎉', W/2, 468);
+  }
+
+  var pulse = 0.5 + Math.sin(waterTime * 0.08) * 0.3;
+  ctx.fillStyle = 'rgba(255,255,255,' + pulse + ')';
+  ctx.font = '14px system-ui';
+  ctx.fillText('Enter to continue', W/2, 500);
+}
+
+// Missed screen
+function drawMissed() {
+  missAnim += 0.03;
+  var alpha = Math.min(1, missAnim * 2);
+  ctx.fillStyle = 'rgba(0,0,0,' + (0.4 * alpha) + ')';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,100,100,' + alpha + ')';
+  ctx.font = 'bold 24px system-ui';
+  ctx.fillText('Got Away!', W/2, 280);
+  ctx.font = '14px system-ui';
+  ctx.fillStyle = 'rgba(255,255,255,' + (alpha * 0.6) + ')';
+  ctx.fillText('The fish escaped...', W/2, 315);
+
+  var pulse = 0.5 + Math.sin(waterTime * 0.08) * 0.3;
+  ctx.fillStyle = 'rgba(255,255,255,' + pulse + ')';
+  ctx.font = '14px system-ui';
+  ctx.fillText('Enter to try again', W/2, 380);
+}
+
+// Fish log screen
+function drawLog() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#e8e0d0';
+  ctx.font = 'bold 22px system-ui';
+  ctx.fillText('🐟 Fish Log — ' + Object.keys(fishLog).length + '/25', W/2, 40);
+
+  ctx.textAlign = 'left';
+  ctx.font = '13px system-ui';
+  var y = 70 - logScroll;
+  FISH.forEach(function(f, i){
+    if (y > 50 && y < H - 30) {
+      var caught = fishLog[f.name];
+      if (caught) {
+        ctx.fillStyle = f.color;
+        ctx.fillText('🐟 ' + f.name, 30, y);
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.fillText('×' + caught + '  ' + f.points + 'pts', 200, y);
+        var stars = '';
+        for (var s = 0; s < f.rarity; s++) stars += '⭐';
+        ctx.fillText(stars, 320, y);
+        ctx.fillText(SPOTS[f.minDepth > 0 ? f.minDepth - 1 : 0].name + '+', 440, y);
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillText('??? ' + (f.rarity >= 4 ? '(Rare)' : ''), 30, y);
+        ctx.fillText(f.points + 'pts', 200, y);
+        ctx.fillText(SPOTS[f.minDepth > 0 ? f.minDepth - 1 : 0].name + '+', 440, y);
+      }
+    }
+    y += 22;
+  });
+
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('↑↓ scroll  ·  Esc to go back', W/2, H - 12);
+}
+
+// Main update
+function update() {
+  waterTime++;
+  updateMic();
+
+  if (waterTime % 120 === 0) spawnBgFish();
+
+  if (state === STATE_TITLE) {
+    if (wasPressed('Enter')) {
+      state = STATE_CASTING; bgmPlay();
+      castPhase = 0;
+      castAngle = 0;
+      castDir = 1;
+      castPower = 0;
+    }
+    if (wasPressed('ArrowLeft')) currentSpot = Math.max(0, currentSpot - 1);
+    if (wasPressed('ArrowRight')) currentSpot = Math.min(SPOTS.length - 1, currentSpot + 1);
+    if (wasPressed('ArrowDown')) { state = STATE_LOG; logScroll = 0; }
+  }
+  else if (state === STATE_CASTING) {
+    if (castPhase === 0) {
+      // Aim phase - angle sweeps
+      castAngle += castDir * 1.5;
+      if (castAngle > 60) { castAngle = 60; castDir = -1; }
+      if (castAngle < -30) { castAngle = -30; castDir = 1; }
+      if (keys['ArrowLeft']) castAngle = Math.max(-30, castAngle - 2);
+      if (keys['ArrowRight']) castAngle = Math.min(60, castAngle + 2);
+      if (wasPressed('Enter')) { castPhase = 1; castPower = 0; }
+      if (wasPressed('Escape')) state = STATE_TITLE;
+    } else {
+      // Power phase
+      castPower += 1.5;
+      if (castPower > 100) castPower = 0; // Loop
+      if (wasPressed('Enter')) {
+        // Cast!
+        var dist = 150 + castPower * 2.5;
+        var rad = (castAngle - 15) * Math.PI / 180;
+        bobberX = 180 + Math.cos(rad) * dist;
+        bobberY = 260 + Math.sin(Math.abs(rad) * 0.3) * 40 + dist * 0.2;
+        bobberX = Math.max(170, Math.min(W - 20, bobberX));
+        bobberY = Math.max(280, Math.min(H - 40, bobberY));
+        state = STATE_WAITING;
+        playSplash();
+        addRipple(bobberX, bobberY, 25, 1);
+        addBubbles(bobberX, bobberY, 5);
+
+        // Determine wait time (mic affects: loud = longer wait)
+        var micMod = micActive ? (1 + micSmooth * 3) : 1;
+        waitDuration = (180 + Math.random() * 300) * micMod; // 3-8 seconds base
+        waitTimer = 0;
+        nibbleCount = 0;
+        nibbleTimer = 0;
+        currentFish = pickFish();
+      }
+      if (wasPressed('Escape')) { castPhase = 0; }
+    }
+  }
+  else if (state === STATE_WAITING) {
+    waitTimer++;
+    // Occasional bubbles near bobber
+    if (Math.random() < 0.02) addBubbles(bobberX + (Math.random()-0.5)*30, bobberY + 10, 1);
+
+    // Legendary encounter check — triggers once per cast at ~30% of wait
+    if (waitTimer === Math.floor(waitDuration * 0.3)) tryLegendaryEncounter();
+
+    // Moon Frenzy: halve remaining wait time
+    if (activeLegendary && activeLegendary.id === 'moonBite' && legendaryTimer === 0) {
+      waitDuration = Math.floor(waitTimer + (waitDuration - waitTimer) * 0.4);
+      legendaryTimer = 1;
+    }
+
+    // Ghost Ship: fish flee, then rare ones flood in
+    if (ghostShipPhase === 1) {
+      ghostShipTimer++;
+      if (ghostShipTimer > 90) { // After 1.5s, re-roll fish as rare
+        ghostShipPhase = 2;
+        // Force a rare fish by temporarily boosting depth perception
+        var deepCandidates = FISH.filter(function(f){ return f.rarity >= 3 && SPOTS[currentSpot].depth >= f.minDepth; });
+        if (deepCandidates.length > 0) currentFish = deepCandidates[Math.floor(Math.random() * deepCandidates.length)];
+      }
+    }
+
+    // Sea Storm: ambient effects
+    if (stormActive && waterTime % 40 === 0) {
+      addRipple(Math.random() * W, 265, 40, 2);
+      if (Math.random() < 0.3) playStormAmbience();
+    }
+
+    // Nibbles before the real bite
+    if (waitTimer > waitDuration * 0.5 && nibbleCount < 2) {
+      nibbleTimer++;
+      if (nibbleTimer > 60 + Math.random() * 60) {
+        nibbleCount++;
+        nibbleTimer = 0;
+        addRipple(bobberX, bobberY, 12, 0.8);
+        playBubble((bobberX - 300) / 300);
+        addBubbles(bobberX, bobberY + 5, 2);
+      }
+    }
+
+    // Bite!
+    if (waitTimer >= waitDuration) {
+      state = STATE_BITE;
+      biteTimer = 0;
+      var rankBonusBite = getRank().biteWindow;
+      var baseBiteWindow = 60 + Math.floor(Math.random() * 40);
+      // Storm: shorter bite window but bigger fish
+      if (stormActive) {
+        baseBiteWindow = Math.floor(baseBiteWindow * 0.6);
+        // Upgrade fish to bigger variant in same depth range
+        var biggerFish = FISH.filter(function(f){ return f.size >= 3 && SPOTS[currentSpot].depth >= f.minDepth && SPOTS[currentSpot].depth <= f.maxDepth; });
+        if (biggerFish.length > 0) currentFish = biggerFish[Math.floor(Math.random() * biggerFish.length)];
+      }
+      biteWindow = Math.floor(baseBiteWindow * (1 + rankBonusBite));
+      playBiteAlert();
+      addRipple(bobberX, bobberY, 20, 1.5);
+      addBubbles(bobberX, bobberY, 6);
+    }
+
+    if (wasPressed('Escape')) state = STATE_TITLE;
+  }
+  else if (state === STATE_BITE) {
+    biteTimer++;
+    addBubbles(bobberX + (Math.random()-0.5)*15, bobberY + 5, 1);
+    if (biteTimer % 8 === 0) addRipple(bobberX, bobberY, 10 + Math.random()*8, 1);
+
+    if (wasPressed('Enter')) {
+      // Hooked! Start reeling
+      state = STATE_REELING;
+      reelProgress = 0;
+      reelTarget = 50 + currentFish.size * 20 + currentFish.rarity * 10; // Bigger fish = more reeling
+      // Leviathan: much harder fight, but guaranteed legendary fish
+      if (leviathanFight) {
+        var levFish = FISH.filter(function(f){ return f.rarity === 5; });
+        if (levFish.length > 0) currentFish = levFish[Math.floor(Math.random() * levFish.length)];
+        reelTarget = Math.floor(reelTarget * 2.5);
+      }
+      reelFight = 0;
+      reelFightDir = 1;
+      reelFightTimer = 0;
+      lastFightDir = 1;
+      startTensionDrone();
+      playTone(660, 0.15, 'triangle', 0.1);
+    }
+
+    if (biteTimer > biteWindow) {
+      // Missed!
+      state = STATE_MISSED; bgmGameOver();
+      missAnim = 0;
+      playMiss();
+      goldenHookActive = false; doubleHookActive = false; stormActive = false; ghostShipPhase = 0; leviathanFight = false; activeLegendary = null;
+    }
+  }
+  else if (state === STATE_REELING) {
+    // Fish fights - moves a meter left/right
+    reelFightTimer++;
+    var fightSpeed = (0.5 + currentFish.size * 0.3) * (1 - getRank().fightSlow);
+    reelFight += reelFightDir * fightSpeed;
+    if (reelFight > 50 || reelFight < -50) reelFightDir *= -1;
+    if (reelFightTimer % (80 - currentFish.rarity * 10) === 0) reelFightDir *= -1; // Random direction changes
+
+    // Tension audio tracking
+    updateTensionAudio(reelFight);
+    if (reelFightDir !== lastFightDir) {
+      playTugSound(reelFightDir);
+      lastFightDir = reelFightDir;
+    }
+
+    // Reel with up
+    if (keys['ArrowUp']) {
+      // Reeling works better when fight meter is near center
+      var fightPenalty = Math.abs(reelFight) / 50;
+      var reelSpeed = (0.8 + getRank().reelBonus) * (1 - fightPenalty * 0.6);
+      reelProgress += reelSpeed;
+      if (waterTime % 4 === 0) playReelClick();
+    }
+
+    // Line tension - if fight is too far from center and reeling, progress can slip
+    if (Math.abs(reelFight) > 40 && keys['ArrowUp']) {
+      reelProgress -= 0.3;
+      if (waterTime % 20 === 0) playLineStrain();
+    }
+
+    // Progress can't go below 0
+    reelProgress = Math.max(0, reelProgress);
+
+    // Fish slowly pulls away if not reeling
+    if (!keys['ArrowUp']) {
+      reelProgress -= 0.15 * currentFish.size * 0.5;
+      reelProgress = Math.max(0, reelProgress);
+    }
+
+    // Bubbles during reel
+    if (waterTime % 10 === 0) addBubbles(bobberX + (Math.random()-0.5)*20, bobberY, 1);
+
+    // Caught!
+    if (reelProgress >= reelTarget) {
+      state = STATE_CAUGHT;
+      catchAnim = 0;
+      stopTensionDrone();
+      sessionCatch.push(currentFish);
+      fishLog[currentFish.name] = (fishLog[currentFish.name] || 0) + 1;
+      // Double Hook: count as 2 catches
+      if (doubleHookActive) {
+        sessionCatch.push(currentFish);
+        fishLog[currentFish.name] = (fishLog[currentFish.name] || 0) + 1;
+      }
+      try { localStorage.setItem('fisher_log', JSON.stringify(fishLog)); } catch(e){}
+      // Rank tracking
+      prevRankIdx = getRankIdx();
+      stats.totalCatches += doubleHookActive ? 2 : 1;
+      var pointsMult = goldenHookActive ? 3 : 1;
+      var catchPoints = currentFish.points * pointsMult * (doubleHookActive ? 2 : 1);
+      stats.totalPoints += catchPoints;
+      saveStats();
+      rankUpPending = getRankIdx() > prevRankIdx;
+      playCatchFanfare(currentFish);
+      if (rankUpPending) setTimeout(function(){ playRankUpChime(); }, 500);
+      // Reset legendary flags
+      goldenHookActive = false;
+      doubleHookActive = false;
+      stormActive = false;
+      ghostShipPhase = 0;
+      leviathanFight = false;
+      activeLegendary = null;
+    }
+
+    // Escaped if progress stays at 0 too long
+    if (reelProgress <= 0 && reelFightTimer > 180) {
+      state = STATE_MISSED;
+      missAnim = 0;
+      stopTensionDrone();
+      playMiss();
+      goldenHookActive = false; doubleHookActive = false; stormActive = false; ghostShipPhase = 0; leviathanFight = false; activeLegendary = null;
+    }
+
+    if (wasPressed('Escape')) {
+      state = STATE_MISSED;
+      missAnim = 0;
+      stopTensionDrone();
+      goldenHookActive = false; doubleHookActive = false; stormActive = false; ghostShipPhase = 0; leviathanFight = false; activeLegendary = null;
+    }
+  }
+  else if (state === STATE_CAUGHT) {
+    if (wasPressed('Enter')) {
+      state = STATE_CASTING;
+      castPhase = 0;
+      castAngle = 0;
+      castDir = 1;
+    }
+    if (wasPressed('Escape')) {
+      // Update best session
+      if (sessionCatch.length > stats.bestSession) {
+        stats.bestSession = sessionCatch.length;
+        saveStats();
+      }
+      state = STATE_TITLE;
+    }
+  }
+  else if (state === STATE_MISSED) {
+    if (wasPressed('Enter') || wasPressed('Escape')) {
+      state = STATE_CASTING;
+      castPhase = 0;
+      castAngle = 0;
+      castDir = 1;
+    }
+  }
+  else if (state === STATE_LOG) {
+    if (keys['ArrowUp']) logScroll = Math.max(0, logScroll - 4);
+    if (keys['ArrowDown']) logScroll += 4;
+    if (wasPressed('Escape')) state = STATE_TITLE;
+  }
+}
+
+// Draw casting indicator
+function drawCasting() {
+  var rod = drawRod();
+
+  if (castPhase === 0) {
+    // Aim arc
+    ctx.save();
+    ctx.translate(rod.tipX, rod.tipY);
+    for (var a = -30; a <= 60; a += 5) {
+      var rad = (a - 15) * Math.PI / 180;
+      var ax = Math.cos(rad) * 80;
+      var ay = -Math.abs(Math.sin(rad)) * 30;
+      ctx.fillStyle = Math.abs(a - castAngle) < 3 ? '#ffcc00' : 'rgba(255,255,255,0.1)';
+      ctx.fillRect(ax, ay, 2, 2);
+    }
+    // Current aim
+    var curRad = (castAngle - 15) * Math.PI / 180;
+    var aimX = Math.cos(curRad) * 100;
+    var aimY = -Math.abs(Math.sin(curRad)) * 40;
+    ctx.fillStyle = '#ffcc00';
+    ctx.beginPath();
+    ctx.arc(aimX, aimY, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = '#ffcc00';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('AIM', W/2, 140);
+  } else {
+    // Power meter
+    var meterX = W/2 - 80;
+    var meterY = 140;
+    var meterW = 160;
+    var meterH = 16;
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(meterX, meterY, meterW, meterH);
+
+    var pct = castPower / 100;
+    var col = pct < 0.3 ? '#44aa66' : pct < 0.7 ? '#ffaa44' : '#ff4444';
+    ctx.fillStyle = col;
+    ctx.fillRect(meterX, meterY, meterW * pct, meterH);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('POWER', W/2, meterY - 5);
+  }
+}
+
+// Draw reel fight meter
+function drawReelMeter() {
+  var meterY = 100;
+  var meterW = 200;
+  var meterH = 12;
+  var mx = W/2 - meterW/2;
+
+  // Fight meter
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(mx, meterY, meterW, meterH);
+
+  // Center zone (green)
+  var zoneW = 60;
+  ctx.fillStyle = 'rgba(68,170,102,0.3)';
+  ctx.fillRect(mx + meterW/2 - zoneW/2, meterY, zoneW, meterH);
+
+  // Fish position indicator
+  var fishX = mx + meterW/2 + (reelFight / 50) * (meterW/2);
+  ctx.fillStyle = Math.abs(reelFight) < 15 ? '#44aa66' : Math.abs(reelFight) < 35 ? '#ffaa44' : '#ff4444';
+  ctx.fillRect(fishX - 3, meterY - 2, 6, meterH + 4);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('🐟 TENSION', W/2, meterY - 5);
+
+  // Reel progress bar
+  var progY = meterY + 25;
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(mx, progY, meterW, 8);
+  var progPct = Math.min(1, reelProgress / reelTarget);
+  ctx.fillStyle = '#4488cc';
+  ctx.fillRect(mx, progY, meterW * progPct, 8);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '10px system-ui';
+  ctx.fillText('↑ REEL ' + Math.floor(progPct * 100) + '%', W/2, progY + 20);
+
+  // Fish name hint
+  ctx.fillStyle = currentFish.color;
+  ctx.font = '13px system-ui';
+  var sizeHint = currentFish.size >= 4 ? 'MASSIVE' : currentFish.size >= 3 ? 'BIG' : currentFish.size >= 2 ? 'MEDIUM' : 'SMALL';
+  ctx.fillText('Something ' + sizeHint + ' is on the line!', W/2, progY + 40);
+}
+
+// Render
+function render() {
+  ctx.clearRect(0, 0, W, H);
+
+  if (state === STATE_LOG) {
+    drawLog();
+    return;
+  }
+
+  drawWater();
+  drawBgFish();
+  drawShore();
+
+  var rod = drawRod();
+
+  if (state !== STATE_TITLE) {
+    if (state === STATE_CASTING) {
+      drawCasting();
+    } else {
+      // Draw line and bobber
+      var bobY = drawBobber(bobberX, bobberY, state === STATE_BITE);
+      drawLine(rod.tipX, rod.tipY, bobberX, bobY);
+    }
+  }
+
+  drawRipples();
+  drawBubbles();
+  drawHUD();
+
+  if (state === STATE_TITLE) drawTitle();
+  if (state === STATE_CAUGHT) drawCaught();
+  if (state === STATE_MISSED) drawMissed();
+  if (state === STATE_BITE) {
+    // Flash border
+    var flash = Math.sin(waterTime * 0.5) * 0.5 + 0.5;
+    ctx.strokeStyle = 'rgba(255,50,50,' + (flash * 0.6) + ')';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(2, 2, W-4, H-4);
+    ctx.lineWidth = 1;
+  }
+  if (state === STATE_REELING) {
+    drawReelMeter();
+  }
+
+  // Waiting indicator (subtle bobber depth)
+  if (state === STATE_WAITING) {
+    var waitPct = waitTimer / waitDuration;
+    if (waitPct > 0.7) {
+      // Tension building - subtle bubbles increase
+      if (Math.random() < (waitPct - 0.7) * 0.15) {
+        addBubbles(bobberX + (Math.random()-0.5)*25, bobberY + 5, 1);
+        if (Math.random() < 0.3) playBubble((bobberX - 300) / 300);
+      }
+    }
+
+    // Storm visual: rain streaks + dark overlay
+    if (stormActive) {
+      ctx.fillStyle = 'rgba(0,0,20,0.15)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = 'rgba(180,200,230,0.15)';
+      ctx.lineWidth = 1;
+      for (var ri = 0; ri < 15; ri++) {
+        var rx = (waterTime * 7 + ri * 47) % W;
+        var ry = (waterTime * 11 + ri * 31) % H;
+        ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx - 3, ry + 18); ctx.stroke();
+      }
+    }
+
+    // Ghost Ship visual: spectral ship crossing
+    if (ghostShipPhase >= 1) {
+      var gsx = (ghostShipTimer * 1.5) - 100;
+      ctx.globalAlpha = 0.15;
+      ctx.fillStyle = '#aaccff';
+      // Simple ship shape
+      ctx.beginPath();
+      ctx.moveTo(gsx, 300); ctx.lineTo(gsx + 60, 300); ctx.lineTo(gsx + 50, 320); ctx.lineTo(gsx + 10, 320);
+      ctx.closePath(); ctx.fill();
+      // Mast
+      ctx.fillRect(gsx + 30, 270, 2, 30);
+      ctx.beginPath(); ctx.moveTo(gsx + 32, 275); ctx.lineTo(gsx + 50, 285); ctx.lineTo(gsx + 32, 295); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // Moon Frenzy: pulsing golden moon
+    if (activeLegendary && activeLegendary.id === 'moonBite') {
+      var moonGlow = 0.3 + Math.sin(waterTime * 0.08) * 0.15;
+      ctx.beginPath(); ctx.arc(480, 60, 35, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,220,100,' + moonGlow + ')';
+      ctx.fill();
+    }
+  }
+
+  // Legendary encounter toast overlay
+  if (legendaryToastTimer > 0) {
+    legendaryToastTimer--;
+    var toastAlpha = Math.min(1, legendaryToastTimer / 30);
+    ctx.fillStyle = 'rgba(0,0,0,' + (0.7 * toastAlpha) + ')';
+    ctx.fillRect(W/2 - 200, 60, 400, 36);
+    ctx.strokeStyle = 'rgba(255,204,0,' + (0.6 * toastAlpha) + ')';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(W/2 - 200, 60, 400, 36);
+    ctx.fillStyle = 'rgba(255,220,100,' + toastAlpha + ')';
+    ctx.font = 'bold 13px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(legendaryToast, W/2, 83);
+  }
+}
+
+// Game loop
+function frame() {
+  update();
+  render();
+  keyPressed = {};
+  requestAnimationFrame(frame);
+}
+frame();
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../touch-controls.js"></script>
+</body>
+</html>

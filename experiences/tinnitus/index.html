@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Tinnitus Relief — LITF</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;font-family:system-ui,-apple-system,sans-serif;color:#e0e0e0;user-select:none}
+canvas{display:block}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var W = 600, H = 600;
+
+  // State
+  var state = 'menu'; // menu, therapy, tuning
+  var menuIdx = 0;
+  var menuItems = ['Notch Therapy', 'White Masking', 'Pink Masking', 'Nature Masking', 'Custom Tone'];
+
+  // Therapy params
+  var tinnitusFreq = 6000; // Hz - most common tinnitus frequency
+  var notchWidth = 1000; // Hz bandwidth of notch
+  var volume = 0.3;
+  var playing = false;
+  var therapyMode = 0; // index into menuItems
+  var tuningStep = 100; // Hz per press
+  var holdTimer = 0;
+  var holdDir = 0;
+  var sessionStart = 0;
+  var sessionSeconds = 0;
+  var totalSessions = 0;
+  var totalMinutes = 0;
+
+  // Audio
+  var audioCtx = null;
+  var masterGain = null;
+  var noiseSource = null;
+  var noiseGain = null;
+  var notchFilter = null;
+  var notchFilter2 = null;
+  var toneOsc = null;
+  var toneGain = null;
+  var lpFilter = null;
+  var hpFilter = null;
+
+  // Mic-adaptive masking
+  var micStream = null;
+  var micAnalyser = null;
+  var micDataArray = null;
+  var ambientLevel = 0; // 0-1 smoothed RMS
+  var micActive = false;
+  var adaptiveVol = 0; // current adapted volume for display
+
+  // Visual animation
+  var animPhase = 0;
+  var pulsePhase = 0;
+
+  // Load saved data
+  var saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem('litf_tinnitus'));
+  } catch(e) {}
+  if (saved) {
+    tinnitusFreq = saved.freq || 6000;
+    notchWidth = saved.width || 1000;
+    volume = saved.volume || 0.3;
+    totalSessions = saved.sessions || 0;
+    totalMinutes = saved.minutes || 0;
+    therapyMode = saved.mode || 0;
+    menuIdx = therapyMode;
+  }
+
+  function saveState() {
+    try {
+      localStorage.setItem('litf_tinnitus', JSON.stringify({
+        freq: tinnitusFreq,
+        width: notchWidth,
+        volume: volume,
+        sessions: totalSessions,
+        minutes: totalMinutes,
+        mode: therapyMode
+      }));
+    } catch(e) {}
+  }
+
+  function initAudio() {
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0;
+    masterGain.connect(audioCtx.destination);
+  }
+
+  function createWhiteNoise() {
+    var bufSize = audioCtx.sampleRate * 2;
+    var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    var data = buf.getChannelData(0);
+    for (var i = 0; i < bufSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    return buf;
+  }
+
+  function createPinkNoise() {
+    var bufSize = audioCtx.sampleRate * 2;
+    var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    var data = buf.getChannelData(0);
+    var b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
+    for (var i = 0; i < bufSize; i++) {
+      var white = Math.random() * 2 - 1;
+      b0 = 0.99886 * b0 + white * 0.0555179;
+      b1 = 0.99332 * b1 + white * 0.0750759;
+      b2 = 0.96900 * b2 + white * 0.1538520;
+      b3 = 0.86650 * b3 + white * 0.3104856;
+      b4 = 0.55000 * b4 + white * 0.5329522;
+      b5 = -0.7616 * b5 - white * 0.0168980;
+      data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+      b6 = white * 0.115926;
+    }
+    return buf;
+  }
+
+  function createNatureNoise() {
+    // Brown noise (ocean-like)
+    var bufSize = audioCtx.sampleRate * 2;
+    var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    var data = buf.getChannelData(0);
+    var lastOut = 0;
+    for (var i = 0; i < bufSize; i++) {
+      var white = Math.random() * 2 - 1;
+      data[i] = (lastOut + (0.02 * white)) / 1.02;
+      lastOut = data[i];
+      data[i] *= 3.5;
+    }
+    return buf;
+  }
+
+  function startTherapy() {
+    initAudio();
+    initMic();
+    stopTherapy();
+
+    therapyMode = menuIdx;
+    playing = true;
+    sessionStart = Date.now();
+
+    if (therapyMode === 4) {
+      // Custom pure tone - plays the tinnitus freq at low vol for habituation
+      toneOsc = audioCtx.createOscillator();
+      toneGain = audioCtx.createGain();
+      toneOsc.type = 'sine';
+      toneOsc.frequency.value = tinnitusFreq;
+      toneGain.gain.value = 0;
+      toneOsc.connect(toneGain);
+      toneGain.connect(masterGain);
+      toneOsc.start();
+      toneGain.gain.setTargetAtTime(volume * 0.3, audioCtx.currentTime, 0.5);
+    } else {
+      // Noise-based therapy
+      var noiseBuf;
+      if (therapyMode === 0 || therapyMode === 1) {
+        noiseBuf = createWhiteNoise();
+      } else if (therapyMode === 2) {
+        noiseBuf = createPinkNoise();
+      } else {
+        noiseBuf = createNatureNoise();
+      }
+
+      noiseSource = audioCtx.createBufferSource();
+      noiseSource.buffer = noiseBuf;
+      noiseSource.loop = true;
+      noiseGain = audioCtx.createGain();
+      noiseGain.gain.value = 0;
+
+      if (therapyMode === 0) {
+        // Notch therapy - bandstop filter at tinnitus frequency
+        notchFilter = audioCtx.createBiquadFilter();
+        notchFilter.type = 'notch';
+        notchFilter.frequency.value = tinnitusFreq;
+        notchFilter.Q.value = tinnitusFreq / notchWidth;
+
+        notchFilter2 = audioCtx.createBiquadFilter();
+        notchFilter2.type = 'notch';
+        notchFilter2.frequency.value = tinnitusFreq;
+        notchFilter2.Q.value = tinnitusFreq / (notchWidth * 0.7);
+
+        noiseSource.connect(notchFilter);
+        notchFilter.connect(notchFilter2);
+        notchFilter2.connect(noiseGain);
+      } else {
+        // Plain masking
+        noiseSource.connect(noiseGain);
+      }
+
+      noiseGain.connect(masterGain);
+      noiseSource.start();
+      noiseGain.gain.setTargetAtTime(volume, audioCtx.currentTime, 0.5);
+    }
+
+    masterGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.3);
+    totalSessions++;
+    saveState();
+  }
+
+  function stopTherapy() {
+    if (playing) {
+      var elapsed = (Date.now() - sessionStart) / 60000;
+      totalMinutes += elapsed;
+      saveState();
+    }
+    playing = false;
+
+    if (masterGain && audioCtx) {
+      masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.3);
+    }
+
+    setTimeout(function() {
+      if (noiseSource) { try { noiseSource.stop(); } catch(e){} noiseSource = null; }
+      if (toneOsc) { try { toneOsc.stop(); } catch(e){} toneOsc = null; }
+      noiseGain = null;
+      notchFilter = null;
+      notchFilter2 = null;
+      toneGain = null;
+    }, 500);
+  }
+
+  function updateNotch() {
+    if (notchFilter && playing && therapyMode === 0) {
+      notchFilter.frequency.setTargetAtTime(tinnitusFreq, audioCtx.currentTime, 0.05);
+      notchFilter.Q.value = tinnitusFreq / notchWidth;
+      if (notchFilter2) {
+        notchFilter2.frequency.setTargetAtTime(tinnitusFreq, audioCtx.currentTime, 0.05);
+        notchFilter2.Q.value = tinnitusFreq / (notchWidth * 0.7);
+      }
+    }
+    if (toneOsc && playing && therapyMode === 4) {
+      toneOsc.frequency.setTargetAtTime(tinnitusFreq, audioCtx.currentTime, 0.05);
+    }
+    saveState();
+  }
+
+  function updateVolume() {
+    if (playing) {
+      if (noiseGain) {
+        noiseGain.gain.setTargetAtTime(volume, audioCtx.currentTime, 0.1);
+      }
+      if (toneGain) {
+        toneGain.gain.setTargetAtTime(volume * 0.3, audioCtx.currentTime, 0.1);
+      }
+    }
+    saveState();
+  }
+
+  function formatFreq(f) {
+    if (f >= 1000) return (f / 1000).toFixed(1) + ' kHz';
+    return f + ' Hz';
+  }
+
+  function formatTime(mins) {
+    if (mins < 1) return '<1 min';
+    if (mins < 60) return Math.floor(mins) + ' min';
+    var h = Math.floor(mins / 60);
+    var m = Math.floor(mins % 60);
+    return h + 'h ' + m + 'm';
+  }
+
+  // Mic-adaptive masking: ambient noise modulates therapy volume
+  function initMic() {
+    if (micActive || !audioCtx) return;
+    navigator.mediaDevices.getUserMedia({audio: true}).then(function(stream) {
+      micStream = stream;
+      var micSource = audioCtx.createMediaStreamSource(stream);
+      micAnalyser = audioCtx.createAnalyser();
+      micAnalyser.fftSize = 256;
+      micDataArray = new Uint8Array(micAnalyser.frequencyBinCount);
+      micSource.connect(micAnalyser);
+      // Analyze only — don't route mic to output
+      micActive = true;
+    }).catch(function() {
+      micActive = false;
+    });
+  }
+
+  function updateAmbient() {
+    if (!micActive || !micAnalyser) return;
+    micAnalyser.getByteTimeDomainData(micDataArray);
+    var sum = 0;
+    for (var i = 0; i < micDataArray.length; i++) {
+      var v = (micDataArray[i] - 128) / 128;
+      sum += v * v;
+    }
+    var rms = Math.sqrt(sum / micDataArray.length);
+    // Heavy smoothing prevents jitter (0.03 lerp)
+    ambientLevel = ambientLevel * 0.97 + rms * 0.03;
+  }
+
+  function getAdaptiveVolume() {
+    if (!micActive) return volume;
+    // Boost volume proportional to ambient noise
+    // ambientLevel ~0.005 quiet, ~0.05 moderate, ~0.15+ loud
+    var boost = Math.min(ambientLevel * 5, 0.6); // 0 to 0.6× boost
+    var adapted = volume * (1 + boost);
+    return Math.min(adapted, 1.0);
+  }
+
+  function applyAdaptiveVolume() {
+    if (!playing || !micActive) return;
+    adaptiveVol = getAdaptiveVolume();
+    if (noiseGain) {
+      noiseGain.gain.setTargetAtTime(adaptiveVol, audioCtx.currentTime, 0.3);
+    }
+    if (toneGain) {
+      toneGain.gain.setTargetAtTime(adaptiveVol * 0.3, audioCtx.currentTime, 0.3);
+    }
+  }
+
+  // Drawing
+  function drawMenu() {
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(0, 0, W, H);
+
+    // Title
+    ctx.fillStyle = '#7eb8da';
+    ctx.font = 'bold 28px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Tinnitus Relief', W/2, 60);
+
+    ctx.fillStyle = '#888';
+    ctx.font = '14px system-ui';
+    ctx.fillText('Bone conduction therapy — adapts to your environment', W/2, 85);
+
+    // Frequency display
+    ctx.fillStyle = '#555';
+    ctx.font = '13px system-ui';
+    ctx.fillText('Your tinnitus frequency', W/2, 130);
+    ctx.fillStyle = '#7eb8da';
+    ctx.font = 'bold 36px system-ui';
+    ctx.fillText(formatFreq(tinnitusFreq), W/2, 168);
+    ctx.fillStyle = '#666';
+    ctx.font = '12px system-ui';
+    ctx.fillText('← → to adjust  ·  hold for fast scroll', W/2, 190);
+
+    // Menu items
+    var startY = 230;
+    var itemH = 52;
+    for (var i = 0; i < menuItems.length; i++) {
+      var y = startY + i * itemH;
+      var selected = i === menuIdx;
+
+      if (selected) {
+        ctx.fillStyle = '#1a2a3a';
+        ctx.strokeStyle = '#7eb8da';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(80, y - 18, W - 160, 44, 8);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = selected ? '#7eb8da' : '#888';
+      ctx.font = (selected ? 'bold ' : '') + '18px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(menuItems[i], W/2, y + 7);
+
+      // Description
+      var desc = '';
+      if (i === 0) desc = 'Noise with a frequency notch — clinical evidence';
+      if (i === 1) desc = 'Broadband white noise masking';
+      if (i === 2) desc = 'Gentler pink noise masking';
+      if (i === 3) desc = 'Ocean-like brown noise';
+      if (i === 4) desc = 'Pure tone at your frequency (habituation)';
+      ctx.fillStyle = selected ? '#7eb8da88' : '#555';
+      ctx.font = '11px system-ui';
+      ctx.fillText(desc, W/2, y + 24);
+    }
+
+    // Stats
+    ctx.fillStyle = '#444';
+    ctx.font = '12px system-ui';
+    ctx.textAlign = 'center';
+    if (totalSessions > 0) {
+      ctx.fillText(totalSessions + ' sessions · ' + formatTime(totalMinutes) + ' total', W/2, 530);
+    }
+
+    // Controls
+    ctx.fillStyle = '#555';
+    ctx.font = '12px system-ui';
+    ctx.fillText('↑↓ select  ·  Enter start  ·  ← → tune frequency', W/2, 565);
+    ctx.fillText('Esc back', W/2, 582);
+  }
+
+  function drawTherapy() {
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(0, 0, W, H);
+
+    animPhase += 0.015;
+    pulsePhase += 0.03;
+
+    // Pulsing relief ring
+    var cx = W/2, cy = H/2 - 20;
+    var baseR = 120;
+    var pulse = Math.sin(pulsePhase) * 10;
+
+    // Outer glow
+    for (var r = 4; r >= 1; r--) {
+      var alpha = playing ? (0.03 + Math.sin(pulsePhase) * 0.02) : 0.01;
+      ctx.strokeStyle = 'rgba(126, 184, 218, ' + (alpha * r) + ')';
+      ctx.lineWidth = r * 8;
+      ctx.beginPath();
+      ctx.arc(cx, cy, baseR + pulse + r * 6, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Main ring
+    ctx.strokeStyle = playing ? '#7eb8da' : '#333';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, baseR + pulse, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Notch visualization (for notch therapy mode)
+    if (therapyMode === 0) {
+      // Draw frequency spectrum with notch
+      var specY = cy + 160;
+      var specW = 400;
+      var specH = 40;
+      var specX = (W - specW) / 2;
+
+      // Background
+      ctx.fillStyle = '#111';
+      ctx.fillRect(specX, specY, specW, specH);
+
+      // Frequency range: 200Hz - 16000Hz (log scale)
+      var minF = Math.log(200);
+      var maxF = Math.log(16000);
+
+      // Draw noise spectrum
+      for (var px = 0; px < specW; px++) {
+        var f = Math.exp(minF + (px / specW) * (maxF - minF));
+        var notchDist = Math.abs(f - tinnitusFreq);
+        var halfWidth = notchWidth / 2;
+        var amplitude = 1;
+
+        if (notchDist < halfWidth) {
+          amplitude = Math.pow(notchDist / halfWidth, 2) * 0.3 + 0.05;
+        }
+
+        var h = amplitude * specH * 0.8;
+        var shimmer = playing ? (Math.sin(animPhase * 3 + px * 0.1) * 2) : 0;
+        h += shimmer;
+        if (h < 1) h = 1;
+
+        ctx.fillStyle = playing ? 'rgba(126, 184, 218, 0.6)' : 'rgba(126, 184, 218, 0.2)';
+        ctx.fillRect(specX + px, specY + specH - h, 1, h);
+      }
+
+      // Notch marker
+      var notchX = specX + ((Math.log(tinnitusFreq) - minF) / (maxF - minF)) * specW;
+      ctx.strokeStyle = '#ff6b6b';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(notchX, specY);
+      ctx.lineTo(notchX, specY + specH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#ff6b6b';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('▼ notch', notchX, specY - 4);
+
+      // Frequency labels
+      ctx.fillStyle = '#444';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText('200 Hz', specX, specY + specH + 14);
+      ctx.textAlign = 'right';
+      ctx.fillText('16 kHz', specX + specW, specY + specH + 14);
+    }
+
+    // Mode label
+    ctx.fillStyle = '#7eb8da';
+    ctx.font = 'bold 18px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(menuItems[therapyMode], cx, 50);
+
+    // Status
+    ctx.fillStyle = playing ? '#4a9' : '#666';
+    ctx.font = 'bold 40px system-ui';
+    ctx.fillText(playing ? '▶ Playing' : '⏸ Paused', cx, cy + 5);
+
+    // Frequency
+    ctx.fillStyle = '#7eb8da';
+    ctx.font = 'bold 22px system-ui';
+    ctx.fillText(formatFreq(tinnitusFreq), cx, cy + 40);
+
+    // Volume bar
+    var volX = 150, volY = cy + 65, volW = 300, volH = 8;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(volX, volY, volW, volH);
+    ctx.fillStyle = '#7eb8da';
+    ctx.fillRect(volX, volY, volW * volume, volH);
+    // Adaptive boost overlay
+    if (micActive && playing) {
+      var av = getAdaptiveVolume();
+      if (av > volume) {
+        ctx.fillStyle = 'rgba(74, 153, 130, 0.6)';
+        ctx.fillRect(volX + volW * volume, volY, volW * (av - volume), volH);
+      }
+    }
+    ctx.fillStyle = '#888';
+    ctx.font = '12px system-ui';
+    ctx.textAlign = 'left';
+    if (micActive && playing) {
+      ctx.fillText('Vol ' + Math.round(volume * 100) + '%', volX, volY + 22);
+      ctx.fillStyle = '#4a9';
+      ctx.fillText('  → ' + Math.round(getAdaptiveVolume() * 100) + '% (adaptive)', volX + 60, volY + 22);
+    } else {
+      ctx.fillText('Vol ' + Math.round(volume * 100) + '%', volX, volY + 22);
+    }
+
+    // Mic ambient level indicator
+    if (micActive && playing) {
+      var micX = 200, micY = volY + 34, micW = 200, micH = 4;
+      ctx.fillStyle = '#181818';
+      ctx.fillRect(micX, micY, micW, micH);
+      var barW = Math.min(ambientLevel * 10, 1) * micW;
+      ctx.fillStyle = ambientLevel > 0.08 ? '#e8a84c' : '#4a9';
+      ctx.fillRect(micX, micY, barW, micH);
+      ctx.fillStyle = '#555';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText('🎤 ambient', micX - 68, micY + 4);
+    }
+
+    // Session timer
+    if (playing) {
+      sessionSeconds = Math.floor((Date.now() - sessionStart) / 1000);
+      var mins = Math.floor(sessionSeconds / 60);
+      var secs = sessionSeconds % 60;
+      ctx.fillStyle = '#555';
+      ctx.font = '14px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('Session: ' + mins + ':' + (secs < 10 ? '0' : '') + secs, cx, cy + 100);
+    }
+
+    // Controls
+    ctx.fillStyle = '#444';
+    ctx.font = '12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Enter play/pause  ·  ← → tune freq  ·  ↑↓ volume', cx, H - 30);
+    ctx.fillText('Esc back to menu', cx, H - 14);
+  }
+
+  function draw() {
+    // Update mic-adaptive volume every frame
+    updateAmbient();
+    applyAdaptiveVolume();
+
+    if (state === 'menu') {
+      drawMenu();
+    } else {
+      drawTherapy();
+    }
+    requestAnimationFrame(draw);
+  }
+
+  // Input
+  document.addEventListener('keydown', function(e) {
+    e.preventDefault();
+
+    if (state === 'menu') {
+      if (e.key === 'ArrowUp') {
+        menuIdx = (menuIdx - 1 + menuItems.length) % menuItems.length;
+      } else if (e.key === 'ArrowDown') {
+        menuIdx = (menuIdx + 1) % menuItems.length;
+      } else if (e.key === 'ArrowLeft') {
+        tinnitusFreq = Math.max(500, tinnitusFreq - tuningStep);
+        holdDir = -1;
+        holdTimer = Date.now();
+        saveState();
+      } else if (e.key === 'ArrowRight') {
+        tinnitusFreq = Math.min(16000, tinnitusFreq + tuningStep);
+        holdDir = 1;
+        holdTimer = Date.now();
+        saveState();
+      } else if (e.key === 'Enter') {
+        state = 'therapy';
+        startTherapy();
+      } else if (e.key === 'Escape') {
+        // Already on menu, do nothing
+      }
+    } else {
+      // Therapy mode
+      if (e.key === 'Enter') {
+        if (playing) {
+          stopTherapy();
+        } else {
+          startTherapy();
+        }
+      } else if (e.key === 'ArrowLeft') {
+        tinnitusFreq = Math.max(500, tinnitusFreq - tuningStep);
+        holdDir = -1;
+        holdTimer = Date.now();
+        updateNotch();
+      } else if (e.key === 'ArrowRight') {
+        tinnitusFreq = Math.min(16000, tinnitusFreq + tuningStep);
+        holdDir = 1;
+        holdTimer = Date.now();
+        updateNotch();
+      } else if (e.key === 'ArrowUp') {
+        volume = Math.min(1, volume + 0.05);
+        updateVolume();
+      } else if (e.key === 'ArrowDown') {
+        volume = Math.max(0.05, volume - 0.05);
+        updateVolume();
+      } else if (e.key === 'Escape') {
+        stopTherapy();
+        state = 'menu';
+      }
+    }
+  });
+
+  // Hold-to-fast-tune
+  setInterval(function() {
+    if (holdDir !== 0 && Date.now() - holdTimer > 400) {
+      var speed = Math.min(500, Math.floor((Date.now() - holdTimer - 400) / 100) * 50 + 50);
+      tinnitusFreq = Math.max(500, Math.min(16000, tinnitusFreq + holdDir * speed));
+      if (playing && (therapyMode === 0 || therapyMode === 4)) {
+        updateNotch();
+      }
+      saveState();
+    }
+  }, 80);
+
+  document.addEventListener('keyup', function(e) {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      holdDir = 0;
+    }
+  });
+
+  draw();
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

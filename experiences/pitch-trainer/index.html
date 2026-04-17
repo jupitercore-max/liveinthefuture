@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Pitch Trainer — LITF</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;color:#e0e0e0;font-family:system-ui,-apple-system,sans-serif}
+canvas{display:block}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+"use strict";
+
+var canvas = document.getElementById("c");
+var ctx = canvas.getContext("2d");
+
+// --- Audio context ---
+var audioCtx = null;
+var analyser = null;
+var micStream = null;
+var micFailed = false;
+var micActive = false;
+var dataArray = null;
+var bufferLength = 0;
+
+// --- State machine ---
+var STATE_TITLE = 0;
+var STATE_PLAYING = 1;
+var gameState = STATE_TITLE;
+var menuIdx = 0; // which mode is highlighted on title
+
+// --- State ---
+var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+var modes = ["Free","Scale","Intervals","Random"];
+var modeDescriptions = [
+  "Random notes in one octave",
+  "Walk up the C major scale",
+  "Common interval pairs",
+  "Random notes across octaves"
+];
+var modeIdx = 0;
+var targetNote = 9; // A = index 9
+var targetOctave = 4; // A4 = 440Hz
+var detectedPitch = 0;
+var detectedNote = -1;
+var detectedOctave = 0;
+var detectedCents = 0;
+var matchStrength = 0;
+var matchSmooth = 0;
+var streakCount = 0;
+var bestStreak = 0;
+var totalAttempts = 0;
+var totalHits = 0;
+var holdTimer = 0;
+var noteCompleted = false;
+var showSuccess = 0;
+var scaleNotes = [0,2,4,5,7,9,11];
+var scaleIdx = 0;
+var intervalPairs = [[0,4],[0,7],[0,5],[0,3],[0,9],[0,12],[0,2],[0,10]];
+var intervalIdx = 0;
+var refPlaying = false;
+var refOsc = null;
+var refGain = null;
+
+// --- Rank progression ---
+var RANKS = [
+  {name:"Listener",    threshold:0,   bonus:""},
+  {name:"Hummer",      threshold:15,  bonus:"+20% match window"},
+  {name:"Vocalist",    threshold:50,  bonus:"Faster confirm"},
+  {name:"Harmonist",   threshold:120, bonus:"+40% match window"},
+  {name:"Melodist",    threshold:250, bonus:"Quick confirm"},
+  {name:"Tonalist",    threshold:500, bonus:"+60% match window"},
+  {name:"Ear Master",  threshold:1000,bonus:"Instant confirm"},
+  {name:"Perfect Pitch",threshold:2000,bonus:"All bonuses max"}
+];
+var persistentHits = 0;
+var persistentBest = 0;
+var persistentSessions = 0;
+var currentRank = 0;
+var prevRank = 0;
+var rankUpFlash = 0;
+
+function loadStats() {
+  try {
+    var d = JSON.parse(localStorage.getItem("pitch_stats"));
+    if (d) {
+      persistentHits = d.totalHits || 0;
+      persistentBest = d.bestStreak || 0;
+      persistentSessions = d.sessions || 0;
+    }
+  } catch(e){}
+  currentRank = getRankIdx(persistentHits);
+  prevRank = currentRank;
+}
+
+function saveStats() {
+  try {
+    localStorage.setItem("pitch_stats", JSON.stringify({
+      totalHits: persistentHits,
+      bestStreak: persistentBest,
+      sessions: persistentSessions
+    }));
+  } catch(e){}
+}
+
+function getRankIdx(hits) {
+  var r = 0;
+  for (var i = RANKS.length - 1; i >= 0; i--) {
+    if (hits >= RANKS[i].threshold) { r = i; break; }
+  }
+  return r;
+}
+
+function getRankBonuses() {
+  var r = currentRank;
+  var matchMult = 1.0;
+  if (r >= 1) matchMult = 1.2;
+  if (r >= 3) matchMult = 1.4;
+  if (r >= 5) matchMult = 1.6;
+  if (r >= 7) matchMult = 1.8;
+  var hold = 30;
+  if (r >= 2) hold = 25;
+  if (r >= 4) hold = 20;
+  if (r >= 6) hold = 15;
+  if (r >= 7) hold = 12;
+  return {matchMult: matchMult, holdFrames: hold};
+}
+
+function playRankUpChime() {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var notes = [523.25, 659.25, 783.99, 1046.50];
+  for (var i = 0; i < notes.length; i++) {
+    var o = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    o.type = "sine";
+    o.frequency.value = notes[i];
+    g.gain.setValueAtTime(0, t + i * 0.12);
+    g.gain.linearRampToValueAtTime(0.15, t + i * 0.12 + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.12 + 0.5);
+    o.connect(g);
+    g.connect(audioCtx.destination);
+    o.start(t + i * 0.12);
+    o.stop(t + i * 0.12 + 0.5);
+  }
+}
+
+function playMenuTick() {
+  if (!audioCtx) return;
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.type = "sine";
+  o.frequency.value = 440 + menuIdx * 80;
+  g.gain.setValueAtTime(0.08, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+  o.connect(g);
+  g.connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + 0.1);
+}
+
+function playStartChime() {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.type = "triangle";
+  o.frequency.setValueAtTime(440, t);
+  o.frequency.linearRampToValueAtTime(880, t + 0.15);
+  g.gain.setValueAtTime(0.12, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+  o.connect(g);
+  g.connect(audioCtx.destination);
+  o.start(t);
+  o.stop(t + 0.3);
+}
+
+loadStats();
+
+// --- Helpers ---
+function noteFreq(note, octave) {
+  return 440 * Math.pow(2, (note - 9 + (octave - 4) * 12) / 12);
+}
+
+function freqToNote(freq) {
+  if (freq < 20) return {note: -1, octave: 0, cents: 0};
+  var semitones = 12 * Math.log2(freq / 440) + 9 + 48;
+  var rounded = Math.round(semitones);
+  var cents = Math.round((semitones - rounded) * 100);
+  var note = ((rounded % 12) + 12) % 12;
+  var octave = Math.floor(rounded / 12);
+  return {note: note, octave: octave, cents: cents};
+}
+
+// --- Autocorrelation pitch detection ---
+function detectPitch() {
+  if (!analyser || !dataArray) return 0;
+  analyser.getFloatTimeDomainData(dataArray);
+
+  var rms = 0;
+  for (var i = 0; i < bufferLength; i++) rms += dataArray[i] * dataArray[i];
+  rms = Math.sqrt(rms / bufferLength);
+  if (rms < 0.01) return 0;
+
+  var SIZE = bufferLength;
+  var maxSamples = Math.floor(SIZE / 2);
+  var bestOffset = -1;
+  var bestCorrelation = 0;
+  var foundGoodCorrelation = false;
+  var correlations = new Float32Array(maxSamples);
+
+  for (var offset = 20; offset < maxSamples; offset++) {
+    var correlation = 0;
+    for (var j = 0; j < maxSamples; j++) {
+      correlation += Math.abs(dataArray[j] - dataArray[j + offset]);
+    }
+    correlation = 1 - (correlation / maxSamples);
+    correlations[offset] = correlation;
+
+    if (correlation > 0.9 && !foundGoodCorrelation) {
+      foundGoodCorrelation = true;
+    }
+    if (foundGoodCorrelation) {
+      if (correlation > bestCorrelation) {
+        bestCorrelation = correlation;
+        bestOffset = offset;
+      } else if (correlation < bestCorrelation - 0.01) {
+        break;
+      }
+    }
+  }
+
+  if (bestCorrelation > 0.85 && bestOffset > 0) {
+    var prev = correlations[bestOffset - 1] || 0;
+    var next = correlations[bestOffset + 1] || 0;
+    var shift = (next - prev) / (2 * (2 * correlations[bestOffset] - prev - next));
+    if (Math.abs(shift) < 1) bestOffset += shift;
+    var sampleRate = audioCtx ? audioCtx.sampleRate : 44100;
+    return sampleRate / bestOffset;
+  }
+  return 0;
+}
+
+// --- Mic init ---
+function initMic() {
+  if (micActive || micFailed) return;
+  micFailed = true;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    navigator.mediaDevices.getUserMedia({audio: true}).then(function(stream) {
+      micStream = stream;
+      micFailed = false;
+      micActive = true;
+      persistentSessions++;
+      saveStats();
+      var source = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 4096;
+      analyser.smoothingTimeConstant = 0.8;
+      bufferLength = analyser.fftSize;
+      dataArray = new Float32Array(bufferLength);
+      source.connect(analyser);
+    }).catch(function() {
+      micFailed = true;
+    });
+  } catch(e) {
+    micFailed = true;
+  }
+}
+
+// --- Reference tone ---
+function playRef() {
+  if (!audioCtx) return;
+  stopRef();
+  refOsc = audioCtx.createOscillator();
+  refGain = audioCtx.createGain();
+  refOsc.type = "sine";
+  refOsc.frequency.value = noteFreq(targetNote, targetOctave);
+  refGain.gain.value = 0.15;
+  refOsc.connect(refGain);
+  refGain.connect(audioCtx.destination);
+  refOsc.start();
+  refPlaying = true;
+  setTimeout(function(){ stopRef(); }, 1500);
+}
+
+function stopRef() {
+  if (refOsc) {
+    try { refOsc.stop(); } catch(e){}
+    refOsc = null;
+  }
+  refPlaying = false;
+}
+
+// --- Success sound ---
+function playSuccess() {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(523, audioCtx.currentTime);
+  osc.frequency.setValueAtTime(659, audioCtx.currentTime + 0.1);
+  osc.frequency.setValueAtTime(784, audioCtx.currentTime + 0.2);
+  gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.4);
+}
+
+// --- Next note ---
+function nextNote() {
+  noteCompleted = false;
+  holdTimer = 0;
+  totalAttempts++;
+
+  if (modeIdx === 0) {
+    targetNote = Math.floor(Math.random() * 12);
+  } else if (modeIdx === 1) {
+    scaleIdx = (scaleIdx + 1) % scaleNotes.length;
+    if (scaleIdx === 0) targetOctave = targetOctave === 5 ? 3 : targetOctave + 1;
+    targetNote = scaleNotes[scaleIdx];
+  } else if (modeIdx === 2) {
+    intervalIdx = (intervalIdx + 1) % intervalPairs.length;
+    var pair = intervalPairs[intervalIdx];
+    targetNote = (pair[0] + pair[1]) % 12;
+  } else {
+    targetNote = Math.floor(Math.random() * 12);
+    targetOctave = 3 + Math.floor(Math.random() * 3);
+  }
+}
+
+// --- Start session ---
+function startPlaying() {
+  modeIdx = menuIdx;
+  scaleIdx = 0;
+  intervalIdx = 0;
+  streakCount = 0;
+  totalAttempts = 0;
+  totalHits = 0;
+  bestStreak = 0;
+  holdTimer = 0;
+  noteCompleted = false;
+  targetNote = 9;
+  targetOctave = 4;
+  gameState = STATE_PLAYING;
+  playStartChime();
+  nextNote();
+  // First note doesn't count as "attempt" in the traditional sense
+  totalAttempts = 0;
+}
+
+// --- Input ---
+var keys = {};
+document.addEventListener("keydown", function(e) {
+  if (keys[e.key]) return;
+  keys[e.key] = true;
+
+  if (!micActive && !micFailed) initMic();
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+
+  if (gameState === STATE_TITLE) {
+    if (e.key === "ArrowUp") {
+      menuIdx = ((menuIdx - 1) + modes.length) % modes.length;
+      playMenuTick();
+    } else if (e.key === "ArrowDown") {
+      menuIdx = (menuIdx + 1) % modes.length;
+      playMenuTick();
+    } else if (e.key === "Enter") {
+      startPlaying();
+    }
+    // ArrowLeft on title = back to index (handled by browser/MRBD)
+  } else if (gameState === STATE_PLAYING) {
+    if (e.key === "ArrowLeft") {
+      targetNote = ((targetNote - 1) + 12) % 12;
+      holdTimer = 0; noteCompleted = false;
+    } else if (e.key === "ArrowRight") {
+      targetNote = (targetNote + 1) % 12;
+      holdTimer = 0; noteCompleted = false;
+    } else if (e.key === "ArrowUp") {
+      if (targetOctave < 6) targetOctave++;
+      holdTimer = 0; noteCompleted = false;
+    } else if (e.key === "ArrowDown") {
+      if (targetOctave > 2) targetOctave--;
+      holdTimer = 0; noteCompleted = false;
+    } else if (e.key === "Enter") {
+      if (noteCompleted) {
+        nextNote();
+      } else {
+        playRef();
+      }
+    } else if (e.key === "Escape") {
+      // Return to title
+      stopRef();
+      gameState = STATE_TITLE;
+    }
+  }
+  e.preventDefault();
+});
+
+document.addEventListener("keyup", function(e) {
+  keys[e.key] = false;
+});
+
+// --- Title pulse animation ---
+var titlePulse = 0;
+
+// --- Draw ---
+function draw() {
+  ctx.fillStyle = "#0d0d0d";
+  ctx.fillRect(0, 0, 600, 600);
+  titlePulse += 0.03;
+
+  if (gameState === STATE_TITLE) {
+    drawTitle();
+  } else {
+    drawPlaying();
+  }
+
+  requestAnimationFrame(draw);
+}
+
+function drawTitle() {
+  // --- Header ---
+  ctx.fillStyle = "#888";
+  ctx.font = "14px system-ui";
+  ctx.textAlign = "left";
+  ctx.fillText("LITF Experiences", 20, 28);
+  ctx.textAlign = "right";
+  ctx.fillStyle = micActive ? "#4a9" : (micFailed ? "#a44" : "#666");
+  ctx.fillText(micActive ? "🎤 Ready" : (micFailed ? "🎤 Unavailable" : "🎤 Waiting"), 580, 28);
+
+  // --- Title ---
+  ctx.textAlign = "center";
+  ctx.font = "bold 42px system-ui";
+  ctx.fillStyle = "#e0e0e0";
+  ctx.fillText("🎤 Pitch Trainer", 300, 90);
+
+  ctx.font = "15px system-ui";
+  ctx.fillStyle = "#777";
+  ctx.fillText("Sing or hum to match the target note", 300, 116);
+
+  // --- Rank display ---
+  var rankY = 135;
+  var rankName = RANKS[currentRank].name;
+  var nextRank = currentRank < RANKS.length - 1 ? RANKS[currentRank + 1] : null;
+  var rankPct = 1;
+  if (nextRank) {
+    var rangeStart = RANKS[currentRank].threshold;
+    var rangeEnd = nextRank.threshold;
+    rankPct = Math.min(1, (persistentHits - rangeStart) / (rangeEnd - rangeStart));
+  }
+  ctx.textAlign = "center";
+  ctx.font = "bold 14px system-ui";
+  ctx.fillStyle = currentRank >= 7 ? "#ffd700" : currentRank >= 5 ? "#c0a0ff" : currentRank >= 3 ? "#4af" : "#8a8";
+  ctx.fillText("⭐ " + rankName, 300, rankY + 14);
+
+  // Progress bar
+  var pbX = 150, pbW = 300, pbH = 8;
+  ctx.fillStyle = "#1a1a1a";
+  ctx.fillRect(pbX, rankY + 22, pbW, pbH);
+  var pbColor = currentRank >= 7 ? "#ffd700" : currentRank >= 5 ? "#c0a0ff" : "#4a9";
+  ctx.fillStyle = pbColor;
+  ctx.fillRect(pbX, rankY + 22, pbW * rankPct, pbH);
+  ctx.strokeStyle = "#333";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(pbX, rankY + 22, pbW, pbH);
+
+  ctx.font = "11px system-ui";
+  ctx.fillStyle = "#666";
+  if (nextRank) {
+    ctx.fillText(persistentHits + "/" + nextRank.threshold + " notes to " + nextRank.name, 300, rankY + 46);
+  } else {
+    ctx.fillText(persistentHits + " notes matched · MAX RANK", 300, rankY + 46);
+  }
+
+  // --- Mode selection ---
+  var menuTop = 210;
+  ctx.font = "bold 14px system-ui";
+  ctx.fillStyle = "#999";
+  ctx.fillText("SELECT MODE", 300, menuTop);
+
+  for (var m = 0; m < modes.length; m++) {
+    var itemY = menuTop + 28 + m * 62;
+    var isSelected = m === menuIdx;
+
+    // Card background
+    var cardX = 80, cardW = 440, cardH = 52;
+    if (isSelected) {
+      // Subtle pulsing glow
+      var glowAlpha = 0.08 + 0.04 * Math.sin(titlePulse * 2);
+      ctx.fillStyle = "rgba(68,170,153," + glowAlpha + ")";
+      ctx.fillRect(cardX - 2, itemY - 2, cardW + 4, cardH + 4);
+      ctx.fillStyle = "#1a2a28";
+    } else {
+      ctx.fillStyle = "#141414";
+    }
+    ctx.fillRect(cardX, itemY, cardW, cardH);
+
+    // Selection indicator
+    if (isSelected) {
+      ctx.fillStyle = "#4a9";
+      ctx.fillRect(cardX, itemY, 4, cardH);
+    }
+
+    // Mode name
+    ctx.textAlign = "left";
+    ctx.font = isSelected ? "bold 18px system-ui" : "16px system-ui";
+    ctx.fillStyle = isSelected ? "#4a9" : "#888";
+    ctx.fillText(modes[m], cardX + 20, itemY + 22);
+
+    // Description
+    ctx.font = "12px system-ui";
+    ctx.fillStyle = isSelected ? "#7bb" : "#555";
+    ctx.fillText(modeDescriptions[m], cardX + 20, itemY + 40);
+
+    // Arrow indicator for selected
+    if (isSelected) {
+      ctx.textAlign = "right";
+      ctx.font = "18px system-ui";
+      ctx.fillStyle = "#4a9";
+      ctx.fillText("▸", cardX + cardW - 14, itemY + 24);
+    }
+  }
+
+  // --- Stats summary ---
+  var statsY = 478;
+  ctx.fillStyle = "#1a1a1a";
+  ctx.fillRect(80, statsY, 440, 50);
+
+  ctx.textAlign = "center";
+  ctx.font = "11px system-ui";
+  ctx.fillStyle = "#666";
+  ctx.fillText("LIFETIME", 180, statsY + 16);
+  ctx.fillText("BEST STREAK", 300, statsY + 16);
+  ctx.fillText("SESSIONS", 420, statsY + 16);
+
+  ctx.font = "bold 18px system-ui";
+  ctx.fillStyle = "#ccc";
+  ctx.fillText("" + persistentHits, 180, statsY + 40);
+  ctx.fillStyle = "#ffd700";
+  ctx.fillText("" + persistentBest, 300, statsY + 40);
+  ctx.fillStyle = "#ccc";
+  ctx.fillText("" + persistentSessions, 420, statsY + 40);
+
+  // --- Footer ---
+  ctx.font = "12px system-ui";
+  ctx.fillStyle = "#555";
+  ctx.textAlign = "center";
+  ctx.fillText("↑↓ select mode   Enter to start", 300, 556);
+
+  ctx.fillStyle = "#333";
+  ctx.font = "11px system-ui";
+  ctx.textAlign = "left";
+  ctx.fillText("← Back", 20, 590);
+}
+
+function drawPlaying() {
+  // Detect pitch
+  var rawPitch = detectPitch();
+  if (rawPitch > 0) {
+    detectedPitch = detectedPitch * 0.7 + rawPitch * 0.3;
+    var info = freqToNote(detectedPitch);
+    detectedNote = info.note;
+    detectedOctave = info.octave;
+    detectedCents = info.cents;
+  } else {
+    detectedPitch = 0;
+    detectedNote = -1;
+    detectedCents = 0;
+  }
+
+  // Match calculation
+  var targetFreq = noteFreq(targetNote, targetOctave);
+  if (detectedPitch > 0) {
+    var centsDiff = 1200 * Math.log2(detectedPitch / targetFreq);
+    matchStrength = Math.max(0, 1 - Math.abs(centsDiff) / 100);
+    matchSmooth = matchSmooth * 0.85 + matchStrength * 0.15;
+
+    var bonuses = getRankBonuses();
+    var matchThreshold = 0.85 / bonuses.matchMult;
+    matchThreshold = Math.max(0.5, matchThreshold);
+    var reqFrames = bonuses.holdFrames;
+    if (matchStrength > matchThreshold && !noteCompleted) {
+      holdTimer++;
+      if (holdTimer >= reqFrames) {
+        noteCompleted = true;
+        showSuccess = 60;
+        totalHits++;
+        persistentHits++;
+        streakCount++;
+        if (streakCount > bestStreak) bestStreak = streakCount;
+        if (streakCount > persistentBest) persistentBest = streakCount;
+        prevRank = currentRank;
+        currentRank = getRankIdx(persistentHits);
+        if (currentRank > prevRank) {
+          rankUpFlash = 120;
+          playRankUpChime();
+        } else {
+          playSuccess();
+        }
+        saveStats();
+      }
+    } else if (matchStrength < 0.5) {
+      holdTimer = Math.max(0, holdTimer - 2);
+    }
+  } else {
+    matchSmooth = matchSmooth * 0.95;
+    holdTimer = Math.max(0, holdTimer - 1);
+  }
+
+  if (showSuccess > 0) showSuccess--;
+
+  // --- Header ---
+  ctx.fillStyle = "#888";
+  ctx.font = "14px system-ui";
+  ctx.textAlign = "left";
+  ctx.fillText("🎤 " + modes[modeIdx], 20, 28);
+  ctx.textAlign = "right";
+  ctx.fillStyle = micActive ? "#4a9" : (micFailed ? "#a44" : "#666");
+  ctx.fillText(micActive ? "🎤 Listening" : (micFailed ? "🎤 Unavailable" : "🎤 Press any key"), 580, 28);
+
+  // Rank bar below header
+  var rankY = 38;
+  var rankName = RANKS[currentRank].name;
+  var nextRank = currentRank < RANKS.length - 1 ? RANKS[currentRank + 1] : null;
+  var rankPct = 1;
+  if (nextRank) {
+    var rangeStart = RANKS[currentRank].threshold;
+    var rangeEnd = nextRank.threshold;
+    rankPct = Math.min(1, (persistentHits - rangeStart) / (rangeEnd - rangeStart));
+  }
+  ctx.textAlign = "left";
+  ctx.font = "bold 12px system-ui";
+  ctx.fillStyle = currentRank >= 7 ? "#ffd700" : currentRank >= 5 ? "#c0a0ff" : currentRank >= 3 ? "#4af" : "#8a8";
+  ctx.fillText("⭐ " + rankName, 20, rankY + 12);
+  var pbX = 160, pbW = 300, pbH = 8;
+  ctx.fillStyle = "#1a1a1a";
+  ctx.fillRect(pbX, rankY + 6, pbW, pbH);
+  var pbColor = currentRank >= 7 ? "#ffd700" : currentRank >= 5 ? "#c0a0ff" : "#4a9";
+  ctx.fillStyle = pbColor;
+  ctx.fillRect(pbX, rankY + 6, pbW * rankPct, pbH);
+  ctx.strokeStyle = "#333";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(pbX, rankY + 6, pbW, pbH);
+  ctx.textAlign = "right";
+  ctx.font = "11px system-ui";
+  ctx.fillStyle = "#666";
+  if (nextRank) {
+    ctx.fillText(persistentHits + "/" + nextRank.threshold + " → " + nextRank.name, 580, rankY + 13);
+  } else {
+    ctx.fillText(persistentHits + " notes · MAX RANK", 580, rankY + 13);
+  }
+
+  // Rank up flash overlay
+  if (rankUpFlash > 0) {
+    rankUpFlash--;
+    var ruAlpha = Math.min(1, rankUpFlash / 60) * 0.12;
+    ctx.fillStyle = "rgba(255,215,0," + ruAlpha + ")";
+    ctx.fillRect(0, 0, 600, 600);
+    if (rankUpFlash > 60) {
+      ctx.font = "bold 28px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(255,215,0," + Math.min(1, (rankUpFlash - 60) / 40) + ")";
+      ctx.fillText("⭐ RANK UP: " + RANKS[currentRank].name + " ⭐", 300, 240);
+      ctx.font = "16px system-ui";
+      ctx.fillStyle = "rgba(200,200,200," + Math.min(1, (rankUpFlash - 60) / 40 * 0.8) + ")";
+      ctx.fillText(RANKS[currentRank].bonus, 300, 270);
+    }
+  }
+
+  // --- Target note (large) ---
+  var targetColor = noteCompleted ? "#4f4" : (showSuccess > 0 ? "#4f4" : "#fff");
+  ctx.fillStyle = targetColor;
+  ctx.font = "bold 72px system-ui";
+  ctx.textAlign = "center";
+  ctx.fillText(NOTE_NAMES[targetNote] + targetOctave, 300, 125);
+
+  ctx.fillStyle = "#666";
+  ctx.font = "16px system-ui";
+  ctx.fillText(Math.round(targetFreq) + " Hz", 300, 152);
+
+  // --- Pitch meter (arc gauge) ---
+  var cx = 300, cy = 300, radius = 120;
+  var startAngle = Math.PI * 0.75;
+  var endAngle = Math.PI * 0.25;
+  var totalAngle = endAngle + 2 * Math.PI - startAngle;
+
+  // Background arc
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, startAngle, endAngle);
+  ctx.strokeStyle = "#222";
+  ctx.lineWidth = 20;
+  ctx.lineCap = "round";
+  ctx.stroke();
+
+  // Zone colors
+  var zones = [
+    {start: 0, end: 0.2, color: "#a44"},
+    {start: 0.2, end: 0.35, color: "#a84"},
+    {start: 0.35, end: 0.45, color: "#aa4"},
+    {start: 0.45, end: 0.55, color: "#4a4"},
+    {start: 0.55, end: 0.65, color: "#aa4"},
+    {start: 0.65, end: 0.8, color: "#a84"},
+    {start: 0.8, end: 1, color: "#a44"}
+  ];
+
+  for (var z = 0; z < zones.length; z++) {
+    var zs = startAngle + zones[z].start * totalAngle;
+    var ze = startAngle + zones[z].end * totalAngle;
+    if (ze > Math.PI * 2) { zs -= Math.PI * 2; ze -= Math.PI * 2; }
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, zs, ze);
+    ctx.strokeStyle = zones[z].color + "40";
+    ctx.lineWidth = 20;
+    ctx.lineCap = "butt";
+    ctx.stroke();
+  }
+
+  // Tick marks
+  for (var t = 0; t <= 10; t++) {
+    var tickAngle = startAngle + (t / 10) * totalAngle;
+    var inner = radius - 14;
+    var outer = radius + 14;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(tickAngle) * inner, cy + Math.sin(tickAngle) * inner);
+    ctx.lineTo(cx + Math.cos(tickAngle) * outer, cy + Math.sin(tickAngle) * outer);
+    ctx.strokeStyle = "#444";
+    ctx.lineWidth = t === 5 ? 3 : 1;
+    ctx.stroke();
+  }
+
+  // Labels
+  ctx.font = "12px system-ui";
+  ctx.fillStyle = "#666";
+  ctx.textAlign = "center";
+  var flatAngle = startAngle + 0.1 * totalAngle;
+  ctx.fillText("♭ Flat", cx + Math.cos(flatAngle) * (radius + 30), cy + Math.sin(flatAngle) * (radius + 30));
+  var sharpAngle = startAngle + 0.9 * totalAngle;
+  ctx.fillText("Sharp ♯", cx + Math.cos(sharpAngle) * (radius + 30), cy + Math.sin(sharpAngle) * (radius + 30));
+
+  // Needle
+  if (detectedPitch > 0) {
+    var centsDiff2 = 1200 * Math.log2(detectedPitch / targetFreq);
+    var clamped = Math.max(-50, Math.min(50, centsDiff2));
+    var needlePos = 0.5 + clamped / 100;
+    var needleAngle = startAngle + needlePos * totalAngle;
+
+    if (matchStrength > 0.85) {
+      ctx.beginPath();
+      ctx.arc(cx + Math.cos(needleAngle) * radius, cy + Math.sin(needleAngle) * radius, 15, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(68,255,68,0.3)";
+      ctx.fill();
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(needleAngle) * (radius - 5), cy + Math.sin(needleAngle) * (radius - 5));
+    var needleColor = matchStrength > 0.85 ? "#4f4" : (matchStrength > 0.5 ? "#ff4" : "#f44");
+    ctx.strokeStyle = needleColor;
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(cx + Math.cos(needleAngle) * radius, cy + Math.sin(needleAngle) * radius, 8, 0, Math.PI * 2);
+    ctx.fillStyle = needleColor;
+    ctx.fill();
+  }
+
+  // Center display
+  if (detectedPitch > 0) {
+    ctx.fillStyle = matchStrength > 0.85 ? "#4f4" : "#ccc";
+    ctx.font = "bold 36px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText(NOTE_NAMES[detectedNote] + detectedOctave, cx, cy + 5);
+
+    ctx.font = "16px system-ui";
+    ctx.fillStyle = detectedCents > 0 ? "#a84" : (detectedCents < 0 ? "#a84" : "#4a4");
+    var centsLabel = detectedCents > 0 ? "+" + detectedCents + "¢" : detectedCents + "¢";
+    ctx.fillText(centsLabel, cx, cy + 28);
+  } else {
+    ctx.fillStyle = "#444";
+    ctx.font = "20px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("Sing or hum...", cx, cy + 10);
+  }
+
+  // Hold progress ring
+  var holdReqNow = getRankBonuses().holdFrames;
+  if (!noteCompleted && holdTimer > 0) {
+    var holdPct = holdTimer / holdReqNow;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 50, -Math.PI / 2, -Math.PI / 2 + holdPct * Math.PI * 2);
+    ctx.strokeStyle = "#4a9";
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.stroke();
+  }
+
+  // Success flash
+  if (showSuccess > 30) {
+    ctx.fillStyle = "rgba(68,255,68," + ((showSuccess - 30) / 30 * 0.15) + ")";
+    ctx.fillRect(0, 0, 600, 600);
+  }
+
+  // --- Stats bar ---
+  var statsY = 450;
+  ctx.fillStyle = "#1a1a1a";
+  ctx.fillRect(20, statsY, 560, 60);
+
+  ctx.font = "13px system-ui";
+  ctx.textAlign = "center";
+
+  var accuracy = totalAttempts > 0 ? Math.round((totalHits / totalAttempts) * 100) : 0;
+  ctx.fillStyle = "#888";
+  ctx.fillText("Accuracy", 80, statsY + 20);
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 20px system-ui";
+  ctx.fillText(accuracy + "%", 80, statsY + 46);
+
+  ctx.font = "13px system-ui";
+  ctx.fillStyle = "#888";
+  ctx.fillText("Streak", 220, statsY + 20);
+  ctx.fillStyle = streakCount > 0 ? "#4f4" : "#fff";
+  ctx.font = "bold 20px system-ui";
+  ctx.fillText("" + streakCount, 220, statsY + 46);
+
+  ctx.font = "13px system-ui";
+  ctx.fillStyle = "#888";
+  ctx.fillText("Best", 340, statsY + 20);
+  ctx.fillStyle = "#ffd700";
+  ctx.font = "bold 20px system-ui";
+  ctx.fillText("" + persistentBest, 340, statsY + 46);
+
+  ctx.font = "13px system-ui";
+  ctx.fillStyle = "#888";
+  ctx.fillText("Session", 460, statsY + 20);
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 20px system-ui";
+  ctx.fillText(totalHits + "/" + totalAttempts, 460, statsY + 46);
+
+  // --- Footer with D-pad hints ---
+  ctx.font = "12px system-ui";
+  ctx.fillStyle = "#555";
+  ctx.textAlign = "center";
+  if (noteCompleted) {
+    ctx.fillStyle = "#4a9";
+    ctx.fillText("✓ Matched! Enter: next note   ←→: note   ↑↓: octave", 300, 540);
+  } else if (refPlaying) {
+    ctx.fillStyle = "#48a";
+    ctx.fillText("♪ Playing reference tone...", 300, 540);
+  } else {
+    ctx.fillText("Enter: hear reference   ←→: note   ↑↓: octave", 300, 540);
+  }
+
+  // --- Navigation ---
+  ctx.fillStyle = "#333";
+  ctx.font = "11px system-ui";
+  ctx.textAlign = "left";
+  ctx.fillText("Esc: menu", 20, 590);
+  ctx.textAlign = "right";
+  ctx.fillText(modes[modeIdx], 580, 590);
+}
+
+draw();
+
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true);
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>

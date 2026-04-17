@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/games/gravity-sling.html" />
+  <meta property="og:title" content="Gravity Sling - Hypernova WebApp" />
+  <meta property="og:url" content="https://liveinthefuture.org/games/gravity-sling.html" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Gravity Sling - Hypernova WebApp</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0d0d0d;
+  color: #e8e8e8;
+  width: 600px;
+  height: 600px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+canvas { display: block; }
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+var cv = document.getElementById('c');
+var ctx = cv.getContext('2d');
+var W = 600, H = 600;
+
+// Audio
+var audioCtx = null;
+var micAnalyser = null;
+var micData = null;
+var micActive = false;
+var micFailed = false;
+var micVolume = 0;
+var micSmoothed = 0;
+var gravityMod = 1;  // 0.7 to 1.3 based on mic
+
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+// === BGM System ===
+var bgmAudio = null, bgmGameover = null, bgmMuted = false, bgmStarted = false;
+function bgmInit() {
+  bgmAudio = new Audio('audio/gravity-sling-bgm.mp3');
+  bgmAudio.loop = true;
+  bgmAudio.volume = 0.15;
+  bgmGameover = new Audio('audio/gameover-gentle.mp3');
+  bgmGameover.volume = 0.25;
+}
+function bgmPlay() {
+  if (bgmMuted || !bgmAudio) return;
+  if (!bgmStarted) { bgmAudio.currentTime = 0; bgmStarted = true; }
+  bgmAudio.play().catch(function(){});
+}
+function bgmStop() { if (bgmAudio) { bgmAudio.pause(); } bgmStarted = false; }
+function bgmGameOver() {
+  bgmStop();
+  if (bgmMuted || !bgmGameover) return;
+  bgmGameover.currentTime = 0;
+  bgmGameover.play().catch(function(){});
+}
+function bgmToggle() {
+  bgmMuted = !bgmMuted;
+  if (bgmMuted) { if (bgmAudio) bgmAudio.pause(); }
+  else bgmPlay();
+}
+
+
+function initMic() {
+  if (micActive || micFailed || !audioCtx) return;
+  micFailed = true;
+  try {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      var src = audioCtx.createMediaStreamSource(stream);
+      micAnalyser = audioCtx.createAnalyser();
+      micAnalyser.fftSize = 256;
+      micAnalyser.smoothingTimeConstant = 0.85;
+      src.connect(micAnalyser);
+      micData = new Uint8Array(micAnalyser.frequencyBinCount);
+      micActive = true;
+      micFailed = false;
+    }).catch(function() { micFailed = true; });
+  } catch(e) { micFailed = true; }
+}
+
+function updateMic() {
+  if (!micActive || !micAnalyser) return;
+  micAnalyser.getByteFrequencyData(micData);
+  var sum = 0;
+  for (var i = 0; i < micData.length; i++) sum += micData[i];
+  micVolume = sum / micData.length / 255;
+  // Smooth heavily
+  micSmoothed += (micVolume - micSmoothed) * 0.08;
+  // Gravity mod: quiet(0) = 0.7, loud(1) = 1.3
+  gravityMod = 0.7 + micSmoothed * 0.6;
+}
+function tone(freq, dur, type, vol) {
+  if (!audioCtx) return;
+  var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type || 'sine'; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol || 0.12, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+function sndLaunch() { tone(220, 0.3, 'sawtooth', 0.1); setTimeout(function(){ tone(330, 0.2, 'sine', 0.08); }, 50); }
+function sndStar() { tone(880, 0.15, 'sine', 0.18); setTimeout(function(){ tone(1100, 0.15, 'sine', 0.12); }, 80); }
+function sndCrash() { tone(80, 0.5, 'sawtooth', 0.15); tone(60, 0.6, 'square', 0.08); }
+function sndWin() { for (var i = 0; i < 5; i++) { (function(i){ setTimeout(function(){ tone(440+i*110, 0.3, 'sine', 0.1); }, i*100); })(i); } }
+
+// Named star systems — real stars with escalating difficulty flavor
+var SYSTEMS = [
+  { name: 'Proxima Centauri', dist: '4.2 ly', color: '#f84' },
+  { name: 'Barnard\'s Star', dist: '6.0 ly', color: '#fa4' },
+  { name: 'Sirius', dist: '8.6 ly', color: '#4af' },
+  { name: 'Epsilon Eridani', dist: '10.5 ly', color: '#4f8' },
+  { name: 'Tau Ceti', dist: '11.9 ly', color: '#fc4' },
+  { name: 'Altair', dist: '16.7 ly', color: '#aaf' },
+  { name: 'Vega', dist: '25 ly', color: '#8cf' },
+  { name: 'Arcturus', dist: '37 ly', color: '#f84' },
+  { name: 'Capella', dist: '43 ly', color: '#fc4' },
+  { name: 'Aldebaran', dist: '65 ly', color: '#f64' },
+  { name: 'Rigel', dist: '860 ly', color: '#8af' },
+  { name: 'Betelgeuse', dist: '700 ly', color: '#f44' }
+];
+function getSystem(lvl) { return SYSTEMS[Math.min(lvl - 1, SYSTEMS.length - 1)]; }
+
+// Spatial planet audio — planets hum based on mass, stereo-panned by position
+var planetOscs = [];
+function startPlanetAudio() {
+  stopPlanetAudio();
+  if (!audioCtx) return;
+  for (var i = 0; i < planets.length; i++) {
+    var p = planets[i];
+    var freq = 40 + (p.mass / 2000) * 80; // bigger = deeper hum
+    var o = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    var pan = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+    o.type = 'sine';
+    o.frequency.value = freq;
+    g.gain.value = 0; // start silent, update in loop
+    o.connect(g);
+    if (pan) { g.connect(pan); pan.connect(audioCtx.destination); }
+    else { g.connect(audioCtx.destination); }
+    o.start();
+    planetOscs.push({ osc: o, gain: g, pan: pan, planet: p, baseFreq: freq });
+  }
+}
+function stopPlanetAudio() {
+  for (var i = 0; i < planetOscs.length; i++) {
+    try { planetOscs[i].osc.stop(); } catch(e){}
+  }
+  planetOscs = [];
+}
+function updatePlanetAudio() {
+  if (!probe || planetOscs.length === 0) return;
+  for (var i = 0; i < planetOscs.length; i++) {
+    var po = planetOscs[i];
+    var p = po.planet;
+    var dx = p.x - probe.x, dy = p.y - probe.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    // Volume inversely proportional to distance (fade beyond 300px)
+    var vol = Math.max(0, Math.min(0.06, 0.06 * (1 - dist / 350)));
+    po.gain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.05);
+    // Stereo pan based on relative X position (-1 to 1)
+    if (po.pan) {
+      var panVal = Math.max(-1, Math.min(1, (p.x - probe.x) / 250));
+      po.pan.pan.setTargetAtTime(panVal, audioCtx.currentTime, 0.05);
+    }
+    // Slight frequency warble based on gravity mod
+    po.osc.frequency.setTargetAtTime(po.baseFreq * gravityMod, audioCtx.currentTime, 0.1);
+  }
+}
+
+// Rank progression — cumulative stars across all games
+var RANKS = [
+  { name: 'Cadet',     stars: 0,    fuelBonus: 0, thrustMult: 1.0,  thrustCostMult: 1.0,  magnetMult: 1.0  },
+  { name: 'Pilot',     stars: 15,   fuelBonus: 1, thrustMult: 1.0,  thrustCostMult: 1.0,  magnetMult: 1.0  },
+  { name: 'Navigator', stars: 40,   fuelBonus: 1, thrustMult: 1.15, thrustCostMult: 1.0,  magnetMult: 1.0  },
+  { name: 'Explorer',  stars: 100,  fuelBonus: 1, thrustMult: 1.15, thrustCostMult: 1.0,  magnetMult: 1.20 },
+  { name: 'Voyager',   stars: 200,  fuelBonus: 2, thrustMult: 1.20, thrustCostMult: 0.85, magnetMult: 1.20 },
+  { name: 'Captain',   stars: 400,  fuelBonus: 2, thrustMult: 1.25, thrustCostMult: 0.80, magnetMult: 1.30 },
+  { name: 'Admiral',   stars: 800,  fuelBonus: 2, thrustMult: 1.30, thrustCostMult: 0.75, magnetMult: 1.40 },
+  { name: 'Star Lord', stars: 1500, fuelBonus: 3, thrustMult: 1.35, thrustCostMult: 0.70, magnetMult: 1.50 }
+];
+var gsStats = { totalStars: 0, gamesPlayed: 0, bestLevel: 0, bestSystem: '' };
+try {
+  var saved = JSON.parse(localStorage.getItem('gs_stats'));
+  if (saved) { gsStats.totalStars = saved.totalStars || 0; gsStats.gamesPlayed = saved.gamesPlayed || 0; gsStats.bestLevel = saved.bestLevel || 0; gsStats.bestSystem = saved.bestSystem || ''; }
+} catch(e){}
+// Migrate old save format
+try { var oldBest = parseInt(localStorage.getItem('gs_best')); if (oldBest && oldBest > gsStats.bestLevel) { gsStats.bestLevel = oldBest; gsStats.bestSystem = localStorage.getItem('gs_bestSys') || ''; } } catch(e){}
+function saveStats() { try { localStorage.setItem('gs_stats', JSON.stringify(gsStats)); } catch(e){} }
+function getRankIdx() { var r = 0; for (var i = RANKS.length - 1; i >= 0; i--) { if (gsStats.totalStars >= RANKS[i].stars) { r = i; break; } } return r; }
+function getRank() { return RANKS[getRankIdx()]; }
+function getNextRank() { var i = getRankIdx(); return i < RANKS.length - 1 ? RANKS[i + 1] : null; }
+function getRankProgress() { var i = getRankIdx(); if (i >= RANKS.length - 1) return 1; var cur = RANKS[i].stars, nxt = RANKS[i + 1].stars; return (gsStats.totalStars - cur) / (nxt - cur); }
+var rankUpPending = false;
+function sndRankUp() { var notes = [523, 659, 784, 1047]; for (var i = 0; i < notes.length; i++) { (function(n, d){ setTimeout(function(){ tone(n, 0.35, 'sine', 0.14); }, d); })(notes[i], i * 120); } }
+
+// Wormholes — space anomalies that teleport the probe
+var wormholes = [];
+var wormholeCooldown = 0;
+function sndWormhole() {
+  if (!audioCtx) return;
+  var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(200, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.15);
+  o.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.35);
+  g.gain.setValueAtTime(0.12, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + 0.4);
+  var o2 = audioCtx.createOscillator(), g2 = audioCtx.createGain();
+  o2.type = 'triangle';
+  o2.frequency.setValueAtTime(600, audioCtx.currentTime + 0.05);
+  o2.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.2);
+  g2.gain.setValueAtTime(0.06, audioCtx.currentTime + 0.05);
+  g2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+  o2.connect(g2); g2.connect(audioCtx.destination);
+  o2.start(); o2.stop(audioCtx.currentTime + 0.35);
+}
+
+// States
+var ST_TITLE = 0, ST_AIM = 1, ST_FLY = 2, ST_WIN = 3, ST_FAIL = 4;
+var state = ST_TITLE;
+
+// Game vars
+var level = 1;
+var bestLevel = gsStats.bestLevel;
+var bestSystem = gsStats.bestSystem;
+var probe = { x: 60, y: 300, vx: 0, vy: 0, r: 6, alive: false, launched: false };
+var planets = [], stars = [], starsCollected = 0, fuel = 0, maxFuel = 0;
+var aimAngle = 0;       // radians, 0 = right
+var aimPower = 0.5;     // 0-1
+var particles = [];
+var trails = [];
+var time = 0;
+var crashTimer = 0;
+var thrustCost = 0.25;  // fuel per thrust burst
+var thrustPower = 60;   // velocity added per burst
+var thrustFlash = 0;    // visual feedback timer
+var thrustDir = null;   // last thrust direction for flash
+
+// BG stars
+var bgStars = [];
+for (var i = 0; i < 150; i++) {
+  bgStars.push({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.2 + 0.3, b: Math.random() * 0.5 + 0.5, tw: Math.random() * Math.PI * 2 });
+}
+
+// Physics
+var G = 800;
+var dt = 1/60;
+var simSteps = 4;
+
+function simStep(obj, ts) {
+  var ax = 0, ay = 0;
+  for (var i = 0; i < planets.length; i++) {
+    var p = planets[i];
+    var dx = p.x - obj.x, dy = p.y - obj.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < p.r) return false;
+    var force = G * gravityMod * p.mass / (dist * dist);
+    ax += force * dx / dist;
+    ay += force * dy / dist;
+  }
+  obj.vx += ax * ts;
+  obj.vy += ay * ts;
+  obj.x += obj.vx * ts;
+  obj.y += obj.vy * ts;
+  return true;
+}
+
+function predictPath(sx, sy, vx, vy, steps) {
+  var pts = [];
+  var obj = { x: sx, y: sy, vx: vx, vy: vy };
+  for (var i = 0; i < steps; i++) {
+    var alive = simStep(obj, dt);
+    pts.push({ x: obj.x, y: obj.y });
+    if (!alive || obj.x < -50 || obj.x > W + 50 || obj.y < -50 || obj.y > H + 50) break;
+  }
+  return pts;
+}
+
+function genLevel(n) {
+  var numPlanets = Math.min(2 + Math.floor(n / 2), 7);
+  var numStars = Math.min(3 + Math.floor(n / 3), 6);
+  var rank = getRank();
+  maxFuel = Math.max(3, 5 - Math.floor(n / 4)) + rank.fuelBonus;
+  fuel = maxFuel;
+  starsCollected = 0;
+  trails = [];
+  particles = [];
+  aimAngle = 0;
+  aimPower = 0.5;
+  crashTimer = 0;
+
+  probe = { x: 60, y: H / 2, vx: 0, vy: 0, r: 6, alive: true, launched: false };
+
+  planets = [];
+  var attempts = 0;
+  while (planets.length < numPlanets && attempts < 500) {
+    attempts++;
+    var r = 18 + Math.random() * 20 + n * 1.2;
+    r = Math.min(r, 50);
+    var px = 120 + r + Math.random() * (W - 160 - 2 * r);
+    var py = 60 + r + Math.random() * (H - 120 - 2 * r);
+    var dx = px - 60, dy = py - H / 2;
+    if (Math.sqrt(dx * dx + dy * dy) < 120) continue;
+    var ok = true;
+    for (var i = 0; i < planets.length; i++) {
+      var d2x = px - planets[i].x, d2y = py - planets[i].y;
+      if (Math.sqrt(d2x * d2x + d2y * d2y) < planets[i].r + r + 50) { ok = false; break; }
+    }
+    if (ok) planets.push({ x: px, y: py, r: r, mass: r * r * 0.8, hue: 200 + Math.random() * 160, phase: Math.random() * Math.PI * 2 });
+  }
+
+  stars = [];
+  attempts = 0;
+  while (stars.length < numStars && attempts < 500) {
+    attempts++;
+    var sx = 100 + Math.random() * (W - 200);
+    var sy = 60 + Math.random() * (H - 120);
+    var ok = true;
+    for (var i = 0; i < planets.length; i++) {
+      var dx = sx - planets[i].x, dy = sy - planets[i].y;
+      if (Math.sqrt(dx * dx + dy * dy) < planets[i].r + 30) { ok = false; break; }
+    }
+    if (Math.sqrt((sx - 60) * (sx - 60) + (sy - H / 2) * (sy - H / 2)) < 80) ok = false;
+    for (var i = 0; i < stars.length; i++) {
+      var dx = sx - stars[i].x, dy = sy - stars[i].y;
+      if (Math.sqrt(dx * dx + dy * dy) < 35) { ok = false; break; }
+    }
+    if (ok) stars.push({ x: sx, y: sy, collected: false, pulse: Math.random() * Math.PI * 2 });
+  }
+
+  // Start spatial planet audio for this level
+  startPlanetAudio();
+
+  // Generate wormhole pairs (starting from level 3)
+  wormholes = [];
+  wormholeCooldown = 0;
+  if (n >= 3) {
+    var numPairs = Math.min(1 + Math.floor((n - 3) / 4), 2); // 1 pair at lvl 3-6, 2 pairs at 7+
+    for (var wp = 0; wp < numPairs; wp++) {
+      var attempts2 = 0;
+      while (attempts2 < 200) {
+        attempts2++;
+        var ax = 100 + Math.random() * (W - 200);
+        var ay = 80 + Math.random() * (H - 160);
+        var bx = 100 + Math.random() * (W - 200);
+        var by = 80 + Math.random() * (H - 160);
+        // Must be far apart from each other
+        var pairDist = Math.sqrt((ax - bx) * (ax - bx) + (ay - by) * (ay - by));
+        if (pairDist < 150) continue;
+        // Must be far from planets, stars, probe, and other wormholes
+        var clear = true;
+        var checkPts = [{ x: ax, y: ay }, { x: bx, y: by }];
+        for (var ci = 0; ci < checkPts.length; ci++) {
+          var cp = checkPts[ci];
+          if (Math.sqrt((cp.x - 60) * (cp.x - 60) + (cp.y - H / 2) * (cp.y - H / 2)) < 90) { clear = false; break; }
+          for (var pi = 0; pi < planets.length; pi++) {
+            var dpx = cp.x - planets[pi].x, dpy = cp.y - planets[pi].y;
+            if (Math.sqrt(dpx * dpx + dpy * dpy) < planets[pi].r + 40) { clear = false; break; }
+          }
+          if (!clear) break;
+          for (var si = 0; si < stars.length; si++) {
+            var dsx = cp.x - stars[si].x, dsy = cp.y - stars[si].y;
+            if (Math.sqrt(dsx * dsx + dsy * dsy) < 30) { clear = false; break; }
+          }
+          if (!clear) break;
+          for (var wi = 0; wi < wormholes.length; wi++) {
+            var wh = wormholes[wi];
+            var dwax = cp.x - wh.ax, dway = cp.y - wh.ay;
+            var dwbx = cp.x - wh.bx, dwby = cp.y - wh.by;
+            if (Math.sqrt(dwax * dwax + dway * dway) < 50 || Math.sqrt(dwbx * dwbx + dwby * dwby) < 50) { clear = false; break; }
+          }
+          if (!clear) break;
+        }
+        if (clear) {
+          var hue = 280 + wp * 60; // purple, then pink for second pair
+          wormholes.push({ ax: ax, ay: ay, bx: bx, by: by, hue: hue, discovered: false, phase: Math.random() * Math.PI * 2 });
+          break;
+        }
+      }
+    }
+  }
+}
+
+function spawnParticles(x, y, color, count, spd) {
+  for (var i = 0; i < count; i++) {
+    var a = Math.random() * Math.PI * 2;
+    var s = spd * (0.3 + Math.random() * 0.7);
+    particles.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, decay: 0.01 + Math.random() * 0.02, r: 2 + Math.random() * 3, color: color });
+  }
+}
+
+function launchProbe() {
+  if (state !== ST_AIM || fuel <= 0) return;
+  initAudio(); if(!bgmAudio) bgmInit();
+  var speed = 100 + aimPower * 400;
+  probe.vx = Math.cos(aimAngle) * speed;
+  probe.vy = Math.sin(aimAngle) * speed;
+  probe.launched = true;
+  state = ST_FLY;
+  fuel--;
+  sndLaunch();
+}
+
+function resetProbe() {
+  probe.x = 60; probe.y = H / 2; probe.vx = 0; probe.vy = 0;
+  probe.alive = true; probe.launched = false;
+  crashTimer = 0;
+  state = ST_AIM; bgmPlay();
+}
+
+// Input
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'm' || e.key === 'M') { bgmToggle(); return; }
+  e.preventDefault();
+  if (state === ST_TITLE) {
+    if (e.key === 'Enter') {
+      initAudio();
+      initMic();
+      level = 1;
+      gsStats.gamesPlayed++;
+      rankUpPending = false;
+      saveStats();
+      genLevel(level);
+      state = ST_AIM;
+    }
+    return;
+  }
+  if (state === ST_WIN || state === ST_FAIL) {
+    if (e.key === 'Enter') {
+      rankUpPending = false;
+      if (state === ST_WIN) {
+        level++;
+        genLevel(level);
+        state = ST_AIM;
+      } else {
+        level = 1;
+        genLevel(level);
+        state = ST_AIM;
+      }
+    }
+    if (e.key === 'Escape' || e.key === 'Backspace') {
+      stopPlanetAudio();
+      state = ST_TITLE;
+    }
+    return;
+  }
+  if (state === ST_AIM) {
+    if (e.key === 'ArrowLeft') aimAngle -= 0.08;
+    if (e.key === 'ArrowRight') aimAngle += 0.08;
+    if (e.key === 'ArrowUp') aimPower = Math.min(1, aimPower + 0.05);
+    if (e.key === 'ArrowDown') aimPower = Math.max(0.05, aimPower - 0.05);
+    if (e.key === 'Enter') launchProbe();
+    if (e.key === 'Escape' || e.key === 'Backspace') { stopPlanetAudio(); state = ST_TITLE; }
+  }
+  if (state === ST_FLY) {
+    // Mid-flight thrust corrections
+    if (probe && probe.alive && fuel >= thrustCost * getRank().thrustCostMult) {
+      var thrustX = 0, thrustY = 0, fired = false;
+      var tPower = thrustPower * getRank().thrustMult;
+      if (e.key === 'ArrowUp') { thrustY = -tPower; fired = true; }
+      if (e.key === 'ArrowDown') { thrustY = tPower; fired = true; }
+      if (e.key === 'ArrowLeft') { thrustX = -tPower; fired = true; }
+      if (e.key === 'ArrowRight') { thrustX = tPower; fired = true; }
+      if (fired) {
+        probe.vx += thrustX;
+        probe.vy += thrustY;
+        fuel -= thrustCost * getRank().thrustCostMult;
+        thrustFlash = 15;
+        thrustDir = { x: thrustX, y: thrustY };
+        tone(440, 0.08, 'triangle', 0.1);
+        spawnParticles(probe.x - (thrustX > 0 ? 8 : thrustX < 0 ? -8 : 0), probe.y - (thrustY > 0 ? 8 : thrustY < 0 ? -8 : 0), '#f84', 5, 60);
+      }
+    }
+    if (e.key === 'Escape' || e.key === 'Backspace') {
+      // Restart level
+      stopPlanetAudio();
+      genLevel(level);
+      state = ST_AIM;
+    }
+  }
+});
+
+// Draw helpers
+function drawBg() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  for (var i = 0; i < bgStars.length; i++) {
+    var s = bgStars[i];
+    var tw = Math.sin(time * 1.5 + s.tw) * 0.3 + 0.7;
+    ctx.globalAlpha = s.b * tw;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawPlanets() {
+  for (var i = 0; i < planets.length; i++) {
+    var p = planets[i];
+    // Gravity rings — pulse with mic
+    ctx.globalAlpha = 0.06 + (micActive ? micSmoothed * 0.08 : 0);
+    for (var r = 1; r <= 3; r++) {
+      var fieldR = p.r + r * 22 * gravityMod + Math.sin(time * 2 + p.phase + r) * 3;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, fieldR, 0, Math.PI * 2);
+      ctx.strokeStyle = 'hsl(' + p.hue + ',60%,50%)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // Body
+    var grad = ctx.createRadialGradient(p.x - p.r * 0.3, p.y - p.r * 0.3, p.r * 0.1, p.x, p.y, p.r);
+    grad.addColorStop(0, 'hsl(' + p.hue + ',50%,55%)');
+    grad.addColorStop(0.7, 'hsl(' + p.hue + ',60%,35%)');
+    grad.addColorStop(1, 'hsl(' + p.hue + ',70%,15%)');
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+}
+
+function drawStarItems() {
+  for (var i = 0; i < stars.length; i++) {
+    var s = stars[i];
+    if (s.collected) continue;
+    var pulse = Math.sin(time * 4 + s.pulse) * 0.2 + 0.8;
+    var sz = 7 * pulse;
+    ctx.globalAlpha = 0.3 * pulse;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, sz + 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#fc4';
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(time * 0.5 + s.pulse);
+    ctx.beginPath();
+    for (var j = 0; j < 5; j++) {
+      var angle = j * Math.PI * 2 / 5 - Math.PI / 2;
+      ctx.lineTo(Math.cos(angle) * sz, Math.sin(angle) * sz);
+      var inner = angle + Math.PI / 5;
+      ctx.lineTo(Math.cos(inner) * sz * 0.4, Math.sin(inner) * sz * 0.4);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#fc4';
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawWormholes() {
+  for (var i = 0; i < wormholes.length; i++) {
+    var wh = wormholes[i];
+    var hue = wh.hue;
+    var pts = [{ x: wh.ax, y: wh.ay }, { x: wh.bx, y: wh.by }];
+    for (var pi = 0; pi < 2; pi++) {
+      var wx = pts[pi].x, wy = pts[pi].y;
+      var spin = time * 2.5 + wh.phase + pi * Math.PI;
+      var portalR = 14 + Math.sin(time * 3 + wh.phase) * 2;
+      // Outer glow
+      ctx.globalAlpha = 0.15 + Math.sin(time * 2 + wh.phase) * 0.05;
+      var grd = ctx.createRadialGradient(wx, wy, portalR * 0.5, wx, wy, portalR * 2.5);
+      grd.addColorStop(0, 'hsla(' + hue + ',80%,60%,0.3)');
+      grd.addColorStop(1, 'hsla(' + hue + ',80%,30%,0)');
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(wx, wy, portalR * 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      // Spinning ring
+      ctx.globalAlpha = 0.6;
+      ctx.strokeStyle = 'hsl(' + hue + ',70%,55%)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(wx, wy, portalR, spin % (Math.PI * 2), spin % (Math.PI * 2) + Math.PI * 1.3);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(wx, wy, portalR, spin % (Math.PI * 2) + Math.PI, spin % (Math.PI * 2) + Math.PI * 2.3);
+      ctx.stroke();
+      // Inner void
+      ctx.globalAlpha = 1;
+      var inner = ctx.createRadialGradient(wx, wy, 0, wx, wy, portalR * 0.7);
+      inner.addColorStop(0, '#0d0d0d');
+      inner.addColorStop(0.7, 'hsla(' + hue + ',60%,15%,0.8)');
+      inner.addColorStop(1, 'hsla(' + hue + ',60%,25%,0)');
+      ctx.fillStyle = inner;
+      ctx.beginPath();
+      ctx.arc(wx, wy, portalR * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      // Connection line between pair (subtle dashed)
+      if (pi === 0) {
+        ctx.globalAlpha = 0.08;
+        ctx.strokeStyle = 'hsl(' + hue + ',60%,50%)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 8]);
+        ctx.beginPath();
+        ctx.moveTo(wh.ax, wh.ay);
+        ctx.lineTo(wh.bx, wh.by);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+    // Discovery label on first warp
+    if (wh.discovered) {
+      ctx.globalAlpha = 0.4;
+      ctx.font = '9px -apple-system, sans-serif';
+      ctx.fillStyle = 'hsl(' + hue + ',60%,60%)';
+      ctx.textAlign = 'center';
+      ctx.fillText('⟡ wormhole', pts[0].x, pts[0].y - 20);
+      ctx.fillText('⟡ wormhole', pts[1].x, pts[1].y - 20);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawProbe() {
+  if (!probe || !probe.alive) return;
+  // Trail
+  if (probe.launched) {
+    trails.push({ x: probe.x, y: probe.y, life: 1 });
+    if (trails.length > 300) trails.shift();
+  }
+  for (var i = 0; i < trails.length; i++) {
+    var t = trails[i];
+    t.life -= 0.005;
+    if (t.life <= 0) continue;
+    ctx.globalAlpha = t.life * 0.4;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, 1.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#4af';
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // Body
+  ctx.beginPath();
+  ctx.arc(probe.x, probe.y, probe.r, 0, Math.PI * 2);
+  ctx.fillStyle = '#4af';
+  ctx.fill();
+  // Thrust flash
+  if (thrustFlash > 0) {
+    thrustFlash--;
+    ctx.beginPath();
+    ctx.arc(probe.x, probe.y, probe.r + 8 + thrustFlash * 0.5, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,136,68,' + (thrustFlash / 15 * 0.4) + ')';
+    ctx.fill();
+  }
+  // Glow
+  ctx.beginPath();
+  ctx.arc(probe.x, probe.y, probe.r + 4 + Math.sin(time * 6) * 2, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(68,170,255,0.15)';
+  ctx.fill();
+}
+
+function drawAim() {
+  if (state !== ST_AIM || fuel <= 0) return;
+  var speed = 100 + aimPower * 400;
+  var vx = Math.cos(aimAngle) * speed;
+  var vy = Math.sin(aimAngle) * speed;
+  var pts = predictPath(probe.x, probe.y, vx, vy, 200);
+
+  // Trajectory
+  ctx.beginPath();
+  for (var i = 0; i < pts.length; i++) {
+    if (i === 0) ctx.moveTo(pts[i].x, pts[i].y);
+    else ctx.lineTo(pts[i].x, pts[i].y);
+  }
+  ctx.strokeStyle = 'rgba(68,170,255,0.3)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 6]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Dots along path
+  for (var i = 0; i < pts.length; i += 12) {
+    ctx.globalAlpha = 0.5 * (1 - i / pts.length);
+    ctx.beginPath();
+    ctx.arc(pts[i].x, pts[i].y, 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#4af';
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Arrow from probe showing direction + power
+  var lineLen = 25 + aimPower * 35;
+  var endX = probe.x + Math.cos(aimAngle) * lineLen;
+  var endY = probe.y + Math.sin(aimAngle) * lineLen;
+  var r = Math.floor(aimPower * 255);
+  var g = Math.floor((1 - aimPower) * 200 + 55);
+  ctx.beginPath();
+  ctx.moveTo(probe.x, probe.y);
+  ctx.lineTo(endX, endY);
+  ctx.strokeStyle = 'rgb(' + r + ',' + g + ',100)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  // Arrowhead
+  ctx.beginPath();
+  ctx.moveTo(endX, endY);
+  ctx.lineTo(endX - 8 * Math.cos(aimAngle - 0.4), endY - 8 * Math.sin(aimAngle - 0.4));
+  ctx.moveTo(endX, endY);
+  ctx.lineTo(endX - 8 * Math.cos(aimAngle + 0.4), endY - 8 * Math.sin(aimAngle + 0.4));
+  ctx.stroke();
+
+  // Power % label
+  ctx.font = '600 14px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.textAlign = 'center';
+  ctx.fillText(Math.round(aimPower * 100) + '%', endX + 18 * Math.cos(aimAngle + 1), endY + 18 * Math.sin(aimAngle + 1));
+}
+
+function drawParticles() {
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= 0.98; p.vy *= 0.98;
+    p.life -= p.decay;
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    ctx.globalAlpha = p.life;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawHUD() {
+  ctx.font = '600 16px -apple-system, sans-serif';
+  ctx.textBaseline = 'top';
+  // Level + System name
+  var sys = getSystem(level);
+  ctx.fillStyle = sys.color;
+  ctx.textAlign = 'left';
+  ctx.fillText(sys.name, 12, 10);
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.fillText(sys.dist + ' · LVL ' + level, 12, 28);
+  // Stars
+  ctx.fillStyle = '#fc4';
+  ctx.textAlign = 'center';
+  ctx.fillText('★ ' + starsCollected + '/' + stars.length, W / 2, 10);
+  // Fuel
+  var fuelFull = Math.floor(fuel);
+  var fuelPartial = fuel - fuelFull;
+  var dots = '';
+  for (var i = 0; i < maxFuel; i++) {
+    if (i < fuelFull) dots += '●';
+    else if (i === fuelFull && fuelPartial >= 0.25) dots += '◐';
+    else dots += '○';
+  }
+  ctx.fillStyle = fuel <= 1 ? '#f44' : fuel <= 2 ? '#fa4' : '#4f8';
+  ctx.textAlign = 'right';
+  ctx.fillText(dots, W - 12, 10);
+  // Best
+  if (bestLevel > 0) {
+    ctx.fillStyle = '#555';
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('Best: ' + (bestSystem || ('Lvl ' + bestLevel)), W - 12, 30);
+  }
+  // Mic gravity indicator
+  if (micActive) {
+    var gPct = Math.round(gravityMod * 100);
+    var gColor = gravityMod > 1.1 ? '#f44' : gravityMod < 0.9 ? '#4f8' : '#888';
+    ctx.fillStyle = gColor;
+    ctx.font = '600 12px -apple-system, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('🎤 G:' + gPct + '%', 12, 46);
+  } else if (!micFailed) {
+    ctx.fillStyle = '#444';
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('🎤 mic off', 12, 46);
+  }
+  // Rank in HUD
+  ctx.fillStyle = '#4af';
+  ctx.font = '600 11px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(getRank().name, W / 2, 28);
+}
+
+function drawFooter(text) {
+  ctx.fillStyle = 'rgba(13,13,13,0.8)';
+  ctx.fillRect(0, H - 28, W, 28);
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, W / 2, H - 14);
+}
+
+function drawTitle() {
+  drawBg();
+  ctx.font = '700 42px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#4af';
+  ctx.fillText('Gravity Sling', W / 2, H / 2 - 60);
+
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#667';
+  ctx.fillText('🌌 Physics Arcade', W / 2, H / 2 - 20);
+
+  ctx.font = '16px -apple-system, sans-serif';
+  ctx.fillStyle = '#999';
+  ctx.fillText('Launch probes through gravity fields', W / 2, H / 2 + 20);
+  ctx.fillText('Collect all stars to clear each level', W / 2, H / 2 + 44);
+
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.fillStyle = '#667';
+  ctx.fillText('D-pad mid-flight for thrust corrections', W / 2, H / 2 + 68);
+  ctx.fillText('🎤 Ambient sound warps gravity', W / 2, H / 2 + 86);
+  ctx.fillText('Watch for wormholes in deep space...', W / 2, H / 2 + 104);
+
+  // Rank display
+  var rk = getRank(), nextRk = getNextRank(), rkProg = getRankProgress();
+  ctx.font = '600 14px -apple-system, sans-serif';
+  ctx.fillStyle = '#4af';
+  ctx.fillText(rk.name + (nextRk ? '' : ' ★'), W / 2, H / 2 + 126);
+  if (nextRk) {
+    // Progress bar
+    var barW = 160, barH = 6, barX = (W - barW) / 2, barY = H / 2 + 136;
+    ctx.fillStyle = '#1a1a2a';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#4af';
+    ctx.fillRect(barX, barY, Math.max(4, barW * rkProg), barH);
+    ctx.font = '10px -apple-system, sans-serif';
+    ctx.fillStyle = '#556';
+    ctx.fillText(gsStats.totalStars + '/' + nextRk.stars + ' ★ → ' + nextRk.name, W / 2, barY + 16);
+  }
+
+  if (bestSystem) {
+    ctx.fillStyle = '#555';
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.fillText('Farthest: ' + bestSystem + ' (Lvl ' + bestLevel + ')', W / 2, H / 2 + 166);
+  }
+
+  ctx.font = '600 20px -apple-system, sans-serif';
+  ctx.fillStyle = '#4af';
+  var pulse = Math.sin(time * 3) * 0.3 + 0.7;
+  ctx.globalAlpha = pulse;
+  ctx.fillText('Press Enter', W / 2, H / 2 + 192);
+  ctx.globalAlpha = 1;
+
+  drawFooter('←→ Aim · ↑↓ Power · Enter Launch · Esc Back');
+}
+
+function drawWinScreen() {
+  drawBg();
+  var sys = getSystem(level);
+  ctx.font = '700 30px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = sys.color;
+  ctx.fillText(sys.name + ' Cleared!', W / 2, H / 2 - 60);
+
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#667';
+  ctx.fillText(sys.dist + ' from Earth', W / 2, H / 2 - 32);
+
+  ctx.font = '18px -apple-system, sans-serif';
+  ctx.fillStyle = '#4f8';
+  ctx.fillText('★ All Stars Collected', W / 2, H / 2 - 5);
+
+  ctx.fillStyle = '#888';
+  ctx.font = '16px -apple-system, sans-serif';
+  ctx.fillText('Fuel remaining: ' + fuel + '/' + maxFuel, W / 2, H / 2 + 25);
+
+  // Rank progress
+  var rk = getRank(), nextRk = getNextRank(), rkProg = getRankProgress();
+  if (rankUpPending) {
+    ctx.font = '600 18px -apple-system, sans-serif';
+    ctx.fillStyle = '#fc4';
+    ctx.fillText('⭐ Promoted to ' + rk.name + '! ⭐', W / 2, H / 2 + 52);
+  } else if (nextRk) {
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.fillStyle = '#556';
+    ctx.fillText(rk.name + ' — ' + gsStats.totalStars + '/' + nextRk.stars + ' ★ → ' + nextRk.name, W / 2, H / 2 + 52);
+  } else {
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.fillStyle = '#4af';
+    ctx.fillText(rk.name + ' ★ ' + gsStats.totalStars + ' total stars', W / 2, H / 2 + 52);
+  }
+
+  // Next system preview
+  var nextSys = getSystem(level + 1);
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.fillStyle = '#556';
+  ctx.fillText('Next: ' + nextSys.name + ' (' + nextSys.dist + ')', W / 2, H / 2 + 74);
+
+  ctx.font = '600 20px -apple-system, sans-serif';
+  ctx.fillStyle = '#4af';
+  var pulse = Math.sin(time * 3) * 0.3 + 0.7;
+  ctx.globalAlpha = pulse;
+  ctx.fillText('Enter: Next Level', W / 2, H / 2 + 100);
+  ctx.globalAlpha = 1;
+
+  drawFooter('Enter Next · Esc Menu');
+}
+
+function drawFailScreen() {
+  drawBg();
+  ctx.font = '700 36px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#f44';
+  ctx.fillText('Mission Failed', W / 2, H / 2 - 50);
+
+  var sys = getSystem(level);
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#667';
+  ctx.fillText('Lost at ' + sys.name + ' (' + sys.dist + ')', W / 2, H / 2 - 20);
+
+  ctx.font = '18px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.fillText('Out of fuel on level ' + level, W / 2, H / 2 + 5);
+
+  ctx.fillStyle = '#fc4';
+  ctx.fillText('Stars: ' + starsCollected + '/' + stars.length, W / 2, H / 2 + 25);
+
+  // Rank progress
+  var rk = getRank(), nextRk = getNextRank();
+  if (rankUpPending) {
+    ctx.font = '600 18px -apple-system, sans-serif';
+    ctx.fillStyle = '#fc4';
+    ctx.fillText('⭐ Promoted to ' + rk.name + '! ⭐', W / 2, H / 2 + 50);
+  } else if (nextRk) {
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.fillStyle = '#556';
+    ctx.fillText(rk.name + ' — ' + gsStats.totalStars + '/' + nextRk.stars + ' ★ → ' + nextRk.name, W / 2, H / 2 + 50);
+  }
+
+  ctx.font = '600 20px -apple-system, sans-serif';
+  ctx.fillStyle = '#4af';
+  var pulse = Math.sin(time * 3) * 0.3 + 0.7;
+  ctx.globalAlpha = pulse;
+  ctx.fillText('Enter: Retry', W / 2, H / 2 + 80);
+  ctx.globalAlpha = 1;
+
+  drawFooter('Enter Retry · Esc Menu');
+}
+
+// Update
+function update() {
+  time += dt;
+  updateMic();
+  updatePlanetAudio();
+
+  if (state === ST_FLY && probe && probe.alive) {
+    for (var s = 0; s < simSteps; s++) {
+      var alive = simStep(probe, dt / simSteps);
+      if (!alive) {
+        probe.alive = false;
+        sndCrash();
+        spawnParticles(probe.x, probe.y, '#4af', 20, 120);
+        spawnParticles(probe.x, probe.y, '#fff', 8, 80);
+        crashTimer = 60;
+        break;
+      }
+      // Star collection
+      for (var i = 0; i < stars.length; i++) {
+        if (stars[i].collected) continue;
+        var dx = probe.x - stars[i].x, dy = probe.y - stars[i].y;
+        if (Math.sqrt(dx * dx + dy * dy) < 18 * getRank().magnetMult) {
+          stars[i].collected = true;
+          starsCollected++;
+          sndStar();
+          spawnParticles(stars[i].x, stars[i].y, '#fc4', 12, 100);
+          if (starsCollected === stars.length) {
+            probe.alive = false;
+            state = ST_WIN;
+            // Track stars collected this level
+            var prevRankIdx = getRankIdx();
+            gsStats.totalStars += starsCollected;
+            if (level > gsStats.bestLevel) {
+              gsStats.bestLevel = level;
+              gsStats.bestSystem = getSystem(level).name;
+              bestLevel = gsStats.bestLevel;
+              bestSystem = gsStats.bestSystem;
+            }
+            saveStats();
+            if (getRankIdx() > prevRankIdx) { rankUpPending = true; sndRankUp(); }
+            else { sndWin(); }
+            spawnParticles(probe.x, probe.y, '#4af', 15, 80);
+            spawnParticles(probe.x, probe.y, '#fc4', 15, 100);
+            return;
+          }
+        }
+      }
+      // Wormhole teleportation
+      if (wormholeCooldown > 0) wormholeCooldown--;
+      if (wormholeCooldown <= 0) {
+        for (var wi = 0; wi < wormholes.length; wi++) {
+          var wh = wormholes[wi];
+          var whPts = [{ x: wh.ax, y: wh.ay, tx: wh.bx, ty: wh.by }, { x: wh.bx, y: wh.by, tx: wh.ax, ty: wh.ay }];
+          for (var wpi = 0; wpi < 2; wpi++) {
+            var wp = whPts[wpi];
+            var wdx = probe.x - wp.x, wdy = probe.y - wp.y;
+            if (Math.sqrt(wdx * wdx + wdy * wdy) < 16) {
+              // Teleport to the paired end
+              spawnParticles(probe.x, probe.y, 'hsl(' + wh.hue + ',70%,55%)', 10, 80);
+              probe.x = wp.tx;
+              probe.y = wp.ty;
+              // Keep velocity magnitude, redirect slightly toward center of field
+              var speed = Math.sqrt(probe.vx * probe.vx + probe.vy * probe.vy);
+              var exitAngle = Math.atan2(probe.vy, probe.vx);
+              // Add a small random deflection (+/- 30 degrees) for surprise
+              exitAngle += (Math.random() - 0.5) * Math.PI / 3;
+              probe.vx = Math.cos(exitAngle) * speed;
+              probe.vy = Math.sin(exitAngle) * speed;
+              spawnParticles(probe.x, probe.y, 'hsl(' + wh.hue + ',70%,55%)', 10, 80);
+              sndWormhole();
+              wormholeCooldown = 30; // Prevent instant re-entry
+              if (!wh.discovered) wh.discovered = true;
+              trails = []; // Clear trail for clean visual after teleport
+              break;
+            }
+          }
+          if (wormholeCooldown > 0) break;
+        }
+      }
+    }
+    // Out of bounds
+    if (probe && probe.alive && (probe.x < -100 || probe.x > W + 100 || probe.y < -100 || probe.y > H + 100)) {
+      probe.alive = false;
+      crashTimer = 40;
+    }
+  }
+
+  // Crash recovery timer
+  if (probe && !probe.alive && state === ST_FLY && crashTimer > 0) {
+    crashTimer--;
+    if (crashTimer <= 0) {
+      if (fuel > 0) {
+        resetProbe();
+      } else {
+        // Track partial stars from failed level
+        if (starsCollected > 0) {
+          var prevRI = getRankIdx();
+          gsStats.totalStars += starsCollected;
+          saveStats();
+          if (getRankIdx() > prevRI) { rankUpPending = true; sndRankUp(); }
+        }
+        state = ST_FAIL; bgmGameOver();
+      }
+    }
+  }
+}
+
+// Main loop
+function frame() {
+  update();
+
+  if (state === ST_TITLE) {
+    drawTitle();
+  } else if (state === ST_WIN) {
+    drawWinScreen();
+    drawParticles();
+  } else if (state === ST_FAIL) {
+    drawFailScreen();
+  } else {
+    drawBg();
+    drawPlanets();
+    drawWormholes();
+    drawStarItems();
+    drawProbe();
+    drawAim();
+    drawParticles();
+    drawHUD();
+    if (state === ST_AIM) {
+      if (fuel <= 0) {
+        drawFooter('No fuel! Esc to restart');
+      } else {
+        drawFooter('←→ Aim · ↑↓ Power · Enter Launch');
+      }
+    } else {
+      var fuelHint = fuel >= thrustCost ? '←→↑↓ Thrust · ' : '';
+      drawFooter(fuelHint + 'Esc Restart Level');
+    }
+  }
+
+  requestAnimationFrame(frame);
+}
+
+frame();
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../touch-controls.js"></script>
+</body>
+</html>

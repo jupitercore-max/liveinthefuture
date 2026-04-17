@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/games/rhythm-pulse.html" />
+  <meta property="og:title" content="Rhythm Pulse — LITF Games" />
+  <meta property="og:url" content="https://liveinthefuture.org/games/rhythm-pulse.html" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Rhythm Pulse — LITF Games</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;font-family:system-ui,-apple-system,sans-serif}
+canvas{display:block;width:600px;height:600px}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+// === BGM System ===
+var bgmAudio = null, bgmGameover = null, bgmMuted = false, bgmStarted = false;
+function bgmInit() {
+  bgmAudio = new Audio('audio/rhythm-pulse-bgm.mp3');
+  bgmAudio.loop = true;
+  bgmAudio.volume = 0.15;
+  bgmGameover = new Audio('audio/gameover-dark.mp3');
+  bgmGameover.volume = 0.25;
+}
+function bgmPlay() {
+  if (bgmMuted || !bgmAudio) return;
+  if (!bgmStarted) { bgmAudio.currentTime = 0; bgmStarted = true; }
+  bgmAudio.play().catch(function(){});
+}
+function bgmStop() { if (bgmAudio) { bgmAudio.pause(); } bgmStarted = false; }
+function bgmGameOver() {
+  bgmStop();
+  if (bgmMuted || !bgmGameover) return;
+  bgmGameover.currentTime = 0;
+  bgmGameover.play().catch(function(){});
+}
+function bgmToggle() {
+  bgmMuted = !bgmMuted;
+  if (bgmMuted) { if (bgmAudio) bgmAudio.pause(); }
+  else bgmPlay();
+}
+
+(function(){
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+var W = 600, H = 600;
+
+// Audio
+var audioCtx = null;
+var analyser = null;
+var micStream = null;
+var micActive = false;
+var micFailed = false;
+var freqData = null;
+var timeData = null;
+
+// Game state
+var STATE_TITLE = 0, STATE_WAITING = 1, STATE_PLAYING = 2, STATE_GAMEOVER = 3;
+var state = STATE_TITLE;
+
+// Lanes: left, down, up, right (mapped to ←↓↑→)
+var LANE_COUNT = 4;
+var LANE_LABELS = ['←', '↓', '↑', '→'];
+var LANE_COLORS = ['#ff4466', '#44aaff', '#44ff88', '#ffaa44'];
+var LANE_WIDTH = 100;
+var LANE_GAP = 20;
+var LANES_TOTAL = LANE_COUNT * LANE_WIDTH + (LANE_COUNT - 1) * LANE_GAP;
+var LANE_START_X = (W - LANES_TOTAL) / 2;
+
+// Hit zone
+var HIT_Y = H - 80;
+var HIT_TOLERANCE = 40;
+var PERFECT_TOLERANCE = 15;
+
+// Notes
+var notes = [];
+var NOTE_SPEED = 3;
+var NOTE_HEIGHT = 20;
+var NOTE_RADIUS = 6;
+
+// Scoring
+var score = 0;
+var combo = 0;
+var maxCombo = 0;
+var perfects = 0;
+var goods = 0;
+var misses = 0;
+var totalNotes = 0;
+
+// Feedback
+var feedbacks = [];
+
+// Beat detection
+var beatThreshold = 0.6;
+var lastBeatTime = 0;
+var beatCooldown = 150; // ms between beats
+var energyHistory = [];
+var ENERGY_HISTORY_LEN = 30;
+
+// Lane Modifiers
+var MOD_TYPES = [
+  { id: 'fire', label: '🔥 2×', color: '#ff6622', desc: '2× POINTS' },
+  { id: 'freeze', label: '🧊 SLOW', color: '#66ccff', desc: 'SLOW NOTES' },
+  { id: 'chain', label: '⚡ +2', color: '#ffdd44', desc: 'COMBO +2' },
+  { id: 'skull', label: '💀 3×', color: '#cc44ff', desc: 'PERFECT ONLY' }
+];
+var activeMod = null; // { lane, type, timer, duration }
+var modCooldown = 0;
+var MOD_INTERVAL = 15000; // ms between modifiers
+var MOD_DURATION = 8000;  // ms each modifier lasts
+var modFlash = 0;
+
+function spawnModifier() {
+  var lane = Math.floor(Math.random() * LANE_COUNT);
+  var type = MOD_TYPES[Math.floor(Math.random() * MOD_TYPES.length)];
+  activeMod = { lane: lane, type: type, timer: MOD_DURATION, duration: MOD_DURATION };
+  modFlash = 1;
+  // Audio cue: rising sine sweep
+  if (audioCtx) {
+    try {
+      var t = audioCtx.currentTime;
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(300, t);
+      osc.frequency.exponentialRampToValueAtTime(900, t + 0.15);
+      gain.gain.setValueAtTime(0.1, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(t); osc.stop(t + 0.3);
+    } catch(e) {}
+  }
+}
+
+// Particles
+var particles = [];
+
+// Timing
+var lastFrame = 0;
+var gameTime = 0;
+var gameDuration = 60000; // 60 seconds per round
+
+// Title animation
+var titlePulse = 0;
+
+// Selected menu item
+var menuSel = 0;
+
+// Persistence & Ranks
+var RANKS = [
+  { name: 'Listener', threshold: 0, bonus: null, desc: '' },
+  { name: 'Tapper', threshold: 2000, bonus: 'perfectWindow', desc: 'Perfect window +20%' },
+  { name: 'Groover', threshold: 6000, bonus: 'comboBonus', desc: 'Combo bonus +50%' },
+  { name: 'Beatmaker', threshold: 15000, bonus: 'noteSpeed', desc: 'Notes 10% slower' },
+  { name: 'Rhythmist', threshold: 30000, bonus: 'doublePerfect', desc: '2x perfect points' },
+  { name: 'Virtuoso', threshold: 60000, bonus: 'longerRound', desc: '75 second rounds' },
+  { name: 'Maestro', threshold: 120000, bonus: 'tripleCombo', desc: '3x combo cap' },
+  { name: 'Pulse Master', threshold: 250000, bonus: 'allMax', desc: 'All bonuses max' }
+];
+var savedStats = null;
+var currentRank = 0;
+var rankUpThisgame = false;
+var prevRank = 0;
+
+function loadStats() {
+  try {
+    var raw = localStorage.getItem('rhythm_pulse_stats');
+    if (raw) { savedStats = JSON.parse(raw); }
+  } catch(e) {}
+  if (!savedStats) { savedStats = { totalScore: 0, bestScore: 0, gamesPlayed: 0 }; }
+  currentRank = 0;
+  for (var i = RANKS.length - 1; i >= 0; i--) {
+    if (savedStats.totalScore >= RANKS[i].threshold) { currentRank = i; break; }
+  }
+}
+
+function saveStats() {
+  try { localStorage.setItem('rhythm_pulse_stats', JSON.stringify(savedStats)); } catch(e) {}
+}
+
+function playRankUpChime() {
+  if (!audioCtx) return;
+  try {
+    var t = audioCtx.currentTime;
+    var notes = [523.25, 659.25, 783.99, 1046.50]; // C5-E5-G5-C6
+    for (var i = 0; i < notes.length; i++) {
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = notes[i];
+      gain.gain.setValueAtTime(0, t + i * 0.12);
+      gain.gain.linearRampToValueAtTime(0.15, t + i * 0.12 + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.12 + 0.5);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(t + i * 0.12);
+      osc.stop(t + i * 0.12 + 0.6);
+    }
+  } catch(e) {}
+}
+
+function getRankBonuses() {
+  var b = { perfectMult: 1, comboMult: 1, speedMult: 1, pointMult: 1, duration: 60000, comboMax: 999 };
+  if (currentRank >= 1) b.perfectMult = 1.2; // wider perfect window
+  if (currentRank >= 2) b.comboMult = 1.5;
+  if (currentRank >= 3) b.speedMult = 0.9;
+  if (currentRank >= 4) b.pointMult = 2;
+  if (currentRank >= 5) b.duration = 75000;
+  if (currentRank >= 6) b.comboMax = 30; // combo scores 3x at cap
+  if (currentRank >= 7) { b.perfectMult = 1.4; b.comboMult = 2; b.speedMult = 0.85; b.pointMult = 2.5; b.duration = 75000; }
+  return b;
+}
+
+loadStats();
+
+function laneX(i) {
+  return LANE_START_X + i * (LANE_WIDTH + LANE_GAP) + LANE_WIDTH / 2;
+}
+
+// ---- MIC ----
+function initMic() {
+  if (micActive || micFailed) return;
+  micFailed = true; // set before attempt
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      micStream = stream;
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.8;
+      var src = audioCtx.createMediaStreamSource(stream);
+      src.connect(analyser);
+      freqData = new Uint8Array(analyser.frequencyBinCount);
+      timeData = new Uint8Array(analyser.fftSize);
+      micActive = true;
+      micFailed = false;
+    }).catch(function() {
+      micActive = false;
+    });
+  } catch(e) {
+    micActive = false;
+  }
+}
+
+// ---- BEAT DETECTION ----
+function detectBeats() {
+  if (!micActive || !analyser) return null;
+  analyser.getByteFrequencyData(freqData);
+
+  // Focus on bass and mid (first 40% of spectrum)
+  var bassEnd = Math.floor(freqData.length * 0.15);
+  var midEnd = Math.floor(freqData.length * 0.4);
+
+  var bassEnergy = 0;
+  for (var i = 0; i < bassEnd; i++) bassEnergy += freqData[i];
+  bassEnergy /= bassEnd * 255;
+
+  var midEnergy = 0;
+  for (var i = bassEnd; i < midEnd; i++) midEnergy += freqData[i];
+  midEnergy /= (midEnd - bassEnd) * 255;
+
+  var trebleEnergy = 0;
+  var trebleEnd = Math.floor(freqData.length * 0.8);
+  for (var i = midEnd; i < trebleEnd; i++) trebleEnergy += freqData[i];
+  trebleEnergy /= (trebleEnd - midEnd) * 255;
+
+  // Overall energy
+  var energy = bassEnergy * 0.5 + midEnergy * 0.3 + trebleEnergy * 0.2;
+
+  energyHistory.push(energy);
+  if (energyHistory.length > ENERGY_HISTORY_LEN) energyHistory.shift();
+
+  // Average energy
+  var avg = 0;
+  for (var i = 0; i < energyHistory.length; i++) avg += energyHistory[i];
+  avg /= energyHistory.length;
+
+  var now = performance.now();
+
+  // Beat detected if current energy significantly exceeds average
+  if (energy > avg * 1.4 && energy > 0.15 && now - lastBeatTime > beatCooldown) {
+    lastBeatTime = now;
+    // Choose lane based on frequency dominance
+    var lane;
+    if (bassEnergy > midEnergy && bassEnergy > trebleEnergy) {
+      lane = Math.random() < 0.5 ? 0 : 1; // bass = left lanes
+    } else if (trebleEnergy > midEnergy) {
+      lane = Math.random() < 0.5 ? 2 : 3; // treble = right lanes
+    } else {
+      lane = Math.floor(Math.random() * LANE_COUNT); // mid = any lane
+    }
+    return { lane: lane, energy: energy, bass: bassEnergy, mid: midEnergy, treble: trebleEnergy };
+  }
+  return null;
+}
+
+// ---- PROCEDURAL BEATS (fallback when no mic) ----
+var procBeatTimer = 0;
+var procBPM = 120;
+var procBeatInterval = 60000 / procBPM;
+var procPattern = [];
+var procPatternIdx = 0;
+
+function generatePattern() {
+  procPattern = [];
+  // Generate 16-beat pattern with varied lanes
+  var patterns = [
+    [0,2,1,3, 0,1,2,3, 3,2,1,0, 0,3,1,2],
+    [0,0,2,2, 1,1,3,3, 0,2,1,3, 3,1,2,0],
+    [0,1,0,1, 2,3,2,3, 0,3,1,2, 2,0,3,1],
+    [0,2,0,3, 1,3,1,2, 0,1,2,3, 3,2,1,0],
+  ];
+  procPattern = patterns[Math.floor(Math.random() * patterns.length)];
+  procPatternIdx = 0;
+  // Vary BPM slightly each pattern
+  procBPM = 100 + Math.floor(Math.random() * 60);
+  procBeatInterval = 60000 / procBPM;
+}
+
+function procGenerateNotes(dt) {
+  procBeatTimer += dt;
+  if (procBeatTimer >= procBeatInterval) {
+    procBeatTimer -= procBeatInterval;
+    var lane = procPattern[procPatternIdx % procPattern.length];
+    procPatternIdx++;
+    if (procPatternIdx >= procPattern.length) generatePattern();
+    return lane;
+  }
+  return -1;
+}
+
+// ---- NOTES ----
+function spawnNote(lane) {
+  notes.push({
+    lane: lane,
+    y: -NOTE_HEIGHT,
+    hit: false,
+    missed: false
+  });
+  totalNotes++;
+}
+
+// ---- PARTICLES ----
+function spawnParticles(x, y, color, count) {
+  for (var i = 0; i < count; i++) {
+    var angle = Math.random() * Math.PI * 2;
+    var speed = 1 + Math.random() * 4;
+    particles.push({
+      x: x, y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 2,
+      life: 1,
+      decay: 0.02 + Math.random() * 0.03,
+      color: color,
+      size: 2 + Math.random() * 4
+    });
+  }
+}
+
+// ---- FEEDBACK ----
+function showFeedback(lane, text, color) {
+  feedbacks.push({
+    x: laneX(lane),
+    y: HIT_Y - 30,
+    text: text,
+    color: color,
+    life: 1,
+    decay: 0.025
+  });
+}
+
+// ---- INPUT ----
+function hitLane(lane) {
+  if (state !== STATE_PLAYING) return;
+
+  var bonuses = getRankBonuses();
+  var closest = null;
+  var closestDist = Infinity;
+  for (var i = 0; i < notes.length; i++) {
+    if (notes[i].lane === lane && !notes[i].hit && !notes[i].missed) {
+      var dist = Math.abs(notes[i].y - HIT_Y);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closest = notes[i];
+      }
+    }
+  }
+
+  if (closest && closestDist < HIT_TOLERANCE) {
+    closest.hit = true;
+    var perfectWindow = PERFECT_TOLERANCE * bonuses.perfectMult;
+    var isModLane = activeMod && closest.lane === activeMod.lane;
+    var modType = isModLane ? activeMod.type.id : null;
+
+    // Skull lane: GOOD counts as MISS
+    if (modType === 'skull' && closestDist >= perfectWindow) {
+      misses++;
+      combo = 0;
+      showFeedback(lane, 'MISS', '#cc44ff');
+      spawnParticles(laneX(lane), HIT_Y, '#cc44ff', 4);
+      return;
+    }
+
+    var pointMult = bonuses.pointMult;
+    if (modType === 'fire') pointMult *= 2;
+    if (modType === 'skull') pointMult *= 3;
+
+    if (closestDist < perfectWindow) {
+      var comboFactor = 1 + Math.floor(combo / 10) * bonuses.comboMult;
+      score += Math.floor(100 * pointMult * comboFactor);
+      combo++;
+      if (modType === 'chain') combo += 2;
+      perfects++;
+      showFeedback(lane, modType ? 'PERFECT ' + activeMod.type.label : 'PERFECT', modType ? activeMod.type.color : '#44ff88');
+      spawnParticles(laneX(lane), HIT_Y, modType ? activeMod.type.color : '#44ff88', 12);
+    } else {
+      var comboFactor = 1 + Math.floor(combo / 10) * bonuses.comboMult;
+      score += Math.floor(50 * pointMult * comboFactor);
+      combo++;
+      if (modType === 'chain') combo += 2;
+      goods++;
+      showFeedback(lane, 'GOOD', '#ffaa44');
+      spawnParticles(laneX(lane), HIT_Y, '#ffaa44', 6);
+    }
+    if (combo > maxCombo) maxCombo = combo;
+  } else {
+    // Pressed but nothing there — small penalty
+    combo = 0;
+    showFeedback(lane, 'MISS', '#ff4466');
+  }
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'm' || e.key === 'M') { bgmToggle(); return; }
+  e.preventDefault();
+  if (!micActive && !micFailed) initMic();
+
+  if (state === STATE_TITLE) {
+    if (e.key === 'Enter') {
+      startGame();
+    }
+    return;
+  }
+
+  if (state === STATE_GAMEOVER) {
+    if (e.key === 'Enter') {
+      state = STATE_TITLE;
+    } else if (e.key === 'Escape') {
+      window.location.href = '/games/';
+    }
+    return;
+  }
+
+  if (state === STATE_PLAYING) {
+    if (e.key === 'ArrowLeft') hitLane(0);
+    else if (e.key === 'ArrowDown') hitLane(1);
+    else if (e.key === 'ArrowUp') hitLane(2);
+    else if (e.key === 'ArrowRight') hitLane(3);
+    else if (e.key === 'Escape') {
+      window.location.href = '/games/';
+    }
+  }
+});
+
+// ---- GAME STATE ----
+function startGame() {
+  var bonuses = getRankBonuses();
+  state = STATE_PLAYING; bgmPlay();
+  notes = [];
+  particles = [];
+  feedbacks = [];
+  score = 0;
+  combo = 0;
+  maxCombo = 0;
+  perfects = 0;
+  goods = 0;
+  misses = 0;
+  totalNotes = 0;
+  gameTime = 0;
+  gameDuration = bonuses.duration;
+  procBeatTimer = 0;
+  energyHistory = [];
+  rankUpThisgame = false;
+  prevRank = currentRank;
+  activeMod = null;
+  modCooldown = MOD_INTERVAL * 0.6; // first modifier comes at ~9s
+  modFlash = 0;
+  generatePattern();
+}
+
+// ---- UPDATE ----
+function update(dt) {
+  if (state !== STATE_PLAYING) return;
+
+  gameTime += dt;
+  if (gameTime >= gameDuration) {
+    state = STATE_GAMEOVER; bgmGameOver();
+    // Save stats
+    savedStats.totalScore += score;
+    savedStats.gamesPlayed += 1;
+    if (score > savedStats.bestScore) savedStats.bestScore = score;
+    var oldRank = prevRank;
+    loadStats(); // recalculate rank from new totalScore
+    saveStats();
+    if (currentRank > oldRank) { rankUpThisgame = true; playRankUpChime(); }
+    return;
+  }
+
+  // Generate notes from mic or procedural
+  if (micActive) {
+    var beat = detectBeats();
+    if (beat) {
+      spawnNote(beat.lane);
+      // Occasionally spawn double notes on strong beats
+      if (beat.energy > 0.5 && Math.random() < 0.3) {
+        var secondLane = (beat.lane + 1 + Math.floor(Math.random() * 3)) % LANE_COUNT;
+        spawnNote(secondLane);
+      }
+    }
+  } else {
+    var lane = procGenerateNotes(dt);
+    if (lane >= 0) spawnNote(lane);
+  }
+
+  // Move notes
+  var bonuses = getRankBonuses();
+  var speed = (NOTE_SPEED + gameTime / gameDuration * 2) * bonuses.speedMult; // Speed increases over time, rank slows
+
+  // Update lane modifiers
+  if (activeMod) {
+    activeMod.timer -= dt;
+    modFlash *= 0.97;
+    if (activeMod.timer <= 0) { activeMod = null; modCooldown = MOD_INTERVAL; }
+  } else {
+    modCooldown -= dt;
+    if (modCooldown <= 0 && gameTime < gameDuration - 5000) { spawnModifier(); }
+  }
+
+  for (var i = notes.length - 1; i >= 0; i--) {
+    var n = notes[i];
+    if (n.hit) {
+      notes.splice(i, 1);
+      continue;
+    }
+    var noteSpeed = speed;
+    if (activeMod && activeMod.type.id === 'freeze' && n.lane === activeMod.lane) {
+      noteSpeed *= 0.5; // freeze lane slows notes
+    }
+    n.y += noteSpeed;
+    if (n.y > HIT_Y + HIT_TOLERANCE && !n.missed) {
+      n.missed = true;
+      misses++;
+      combo = 0;
+      showFeedback(n.lane, 'MISS', '#ff4466');
+    }
+    if (n.y > H + 20) {
+      notes.splice(i, 1);
+    }
+  }
+
+  // Update particles
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.1;
+    p.life -= p.decay;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Update feedbacks
+  for (var i = feedbacks.length - 1; i >= 0; i--) {
+    var f = feedbacks[i];
+    f.y -= 0.8;
+    f.life -= f.decay;
+    if (f.life <= 0) feedbacks.splice(i, 1);
+  }
+}
+
+// ---- DRAW ----
+function drawTitle() {
+  titlePulse += 0.03;
+
+  // Pulsing background rings
+  var pulse = Math.sin(titlePulse) * 0.3 + 0.7;
+  for (var r = 3; r >= 0; r--) {
+    var radius = 80 + r * 50;
+    var alpha = (0.05 + r * 0.02) * pulse;
+    ctx.beginPath();
+    ctx.arc(W/2, 220, radius, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(68,170,255,' + alpha + ')';
+    ctx.fill();
+  }
+
+  // Title
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 48px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('RHYTHM', W/2, 190);
+  ctx.fillStyle = '#44aaff';
+  ctx.font = 'bold 56px system-ui';
+  ctx.fillText('PULSE', W/2, 250);
+
+  // Subtitle
+  ctx.fillStyle = '#888888';
+  ctx.font = '16px system-ui';
+  if (micActive) {
+    ctx.fillText('🎤 Mic active — beats generated from ambient audio', W/2, 310);
+  } else if (micFailed) {
+    ctx.fillText('🎵 Procedural mode — playing generated patterns', W/2, 310);
+  } else {
+    ctx.fillText('🎤 Press any key to enable mic input', W/2, 310);
+  }
+
+  // Lane preview
+  for (var i = 0; i < LANE_COUNT; i++) {
+    var x = laneX(i);
+    var bobY = Math.sin(titlePulse + i * 0.8) * 8;
+    ctx.fillStyle = LANE_COLORS[i];
+    ctx.font = 'bold 32px system-ui';
+    ctx.fillText(LANE_LABELS[i], x, 380 + bobY);
+  }
+
+  // Rank display
+  var rank = RANKS[currentRank];
+  ctx.fillStyle = '#44aaff';
+  ctx.font = 'bold 20px system-ui';
+  ctx.fillText('⭐ ' + rank.name, W/2, 420);
+  if (currentRank < RANKS.length - 1) {
+    var nextRank = RANKS[currentRank + 1];
+    var progress = (savedStats.totalScore - rank.threshold) / (nextRank.threshold - rank.threshold);
+    progress = Math.max(0, Math.min(1, progress));
+    // Progress bar
+    var barW = 200, barH = 8, barX = W/2 - barW/2, barY = 432;
+    ctx.fillStyle = '#222222';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#44aaff';
+    ctx.fillRect(barX, barY, barW * progress, barH);
+    ctx.strokeStyle = '#333333';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#666666';
+    ctx.font = '12px system-ui';
+    ctx.fillText('Next: ' + nextRank.name + ' — ' + nextRank.desc, W/2, 458);
+  } else {
+    ctx.fillStyle = '#ffd700';
+    ctx.font = '14px system-ui';
+    ctx.fillText('MAX RANK', W/2, 450);
+  }
+
+  // Best score
+  if (savedStats.bestScore > 0) {
+    ctx.fillStyle = '#666666';
+    ctx.font = '14px system-ui';
+    ctx.fillText('Best: ' + savedStats.bestScore + '  ·  Games: ' + savedStats.gamesPlayed, W/2, 478);
+  }
+
+  // Instructions
+  ctx.fillStyle = '#aaaaaa';
+  ctx.font = '18px system-ui';
+  ctx.fillText('Hit arrows as notes reach the line', W/2, 508);
+
+  // Start prompt
+  var startAlpha = Math.sin(titlePulse * 2) * 0.4 + 0.6;
+  ctx.fillStyle = 'rgba(255,255,255,' + startAlpha + ')';
+  ctx.font = 'bold 22px system-ui';
+  ctx.fillText('Press ENTER to play', W/2, 545);
+
+  ctx.fillStyle = '#555555';
+  ctx.font = '14px system-ui';
+  ctx.fillText('ESC → back to games', W/2, 575);
+}
+
+function drawLanes() {
+  // Lane backgrounds
+  for (var i = 0; i < LANE_COUNT; i++) {
+    var x = LANE_START_X + i * (LANE_WIDTH + LANE_GAP);
+    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+    ctx.fillRect(x, 0, LANE_WIDTH, H);
+
+    // Lane borders
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, 0, LANE_WIDTH, H);
+  }
+
+  // Hit zone line
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(LANE_START_X, HIT_Y);
+  ctx.lineTo(LANE_START_X + LANES_TOTAL, HIT_Y);
+  ctx.stroke();
+
+  // Hit zone targets
+  for (var i = 0; i < LANE_COUNT; i++) {
+    var x = laneX(i);
+
+    // Active modifier glow on lane
+    if (activeMod && activeMod.lane === i) {
+      var modPct = activeMod.timer / activeMod.duration;
+      var modAlpha = 0.08 + modFlash * 0.15;
+      var lx = LANE_START_X + i * (LANE_WIDTH + LANE_GAP);
+      ctx.fillStyle = activeMod.type.color;
+      ctx.globalAlpha = modAlpha;
+      ctx.fillRect(lx, 0, LANE_WIDTH, H);
+      ctx.globalAlpha = 1;
+
+      // Modifier label at top of lane
+      ctx.fillStyle = activeMod.type.color;
+      ctx.font = 'bold 16px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(activeMod.type.desc, x, 30);
+
+      // Timer bar at top
+      var barW = LANE_WIDTH - 10;
+      var barX = lx + 5;
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      ctx.fillRect(barX, 38, barW, 4);
+      ctx.fillStyle = activeMod.type.color;
+      ctx.fillRect(barX, 38, barW * modPct, 4);
+    }
+
+    ctx.beginPath();
+    ctx.arc(x, HIT_Y, 22, 0, Math.PI * 2);
+    ctx.strokeStyle = LANE_COLORS[i] + '55';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = LANE_COLORS[i] + '22';
+    ctx.fill();
+
+    ctx.fillStyle = LANE_COLORS[i] + '88';
+    ctx.font = 'bold 18px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(LANE_LABELS[i], x, HIT_Y);
+    ctx.textBaseline = 'alphabetic';
+  }
+}
+
+function drawNotes() {
+  for (var i = 0; i < notes.length; i++) {
+    var n = notes[i];
+    if (n.hit) continue;
+    var x = laneX(n.lane);
+    var alpha = n.missed ? 0.3 : 1;
+
+    // Glow
+    if (!n.missed) {
+      var glow = ctx.createRadialGradient(x, n.y, 0, x, n.y, 25);
+      glow.addColorStop(0, LANE_COLORS[n.lane] + '44');
+      glow.addColorStop(1, LANE_COLORS[n.lane] + '00');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(x, n.y, 25, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Note body
+    ctx.beginPath();
+    ctx.roundRect(x - LANE_WIDTH/2 + 10, n.y - NOTE_HEIGHT/2, LANE_WIDTH - 20, NOTE_HEIGHT, NOTE_RADIUS);
+    ctx.fillStyle = n.missed ? '#333333' : LANE_COLORS[n.lane];
+    ctx.globalAlpha = alpha;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Note label
+    ctx.fillStyle = n.missed ? '#555' : '#000000';
+    ctx.font = 'bold 14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = alpha;
+    ctx.fillText(LANE_LABELS[n.lane], x, n.y + 5);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawParticles() {
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawFeedbacks() {
+  for (var i = 0; i < feedbacks.length; i++) {
+    var f = feedbacks[i];
+    ctx.globalAlpha = f.life;
+    ctx.fillStyle = f.color;
+    ctx.font = 'bold 18px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(f.text, f.x, f.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawHUD() {
+  // Score
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 24px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText(score.toString(), 15, 32);
+
+  // Combo
+  if (combo > 1) {
+    ctx.fillStyle = '#44aaff';
+    ctx.font = 'bold 18px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText(combo + 'x COMBO', 15, 56);
+  }
+
+  // Timer
+  var remaining = Math.max(0, Math.ceil((gameDuration - gameTime) / 1000));
+  ctx.fillStyle = remaining <= 10 ? '#ff4466' : '#888888';
+  ctx.font = 'bold 20px system-ui';
+  ctx.textAlign = 'right';
+  ctx.fillText(remaining + 's', W - 15, 32);
+
+  // Mic status
+  ctx.fillStyle = '#555555';
+  ctx.font = '14px system-ui';
+  ctx.textAlign = 'right';
+  if (micActive) {
+    // Show volume level
+    var vol = 0;
+    if (freqData) {
+      for (var i = 0; i < freqData.length; i++) vol += freqData[i];
+      vol = Math.round(vol / freqData.length / 255 * 100);
+    }
+    ctx.fillStyle = '#44ff88';
+    ctx.fillText('🎤 ' + vol + '%', W - 15, 56);
+  } else {
+    ctx.fillText('🎵 procedural', W - 15, 56);
+  }
+
+  // Rank in HUD
+  ctx.fillStyle = '#44aaff55';
+  ctx.font = '12px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('⭐ ' + RANKS[currentRank].name, W/2, 20);
+
+  // Mini frequency bars (if mic active)
+  if (micActive && freqData) {
+    var barCount = 32;
+    var barW = 4;
+    var barGap = 1;
+    var totalBarW = barCount * (barW + barGap);
+    var barStartX = (W - totalBarW) / 2;
+    for (var i = 0; i < barCount; i++) {
+      var idx = Math.floor(i / barCount * freqData.length * 0.6);
+      var val = freqData[idx] / 255;
+      var barH = val * 20;
+      var hue = 200 - i / barCount * 160;
+      ctx.fillStyle = 'hsla(' + hue + ',80%,60%,0.4)';
+      ctx.fillRect(barStartX + i * (barW + barGap), 68 - barH, barW, barH);
+    }
+  }
+}
+
+function drawGameOver() {
+  // Dim background
+  ctx.fillStyle = 'rgba(0,0,0,0.85)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+
+  // Title
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 40px system-ui';
+  ctx.fillText('ROUND OVER', W/2, 120);
+
+  // Score
+  ctx.fillStyle = '#44aaff';
+  ctx.font = 'bold 56px system-ui';
+  ctx.fillText(score.toString(), W/2, 200);
+  ctx.fillStyle = '#888888';
+  ctx.font = '16px system-ui';
+  ctx.fillText('POINTS', W/2, 225);
+
+  // Stats
+  var stats = [
+    { label: 'PERFECT', value: perfects, color: '#44ff88' },
+    { label: 'GOOD', value: goods, color: '#ffaa44' },
+    { label: 'MISS', value: misses, color: '#ff4466' },
+    { label: 'MAX COMBO', value: maxCombo + 'x', color: '#44aaff' },
+  ];
+
+  for (var i = 0; i < stats.length; i++) {
+    var y = 280 + i * 45;
+    ctx.fillStyle = '#666666';
+    ctx.font = '16px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText(stats[i].label, W/2 - 100, y);
+    ctx.fillStyle = stats[i].color;
+    ctx.font = 'bold 24px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText(stats[i].value.toString(), W/2 + 100, y);
+  }
+
+  // Grade
+  var accuracy = totalNotes > 0 ? (perfects + goods) / totalNotes : 0;
+  var grade = accuracy >= 0.95 ? 'S' : accuracy >= 0.9 ? 'A' : accuracy >= 0.8 ? 'B' : accuracy >= 0.7 ? 'C' : 'D';
+  var gradeColor = grade === 'S' ? '#ffd700' : grade === 'A' ? '#44ff88' : grade === 'B' ? '#44aaff' : grade === 'C' ? '#ffaa44' : '#ff4466';
+  ctx.fillStyle = gradeColor;
+  ctx.font = 'bold 60px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText(grade, W/2, 475);
+
+  // Rank progress
+  if (rankUpThisgame) {
+    // Rank up announcement!
+    var flashAlpha = Math.sin(performance.now() / 300) * 0.3 + 0.7;
+    ctx.fillStyle = 'rgba(255,215,0,' + flashAlpha + ')';
+    ctx.font = 'bold 22px system-ui';
+    ctx.fillText('⭐ RANK UP → ' + RANKS[currentRank].name + '!', W/2, 520);
+    ctx.fillStyle = '#aaaaaa';
+    ctx.font = '14px system-ui';
+    ctx.fillText('Unlocked: ' + RANKS[currentRank].desc, W/2, 542);
+  } else if (currentRank < RANKS.length - 1) {
+    var rank = RANKS[currentRank];
+    var nextRank = RANKS[currentRank + 1];
+    var progress = (savedStats.totalScore - rank.threshold) / (nextRank.threshold - rank.threshold);
+    progress = Math.max(0, Math.min(1, progress));
+    ctx.fillStyle = '#888888';
+    ctx.font = '14px system-ui';
+    ctx.fillText(rank.name + ' → ' + nextRank.name + ': ' + Math.floor(progress * 100) + '%', W/2, 520);
+    // Mini progress bar
+    var barW = 160, barH = 6, barX = W/2 - barW/2, barY = 528;
+    ctx.fillStyle = '#222222';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#44aaff';
+    ctx.fillRect(barX, barY, barW * progress, barH);
+  }
+
+  // Prompt
+  var promptAlpha = Math.sin(performance.now() / 500) * 0.3 + 0.7;
+  ctx.fillStyle = 'rgba(255,255,255,' + promptAlpha + ')';
+  ctx.font = '18px system-ui';
+  ctx.fillText('ENTER → play again · ESC → games', W/2, 575);
+}
+
+// ---- MAIN LOOP ----
+function frame(ts) {
+  var dt = lastFrame ? ts - lastFrame : 16;
+  if (dt > 50) dt = 50;
+  lastFrame = ts;
+
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  if (state === STATE_TITLE) {
+    drawTitle();
+  } else if (state === STATE_PLAYING) {
+    update(dt);
+    drawLanes();
+    drawNotes();
+    drawParticles();
+    drawFeedbacks();
+    drawHUD();
+  } else if (state === STATE_GAMEOVER) {
+    drawLanes();
+    drawNotes();
+    drawGameOver();
+  }
+
+  requestAnimationFrame(frame);
+}
+
+requestAnimationFrame(frame);
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../touch-controls.js"></script>
+</body>
+</html>

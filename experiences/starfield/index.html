@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/experiences/starfield/" />
+  <meta property="og:title" content="Starfield Warp - Hypernova WebApp" />
+  <meta property="og:url" content="https://liveinthefuture.org/experiences/starfield/" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Starfield Warp - Hypernova WebApp</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0d0d0d;
+  color: #e8e8e8;
+  width: 600px;
+  height: 600px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+canvas { display: block; }
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+var cv = document.getElementById('c');
+var ctx = cv.getContext('2d');
+var W = 600, H = 600;
+var CX = W / 2, CY = H / 2;
+
+// ── Stars ──
+var NUM_STARS = 400;
+var stars = [];
+function makeStar() {
+  var angle = Math.random() * Math.PI * 2;
+  var dist = Math.random() * 0.2 + 0.01;
+  var colors = ['#ffffff','#ffffff','#ffffff','#ffffff','#ffe8cc','#cce0ff','#ffcccc','#ccffee','#ffd480','#80b3ff'];
+  return {
+    x: Math.cos(angle) * dist,
+    y: Math.sin(angle) * dist,
+    z: Math.random() * 1.0 + 0.01,
+    brightness: Math.random() * 0.6 + 0.4,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    size: Math.random() * 1.5 + 0.5
+  };
+}
+for (var i = 0; i < NUM_STARS; i++) stars.push(makeStar());
+
+// ── Nebula clouds ──
+var nebulae = [];
+for (var n = 0; n < 6; n++) {
+  nebulae.push({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    r: 60 + Math.random() * 100,
+    hue: Math.floor(Math.random() * 360),
+    alpha: 0.015 + Math.random() * 0.015,
+    drift: (Math.random() - 0.5) * 0.3
+  });
+}
+
+// ── State ──
+var speed = 0.3;
+var targetSpeed = 0.3;
+var vanishX = 0;
+var vanishY = 0;
+var flashAlpha = 0;
+var flashHue = 200;
+var tick = 0;
+
+// ── Distance & Waypoints ──
+var distance = 0;
+var bestDistance = 0;
+try { bestDistance = parseFloat(localStorage.getItem('starfield_best') || '0') || 0; } catch(e){}
+var waypoints = [];
+var waypointCooldown = 0;
+var waypointFlash = 0;
+var waypointCount = 0;
+
+function spawnWaypoint() {
+  var angle = Math.random() * Math.PI * 2;
+  var spread = 0.15 + Math.random() * 0.1;
+  var cx = Math.cos(angle) * spread * 0.3;
+  var cy = Math.sin(angle) * spread * 0.3;
+  var hue = Math.floor(Math.random() * 360);
+  var particles = [];
+  for (var p = 0; p < 12; p++) {
+    var pa = Math.random() * Math.PI * 2;
+    var pd = Math.random() * spread * 0.08;
+    particles.push({
+      ox: Math.cos(pa) * pd,
+      oy: Math.sin(pa) * pd,
+      size: 1.5 + Math.random() * 2,
+      bright: 0.6 + Math.random() * 0.4
+    });
+  }
+  return { cx: cx, cy: cy, z: 0.95 + Math.random() * 0.3, hue: hue, particles: particles, collected: false };
+}
+waypoints.push(spawnWaypoint());
+
+// ── Voyager Mode ──
+var gameMode = 0; // 0=free roam, 1=voyager
+var starNames = [
+  'Proxima Centauri','Vega Prime','Sirius Deep','Arcturus Gate','Rigel Station',
+  'Betelgeuse Reach','Polaris Beacon','Altair Colony','Deneb Crossing','Antares Drift',
+  'Canopus Harbor','Aldebaran Ring','Capella Point','Fomalhaut Relay','Regulus Outpost',
+  'Kepler Haven','Wolf 359','Tau Ceti','Barnard\'s Reach','Epsilon Eridani'
+];
+var voyagerTargets = [];
+var voyagerIdx = 0;
+var voyagerTimer = 0;
+var voyagerBest = 0;
+try { voyagerBest = parseFloat(localStorage.getItem('starfield_voyager_best') || '0') || 0; } catch(e){}
+var voyagerComplete = false;
+var voyagerChainLen = 5;
+var voyagerArrivalFlash = 0;
+var voyagerShowSummary = false;
+
+function startVoyager() {
+  var used = {};
+  voyagerTargets = [];
+  for (var i = 0; i < voyagerChainLen; i++) {
+    var name;
+    do { name = starNames[Math.floor(Math.random() * starNames.length)]; } while (used[name]);
+    used[name] = true;
+    voyagerTargets.push({
+      name: name,
+      bearing: (Math.random() - 0.5) * 1.6, // -0.8 to 0.8
+      dist: 20 + Math.random() * 40
+    });
+  }
+  voyagerIdx = 0;
+  voyagerTimer = 0;
+  voyagerComplete = false;
+  voyagerShowSummary = false;
+  voyagerArrivalFlash = 0;
+}
+
+// ── Mic ──
+var audioCtx = null;
+var analyser = null;
+var freqData = null;
+var micActive = false;
+var micFailed = false;
+var micLevel = 0;
+var micBass = 0;
+var micMode = false;
+
+// ── Procedural Audio ──
+var synthCtx = null;
+var synthStarted = false;
+var droneOsc1 = null;
+var droneOsc2 = null;
+var droneGain = null;
+var lfo = null;
+var lfoGain = null;
+var noiseNode = null;
+var noiseGain = null;
+var noiseFilter = null;
+var masterGain = null;
+var lastFlyby = 0;
+
+// Beacon audio for Voyager
+var beaconOsc = null;
+var beaconPanner = null;
+var beaconGain = null;
+
+function initSynth() {
+  if (synthStarted) return;
+  synthStarted = true;
+  try {
+    synthCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = synthCtx.createGain();
+    masterGain.gain.value = 0.25;
+    masterGain.connect(synthCtx.destination);
+
+    droneOsc1 = synthCtx.createOscillator();
+    droneOsc1.type = 'sawtooth';
+    droneOsc1.frequency.value = 55;
+    droneGain = synthCtx.createGain();
+    droneGain.gain.value = 0.12;
+    var droneLPF = synthCtx.createBiquadFilter();
+    droneLPF.type = 'lowpass';
+    droneLPF.frequency.value = 200;
+    droneLPF.Q.value = 1;
+    droneOsc1.connect(droneLPF);
+    droneLPF.connect(droneGain);
+    droneGain.connect(masterGain);
+    droneOsc1.start();
+
+    droneOsc2 = synthCtx.createOscillator();
+    droneOsc2.type = 'triangle';
+    droneOsc2.frequency.value = 82;
+    var drone2Gain = synthCtx.createGain();
+    drone2Gain.gain.value = 0.06;
+    droneOsc2.connect(drone2Gain);
+    drone2Gain.connect(masterGain);
+    droneOsc2.start();
+
+    lfo = synthCtx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.3;
+    lfoGain = synthCtx.createGain();
+    lfoGain.gain.value = 0.03;
+    lfo.connect(lfoGain);
+    lfoGain.connect(droneGain.gain);
+    lfo.start();
+
+    var bufSize = synthCtx.sampleRate * 2;
+    var noiseBuf = synthCtx.createBuffer(1, bufSize, synthCtx.sampleRate);
+    var noiseData = noiseBuf.getChannelData(0);
+    for (var i = 0; i < bufSize; i++) noiseData[i] = Math.random() * 2 - 1;
+    noiseNode = synthCtx.createBufferSource();
+    noiseNode.buffer = noiseBuf;
+    noiseNode.loop = true;
+    noiseFilter = synthCtx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.value = 800;
+    noiseFilter.Q.value = 0.5;
+    noiseGain = synthCtx.createGain();
+    noiseGain.gain.value = 0;
+    noiseNode.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(masterGain);
+    noiseNode.start();
+
+    // Beacon oscillator for Voyager navigation
+    beaconOsc = synthCtx.createOscillator();
+    beaconOsc.type = 'sine';
+    beaconOsc.frequency.value = 440;
+    beaconPanner = synthCtx.createStereoPanner();
+    beaconPanner.pan.value = 0;
+    beaconGain = synthCtx.createGain();
+    beaconGain.gain.value = 0;
+    beaconOsc.connect(beaconGain);
+    beaconGain.connect(beaconPanner);
+    beaconPanner.connect(masterGain);
+    beaconOsc.start();
+  } catch(e) { synthStarted = false; }
+}
+
+function updateSynth() {
+  if (!synthStarted || !synthCtx) return;
+  var t = synthCtx.currentTime;
+  var droneFreq = 55 + speed * 37.5;
+  droneOsc1.frequency.setTargetAtTime(droneFreq, t, 0.3);
+  droneOsc2.frequency.setTargetAtTime(droneFreq * 1.498, t, 0.3);
+  lfo.frequency.setTargetAtTime(0.3 + speed * 2.0, t, 0.5);
+  droneGain.gain.setTargetAtTime(0.08 + speed * 0.08, t, 0.2);
+  var noiseVol = speed > 1.0 ? (speed - 1.0) / 1.0 * 0.15 : 0;
+  noiseGain.gain.setTargetAtTime(noiseVol, t, 0.3);
+  noiseFilter.frequency.setTargetAtTime(600 + speed * 600, t, 0.3);
+}
+
+function updateBeacon() {
+  if (!synthStarted || !synthCtx || !beaconOsc) return;
+  var t = synthCtx.currentTime;
+  if (gameMode !== 1 || voyagerComplete || voyagerIdx >= voyagerTargets.length) {
+    beaconGain.gain.setTargetAtTime(0, t, 0.15);
+    return;
+  }
+  var tgt = voyagerTargets[voyagerIdx];
+  var bearingDiff = tgt.bearing - vanishX;
+  // Pan: clamp bearing difference to stereo field
+  var pan = Math.max(-1, Math.min(1, bearingDiff * 2.5));
+  beaconPanner.pan.setTargetAtTime(pan, t, 0.08);
+  // Volume: louder as you approach, quiet when far
+  var proximity = Math.max(0, 1 - tgt.dist / 60);
+  var vol = 0.02 + proximity * 0.1;
+  // Reduce volume when off-bearing (reward alignment)
+  var alignment = 1 - Math.min(1, Math.abs(bearingDiff) / 1.0);
+  vol *= (0.3 + alignment * 0.7);
+  beaconGain.gain.setTargetAtTime(vol, t, 0.1);
+  // Frequency rises as you get closer: 330Hz far → 880Hz arrival
+  var freq = 330 + proximity * 550;
+  beaconOsc.frequency.setTargetAtTime(freq, t, 0.2);
+}
+
+function playArrivalChime() {
+  if (!synthStarted || !synthCtx) return;
+  var now = synthCtx.currentTime;
+  var notes = [523.25, 659.25, 783.99, 1046.5];
+  for (var i = 0; i < notes.length; i++) {
+    var o = synthCtx.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = notes[i];
+    var g = synthCtx.createGain();
+    g.gain.setValueAtTime(0.001, now + i * 0.08);
+    g.gain.linearRampToValueAtTime(0.07, now + i * 0.08 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.5);
+    o.connect(g);
+    g.connect(masterGain);
+    o.start(now + i * 0.08);
+    o.stop(now + i * 0.08 + 0.6);
+  }
+}
+
+function playCompletionFanfare() {
+  if (!synthStarted || !synthCtx) return;
+  var now = synthCtx.currentTime;
+  var chords = [[523.25,659.25,783.99],[587.33,739.99,880],[659.25,830.61,987.77],[783.99,987.77,1174.66]];
+  for (var c = 0; c < chords.length; c++) {
+    for (var n = 0; n < chords[c].length; n++) {
+      var o = synthCtx.createOscillator();
+      o.type = c < 3 ? 'sine' : 'triangle';
+      o.frequency.value = chords[c][n];
+      var g = synthCtx.createGain();
+      g.gain.setValueAtTime(0.001, now + c * 0.2);
+      g.gain.linearRampToValueAtTime(0.05, now + c * 0.2 + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.001, now + c * 0.2 + 0.9);
+      o.connect(g);
+      g.connect(masterGain);
+      o.start(now + c * 0.2);
+      o.stop(now + c * 0.2 + 1.0);
+    }
+  }
+}
+
+function playFlyby(pan) {
+  if (!synthStarted || !synthCtx) return;
+  var now = synthCtx.currentTime;
+  if (now - lastFlyby < 0.15) return;
+  lastFlyby = now;
+  var osc = synthCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(800 + Math.random() * 400, now);
+  osc.frequency.exponentialRampToValueAtTime(200 + Math.random() * 100, now + 0.12);
+  var g = synthCtx.createGain();
+  g.gain.setValueAtTime(0.04, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+  var panner = synthCtx.createStereoPanner();
+  panner.pan.value = Math.max(-1, Math.min(1, pan));
+  osc.connect(g);
+  g.connect(panner);
+  panner.connect(masterGain);
+  osc.start(now);
+  osc.stop(now + 0.2);
+}
+
+function initMic() {
+  if (micActive || micFailed) return;
+  micFailed = true;
+  try {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      var src = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+      src.connect(analyser);
+      freqData = new Uint8Array(analyser.frequencyBinCount);
+      micActive = true;
+      micFailed = false;
+    }).catch(function() { micActive = false; });
+  } catch(e) { micActive = false; }
+}
+
+function updateMic() {
+  if (!micActive || !analyser) return;
+  analyser.getByteFrequencyData(freqData);
+  var sum = 0, bassSum = 0;
+  var bins = freqData.length;
+  for (var i = 0; i < bins; i++) {
+    sum += freqData[i];
+    if (i < bins / 4) bassSum += freqData[i];
+  }
+  micLevel = sum / (bins * 255);
+  micBass = bassSum / ((bins / 4) * 255);
+}
+
+// ── Input ──
+document.addEventListener('keydown', function(e) {
+  e.preventDefault();
+  if (e.key === 'ArrowUp') {
+    if (!synthStarted) initSynth();
+    targetSpeed = Math.min(2.0, targetSpeed + 0.15);
+  } else if (e.key === 'ArrowDown') {
+    if (!synthStarted) initSynth();
+    targetSpeed = Math.max(0.05, targetSpeed - 0.15);
+  } else if (e.key === 'ArrowLeft') {
+    if (!synthStarted) initSynth();
+    vanishX = Math.max(-1, vanishX - 0.08);
+  } else if (e.key === 'ArrowRight') {
+    if (!synthStarted) initSynth();
+    vanishX = Math.min(1, vanishX + 0.08);
+  } else if (e.key === 'Enter') {
+    if (!synthStarted) initSynth();
+    if (gameMode === 0) {
+      // Toggle: Free Roam → Mic Mode → Voyager → Free Roam
+      if (!micMode) {
+        micMode = true;
+        if (!micActive && !micFailed) initMic();
+      } else {
+        micMode = false;
+        gameMode = 1;
+        startVoyager();
+      }
+    } else if (gameMode === 1) {
+      if (voyagerComplete) {
+        gameMode = 0;
+        voyagerShowSummary = false;
+        if (beaconGain && synthCtx) beaconGain.gain.setTargetAtTime(0, synthCtx.currentTime, 0.1);
+      }
+    }
+  } else if (e.key === 'Escape' || e.key === 'Backspace') {
+    if (gameMode === 1) {
+      // Exit Voyager back to Free Roam
+      gameMode = 0;
+      voyagerComplete = false;
+      voyagerShowSummary = false;
+      if (beaconGain && synthCtx) beaconGain.gain.setTargetAtTime(0, synthCtx.currentTime, 0.1);
+    } else {
+      window.location.href = '../';
+    }
+  }
+});
+
+// ── Helpers ──
+function hexToRgb(hex) {
+  var r = parseInt(hex.substr(1,2),16);
+  var g = parseInt(hex.substr(3,2),16);
+  var b = parseInt(hex.substr(5,2),16);
+  return [r, g, b];
+}
+
+function blueShift(rgb, amount) {
+  var r = Math.max(0, rgb[0] - amount * 60);
+  var g = Math.max(0, rgb[1] - amount * 20);
+  var b = Math.min(255, rgb[2] + amount * 80);
+  return [Math.round(r), Math.round(g), Math.round(b)];
+}
+
+function formatTime(secs) {
+  var m = Math.floor(secs / 60);
+  var s = Math.floor(secs % 60);
+  var ms = Math.floor((secs % 1) * 10);
+  return (m > 0 ? m + ':' : '') + (m > 0 && s < 10 ? '0' : '') + s + '.' + ms;
+}
+
+// ── Draw ──
+function draw() {
+  tick++;
+  updateMic();
+  updateSynth();
+  updateBeacon();
+
+  // Mic-driven speed (Free Roam mic mode only)
+  if (micMode && micActive && gameMode === 0) {
+    targetSpeed = 0.2 + micLevel * 3.0;
+    if (micBass > 0.5) {
+      flashAlpha = Math.min(0.4, flashAlpha + (micBass - 0.5) * 0.8);
+      flashHue = 200 + Math.floor(micBass * 160);
+    }
+  }
+
+  // Smooth speed
+  speed += (targetSpeed - speed) * 0.08;
+
+  // Vanish point slowly returns to center
+  vanishX *= 0.995;
+  vanishY *= 0.995;
+
+  var cx = CX + vanishX * 200;
+  var cy = CY + vanishY * 200;
+
+  // Clear with slight trail for motion blur at high speed
+  var trailAlpha = speed > 0.8 ? 0.15 : 0.6;
+  ctx.fillStyle = 'rgba(13,13,13,' + trailAlpha + ')';
+  ctx.fillRect(0, 0, W, H);
+
+  // Nebula clouds
+  for (var n = 0; n < nebulae.length; n++) {
+    var nb = nebulae[n];
+    nb.x += nb.drift * speed;
+    nb.y += 0.1 * speed;
+    if (nb.x < -nb.r) nb.x = W + nb.r;
+    if (nb.x > W + nb.r) nb.x = -nb.r;
+    if (nb.y > H + nb.r) { nb.y = -nb.r; nb.hue = Math.floor(Math.random() * 360); }
+    var grad = ctx.createRadialGradient(nb.x, nb.y, 0, nb.x, nb.y, nb.r);
+    grad.addColorStop(0, 'hsla(' + nb.hue + ',60%,40%,' + nb.alpha * (1 + speed * 0.5) + ')');
+    grad.addColorStop(1, 'hsla(' + nb.hue + ',60%,40%,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(nb.x - nb.r, nb.y - nb.r, nb.r * 2, nb.r * 2);
+  }
+
+  // Stars
+  var focalLen = 300;
+  for (var i = 0; i < stars.length; i++) {
+    var s = stars[i];
+    s.z -= speed * 0.016;
+    if (s.z <= 0.001) {
+      var ns = makeStar();
+      s.x = ns.x; s.y = ns.y; s.z = 1.0;
+      s.brightness = ns.brightness; s.color = ns.color; s.size = ns.size;
+    }
+    var sx = cx + (s.x / s.z) * focalLen;
+    var sy = cy + (s.y / s.z) * focalLen;
+
+    if (sx < -20 || sx > W + 20 || sy < -20 || sy > H + 20) continue;
+
+    var prevZ = s.z + speed * 0.016;
+    var psx = cx + (s.x / prevZ) * focalLen;
+    var psy = cy + (s.y / prevZ) * focalLen;
+
+    var depth = 1 - s.z;
+    var alpha = s.brightness * (0.3 + depth * 0.7);
+    var rgb = hexToRgb(s.color);
+
+    if (speed > 0.6) {
+      rgb = blueShift(rgb, (speed - 0.6) / 1.4);
+    }
+
+    if (flashAlpha > 0.05) {
+      var fh = flashHue % 360;
+      var fr = fh < 120 ? 255 : (fh < 240 ? 0 : 255);
+      var fg = fh < 120 ? (fh * 2) : (fh < 240 ? 255 : 0);
+      var fb = fh < 120 ? 0 : (fh < 240 ? (fh - 120) * 2 : 255);
+      rgb[0] = Math.round(rgb[0] * (1 - flashAlpha) + fr * flashAlpha);
+      rgb[1] = Math.round(rgb[1] * (1 - flashAlpha) + fg * flashAlpha);
+      rgb[2] = Math.round(rgb[2] * (1 - flashAlpha) + fb * flashAlpha);
+    }
+
+    var colStr = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + alpha + ')';
+    var radius = s.size * (0.5 + depth * 2.5);
+
+    if (speed > 0.3) {
+      ctx.strokeStyle = colStr;
+      ctx.lineWidth = Math.max(0.5, radius * 0.8);
+      ctx.beginPath();
+      ctx.moveTo(psx, psy);
+      ctx.lineTo(sx, sy);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = colStr;
+    ctx.beginPath();
+    ctx.arc(sx, sy, Math.max(0.3, radius), 0, Math.PI * 2);
+    ctx.fill();
+
+    if (depth > 0.7 && s.brightness > 0.7) {
+      ctx.globalAlpha = alpha * 0.2;
+      ctx.beginPath();
+      ctx.arc(sx, sy, radius * 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    if (s.z < 0.08 && s.z > 0.02 && speed > 0.4) {
+      var screenDist = Math.sqrt((sx - CX) * (sx - CX) + (sy - CY) * (sy - CY));
+      if (screenDist < 200) {
+        playFlyby((sx - CX) / 300);
+      }
+    }
+  }
+
+  // ── Distance tracking ──
+  distance += speed * 0.016;
+  if (distance > bestDistance) {
+    bestDistance = distance;
+    try { localStorage.setItem('starfield_best', bestDistance.toFixed(1)); } catch(e){}
+  }
+
+  // ── Waypoint management (Free Roam only) ──
+  if (gameMode === 0) {
+    if (waypointCooldown > 0) waypointCooldown--;
+    if (waypoints.length < 2 && waypointCooldown <= 0) {
+      waypoints.push(spawnWaypoint());
+      waypointCooldown = 120 + Math.floor(Math.random() * 180);
+    }
+  }
+  if (waypointFlash > 0) waypointFlash *= 0.92;
+
+  for (var wi = waypoints.length - 1; wi >= 0; wi--) {
+    var wp = waypoints[wi];
+    wp.z -= speed * 0.016;
+    if (wp.z <= 0.001) {
+      waypoints.splice(wi, 1);
+      continue;
+    }
+    var wpSx = cx + (wp.cx / wp.z) * focalLen;
+    var wpSy = cy + (wp.cy / wp.z) * focalLen;
+    var wpDepth = 1 - wp.z;
+
+    for (var pi = 0; pi < wp.particles.length; pi++) {
+      var pp = wp.particles[pi];
+      var ppx = cx + ((wp.cx + pp.ox) / wp.z) * focalLen;
+      var ppy = cy + ((wp.cy + pp.oy) / wp.z) * focalLen;
+      if (ppx < -30 || ppx > W + 30 || ppy < -30 || ppy > H + 30) continue;
+      var ppAlpha = pp.bright * (0.3 + wpDepth * 0.7) * (0.6 + Math.sin(tick * 0.08 + pi) * 0.4);
+      var ppR = pp.size * (0.5 + wpDepth * 3);
+      ctx.fillStyle = 'hsla(' + wp.hue + ',80%,70%,' + ppAlpha + ')';
+      ctx.beginPath();
+      ctx.arc(ppx, ppy, Math.max(0.5, ppR), 0, Math.PI * 2);
+      ctx.fill();
+      if (wpDepth > 0.4) {
+        ctx.globalAlpha = ppAlpha * 0.15;
+        ctx.fillStyle = 'hsla(' + wp.hue + ',80%,60%,1)';
+        ctx.beginPath();
+        ctx.arc(ppx, ppy, ppR * 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    if (!wp.collected && wp.z < 0.15 && wp.z > 0.01) {
+      var wpDist = Math.sqrt((wpSx - CX) * (wpSx - CX) + (wpSy - CY) * (wpSy - CY));
+      if (wpDist < 150) {
+        wp.collected = true;
+        waypointCount++;
+        waypointFlash = 1.0;
+        if (synthStarted && synthCtx) {
+          var now = synthCtx.currentTime;
+          var chime1 = synthCtx.createOscillator();
+          chime1.type = 'sine';
+          chime1.frequency.setValueAtTime(523.25, now);
+          var chime2 = synthCtx.createOscillator();
+          chime2.type = 'sine';
+          chime2.frequency.setValueAtTime(659.25, now);
+          chime2.frequency.setValueAtTime(783.99, now + 0.1);
+          var cg1 = synthCtx.createGain();
+          cg1.gain.setValueAtTime(0.08, now);
+          cg1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+          var cg2 = synthCtx.createGain();
+          cg2.gain.setValueAtTime(0.06, now + 0.05);
+          cg2.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+          chime1.connect(cg1); cg1.connect(masterGain);
+          chime2.connect(cg2); cg2.connect(masterGain);
+          chime1.start(now); chime1.stop(now + 0.5);
+          chime2.start(now + 0.05); chime2.stop(now + 0.6);
+        }
+        distance += 5;
+        setTimeout(function(idx) { return function() {
+          for (var r = waypoints.length - 1; r >= 0; r--) {
+            if (waypoints[r].collected) { waypoints.splice(r, 1); break; }
+          }
+        }; }(wi), 300);
+      }
+    }
+  }
+
+  // Waypoint collection flash
+  if (waypointFlash > 0.05) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,224,102,' + waypointFlash * 0.3 + ')';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(2, 2, W - 4, H - 4);
+    ctx.restore();
+  }
+
+  // ── Voyager Mode Logic ──
+  if (gameMode === 1 && !voyagerComplete && voyagerIdx < voyagerTargets.length) {
+    voyagerTimer += 1 / 60;
+    var tgt = voyagerTargets[voyagerIdx];
+    var bearingDiff = tgt.bearing - vanishX;
+    // Approach rate: speed × alignment factor
+    var alignment = 1 - Math.min(1, Math.abs(bearingDiff) / 0.8);
+    if (alignment > 0.2) {
+      tgt.dist -= speed * 0.016 * alignment * 2.5;
+    }
+    // Arrival!
+    if (tgt.dist <= 0) {
+      tgt.dist = 0;
+      voyagerArrivalFlash = 1.0;
+      voyagerIdx++;
+      if (voyagerIdx >= voyagerChainLen) {
+        voyagerComplete = true;
+        voyagerShowSummary = true;
+        playCompletionFanfare();
+        if (voyagerBest === 0 || voyagerTimer < voyagerBest) {
+          voyagerBest = voyagerTimer;
+          try { localStorage.setItem('starfield_voyager_best', voyagerBest.toFixed(1)); } catch(e){}
+        }
+      } else {
+        playArrivalChime();
+      }
+    }
+  }
+  if (voyagerArrivalFlash > 0) voyagerArrivalFlash *= 0.94;
+
+  // Tunnel ring at high speed
+  if (speed > 1.0) {
+    var ringAlpha = (speed - 1.0) / 1.0 * 0.12;
+    var ringR = 220 + Math.sin(tick * 0.05) * 30;
+    ctx.strokeStyle = 'rgba(100,160,255,' + ringAlpha + ')';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+    ctx.stroke();
+    if (speed > 1.5) {
+      ctx.strokeStyle = 'rgba(150,100,255,' + ringAlpha * 0.6 + ')';
+      ctx.beginPath();
+      ctx.arc(cx, cy, ringR * 0.7, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // Flash decay
+  if (flashAlpha > 0) flashAlpha *= 0.92;
+
+  // ── HUD ──
+  ctx.fillStyle = 'rgba(13,13,13,0.6)';
+  ctx.fillRect(0, 0, W, 36);
+  ctx.font = '600 16px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+
+  if (gameMode === 0) {
+    // Free Roam HUD
+    ctx.fillText('\u2728 Starfield Warp', 12, 18);
+
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    var distStr = distance < 100 ? distance.toFixed(1) : Math.round(distance);
+    ctx.fillStyle = waypointFlash > 0.1 ? 'hsla(50,100%,70%,' + (0.6 + waypointFlash * 0.4) + ')' : '#aaa';
+    ctx.fillText(distStr + ' ly', W / 2, 13);
+    if (bestDistance > 1) {
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.fillStyle = '#555';
+      ctx.fillText('best: ' + (bestDistance < 100 ? bestDistance.toFixed(1) : Math.round(bestDistance)) + ' ly', W / 2, 26);
+    }
+    if (waypointCount > 0) {
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.fillStyle = waypointFlash > 0.1 ? '#ffe066' : '#777';
+      ctx.textAlign = 'left';
+      ctx.fillText('\u2b50 ' + waypointCount, W / 2 + 50, 18);
+    }
+  } else {
+    // Voyager HUD
+    ctx.fillText('\ud83d\ude80 VOYAGER', 12, 18);
+
+    if (!voyagerComplete && voyagerIdx < voyagerTargets.length) {
+      var tgt = voyagerTargets[voyagerIdx];
+      // Destination name
+      ctx.font = '600 13px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      var nameFlicker = 0.7 + Math.sin(tick * 0.06) * 0.3;
+      ctx.fillStyle = 'rgba(100,200,255,' + nameFlicker + ')';
+      ctx.fillText('\u2192 ' + tgt.name.toUpperCase(), W / 2, 13);
+      // Progress
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.fillStyle = '#888';
+      ctx.fillText((voyagerIdx + 1) + '/' + voyagerChainLen + '  \u23f1 ' + formatTime(voyagerTimer), W / 2, 26);
+
+      // Direction indicator — draw arrow showing which way to steer
+      var bearingDiff = tgt.bearing - vanishX;
+      var arrowX = W / 2;
+      var arrowY = H / 2;
+      // Draw a subtle direction ring
+      var indAlpha = 0.15 + Math.abs(bearingDiff) * 0.3;
+      var indColor = Math.abs(bearingDiff) < 0.15 ? '100,255,150' : Math.abs(bearingDiff) < 0.4 ? '100,200,255' : '255,180,100';
+      // Direction chevrons on left or right side of screen
+      if (Math.abs(bearingDiff) > 0.1) {
+        var chevSide = bearingDiff > 0 ? 1 : -1;
+        var chevX = chevSide > 0 ? W - 30 : 30;
+        var chevCount = Math.abs(bearingDiff) > 0.5 ? 3 : Math.abs(bearingDiff) > 0.25 ? 2 : 1;
+        for (var ci = 0; ci < chevCount; ci++) {
+          var cxOff = chevSide * ci * 8;
+          var cAlpha = indAlpha * (1 - ci * 0.25);
+          ctx.save();
+          ctx.strokeStyle = 'rgba(' + indColor + ',' + cAlpha + ')';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(chevX + cxOff - chevSide * 6, CY - 12);
+          ctx.lineTo(chevX + cxOff, CY);
+          ctx.lineTo(chevX + cxOff - chevSide * 6, CY + 12);
+          ctx.stroke();
+          ctx.restore();
+        }
+      } else {
+        // On target — show centered reticle
+        var retAlpha = 0.3 + Math.sin(tick * 0.1) * 0.15;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(100,255,150,' + retAlpha + ')';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(CX, CY, 25, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(CX - 35, CY); ctx.lineTo(CX - 28, CY);
+        ctx.moveTo(CX + 28, CY); ctx.lineTo(CX + 35, CY);
+        ctx.moveTo(CX, CY - 35); ctx.lineTo(CX, CY - 28);
+        ctx.moveTo(CX, CY + 28); ctx.lineTo(CX, CY + 35);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Distance to target bar
+      var maxDist = 60;
+      var distPct = Math.max(0, Math.min(1, tgt.dist / maxDist));
+      var barX2 = 12, barY2 = H - 52, barW2 = W - 24, barH2 = 3;
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(barX2, barY2, barW2, barH2);
+      var fillW2 = barW2 * (1 - distPct);
+      var barGrad2 = ctx.createLinearGradient(barX2, 0, barX2 + barW2, 0);
+      barGrad2.addColorStop(0, '#2244aa');
+      barGrad2.addColorStop(0.7, '#4a9eff');
+      barGrad2.addColorStop(1, '#80ffcc');
+      ctx.fillStyle = barGrad2;
+      ctx.fillRect(barX2, barY2, fillW2, barH2);
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.fillStyle = '#666';
+      ctx.textAlign = 'right';
+      ctx.fillText(Math.ceil(tgt.dist) + ' ly', W - 12, barY2 - 4);
+
+    } else if (voyagerComplete && voyagerShowSummary) {
+      // Completion summary
+      ctx.font = '600 14px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      var summaryPulse = 0.7 + Math.sin(tick * 0.04) * 0.3;
+      ctx.fillStyle = 'rgba(100,255,200,' + summaryPulse + ')';
+      ctx.fillText('VOYAGE COMPLETE', W / 2, 13);
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.fillStyle = '#aaa';
+      ctx.fillText(formatTime(voyagerTimer) + (voyagerBest > 0 && voyagerTimer <= voyagerBest + 0.05 ? '  \u2605 NEW BEST!' : ''), W / 2, 26);
+
+      // Summary overlay
+      ctx.fillStyle = 'rgba(13,13,13,0.7)';
+      ctx.fillRect(W / 2 - 130, 80, 260, 180);
+      ctx.strokeStyle = 'rgba(100,200,255,0.2)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(W / 2 - 130, 80, 260, 180);
+
+      ctx.font = '600 14px -apple-system, sans-serif';
+      ctx.fillStyle = '#80ffcc';
+      ctx.textAlign = 'center';
+      ctx.fillText('\ud83d\ude80 VOYAGE LOG', W / 2, 102);
+
+      ctx.font = '12px -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      for (var si = 0; si < voyagerTargets.length; si++) {
+        var sy2 = 124 + si * 22;
+        ctx.fillStyle = '#4a9eff';
+        ctx.fillText('\u2713', W / 2 - 115, sy2);
+        ctx.fillStyle = '#ccc';
+        ctx.fillText(voyagerTargets[si].name, W / 2 - 98, sy2);
+      }
+
+      ctx.font = '600 13px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffe066';
+      ctx.fillText('TIME: ' + formatTime(voyagerTimer), W / 2, 240);
+      if (voyagerBest > 0) {
+        ctx.font = '11px -apple-system, sans-serif';
+        ctx.fillStyle = '#888';
+        ctx.fillText('Best: ' + formatTime(voyagerBest), W / 2, 256);
+      }
+    }
+
+    // Voyager arrival flash
+    if (voyagerArrivalFlash > 0.05) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(100,255,200,' + voyagerArrivalFlash * 0.5 + ')';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(1, 1, W - 2, H - 2);
+      ctx.restore();
+    }
+  }
+
+  // Speed bar (both modes)
+  ctx.textAlign = 'right';
+  ctx.font = '12px -apple-system, sans-serif';
+  var speedPct = Math.round((speed / 2.0) * 100);
+  var speedLabel = speedPct < 30 ? 'CRUISE' : speedPct < 60 ? 'IMPULSE' : speedPct < 85 ? 'WARP' : 'HYPERDRIVE';
+  ctx.fillStyle = speedPct > 80 ? '#80b3ff' : speedPct > 50 ? '#4a9eff' : '#888';
+  ctx.fillText(speedLabel + ' ' + speedPct + '%', W - 12, 18);
+
+  var barX = W - 160, barY = 26, barW = 100, barH = 4;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(barX, barY, barW, barH);
+  var fillW = barW * (speed / 2.0);
+  var barGrad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+  barGrad.addColorStop(0, '#224');
+  barGrad.addColorStop(0.5, '#4a9eff');
+  barGrad.addColorStop(1, '#80b3ff');
+  ctx.fillStyle = barGrad;
+  ctx.fillRect(barX, barY, fillW, barH);
+
+  // Mic status
+  if (micMode && gameMode === 0) {
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'left';
+    if (micActive) {
+      ctx.fillStyle = '#4eff88';
+      ctx.fillText('\ud83c\udfa4 MIC ' + Math.round(micLevel * 100) + '%', 12, 32);
+    } else if (micFailed) {
+      ctx.fillStyle = '#666';
+      ctx.fillText('\ud83c\udfa4 unavailable', 12, 32);
+    } else {
+      ctx.fillStyle = '#ff8844';
+      ctx.fillText('\ud83c\udfa4 connecting...', 12, 32);
+    }
+  }
+
+  // Footer
+  ctx.fillStyle = 'rgba(13,13,13,0.6)';
+  ctx.fillRect(0, H - 28, W, 28);
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  var hint;
+  if (gameMode === 0) {
+    hint = micMode
+      ? '\u2191\u2193 Speed  \u2190\u2192 Steer  Enter Voyager  Esc Back  \ud83d\udd0a'
+      : '\u2191\u2193 Speed  \u2190\u2192 Steer  Enter Mic  Esc Back  \ud83d\udd0a';
+  } else if (voyagerComplete) {
+    hint = 'Enter Free Roam  Esc Back';
+  } else {
+    hint = '\u2191\u2193 Speed  \u2190\u2192 Steer to beacon  Esc Cancel  \ud83d\udd14';
+  }
+  ctx.fillText(hint, W / 2, H - 14);
+
+  requestAnimationFrame(draw);
+}
+
+draw();
+})();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../../touch-controls.js"></script>
+</body>
+</html>
