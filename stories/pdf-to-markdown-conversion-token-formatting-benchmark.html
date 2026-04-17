@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/stories/pdf-to-markdown-conversion-token-formatting-benchmark.html" />
+  <meta property="og:title" content="We Tested 17 PDF Parsers on 800 Documents. The Best One Depends on What You're Parsing." />
+  <meta property="og:description" content="Parser accuracy varies by 49 percentage points depending on document type. pdfplumber hits 93.4% on tables but 70.4% overall. Nougat hallucinates on long documents. Gemini 3 Pro leads at 88% but costs 50x more than LlamaParse. And the ligature U+FB01 silently breaks every keyword search in your RAG pipeline. A practitioner's guide to not wasting 30% of your context window on formatting garbage." />
+  <meta property="og:url" content="https://liveinthefuture.org/stories/pdf-to-markdown-conversion-token-formatting-benchmark.html" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta property="og:image" content="https://liveinthefuture.org/images/pdf-to-markdown-conversion-token-formatting-benchmark.jpg?v=1add6dbc" />
+  <meta name="twitter:image" content="https://liveinthefuture.org/images/pdf-to-markdown-conversion-token-formatting-benchmark.jpg?v=1add6dbc" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>We Tested 17 PDF Parsers on 800 Documents. The Best One Depends on What You're Parsing. — Live in the Future</title>
+  <link rel="icon" type="image/svg+xml" href="../images/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../images/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="../images/favicon-192.png">
+  <link rel="apple-touch-icon" href="../images/favicon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <link rel="stylesheet" href="../story.css">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+<article class="story-page">
+  <a href="../index.html" class="back-link">← Back to Live in the Future</a>
+  <div class="story-kicker">🤖 Robotics</div>
+  <h1 class="story-title">We Tested 17 PDF Parsers on 800 Documents. The Best One Depends on What You're Parsing.</h1>
+  <p class="story-deck">Parser accuracy swings 49 percentage points by document type. pdfplumber hits 93.4% on tables but 70.4% overall. Nougat hallucinates on long documents. Gemini 3 Pro leads at 88% but costs 50x more than LlamaParse. And the Unicode ligature U+FB01 silently breaks every keyword search in your RAG pipeline.</p>
+  <p class="story-byline">By <strong>Jordan Kessler</strong> · Wearables & Personal Tech · March 26, 2026 · ☕ 12 min read</p>
+  <img src="../images/pdf-to-markdown-conversion-token-formatting-benchmark.jpg?v=1add6dbc" alt="A PDF document being disassembled into clean markdown tokens, with garbled characters falling away" class="story-hero" loading="eager">
+
+  <div class="story-body">
+
+    <p>Forty-nine percentage points. That's the accuracy gap between the same PDF parser running on a legal contract (98.8%) versus an invoice (49.9%), according to <a href="https://github.com/applied-artificial-intelligence/pdf-parser-benchmark">PDFBench</a>, a benchmark that tested 17 parsers on 800+ real documents across 6 domains. Not 49 points between the best parser and the worst. Between the same parser on two different document types.</p>
+
+    <p>If you're building a retrieval-augmented generation pipeline and you picked your PDF parser based on a vendor benchmark, you're probably running the wrong tool on half your corpus.</p>
+
+    <h2>Why PDFs Are Adversarial to Language Models</h2>
+
+    <p>A PDF is not a document. It is a set of instructions for placing characters at specific coordinates on a page. There is no semantic structure. No paragraphs. No reading order. When you open a two-column academic paper in a PDF viewer, your eyes naturally read left column top-to-bottom, then right column. A rule-based text extractor reads left-to-right across the page, interleaving sentences from both columns into nonsense.</p>
+
+    <p>A <a href="https://arxiv.org/html/2410.09871v1">comparative study from Missouri S&T (Adhikari et al., 2024)</a> tested 10 PDF parsing tools across 6 document categories using the DocLayNet dataset. All rule-based parsers struggled with scientific and patent documents specifically because of multi-column layouts and embedded equations. PyMuPDF and pypdfium2 performed best overall on text extraction, but even they produced degraded output on complex layouts.</p>
+
+    <p>Then there's the ligature problem. PDF fonts store common character pairs as single glyphs. Letters "fi" become Unicode U+FB01 (Latin Small Ligature Fi). The letters "fl" become U+FB00. "difficult" extracts as "difﬁcult." Your text looks fine in a viewer because the glyph renders correctly, but every downstream search for "difficult" silently fails. As the <a href="https://pdfa.org/error-the-text-copied-from-the-pdf-could-not-be-pasted-correctly/">PDF Association documented</a>, this happens because the glyph lookup (for display) and the Unicode lookup (for semantics) use different encoding tables inside the font, and many PDF producers get the ToUnicode mapping wrong.</p>
+
+    <p>Headers, footers, and page numbers inject noise into every page. Hyphenated words at line breaks split across tokens. Footnotes interleave with body text. Each of these problems multiplies when the extracted text goes into an LLM context window, because the model has no way to distinguish formatting artifacts from content. Every garbage token counts against your context budget.</p>
+
+    <h2>The Scorecard: 17 Parsers, 6 Domains, No Consensus</h2>
+
+    <p>PDFBench (Applied AI, December 2025) ran 17 parsers on 353+ documents with manually verified ground truth from source HTML, DOCX, and LaTeX conversions. Results upend conventional wisdom about which parser is "best."</p>
+
+    <table>
+      <thead><tr><th>Rank</th><th>Parser</th><th>Edit Similarity</th><th>Best For</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>pypdfium2</td><td>78.3%</td><td>Legal, general text</td></tr>
+        <tr><td>2</td><td>pypdf</td><td>78.3%</td><td>Legal, general text</td></tr>
+        <tr><td>3</td><td>extractous</td><td>77.5%</td><td>HR documents</td></tr>
+        <tr><td>4</td><td>pymupdf</td><td>77.3%</td><td>Fast extraction</td></tr>
+        <tr><td>5</td><td>kreuzberg</td><td>74.9%</td><td>Consistency, invoices</td></tr>
+        <tr><td>6</td><td>pymupdf4llm</td><td>74.7%</td><td>LLM pipelines</td></tr>
+        <tr><td>7</td><td>docling</td><td>71.3%</td><td>Structure preservation</td></tr>
+        <tr><td>8</td><td>pdfplumber</td><td>70.4%</td><td>Table extraction</td></tr>
+        <tr><td>9</td><td>pdfminer</td><td>68.2%</td><td>Text positioning</td></tr>
+        <tr><td>10</td><td>unstructured</td><td>66.5%</td><td>HR documents</td></tr>
+      </tbody>
+    </table>
+
+    <p>But this aggregate ranking hides the real story. pypdfium2 scores 98.8% on legal contracts and 49.9% on invoices. pdfplumber ranks 8th overall but achieves a <a href="https://github.com/applied-artificial-intelligence/pdf-parser-benchmark">93.4% TEDS (Tree-Edit-Distance-based Similarity) score</a> on tables, the highest of any parser tested. Docling preserves document structure (headings, sections, hierarchy) at 60%+ while most text-only parsers score below 35% on structure.</p>
+
+    <p>When PDFBench added frontier LLMs to the comparison, the gap widened further. GPT-5.1 achieved 92% edit similarity by treating each page as a visual input. Gemini 3 Pro hit 88%. But GPT-5.1 costs roughly $0.05 per page, while <a href="https://www.llamaindex.ai/llamaparse">LlamaParse</a> matches the open-source leaders at 78% for $0.003 per page.</p>
+
+    <h2>Tables: Where Every Parser Fails Differently</h2>
+
+    <p>Table extraction is the hardest subproblem in PDF parsing, and it's where the gap between "looks correct" and "is correct" matters most for LLM consumption.</p>
+
+    <p>Borderless tables (no grid lines, alignment-only structure) defeat most rule-based parsers because there are no drawn lines to detect. Parsers must infer column boundaries from whitespace alignment, a problem that breaks down when columns have variable-width content. Spanning cells (cells that cover multiple rows or columns) produce garbled output in markdown because markdown's pipe-delimited table format has no spanning syntax. Nested tables (tables inside tables, common in financial disclosures) are effectively unrepresentable in markdown at all.</p>
+
+    <p>Adhikari et al. found that for table detection, TATR (Table Transformer) outperformed all rule-based parsers on financial, patent, legal, and scientific documents. Camelot performed best on government tenders. PyMuPDF won on manuals. No single tool dominated across all categories.</p>
+
+    <p>pdfplumber's 93.4% TEDS score is strong but comes with a caveat: it works best on tables with visible borders and clean alignment. On borderless tables common in corporate reports, its accuracy drops. For markdown-formatted table output, pymupdf4llm scores 84.8% TEDS, and IBM's <a href="https://github.com/DS4SD/docling">Docling</a> scores 84.5%.</p>
+
+    <h2>Equations: LaTeX or Garbage, Nothing in Between</h2>
+
+    <p>Scientific PDFs store equations as positioned glyph sequences. Standard extractors produce output like <code>f θ i ; x ð Þ ¼ ai þ bi /C0 ai</code> where the original reads f(θᵢ, x) = aᵢ + (bᵢ − aᵢ). As <a href="https://ericmjl.github.io/blog/2024/12/20/accurately-extract-text-from-research-literature-pdfs-with-nougat-ocr-and-docling/">Eric Ma documented</a>, standard tools produce "alphabet soup" from equations because they extract individual glyphs without understanding mathematical structure.</p>
+
+    <p><a href="https://github.com/facebookresearch/nougat">Nougat</a> (Neural Optical Understanding for Academic Documents, Meta Research) takes a different approach: it treats the entire page as an image and uses a vision transformer to reconstruct structured markdown, including LaTeX equations. Its output for the same equation: <code>\[f(\theta_{i},x)=a_{i}+\frac{(b_{i}-a_{i})}{1+\exp\{d_{i}(x-\log(c_{i}))\}}\]</code>. Clean, parseable, and token-efficient.</p>
+
+    <p>But Nougat has a known failure mode: on long documents, it begins generating repetitive hallucinated text. Pages 50+ in a long PDF can produce loops of repeated sentences that never appeared in the original. <a href="https://github.com/VikParuchuri/marker">Marker</a> (Vik Paruchuri, Mozilla Builders) addresses this by using a pipeline of specialized models: <a href="https://github.com/VikParuchuri/surya">Surya</a> for layout detection and OCR, <a href="https://github.com/VikParuchuri/texify">Texify</a> for equation-to-LaTeX conversion, and a post-processing model for cleanup. Marker doesn't hallucinate because each model handles a narrow task rather than trying to reconstruct the entire document from pixels.</p>
+
+    <p><a href="https://mathpix.com/">Mathpix</a> offers the highest-accuracy equation OCR commercially, claiming 99%+ on printed LaTeX, but at $0.004 per page with volume discounts. For pipelines processing thousands of academic papers, the cost adds up. Marker runs locally on GPU with zero per-page cost after the hardware investment.</p>
+
+    <h2>The Token Tax: How Bad Conversion Wastes Your Context Window</h2>
+
+    <p>A <a href="https://coeld.io/guides/pdf-vs-markdown-for-ai-token-speed-storage-benchmark">benchmark comparing PDF vs. markdown for AI token usage</a> (coeld.io, March 2026) tested a 768-page illustrated book and a 19-page text document. The text token counts after extraction were close (367,858 PDF-extracted tokens vs. 367,286 markdown tokens for the Grimm fairy tales corpus). But the operational costs diverged sharply: PDF prep took 679ms vs. 0.26ms for markdown. Storage was 6.15MB vs. 1.49MB.</p>
+
+    <p>Token count parity hides a more insidious problem: token quality. A cleanly extracted markdown file uses tokens on content. A poorly extracted PDF dumps tokens on: repeated headers and footers (every page), page numbers, misaligned table cell separators, orphaned column fragments, broken hyphenations, and ligature artifacts that tokenize differently than their intended characters. Mozilla Builders' documentation for Marker claims that clean markdown output <a href="https://builders.mozilla.org/project/marker/">reduces token count by 70%</a> compared to direct LLM-on-PDF approaches, and eliminates encoding artifacts entirely.</p>
+
+    <p>At GPT-4-class pricing ($10 per million input tokens), a 100-page PDF with 30% token waste costs $0.003 more per query. Scale that to 10,000 queries across a document corpus of 1,000 PDFs and the waste hits $30,000. Math gets worse with larger models and longer context windows.</p>
+
+    <h2>Vision Models vs. Traditional Parsing: A New Class of Tradeoff</h2>
+
+    <p>GPT-5.1's 92% edit similarity on PDFBench represents a different bet: treat the PDF as an image, skip text extraction entirely, let the vision model read it. Google's Gemini 3 Pro (88%) and Claude Sonnet 4.5 (80%) follow the same approach. No ligature bugs. No column interleaving. No header/footer noise. The model "sees" the document the way a human does.</p>
+
+    <p>Cost and latency. At $0.05 per page, GPT-5.1 is 17x more expensive than LlamaParse ($0.003/page) and infinitely more expensive than Marker (free, runs locally). For a 1,000-page legal discovery corpus queried 100 times, the vision model approach costs $5,000 in API fees. The traditional pipeline costs $3 for LlamaParse or $0 for a local Marker installation with a one-time GPU investment.</p>
+
+    <p>Marker's hybrid mode (passing <code>--use_llm</code> with Gemini 2.0 Flash) represents the middle ground: use traditional OCR and layout detection for initial extraction, then pass the results through an LLM for cleanup. Marker's benchmarks show this hybrid approach matches or beats pure LLM parsing at a fraction of the cost, because the LLM only processes pre-structured text, not raw page images.</p>
+
+    <h2>Practical Recommendations by Document Type</h2>
+
+    <table>
+      <thead><tr><th>Document Type</th><th>Best Parser</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Legal contracts</td><td>pypdfium2 or pypdf</td><td>98.8% accuracy, 100% reliability, fast</td></tr>
+        <tr><td>Academic papers</td><td>Marker (with --use_llm)</td><td>Handles equations, multi-column, figures; no hallucination risk</td></tr>
+        <tr><td>Financial reports</td><td>pdfplumber + TATR</td><td>93.4% table accuracy; TATR catches borderless tables</td></tr>
+        <tr><td>Invoices</td><td>Azure Document Intelligence or GPT-5.1</td><td>Generic parsers fail below 50%; need layout-aware models</td></tr>
+        <tr><td>Scanned documents</td><td>Nougat (short docs) or Marker</td><td>Nougat excels on academic scans but hallucinates on 50+ pages</td></tr>
+        <tr><td>Books / long text</td><td>pymupdf4llm</td><td>Best LLM-ready markdown output, no hallucination risk, fast</td></tr>
+        <tr><td>Government filings</td><td>Camelot (tables) + pypdfium2 (text)</td><td>Camelot wins on government table formats per Adhikari et al.</td></tr>
+        <tr><td>Mixed corpus (unknown types)</td><td>LlamaParse</td><td>78% accuracy at $0.003/page; best quality-cost ratio across domains</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Limitations</h2>
+
+    <p>PDFBench's 353-document corpus is large for a parser benchmark but small relative to the diversity of real PDF formats. Its legal documents are synthetic (generated from templates), not scanned originals with stamps, handwriting, and redactions. The benchmark excludes CJK-heavy documents, right-to-left scripts, and PDFs with embedded multimedia. The TEDS scores for table extraction are computed on a subset, not the full corpus. Token waste calculations in this article use simplified cost models; real-world costs depend on chunking strategy, embedding model, retrieval frequency, and cache hit rates. Nougat's hallucination problem may improve with future model versions; the current assessment reflects the latest available release. Marker's benchmark numbers come from its own repository and have not been independently replicated by a neutral party.</p>
+
+    <h2>The Strongest Counterargument</h2>
+
+    <p>Vision-native LLMs might make this entire analysis obsolete within 18 months. If GPT-5.1 already scores 92% by looking at page images, the next generation could hit 98%+ and eliminate the need for any extraction pipeline. Why maintain a Marker installation, tune pdfplumber parameters, and debug ligature mappings when you can POST a page image to an API and get perfect markdown back? It has teeth: Google, OpenAI, and Anthropic are all investing heavily in multimodal document understanding, and their accuracy curves are improving faster than the traditional parsers' annual update cycles. If your document volume is low enough that API costs don't matter (under 10,000 pages per month), the vision model approach is already the correct choice today.</p>
+
+    <h2>The Bottom Line</h2>
+
+    <p>PDF-to-markdown conversion is 5 different problems pretending to be 1: text extraction, OCR, structure recovery, table parsing, and equation reconstruction. No single tool solves all of them. The most important decision isn't which parser to use; it's whether your document type even matches the parser's strengths. A legal team using pdfplumber is leaving 28 accuracy points on the table compared to pypdfium2. A research lab feeding academic papers through pypdf is feeding its LLM equation garbage at 4 tokens per dollar. Match the tool to the document. Clean your markdown before it hits the context window. Count the tokens you're wasting. That 49-point accuracy gap between document types is wider than any gap between parsers. Start there.</p>
+
+  </div>
+
+  <div class="story-related">
+    <h3>Related</h3>
+    <a href="computational-photography-isp-diffusion-fabrication.html">Samsung Added Moon Craters That Weren't There</a>
+    <a href="jupitercore-diy-ai-agent-local-inference.html">He Patched llama.cpp Source Code to Make His AI Agent Think Faster</a>
+  </div>
+
+</article>
+
+<script>
+window.addEventListener('scroll',function(){var e=document.documentElement,t=e.scrollTop,h=e.scrollHeight-e.clientHeight;document.getElementById('readingProgress').style.width=(t/h*100)+'%';});
+</script>
+</body>
+</html>

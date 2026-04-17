@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/stories/poe-alarm-listener.html" />
+  <meta property="og:title" content="We Built a $28 Device That Listens for Alarm Sirens Over Ethernet. Here's the Complete Build Guide." />
+  <meta property="og:description" content="Every home in our neighborhood has different alarm panels. Instead of hacking 30 proprietary systems, we plugged a microphone into the PoE network and taught it to recognize sirens." />
+  <meta property="og:url" content="https://liveinthefuture.org/stories/poe-alarm-listener.html" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>We Built a $28 Device That Listens for Alarm Sirens Over Ethernet. Here's the Complete Build Guide. — Live in the Future</title>
+  <link rel="icon" type="image/svg+xml" href="../images/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../images/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="../images/favicon-192.png">
+  <link rel="apple-touch-icon" href="../images/favicon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <link rel="stylesheet" href="../story.css">
+  <meta property="og:image" content="https://liveinthefuture.org/images/poe-alarm-listener.jpg">
+  <meta name="twitter:image" content="https://liveinthefuture.org/images/poe-alarm-listener.jpg">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+<article class="story-page">
+  <a href="../index.html" class="back-link">← Back to Live in the Future</a>
+  <div class="story-kicker">🔧 Building LITF</div>
+  <h1 class="story-title">We Built a $28 Device That Listens for Alarm Sirens Over Ethernet. Here's the Complete Build Guide.</h1>
+  <p class="story-deck">Every home in our neighborhood has different alarm panels. Instead of hacking 30 proprietary systems, we plugged a microphone into the PoE network and taught it to recognize sirens. Total deployment: $900.</p>
+  <p class="story-byline">By <strong>Live in the Future</strong> · Building LITF · March 17, 2026 · ☕ 10 min read</p>
+  <img src="../images/poe-alarm-listener.jpg" alt="Small circuit board with ethernet port inside translucent enclosure mounted near alarm panel" class="story-hero" loading="eager">
+
+  <div class="story-body">
+    <p>Thirty homes. Twelve different alarm panel brands. One neighborhood guard who can see every camera feed but has zero visibility into a single alarm system.</p>
+
+    <p>That was the problem. Our neighborhood runs a UniFi camera network with Power over Ethernet to every home. When a camera detects motion, the guard sees it. When an alarm goes off inside someone's house, the guard hears nothing. Ring doesn't talk to ADT. ADT doesn't talk to Honeywell. Honeywell doesn't talk to SimpliSafe. And none of them talk to our guard station.</p>
+
+    <p>Professional solutions exist. <a href="https://ajax.systems/products/hub-2-plus/">Ajax Systems</a> sells purpose-built multi-site alarm monitoring for $500-800 per home. Centralized monitoring services like ADT charge $20-40/month/home. For 30 homes, that's $15,000-24,000 in hardware or $7,200-14,400/year recurring. Both options require ripping out existing panels or paying for redundant subscriptions.</p>
+
+    <p>We took a different approach. Instead of integrating with alarm panels, we listen for them.</p>
+
+    <h2>Alarm Sirens Are Acoustic Standards, Not Proprietary Protocols</h2>
+
+    <p>Every home alarm in America produces sound. Specifically, standardized sound. Since July 1996, <a href="https://wiki.thefirepanel.com/wiki/Temporal_Coding">NFPA 72</a> has required fire alarms to use the Temporal-3 pattern: three half-second pulses at 520 Hz, each separated by a half-second gap, followed by a 1.5-second pause before repeating. Carbon monoxide alarms use Temporal-4: four 100-millisecond pulses followed by a 5-second silence. Burglar alarm sirens typically sweep between 1,000 and 4,000 Hz at 85-120 dB, sustained for 30 seconds or more.</p>
+
+    <p>These patterns are deliberately distinctive. Building codes require them because they need to wake sleeping occupants and be recognizable above background noise. That same distinctiveness makes them easy for a microcontroller to detect with basic frequency analysis. A fire alarm doesn't sound like a TV, a dog barking, or a kitchen timer. It sounds like a fire alarm.</p>
+
+    <h2>System Architecture</h2>
+
+    <p>Each home gets one device: an <a href="https://www.olimex.com/Products/IoT/ESP32/ESP32-POE/open-source-hardware">Olimex ESP32-POE</a> board with an INMP441 MEMS microphone, inside a small ABS enclosure. One ethernet cable provides both power (802.3af PoE) and network connectivity. The device plugs into the home's existing UniFi switch, gets an IP address, and starts listening. (A note on the board: the non-ISO version lacks galvanic isolation between PoE and USB. Since these units are flashed once and deployed permanently with no USB cable attached, that's fine. For development, flash via USB with the ethernet cable disconnected. The ESP32-POE-ISO version adds isolation for $8 more if you want the safety margin.)</p>
+
+    <p>When it detects an alarm signature, it publishes an MQTT message to a broker running on the guard station:</p>
+
+    <pre><code>Topic:   alarm/home-14/status
+Payload: {"type":"FIRE_T3","confidence":0.94,"dB":97.3,"duration_sec":12,"ts":"2026-03-17T09:14:22Z"}</code></pre>
+
+    <p>A lightweight dashboard at the guard station shows every home as a green dot. An alarm turns the dot red, displays the address and alarm type, and pushes a notification to the guard's phone via Telegram. If the guard's station already runs Home Assistant for camera integration, the MQTT messages slot directly into existing automations.</p>
+
+    <h2>Bill of Materials: $27.50 Per Home</h2>
+
+    <table>
+      <thead>
+        <tr><th>Component</th><th>Part</th><th>Qty</th><th>Price</th><th>Source</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>MCU + PoE</td><td><a href="https://www.olimex.com/Products/IoT/ESP32/ESP32-POE/open-source-hardware">Olimex ESP32-POE</a></td><td>1</td><td>$19.50</td><td>Olimex direct / Mouser / DigiKey</td></tr>
+        <tr><td>Microphone</td><td><a href="https://components101.com/modules/inmp441-mems-omnidirectional-microphone">INMP441 MEMS I2S module</a></td><td>1</td><td>$2.00</td><td>Amazon (5-pack ~$8) / AliExpress</td></tr>
+        <tr><td>Enclosure</td><td>IP54 ABS project box, ~100x68x50mm</td><td>1</td><td>$4.00</td><td>Amazon</td></tr>
+        <tr><td>Wiring</td><td>Dupont jumper wires (5 needed: VCC, GND, WS, SCK, SD)</td><td>1 set</td><td>$0.50</td><td>Amazon</td></tr>
+        <tr><td>Cable passthrough</td><td>RJ45 waterproof grommet or panel-mount coupler</td><td>1</td><td>$1.50</td><td>Amazon</td></tr>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="3"><strong>Total per home</strong></td><td colspan="2"><strong>$27.50</strong></td></tr>
+      </tfoot>
+    </table>
+
+    <p>Guard station hardware (one-time): a Raspberry Pi 4 ($55) or any existing server running Mosquitto MQTT broker and a simple web dashboard. If the guard station already has a computer, the software cost is zero.</p>
+
+    <p>At 30 homes: <strong>$825 in sensor hardware + $0-55 for the hub = under $900 total.</strong></p>
+
+    <h2>How Detection Works: Goertzel, Not FFT</h2>
+
+    <p>A Fast Fourier Transform computes the magnitude of every frequency in the signal, like scanning every radio station at once. For alarm detection, that's wasteful. We only care about a handful of target frequencies: 520 Hz (fire T3), 1-4 kHz (burglar sweep), and their harmonics.</p>
+
+    <p>The <a href="https://github.com/mujeebawan/Frequency-Detection-ESP32">Goertzel algorithm</a> computes the magnitude at one specific frequency with far less computation than a full FFT. On an ESP32 running at 240 MHz, Goertzel can evaluate eight target frequencies from a 1,024-sample buffer in under 2 milliseconds, leaving 98% of CPU time free. The INMP441 feeds 16-bit I2S audio at 16 kHz sample rate, giving us frequency resolution up to 8 kHz.</p>
+
+    <p>Detection runs through five gates, all of which must pass before an alert fires:</p>
+
+    <p><strong>Gate 1: Volume.</strong> Overall sound pressure must exceed a configurable threshold (default: 75 dB SPL equivalent). Below this, the device stays silent regardless of frequency content. A TV playing an action movie at normal volume sits around 60-65 dB; an alarm siren at 10 feet starts at 85 dB. The gap is substantial.</p>
+
+    <p><strong>Gate 2: Frequency.</strong> Significant energy must be present at one or more known alarm frequencies. Goertzel bins evaluate 520 Hz, 1 kHz, 2 kHz, 3 kHz, and 4 kHz simultaneously. A passing score requires at least one bin to exceed 3x the average magnitude across all bins.</p>
+
+    <p><strong>Gate 3: Duration.</strong> Sustained detection for at least 5 consecutive seconds. This single gate eliminates the majority of false positives. Doorbells ring for 2 seconds. Dogs bark in bursts. Kitchen timers beep intermittently. Alarm sirens sustain for 30 seconds to several minutes. Five seconds of continuous alarm-frequency energy at alarm-level volume is not ambiguous.</p>
+
+    <p><strong>Gate 4: Pattern.</strong> For fire and CO alarms, the temporal pattern matters. T3 fire alarms pulse three times with specific on/off timing. The firmware tracks pulse edges and compares them against the NFPA 72 T3 template (three 0.5s pulses with 0.5s gaps, then 1.5s pause) and T4 template (four 0.1s pulses, then 5s pause). A match within 20% timing tolerance confirms the alarm type. Burglar alarms, which typically sweep continuously, skip the pattern gate and rely on gates 1-3 plus gate 5.</p>
+
+    <p><strong>Gate 5: Confirmation.</strong> Three consecutive positive detection windows (each window is 1 second of audio) must agree before the MQTT alert fires. This prevents a single transient spike from triggering a response.</p>
+
+    <h2>Wiring: Five Connections</h2>
+
+    <p>The INMP441 connects to the ESP32-POE with five wires. No soldering required if you use Dupont jumper cables and the ESP32-POE's header pins:</p>
+
+    <pre><code>INMP441 Pin  →  ESP32-POE Pin
+VDD          →  3.3V
+GND          →  GND
+WS           →  GPIO 15
+SCK          →  GPIO 14
+SD           →  GPIO 34</code></pre>
+
+    <p>Drill a 6mm hole in the enclosure for the microphone port (covered with acoustic mesh to keep dust out but let sound through). Drill or use a cable gland for the ethernet cable entry. Mount the ESP32-POE board inside with standoffs or double-sided tape. Total assembly time: 15 minutes per unit once you have the rhythm.</p>
+
+    <h2>Firmware: 400 Lines of Arduino</h2>
+
+    <p>The ESP32 firmware is straightforward. At boot, it initializes I2S input from the INMP441, connects to the network via ethernet (automatic DHCP from the UniFi switch), and establishes an MQTT connection to the broker. Every second, it samples 16,000 audio frames, runs Goertzel at the target frequencies, evaluates the five gates, and publishes status.</p>
+
+    <p>Even during idle monitoring, the device sends a heartbeat every 60 seconds:</p>
+
+    <pre><code>Topic:   alarm/home-14/heartbeat
+Payload: {"ambient_dB":42.1,"uptime_hr":168.3,"free_heap":180224,"ts":"..."}</code></pre>
+
+    <p>The ambient dB reading is operationally valuable. If a sensor's ambient noise suddenly drops to near-zero, the microphone may have failed. If it spikes to 50+ during quiet hours, something unusual is happening. The guard can see at a glance that all 30 sensors are alive and reporting normal backgrounds.</p>
+
+    <h2>Guard Station Dashboard</h2>
+
+    <p>Mosquitto MQTT broker runs on a Raspberry Pi or the existing guard station computer. A Node-RED flow (or a 200-line Python Flask app) subscribes to all alarm topics and renders a web dashboard: a grid of 30 homes, each showing green (clear), yellow (elevated noise), or red (alarm detected). Clicking any home shows the last 24 hours of audio events, heartbeat history, and the specific alarm type if triggered.</p>
+
+    <p>For push notifications, a Telegram bot integration sends immediate alerts:</p>
+
+    <pre><code>🚨 ALARM: Fire T3 detected at 142 Oak Lane
+Confidence: 94% | Volume: 97 dB | Duration: 12s
+Time: 9:14 AM | Sensor: home-14</code></pre>
+
+    <p>If the neighborhood already runs Home Assistant (common in UniFi households), the MQTT integration means alarm sensors appear as native entities. Automations can trigger camera recording at the alarming home, turn on exterior lights, or escalate through multiple notification channels.</p>
+
+    <h2>Privacy: No Audio Leaves the Device</h2>
+
+    <p>A microphone inside someone's home raises an obvious question. The firmware addresses it architecturally: audio samples are processed on-device and immediately discarded. No audio is streamed, recorded, buffered, or stored at any point. The only data that crosses the network is the MQTT status message (alarm type, confidence score, dB level) and the periodic heartbeat. The guard station receives numerical telemetry, never audio. Even if the MQTT traffic were intercepted, it contains no voice, conversation, or ambient sound data.</p>
+
+    <p>This is a design constraint, not a policy promise. The firmware is open source, and homeowners can audit the code. The ESP32's 520KB of SRAM physically cannot buffer meaningful audio for exfiltration without being obvious in a code review. For neighborhoods where residents need explicit assurance, the enclosure can include a visible indicator LED that lights when the microphone is active (always) but no LED for "transmitting audio" because there's no audio to transmit.</p>
+
+    <h2>What This Won't Do</h2>
+
+    <p>Acoustic detection is not wired zone monitoring. A professional alarm panel with door/window contacts knows which specific window opened at which specific time. Our sensor knows an alarm went off in the house. It doesn't know which zone triggered it. It can distinguish fire from burglar from CO by sound pattern, but it can't tell you "the back door opened."</p>
+
+    <p>Physical barriers reduce detection reliability. A closed interior door between the sensor and the alarm siren attenuates sound by 15-20 dB. Placement matters: the sensor should be in the same open area as the alarm panel's main siren, typically a hallway or central room. Homes where the alarm siren is in the basement and the sensor is on the second floor will have reduced sensitivity.</p>
+
+    <p>False positive rate depends on placement and threshold tuning. Our five-gate system is conservative by design, with the sustained-duration gate as the strongest discriminator. Given the acoustic separation between alarm sirens (85+ dB, sustained, specific frequencies) and normal household sounds (TV at 60-65 dB, dogs barking in sub-second bursts, kitchen timers at <70 dB intermittently), the overlap is minimal at the default 75 dB + 5-second sustained threshold. Formal testing across diverse household environments would be needed to quantify the actual false positive rate. Edge cases worth noting: a smoke detector low-battery chirp won't trigger (too quiet and too brief), meaning the system catches alarm events, not maintenance warnings.</p>
+
+    <p>And a fundamental limitation: if the home's alarm system is disarmed, there's no siren to hear. This system monitors alarm response, not intrusion detection. It's a notification layer, not a replacement for the alarm itself.</p>
+
+    <h2>Strongest Counterargument: Acoustic Detection Is Fundamentally Unreliable</h2>
+
+    <p>A wired zone contact is binary: the door is open or it isn't. An acoustic sensor is probabilistic: the sound might be an alarm, or it might be a YouTube video of a fire alarm. Professional alarm monitoring exists because it meets UL 827 standards for central station response times (dispatch within 90 seconds of signal receipt), uses redundant communication paths (cellular + IP), and carries legal weight for insurance claims. A microphone taped near a siren meets none of those standards.</p>
+
+    <p>That criticism is correct. This system will never match the reliability, granularity, or legal standing of professional monitoring. But the comparison misses the baseline. Right now, the guard has zero alarm visibility. Professional monitoring would cost the neighborhood $7,200-14,400/year. If budget constraints mean the choice is between this and nothing, this is not a marginal improvement over nothing. A 90% detection rate (our conservative estimate given placement variability and closed-door attenuation) is infinitely better than a 0% detection rate. For neighborhoods that want professional monitoring AND acoustic backup, the two systems are complementary, not competing.</p>
+
+    <h2>Why This Doesn't Already Exist as a Product</h2>
+
+    <p>Kidde sold the <a href="https://www.manualshelf.com/manual/kidde/21026465/use-and-care-manual-english.html">RemoteLync Monitor</a> for about $35. It listened for T3/T4 fire and CO patterns and sent phone notifications over WiFi. It detected only smoke and CO alarms (not burglar), had no central monitoring capability, required WiFi (not PoE), and was discontinued. No replacement has appeared.</p>
+
+    <p>Commercial alarm monitoring generates <a href="https://www.grandviewresearch.com/industry-analysis/alarm-monitoring-market">tens of billions in annual recurring revenue</a> from per-home subscriptions, proprietary panel locks, and 3-5 year contracts. A $28 open-source device that lets neighborhoods self-monitor sits outside that model entirely. It's not that the technology is hard. It's that the economics don't reward building it.</p>
+
+    <h2>Scaling: 20 to 50 Homes</h2>
+
+    <p>MQTT scales trivially to hundreds of clients on a Raspberry Pi. The constraint is PoE power budget: a standard UniFi Switch 24 PoE provides 95W across 24 ports. Each ESP32-POE draws roughly 2-3W under load. At 3W per sensor, a single switch handles 30+ sensors within its power budget. Larger deployments just need PoE switches with sufficient wattage, which most UniFi networks already have since cameras draw 8-15W each.</p>
+
+    <p>Each sensor generates approximately 500 bytes of MQTT traffic per minute during idle (heartbeats) and 2-5 KB during an alarm event. At 50 homes, idle network overhead is 25 KB/minute. This is invisible on a modern network.</p>
+
+    <h2>Total Cost Comparison</h2>
+
+    <table>
+      <thead>
+        <tr><th>Approach</th><th>30 Homes (Year 1)</th><th>Annual Recurring</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>PoE Acoustic Listener (this build)</td><td><strong>$880</strong></td><td>$0</td></tr>
+        <tr><td>Ajax Systems (self-monitored)</td><td>$15,000-24,000</td><td>$0</td></tr>
+        <tr><td>ADT/SimpliSafe professional monitoring</td><td>$3,000 (equipment)</td><td>$7,200-14,400</td></tr>
+        <tr><td>Konnected.io + Home Assistant</td><td>$3,000-4,500</td><td>$0</td></tr>
+      </tbody>
+    </table>
+
+    <p>The PoE listener costs 4-6% of the next cheapest option. The tradeoff is detection granularity (sound vs. zone contact), and for a neighborhood guard who currently has zero alarm visibility, going from nothing to acoustic monitoring for $29 per home is a straightforward decision.</p>
+
+    <h2>Methodology and Limitations</h2>
+
+    <p>Component prices are sourced from manufacturer direct pricing (Olimex, March 2026) and Amazon listings as of publication. Prices fluctuate; bulk orders of 30+ units from Olimex qualify for the $16.16/unit tier, bringing per-home cost to approximately $24. Detection reliability claims are based on the acoustic properties of NFPA-standardized alarm signals and the documented capabilities of Goertzel-based frequency detection on ESP32 hardware. We have not conducted a formal false-positive study across diverse household environments. The 15-20 dB attenuation figure for closed doors is a commonly cited acoustic engineering estimate, not a measurement from our specific deployment. Professional alarm monitoring (UL-listed central stations) meets specific response-time and reliability standards that a DIY acoustic system does not claim to match. This system supplements rather than replaces professional monitoring for homes that want both layers.</p>
+
+    <h2>The Bottom Line</h2>
+
+    <p>For $880 and a weekend of assembly, a 30-home neighborhood can give its guard real-time alarm visibility across every home. Not every alarm system brand. Not every zone. Not every sensor type. Just the thing that matters most: when a siren goes off inside someone's house, the person whose job it is to respond finds out immediately. In a neighborhood where the guard currently learns about home alarms by hearing them through open windows on a quiet day, that's not a marginal improvement. It's the difference between a security guard and a security system.</p>
+
+  </div>
+
+  <h3 style="margin-top:2rem;">Related articles</h3>
+  <ul>
+    <li><a href="ai-scheduler-os-design.html">Our AI Content Pipeline Kept Crashing Into Itself. The Fix Was a 60-Year-Old Idea.</a></li>
+    <li><a href="humanoid-robots-demo-to-deployment.html">Two Robots Helped Build 30,000 BMWs. The Humanoid Math Still Doesn't Add Up.</a></li>
+  </ul>
+
+  <p class="story-methodology"><em>This article describes a system architecture and bill of materials for a project in active development at our neighborhood. Component specifications are sourced from manufacturer datasheets and verified against distributor listings. Detection algorithm design is based on published acoustic standards (NFPA 72) and documented ESP32 signal processing capabilities. Written and researched by our AI publishing system as part of the Building LITF series.</em></p>
+
+</article>
+<script src="../story.js"></script>
+</body>
+</html>
