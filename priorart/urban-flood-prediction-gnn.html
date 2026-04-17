@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-014: Real-Time Urban Flash Flood Depth Prediction via Distributed Stormwater Sensor Networks and Physics-Constrained Graph Neural Networks | Live in the Future</title>
+  <meta name="description" content="Defensive prior art disclosure: A system using distributed water level sensors in storm drains, LiDAR elevation models, and physics-constrained graph neural networks to predict urban flash flood depth and route pedestrians and vehicles around dangerous inundation zones in real time.">
+  <meta property="og:title" content="System and Method for Real-Time Urban Flash Flood Depth Prediction and Dynamic Pedestrian-Vehicle Routing Using Distributed Stormwater Level Sensor Networks, LiDAR-Derived Digital Elevation Models, and Physics-Constrained Graph Neural Networks">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/urban-flood-prediction-gnn.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/urban-flood-prediction-gnn.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/priorart-urban-flood-gnn.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">&larr; Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-014 &middot; UrbanTech / Climate Resilience</span>
+      <h1>System and Method for Real-Time Urban Flash Flood Depth Prediction and Dynamic Pedestrian-Vehicle Routing Using Distributed Stormwater Level Sensor Networks, LiDAR-Derived Digital Elevation Models, and Physics-Constrained Graph Neural Networks</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-04-17">Published April 17, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/priorart-urban-flood-gnn.jpg" alt="Urban street during heavy rainstorm with IoT water level sensors in storm drains and digital flood depth prediction overlay" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>&#9878;&#65039; Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. &sect; 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above. This disclosure is intended to prevent the patenting of these concepts by any party.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a system and method for predicting urban flash flood inundation depth at street-segment resolution and dynamically rerouting pedestrians and vehicles around dangerous flood zones before surface water reaches hazardous levels. The system deploys low-cost ultrasonic water level sensors (unit cost $18&ndash;35) inside existing storm drain inlets, catch basins, and manholes across a municipal drainage network. Each sensor node measures water level at 10-second intervals and transmits readings via LoRa mesh to a central inference server. The server ingests these real-time hydraulic observations alongside rainfall intensity data from weather radar (NEXRAD Level III, 250 m resolution, 5-minute updates) and pre-computed drainage network topology extracted from municipal GIS databases. A physics-constrained graph neural network (PC-GNN) models the stormwater drainage network as a directed graph where nodes represent junctions (manholes, catch basins, outfalls) and edges represent pipe segments with known diameter, slope, and Manning's roughness coefficient. The GNN's message-passing layers are constrained by the Saint-Venant shallow water equations, ensuring predictions respect conservation of mass and momentum. When the model predicts that pipe capacity will be exceeded at any junction within the next 15&ndash;60 minutes, it computes surface overflow volumes and routes them across a LiDAR-derived digital elevation model (DEM, 1 m horizontal resolution) using a fast D8 flow accumulation algorithm to generate a street-level flood depth forecast map. This map feeds a routing API that issues real-time detour advisories to navigation applications, municipal alert systems, and connected vehicle platforms, steering traffic away from predicted inundation zones before floodwater arrives.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to urban flood prediction and emergency routing, specifically to the combination of distributed IoT water level sensing within municipal stormwater infrastructure, physics-informed graph neural network modeling of pipe network hydraulics, and LiDAR-based surface flow simulation for real-time flood depth forecasting and dynamic route planning.</p>
+
+      <h2>Background</h2>
+
+      <p>Urban flash flooding is the deadliest weather hazard in the United States, responsible for an average of <a href="https://www.weather.gov/safety/flood-fatalities">88 fatalities per year</a> (NWS 30-year average, 1995&ndash;2024), with over half of those deaths occurring in vehicles when drivers enter flooded roadways. The National Weather Service estimates that <a href="https://www.weather.gov/safety/flood-turn-around-dont-drown">six inches of moving water</a> can knock a person off their feet, and two feet of moving water can float a 3,000-pound vehicle. Global insured losses from urban flooding exceeded <a href="https://www.swissre.com/institute/research/sigma-research/sigma-2024-01.html">$35 billion in 2023</a> (Swiss Re sigma), with the share attributable to pluvial (rainfall-driven, non-riverine) urban flooding growing at approximately 7% annually as impervious surface area expands and rainfall intensity increases under climate change.</p>
+
+      <p>The fundamental problem is a temporal mismatch: current flood warning systems operate at basin scale (hours to days lead time, county-level spatial resolution) while urban flash floods develop at street scale (minutes to an hour, block-level spatial resolution). The National Weather Service issues Flash Flood Warnings based on <a href="https://www.nws.noaa.gov/oh/rfcdev/docs/ffg_definitions.pdf">Flash Flood Guidance (FFG)</a> thresholds, typically at 1&ndash;3 hour averaging windows and county subdivision spatial units. By the time a warning is issued, water is already rising in low-lying underpasses and intersections. Municipal stormwater systems are designed to handle specific return periods (typically 10-year storms in the US, per <a href="https://www.epa.gov/npdes/stormwater-discharges-municipal-sources">EPA MS4 permit requirements</a>), but operators have no real-time visibility into how close to capacity their pipe networks are running during a storm event.</p>
+
+      <p>Current approaches to urban flood prediction include:</p>
+      <ul>
+        <li><strong>Hydrologic-hydraulic simulation (SWMM, MIKE URBAN, InfoWorks ICM):</strong> The EPA's <a href="https://www.epa.gov/water-research/storm-water-management-model-swmm">Storm Water Management Model (SWMM)</a> and commercial equivalents (DHI MIKE URBAN, Innovyze InfoWorks ICM) solve the full Saint-Venant equations across a calibrated pipe network model. Accuracy is high when well-calibrated, but computational cost is prohibitive for real-time use at city scale: a 10,000-pipe network requires 20&ndash;60 minutes of simulation time per storm hour on a modern workstation. These tools are used for design, not real-time operations.</li>
+        <li><strong>Simplified rainfall-runoff models:</strong> The NRCS Curve Number method and rational formula estimate peak runoff from rainfall intensity and land use. Fast to compute but provide no spatial resolution within the drainage network and cannot predict where overflow will occur.</li>
+        <li><strong>Machine learning surrogate models:</strong> <a href="https://doi.org/10.1016/j.watres.2021.117128">Guo et al. (2021, Water Research)</a> trained a deep learning model on SWMM simulation outputs to emulate flood depths 100&ndash;1000x faster than physics simulation. <a href="https://doi.org/10.1016/j.jhydrol.2023.129510">Bentivoglio et al. (2023, Journal of Hydrology)</a> used graph neural networks to predict flood dynamics on unstructured meshes. These approaches show promise but require extensive pre-computed simulation datasets for training and do not incorporate real-time sensor observations.</li>
+        <li><strong>Fixed flood sensors:</strong> Cities including Norfolk, VA (<a href="https://floodinsights.io/">Flood Insights</a>), Miami Beach, and Houston have deployed point water level sensors at known flood-prone locations. These provide real-time confirmation that flooding is occurring but offer no predictive capability and no coverage of the pipe network interior where capacity exceedance originates.</li>
+      </ul>
+
+      <p>The gap in the art is a system that: (a) instruments the stormwater pipe network itself (not just surface flood-prone locations) to observe hydraulic state in real time, (b) uses a physics-constrained neural network that combines the speed of ML inference with the physical fidelity of Saint-Venant equations, (c) predicts overflow locations and surface flood depths 15&ndash;60 minutes before flooding occurs, and (d) closes the loop to navigation and alert systems to reroute people away from danger before water arrives.</p>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. Distributed Stormwater Level Sensor Network</h3>
+
+      <p>The sensing layer instruments the municipal storm drain network at strategic locations: major trunk line manholes, junction chambers where multiple pipes converge, known bottleneck points (undersized pipes, siphons, flow restrictions), and surface catch basin inlets in flood-prone low areas. Target sensor density: one sensor per 200&ndash;500 meters of trunk line, plus all junction chambers and critical catch basins, yielding approximately 150&ndash;400 sensors for a typical city of 100,000&ndash;300,000 population.</p>
+
+      <p>Each sensor node comprises: a Maxbotix MB7389 HRXL-MaxSonar-WRMT ultrasonic rangefinder (20 cm to 5 m range, &plusmn;1 cm accuracy, IP67, unit cost $80) or, for lower-cost deployments, a JSN-SR04T waterproof ultrasonic module ($3&ndash;8, &plusmn;3 cm accuracy) with a conformal-coated PCB; a microcontroller (ESP32-C3 or STM32WL, unit cost $2&ndash;4) for data acquisition and LoRa communication; a LoRa radio (SX1262, 915 MHz ISM, unit cost $4); a lithium thionyl chloride (LiSOCl2) primary battery (Tadiran TL-5930, 3.6V 19 Ah, $12) providing 5&ndash;8 years of operation at one measurement per 10 seconds; and a stainless steel mounting bracket with cable gland for manhole or catch basin lid installation. Total BOM cost per node: $25&ndash;95 depending on accuracy tier. Installation requires no specialized equipment: the sensor is clamped to the underside of the manhole frame or catch basin grate, pointing downward at the water surface. Installation time: 15&ndash;30 minutes per node by a two-person crew.</p>
+
+      <p>The ultrasonic sensor measures the distance from the mounting point (at known elevation, from the municipal GIS manhole rim survey) to the water surface. Subtracting this distance from the sensor-to-invert distance (known from pipe network records) yields water depth in the manhole or catch basin. Each node transmits a 24-byte payload every 10 seconds during active rainfall (detected by a rate-of-change threshold on the water level signal) and every 5 minutes during dry weather, via a LoRa mesh network to one or more gateway nodes (Raspberry Pi with cellular backhaul) positioned at 1&ndash;3 km intervals.</p>
+
+      <h3>2. Data Fusion Layer</h3>
+
+      <p>The central inference server fuses three data streams:</p>
+
+      <ul>
+        <li><strong>Real-time sensor observations:</strong> Water depth at each instrumented node, arriving every 10 seconds during storms. Missing or stale readings (sensor failure, communication dropout) are flagged and handled by the GNN's uncertainty quantification module.</li>
+        <li><strong>Rainfall nowcast:</strong> NEXRAD Level III Digital Precipitation Rate (DPR) product at 250 m resolution and 5-minute update interval, sourced from the <a href="https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C00345">NOAA NEXRAD archive</a> via the UCAR Unidata IDD feed. For 0&ndash;60 minute rainfall forecast, the system ingests HRRR (High-Resolution Rapid Refresh) model QPF at 3 km resolution and 15-minute temporal resolution from <a href="https://rapidrefresh.noaa.gov/hrrr/">NOAA HRRR</a>. An optional enhancement uses commercial weather radar networks (e.g., DTN, Tomorrow.io) for higher spatial resolution (100 m) and faster update rates (1&ndash;2 minutes).</li>
+        <li><strong>Static infrastructure data:</strong> Municipal stormwater GIS database containing pipe segment attributes (diameter, material, slope, length, Manning's n roughness coefficient), junction attributes (manhole rim elevation, invert elevation, maximum depth), subcatchment boundaries (delineated from the LiDAR DEM), land use/imperviousness rasters, and outfall locations with tide or receiving water level data where applicable.</li>
+      </ul>
+
+      <h3>3. Physics-Constrained Graph Neural Network (PC-GNN)</h3>
+
+      <p>The core inference engine represents the stormwater pipe network as a directed graph G = (V, E) where vertices V represent junctions (manholes, catch basins, outfalls) and edges E represent pipe segments connecting them. Each vertex has a feature vector including: current measured water depth (if instrumented, otherwise NaN with a mask flag), manhole rim elevation, invert elevation, maximum storage volume, upstream contributing subcatchment area and imperviousness, and current rainfall intensity over the subcatchment. Each edge has a feature vector including: pipe diameter, length, slope, Manning's roughness coefficient, and computed full-pipe capacity via the Manning equation Q = (1/n)&middot;A&middot;R^(2/3)&middot;S^(1/2) where A is cross-sectional area, R is hydraulic radius, and S is slope.</p>
+
+      <p>The GNN architecture uses 6 message-passing layers with 128-dimensional hidden states, based on a modified GraphSAGE aggregator. The key innovation is the physics-constrained loss function, which augments the standard MSE prediction loss with three penalty terms:</p>
+
+      <ol>
+        <li><strong>Mass conservation penalty:</strong> For each junction node, the net inflow (sum of upstream pipe flows plus direct rainfall runoff) minus outflow (sum of downstream pipe flows plus any overflow) must equal the rate of change of stored volume. The loss term penalizes violations: L_mass = &lambda;&#8321; &middot; &Sigma;&#7522; (&Delta;V&#7522;/&Delta;t &minus; Q&#7522;_in + Q&#7522;_out)&sup2;, where &lambda;&#8321; = 0.1.</li>
+        <li><strong>Momentum constraint penalty:</strong> Pipe flow predicted by the GNN is penalized for deviating from the Manning equation estimate under gradually-varied flow conditions: L_momentum = &lambda;&#8322; &middot; &Sigma;&#11388; (Q_pred,j &minus; Q_manning,j)&sup2; for edges where the flow regime is subcritical (Froude number &lt; 1). For pressurized or supercritical flow conditions, the penalty is relaxed. &lambda;&#8322; = 0.05.</li>
+        <li><strong>Non-negativity constraint:</strong> Water depths and pipe flows must be non-negative: L_nonneg = &lambda;&#8323; &middot; &Sigma; max(0, &minus;h_pred)&sup2; + &lambda;&#8323; &middot; &Sigma; max(0, &minus;Q_pred)&sup2;. &lambda;&#8323; = 1.0.</li>
+      </ol>
+
+      <p>The total loss is: L = L_MSE + L_mass + L_momentum + L_nonneg. The model is trained on a combination of: (a) historical sensor data from the deployed network (minimum 3&ndash;6 months of storm events), and (b) synthetic training data generated by running EPA SWMM simulations on the calibrated pipe network model under 500&ndash;2,000 synthetic storm hyetographs sampled from the site's intensity-duration-frequency (IDF) curves. Transfer learning from pre-trained models on similar-topology networks in other cities accelerates deployment: a model pre-trained on 5 cities' networks requires only 50&ndash;100 observed storm events for fine-tuning to a new city, compared to 200&ndash;500 events for training from scratch.</p>
+
+      <p>Inference speed: The GNN processes a full network update (all nodes and edges) in 50&ndash;200 ms on a single NVIDIA T4 GPU or equivalent, enabling 15&ndash;60 minute forward predictions with 10-second time steps in under 5 seconds of wall-clock computation. This is 200&ndash;1,000x faster than equivalent SWMM simulation.</p>
+
+      <h3>4. Surface Overflow and Flood Depth Prediction</h3>
+
+      <p>When the GNN predicts that water level at any junction will exceed the manhole rim elevation (or catch basin grate elevation) within the forecast horizon, the system computes surface overflow. The overflow volume rate Q_overflow = max(0, Q_in &minus; Q_pipe_capacity) at the surcharging junction is distributed across the surrounding street surface using a pre-computed LiDAR-derived flow routing grid.</p>
+
+      <p>The surface routing uses a 1 m horizontal resolution DEM derived from municipal LiDAR surveys (typically available from <a href="https://www.usgs.gov/3d-elevation-program">USGS 3DEP</a> at 1 m resolution for most US urban areas, or from state/county LiDAR programs). The DEM is pre-processed to: fill depressions and remove bridges/overpasses using a conditioned hydrologic DEM workflow; compute D8 flow direction and flow accumulation grids; identify surface flow paths (streets, ditches, channels) using curvature analysis; and pre-compute storage-depth-area curves for each street segment and intersection using the cross-sectional profile extracted from the DEM.</p>
+
+      <p>During a storm event, overflow volumes from surcharging junctions are routed across the DEM surface using a fast kinematic wave approximation: for each time step, overflow volume is distributed downstream along flow paths proportional to slope, with street segments acting as storage reservoirs. The resulting output is a time series of predicted flood depth at every street segment in the affected area, updated every 10 seconds, with a forecast horizon of 15&ndash;60 minutes. Predicted depths are classified into hazard levels: advisory (5&ndash;15 cm, pedestrian risk), warning (15&ndash;30 cm, vehicle hydroplaning risk), and danger (&gt;30 cm, vehicle floating risk).</p>
+
+      <h3>5. Dynamic Routing and Alert System</h3>
+
+      <p>The flood depth forecast map feeds a routing API (REST/gRPC) that integrates with navigation platforms and alert systems:</p>
+
+      <ul>
+        <li><strong>Navigation API:</strong> Provides a GeoJSON layer of flooded or predicted-to-flood street segments with hazard levels and estimated time to onset. Navigation applications (Google Maps, Waze, Apple Maps via MDS, municipal apps) can ingest this layer to reroute vehicles around predicted flood zones before water arrives. The API also accepts vehicle-specific parameters (ground clearance, weight) to customize hazard thresholds.</li>
+        <li><strong>Pedestrian alert:</strong> For connected devices within predicted flood zones (smartphones with location services enabled, municipal WiFi-connected kiosks), the system pushes geo-fenced Wireless Emergency Alerts (WEA) or app notifications with specific hazard information: "Flooding predicted at [intersection] within [X] minutes. Avoid area or move to higher ground."</li>
+        <li><strong>Traffic signal integration:</strong> For municipalities with connected traffic signal systems (NTCIP/SNMP-compatible controllers), the system can trigger flood-aware signal timing plans that redirect traffic away from predicted inundation zones and clear vehicles from low-lying underpasses before water arrives.</li>
+        <li><strong>Emergency dispatch:</strong> Predicted flood depth maps and confidence intervals are pushed to the municipal emergency operations center (EOC) via CAP (Common Alerting Protocol) feeds, enabling pre-positioning of barricades, rescue boats, and first responders at locations predicted to flood before flooding occurs.</li>
+      </ul>
+
+      <h3>6. Continuous Model Calibration and Uncertainty Quantification</h3>
+
+      <p>The system continuously improves through online learning. After each storm event, observed water levels at all sensor nodes are compared to the GNN's predictions. Bayesian updating adjusts the model's uncertainty estimates for each pipe segment and junction. Manning's roughness coefficients (which change over time due to sediment accumulation, root intrusion, and pipe degradation) are recalibrated monthly using an ensemble Kalman filter that treats roughness as a latent state variable. The system also detects infrastructure changes (blockages, pipe collapses, new construction) as persistent model-observation divergences that trigger maintenance alerts.</p>
+
+      <p>Uncertainty is quantified using Monte Carlo dropout during inference (20 forward passes with dropout rate 0.1), producing prediction intervals rather than point estimates. The routing API reports flood depth as a probability distribution, enabling risk-appropriate responses: a 50% probability of 15 cm flooding triggers an advisory, while a 20% probability of 45 cm flooding triggers a danger warning.</p>
+
+      <h3>7. Figures Description</h3>
+
+      <ul>
+        <li><strong>Figure 1:</strong> System architecture showing sensor nodes in manholes and catch basins communicating via LoRa mesh to gateway nodes, central inference server receiving sensor data + NEXRAD radar + GIS pipe network, PC-GNN producing flood depth forecasts, and routing API feeding navigation apps, WEA alerts, traffic signals, and EOC displays.</li>
+        <li><strong>Figure 2:</strong> Graph neural network structure showing the stormwater pipe network represented as a directed graph, with junction nodes (manholes) and pipe edges annotated with hydraulic features, and 6 message-passing layers producing water depth predictions at each node.</li>
+        <li><strong>Figure 3:</strong> Example flood depth forecast map showing a city neighborhood with color-coded street segments (green: dry, yellow: advisory, orange: warning, red: danger) at T+0, T+15, T+30, and T+45 minutes, with actual observed flooding overlaid for validation.</li>
+        <li><strong>Figure 4:</strong> Sensor node installation diagram showing the ultrasonic rangefinder mounted on the underside of a manhole frame, pointing downward at the water surface, with LoRa antenna, battery, and mounting bracket detail.</li>
+      </ul>
+
+      <h2>Claims</h2>
+
+      <ol>
+        <li>A system for real-time urban flash flood depth prediction comprising: a distributed network of water level sensors deployed within a municipal stormwater drainage infrastructure including storm drain inlets, catch basins, and manholes; a central inference server that receives real-time water level observations from said sensors; a graph neural network that models the stormwater pipe network as a directed graph with junctions as nodes and pipe segments as edges; wherein said graph neural network is trained with a physics-constrained loss function incorporating Saint-Venant equation conservation of mass and momentum penalty terms; and a surface flow routing module that computes predicted flood depth at street-segment resolution when the graph neural network forecasts pipe capacity exceedance at any junction.</li>
+
+        <li>The system of claim 1, wherein the physics-constrained loss function comprises: a mass conservation penalty term that penalizes predicted net inflow minus outflow deviating from the rate of change of stored volume at each junction node; a momentum constraint penalty term that penalizes predicted pipe flow deviating from Manning equation estimates under gradually-varied flow conditions; and a non-negativity constraint term enforcing non-negative water depths and pipe flows.</li>
+
+        <li>The system of claim 1, wherein the surface flow routing module uses a pre-computed LiDAR-derived digital elevation model at 1 meter or finer horizontal resolution, with D8 flow direction and flow accumulation grids, to route overflow volumes from surcharging junctions across the urban surface and compute flood depth at each street segment.</li>
+
+        <li>The system of claim 1, further comprising a dynamic routing API that provides real-time flood depth forecasts as a GeoJSON layer to navigation applications, enabling rerouting of vehicles and pedestrians around predicted flood zones before surface water reaches hazardous levels.</li>
+
+        <li>The system of claim 1, wherein sensor nodes comprise an ultrasonic rangefinder measuring distance to the water surface inside a manhole or catch basin, a LoRa radio module for low-power mesh communication, and a primary lithium battery providing multi-year autonomous operation without external power.</li>
+
+        <li>A method for predicting urban flash flood depth and dynamically rerouting traffic comprising: instrumenting a municipal stormwater pipe network with distributed water level sensors at junction chambers and critical catch basins; fusing real-time water level observations with weather radar rainfall data and static pipe network attributes from a municipal GIS database; processing the fused data through a physics-constrained graph neural network that represents the pipe network as a directed graph and produces water level forecasts at each junction for a 15&ndash;60 minute horizon; computing surface overflow volumes and routing them across a LiDAR-derived digital elevation model to generate a street-level flood depth forecast map; and transmitting the forecast map to navigation applications, alert systems, and traffic signal controllers to dynamically reroute pedestrians and vehicles away from predicted inundation zones.</li>
+
+        <li>The method of claim 6, wherein the graph neural network is trained on a combination of historical sensor observations and synthetic training data generated by running hydrologic-hydraulic simulations on the calibrated pipe network model under synthetic storm hyetographs sampled from the site's intensity-duration-frequency curves.</li>
+
+        <li>The method of claim 6, further comprising continuous online calibration of pipe roughness coefficients using an ensemble Kalman filter that treats Manning's roughness as a latent state variable, recalibrated after each observed storm event.</li>
+
+        <li>The method of claim 6, further comprising uncertainty quantification using Monte Carlo dropout during inference, producing prediction intervals for flood depth at each street segment, and triggering hazard-level-appropriate alerts based on the probability distribution of predicted depth.</li>
+
+        <li>The system of claim 1, wherein a transfer learning approach enables deployment to new cities by pre-training the graph neural network on multiple existing city networks and fine-tuning with 50&ndash;100 observed storm events from the target city, reducing the training data requirement compared to training from scratch.</li>
+      </ol>
+
+      <h2>Prior Art References</h2>
+
+      <ol>
+        <li><a href="https://www.weather.gov/safety/flood-fatalities">NWS Flood Fatality Statistics</a> &mdash; Average 88 flood deaths per year in the US (30-year average)</li>
+        <li><a href="https://www.weather.gov/safety/flood-turn-around-dont-drown">NWS Turn Around Don't Drown</a> &mdash; 6 inches of moving water knocks a person down; 2 feet floats a vehicle</li>
+        <li><a href="https://www.swissre.com/institute/research/sigma-research/sigma-2024-01.html">Swiss Re sigma 2024</a> &mdash; Global insured flood losses exceeding $35B in 2023</li>
+        <li><a href="https://www.nws.noaa.gov/oh/rfcdev/docs/ffg_definitions.pdf">NWS Flash Flood Guidance definitions</a> &mdash; Operational flash flood warning methodology</li>
+        <li><a href="https://www.epa.gov/npdes/stormwater-discharges-municipal-sources">EPA MS4 Stormwater Permits</a> &mdash; Municipal separate storm sewer system permit requirements</li>
+        <li><a href="https://www.epa.gov/water-research/storm-water-management-model-swmm">EPA SWMM</a> &mdash; Storm Water Management Model, the industry-standard hydraulic simulation tool</li>
+        <li><a href="https://doi.org/10.1016/j.watres.2021.117128">Guo et al. (2021), Water Research</a> &mdash; Deep learning surrogate for urban flood simulation</li>
+        <li><a href="https://doi.org/10.1016/j.jhydrol.2023.129510">Bentivoglio et al. (2023), Journal of Hydrology</a> &mdash; Graph neural networks for flood dynamics on unstructured meshes</li>
+        <li><a href="https://floodinsights.io/">Flood Insights (Norfolk, VA)</a> &mdash; Fixed flood sensor deployment in US cities</li>
+        <li><a href="https://www.ncei.noaa.gov/access/metadata/landing-page/bin/iso?id=gov.noaa.ncdc:C00345">NOAA NEXRAD Level III data</a> &mdash; Weather radar precipitation products</li>
+        <li><a href="https://rapidrefresh.noaa.gov/hrrr/">NOAA HRRR</a> &mdash; High-Resolution Rapid Refresh model for short-range QPF</li>
+        <li><a href="https://www.usgs.gov/3d-elevation-program">USGS 3DEP</a> &mdash; National LiDAR-derived elevation data program</li>
+        <li><a href="https://doi.org/10.1061/(ASCE)HY.1943-7900.0001281">Rossman (2017), J. Hydraulic Engineering</a> &mdash; SWMM hydraulic engine description and validation</li>
+        <li><a href="https://doi.org/10.1038/s41586-023-06747-5">Nearing et al. (2024), Nature</a> &mdash; Global prediction of extreme floods using graph neural networks (Google DeepMind)</li>
+      </ol>
+
+    </div>
+  </article>
+
+<script src="../story.js"></script>
+</body>
+</html>
