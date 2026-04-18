@@ -5,6 +5,8 @@
   // Article order (newest first) — matches homepage grid order
   var articles = [
     
+    { slug: 'second-life-ev-batteries-grid-storage-math', title: 'Rivian and Tesla\\'s Co-Founder Are Turning Dead EV Batteries Into Grid Storage. The Math Says They Might Not Need New Ones.' },
+    { slug: 'starship-v3-orbital-refueling-artemis-gap', title: 'SpaceX Just Test-Fired Starship V3. It Still Needs 14 Refueling Flights Nobody Has Ever Tried.' },
     { slug: 'apple-gemini-siri-billion-dollar-outsource', title: 'Apple Spent $34.5 Billion on R&amp;D Last Year. It Still Had to Pay Google $1 Billion for AI.' },
     { slug: 'uk-smr-factory-nuclear-cost-gap', title: 'Rolls-Royce Says It Can Build a Nuclear Reactor for £2 Billion. Hinkley Point C Costs £10.9 Billion Per Gigawatt. The Math Demands Scrutiny.' },
     { slug: 'tsmc-cowos-ai-packaging-bottleneck', title: 'TSMC Makes 3.65 Million AI Chip Modules a Year. The Industry Needs 5 Million. The Bottleneck Isn\'t Transistors.' },
