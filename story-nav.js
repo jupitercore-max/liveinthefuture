@@ -5,6 +5,7 @@
   // Article order (newest first) — matches homepage grid order
   var articles = [
     
+    { slug: 'uk-smr-factory-nuclear-cost-gap', title: 'Rolls-Royce Says It Can Build a Nuclear Reactor for £2 Billion. Hinkley Point C Costs £10.9 Billion Per Gigawatt. The Math Demands Scrutiny.' },
     { slug: 'tsmc-cowos-ai-packaging-bottleneck', title: 'TSMC Makes 3.65 Million AI Chip Modules a Year. The Industry Needs 5 Million. The Bottleneck Isn\'t Transistors.' },
     { slug: 'miniature-crispr-aav-delivery-breakthrough', title: 'A CRISPR Editor One-Third the Size of Cas9 Just Hit 90% Efficiency. The Delivery Bottleneck May Be Over.' },
     { slug: 'deepfake-fraud-detection-gap', title: 'It Costs $50 to Clone a CEO\'s Voice. The Industry Spent Billions on Detection. Detection Is Losing.' },
