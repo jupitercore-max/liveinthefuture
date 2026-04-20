@@ -108,6 +108,26 @@ var badgeToast = null;    // { emoji, name, timer }
 var badgeToastDuration = 3; // seconds
 var showBadgeGallery = false;
 
+// Posture Drills — periodic optional micro-challenges
+var DRILLS = [
+  { id: 'steady', name: 'Steady Hold', icon: '\u{1F3AF}', dur: 30, mult: 0.6, desc: '30s tight threshold' },
+  { id: 'breath', name: 'Deep Breath', icon: '\u{1FAC1}', dur: 30, mult: 1.0, desc: '3 deep breaths + hold', mic: true },
+  { id: 'freeze', name: 'Freeze', icon: '\u{1F9CA}', dur: 20, mult: 0.4, desc: '20s minimal motion' },
+  { id: 'endure', name: 'Endurance', icon: '\u23F1', dur: 60, mult: 0.8, desc: '60s strong posture' }
+];
+var drillState = 'none'; // 'none','prompt','active'
+var drillCurrent = null;
+var drillPromptTimer = 0;
+var drillActiveTimer = 0;
+var drillGoodTime = 0;
+var drillBreathStart = 0; // breathPeaks.length at drill start
+var drillSessionTime = 0; // time elapsed in monitoring
+var drillNextAt = 120 + Math.random() * 60; // first drill at 2-3 min
+var drillsCompleted = 0;
+var drillsFailed = 0;
+var drillResultFlash = 0; // >0 success, <0 fail
+var drillResultTimer = 0;
+
 // localStorage
 var STORAGE_KEY = 'litf_posture';
 var allTimeStats = loadStats();
@@ -345,6 +365,57 @@ function playShallowBreathCue() {
   } catch(e) {}
 }
 
+// Drill audio
+function playDrillStart() {
+  if (!audioCtx) return;
+  try {
+    var now = audioCtx.currentTime;
+    var osc = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.linearRampToValueAtTime(660, now + 0.15);
+    g.gain.setValueAtTime(0.07, now);
+    g.gain.linearRampToValueAtTime(0, now + 0.2);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(now); osc.stop(now + 0.25);
+  } catch(e) {}
+}
+
+function playDrillComplete() {
+  if (!audioCtx) return;
+  try {
+    var now = audioCtx.currentTime;
+    var freqs = [440, 554, 660];
+    for (var fi = 0; fi < freqs.length; fi++) {
+      var osc = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freqs[fi];
+      g.gain.setValueAtTime(0.06, now + fi * 0.12);
+      g.gain.linearRampToValueAtTime(0, now + fi * 0.12 + 0.3);
+      osc.connect(g); g.connect(audioCtx.destination);
+      osc.start(now + fi * 0.12); osc.stop(now + fi * 0.12 + 0.35);
+    }
+  } catch(e) {}
+}
+
+function playDrillFail() {
+  if (!audioCtx) return;
+  try {
+    var now = audioCtx.currentTime;
+    var osc = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(200, now);
+    osc.frequency.linearRampToValueAtTime(140, now + 0.3);
+    g.gain.setValueAtTime(0.04, now);
+    g.gain.linearRampToValueAtTime(0, now + 0.35);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(now); osc.stop(now + 0.4);
+  } catch(e) {}
+}
+
 // Orientation handler
 function onOrientation(e) {
   hasOrientation = true;
@@ -412,6 +483,14 @@ function finishCalibration() {
   breathRate = 0;
   breathDepth = 0;
   breathQuality = 0;
+  // Reset drills for new session
+  drillState = 'none';
+  drillCurrent = null;
+  drillSessionTime = 0;
+  drillNextAt = 120 + Math.random() * 60;
+  drillsCompleted = 0;
+  drillsFailed = 0;
+  drillResultTimer = 0;
   playCalibrateDone();
 }
 
@@ -461,7 +540,15 @@ document.addEventListener('keydown', function(e) {
   }
   
   if (state === STATE_MONITOR) {
-    if (key === 'ArrowLeft') {
+    if (key === 'ArrowUp') {
+      if (drillState === 'prompt' && drillCurrent) {
+        drillState = 'active';
+        drillActiveTimer = drillCurrent.dur;
+        drillGoodTime = 0;
+        drillBreathStart = breathPeaks.length;
+        playDrillStart();
+      }
+    } else if (key === 'ArrowLeft') {
       sensitivity = Math.max(1, sensitivity - 1);
       try { localStorage.setItem('litf_posture_sens', String(sensitivity)); } catch(e) {}
     } else if (key === 'ArrowRight') {
@@ -600,6 +687,57 @@ function frame(ts) {
       goodPct: 0,
       usedSens5: usedMaxSens
     });
+    
+    // Drill system update
+    drillSessionTime += dt;
+    if (drillResultTimer > 0) drillResultTimer -= dt;
+    
+    if (drillState === 'none') {
+      if (drillSessionTime >= drillNextAt) {
+        var pool = [];
+        for (var di = 0; di < DRILLS.length; di++) {
+          if (!DRILLS[di].mic || micActive) pool.push(DRILLS[di]);
+        }
+        if (pool.length > 0) {
+          drillCurrent = pool[Math.floor(Math.random() * pool.length)];
+          drillState = 'prompt';
+          drillPromptTimer = 10;
+        }
+      }
+    } else if (drillState === 'prompt') {
+      drillPromptTimer -= dt;
+      if (drillPromptTimer <= 0) {
+        drillState = 'none';
+        drillNextAt = drillSessionTime + 120 + Math.random() * 60;
+        drillCurrent = null;
+      }
+    } else if (drillState === 'active') {
+      drillActiveTimer -= dt;
+      var drillThresh = thresh * drillCurrent.mult;
+      if (dev <= drillThresh) drillGoodTime += dt;
+      if (drillActiveTimer <= 0) {
+        var posturePct = drillCurrent.dur > 0 ? drillGoodTime / drillCurrent.dur : 0;
+        var passed = posturePct >= 0.8;
+        // Breath drill: also need 3+ new breath peaks
+        if (drillCurrent.mic && passed) {
+          var newPeaks = breathPeaks.length - drillBreathStart;
+          if (newPeaks < 3) passed = false;
+        }
+        if (passed) {
+          drillsCompleted++;
+          drillResultFlash = 1;
+          playDrillComplete();
+        } else {
+          drillsFailed++;
+          drillResultFlash = -1;
+          playDrillFail();
+        }
+        drillResultTimer = 2;
+        drillState = 'none';
+        drillNextAt = drillSessionTime + 120 + Math.random() * 60;
+        drillCurrent = null;
+      }
+    }
   }
   
   // Draw
@@ -961,6 +1099,56 @@ function drawMonitor() {
     ctx.strokeRect(chartX, chartY, chartW, chartH);
   }
   
+  // === Drill UI ===
+  if (drillState === 'prompt' && drillCurrent) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(20,20,20,0.92)';
+    var pw = 420, ph = 50, px = 300 - pw/2, py = 98;
+    ctx.fillRect(px, py, pw, ph);
+    ctx.strokeStyle = '#4fc3f7';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px, py, pw, ph);
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 16px system-ui';
+    ctx.fillStyle = '#4fc3f7';
+    ctx.fillText('\u2191 ' + drillCurrent.icon + ' ' + drillCurrent.name + ' \u2014 ' + drillCurrent.desc, 300, py + 22);
+    ctx.font = '12px system-ui';
+    ctx.fillStyle = '#888';
+    ctx.fillText(Math.ceil(drillPromptTimer) + 's \u00B7 press \u2191 to start', 300, py + 40);
+    ctx.restore();
+  }
+  if (drillState === 'active' && drillCurrent) {
+    // Progress bar at top
+    var drillPct = drillActiveTimer / drillCurrent.dur;
+    ctx.fillStyle = 'rgba(79,195,247,0.25)';
+    ctx.fillRect(0, 0, 600 * drillPct, 5);
+    // Active drill indicator
+    var drillDev = getDeviation();
+    var drillThr = getThreshold() * drillCurrent.mult;
+    var onTarget = drillDev <= drillThr;
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 15px system-ui';
+    ctx.fillStyle = onTarget ? '#4caf50' : '#f44336';
+    ctx.fillText(drillCurrent.icon + ' ' + drillCurrent.name + ' \u2014 ' + Math.ceil(drillActiveTimer) + 's', 300, 108);
+    var drillSuccPct = (drillCurrent.dur - drillActiveTimer) > 0 ? drillGoodTime / (drillCurrent.dur - drillActiveTimer) : 1;
+    ctx.font = '12px system-ui';
+    ctx.fillStyle = drillSuccPct >= 0.8 ? '#4caf50' : '#ff9800';
+    ctx.fillText(Math.round(drillSuccPct * 100) + '% on target', 300, 125);
+    if (drillCurrent.mic) {
+      var newP = breathPeaks.length - drillBreathStart;
+      ctx.fillStyle = newP >= 3 ? '#4caf50' : '#888';
+      ctx.fillText('\u{1FAC1} Breaths: ' + newP + '/3', 300, 140);
+    }
+  }
+  if (drillResultTimer > 0) {
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 14px system-ui';
+    ctx.globalAlpha = Math.min(drillResultTimer, 1);
+    ctx.fillStyle = drillResultFlash > 0 ? '#4caf50' : '#f44336';
+    ctx.fillText(drillResultFlash > 0 ? '\u2705 Drill complete!' : '\u274C Drill failed', 300, 108);
+    ctx.globalAlpha = 1;
+  }
+  
   // === Controls ===
   ctx.textAlign = 'center';
   ctx.font = '13px system-ui';
@@ -974,7 +1162,7 @@ function drawMonitor() {
   sensText += ' →';
   ctx.fillText(sensText, 300, 565);
   
-  ctx.fillText('↓ badges · ENTER recalibrate · ESC pause', 300, 585);
+  ctx.fillText('\u2191 drill \u00B7 \u2193 badges \u00B7 ENTER recalibrate \u00B7 ESC pause', 300, 585);
 }
 
 function drawPaused() {
@@ -1030,15 +1218,16 @@ function drawSummary() {
   ctx.fillStyle = '#ccc';
   var y = 275;
   var lines = [
-    '⏱ Duration: ' + formatTime(elapsed),
-    '✓ Good posture: ' + goodPct + '%',
-    '🔔 Nudges: ' + nudgeCount,
-    '🔥 Best streak: ' + formatTime(bestStreak),
-    micActive && breathRate > 0 ? '🫁 Avg breathing: ' + Math.round(breathRate) + ' bpm' + (breathQuality > 0 ? ' (' + breathQuality + '/100)' : '') : '',
-    '🏆 Badges: ' + getUnlockedCount() + '/' + BADGES.length,
+    '\u23F1 Duration: ' + formatTime(elapsed),
+    '\u2713 Good posture: ' + goodPct + '%',
+    '\u{1F514} Nudges: ' + nudgeCount,
+    '\u{1F525} Best streak: ' + formatTime(bestStreak),
+    (drillsCompleted + drillsFailed) > 0 ? '\u{1F3AF} Drills: ' + drillsCompleted + '/' + (drillsCompleted + drillsFailed) + ' passed' : '',
+    micActive && breathRate > 0 ? '\u{1FAC1} Avg breathing: ' + Math.round(breathRate) + ' bpm' + (breathQuality > 0 ? ' (' + breathQuality + '/100)' : '') : '',
+    '\u{1F3C6} Badges: ' + getUnlockedCount() + '/' + BADGES.length,
     '',
-    '📊 All-time:',
-    allTimeStats.totalSessions + ' sessions · ' + formatTime(allTimeStats.totalGoodTime) + ' good',
+    '\u{1F4CA} All-time:',
+    allTimeStats.totalSessions + ' sessions \u00B7 ' + formatTime(allTimeStats.totalGoodTime) + ' good',
     'Best ever: ' + formatTime(allTimeStats.bestStreak)
   ];
   
