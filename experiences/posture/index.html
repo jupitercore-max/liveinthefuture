@@ -84,6 +84,12 @@ var breathSessionDepths = [];
 var breathQuality = 0;
 var breathPulse = 0;
 
+// Continuous posture drone — bone conduction biofeedback
+var postureDroneOsc = null;
+var postureDroneGainNode = null;
+var postureDroneTarget = 0;
+var postureDroneCurrent = 0;
+
 // Animation
 var calibrateCountdown = 0;
 var calibrating = false;
@@ -416,6 +422,53 @@ function playDrillFail() {
   } catch(e) {}
 }
 
+// Posture drone — continuous bone conduction biofeedback
+// Slouch angle maps to a subtle persistent tone so you can monitor posture by ear alone
+function startPostureDrone() {
+  if (!audioCtx || postureDroneOsc) return;
+  try {
+    postureDroneOsc = audioCtx.createOscillator();
+    postureDroneGainNode = audioCtx.createGain();
+    postureDroneOsc.type = 'sine';
+    postureDroneOsc.frequency.value = 120;
+    postureDroneGainNode.gain.value = 0;
+    postureDroneOsc.connect(postureDroneGainNode);
+    postureDroneGainNode.connect(audioCtx.destination);
+    postureDroneOsc.start();
+    postureDroneTarget = 0;
+    postureDroneCurrent = 0;
+  } catch(e) {}
+}
+
+function stopPostureDrone() {
+  if (postureDroneOsc) {
+    try { postureDroneOsc.stop(); } catch(e) {}
+    postureDroneOsc = null;
+    postureDroneGainNode = null;
+    postureDroneTarget = 0;
+    postureDroneCurrent = 0;
+  }
+}
+
+function updatePostureDrone(ratio) {
+  if (!postureDroneGainNode || !postureDroneOsc) return;
+  // Silent when posture is good (ratio < 0.5 of threshold)
+  // Gentle hum fades in as slouching worsens (0.5 → 1.5 ratio)
+  if (ratio < 0.5) {
+    postureDroneTarget = 0;
+  } else {
+    var t = Math.min((ratio - 0.5) / 1.0, 1.0);
+    postureDroneTarget = t * 0.035;
+  }
+  // Smooth lerp to avoid clicks (updated every frame ~60Hz)
+  postureDroneCurrent += (postureDroneTarget - postureDroneCurrent) * 0.08;
+  if (postureDroneCurrent < 0.0005) postureDroneCurrent = 0;
+  postureDroneGainNode.gain.value = postureDroneCurrent;
+  // Frequency rises with severity: 120Hz (approaching threshold) → 240Hz (past threshold)
+  var f = 120 + Math.min(Math.max(ratio - 0.5, 0), 1.0) * 120;
+  postureDroneOsc.frequency.value = f;
+}
+
 // Orientation handler
 function onOrientation(e) {
   hasOrientation = true;
@@ -492,6 +545,7 @@ function finishCalibration() {
   drillsFailed = 0;
   drillResultTimer = 0;
   playCalibrateDone();
+  startPostureDrone();
 }
 
 function formatTime(ms) {
@@ -526,6 +580,7 @@ document.addEventListener('keydown', function(e) {
   if (state === STATE_PAUSED) {
     if (key === 'Enter') {
       state = STATE_MONITOR;
+      startPostureDrone();
       lastGoodCheck = Date.now();
       streakStart = Date.now();
     }
@@ -559,15 +614,18 @@ document.addEventListener('keydown', function(e) {
       showBadgeGallery = !showBadgeGallery;
     } else if (key === 'Enter') {
       // Re-calibrate
+      stopPostureDrone();
       state = STATE_CALIBRATE;
       calibrating = false;
     } else if (key === 'Escape') {
+      stopPostureDrone();
       state = STATE_PAUSED;
     }
   }
 });
 
 function endSession() {
+  stopPostureDrone();
   allTimeStats.totalSessions++;
   allTimeStats.totalGoodTime += goodPostureTime;
   allTimeStats.totalNudges += nudgeCount;
@@ -652,6 +710,9 @@ function frame(ts) {
     var thresh = getThreshold();
     var wasGood = isGoodPosture;
     isGoodPosture = dev <= thresh;
+    
+    // Continuous audio biofeedback — drone tracks slouch severity
+    updatePostureDrone(dev / thresh);
     
     var now = Date.now();
     
