@@ -65,6 +65,25 @@ var audioCtx = null;
 var history = [];
 var historyMax = 120;
 
+// Mic / Breathing detection
+var micStream = null;
+var micAnalyser = null;
+var micData = null;
+var micActive = false;
+var micFailed = false;
+var breathSamples = [];
+var breathSampleRate = 10;
+var breathSampleTimer = 0;
+var breathSmoothedVol = 0;
+var breathRate = 0;
+var breathDepth = 0;
+var breathPeaks = [];
+var breathRising = false;
+var breathLastPeak = 0;
+var breathSessionDepths = [];
+var breathQuality = 0;
+var breathPulse = 0;
+
 // Animation
 var calibrateCountdown = 0;
 var calibrating = false;
@@ -220,6 +239,112 @@ function playGoodChime() {
   } catch(e) {}
 }
 
+function initMic() {
+  if (micActive || micFailed) return;
+  try {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      micStream = stream;
+      if (!audioCtx) initAudio();
+      var src = audioCtx.createMediaStreamSource(stream);
+      micAnalyser = audioCtx.createAnalyser();
+      micAnalyser.fftSize = 512;
+      micAnalyser.smoothingTimeConstant = 0.85;
+      src.connect(micAnalyser);
+      micData = new Uint8Array(micAnalyser.frequencyBinCount);
+      micActive = true;
+    }).catch(function() { micFailed = true; });
+  } catch(e) { micFailed = true; }
+}
+
+function getMicRMS() {
+  if (!micActive || !micAnalyser) return 0;
+  micAnalyser.getByteTimeDomainData(micData);
+  var sum = 0;
+  for (var i = 0; i < micData.length; i++) {
+    var v = (micData[i] - 128) / 128;
+    sum += v * v;
+  }
+  return Math.sqrt(sum / micData.length);
+}
+
+function updateBreathing(dt) {
+  if (!micActive) return;
+  var rawVol = getMicRMS();
+  breathSmoothedVol += (rawVol - breathSmoothedVol) * 0.06;
+  breathPulse = breathSmoothedVol;
+
+  breathSampleTimer += dt;
+  if (breathSampleTimer < 1 / breathSampleRate) return;
+  breathSampleTimer = 0;
+
+  var now = Date.now();
+  breathSamples.push({ t: now, v: breathSmoothedVol });
+  var cutoff = now - 30000;
+  while (breathSamples.length > 0 && breathSamples[0].t < cutoff) breathSamples.shift();
+
+  var len = breathSamples.length;
+  if (len < 3) return;
+  var prev = breathSamples[len - 2].v;
+  var cur = breathSamples[len - 1].v;
+
+  if (breathRising && cur < prev && prev > 0.005) {
+    if (now - breathLastPeak > 1500) {
+      breathPeaks.push(now);
+      breathLastPeak = now;
+      breathSessionDepths.push(prev);
+      while (breathPeaks.length > 12) breathPeaks.shift();
+      while (breathSessionDepths.length > 60) breathSessionDepths.shift();
+    }
+    breathRising = false;
+  } else if (cur > prev) {
+    breathRising = true;
+  }
+
+  if (breathPeaks.length >= 2) {
+    var intervals = [];
+    for (var i = 1; i < breathPeaks.length; i++) intervals.push(breathPeaks[i] - breathPeaks[i - 1]);
+    var avgInt = 0;
+    for (var j = 0; j < intervals.length; j++) avgInt += intervals[j];
+    avgInt /= intervals.length;
+    var bpm = 60000 / avgInt;
+    breathRate = (bpm >= 4 && bpm <= 40) ? bpm : 0;
+  }
+
+  if (breathSessionDepths.length > 0) {
+    var recent = breathSessionDepths.slice(-5);
+    var dSum = 0;
+    for (var k = 0; k < recent.length; k++) dSum += recent[k];
+    breathDepth = dSum / recent.length;
+  }
+
+  if (breathRate > 0) {
+    var rScore = 0;
+    if (breathRate >= 12 && breathRate <= 20) rScore = 100;
+    else if (breathRate < 12) rScore = Math.max(0, 100 - (12 - breathRate) * 15);
+    else rScore = Math.max(0, 100 - (breathRate - 20) * 10);
+    var dScore = Math.min(100, breathDepth * 500);
+    breathQuality = Math.round(rScore * 0.6 + dScore * 0.4);
+  }
+}
+
+function playShallowBreathCue() {
+  if (!audioCtx) return;
+  try {
+    var now = audioCtx.currentTime;
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 280;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.03, now + 0.1);
+    gain.gain.linearRampToValueAtTime(0, now + 0.6);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.65);
+  } catch(e) {}
+}
+
 // Orientation handler
 function onOrientation(e) {
   hasOrientation = true;
@@ -254,6 +379,7 @@ function startCalibration() {
   calibrateCountdown = 3;
   calibrateSamples = [];
   initAudio();
+  initMic();
 }
 
 function finishCalibration() {
@@ -280,6 +406,12 @@ function finishCalibration() {
   streakStart = Date.now();
   history = [];
   usedMaxSens = (sensitivity === 5);
+  breathSamples = [];
+  breathPeaks = [];
+  breathSessionDepths = [];
+  breathRate = 0;
+  breathDepth = 0;
+  breathQuality = 0;
   playCalibrateDone();
 }
 
@@ -428,6 +560,7 @@ function frame(ts) {
   
   // Monitor logic
   if (state === STATE_MONITOR) {
+    updateBreathing(dt);
     var dev = getDeviation();
     var thresh = getThreshold();
     var wasGood = isGoodPosture;
@@ -712,6 +845,45 @@ function drawMonitor() {
   ctx.fillStyle = isGoodPosture ? '#4caf50' : '#f44336';
   ctx.fill();
   
+  // === Breathing indicator (mic-based) ===
+  if (micActive && breathRate > 0) {
+    var bx = 80, by = 395;
+    var pulseR = 6 + breathPulse * 80;
+    var bColor;
+    if (breathRate >= 12 && breathRate <= 20) bColor = '#4caf50';
+    else if (breathRate > 20 && breathRate <= 28) bColor = '#ff9800';
+    else bColor = '#f44336';
+    ctx.beginPath();
+    ctx.arc(bx, by, pulseR, 0, Math.PI * 2);
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = bColor;
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+    ctx.beginPath();
+    ctx.arc(bx, by, 5, 0, Math.PI * 2);
+    ctx.fillStyle = bColor;
+    ctx.fill();
+    ctx.font = '13px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = bColor;
+    ctx.fillText(Math.round(breathRate) + ' bpm', bx + 14, by + 4);
+    ctx.font = '10px system-ui';
+    ctx.fillStyle = '#666';
+    ctx.fillText('breathing', bx + 14, by + 17);
+    // Combined warning
+    if (!isGoodPosture && breathRate > 22) {
+      ctx.font = '11px system-ui';
+      ctx.fillStyle = '#f44336';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚠ Slouching → shallow breathing', 300, 395);
+    }
+  } else if (micActive) {
+    ctx.font = '11px system-ui';
+    ctx.fillStyle = '#444';
+    ctx.textAlign = 'left';
+    ctx.fillText('🫁 Detecting breathing...', 30, 399);
+  }
+  
   // === Stats bar ===
   var elapsed = Date.now() - sessionStart;
   var goodPct = elapsed > 0 ? Math.round((goodPostureTime / elapsed) * 100) : 100;
@@ -862,6 +1034,7 @@ function drawSummary() {
     '✓ Good posture: ' + goodPct + '%',
     '🔔 Nudges: ' + nudgeCount,
     '🔥 Best streak: ' + formatTime(bestStreak),
+    micActive && breathRate > 0 ? '🫁 Avg breathing: ' + Math.round(breathRate) + ' bpm' + (breathQuality > 0 ? ' (' + breathQuality + '/100)' : '') : '',
     '🏆 Badges: ' + getUnlockedCount() + '/' + BADGES.length,
     '',
     '📊 All-time:',
