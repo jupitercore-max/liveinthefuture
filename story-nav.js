@@ -5,6 +5,8 @@
   // Article order (newest first) — matches homepage grid order
   var articles = [
     
+    { slug: 'apple-hardware-ceo-ternus-mag7', title: 'Apple\'s New CEO Built Every Product You Own. His First Bet Is a Pair of Glasses.' },
+    { slug: 'ai-coding-trust-gap', title: '51% of Code on GitHub Is Now AI-Generated. The Developers Who Write It Trust It Less Than Ever.' },
     { slug: 'ai-chip-smuggling-enforcement-gap', title: 'The U.S. Charged a Supermicro Co-Founder With Smuggling $2.5 Billion in AI Chips to China. The Black Market Premium Says He Wasn\\'t Alone.' },
     { slug: 'second-life-ev-batteries-grid-storage-math', title: 'Rivian and Tesla\\'s Co-Founder Are Turning Dead EV Batteries Into Grid Storage. The Math Says They Might Not Need New Ones.' },
     { slug: 'starship-v3-orbital-refueling-artemis-gap', title: 'SpaceX Just Test-Fired Starship V3. It Still Needs 14 Refueling Flights Nobody Has Ever Tried.' },
