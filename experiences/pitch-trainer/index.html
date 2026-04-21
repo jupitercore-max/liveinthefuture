@@ -71,7 +71,10 @@ var showSuccess = 0;
 var scaleNotes = [0,2,4,5,7,9,11];
 var scaleIdx = 0;
 var intervalPairs = [[0,4],[0,7],[0,5],[0,3],[0,9],[0,12],[0,2],[0,10]];
+var intervalNames = ["M3","P5","P4","m3","M6","Oct","M2","m7"];
+var intervalLabels = ["Major 3rd","Perfect 5th","Perfect 4th","Minor 3rd","Major 6th","Octave","Major 2nd","Minor 7th"];
 var intervalIdx = 0;
+var intervalAccuracy = {}; // {idx: {hits:N, attempts:N}}
 var refPlaying = false;
 var refOsc = null;
 var refGain = null;
@@ -190,6 +193,55 @@ function playStartChime() {
 }
 
 loadStats();
+
+// --- Adaptive interval quiz ---
+function loadIntervalAccuracy() {
+  try {
+    var d = JSON.parse(localStorage.getItem("pitch_interval_acc"));
+    if (d) intervalAccuracy = d;
+  } catch(e){}
+}
+
+function saveIntervalAccuracy() {
+  try {
+    localStorage.setItem("pitch_interval_acc", JSON.stringify(intervalAccuracy));
+  } catch(e){}
+}
+
+function getIntervalWeight(idx) {
+  var acc = intervalAccuracy[idx];
+  if (!acc || acc.attempts < 3) return 2; // untested: moderate weight
+  var pct = acc.hits / acc.attempts;
+  if (pct < 0.4) return 4; // very weak: 4x
+  if (pct < 0.6) return 3; // weak: 3x
+  if (pct < 0.8) return 2; // ok: 2x
+  return 1; // strong: 1x
+}
+
+function pickWeightedInterval() {
+  var totalWeight = 0;
+  var weights = [];
+  for (var i = 0; i < intervalPairs.length; i++) {
+    var w = getIntervalWeight(i);
+    weights.push(w);
+    totalWeight += w;
+  }
+  var roll = Math.random() * totalWeight;
+  var cumulative = 0;
+  for (var j = 0; j < weights.length; j++) {
+    cumulative += weights[j];
+    if (roll < cumulative) return j;
+  }
+  return weights.length - 1;
+}
+
+function getIntervalAccPct(idx) {
+  var acc = intervalAccuracy[idx];
+  if (!acc || acc.attempts === 0) return -1; // no data
+  return Math.round((acc.hits / acc.attempts) * 100);
+}
+
+loadIntervalAccuracy();
 
 // --- Helpers ---
 function noteFreq(note, octave) {
@@ -336,9 +388,12 @@ function nextNote() {
     if (scaleIdx === 0) targetOctave = targetOctave === 5 ? 3 : targetOctave + 1;
     targetNote = scaleNotes[scaleIdx];
   } else if (modeIdx === 2) {
-    intervalIdx = (intervalIdx + 1) % intervalPairs.length;
+    intervalIdx = pickWeightedInterval();
     var pair = intervalPairs[intervalIdx];
     targetNote = (pair[0] + pair[1]) % 12;
+    // Track attempt for this interval
+    if (!intervalAccuracy[intervalIdx]) intervalAccuracy[intervalIdx] = {hits:0, attempts:0};
+    intervalAccuracy[intervalIdx].attempts++;
   } else {
     targetNote = Math.floor(Math.random() * 12);
     targetOctave = 3 + Math.floor(Math.random() * 3);
@@ -407,6 +462,7 @@ document.addEventListener("keydown", function(e) {
     } else if (e.key === "Escape") {
       // Return to title
       stopRef();
+      if (modeIdx === 2) saveIntervalAccuracy();
       gameState = STATE_TITLE;
     }
   }
@@ -536,6 +592,21 @@ function drawTitle() {
       ctx.fillStyle = "#4a9";
       ctx.fillText("▸", cardX + cardW - 14, itemY + 24);
     }
+
+    // Show per-interval accuracy when Intervals mode is selected
+    if (isSelected && m === 2) {
+      var weakList = [];
+      for (var wi = 0; wi < intervalPairs.length; wi++) {
+        var wPct = getIntervalAccPct(wi);
+        if (wPct >= 0 && wPct < 60) weakList.push(intervalNames[wi] + " " + wPct + "%");
+      }
+      if (weakList.length > 0) {
+        ctx.textAlign = "left";
+        ctx.font = "11px system-ui";
+        ctx.fillStyle = "#e55";
+        ctx.fillText("⚠ Weak: " + weakList.join(", "), cardX + 20, itemY + cardH + 12);
+      }
+    }
   }
 
   // --- Stats summary ---
@@ -606,6 +677,11 @@ function drawPlaying() {
         streakCount++;
         if (streakCount > bestStreak) bestStreak = streakCount;
         if (streakCount > persistentBest) persistentBest = streakCount;
+        // Track interval accuracy
+        if (modeIdx === 2 && intervalAccuracy[intervalIdx]) {
+          intervalAccuracy[intervalIdx].hits++;
+          saveIntervalAccuracy();
+        }
         prevRank = currentRank;
         currentRank = getRankIdx(persistentHits);
         if (currentRank > prevRank) {
@@ -694,6 +770,26 @@ function drawPlaying() {
   ctx.fillStyle = "#666";
   ctx.font = "16px system-ui";
   ctx.fillText(Math.round(targetFreq) + " Hz", 300, 152);
+
+  // --- Interval name + accuracy (Intervals mode only) ---
+  if (modeIdx === 2) {
+    var iName = intervalNames[intervalIdx] + " — " + intervalLabels[intervalIdx];
+    var iPct = getIntervalAccPct(intervalIdx);
+    ctx.font = "14px system-ui";
+    if (iPct >= 0 && iPct < 60) {
+      ctx.fillStyle = "#e55"; // weak = red
+      iName += "  ⚠ " + iPct + "%";
+    } else if (iPct >= 60 && iPct < 80) {
+      ctx.fillStyle = "#da4"; // ok = amber
+      iName += "  " + iPct + "%";
+    } else if (iPct >= 80) {
+      ctx.fillStyle = "#4a9"; // strong = green
+      iName += "  " + iPct + "%";
+    } else {
+      ctx.fillStyle = "#888"; // no data
+    }
+    ctx.fillText(iName, 300, 170);
+  }
 
   // --- Pitch meter (arc gauge) ---
   var cx = 300, cy = 300, radius = 120;
