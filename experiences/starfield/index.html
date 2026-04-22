@@ -277,16 +277,25 @@ function updateBeacon() {
   var bearingDiff = tgt.bearing - vanishX;
   // Pan: clamp bearing difference to stereo field
   var pan = Math.max(-1, Math.min(1, bearingDiff * 2.5));
-  beaconPanner.pan.setTargetAtTime(pan, t, 0.08);
   // Volume: louder as you approach, quiet when far
   var proximity = Math.max(0, 1 - tgt.dist / 60);
   var vol = 0.02 + proximity * 0.1;
   // Reduce volume when off-bearing (reward alignment)
   var alignment = 1 - Math.min(1, Math.abs(bearingDiff) / 1.0);
   vol *= (0.3 + alignment * 0.7);
-  beaconGain.gain.setTargetAtTime(vol, t, 0.1);
   // Frequency rises as you get closer: 330Hz far → 880Hz arrival
   var freq = 330 + proximity * 550;
+  // Mic turbulence: ambient noise corrupts beacon signal
+  // Quiet room = clean navigation, noisy environment = signal interference
+  if (micActive && micLevel > 0.05) {
+    var turb = micLevel;
+    pan += (Math.random() - 0.5) * turb * 0.7;
+    pan = Math.max(-1, Math.min(1, pan));
+    freq += (Math.random() - 0.5) * turb * 80;
+    vol *= (1 - turb * 0.25);
+  }
+  beaconPanner.pan.setTargetAtTime(pan, t, 0.08);
+  beaconGain.gain.setTargetAtTime(vol, t, 0.1);
   beaconOsc.frequency.setTargetAtTime(freq, t, 0.2);
 }
 
@@ -408,6 +417,7 @@ document.addEventListener('keydown', function(e) {
         micMode = false;
         gameMode = 1;
         startVoyager();
+        if (!micActive && !micFailed) initMic();
       }
     } else if (gameMode === 1) {
       if (voyagerComplete) {
