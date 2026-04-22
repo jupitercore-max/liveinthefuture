@@ -52,7 +52,39 @@ else
   ERRORS=$((ERRORS+1))
 fi
 
-# 5. Check for inconsistent card templates
+# 5. Check images are tracked in git
+UNTRACKED_IMGS=0
+for f in stories/*.html startups/*.html priorart/*.html; do
+  [ "$(basename "$f")" = "index.html" ] && continue
+  for img in $(grep -oP '(?:src|content)="(?:\.\.\/)?images/([^"?]+)' "$f" | grep -oP 'images/[^"?]+'); do
+    imgpath=$(echo "$img" | sed 's|^\.\./||')
+    if [ ! -f "$imgpath" ]; then
+      echo "⚠️  Missing image file: $imgpath (referenced by $f)"
+      UNTRACKED_IMGS=$((UNTRACKED_IMGS+1))
+    elif ! git ls-files --error-unmatch "$imgpath" >/dev/null 2>&1; then
+      echo "⚠️  Image not tracked in git: $imgpath (referenced by $f)"
+      UNTRACKED_IMGS=$((UNTRACKED_IMGS+1))
+    fi
+  done
+done
+if [ "$UNTRACKED_IMGS" -eq 0 ]; then
+  echo "✅ All referenced images exist and are tracked in git"
+else
+  echo "❌ $UNTRACKED_IMGS images missing or untracked"
+  ERRORS=$((ERRORS+1))
+fi
+
+# 6. Check sitemap completeness
+SITEMAP_URLS=$(grep -c '<loc>' sitemap.xml 2>/dev/null || echo 0)
+TOTAL_PAGES=$((STORIES + $(ls startups/*.html 2>/dev/null | grep -v index | wc -l) + $(ls priorart/*.html 2>/dev/null | grep -v index | wc -l)))
+if [ "$SITEMAP_URLS" -lt "$STORIES" ]; then
+  echo "❌ Sitemap has $SITEMAP_URLS URLs but there are $STORIES stories alone"
+  ERRORS=$((ERRORS+1))
+else
+  echo "✅ Sitemap: $SITEMAP_URLS URLs"
+fi
+
+# 7. Check for inconsistent card templates
 OLD_CARDS=$(grep -c 'class="card-img"' index.html || true)
 OLD_CARDS=${OLD_CARDS:-0}
 if [ "$OLD_CARDS" -gt 0 ]; then
@@ -60,6 +92,16 @@ if [ "$OLD_CARDS" -gt 0 ]; then
   ERRORS=$((ERRORS+1))
 else
   echo "✅ All cards use standardized template"
+fi
+
+# 8. Check for duplicate index entries
+DUPES=$(grep -oP 'stories/[a-z0-9-]+\.html' index.html | sort | uniq -d)
+if [ -n "$DUPES" ]; then
+  echo "❌ Duplicate entries in index.html:"
+  echo "$DUPES" | sed 's/^/   /'
+  ERRORS=$((ERRORS+1))
+else
+  echo "✅ No duplicate index entries"
 fi
 
 echo ""
