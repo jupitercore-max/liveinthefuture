@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-018: Continuous Road Surface Friction Estimation via Crowdsourced Tire-Road Acoustic Emission and Self-Supervised Learning | Live in the Future</title>
+  <meta name="description" content="Defensive prior art disclosure: A system for real-time road surface friction coefficient estimation using tire-road acoustic emission captured by vehicle cabin microphones, wheel speed sensor micro-slip ratios, and self-supervised contrastive learning to generate crowdsourced friction maps without labeled training data.">
+  <meta property="og:title" content="System and Method for Continuous Road Surface Friction Coefficient Estimation Using Crowdsourced Vehicle Tire-Road Acoustic Emission, Wheel Speed Sensor Micro-Slip Analysis, and Self-Supervised Contrastive Learning for Real-Time Friction Mapping">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/tire-road-friction-acoustic.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/tire-road-friction-acoustic.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/priorart-tire-road-friction-acoustic.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">&larr; Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-018 &middot; Automotive / Road Safety</span>
+      <h1>System and Method for Continuous Road Surface Friction Coefficient Estimation Using Crowdsourced Vehicle Tire-Road Acoustic Emission, Wheel Speed Sensor Micro-Slip Analysis, and Self-Supervised Contrastive Learning for Real-Time Friction Mapping</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-04-23">Published April 23, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/priorart-tire-road-friction-acoustic.jpg" alt="Vehicle tire on wet road surface with acoustic wave visualization and sensor data overlay" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>&#9878;&#65039; Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. &sect; 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above. This disclosure is intended to prevent the patenting of these concepts by any party.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a system and method for continuously estimating road surface friction coefficients in real time by fusing two complementary signals already available in modern production vehicles: tire-road acoustic emission captured by cabin microphones (installed for active noise cancellation and voice assistants), and wheel speed sensor micro-slip ratios measured during normal straight-line and cornering maneuvers below the tire's saturation region. A self-supervised contrastive learning framework eliminates the need for labeled friction ground truth by exploiting a consistency constraint: multiple vehicles traversing the same road segment within a short temporal window should produce concordant friction estimates regardless of vehicle mass, tire compound, or speed. The system aggregates per-vehicle friction estimates into a spatiotemporal map tiled at 10-meter longitudinal resolution, updated at sub-minute latency, and served to navigation systems and autonomous driving stacks via a standardized API. Field-deployable without any new hardware on vehicles manufactured after 2020, the system converts the existing fleet into a distributed friction sensing network covering every road that vehicles drive on.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to automotive safety and road condition monitoring, specifically to methods for estimating tire-road friction coefficients using passive acoustic sensing and vehicle dynamics telemetry, combined with machine learning techniques that require no labeled training data, to generate real-time crowdsourced friction maps at scale.</p>
+
+      <h2>Background</h2>
+
+      <p>Road surface friction is the single most important environmental variable governing vehicle stopping distance, cornering grip, and crash risk. The <a href="https://www.fhwa.dot.gov/publications/research/safety/14078/index.cfm">Federal Highway Administration</a> estimates that wet pavement contributes to approximately 860,000 crashes annually in the United States, causing 4,700 fatalities and 338,000 injuries. Black ice alone accounts for roughly 1,300 deaths per year according to <a href="https://ops.fhwa.dot.gov/weather/q1_roadimpact.htm">FHWA road weather data</a>. Yet no production vehicle sold today can directly measure the friction coefficient of the road ahead.</p>
+
+      <p>Existing approaches to friction estimation fall into three categories, each with fundamental limitations:</p>
+      <ul>
+        <li><strong>Slip-based estimation during braking or hard cornering:</strong> ABS and ESC systems estimate friction by measuring wheel slip during emergency maneuvers. <a href="https://patents.google.com/patent/US8626454B2/en">US8626454B2</a> (Continental, 2014) discloses using ABS activation events. The problem is latency. You only learn the road is slippery after the driver has already lost traction. <a href="https://doi.org/10.1016/j.ymssp.2019.106437">Acosta et al. (2020)</a> surveyed these methods and confirmed that slip-based estimators perform well above 40% tire utilization but are unreliable under normal driving conditions.</li>
+        <li><strong>Dedicated friction measurement vehicles:</strong> The <a href="https://www.astm.org/e0274-23.html">ASTM E274</a> locked-wheel skid trailer and the <a href="https://doi.org/10.1061/JTEPBS.0000100">Grip Tester</a> produce laboratory-grade friction measurements. Cost: $200,000-$500,000 per vehicle. Coverage: state DOTs typically test each lane-mile once every 2-3 years. A state like California with 51,000 lane-miles of highway might complete a full friction survey every 36 months, missing seasonal and weather-driven variations entirely.</li>
+        <li><strong>Camera and LiDAR-based surface classification:</strong> <a href="https://doi.org/10.1109/TITS.2020.3025674">Roychowdhury et al. (IEEE T-ITS, 2021)</a> demonstrated CNN-based road surface classification (dry, wet, snowy, icy) from forward-facing cameras. Tesla and Mobileye have deployed similar classifiers. But classification is not quantification. Knowing a road is "wet" does not distinguish a friction coefficient of 0.5 (light rain on good asphalt) from 0.25 (standing water on polished concrete). The mapping from visual class to friction coefficient is many-to-one and unreliable.</li>
+      </ul>
+
+      <p>Two physical phenomena make passive friction estimation possible without triggering a slip event:</p>
+
+      <p><strong>Tire-road acoustic emission.</strong> The contact patch between a tire and the road surface generates broadband noise through three mechanisms: air pumping in tread grooves (dominant at 800-2000 Hz), tread block snap-out (600-1200 Hz), and surface texture-induced vibration (200-1000 Hz). The spectral shape of this noise is a function of surface texture, surface wetness, rubber compound, and contact pressure. Crucially, surface texture and wetness are the dominant determinants of friction. <a href="https://doi.org/10.1016/j.apacoust.2017.11.011">Sandberg and Ejsmont (Applied Acoustics, 2018)</a> showed that the 800-1600 Hz band correlates with macrotexture depth (R&sup2; = 0.82), and macrotexture depth correlates with friction at highway speeds (R&sup2; = 0.71-0.88) according to <a href="https://doi.org/10.1177/0361198196155300107">Rado (Transportation Research Record, 1996)</a>. The acoustic path from tire contact patch to cabin microphone passes through the wheel well, suspension, and vehicle body, but the spectral signature of the road surface is preserved because the vehicle's transfer function is approximately time-invariant for a given speed.</p>
+
+      <p><strong>Wheel speed sensor micro-slip.</strong> Even during straight-line constant-speed driving, individual wheels exhibit small slip ratio fluctuations (on the order of 0.001-0.01) caused by road surface irregularities, tire non-uniformities, and minor steering corrections. Modern ABS wheel speed sensors resolve these fluctuations at 100 Hz with 0.1 km/h precision. The variance and spectral density of micro-slip fluctuations contain information about the tire operating point on the friction curve. On low-friction surfaces, the tire operates closer to its saturation slip ratio even under normal loads, producing characteristically different micro-slip dynamics. <a href="https://arxiv.org/abs/2302.03560">Cai et al. (2023)</a> demonstrated cooperative friction estimation from wheel speed data, achieving R&sup2; = 0.76 on labeled test data.</p>
+
+      <p>The gap in the prior art is a complete system that: (a) fuses acoustic and micro-slip signals for friction estimation during normal driving without requiring excitation events, (b) eliminates the need for labeled friction ground truth through self-supervised learning, (c) aggregates estimates across a vehicle fleet to produce continuous spatiotemporal friction maps, and (d) operates on hardware already present in modern production vehicles.</p>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. On-Vehicle Sensor Configuration</h3>
+
+      <p>The system requires no hardware modifications to vehicles manufactured after approximately 2020. It uses three existing sensor subsystems. First, one or more cabin microphones already present for hands-free calling, voice assistants, and active noise cancellation (ANC). Vehicles with road noise cancellation (e.g., <a href="https://www.bose.com/automotive">Bose QuietComfort Road Noise Control</a>, <a href="https://www.harman.com/automotive">Harman Road Active Noise Control</a>) typically have 4-8 microphones sampling at 44.1 kHz or higher, positioned in the headliner, A-pillars, and kick panels. Even base-model vehicles increasingly include at least two microphones for voice recognition. Second, four ABS wheel speed sensors sampling at 100 Hz with tooth-count resolution of 48 or 96 per revolution, yielding angular resolution of 3.75&ndash;7.5 degrees. Third, the vehicle's inertial measurement unit (IMU) providing lateral acceleration, longitudinal acceleration, and yaw rate at 100-200 Hz, available via the ESC module.</p>
+
+      <p>All three data streams are accessible through the vehicle's CAN bus or Ethernet backbone. The processing can run on the existing infotainment system-on-chip (e.g., Qualcomm Snapdragon SA8295P, NVIDIA Orin) with less than 5% of available compute capacity.</p>
+
+      <h3>2. Acoustic Feature Extraction</h3>
+
+      <p>Audio from the cabin microphones is processed in 250 ms frames with 50% overlap. Each frame undergoes the following pipeline: bandpass filtering from 200 Hz to 4000 Hz to isolate the tire-road interaction band while rejecting powertrain noise (below 200 Hz at highway speeds) and wind noise (broadband but dominant above 4 kHz); computation of a 128-bin log-mel spectrogram using a 2048-point FFT with Hann windowing; extraction of the spectral centroid, spectral spread, spectral rolloff (95th percentile), and spectral flux across consecutive frames; and computation of a 20-coefficient MFCC (mel-frequency cepstral coefficient) vector to capture spectral envelope shape.</p>
+
+      <p>For vehicles equipped with ANC reference microphones (typically mounted in the wheel wells or on the suspension struts), these closer-to-source signals bypass much of the cabin transfer function and provide higher signal-to-noise ratio for tire-road noise. When available, the system extracts features from both cabin and reference microphones and concatenates them.</p>
+
+      <p>Speed normalization is critical. Tire-road noise intensity scales approximately as the 30th power of the logarithm of speed (the <a href="https://doi.org/10.3141/2058-10">Sandberg speed exponent</a>, typically 25-35 for passenger tires). The feature extractor normalizes all spectral features to a reference speed of 80 km/h using the vehicle's current GPS or wheel-speed-derived velocity.</p>
+
+      <h3>3. Micro-Slip Feature Extraction</h3>
+
+      <p>The four wheel speed signals are processed to extract micro-slip features that are informative about the tire's operating point on the friction curve. For each 250 ms window (synchronized with the acoustic frames), the system computes: the longitudinal slip ratio for each wheel as &kappa; = (v_wheel &minus; v_vehicle) / max(v_wheel, v_vehicle), where v_vehicle is the mean of the non-driven wheels or the IMU-integrated velocity; the standard deviation of &kappa; over the window; the power spectral density of &kappa; in the 1-50 Hz band; and the cross-correlation between left and right wheel slip ratios (high correlation indicates road surface effects; low correlation indicates vehicle dynamics effects).</p>
+
+      <p>Lateral dynamics features are extracted simultaneously: the ratio of measured lateral acceleration to estimated lateral acceleration from yaw rate and speed (the understeer gradient proxy), and the rear-to-front slip angle ratio estimated from wheel speed differences during cornering.</p>
+
+      <p>The combined feature vector per 250 ms frame contains approximately 180 features: 128 from acoustics and 52 from vehicle dynamics.</p>
+
+      <h3>4. Self-Supervised Contrastive Learning Framework</h3>
+
+      <p>The key technical contribution of this disclosure is a self-supervised learning approach that trains a friction estimation model without any labeled friction ground truth. The self-supervision signal comes from a spatiotemporal consistency constraint.</p>
+
+      <p>Consider two vehicles, A and B, that traverse the same 10-meter road segment within a 15-minute window. If neither vehicle has significantly altered the road surface (no fresh oil spill, no new precipitation), the true friction coefficient of that segment is the same for both vehicles. However, the raw sensor signals differ because the vehicles have different masses, tire compounds, suspension geometries, cabin acoustics, and speeds. A model that correctly extracts friction from these heterogeneous signals should produce the same estimate for both vehicles.</p>
+
+      <p>This constraint is formalized as a contrastive learning objective. Let f(&theta;) be a neural network (architecture: 1D temporal convolutional encoder with 6 layers, 64/128/256 channels, kernel size 7, followed by a 2-layer MLP projection head) that maps the 180-dimensional feature vector to a 32-dimensional friction embedding z. The training loss has two components:</p>
+
+      <ul>
+        <li><strong>Positive pairs:</strong> Feature vectors from different vehicles on the same road segment within the temporal coherence window. The cosine similarity of their embeddings should be high: L_pos = &minus;log(exp(sim(z_A, z_B) / &tau;) / &Sigma;_neg exp(sim(z_A, z_neg) / &tau;)), where &tau; = 0.07 is a temperature parameter.</li>
+        <li><strong>Negative pairs:</strong> Feature vectors from the same vehicle on road segments known to have different friction (e.g., a dry highway segment versus a bridge deck during rain, identified by large embedding distance in the current model). Hard negative mining selects informative negatives from a memory bank of 65,536 embeddings.</li>
+      </ul>
+
+      <p>A linear regression head maps the learned embedding to a scalar friction coefficient &mu; &isin; [0.0, 1.2]. This head is calibrated using sparse ground truth from three sources: municipal friction surveys conducted per ASTM E274 (available for approximately 15% of highway lane-miles annually), weather station data correlated with known friction-temperature-precipitation curves from <a href="https://doi.org/10.3141/2482-06">Hippi and Kangas (TRR, 2015)</a>, and ABS/ESC activation events that provide instantaneous friction estimates at the moment of wheel lock-up or stability intervention.</p>
+
+      <h3>5. Fleet Aggregation and Map Generation</h3>
+
+      <p>Each participating vehicle transmits compressed friction estimates (road segment ID, timestamp, estimated &mu;, confidence score, vehicle class hash) to a cloud aggregation service at approximately 50 bytes per 10-meter segment. At 100 km/h, this produces roughly 280 estimates per minute per vehicle, totaling approximately 14 KB/min of uplink bandwidth.</p>
+
+      <p>The aggregation service maintains a spatiotemporal friction map indexed by <a href="https://h3geo.org/">H3 hexagonal grid</a> cells at resolution 15 (approximately 0.9 m&sup2;, aggregated to 10 m road segments using a map-matched road graph). For each road segment, the service computes a Bayesian posterior friction estimate using a hierarchical model that accounts for: per-vehicle calibration offsets (learned online), tire degradation drift (modeled as a slow random walk), weather-dependent temporal dynamics (friction drops rapidly with onset of rain, recovers slowly as road dries), and spatial autocorrelation (adjacent segments on the same road surface type have correlated friction).</p>
+
+      <p>The posterior &mu; estimate and its 95% credible interval are served via a tile-based REST API compatible with standard mapping SDKs. Latency from vehicle measurement to map update: target 30-90 seconds. Update frequency: continuous, with each road segment's estimate refreshed whenever a participating vehicle traverses it.</p>
+
+      <h3>6. Privacy Architecture</h3>
+
+      <p>Individual vehicle trajectories are never transmitted or stored. The on-vehicle processing module computes friction estimates locally and transmits only the road segment ID (derived from GPS position snapped to the road graph), the friction estimate, and a one-way hash of the vehicle class (sedan/SUV/truck, tire size category). No VIN, no precise location trace, no acoustic recordings leave the vehicle. The aggregation service operates on anonymized, segment-level data.</p>
+
+      <p>Differential privacy is applied at the aggregation layer: Laplacian noise with &epsilon; = 1.0 is added to per-segment vehicle counts before any analytics are computed, ensuring that the presence or absence of a single vehicle's data cannot be determined from the published map.</p>
+
+      <h3>7. Applications</h3>
+
+      <ul>
+        <li><strong>Autonomous vehicle motion planning:</strong> Self-driving systems currently assume a conservative friction coefficient (typically &mu; = 0.3 for wet roads) because they cannot measure it directly. Real-time friction maps enable speed and braking profiles matched to actual road conditions, reducing unnecessary deceleration events by an estimated 15-30% while maintaining safety margins.</li>
+        <li><strong>ADAS forward collision warning tuning:</strong> Adaptive cruise control and automatic emergency braking can adjust their time-to-collision thresholds based on the friction coefficient of the road ahead (obtained from the map, not just the road under the vehicle), providing earlier warnings on icy surfaces and reduced false alarms on dry pavement.</li>
+        <li><strong>DOT pavement maintenance prioritization:</strong> Continuous friction maps identify segments with declining friction trends (polishing, rutting, bleeding) months before they would be caught by biennial skid trailer surveys, enabling condition-based maintenance scheduling.</li>
+        <li><strong>Insurance telematics:</strong> Usage-based insurance programs can adjust risk scores based on the friction conditions a driver routinely encounters, distinguishing drivers who commute on well-maintained highways from those navigating unpaved or poorly maintained roads.</li>
+        <li><strong>Navigation rerouting:</strong> When friction drops below a configurable threshold on a route (bridge deck ice, fresh oil spill), the navigation system can suggest alternate routes through segments with higher measured friction.</li>
+      </ul>
+
+      <h3>8. Figures Description</h3>
+
+      <ul>
+        <li><strong>Figure 1:</strong> System architecture showing on-vehicle sensor inputs (cabin microphones, wheel speed sensors, IMU), edge processing pipeline, compressed telemetry uplink, cloud aggregation service, and downstream consumer APIs.</li>
+        <li><strong>Figure 2:</strong> Log-mel spectrograms of tire-road acoustic emission at 80 km/h for four road surface conditions: dry dense-graded asphalt (DGAC), wet DGAC, dry polished concrete, and ice-covered asphalt, showing distinctive spectral shapes in the 200-4000 Hz band.</li>
+        <li><strong>Figure 3:</strong> Contrastive learning training scheme: positive pairs formed from different vehicles on the same road segment, negative pairs from segments with known friction differences, and the learned embedding space with friction coefficient as a smooth gradient.</li>
+        <li><strong>Figure 4:</strong> Example real-time friction map of a metropolitan freeway network, showing segment-level friction coefficients color-coded from red (&mu; &lt; 0.3) through yellow (&mu; = 0.5) to green (&mu; &gt; 0.7), with bridge decks and shaded segments showing lower friction during a morning frost event.</li>
+      </ul>
+
+      <h2>Claims</h2>
+
+      <ol>
+        <li>A system for estimating road surface friction coefficients, comprising: one or more vehicle cabin microphones capturing tire-road acoustic emission; wheel speed sensors on each wheel of the vehicle; an on-vehicle processor that extracts acoustic spectral features and wheel speed micro-slip features from said sensors during normal driving without requiring braking or high-lateral-acceleration events; and a trained neural network model that maps said features to an estimated friction coefficient for the road segment currently being traversed.</li>
+
+        <li>The system of claim 1, wherein the acoustic spectral features comprise log-mel spectrograms, spectral centroid, spectral spread, spectral rolloff, spectral flux, and mel-frequency cepstral coefficients computed from audio bandpass-filtered to the 200-4000 Hz tire-road interaction band.</li>
+
+        <li>The system of claim 1, wherein the micro-slip features comprise per-wheel longitudinal slip ratio statistics, power spectral density of slip ratio fluctuations in the 1-50 Hz band, and cross-correlation between left and right wheel slip ratios.</li>
+
+        <li>The system of claim 1, wherein the neural network model is trained using a self-supervised contrastive learning objective that treats feature vectors from different vehicles traversing the same road segment within a temporal coherence window as positive pairs and feature vectors from road segments with known friction differences as negative pairs.</li>
+
+        <li>The system of claim 4, wherein the temporal coherence window is configurable and defaults to 15 minutes, and positive pair formation requires that no precipitation state change has occurred between the two vehicle traversals as determined by rain sensor data or weather API lookup.</li>
+
+        <li>A method for generating real-time crowdsourced road friction maps, comprising: collecting friction coefficient estimates from a fleet of participating vehicles, each estimate associated with a map-matched road segment identifier and timestamp; aggregating estimates for each road segment using a Bayesian hierarchical model that accounts for per-vehicle calibration offsets, tire degradation drift, weather-dependent temporal dynamics, and spatial autocorrelation; and serving the posterior friction estimates and credible intervals via a tile-based API to navigation systems and autonomous driving stacks.</li>
+
+        <li>The method of claim 6, wherein individual vehicle trajectories are never transmitted, and differential privacy with configurable epsilon is applied to per-segment vehicle counts at the aggregation layer.</li>
+
+        <li>The method of claim 6, wherein the Bayesian hierarchical model incorporates weather station precipitation and temperature data as covariates to improve temporal interpolation between vehicle traversals on each road segment.</li>
+
+        <li>The system of claim 1, wherein for vehicles equipped with active noise cancellation reference microphones mounted in wheel wells or on suspension components, features are extracted from both cabin and reference microphones and concatenated to improve signal-to-noise ratio for tire-road acoustic characterization.</li>
+
+        <li>A method for calibrating a self-supervised friction estimation model, comprising: pre-training a feature encoder using the contrastive objective of claim 4; fitting a linear regression head from the learned embedding to friction coefficient using sparse ground truth obtained from municipal ASTM E274 skid trailer surveys, weather-correlated friction lookup tables, and ABS/ESC activation events that provide instantaneous friction estimates at the point of wheel lockup or stability intervention; and periodically updating the linear head as new sparse ground truth becomes available without retraining the encoder.</li>
+      </ol>
+
+      <h2>Implementation Notes</h2>
+
+      <p>The acoustic feature extraction and micro-slip analysis pipeline consumes approximately 150 MFLOPS, well within the capacity of any automotive-grade SoC deployed since 2020. The contrastive encoder model has approximately 1.2 million parameters (4.8 MB in FP32, 1.2 MB quantized to INT8), small enough for on-device inference on infotainment processors without impacting other workloads. Training the contrastive encoder requires fleet-scale data (target: 10 million positive pairs from 50,000+ vehicles over 30 days) and is performed in the cloud, with model updates distributed to vehicles via OTA firmware updates at approximately monthly cadence.</p>
+
+      <p>The minimum viable deployment requires vehicles with at least one cabin microphone and ABS wheel speed sensors. This covers approximately 85% of new vehicles sold in the US since 2020. Vehicles with road noise cancellation systems (estimated 25% of MY2025 production) provide higher-quality acoustic data due to reference microphone placement closer to the tire-road interface.</p>
+
+      <h2>Prior Art References</h2>
+
+      <ol>
+        <li><a href="https://www.fhwa.dot.gov/publications/research/safety/14078/index.cfm">FHWA</a> &mdash; Wet pavement crash statistics: ~860,000 crashes, 4,700 fatalities annually</li>
+        <li><a href="https://ops.fhwa.dot.gov/weather/q1_roadimpact.htm">FHWA Road Weather</a> &mdash; Weather-related crash data including black ice fatalities</li>
+        <li><a href="https://patents.google.com/patent/US8626454B2/en">US8626454B2</a> (Continental, 2014) &mdash; Friction estimation using ABS activation events</li>
+        <li><a href="https://doi.org/10.1016/j.ymssp.2019.106437">Acosta et al., MSSP 2020</a> &mdash; Survey of tire-road friction estimation methods</li>
+        <li><a href="https://www.astm.org/e0274-23.html">ASTM E274</a> &mdash; Standard test method for skid resistance using locked-wheel trailer</li>
+        <li><a href="https://doi.org/10.1109/TITS.2020.3025674">Roychowdhury et al., IEEE T-ITS 2021</a> &mdash; CNN-based road surface classification from cameras</li>
+        <li><a href="https://doi.org/10.1016/j.apacoust.2017.11.011">Sandberg &amp; Ejsmont, Applied Acoustics 2018</a> &mdash; Tire-road noise correlation with macrotexture (R&sup2; = 0.82)</li>
+        <li><a href="https://doi.org/10.1177/0361198196155300107">Rado, TRR 1996</a> &mdash; Macrotexture-friction correlation at highway speeds</li>
+        <li><a href="https://doi.org/10.3141/2058-10">Sandberg speed exponent</a> &mdash; Tire-road noise speed dependence (~30th power law)</li>
+        <li><a href="https://arxiv.org/abs/2302.03560">Cai et al., 2023</a> &mdash; Cooperative road friction estimation from wheel speed data</li>
+        <li><a href="https://doi.org/10.3141/2482-06">Hippi &amp; Kangas, TRR 2015</a> &mdash; Friction-temperature-precipitation relationship curves</li>
+        <li><a href="https://h3geo.org/">H3 Hexagonal Grid</a> &mdash; Uber spatial indexing system for geospatial tiling</li>
+        <li><a href="https://www.bose.com/automotive">Bose QuietComfort RNC</a> &mdash; Road noise cancellation with reference microphones</li>
+        <li><a href="https://www.mdpi.com/2076-3417/7/12/1230">Gustafsson et al., Applied Sciences 2017</a> &mdash; Road friction virtual sensing review</li>
+        <li><a href="https://doi.org/10.1061/JTEPBS.0000100">Grip Tester</a> &mdash; Continuous friction measurement device</li>
+      </ol>
+
+    </div>
+  </article>
+
+<script src="../story.js"></script>
+</body>
+</html>
