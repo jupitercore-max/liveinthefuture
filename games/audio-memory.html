@@ -129,6 +129,51 @@ var CHALLENGE_INFO = {
 // Load best from localStorage
 try { bestRound = parseInt(localStorage.getItem("litf_audiomem_best")) || 0; } catch(e) {}
 
+// Rank progression — cumulative rounds completed
+var RANKS = [
+  {name:"Listener",      threshold:0,   scoreMult:1.0,  bonusLives:0, tempoBonus:0},
+  {name:"Memorist",      threshold:15,  scoreMult:1.15, bonusLives:0, tempoBonus:0},
+  {name:"Echoist",       threshold:35,  scoreMult:1.15, bonusLives:1, tempoBonus:0},
+  {name:"Resonator",     threshold:60,  scoreMult:1.3,  bonusLives:1, tempoBonus:0},
+  {name:"Harmonist",     threshold:100, scoreMult:1.3,  bonusLives:1, tempoBonus:40},
+  {name:"Virtuoso",      threshold:150, scoreMult:1.4,  bonusLives:2, tempoBonus:40},
+  {name:"Maestro",       threshold:220, scoreMult:1.5,  bonusLives:2, tempoBonus:40},
+  {name:"Perfect Pitch", threshold:300, scoreMult:1.5,  bonusLives:2, tempoBonus:80}
+];
+var totalRounds = 0;
+var sessionStartRank = 0;
+try { totalRounds = parseInt(localStorage.getItem("litf_audiomem_totalRounds")) || 0; } catch(e) {}
+
+function getCurrentRank() {
+  for (var i = RANKS.length - 1; i >= 0; i--) {
+    if (totalRounds >= RANKS[i].threshold) return i;
+  }
+  return 0;
+}
+
+function getRankBonuses() {
+  var r = RANKS[getCurrentRank()];
+  return {scoreMult: r.scoreMult, bonusLives: r.bonusLives, tempoBonus: r.tempoBonus};
+}
+
+function playRankUpChime() {
+  ensureAudio();
+  var notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
+  for (var i = 0; i < notes.length; i++) {
+    (function(idx) {
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(notes[idx], audioCtx.currentTime + idx * 0.12);
+      g.gain.setValueAtTime(0.3, audioCtx.currentTime + idx * 0.12);
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + idx * 0.12 + 0.4);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(audioCtx.currentTime + idx * 0.12);
+      o.stop(audioCtx.currentTime + idx * 0.12 + 0.4);
+    })(i);
+  }
+}
+
 function playTone(dir, duration) {
   ensureAudio();
   var t = TONES[dir];
@@ -219,9 +264,11 @@ function startGame() {
   totalScore = 0;
   speedMode = false;
   tempo = baseTempo;
-  lives = 3;
-  maxLives = 3;
+  var bonuses = getRankBonuses();
+  lives = 3 + bonuses.bonusLives;
+  maxLives = 3 + bonuses.bonusLives;
   bidLevel = 0;
+  sessionStartRank = getCurrentRank();
   addToSequence();
   startBidPhase();
 }
@@ -337,7 +384,8 @@ function startShowSequence() {
   // Tempo increases every 5 rounds
   var baseTmp = baseTempo - (round - 1) * 20;
   if (challengeType === "speed") baseTmp = baseTmp * 0.5; // double speed
-  tempo = Math.max(150, baseTmp);
+  var rankTempoBonus = getRankBonuses().tempoBonus;
+  tempo = Math.max(150 + rankTempoBonus, baseTmp);
 }
 
 function handleInput(dir) {
@@ -372,7 +420,8 @@ function handleInput(dir) {
       comboStreak++;
       var scoreMult = challengeType ? 2 : 1; // double points on challenge rounds
       var bidMult = BID_OPTIONS[bidLevel].mult;
-      totalScore += round * comboStreak * scoreMult * bidMult;
+      var rankMult = getRankBonuses().scoreMult;
+      totalScore += Math.floor(round * comboStreak * scoreMult * bidMult * rankMult);
       correctFlash = 6;
 
       if (playerIndex >= sequence.length) {
@@ -382,6 +431,13 @@ function handleInput(dir) {
         if (round > bestRound) {
           bestRound = round;
           try { localStorage.setItem("litf_audiomem_best", bestRound); } catch(e) {}
+        }
+        // Track cumulative rounds for rank progression
+        var prevRankIdx = getCurrentRank();
+        totalRounds++;
+        try { localStorage.setItem("litf_audiomem_totalRounds", totalRounds); } catch(e) {}
+        if (getCurrentRank() > prevRankIdx) {
+          setTimeout(function() { playRankUpChime(); }, 400);
         }
         playSuccessChime();
         shakeTimer = 8;
@@ -666,6 +722,32 @@ function drawTitle() {
     ctx.fillText("Best: Round " + bestRound, CX, CY + 90);
   }
 
+  // Rank display
+  var ri = getCurrentRank();
+  ctx.fillStyle = "#81c784";
+  ctx.font = "bold 14px system-ui";
+  ctx.fillText(RANKS[ri].name, CX, CY + 115);
+  if (ri < RANKS.length - 1) {
+    var next = RANKS[ri + 1];
+    var progress = totalRounds - RANKS[ri].threshold;
+    var needed = next.threshold - RANKS[ri].threshold;
+    var pct = Math.min(1, progress / needed);
+    // Progress bar
+    var barW = 160, barH = 5;
+    var barX = CX - barW/2, barY = CY + 126;
+    ctx.fillStyle = "#222";
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = "#81c784";
+    ctx.fillRect(barX, barY, barW * pct, barH);
+    ctx.fillStyle = "#666";
+    ctx.font = "11px system-ui";
+    ctx.fillText(totalRounds + "/" + next.threshold + " → " + next.name, CX, CY + 145);
+  } else {
+    ctx.fillStyle = "#ffb74d";
+    ctx.font = "11px system-ui";
+    ctx.fillText("★ MAX RANK ★", CX, CY + 130);
+  }
+
   // Footer
   ctx.fillStyle = "#555";
   ctx.font = "12px system-ui";
@@ -684,6 +766,11 @@ function drawHUD() {
   ctx.fillStyle = "#888";
   ctx.font = "13px system-ui";
   ctx.fillText(sequence.length + " tones", 20, 38);
+
+  // Rank label
+  ctx.fillStyle = "#555";
+  ctx.font = "11px system-ui";
+  ctx.fillText(RANKS[getCurrentRank()].name, 20, 54);
 
   // Score
   ctx.textAlign = "right";
@@ -835,6 +922,27 @@ function drawGameOver() {
     ctx.fillText("Best: Round " + bestRound, CX, CY + 70);
   }
 
+  // Rank progress
+  var ri = getCurrentRank();
+  if (ri > sessionStartRank) {
+    ctx.fillStyle = "#ffb74d";
+    ctx.font = "bold 14px system-ui";
+    ctx.fillText("★ RANK UP! → " + RANKS[ri].name + " ★", CX, CY + 92);
+  } else {
+    ctx.fillStyle = "#81c784";
+    ctx.font = "13px system-ui";
+    ctx.fillText(RANKS[ri].name, CX, CY + 92);
+    if (ri < RANKS.length - 1) {
+      var next = RANKS[ri + 1];
+      var progress = totalRounds - RANKS[ri].threshold;
+      var needed = next.threshold - RANKS[ri].threshold;
+      var pct = Math.floor((progress / needed) * 100);
+      ctx.fillStyle = "#666";
+      ctx.font = "11px system-ui";
+      ctx.fillText(pct + "% → " + next.name, CX, CY + 108);
+    }
+  }
+
   // Show what bid level killed you
   if (bidLevel > 0) {
     var bo = BID_OPTIONS[bidLevel];
@@ -858,12 +966,12 @@ function drawGameOver() {
   ctx.font = "16px system-ui";
   var blink = Math.sin(titlePulse * 2) > 0 ? 1 : 0.4;
   ctx.globalAlpha = blink;
-  ctx.fillText("ENTER to retry", CX, CY + 140);
+  ctx.fillText("ENTER to retry", CX, CY + 155);
   ctx.globalAlpha = 1;
 
   ctx.fillStyle = "#555";
   ctx.font = "12px system-ui";
-  ctx.fillText("ESC for title", CX, CY + 170);
+  ctx.fillText("ESC for title", CX, CY + 180);
 }
 
 function draw() {
