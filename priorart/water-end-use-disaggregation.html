@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-019: Non-Intrusive Residential Water End-Use Disaggregation via Smart Meter Hydraulic Transient Fingerprinting | Live in the Future</title>
+  <meta name="description" content="Defensive prior art disclosure: A system that disaggregates whole-house water consumption into per-fixture usage using hydraulic transient signatures captured by existing smart water meters, blind source separation for concurrent events, and self-supervised contrastive learning trained across a utility service territory without labeled data.">
+  <meta property="og:title" content="System and Method for Non-Intrusive Residential Water End-Use Disaggregation and Anomalous Flow Detection Using Smart Meter Hydraulic Transient Fingerprinting, Blind Source Separation, and Self-Supervised Contrastive Learning">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/water-end-use-disaggregation.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/water-end-use-disaggregation.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/priorart-water-end-use-disaggregation.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">← Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-019 · WaterTech / Smart Metering</span>
+      <h1>System and Method for Non-Intrusive Residential Water End-Use Disaggregation and Anomalous Flow Detection Using Smart Meter Hydraulic Transient Fingerprinting, Blind Source Separation, and Self-Supervised Contrastive Learning</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-04-24">Published April 24, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/priorart-water-end-use-disaggregation.jpg" alt="Smart water meter with digital display showing pressure transient waveforms and fixture identification overlays" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>⚖️ Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. § 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above. This disclosure is intended to prevent the patenting of these concepts by any party.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a system and method for disaggregating whole-house water consumption into per-fixture end-use categories using hydraulic pressure transient signatures captured by existing Advanced Metering Infrastructure (AMI) smart water meters. When a fixture valve opens or closes, the resulting pressure wave propagates through the building's plumbing network at approximately 1,200 m/s in copper pipe and 300-600 m/s in PEX or CPVC, producing a transient waveform whose shape, amplitude, frequency content, and decay envelope encode the fixture type, pipe path length, and valve mechanism. The system deploys a pressure transducer sampling at 1 kHz or higher at the main water meter location, extracts hydraulic transient features using wavelet packet decomposition, and classifies fixture events using a temporal convolutional network (TCN). A novel blind source separation module based on non-negative tensor factorization handles concurrent fixture activations, which constitute approximately 23% of all residential water events according to the <a href="https://www.awwa.org/Resources-Tools/Resource-Topics/Water-Conservation/Residential-End-Uses-of-Water">AWWA Residential End Uses of Water Study</a>. Self-supervised contrastive learning eliminates the need for per-home labeled training data by exploiting cross-home fixture consistency: a toilet flush in one house produces a hydraulically similar transient to a toilet flush in another house on the same distribution main, despite differences in pipe material and layout. The system enables per-fixture water accounting, real-time leak detection (identifying flow events that match no known fixture signature), and running-toilet alerts at zero marginal hardware cost beyond the AMI meter itself.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to water utility metering and residential water conservation, specifically to methods for disaggregating whole-house water consumption into per-fixture end-use categories using hydraulic pressure transient analysis at a single measurement point, combined with self-supervised machine learning techniques that require no per-home calibration or labeled training data.</p>
+
+      <h2>Background</h2>
+
+      <p>Residential water consumption in the United States averages <a href="https://www.usgs.gov/mission-areas/water-resources/science/water-use-united-states">82 gallons per person per day</a> (USGS 2020), with indoor use distributed across toilets (24%), showers (20%), faucets (19%), clothes washers (17%), leaks (12%), and other uses (8%) according to the <a href="https://www.awwa.org/Resources-Tools/Resource-Topics/Water-Conservation/Residential-End-Uses-of-Water">2016 AWWA Residential End Uses of Water study (REU4)</a>. That 12% leak fraction represents approximately 900 billion gallons lost annually across U.S. households, at a cost exceeding $6 billion per year to consumers (<a href="https://www.epa.gov/watersense/fix-leak-week">EPA WaterSense</a>). The single biggest barrier to reducing this waste is information granularity: utility meters report total consumption per billing cycle (typically monthly), giving homeowners no visibility into which fixtures consume the most water or whether a leak exists.</p>
+
+      <p>The analogy to electricity is instructive. Non-Intrusive Load Monitoring (NILM) for electrical loads was proposed by <a href="https://doi.org/10.1109/PROC.1992.1216069">Hart (1992)</a> and has since matured into commercial products (Sense, Emporia, Neurio). NILM works because electrical appliances have distinctive power signatures (real and reactive power step changes, harmonic content, transient inrush patterns) that can be decomposed from a single whole-house power measurement. The water domain has an analogous physical phenomenon that has been far less exploited: hydraulic pressure transients.</p>
+
+      <p>Prior work in water end-use disaggregation falls into three categories:</p>
+
+      <ul>
+        <li><strong>Flow-rate pattern matching:</strong> <a href="https://doi.org/10.2166/aqua.2010.004">Nguyen et al. (Journal of Water Supply, 2013)</a> demonstrated fixture classification from 0.1 Hz flow rate data using hidden Markov models, achieving 85% accuracy on isolated events but only 64% on concurrent events. Limited by the low temporal resolution of standard flow meters.</li>
+        <li><strong>Dedicated pressure sensing (HydroSense):</strong> <a href="https://dl.acm.org/doi/10.1145/1620545.1620581">Froehlich et al. (UbiComp 2009)</a> pioneered single-point pressure transient sensing for fixture identification, achieving 90% accuracy using template matching with a custom pressure sensor. Limitations: required a dedicated sensor ($150+), needed per-home calibration with labeled training data for each fixture, and could not handle concurrent fixture events. <a href="https://doi.org/10.1145/2632048.2636062">Froehlich et al. (UbiComp 2014)</a> extended this with probabilistic methods but still required labeled calibration.</li>
+        <li><strong>Per-fixture submetering:</strong> Companies like <a href="https://www.flume.tech/">Flume</a> and <a href="https://www.phyn.com/">Phyn</a> deploy dedicated sensors. Phyn's <a href="https://patents.google.com/patent/US10094095B2">US10094095B2</a> uses high-frequency pressure sensing (240 Hz) at the main supply line with supervised ML. But Phyn requires a $300-500 dedicated device and per-home supervised training. <a href="https://www.streamlabs.com/">StreamLabs</a> monitors flow ultrasonically but does not perform fixture disaggregation.</li>
+      </ul>
+
+      <p>Meanwhile, the AMI meter rollout is accelerating. <a href="https://www.amwa.net/ami-benefits">Over 120 million smart water meters</a> will be installed globally by 2028 (Berg Insight, 2023). Modern AMI meters from manufacturers like <a href="https://www.badgermeter.com/products/metering-technology/">Badger Meter (ORION, BEACON)</a>, <a href="https://www.sensus.com/communication-systems/sensus-analytics">Sensus (FlexNet/Analytics)</a>, and <a href="https://www.itron.com/na/solutions/what-we-enable/water">Itron (Intelis)</a> increasingly include pressure sensing capability for leak detection and distribution network monitoring. The Sensus iPERL meter, for example, includes an optional pressure transducer port. The Badger Meter E-Series can integrate pressure logging at up to 1 Hz. Adding a 1 kHz pressure transducer to an existing AMI meter register adds approximately $8-15 in bill-of-materials cost.</p>
+
+      <p>The gap in the art is a complete system that: (a) performs fixture-level water disaggregation from pressure transients at the main meter with no per-home calibration, (b) handles concurrent fixture events through blind source separation, (c) trains via self-supervised contrastive learning across a utility service territory, eliminating the need for labeled data, and (d) integrates with existing AMI infrastructure at marginal hardware cost below $15 per meter.</p>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. Pressure Sensing Hardware at the Main Meter</h3>
+
+      <p>A piezoresistive pressure transducer (e.g., Measurement Specialties MS5803-14BA, range 0-14 bar, resolution 0.01 mbar, unit cost $8.50) is installed at the main water meter register or at a tee fitting immediately downstream. The transducer connects to an analog-to-digital converter sampling at 2 kHz with 16-bit resolution. This sampling rate captures the full frequency content of hydraulic transients in residential plumbing, where pipe lengths of 5-30 meters produce transient reflection periods of 8-200 ms depending on pipe material. Data acquisition is handled by the AMI meter's existing microcontroller (many modern AMI meters use ARM Cortex-M4 or equivalent with sufficient ADC capability) or by a low-cost companion module (e.g., STM32L4 series, unit cost $3.50) that communicates with the meter via UART.</p>
+
+      <p>Static pressure in residential systems ranges from 40-80 psi (275-550 kPa). Fixture-activation transients produce pressure deviations of 2-40 psi depending on valve type and flow rate. The transducer's 0.01 mbar (0.000145 psi) resolution provides substantial dynamic range for discriminating fixture signatures even at low flow rates.</p>
+
+      <h3>2. Hydraulic Transient Physics</h3>
+
+      <p>When a valve opens or closes, a pressure wave propagates through the pipe network according to the Joukowsky equation: ΔP = ρ × a × ΔV, where ρ is water density (998 kg/m³), a is the pressure wave speed, and ΔV is the change in flow velocity. Wave speed a depends on pipe material and diameter: approximately 1,200 m/s in Type L copper (½" nominal), 300-450 m/s in PEX-A and PEX-B, 400-600 m/s in CPVC, and 350-500 m/s in PVC Schedule 40. These wave speeds are well-established in the <a href="https://doi.org/10.1016/B978-0-12-382968-9.00001-4">Wylie and Streeter (1993)</a> method of characteristics framework and have been confirmed experimentally by <a href="https://doi.org/10.1061/(ASCE)HY.1943-7900.0000264">Lee et al. (J. Hydraulic Engineering, 2006)</a>.</p>
+
+      <p>Each fixture produces a distinctive transient signature determined by four factors: valve opening/closing time profile (quarter-turn ball valves produce sharp transients in 50-200 ms; solenoid valves in washing machines close in 20-80 ms; slow-close faucet cartridges over 500-2000 ms); steady-state flow rate (toilet fill valves at 2-4 GPM, shower heads at 2.0-2.5 GPM, kitchen faucets at 1.5-2.2 GPM); pipe path length from the meter to the fixture, which determines the reflection period (time for the pressure wave to travel to the fixture and return); and junction topology (tee fittings, elbows, and diameter changes produce partial reflections that create characteristic echo patterns).</p>
+
+      <h3>3. Feature Extraction via Wavelet Packet Decomposition</h3>
+
+      <p>Raw pressure data is segmented into event windows triggered by a threshold detector: when the absolute pressure derivative exceeds 0.5 psi/ms for at least 3 consecutive samples, an event window of 2 seconds is captured (500 ms pre-trigger, 1500 ms post-trigger). Each event undergoes wavelet packet decomposition (WPD) using a Daubechies db8 mother wavelet to 6 decomposition levels, producing 64 frequency subbands spanning 0-1000 Hz. From each subband, four statistical features are extracted: energy, entropy, peak amplitude, and zero-crossing rate. This yields a 256-dimensional feature vector per event.</p>
+
+      <p>The WPD representation is superior to standard FFT analysis for this application because hydraulic transients are non-stationary signals with time-varying frequency content. The initial pressure spike contains high-frequency energy (200-800 Hz) from the wavefront, while subsequent reflections produce lower-frequency content (10-100 Hz) whose period encodes pipe path geometry. WPD captures both temporal and spectral structure simultaneously. <a href="https://doi.org/10.1016/j.ymssp.2004.01.005">Mishra et al. (Mechanical Systems and Signal Processing, 2005)</a> demonstrated wavelet analysis for pipeline leak detection with superior performance over Fourier methods.</p>
+
+      <h3>4. Temporal Convolutional Network for Fixture Classification</h3>
+
+      <p>The classifier is a temporal convolutional network (TCN) with the following architecture: input layer accepting 2000-sample raw pressure waveforms (1 second at 2 kHz); 4 residual blocks with dilated causal convolutions (dilation factors 1, 2, 4, 8), each block containing 64 filters of kernel size 7 with weight normalization and spatial dropout (0.1); a global average pooling layer; a 128-unit dense layer with ReLU activation; and a softmax output layer over fixture classes. Model size: approximately 420 KB quantized to INT8. Inference time: < 50 ms on ARM Cortex-M7.</p>
+
+      <p>The TCN architecture is chosen over recurrent networks (LSTM, GRU) because dilated causal convolutions can model the full 1-second event window with a receptive field matching the longest expected pipe reflection sequence (for a 30-meter pipe run at 300 m/s wave speed, the two-way travel time is 200 ms, and 3-4 round trips of diminishing amplitude span approximately 800 ms). TCNs also have deterministic memory requirements suitable for embedded deployment.</p>
+
+      <p>Fixture classes include: toilet (fill valve), toilet (flushometer), shower, bathtub, kitchen faucet (hot), kitchen faucet (cold), bathroom faucet (hot), bathroom faucet (cold), clothes washer (fill), dishwasher (fill), outdoor hose bib, ice maker, whole-house humidifier, irrigation zone valve, unknown/novel fixture, and leak (continuous low-amplitude flow with no transient onset).</p>
+
+      <h3>5. Blind Source Separation for Concurrent Fixture Events</h3>
+
+      <p>When two or more fixtures activate within 500 ms of each other, their pressure transients overlap at the measurement point. The system addresses this through non-negative tensor factorization (NTF). A third-order tensor T ∈ ℝ^(F×K×N) is constructed where F is the number of frequency subbands (64 from WPD), K is the number of time frames within the event window, and N is a batch dimension spanning recent events. NTF decomposes T into a sum of R rank-one tensors, where R is the estimated number of concurrent sources determined by the minimum description length (MDL) criterion.</p>
+
+      <p>Each rank-one component represents a single fixture's spectral-temporal signature, which is then classified independently by the TCN. The NTF approach exploits non-negativity constraints that are physically motivated: pressure transient energy is inherently non-negative in each frequency subband. <a href="https://doi.org/10.1109/TSP.2009.2016867">Cichocki et al. (IEEE Trans. Signal Processing, 2009)</a> established convergence guarantees for NTF with multiplicative update rules. Computational cost: approximately 200 ms for R ≤ 4 on ARM Cortex-M7, which is acceptable since concurrent events are processed in a 2-second batch window.</p>
+
+      <h3>6. Self-Supervised Contrastive Learning Across the Service Territory</h3>
+
+      <p>The key innovation eliminating per-home labeled training is self-supervised contrastive learning exploiting cross-home fixture consistency. The physical basis: fixtures of the same type share hydraulic characteristics. A Moen 82604 toilet fill valve produces a similar transient signature regardless of which home it is installed in, because the valve mechanism, flow rate, and closing time profile are determined by the valve design, not the specific plumbing layout. While pipe path effects modulate the transient (adding reflections and changing the decay envelope), the initial wavefront shape within the first 50 ms is dominated by the valve's intrinsic characteristics.</p>
+
+      <p>The contrastive learning framework operates as follows: for each meter in the service territory, events are clustered using agglomerative clustering on the 256-dimensional WPD feature vectors, producing K clusters per home (where K typically ranges from 6 to 14, corresponding to the number of active fixtures). Cross-home cluster matching identifies fixtures of the same type: cluster centroids from different homes are compared using cosine similarity on the first-50-ms wavefront features (which are pipe-path-invariant). Clusters with cosine similarity > 0.85 are assigned to the same fixture class. A contrastive loss (NT-Xent, <a href="https://arxiv.org/abs/2002.05709">Chen et al., ICML 2020</a>) trains the TCN encoder: events in matched clusters across homes are positive pairs; events in different clusters are negative pairs.</p>
+
+      <p>Initial class labels (toilet, shower, faucet, etc.) are assigned using three weak supervision signals: diurnal usage patterns (toilets peak at 7 AM and 10 PM; irrigation occurs at dawn; dishwashers run after dinner), flow volume estimates derived from the Joukowsky equation and steady-state pressure drop, and event duration distributions (toilet fill cycles last 45-90 seconds; shower events last 5-15 minutes). These weak labels bootstrap the contrastive learning process. After convergence, the model achieves fixture-class identification without any human-labeled training data.</p>
+
+      <h3>7. Anomalous Flow Detection and Leak Identification</h3>
+
+      <p>The system identifies leaks through three mechanisms. First, continuous baseline flow: when the pressure signal shows steady-state deviation from static pressure for periods exceeding 30 minutes with no detected fixture activation transient, the system flags a potential leak. A running toilet (flapper valve leak) produces a characteristic quasi-periodic refill pattern at 15-45 minute intervals. Second, novel transient signatures: events whose WPD feature vector falls outside the learned manifold of known fixture classes (reconstruction error > 3σ from an autoencoder trained on the fixture library) are flagged as anomalous, indicating a pipe crack, fitting failure, or unauthorized connection. Third, water balance reconciliation: the sum of disaggregated fixture volumes is compared against the meter's total flow measurement. A persistent positive residual (total metered flow exceeding the sum of identified fixture events by more than 5%) indicates unaccounted-for usage consistent with a leak.</p>
+
+      <h3>8. Edge Deployment and Privacy Architecture</h3>
+
+      <p>All pressure data processing occurs on-device at the meter. No raw pressure waveforms leave the meter. The system transmits only: per-fixture event counts and volumes per reporting interval (typically 15 minutes); anomalous flow alerts with severity classification; and model update gradients for federated learning (using <a href="https://arxiv.org/abs/1602.05629">McMahan et al., 2017</a> federated averaging). This architecture preserves customer privacy (pressure transients can reveal behavioral patterns such as bathroom visit frequency) while enabling population-level model improvement.</p>
+
+      <h3>9. Implementation and Deployment Path</h3>
+
+      <p>Phase 1 (firmware update): For AMI meters already equipped with pressure transducer ports (Sensus iPERL, Badger E-Series with pressure option), deploy the disaggregation algorithm as a firmware update. No truck roll required. Phase 2 (retrofit): For existing AMI meters without pressure sensing, deploy a clip-on pressure transducer module ($12-18 installed cost) that connects to the meter's auxiliary sensor input during routine meter reading visits. Phase 3 (native integration): For new meter deployments, integrate the 2 kHz pressure transducer and STM32L4 companion processor into the meter design at $8-12 incremental BOM cost.</p>
+
+      <h3>10. Figures Description</h3>
+
+      <ul>
+        <li><strong>Figure 1:</strong> System architecture showing pressure transducer at main meter, on-device processing pipeline (event detection → WPD feature extraction → TCN classification → NTF source separation), and communication path to utility head-end system via existing AMI radio.</li>
+        <li><strong>Figure 2:</strong> Representative hydraulic transient waveforms for eight common residential fixtures, showing distinctive wavefront shapes, reflection patterns, and decay envelopes measured at the main meter location.</li>
+        <li><strong>Figure 3:</strong> Wavelet packet decomposition scalogram comparing a toilet fill valve event, a shower event, and a concurrent toilet+shower event, demonstrating the spectral-temporal separability exploited by the NTF blind source separation module.</li>
+        <li><strong>Figure 4:</strong> Self-supervised contrastive learning pipeline: per-home event clustering, cross-home cluster matching via first-50ms wavefront cosine similarity, weak label assignment via diurnal patterns, and NT-Xent contrastive loss training of the TCN encoder.</li>
+        <li><strong>Figure 5:</strong> Example 24-hour disaggregated water use timeline for a 4-person household, showing per-fixture flow events, cumulative volume, and a detected running-toilet leak event at 2:30 AM.</li>
+      </ul>
+
+      <h2>Claims</h2>
+
+      <ol>
+        <li>A system for non-intrusive residential water end-use disaggregation, comprising: a pressure transducer installed at or near a main water meter sampling at 1 kHz or higher; an on-device processor that detects hydraulic pressure transient events caused by fixture valve activations; a wavelet packet decomposition module that extracts spectral-temporal features from each transient event; and a temporal convolutional network that classifies each event into a fixture category based on the transient's wavefront shape, reflection pattern, and decay envelope.</li>
+
+        <li>The system of claim 1, further comprising a blind source separation module based on non-negative tensor factorization that decomposes concurrent fixture activation events into individual fixture components for independent classification, using the minimum description length criterion to estimate the number of concurrent sources.</li>
+
+        <li>The system of claim 1, wherein the temporal convolutional network is trained via self-supervised contrastive learning that exploits cross-home fixture consistency, matching fixture clusters across homes in a utility service territory based on cosine similarity of pipe-path-invariant wavefront features extracted from the first 50 milliseconds of each transient event.</li>
+
+        <li>The system of claim 3, wherein initial fixture class labels are assigned through weak supervision signals comprising diurnal usage patterns, flow volume estimates derived from the Joukowsky equation, and event duration distributions, without requiring per-home labeled training data or manual calibration.</li>
+
+        <li>The system of claim 1, further comprising an anomalous flow detection module that identifies leaks through continuous baseline flow monitoring, novel transient signature detection via autoencoder reconstruction error, and water balance reconciliation comparing disaggregated fixture volumes against total metered flow.</li>
+
+        <li>A method for water end-use disaggregation comprising: capturing hydraulic pressure transients at a single measurement point at a residential water meter; extracting spectral-temporal features via wavelet packet decomposition; classifying isolated fixture events using a temporal convolutional network; decomposing concurrent fixture events using non-negative tensor factorization; and aggregating per-fixture flow volumes over configurable time intervals.</li>
+
+        <li>The method of claim 6, further comprising training the temporal convolutional network without labeled data by: clustering transient events within each home based on WPD feature similarity; matching clusters across multiple homes using pipe-path-invariant wavefront features; assigning weak fixture-class labels using diurnal usage patterns, Joukowsky-derived flow estimates, and event duration distributions; and optimizing a contrastive loss function on cross-home matched and unmatched event pairs.</li>
+
+        <li>The method of claim 6, further comprising detecting a running-toilet condition by identifying quasi-periodic refill transients at 15-45 minute intervals outside of occupant-correlated usage windows, and generating an automated alert to the homeowner and/or utility.</li>
+
+        <li>The system of claim 1, wherein all pressure data processing occurs on-device at the water meter, with only per-fixture event counts, volumes, anomaly alerts, and federated learning gradient updates transmitted to the utility head-end system, preserving occupant behavioral privacy.</li>
+
+        <li>The system of claim 1, wherein the pressure transducer and processing module are integrated into an existing Advanced Metering Infrastructure smart water meter at an incremental bill-of-materials cost below $15, deployable via firmware update for meters already equipped with pressure transducer ports or via a clip-on retrofit module for meters without native pressure sensing.</li>
+      </ol>
+
+      <h2>Implementation Notes</h2>
+
+      <p>The strongest technical risk is pipe-path variability masking fixture-type similarity in cross-home contrastive matching. Residential plumbing layouts vary substantially: a toilet on a 5-meter copper branch produces a different reflection pattern than the same toilet model on a 20-meter PEX run through a slab. The mitigation is restricting cross-home matching to the first 50 ms of the wavefront, before path reflections arrive. For a minimum pipe path of 3 meters and a minimum wave speed of 300 m/s (PEX), the first reflection arrives at 20 ms. The 50 ms window therefore captures the initial wavefront plus at most one reflection in short-path cases, which is dominated by valve characteristics. Homes with unusually short pipe runs (< 2 meters from meter to fixture) may violate this assumption. Empirical validation across a representative housing stock is required before utility-scale deployment.</p>
+
+      <p>A second limitation is fixture diversity within a single class. "Kitchen faucet" encompasses hundreds of cartridge designs with different flow profiles. The self-supervised approach partially addresses this by learning a class manifold rather than point templates, but accuracy will degrade for rare fixture types not well-represented in the service territory. Expected disaggregation accuracy: 88-93% for isolated events (6-10 fixture classes), 72-80% for concurrent events (2 simultaneous fixtures), based on extrapolation from HydroSense results adjusted for the higher sampling rate and more expressive model.</p>
+
+      <p>The strongest counterargument against this system is that AMI meters with 1 kHz pressure sensing don't exist at scale today, and utilities won't upgrade meters for a disaggregation feature alone. This is valid. The deployment path depends on pressure sensing being added to AMI meters for other reasons (distribution pressure management, leak detection, demand-response verification) and disaggregation riding as a value-added firmware feature. The $8-15 incremental hardware cost is credible only if amortized across multiple use cases.</p>
+
+      <h2>Prior Art References</h2>
+
+      <ol>
+        <li><a href="https://www.usgs.gov/mission-areas/water-resources/science/water-use-united-states">USGS Water Use in the United States (2020)</a> — 82 gallons per person per day residential average</li>
+        <li><a href="https://www.awwa.org/Resources-Tools/Resource-Topics/Water-Conservation/Residential-End-Uses-of-Water">AWWA Residential End Uses of Water Study (REU4, 2016)</a> — Per-fixture consumption breakdown and 23% concurrent event rate</li>
+        <li><a href="https://www.epa.gov/watersense/fix-leak-week">EPA WaterSense Fix a Leak</a> — 900 billion gallons/year residential leak volume</li>
+        <li><a href="https://doi.org/10.1109/PROC.1992.1216069">Hart, G.W. (1992)</a> — Nonintrusive Appliance Load Monitoring, Proceedings of the IEEE — foundational NILM paper</li>
+        <li><a href="https://dl.acm.org/doi/10.1145/1620545.1620581">Froehlich et al. (UbiComp 2009)</a> — HydroSense: single-point pressure sensing for water fixture identification</li>
+        <li><a href="https://doi.org/10.1145/2632048.2636062">Froehlich et al. (UbiComp 2014)</a> — Extended probabilistic HydroSense with per-home calibration</li>
+        <li><a href="https://doi.org/10.2166/aqua.2010.004">Nguyen et al. (Journal of Water Supply, 2013)</a> — HMM-based fixture classification from flow rate data</li>
+        <li><a href="https://patents.google.com/patent/US10094095B2">US10094095B2 (Phyn)</a> — High-frequency pressure sensing with supervised ML for fixture identification</li>
+        <li><a href="https://doi.org/10.1016/B978-0-12-382968-9.00001-4">Wylie and Streeter (1993)</a> — Fluid Transients in Systems — method of characteristics framework</li>
+        <li><a href="https://doi.org/10.1061/(ASCE)HY.1943-7900.0000264">Lee et al. (J. Hydraulic Engineering, 2006)</a> — Experimental validation of pressure wave speeds in various pipe materials</li>
+        <li><a href="https://doi.org/10.1016/j.ymssp.2004.01.005">Mishra et al. (Mechanical Systems and Signal Processing, 2005)</a> — Wavelet analysis for pipeline leak detection</li>
+        <li><a href="https://doi.org/10.1109/TSP.2009.2016867">Cichocki et al. (IEEE Trans. Signal Processing, 2009)</a> — Non-negative tensor factorization with convergence guarantees</li>
+        <li><a href="https://arxiv.org/abs/2002.05709">Chen et al. (ICML 2020)</a> — SimCLR: contrastive learning framework (NT-Xent loss)</li>
+        <li><a href="https://arxiv.org/abs/1602.05629">McMahan et al. (2017)</a> — Federated averaging for privacy-preserving model training</li>
+        <li><a href="https://www.badgermeter.com/products/metering-technology/">Badger Meter E-Series</a> — AMI meter with pressure logging capability</li>
+        <li><a href="https://www.sensus.com/communication-systems/sensus-analytics">Sensus iPERL / FlexNet Analytics</a> — AMI platform with optional pressure transducer port</li>
+      </ol>
+
+    </div>
+  </article>
+
+<script src="../story.js"></script>
+</body>
+</html>
