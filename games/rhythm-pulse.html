@@ -383,6 +383,39 @@ function showFeedback(lane, text, color) {
   });
 }
 
+// === HIT FEEDBACK AUDIO ===
+// Pentatonic notes per lane: C5, D5, E5, G5 — any sequence sounds musical
+var HIT_NOTES = [523.25, 587.33, 659.25, 783.99];
+
+function playHitNote(lane, isPerfect) {
+  if (!audioCtx) return;
+  try {
+    var t = audioCtx.currentTime;
+    var freq = HIT_NOTES[lane];
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    if (isPerfect) {
+      // Bright triangle with slight pitch rise for sparkle
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.02, t + 0.03);
+      osc.frequency.setTargetAtTime(freq, t + 0.03, 0.02);
+      gain.gain.setValueAtTime(0.12, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(t); osc.stop(t + 0.16);
+    } else {
+      // Softer sine, warmer
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.08, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(t); osc.stop(t + 0.12);
+    }
+  } catch(e) {}
+}
+
 // ---- INPUT ----
 function hitLane(lane) {
   if (state !== STATE_PLAYING) return;
@@ -425,6 +458,7 @@ function hitLane(lane) {
       combo++;
       if (modType === 'chain') combo += 2;
       perfects++;
+      playHitNote(lane, true);
       showFeedback(lane, modType ? 'PERFECT ' + activeMod.type.label : 'PERFECT', modType ? activeMod.type.color : '#44ff88');
       spawnParticles(laneX(lane), HIT_Y, modType ? activeMod.type.color : '#44ff88', 12);
     } else {
@@ -433,6 +467,7 @@ function hitLane(lane) {
       combo++;
       if (modType === 'chain') combo += 2;
       goods++;
+      playHitNote(lane, false);
       showFeedback(lane, 'GOOD', '#ffaa44');
       spawnParticles(laneX(lane), HIT_Y, '#ffaa44', 6);
     }
