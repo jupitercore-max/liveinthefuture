@@ -482,6 +482,7 @@ function tryMove(dx, dy) {
 
 function scanProximity() {
   var range = getRankBonus().proxRange;
+  var nearby = [];
   for (var dy = -range; dy <= range; dy++) {
     for (var dx = -range; dx <= range; dx++) {
       if (dx === 0 && dy === 0) continue;
@@ -490,10 +491,25 @@ function scanProximity() {
       if (r >= 0 && r < totalRows && c >= 0 && c < COLS) {
         var b = grid[r][c];
         if (b === BLOCK_GEM || b === BLOCK_RARE_GEM || b === BLOCK_GAS || b === BLOCK_HARD) {
-          playProximitySound(b, dx, dy);
+          var dist = Math.abs(dx) + Math.abs(dy);
+          // Priority: gas (danger) > rare gem (value) > gem > hard rock
+          var pri = b === BLOCK_GAS ? 0 : b === BLOCK_RARE_GEM ? 1 : b === BLOCK_GEM ? 2 : 3;
+          nearby.push({block: b, dx: dx, dy: dy, dist: dist, pri: pri});
         }
       }
     }
+  }
+  // Sort by priority (lower = more important), then by distance (closer first)
+  nearby.sort(function(a, b) {
+    if (a.pri !== b.pri) return a.pri - b.pri;
+    return a.dist - b.dist;
+  });
+  // Play only top 2 sounds with 120ms stagger for spatial clarity through bone conduction
+  var limit = Math.min(2, nearby.length);
+  for (var i = 0; i < limit; i++) {
+    (function(item, delay) {
+      setTimeout(function() { playProximitySound(item.block, item.dx, item.dy); }, delay);
+    })(nearby[i], i * 120);
   }
 }
 
