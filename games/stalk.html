@@ -149,7 +149,19 @@ function initAudio() {
     analyser.smoothingTimeConstant = 0.8;
     dataArray = new Uint8Array(analyser.frequencyBinCount);
     micFailed = true; // assume failure until getUserMedia succeeds
-    navigator.mediaDevices.getUserMedia({audio:true}
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      micStream = stream;
+      var src = audioCtx.createMediaStreamSource(stream);
+      src.connect(analyser);
+      micActive = true;
+      micFailed = false;
+    }).catch(function(){
+      micFailed = true;
+    });
+  } catch(e) {
+    micFailed = true;
+  }
+}
 // === BGM System ===
 var bgmAudio = null, bgmGameover = null, bgmMuted = false, bgmStarted = false;
 function bgmInit() {
@@ -175,19 +187,6 @@ function bgmToggle() {
   bgmMuted = !bgmMuted;
   if (bgmMuted) { if (bgmAudio) bgmAudio.pause(); }
   else bgmPlay();
-}
-).then(function(stream){
-      micStream = stream;
-      var src = audioCtx.createMediaStreamSource(stream);
-      src.connect(analyser);
-      micActive = true;
-      micFailed = false;
-    }).catch(function(){
-      micFailed = true;
-    });
-  } catch(e) {
-    micFailed = true;
-  }
 }
 
 function updateMicLevel() {

@@ -29,7 +29,13 @@ var W=600,H=600;
 var audioCtx=null,analyser=null,micLevel=0,micSmooth=0;
 function initAudio(){
   audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-  navigator.mediaDevices.getUserMedia({audio:true}
+  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+    var src=audioCtx.createMediaStreamSource(stream);
+    analyser=audioCtx.createAnalyser();
+    analyser.fftSize=256;
+    src.connect(analyser);
+  }).catch(function(){});
+}
 // === BGM System ===
 var bgmAudio = null, bgmGameover = null, bgmMuted = false, bgmStarted = false;
 function bgmInit() {
@@ -55,13 +61,6 @@ function bgmToggle() {
   bgmMuted = !bgmMuted;
   if (bgmMuted) { if (bgmAudio) bgmAudio.pause(); }
   else bgmPlay();
-}
-).then(function(stream){
-    var src=audioCtx.createMediaStreamSource(stream);
-    analyser=audioCtx.createAnalyser();
-    analyser.fftSize=256;
-    src.connect(analyser);
-  }).catch(function(){});
 }
 function readMic(){
   if(!analyser)return;
