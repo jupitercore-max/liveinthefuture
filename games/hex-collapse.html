@@ -191,10 +191,27 @@ var ALL_COLORS = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#1abc9c','#
 var COLORS = ALL_COLORS.slice(0, 4);
 
 var grid = [];
+var burstGrid = []; // true = burst gem at this cell
 var curR = 0, curC = 0;
 var score = 0, combo = 0, moves = 0, level = 1;
 var bestScore = 0;
 try { bestScore = parseInt(localStorage.getItem('hc_best')) || 0; } catch(e){}
+
+// Burst gem discovery tracking
+var burstCreated = 0, burstDetonated = 0;
+try { burstCreated = parseInt(localStorage.getItem('hc_burstCreated')) || 0; } catch(e){}
+try { burstDetonated = parseInt(localStorage.getItem('hc_burstDets')) || 0; } catch(e){}
+
+// Hex distance (odd-r offset → cube coordinates)
+function hexDist(r1, c1, r2, c2) {
+  var x1 = c1 - (r1 - (r1 & 1)) / 2;
+  var z1 = r1;
+  var y1 = -x1 - z1;
+  var x2 = c2 - (r2 - (r2 & 1)) / 2;
+  var z2 = r2;
+  var y2 = -x2 - z2;
+  return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2), Math.abs(z1 - z2));
+}
 
 // Rank progression — cumulative total score across all games
 var RANKS = [
@@ -254,10 +271,13 @@ function hexCenter(r, c) {
 function initGrid() {
   COLORS = ALL_COLORS.slice(0, getNumColors());
   grid = [];
+  burstGrid = [];
   for (var r = 0; r < ROWS; r++) {
     grid[r] = [];
+    burstGrid[r] = [];
     for (var c = 0; c < COLS; c++) {
       grid[r][c] = Math.floor(Math.random() * COLORS.length);
+      burstGrid[r][c] = false;
     }
   }
   curR = Math.floor(ROWS/2);
@@ -302,6 +322,46 @@ function findGroup(r, c) {
 }
 
 function removeGroup(group) {
+  // Burst gem detonation — if any cell in group is a burst gem, AOE clear radius 2
+  var aoe = [];
+  for (var bi = 0; bi < group.length; bi++) {
+    var br = group[bi][0], bc = group[bi][1];
+    if (burstGrid[br][bc]) {
+      burstGrid[br][bc] = false;
+      for (var ar = 0; ar < ROWS; ar++) {
+        for (var ac = 0; ac < COLS; ac++) {
+          if (grid[ar][ac] >= 0 && hexDist(br, bc, ar, ac) <= 2) {
+            var dup = false;
+            for (var gi = 0; gi < group.length; gi++) {
+              if (group[gi][0] === ar && group[gi][1] === ac) { dup = true; break; }
+            }
+            if (!dup) {
+              for (var ai = 0; ai < aoe.length; ai++) {
+                if (aoe[ai][0] === ar && aoe[ai][1] === ac) { dup = true; break; }
+              }
+            }
+            if (!dup) aoe.push([ar, ac]);
+          }
+        }
+      }
+      // Detonation effects — reuse bomb ripple visual
+      var bp = hexCenter(br, bc);
+      bombRippleX = bp.x; bombRippleY = bp.y; bombRipple = 30;
+      bombFlash = 10; shakeTimer = 14;
+      // Deep detonation audio
+      playTone(90, 0.5, 0.3);
+      setTimeout(function() { playTone(55, 0.4, 0.25); }, 60);
+      burstDetonated++;
+      try { localStorage.setItem('hc_burstDets', burstDetonated); } catch(e){}
+    }
+  }
+  // Add AOE cells to group for unified removal
+  for (var ae = 0; ae < aoe.length; ae++) {
+    group.push(aoe[ae]);
+    // Clear any burst gems caught in the AOE too
+    if (burstGrid[aoe[ae][0]][aoe[ae][1]]) burstGrid[aoe[ae][0]][aoe[ae][1]] = false;
+  }
+
   for (var i = 0; i < group.length; i++) {
     var pos = hexCenter(group[i][0], group[i][1]);
     for (var j = 0; j < 4; j++) {
@@ -323,7 +383,9 @@ function applyGravity() {
         for (var above = r - 1; above >= 0; above--) {
           if (grid[above][c] >= 0) {
             grid[r][c] = grid[above][c];
+            burstGrid[r][c] = burstGrid[above][c];
             grid[above][c] = -1;
+            burstGrid[above][c] = false;
             moved = true;
             break;
           }
@@ -333,6 +395,7 @@ function applyGravity() {
     // Fill empty top cells — mic biases color spawning
     for (var r2 = 0; r2 < ROWS; r2++) {
       if (grid[r2][c] === -1) {
+        burstGrid[r2][c] = false; // new cells are never burst gems
         var nc = getNumColors();
         if (micStream && nc >= 4) {
           // Bass → warm colors (red, orange, yellow = indices 0,3,6)
@@ -401,7 +464,19 @@ function trySelect() {
     moves++;
     // Capture matched color BEFORE removeGroup destroys grid cells
     var matchedColorIdx = grid[curR][curC];
+    var originalGroupSize = group.length; // capture before removeGroup mutates array
     removeGroup(group);
+    // Burst Gem creation — match 5+ creates a ☄ gem at cursor position
+    if (originalGroupSize >= 5) {
+      grid[curR][curC] = matchedColorIdx;
+      burstGrid[curR][curC] = true;
+      burstCreated++;
+      try { localStorage.setItem('hc_burstCreated', burstCreated); } catch(e){}
+      // Shimmer creation sound — ascending sine sweep
+      playTone(600, 0.15, 0.15);
+      setTimeout(function() { playTone(900, 0.15, 0.12); }, 80);
+      setTimeout(function() { playTone(1200, 0.2, 0.1); }, 160);
+    }
     // Ascending arpeggio — starts from matched color's pentatonic note
     var baseFreq = COLOR_NOTES[matchedColorIdx % COLOR_NOTES.length];
     for (var si = 0; si < Math.min(group.length, 8); si++) {
@@ -456,6 +531,12 @@ function drawMenu() {
   ctx.fillStyle = '#888';
   ctx.fillText('Match 3+ adjacent hexes', W/2, 220);
   ctx.fillText('Each color has its own note — listen!', W/2, 250);
+  // Burst gem discovery
+  if (burstCreated > 0) {
+    ctx.font = '16px -apple-system, sans-serif';
+    ctx.fillStyle = '#9b59b6';
+    ctx.fillText('☄ ' + burstCreated + ' burst gems created, ' + burstDetonated + ' detonated', W/2, 272);
+  }
 
   // Rank display
   var rIdx = getRankIdx();
@@ -558,6 +639,20 @@ function drawGame() {
       }
 
       drawHex(pos.x, pos.y, HEX_R - 2, color, '#2a2a2a', 1);
+
+      // Burst gem indicator — ☄ with pulsing glow
+      if (grid[r][c] >= 0 && burstGrid[r][c]) {
+        var burstPulse = 0.5 + 0.3 * Math.sin(Date.now() / 250);
+        ctx.globalAlpha = burstPulse;
+        drawHex(pos.x, pos.y, HEX_R + 3, null, '#fff', 2);
+        ctx.globalAlpha = 1;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = '18px -apple-system, sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.fillText('☄', pos.x, pos.y + 1);
+        ctx.textBaseline = 'alphabetic';
+      }
 
       // Cursor
       if (r === curR && c === curC) {
