@@ -178,7 +178,7 @@ var synthOscs = [];
 var synthGain = null;
 var synthFilter = null;
 var synthActive = false;
-var synthEnabled = true; // toggle with ↓
+var synthEnabled = true; // toggle with ↑ in off mode
 
 function initSynth() {
   if (synthActive) return;
@@ -432,7 +432,11 @@ function drawFooter() {
   ctx.font = '12px -apple-system, sans-serif';
   ctx.fillStyle = '#555';
   ctx.textAlign = 'center';
-  ctx.fillText('D-pad Move  Enter Mode  Esc Back', W / 2, H - 16);
+  if (influenceMode === 'off') {
+    ctx.fillText('←→ Palette  ↑ Synth  ↓ Reseed  Enter Mode', W / 2, H - 16);
+  } else {
+    ctx.fillText('D-pad Move  Enter Mode  Esc Back', W / 2, H - 16);
+  }
 
   ctx.textAlign = 'right';
   ctx.fillStyle = '#4a9eff';
@@ -576,22 +580,45 @@ document.addEventListener('keydown', function(e) {
   // Init mic and synth on any keypress (needs user gesture for permission)
   if (!micActive && !micFailed) initMic();
   if (!synthActive) initSynth();
-  if (e.key === 'ArrowLeft') {
-    cursorX = Math.max(10, cursorX - cursorSpeed);
-  } else if (e.key === 'ArrowRight') {
-    cursorX = Math.min(W - 10, cursorX + cursorSpeed);
-  } else if (e.key === 'ArrowUp') {
-    cursorY = Math.max(10, cursorY - cursorSpeed);
-  } else if (e.key === 'ArrowDown') {
-    cursorY = Math.max(10, cursorY + cursorSpeed);
-    cursorY = Math.min(H - 10, cursorY);
-  } else if (e.key === 'Enter') {
-    // Cycle influence mode: attract → repel → vortex → off → attract
-    influenceIdx = (influenceIdx + 1) % influenceModes.length;
-    influenceMode = influenceModes[influenceIdx];
-    savePrefs();
-  } else if (e.key === 'Escape' || e.key === 'Backspace') {
-    window.location.href = '../';
+  if (influenceMode === 'off') {
+    // Off mode = settings mode: ←→ palette, ↑ synth toggle, ↓ new seed
+    if (e.key === 'ArrowLeft') {
+      palIdx = (palIdx - 1 + palettes.length) % palettes.length;
+      savePrefs();
+    } else if (e.key === 'ArrowRight') {
+      palIdx = (palIdx + 1) % palettes.length;
+      savePrefs();
+    } else if (e.key === 'ArrowUp') {
+      synthEnabled = !synthEnabled;
+      savePrefs();
+    } else if (e.key === 'ArrowDown') {
+      seed = Math.floor(Math.random() * 99999);
+      initNoise(seed);
+      resetParticles();
+    } else if (e.key === 'Enter') {
+      influenceIdx = (influenceIdx + 1) % influenceModes.length;
+      influenceMode = influenceModes[influenceIdx];
+      savePrefs();
+    } else if (e.key === 'Escape' || e.key === 'Backspace') {
+      window.location.href = '../';
+    }
+  } else {
+    // Active modes: D-pad moves cursor
+    if (e.key === 'ArrowLeft') {
+      cursorX = Math.max(10, cursorX - cursorSpeed);
+    } else if (e.key === 'ArrowRight') {
+      cursorX = Math.min(W - 10, cursorX + cursorSpeed);
+    } else if (e.key === 'ArrowUp') {
+      cursorY = Math.max(10, cursorY - cursorSpeed);
+    } else if (e.key === 'ArrowDown') {
+      cursorY = Math.min(H - 10, cursorY + cursorSpeed);
+    } else if (e.key === 'Enter') {
+      influenceIdx = (influenceIdx + 1) % influenceModes.length;
+      influenceMode = influenceModes[influenceIdx];
+      savePrefs();
+    } else if (e.key === 'Escape' || e.key === 'Backspace') {
+      window.location.href = '../';
+    }
   }
 });
 
