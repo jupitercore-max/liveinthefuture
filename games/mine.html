@@ -390,7 +390,7 @@ function tryMine(tx, ty) {
   shakeTimer = 5;
   
   if (block === BLOCK_GAS) {
-    gasTimer = 90; // 1.5 seconds of gas
+    gasTimer = 8; // 8 moves of lingering gas damage
     gasOverlay = 1;
     addFloat(tx, ty, '☠️ GAS!', '#ffff00');
     pickHP -= 15; // extra damage
@@ -465,10 +465,18 @@ function tryMove(dx, dy) {
   var targetCam = Math.max(0, playerY - Math.floor(VIEW_ROWS / 2) + 2);
   cameraY = targetCam;
   
-  // Gas damage over time
+  // Gas damage over time — lingering poison
   if (gasTimer > 0) {
     gasTimer--;
-    gasOverlay = gasTimer / 90;
+    pickHP -= 1;
+    gasOverlay = gasTimer / 8;
+    if (pickHP <= 0) {
+      pickHP = 0;
+      deathReason = 'Suffocated by gas at depth ' + depth + 'm';
+      state = STATE_DEAD; bgmGameOver();
+      savePersist();
+      playTone(150, 0.5, 'sawtooth', 0.15, 0);
+    }
   }
 }
 
@@ -912,7 +920,7 @@ function handleMove(key) {
 // Key repeat for held keys
 function checkKeyRepeat() {
   var now = Date.now();
-  var moveKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
+  var moveKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter'];
   for (var i = 0; i < moveKeys.length; i++) {
     var k = moveKeys[i];
     if (keys[k] && keyRepeat[k] && now > keyRepeat[k]) {
