@@ -130,6 +130,16 @@ var voyagerChainLen = 5;
 var voyagerArrivalFlash = 0;
 var voyagerShowSummary = false;
 
+// ── Deep Space Mode ──
+// Dims visuals, hides direction chevrons, makes beacon pulse.
+// Navigation by audio only — bone conduction spatial panning IS the mechanic.
+var deepSpace = false;
+var deepSpaceBest = 0;
+try { deepSpaceBest = parseFloat(localStorage.getItem('starfield_deep_best') || '0') || 0; } catch(e){}
+var beaconPulsePhase = 0; // 0..1 cycling
+var PULSE_PERIOD = 1.15; // seconds between pulses
+var PULSE_DURATION = 0.22; // seconds per pulse burst
+
 function startVoyager() {
   var used = {};
   voyagerTargets = [];
@@ -148,6 +158,8 @@ function startVoyager() {
   voyagerComplete = false;
   voyagerShowSummary = false;
   voyagerArrivalFlash = 0;
+  beaconPulsePhase = 0;
+  // deepSpace persists across voyages — player's chosen difficulty
 }
 
 // ── Mic ──
@@ -287,16 +299,33 @@ function updateBeacon() {
   var freq = 330 + proximity * 550;
   // Mic turbulence: ambient noise corrupts beacon signal
   // Quiet room = clean navigation, noisy environment = signal interference
+  var turbMult = deepSpace ? 1.6 : 1.0; // Deep Space: environment matters more
   if (micActive && micLevel > 0.05) {
-    var turb = micLevel;
+    var turb = micLevel * turbMult;
     pan += (Math.random() - 0.5) * turb * 0.7;
     pan = Math.max(-1, Math.min(1, pan));
     freq += (Math.random() - 0.5) * turb * 80;
-    vol *= (1 - turb * 0.25);
+    vol *= (1 - Math.min(0.6, turb * 0.25));
+  }
+  // Deep Space: pulsing beacon — intermittent chirps like sonar
+  // Between pulses, gain drops to near-silent. Forces listening + memory.
+  if (deepSpace) {
+    beaconPulsePhase += 1 / 60 / PULSE_PERIOD;
+    if (beaconPulsePhase >= 1) beaconPulsePhase -= 1;
+    var inPulse = beaconPulsePhase < (PULSE_DURATION / PULSE_PERIOD);
+    if (inPulse) {
+      // During pulse: chirp — quick frequency sweep for better spatial localization
+      var pulseProgress = beaconPulsePhase / (PULSE_DURATION / PULSE_PERIOD);
+      var chirpFreq = freq * (1.0 + (1 - pulseProgress) * 0.3); // start 30% high, sweep down
+      beaconOsc.frequency.setTargetAtTime(chirpFreq, t, 0.02);
+      vol *= 1.4; // louder during pulse
+    } else {
+      vol *= 0.03; // near-silent between pulses
+    }
   }
   beaconPanner.pan.setTargetAtTime(pan, t, 0.08);
   beaconGain.gain.setTargetAtTime(vol, t, 0.1);
-  beaconOsc.frequency.setTargetAtTime(freq, t, 0.2);
+  if (!deepSpace) beaconOsc.frequency.setTargetAtTime(freq, t, 0.2);
 }
 
 function playArrivalChime() {
@@ -399,7 +428,13 @@ document.addEventListener('keydown', function(e) {
     targetSpeed = Math.min(2.0, targetSpeed + 0.15);
   } else if (e.key === 'ArrowDown') {
     if (!synthStarted) initSynth();
-    targetSpeed = Math.max(0.05, targetSpeed - 0.15);
+    if (gameMode === 1 && !voyagerComplete) {
+      // Toggle Deep Space difficulty in Voyager mode
+      deepSpace = !deepSpace;
+      beaconPulsePhase = 0; // reset pulse on toggle
+    } else {
+      targetSpeed = Math.max(0.05, targetSpeed - 0.15);
+    }
   } else if (e.key === 'ArrowLeft') {
     if (!synthStarted) initSynth();
     vanishX = Math.max(-1, vanishX - 0.08);
@@ -501,7 +536,9 @@ function draw() {
     if (nb.x > W + nb.r) nb.x = -nb.r;
     if (nb.y > H + nb.r) { nb.y = -nb.r; nb.hue = Math.floor(Math.random() * 360); }
     var grad = ctx.createRadialGradient(nb.x, nb.y, 0, nb.x, nb.y, nb.r);
-    grad.addColorStop(0, 'hsla(' + nb.hue + ',60%,40%,' + nb.alpha * (1 + speed * 0.5) + ')');
+    var nbAlpha = nb.alpha * (1 + speed * 0.5);
+    if (deepSpace && gameMode === 1) nbAlpha *= 0.15;
+    grad.addColorStop(0, 'hsla(' + nb.hue + ',60%,40%,' + nbAlpha + ')');
     grad.addColorStop(1, 'hsla(' + nb.hue + ',60%,40%,0)');
     ctx.fillStyle = grad;
     ctx.fillRect(nb.x - nb.r, nb.y - nb.r, nb.r * 2, nb.r * 2);
@@ -543,6 +580,10 @@ function draw() {
       rgb[1] = Math.round(rgb[1] * (1 - flashAlpha) + fg * flashAlpha);
       rgb[2] = Math.round(rgb[2] * (1 - flashAlpha) + fb * flashAlpha);
     }
+
+    // Deep Space: dim stars to ~20% — force audio navigation, stars are ambient only
+    var deepDim = (deepSpace && gameMode === 1) ? 0.18 : 1.0;
+    alpha *= deepDim;
 
     var colStr = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + alpha + ')';
     var radius = s.size * (0.5 + depth * 2.5);
@@ -690,9 +731,16 @@ function draw() {
         voyagerComplete = true;
         voyagerShowSummary = true;
         playCompletionFanfare();
-        if (voyagerBest === 0 || voyagerTimer < voyagerBest) {
-          voyagerBest = voyagerTimer;
-          try { localStorage.setItem('starfield_voyager_best', voyagerBest.toFixed(1)); } catch(e){}
+        if (deepSpace) {
+          if (deepSpaceBest === 0 || voyagerTimer < deepSpaceBest) {
+            deepSpaceBest = voyagerTimer;
+            try { localStorage.setItem('starfield_deep_best', deepSpaceBest.toFixed(1)); } catch(e){}
+          }
+        } else {
+          if (voyagerBest === 0 || voyagerTimer < voyagerBest) {
+            voyagerBest = voyagerTimer;
+            try { localStorage.setItem('starfield_voyager_best', voyagerBest.toFixed(1)); } catch(e){}
+          }
         }
       } else {
         playArrivalChime();
@@ -752,6 +800,14 @@ function draw() {
   } else {
     // Voyager HUD
     ctx.fillText('\ud83d\ude80 VOYAGER', 12, 18);
+    // Deep Space mode label
+    if (deepSpace && !voyagerComplete) {
+      ctx.font = '600 11px -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      var dsAlpha = 0.5 + Math.sin(tick * 0.04) * 0.2;
+      ctx.fillStyle = 'rgba(80,140,220,' + dsAlpha + ')';
+      ctx.fillText('DEEP SPACE', 110, 18);
+    }
 
     if (!voyagerComplete && voyagerIdx < voyagerTargets.length) {
       var tgt = voyagerTargets[voyagerIdx];
@@ -770,62 +826,82 @@ function draw() {
       var bearingDiff = tgt.bearing - vanishX;
       var arrowX = W / 2;
       var arrowY = H / 2;
-      // Draw a subtle direction ring
-      var indAlpha = 0.15 + Math.abs(bearingDiff) * 0.3;
-      var indColor = Math.abs(bearingDiff) < 0.15 ? '100,255,150' : Math.abs(bearingDiff) < 0.4 ? '100,200,255' : '255,180,100';
-      // Direction chevrons on left or right side of screen
-      if (Math.abs(bearingDiff) > 0.1) {
-        var chevSide = bearingDiff > 0 ? 1 : -1;
-        var chevX = chevSide > 0 ? W - 30 : 30;
-        var chevCount = Math.abs(bearingDiff) > 0.5 ? 3 : Math.abs(bearingDiff) > 0.25 ? 2 : 1;
-        for (var ci = 0; ci < chevCount; ci++) {
-          var cxOff = chevSide * ci * 8;
-          var cAlpha = indAlpha * (1 - ci * 0.25);
+
+      if (!deepSpace) {
+        // Normal mode: full visual direction cues
+        // Draw a subtle direction ring
+        var indAlpha = 0.15 + Math.abs(bearingDiff) * 0.3;
+        var indColor = Math.abs(bearingDiff) < 0.15 ? '100,255,150' : Math.abs(bearingDiff) < 0.4 ? '100,200,255' : '255,180,100';
+        // Direction chevrons on left or right side of screen
+        if (Math.abs(bearingDiff) > 0.1) {
+          var chevSide = bearingDiff > 0 ? 1 : -1;
+          var chevX = chevSide > 0 ? W - 30 : 30;
+          var chevCount = Math.abs(bearingDiff) > 0.5 ? 3 : Math.abs(bearingDiff) > 0.25 ? 2 : 1;
+          for (var ci = 0; ci < chevCount; ci++) {
+            var cxOff = chevSide * ci * 8;
+            var cAlpha = indAlpha * (1 - ci * 0.25);
+            ctx.save();
+            ctx.strokeStyle = 'rgba(' + indColor + ',' + cAlpha + ')';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(chevX + cxOff - chevSide * 6, CY - 12);
+            ctx.lineTo(chevX + cxOff, CY);
+            ctx.lineTo(chevX + cxOff - chevSide * 6, CY + 12);
+            ctx.stroke();
+            ctx.restore();
+          }
+        } else {
+          // On target — show centered reticle
+          var retAlpha = 0.3 + Math.sin(tick * 0.1) * 0.15;
           ctx.save();
-          ctx.strokeStyle = 'rgba(' + indColor + ',' + cAlpha + ')';
-          ctx.lineWidth = 2;
+          ctx.strokeStyle = 'rgba(100,255,150,' + retAlpha + ')';
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
-          ctx.moveTo(chevX + cxOff - chevSide * 6, CY - 12);
-          ctx.lineTo(chevX + cxOff, CY);
-          ctx.lineTo(chevX + cxOff - chevSide * 6, CY + 12);
+          ctx.arc(CX, CY, 25, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(CX - 35, CY); ctx.lineTo(CX - 28, CY);
+          ctx.moveTo(CX + 28, CY); ctx.lineTo(CX + 35, CY);
+          ctx.moveTo(CX, CY - 35); ctx.lineTo(CX, CY - 28);
+          ctx.moveTo(CX, CY + 28); ctx.lineTo(CX, CY + 35);
           ctx.stroke();
           ctx.restore();
         }
       } else {
-        // On target — show centered reticle
-        var retAlpha = 0.3 + Math.sin(tick * 0.1) * 0.15;
-        ctx.save();
-        ctx.strokeStyle = 'rgba(100,255,150,' + retAlpha + ')';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(CX, CY, 25, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(CX - 35, CY); ctx.lineTo(CX - 28, CY);
-        ctx.moveTo(CX + 28, CY); ctx.lineTo(CX + 35, CY);
-        ctx.moveTo(CX, CY - 35); ctx.lineTo(CX, CY - 28);
-        ctx.moveTo(CX, CY + 28); ctx.lineTo(CX, CY + 35);
-        ctx.stroke();
-        ctx.restore();
+        // Deep Space: NO visual direction cues — only the beacon audio guides you.
+        // Show a dim pulse ring synced to beacon pulse for minimal feedback.
+        var inPulseVis = beaconPulsePhase < (PULSE_DURATION / PULSE_PERIOD);
+        if (inPulseVis) {
+          var pulseAlpha = 0.08 + (1 - beaconPulsePhase / (PULSE_DURATION / PULSE_PERIOD)) * 0.12;
+          ctx.save();
+          ctx.strokeStyle = 'rgba(80,120,180,' + pulseAlpha + ')';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(CX, CY, 20 + beaconPulsePhase * 40, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
       }
 
-      // Distance to target bar
-      var maxDist = 60;
-      var distPct = Math.max(0, Math.min(1, tgt.dist / maxDist));
-      var barX2 = 12, barY2 = H - 52, barW2 = W - 24, barH2 = 3;
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fillRect(barX2, barY2, barW2, barH2);
-      var fillW2 = barW2 * (1 - distPct);
-      var barGrad2 = ctx.createLinearGradient(barX2, 0, barX2 + barW2, 0);
-      barGrad2.addColorStop(0, '#2244aa');
-      barGrad2.addColorStop(0.7, '#4a9eff');
-      barGrad2.addColorStop(1, '#80ffcc');
-      ctx.fillStyle = barGrad2;
-      ctx.fillRect(barX2, barY2, fillW2, barH2);
-      ctx.font = '10px -apple-system, sans-serif';
-      ctx.fillStyle = '#666';
-      ctx.textAlign = 'right';
-      ctx.fillText(Math.ceil(tgt.dist) + ' ly', W - 12, barY2 - 4);
+      // Distance to target bar — hidden in Deep Space (navigate by ear)
+      if (!deepSpace) {
+        var maxDist = 60;
+        var distPct = Math.max(0, Math.min(1, tgt.dist / maxDist));
+        var barX2 = 12, barY2 = H - 52, barW2 = W - 24, barH2 = 3;
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(barX2, barY2, barW2, barH2);
+        var fillW2 = barW2 * (1 - distPct);
+        var barGrad2 = ctx.createLinearGradient(barX2, 0, barX2 + barW2, 0);
+        barGrad2.addColorStop(0, '#2244aa');
+        barGrad2.addColorStop(0.7, '#4a9eff');
+        barGrad2.addColorStop(1, '#80ffcc');
+        ctx.fillStyle = barGrad2;
+        ctx.fillRect(barX2, barY2, fillW2, barH2);
+        ctx.font = '10px -apple-system, sans-serif';
+        ctx.fillStyle = '#666';
+        ctx.textAlign = 'right';
+        ctx.fillText(Math.ceil(tgt.dist) + ' ly', W - 12, barY2 - 4);
+      }
 
     } else if (voyagerComplete && voyagerShowSummary) {
       // Completion summary
@@ -833,10 +909,11 @@ function draw() {
       ctx.textAlign = 'center';
       var summaryPulse = 0.7 + Math.sin(tick * 0.04) * 0.3;
       ctx.fillStyle = 'rgba(100,255,200,' + summaryPulse + ')';
-      ctx.fillText('VOYAGE COMPLETE', W / 2, 13);
+      ctx.fillText(deepSpace ? 'DEEP SPACE COMPLETE' : 'VOYAGE COMPLETE', W / 2, 13);
       ctx.font = '11px -apple-system, sans-serif';
       ctx.fillStyle = '#aaa';
-      ctx.fillText(formatTime(voyagerTimer) + (voyagerBest > 0 && voyagerTimer <= voyagerBest + 0.05 ? '  \u2605 NEW BEST!' : ''), W / 2, 26);
+      var relevantBest = deepSpace ? deepSpaceBest : voyagerBest;
+      ctx.fillText(formatTime(voyagerTimer) + (relevantBest > 0 && voyagerTimer <= relevantBest + 0.05 ? '  \u2605 NEW BEST!' : ''), W / 2, 26);
 
       // Summary overlay
       ctx.fillStyle = 'rgba(13,13,13,0.7)';
@@ -864,10 +941,11 @@ function draw() {
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ffe066';
       ctx.fillText('TIME: ' + formatTime(voyagerTimer), W / 2, 240);
-      if (voyagerBest > 0) {
+      var relevantBest2 = deepSpace ? deepSpaceBest : voyagerBest;
+      if (relevantBest2 > 0) {
         ctx.font = '11px -apple-system, sans-serif';
         ctx.fillStyle = '#888';
-        ctx.fillText('Best: ' + formatTime(voyagerBest), W / 2, 256);
+        ctx.fillText((deepSpace ? 'Deep Space Best: ' : 'Best: ') + formatTime(relevantBest2), W / 2, 256);
       }
     }
 
@@ -931,7 +1009,7 @@ function draw() {
   } else if (voyagerComplete) {
     hint = 'Enter Free Roam  Esc Back';
   } else {
-    hint = '\u2191\u2193 Speed  \u2190\u2192 Steer to beacon  Esc Cancel  \ud83d\udd14';
+    hint = '\u2191 Speed  \u2190\u2192 Steer  \u2193 ' + (deepSpace ? 'Normal' : 'Deep Space') + '  Esc Cancel  \ud83d\udd14';
   }
   ctx.fillText(hint, W / 2, H - 14);
 
