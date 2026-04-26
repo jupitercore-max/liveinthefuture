@@ -140,6 +140,15 @@ var beaconPulsePhase = 0; // 0..1 cycling
 var PULSE_PERIOD = 1.15; // seconds between pulses
 var PULSE_DURATION = 0.22; // seconds per pulse burst
 
+// ── Sonar Ping (Deep Space only) ──
+// ↑ in Deep Space fires a 1-second clarity window: beacon becomes continuous,
+// turbulence-free, boosted. 3 per waypoint — genuine resource decision.
+var pingRemaining = 3;
+var pingActive = false;
+var pingFrames = 0;
+var PING_DURATION = 60; // frames (1 second at 60fps)
+var PINGS_PER_WAYPOINT = 3;
+
 function startVoyager() {
   var used = {};
   voyagerTargets = [];
@@ -159,6 +168,9 @@ function startVoyager() {
   voyagerShowSummary = false;
   voyagerArrivalFlash = 0;
   beaconPulsePhase = 0;
+  pingRemaining = PINGS_PER_WAYPOINT;
+  pingActive = false;
+  pingFrames = 0;
   // deepSpace persists across voyages — player's chosen difficulty
 }
 
@@ -300,7 +312,7 @@ function updateBeacon() {
   // Mic turbulence: ambient noise corrupts beacon signal
   // Quiet room = clean navigation, noisy environment = signal interference
   var turbMult = deepSpace ? 1.6 : 1.0; // Deep Space: environment matters more
-  if (micActive && micLevel > 0.05) {
+  if (micActive && micLevel > 0.05 && !pingActive) {
     var turb = micLevel * turbMult;
     pan += (Math.random() - 0.5) * turb * 0.7;
     pan = Math.max(-1, Math.min(1, pan));
@@ -309,7 +321,8 @@ function updateBeacon() {
   }
   // Deep Space: pulsing beacon — intermittent chirps like sonar
   // Between pulses, gain drops to near-silent. Forces listening + memory.
-  if (deepSpace) {
+  // Sonar Ping overrides pulsing: continuous crystal-clear signal for 1 second.
+  if (deepSpace && !pingActive) {
     beaconPulsePhase += 1 / 60 / PULSE_PERIOD;
     if (beaconPulsePhase >= 1) beaconPulsePhase -= 1;
     var inPulse = beaconPulsePhase < (PULSE_DURATION / PULSE_PERIOD);
@@ -323,9 +336,14 @@ function updateBeacon() {
       vol *= 0.03; // near-silent between pulses
     }
   }
+  // Sonar Ping: boost volume and use continuous frequency when active
+  if (pingActive) {
+    vol *= 1.5;
+    beaconOsc.frequency.setTargetAtTime(freq, t, 0.05);
+  }
   beaconPanner.pan.setTargetAtTime(pan, t, 0.08);
   beaconGain.gain.setTargetAtTime(vol, t, 0.1);
-  if (!deepSpace) beaconOsc.frequency.setTargetAtTime(freq, t, 0.2);
+  if (!deepSpace || pingActive) beaconOsc.frequency.setTargetAtTime(freq, t, 0.2);
 }
 
 function playArrivalChime() {
@@ -389,6 +407,35 @@ function playFlyby(pan) {
   osc.stop(now + 0.2);
 }
 
+function playSonarPing() {
+  if (!synthStarted || !synthCtx) return;
+  var now = synthCtx.currentTime;
+  // Distinctive sonar chirp: high→low sine sweep, unmistakable through bone conduction
+  var o1 = synthCtx.createOscillator();
+  o1.type = 'sine';
+  o1.frequency.setValueAtTime(1200, now);
+  o1.frequency.exponentialRampToValueAtTime(600, now + 0.12);
+  var g1 = synthCtx.createGain();
+  g1.gain.setValueAtTime(0.1, now);
+  g1.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+  o1.connect(g1);
+  g1.connect(masterGain);
+  o1.start(now);
+  o1.stop(now + 0.25);
+  // Second harmonic for richness
+  var o2 = synthCtx.createOscillator();
+  o2.type = 'triangle';
+  o2.frequency.setValueAtTime(2400, now);
+  o2.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+  var g2 = synthCtx.createGain();
+  g2.gain.setValueAtTime(0.04, now);
+  g2.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+  o2.connect(g2);
+  g2.connect(masterGain);
+  o2.start(now);
+  o2.stop(now + 0.2);
+}
+
 function initMic() {
   if (micActive || micFailed) return;
   micFailed = true;
@@ -425,7 +472,15 @@ document.addEventListener('keydown', function(e) {
   e.preventDefault();
   if (e.key === 'ArrowUp') {
     if (!synthStarted) initSynth();
-    targetSpeed = Math.min(2.0, targetSpeed + 0.15);
+    if (deepSpace && gameMode === 1 && !voyagerComplete && pingRemaining > 0 && !pingActive) {
+      // Sonar ping: 1-second clarity window through bone conduction
+      pingActive = true;
+      pingFrames = PING_DURATION;
+      pingRemaining--;
+      playSonarPing();
+    } else if (!(deepSpace && gameMode === 1 && !voyagerComplete)) {
+      targetSpeed = Math.min(2.0, targetSpeed + 0.15);
+    }
   } else if (e.key === 'ArrowDown') {
     if (!synthStarted) initSynth();
     if (gameMode === 1 && !voyagerComplete) {
@@ -502,6 +557,14 @@ function draw() {
   updateMic();
   updateSynth();
   updateBeacon();
+
+  // Sonar ping timer countdown
+  if (pingActive) {
+    pingFrames--;
+    if (pingFrames <= 0) {
+      pingActive = false;
+    }
+  }
 
   // Mic-driven speed (Free Roam mic mode only)
   if (micMode && micActive && gameMode === 0) {
@@ -726,6 +789,9 @@ function draw() {
     if (tgt.dist <= 0) {
       tgt.dist = 0;
       voyagerArrivalFlash = 1.0;
+      pingRemaining = PINGS_PER_WAYPOINT; // reset pings for next waypoint
+      pingActive = false;
+      pingFrames = 0;
       voyagerIdx++;
       if (voyagerIdx >= voyagerChainLen) {
         voyagerComplete = true;
@@ -800,13 +866,18 @@ function draw() {
   } else {
     // Voyager HUD
     ctx.fillText('\ud83d\ude80 VOYAGER', 12, 18);
-    // Deep Space mode label
+    // Deep Space mode label + ping counter
     if (deepSpace && !voyagerComplete) {
       ctx.font = '600 11px -apple-system, sans-serif';
       ctx.textAlign = 'left';
       var dsAlpha = 0.5 + Math.sin(tick * 0.04) * 0.2;
       ctx.fillStyle = 'rgba(80,140,220,' + dsAlpha + ')';
       ctx.fillText('DEEP SPACE', 110, 18);
+      // Sonar ping counter
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = pingRemaining > 0 ? (pingActive ? '#80ffcc' : '#4acdff') : '#444';
+      ctx.fillText('\ud83d\udd0a ' + pingRemaining + '/' + PINGS_PER_WAYPOINT, 200, 18);
     }
 
     if (!voyagerComplete && voyagerIdx < voyagerTargets.length) {
@@ -870,16 +941,29 @@ function draw() {
       } else {
         // Deep Space: NO visual direction cues — only the beacon audio guides you.
         // Show a dim pulse ring synced to beacon pulse for minimal feedback.
-        var inPulseVis = beaconPulsePhase < (PULSE_DURATION / PULSE_PERIOD);
-        if (inPulseVis) {
-          var pulseAlpha = 0.08 + (1 - beaconPulsePhase / (PULSE_DURATION / PULSE_PERIOD)) * 0.12;
+        if (pingActive) {
+          // Sonar ping active: bright expanding ring shows clarity window is open
+          var pingAlpha = (pingFrames / PING_DURATION) * 0.25;
+          var pingRingR = 20 + (1 - pingFrames / PING_DURATION) * 40;
           ctx.save();
-          ctx.strokeStyle = 'rgba(80,120,180,' + pulseAlpha + ')';
-          ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(80,220,200,' + pingAlpha + ')';
+          ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.arc(CX, CY, 20 + beaconPulsePhase * 40, 0, Math.PI * 2);
+          ctx.arc(CX, CY, pingRingR, 0, Math.PI * 2);
           ctx.stroke();
           ctx.restore();
+        } else {
+          var inPulseVis = beaconPulsePhase < (PULSE_DURATION / PULSE_PERIOD);
+          if (inPulseVis) {
+            var pulseAlpha = 0.08 + (1 - beaconPulsePhase / (PULSE_DURATION / PULSE_PERIOD)) * 0.12;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(80,120,180,' + pulseAlpha + ')';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(CX, CY, 20 + beaconPulsePhase * 40, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
         }
       }
 
@@ -1009,7 +1093,7 @@ function draw() {
   } else if (voyagerComplete) {
     hint = 'Enter Free Roam  Esc Back';
   } else {
-    hint = '\u2191 Speed  \u2190\u2192 Steer  \u2193 ' + (deepSpace ? 'Normal' : 'Deep Space') + '  Esc Cancel  \ud83d\udd14';
+    hint = (deepSpace ? '\u2191 Ping(' + pingRemaining + ')' : '\u2191 Speed') + '  \u2190\u2192 Steer  \u2193 ' + (deepSpace ? 'Normal' : 'Deep Space') + '  Esc Cancel  \ud83d\udd14';
   }
   ctx.fillText(hint, W / 2, H - 14);
 
