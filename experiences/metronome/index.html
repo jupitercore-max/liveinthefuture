@@ -96,6 +96,20 @@ var lastTapDetect = 0;
 var tapFlash = 0;          // visual feedback for detected tap
 var ambientLevel = 0.05;   // running ambient baseline
 
+// --- Timing Precision Feedback ---
+// Detects note onsets via mic during play, compares against beat timing
+var timingHits = [];           // recent {time, offset} pairs
+var timingMaxHits = 24;
+var timingPlayThreshold = 0.12;// lower than tap threshold for note attacks
+var timingPlayCooldown = 100;  // ms between detected notes
+var lastTimingDetect = 0;
+var timingIgnoreMs = 35;       // ignore transients near a beat (self-detection filter)
+var lastBeatStamp = 0;         // set each time beat() fires
+var timingFlash = 0;
+var timingLastOffset = 0;
+var sessionTimingHits = [];    // all hits for session summary
+var lastSessionTiming = null;  // persisted after stop for display
+
 function initMic() {
   if (micActive || micFailed || micIniting) return;
   micIniting = true;
@@ -144,6 +158,45 @@ function updateMic() {
     tapFlash = 1.0;
     tapTempo();
   }
+
+  // Timing precision: detect note onsets during play
+  detectTiming();
+}
+
+function detectTiming() {
+  if (!playing || !micActive) return;
+  var now = performance.now();
+  if (now - lastBeatStamp < timingIgnoreMs) return; // skip self-detection
+  var spike = micLevel - ambientLevel;
+  if (spike > timingPlayThreshold && now - lastTimingDetect > timingPlayCooldown) {
+    lastTimingDetect = now;
+    var interval = 60000 / bpm;
+    var elapsed = now - lastBeatStamp;
+    var offset = elapsed;
+    if (offset > interval / 2) offset = offset - interval; // early for next beat
+    timingLastOffset = Math.round(offset);
+    timingFlash = 1.0;
+    timingHits.push({ time: now, offset: offset });
+    sessionTimingHits.push({ time: now, offset: offset });
+    if (timingHits.length > timingMaxHits) timingHits.shift();
+  }
+}
+
+function getTimingStats(hits) {
+  if (!hits || hits.length < 3) return null;
+  var sum = 0;
+  for (var i = 0; i < hits.length; i++) sum += hits[i].offset;
+  var mean = sum / hits.length;
+  var varSum = 0;
+  for (var i = 0; i < hits.length; i++) { var d = hits[i].offset - mean; varSum += d * d; }
+  return { mean: mean, stddev: Math.sqrt(varSum / hits.length), count: hits.length };
+}
+
+function getTimingLabel(stddev) {
+  if (stddev < 15) return { text: 'TIGHT', color: '#66bb6a' };
+  if (stddev < 30) return { text: 'GOOD', color: '#4a9eff' };
+  if (stddev < 50) return { text: 'LOOSE', color: '#ffca28' };
+  return { text: 'SLOPPY', color: '#ff7043' };
 }
 
 // Persistence
@@ -274,6 +327,7 @@ function getTempoName(b) {
 }
 
 function beat() {
+  lastBeatStamp = performance.now();
   currentBeat = (currentBeat % beatsPerMeasure) + 1;
   subTick = 0;
   if (currentBeat === 1) {
@@ -336,6 +390,10 @@ function update() {
   // Decay preset flash
   presetFlash *= 0.93;
   if (presetFlash < 0.01) presetFlash = 0;
+
+  // Decay timing flash
+  timingFlash *= 0.88;
+  if (timingFlash < 0.01) timingFlash = 0;
 
   // Smooth pendulum swing
   var swingSpeed = 0.08 + (bpm / 300) * 0.12;
@@ -444,6 +502,61 @@ function draw() {
   ctx.font = '600 18px -apple-system, sans-serif';
   ctx.fillStyle = '#4a9eff';
   ctx.fillText(getTempoName(bpm), W / 2, 412);
+
+  // --- Timing Precision Display ---
+  if (playing && micActive) {
+    var tY = 374, tBarW = 200, tBarH = 4;
+    var tBarX = W/2 - tBarW/2, halfMs = 80;
+    // Bar background
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.roundRect(tBarX, tY, tBarW, tBarH, 2); ctx.fill();
+    // Center marker (on-beat)
+    ctx.fillStyle = '#444'; ctx.fillRect(W/2 - 1, tY - 3, 2, tBarH + 6);
+    // Green zone (±15ms)
+    var greenW = 15/halfMs * (tBarW/2);
+    ctx.fillStyle = 'rgba(102,187,106,0.12)';
+    ctx.fillRect(W/2 - greenW, tY - 1, greenW*2, tBarH + 2);
+    // Hit markers
+    var tnow = performance.now();
+    for (var hi = 0; hi < timingHits.length; hi++) {
+      var th = timingHits[hi];
+      var tage = (tnow - th.time) / 4000;
+      if (tage > 1) continue;
+      var thx = W/2 + (th.offset / halfMs) * (tBarW/2);
+      thx = Math.max(tBarX + 2, Math.min(tBarX + tBarW - 2, thx));
+      ctx.save(); ctx.globalAlpha = (1 - tage) * 0.8;
+      ctx.fillStyle = Math.abs(th.offset) < 15 ? '#66bb6a' : Math.abs(th.offset) < 35 ? '#4a9eff' : '#ff7043';
+      ctx.beginPath(); ctx.arc(thx, tY + tBarH/2, 3, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+    // Stats
+    var tStats = getTimingStats(timingHits);
+    if (tStats) {
+      var tLabel = getTimingLabel(tStats.stddev);
+      ctx.font = 'bold 11px -apple-system, sans-serif';
+      ctx.fillStyle = tLabel.color; ctx.textAlign = 'center';
+      ctx.fillText(tLabel.text + ' \u00b1' + Math.round(tStats.stddev) + 'ms', W/2, tY + 18);
+      if (Math.abs(tStats.mean) > 12) {
+        ctx.font = '10px -apple-system, sans-serif'; ctx.fillStyle = '#777';
+        ctx.fillText(tStats.mean < 0 ? '\u2190 rushing' : 'dragging \u2192', W/2, tY + 30);
+      }
+    } else if (timingHits.length > 0) {
+      ctx.font = '10px -apple-system, sans-serif'; ctx.fillStyle = '#555';
+      ctx.textAlign = 'center'; ctx.fillText('\u266a listening...', W/2, tY + 18);
+    }
+  }
+  // Session timing summary (when stopped, after a session with data)
+  if (!playing && lastSessionTiming) {
+    var ls = lastSessionTiming;
+    var lsLabel = getTimingLabel(ls.stddev);
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.fillStyle = lsLabel.color; ctx.textAlign = 'center';
+    ctx.fillText('\uD83C\uDFAF ' + lsLabel.text + ' \u00b1' + Math.round(ls.stddev) + 'ms (' + ls.count + ' notes)', W/2, 378);
+    if (Math.abs(ls.mean) > 12) {
+      ctx.font = '11px -apple-system, sans-serif'; ctx.fillStyle = '#666';
+      ctx.fillText(ls.mean < 0 ? 'Tendency: rushing' : 'Tendency: dragging', W/2, 394);
+    }
+  }
 
   // Subdivision indicator
   ctx.font = '18px -apple-system, sans-serif';
@@ -709,11 +822,17 @@ document.addEventListener('keydown', function(e) {
       sessionAccum = 0;
       currentBeat = 0;
       flashIntensity = 0;
+      // Save timing summary
+      if (sessionTimingHits.length >= 3) {
+        lastSessionTiming = getTimingStats(sessionTimingHits);
+      } else { lastSessionTiming = null; }
+      timingHits = []; sessionTimingHits = [];
     } else {
       playing = true;
       sessionStartTime = performance.now();
       lastBeatTime = performance.now();
       currentBeat = 0;
+      timingHits = []; sessionTimingHits = []; lastSessionTiming = null;
       beat();
     }
   } else if (e.key === 'Escape' || e.key === 'Backspace') {

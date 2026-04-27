@@ -160,6 +160,8 @@ var breathRMS=0,breathSmooth=0,breathPrevSmooth=0,breathTrend=0;
 var breathCycleStamps=[],breathRate=0;
 var breathPhase='out',breathZone='--';
 var breathZoneColors={'--':'#555',EASY:'#66bb6a',MODERATE:'#ffca28',HARD:'#ff7043',MAX:'#ff1744'};
+// Breathing-pace coaching: when exertion mismatches pace, suggest adjustment via audio
+var coachState=null,coachTargetZone=null;
 
 // Audio
 var audioCtx=null,audioInited=false;
@@ -305,6 +307,18 @@ function playCadenceTick(){
     o2.connect(g2);g2.connect(audioCtx.destination);o2.type='sine';o2.frequency.value=freq*1.5;
     g2.gain.setValueAtTime(0.008,t);g2.gain.exponentialRampToValueAtTime(0.001,t+0.04);
     o2.start(t);o2.stop(t+0.05);
+  }
+  // Breathing-pace coaching undertone: when breathing suggests a different pace,
+  // add a subtle second tone at the coached target pitch alongside the step tick.
+  // The two-tone mismatch creates an audible "tension" that resolves when user adjusts pace.
+  if(audioMode===2&&coachState&&coachTargetZone){
+    var cFreq=paceZonePitch[coachTargetZone]||330;
+    if(Math.abs(cFreq-freq)>20){
+      var co=audioCtx.createOscillator(),cg=audioCtx.createGain();
+      co.connect(cg);cg.connect(audioCtx.destination);co.type='sine';co.frequency.value=cFreq;
+      cg.gain.setValueAtTime(0.015,t);cg.gain.exponentialRampToValueAtTime(0.001,t+0.08);
+      co.start(t);co.stop(t+0.09);
+    }
   }
 }
 
@@ -473,6 +487,21 @@ function update(){
       addNotification('\uD83E\uDEC1 '+breathZone+' effort',breathZoneColors[breathZone]);
     }
   }
+  // Breathing-pace coaching: detect mismatches between exertion and pace
+  var oldCoach=coachState;
+  coachState=null;coachTargetZone=null;
+  if(audioMode===2&&breathZone!=='--'&&paceZone!=='IDLE'){
+    if(breathZone==='MAX'&&(paceZone==='WALK'||paceZone==='BRISK'||paceZone==='RUN')){
+      coachState='ease';coachTargetZone='STROLL';
+    }else if(breathZone==='HARD'&&(paceZone==='BRISK'||paceZone==='RUN')){
+      coachState='ease';coachTargetZone='WALK';
+    }else if(breathZone==='EASY'&&paceZone==='STROLL'&&smoothPace>10){
+      coachState='push';coachTargetZone='WALK';
+    }
+  }
+  if(coachState!==oldCoach&&coachState){
+    addNotification(coachState==='ease'?'\uD83E\uDEC1\u2192\u266A Ease up':'\uD83E\uDEC1\u2192\u266A Push it',coachState==='ease'?'#ffca28':'#66bb6a');
+  }
 }
 
 // --- Render ---
@@ -545,10 +574,16 @@ function draw(){
   ctx.font='bold 18px system-ui';ctx.fillStyle=progress>=1?'#ffd700':'#4fc3f7';
   ctx.fillText(pct+'%',cx,cy+50);
 
-  // Pace zone in ring
+  // Pace zone in ring (with breathing-pace coaching indicator)
   if(paceZone!=='IDLE'){
-    ctx.font='bold 13px system-ui';ctx.fillStyle=paceZoneColors[paceZone];
-    ctx.fillText('♪ '+paceZone,cx,cy+70);
+    ctx.font='bold 13px system-ui';
+    if(coachState&&coachTargetZone){
+      ctx.fillStyle=coachState==='ease'?'#ffca28':'#66bb6a';
+      ctx.fillText('\u266A '+paceZone+' '+(coachState==='ease'?'\u2193':'\u2191')+' '+coachTargetZone,cx,cy+70);
+    }else{
+      ctx.fillStyle=paceZoneColors[paceZone];
+      ctx.fillText('\u266A '+paceZone,cx,cy+70);
+    }
   }
   // Breathing exertion zone (inside ring)
   if(audioMode===2){
