@@ -150,7 +150,16 @@ var cadenceAudioEnabled=true;
 var paceZone='IDLE';
 var paceZoneColors={IDLE:'#555',STROLL:'#78909c',WALK:'#4fc3f7',BRISK:'#66bb6a',RUN:'#ff7043'};
 var paceZonePitch={STROLL:220,WALK:330,BRISK:440,RUN:550};
-try{var cp=localStorage.getItem('litf_steps_cadence');if(cp!==null)cadenceAudioEnabled=cp==='1'}catch(e){}
+// Audio mode: 0=off, 1=cadence, 2=cadence+breath
+var audioMode=1;
+try{var am=localStorage.getItem('litf_steps_audiomode');if(am!==null){audioMode=parseInt(am)||0;cadenceAudioEnabled=audioMode>=1}}catch(e){}
+
+// Breathing detection via mic
+var micInited=false,micStream=null,micAnalyser=null,micDataBuf=null;
+var breathRMS=0,breathSmooth=0,breathPrevSmooth=0,breathTrend=0;
+var breathCycleStamps=[],breathRate=0;
+var breathPhase='out',breathZone='--';
+var breathZoneColors={'--':'#555',EASY:'#66bb6a',MODERATE:'#ffca28',HARD:'#ff7043',MAX:'#ff1744'};
 
 // Audio
 var audioCtx=null,audioInited=false;
@@ -227,7 +236,25 @@ function save(){
 }
 
 // --- Audio ---
-function initAudio(){if(audioInited)return;try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();audioInited=true}catch(e){}}
+function initAudio(){if(audioInited)return;try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();audioInited=true;if(audioMode===2)initMic()}catch(e){}}
+
+function initMic(){
+  if(micInited||!audioCtx)return;
+  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+    micStream=stream;
+    micAnalyser=audioCtx.createAnalyser();
+    micAnalyser.fftSize=2048;micAnalyser.smoothingTimeConstant=0.3;
+    var src=audioCtx.createMediaStreamSource(stream);
+    src.connect(micAnalyser);
+    micDataBuf=new Uint8Array(micAnalyser.fftSize);
+    micInited=true;
+    addNotification('🎤 Breathing active','#66bb6a');
+  }).catch(function(){
+    audioMode=1;cadenceAudioEnabled=true;
+    try{localStorage.setItem('litf_steps_audiomode','1')}catch(e2){}
+    addNotification('🎤 Mic denied — cadence only','#ff6666');
+  });
+}
 
 function playTone(freq,dur,vol,type,delay){
   if(!audioCtx)return;var o=audioCtx.createOscillator(),g=audioCtx.createGain();
@@ -285,6 +312,13 @@ function playPaceZoneChange(oldZ,newZ){
   if(!audioCtx||!cadenceAudioEnabled)return;
   var f1=paceZonePitch[oldZ]||220,f2=paceZonePitch[newZ]||330;
   playTone(f1,0.15,0.08,'sine',0);playTone(f2,0.15,0.08,'sine',0.12);
+}
+
+function playBreathZoneChange(oldZ,newZ){
+  if(!audioCtx)return;
+  var pm={EASY:220,MODERATE:330,HARD:440,MAX:554};
+  var f1=pm[oldZ]||220,f2=pm[newZ]||330;
+  playTone(f1,0.12,0.06,'sine',0);playTone(f2,0.15,0.06,'sine',0.1);
 }
 
 function playQuestAppear(){
@@ -411,6 +445,34 @@ function update(){
   if(questCooldown>0)questCooldown--;
   tickQuest();
   if(!activeQuest&&sessionSteps>=nextQuestAt&&sessionSteps>=nextQuestAtInit)spawnQuest();
+  // Breathing analysis
+  if(audioMode===2&&micInited&&micAnalyser&&micDataBuf){
+    micAnalyser.getByteTimeDomainData(micDataBuf);
+    var bSum=0;
+    for(var bi=0;bi<micDataBuf.length;bi++){var bv=(micDataBuf[bi]-128)/128;bSum+=bv*bv}
+    breathRMS=Math.sqrt(bSum/micDataBuf.length);
+    breathSmooth=breathSmooth*0.92+breathRMS*0.08;
+    breathTrend=breathSmooth-breathPrevSmooth;
+    breathPrevSmooth=breathSmooth;
+    if(breathPhase==='out'&&breathTrend>0.0004&&breathSmooth>0.008){breathPhase='in'}
+    if(breathPhase==='in'&&breathTrend<-0.0004){
+      breathPhase='out';
+      var bn=Date.now();
+      breathCycleStamps.push(bn);
+      while(breathCycleStamps.length>0&&bn-breathCycleStamps[0]>60000)breathCycleStamps.shift();
+      breathRate=breathCycleStamps.length;
+    }
+    var oldBZ=breathZone;
+    if(breathRate<1)breathZone='--';
+    else if(breathRate<=15)breathZone='EASY';
+    else if(breathRate<=22)breathZone='MODERATE';
+    else if(breathRate<=30)breathZone='HARD';
+    else breathZone='MAX';
+    if(oldBZ!==breathZone&&breathZone!=='--'&&oldBZ!=='--'){
+      playBreathZoneChange(oldBZ,breathZone);
+      addNotification('\uD83E\uDEC1 '+breathZone+' effort',breathZoneColors[breathZone]);
+    }
+  }
 }
 
 // --- Render ---
@@ -487,6 +549,21 @@ function draw(){
   if(paceZone!=='IDLE'){
     ctx.font='bold 13px system-ui';ctx.fillStyle=paceZoneColors[paceZone];
     ctx.fillText('♪ '+paceZone,cx,cy+70);
+  }
+  // Breathing exertion zone (inside ring)
+  if(audioMode===2){
+    if(breathZone!=='--'){
+      ctx.font='bold 12px system-ui';ctx.fillStyle=breathZoneColors[breathZone];
+      ctx.fillText('\uD83E\uDEC1 '+breathZone,cx,cy+86);
+      ctx.font='9px system-ui';ctx.fillStyle='#555';
+      ctx.fillText(breathRate+' br/min',cx,cy+98);
+    }else if(micInited){
+      ctx.font='10px system-ui';ctx.fillStyle='#444';
+      ctx.fillText('\uD83E\uDEC1 detecting...',cx,cy+86);
+    }else{
+      ctx.font='10px system-ui';ctx.fillStyle='#444';
+      ctx.fillText('\uD83C\uDFA4 starting mic...',cx,cy+86);
+    }
   }
 
   // --- Daily Challenge ---
@@ -592,13 +669,14 @@ function draw(){
 
   // --- Bottom controls ---
   ctx.font='10px system-ui';ctx.fillStyle='#333';
-  ctx.fillText('←→ Goal  •  ↑ Audio  •  ↓ Check  •  Enter: Reset session  •  Esc: Back',W/2,535);
+  var amLabel=audioMode===0?'OFF':audioMode===1?'\u266A':audioMode===2?'\uD83E\uDEC1':'?';
+  ctx.fillText('\u2190\u2192 Goal  \u2022  \u2191 Audio['+amLabel+']  \u2022  \u2193 Check  \u2022  Enter: Reset  \u2022  Esc: Back',W/2,535);
 
   // Demo mode
   if(demoMode){ctx.font='10px system-ui';ctx.fillStyle='#444';ctx.fillText('📱 Demo — no accelerometer',W/2,555)}
 
   // Audio off indicator
-  if(!cadenceAudioEnabled){ctx.font='10px system-ui';ctx.fillStyle='#444';ctx.fillText('🔇 cadence off (↑ to enable)',W/2,570)}
+  if(audioMode===0){ctx.font='10px system-ui';ctx.fillStyle='#444';ctx.fillText('\uD83D\uDD07 audio off (\u2191 to cycle)',W/2,570)}
 
   // --- Floating notifications ---
   for(var n=notifications.length-1;n>=0;n--){
@@ -624,9 +702,12 @@ document.addEventListener('keydown',function(e){
     for(var i=0;i<milestones.length;i++)if(steps>=milestones[i])lastMilestone=milestones[i];
     save();e.preventDefault();
   }else if(key==='ArrowUp'){
-    cadenceAudioEnabled=!cadenceAudioEnabled;
-    try{localStorage.setItem('litf_steps_cadence',cadenceAudioEnabled?'1':'0')}catch(e2){}
-    addNotification(cadenceAudioEnabled?'🔊 Cadence ON':'🔇 Cadence OFF','#888');
+    audioMode=(audioMode+1)%3;
+    cadenceAudioEnabled=audioMode>=1;
+    if(audioMode===2&&!micInited)initMic();
+    try{localStorage.setItem('litf_steps_audiomode',''+audioMode)}catch(e2){}
+    var mNames=['\uD83D\uDD07 Audio OFF','\uD83D\uDD0A Cadence','\uD83E\uDEC1 Breath+Cadence'];
+    addNotification(mNames[audioMode],'#888');
     e.preventDefault();
   }else if(key==='ArrowDown'){
     if(audioCtx&&steps>0)playProgressChime();e.preventDefault();
