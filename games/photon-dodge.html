@@ -277,7 +277,6 @@ var score = 0;
 var hiScore = pStats.hiScore || 0;
 var bestPhase = pStats.bestPhase || 0;
 var tick = 0;
-var slowmo = false;
 
 // Keys held
 var keys = {};
@@ -330,23 +329,67 @@ function spawnPattern() {
 }
 
 // === Hazard audio & spawning ===
-function playHazardWarning() {
+function playHazardWarning(hazardId) {
   if (!audioCtx) return;
   var t = audioCtx.currentTime;
-  var o1 = audioCtx.createOscillator();
-  var g1 = audioCtx.createGain();
-  o1.type = 'sawtooth'; o1.frequency.value = 65;
-  g1.gain.setValueAtTime(0.12, t); g1.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
-  o1.connect(g1); g1.connect(audioCtx.destination);
-  o1.start(t); o1.stop(t + 0.8);
-  var o2 = audioCtx.createOscillator();
-  var g2 = audioCtx.createGain();
-  o2.type = 'sine';
-  o2.frequency.setValueAtTime(600, t + 0.1);
-  o2.frequency.linearRampToValueAtTime(900, t + 0.7);
-  g2.gain.setValueAtTime(0.08, t + 0.1); g2.gain.exponentialRampToValueAtTime(0.01, t + 0.7);
-  o2.connect(g2); g2.connect(audioCtx.destination);
-  o2.start(t + 0.1); o2.stop(t + 0.8);
+  if (hazardId === 'nova') {
+    // Deep bass boom building from low — "something massive from center"
+    var o = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(50, t); o.frequency.exponentialRampToValueAtTime(120, t + 0.6);
+    g.gain.setValueAtTime(0.02, t); g.gain.linearRampToValueAtTime(0.15, t + 0.4); g.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + 0.8);
+    // Sub-harmonic thump
+    var o2 = audioCtx.createOscillator(); var g2 = audioCtx.createGain();
+    o2.type = 'sine'; o2.frequency.value = 40;
+    g2.gain.setValueAtTime(0.1, t + 0.3); g2.gain.exponentialRampToValueAtTime(0.01, t + 0.6);
+    o2.connect(g2); g2.connect(audioCtx.destination); o2.start(t + 0.3); o2.stop(t + 0.7);
+  } else if (hazardId === 'cage') {
+    // Rapid metallic clicks — "walls closing in"
+    for (var ci = 0; ci < 4; ci++) {
+      (function(idx) {
+        var oc = audioCtx.createOscillator(); var gc = audioCtx.createGain();
+        oc.type = 'square'; oc.frequency.value = 500 + idx * 80;
+        gc.gain.setValueAtTime(0.08, t + idx * 0.15); gc.gain.exponentialRampToValueAtTime(0.01, t + idx * 0.15 + 0.08);
+        oc.connect(gc); gc.connect(audioCtx.destination); oc.start(t + idx * 0.15); oc.stop(t + idx * 0.15 + 0.1);
+      })(ci);
+    }
+  } else if (hazardId === 'helix') {
+    // Swooping pitch — "spiraling motion"
+    var oh = audioCtx.createOscillator(); var gh = audioCtx.createGain();
+    oh.type = 'sine';
+    oh.frequency.setValueAtTime(200, t); oh.frequency.linearRampToValueAtTime(800, t + 0.35); oh.frequency.linearRampToValueAtTime(200, t + 0.7);
+    gh.gain.setValueAtTime(0.1, t); gh.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
+    oh.connect(gh); gh.connect(audioCtx.destination); oh.start(t); oh.stop(t + 0.8);
+  } else if (hazardId === 'sniper') {
+    // Sharp targeting lock beeps — "locked on"
+    for (var si = 0; si < 3; si++) {
+      (function(idx) {
+        var os = audioCtx.createOscillator(); var gs = audioCtx.createGain();
+        os.type = 'triangle'; os.frequency.value = 1200;
+        gs.gain.setValueAtTime(0.1, t + idx * 0.2); gs.gain.exponentialRampToValueAtTime(0.01, t + idx * 0.2 + 0.06);
+        os.connect(gs); gs.connect(audioCtx.destination); os.start(t + idx * 0.2); os.stop(t + idx * 0.2 + 0.08);
+      })(si);
+    }
+    // Sustained lock tone
+    var ol = audioCtx.createOscillator(); var gl = audioCtx.createGain();
+    ol.type = 'sine'; ol.frequency.value = 900;
+    gl.gain.setValueAtTime(0.06, t + 0.5); gl.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
+    ol.connect(gl); ol.connect(audioCtx.destination); ol.start(t + 0.5); ol.stop(t + 0.8);
+  } else if (hazardId === 'void') {
+    // Descending rumble into silence — "darkness descending"
+    var ov = audioCtx.createOscillator(); var gv = audioCtx.createGain();
+    ov.type = 'sawtooth';
+    ov.frequency.setValueAtTime(300, t); ov.frequency.exponentialRampToValueAtTime(35, t + 0.7);
+    gv.gain.setValueAtTime(0.12, t); gv.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
+    ov.connect(gv); gv.connect(audioCtx.destination); ov.start(t); ov.stop(t + 0.8);
+  } else {
+    // Fallback — generic warning
+    var o1 = audioCtx.createOscillator(); var g1 = audioCtx.createGain();
+    o1.type = 'sawtooth'; o1.frequency.value = 65;
+    g1.gain.setValueAtTime(0.12, t); g1.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
+    o1.connect(g1); g1.connect(audioCtx.destination); o1.start(t); o1.stop(t + 0.8);
+  }
 }
 
 function spawnHazardNova() {
@@ -464,7 +507,7 @@ function resetGame() {
 function update() {
   if (state !== ST_PLAY) return;
   tick++;
-  var spd = slowmo ? pSpeed * 0.6 : pSpeed;
+  var spd = pSpeed;
 
   // Move player
   if (keys['ArrowUp']) py -= spd;
@@ -537,7 +580,7 @@ function update() {
   } else if (phaseIdx >= 2 && hazardCooldown === 0 && tick % 60 === 0 && Math.random() < 0.12) {
     hazardType = HAZARDS[Math.floor(Math.random() * HAZARDS.length)];
     hazardWarning = 60; // 1s warning
-    playHazardWarning();
+    playHazardWarning(hazardType.id);
   }
 
   // Void effect — darkness timer then ring spawn
@@ -563,7 +606,7 @@ function update() {
   }
 
   // Move bullets & check collision + graze
-  var bspd = slowmo ? 0.5 : phase.speedMul;
+  var bspd = phase.speedMul;
   var grazedThisFrame = false;
   for (var i = bullets.length - 1; i >= 0; i--) {
     var b = bullets[i];
