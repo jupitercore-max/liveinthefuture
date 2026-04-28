@@ -60,7 +60,7 @@ _Benchmarks: Calm/Headspace (breathing), Peterson Tuner (music tools), Decibel X
 
 | Experience | Score | Tier | Breakdown (T/H/G/R/D/A/V/Dp/S/C) | Notes |
 |---|---|---|---|---|
-| compass | 84 | A | 5/5/5/4/5/5/4/2/2/5 | Geiger-counter audio guidance is genuinely inspired craft. Low on depth/surprise — it's a compass, not a game. But the best glasses utility concept. |
+| compass | 82 | A | 5/5/5/4/5/5/3/2/2/5 | Geiger-counter audio guidance is genuinely inspired craft. Low on depth/surprise — it's a compass, not a game. But the best glasses utility concept. **Score correction:** Session Variance 4→3 — no mic input, no procedural generation, no emergent behavior. User-driven heading variance doesn't constitute V=4. Compare particle-life V=4 (mic-driven ecosystem). V=3 is honest. |
 | breathe | 82 | A | 4/5/5/5/4/5/3/3/2/5 | 5 patterns + mic biofeedback + rank progression. Strong return loop. Low variance (same breathing every time) and no real surprises after first session. Benchmark: Calm has 100+ exercises, sleep stories, courses. |
 | neck-stretch | 80 | A | 4/4/5/5/4/5/3/3/2/5 | Head-tracked stretches with biofeedback sync scoring. The ROM + breathing dual-metric is inspired. Low variance — 3 routines, same every time. |
 | noise | 80 | A | 4/5/5/4/5/5/3/2/2/5 | Adaptive masking via mic is THE glasses killer feature. But it's a noise machine — low depth, low surprise. Benchmark: myNoise has 200+ generators with user-created presets. |
