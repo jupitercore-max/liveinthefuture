@@ -83,6 +83,7 @@ var breathLastPeak = 0;
 var breathSessionDepths = [];
 var breathQuality = 0;
 var breathPulse = 0;
+var lastShallowCueTime = 0;
 
 // Continuous posture drone — bone conduction biofeedback
 var postureDroneOsc = null;
@@ -1075,6 +1076,12 @@ function drawMonitor() {
       ctx.fillStyle = '#f44336';
       ctx.textAlign = 'center';
       ctx.fillText('⚠ Slouching → shallow breathing', 300, 395);
+      // Bone conduction cue every 15s when slouching + shallow breathing
+      var now_bc = Date.now();
+      if (now_bc - lastShallowCueTime > 15000) {
+        playShallowBreathCue();
+        lastShallowCueTime = now_bc;
+      }
     }
   } else if (micActive) {
     ctx.font = '11px system-ui';

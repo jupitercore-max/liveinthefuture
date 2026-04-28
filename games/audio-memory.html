@@ -119,15 +119,35 @@ var bidConfirmTimer = 0;
 var challengeType = null; // null, "reverse", "ghost", "speed"
 var ghostIndex = -1;
 var challengeAnnounceTimer = 0;
-var CHALLENGE_TYPES = ["reverse", "ghost", "speed"];
+var CHALLENGE_TYPES = ["reverse", "ghost", "speed", "mirror", "pinpoint"];
 var CHALLENGE_INFO = {
-  reverse: {name: "🔄 REVERSE", desc: "Repeat it BACKWARDS!", color: "#e040fb"},
-  ghost:   {name: "👻 GHOST TONE", desc: "One tone is hidden!", color: "#7c4dff"},
-  speed:   {name: "⚡ DOUBLE SPEED", desc: "2× speed, 2× points!", color: "#ffab00"}
+  reverse:  {name: "🔄 REVERSE",   desc: "Repeat it BACKWARDS!",           color: "#e040fb"},
+  ghost:    {name: "👻 GHOST TONE", desc: "One tone is hidden!",            color: "#7c4dff"},
+  speed:    {name: "⚡ DOUBLE SPEED",desc: "2× speed, 2× points!",          color: "#ffab00"},
+  mirror:   {name: "🪞 MIRROR",     desc: "Trust your ears — visuals lie!", color: "#00bcd4"},
+  pinpoint: {name: "📍 PINPOINT",   desc: "No labels — pure audio recall!", color: "#ff7043"}
 };
+var DIR_OPPOSITE = {up: "down", down: "up", left: "right", right: "left"};
 
 // Load best from localStorage
 try { bestRound = parseInt(localStorage.getItem("litf_audiomem_best")) || 0; } catch(e) {}
+
+// Challenge discovery tracking
+var discoveredChallenges = {};
+try { discoveredChallenges = JSON.parse(localStorage.getItem("litf_audiomem_challenges") || "{}"); } catch(e) {}
+
+function trackChallengeDiscovery(type) {
+  if (!discoveredChallenges[type]) {
+    discoveredChallenges[type] = true;
+    try { localStorage.setItem("litf_audiomem_challenges", JSON.stringify(discoveredChallenges)); } catch(e) {}
+  }
+}
+
+function getChallengeDiscoveryCount() {
+  var count = 0;
+  for (var k in discoveredChallenges) { if (discoveredChallenges[k]) count++; }
+  return count;
+}
 
 // Rank progression — cumulative rounds completed
 var RANKS = [
@@ -324,7 +344,11 @@ function playBidConfirmSound() {
 
 function setupChallenge() {
   if (round >= 3 && round % 3 === 0) {
-    challengeType = CHALLENGE_TYPES[Math.floor(Math.random() * CHALLENGE_TYPES.length)];
+    // Pool-based selection: rare types appear at higher rounds
+    var pool = ["reverse", "ghost", "speed"];
+    if (round >= 6) pool.push("mirror");
+    if (round >= 9) pool.push("pinpoint");
+    challengeType = pool[Math.floor(Math.random() * pool.length)];
     if (challengeType === "ghost" && sequence.length >= 2) {
       ghostIndex = Math.floor(Math.random() * sequence.length);
     } else if (challengeType === "ghost") {
@@ -333,6 +357,7 @@ function setupChallenge() {
     } else {
       ghostIndex = -1;
     }
+    trackChallengeDiscovery(challengeType);
     playChallengeChime();
   } else {
     challengeType = null;
@@ -580,13 +605,18 @@ function update(dt) {
       if (showGap === 0) {
         // Playing tone
         if (showTimer === 0) {
-          activeDir = sequence[showIndex];
+          var visualDir = sequence[showIndex];
+          // MIRROR: show opposite pad — audio stays correct
+          if (challengeType === "mirror") {
+            visualDir = DIR_OPPOSITE[sequence[showIndex]];
+          }
+          activeDir = visualDir;
           if (challengeType === "ghost" && showIndex === ghostIndex) {
             // Ghost tone: show pad dim glow but don't play audio
-            addParticles(sequence[showIndex], 3);
+            addParticles(visualDir, 3);
           } else {
             playTone(sequence[showIndex], toneLen / 1000);
-            addParticles(sequence[showIndex], 5);
+            addParticles(visualDir, 5);
           }
         }
         showTimer += dt * 1000;
@@ -653,14 +683,16 @@ function drawPad(dir, highlight, alpha) {
     ctx.stroke();
     ctx.globalAlpha = 1;
 
-    // Direction label
-    ctx.fillStyle = t.color;
-    ctx.globalAlpha = 0.5;
-    ctx.font = "28px system-ui";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(t.label, bx, by);
-    ctx.globalAlpha = 1;
+    // Direction label (hidden during PINPOINT challenge input)
+    if (!(challengeType === "pinpoint" && state === STATE_PLAY)) {
+      ctx.fillStyle = t.color;
+      ctx.globalAlpha = 0.5;
+      ctx.font = "28px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(t.label, bx, by);
+      ctx.globalAlpha = 1;
+    }
   }
 }
 
@@ -752,6 +784,14 @@ function drawTitle() {
   ctx.fillStyle = "#555";
   ctx.font = "12px system-ui";
   ctx.fillText("ESC to quit", CX, H - 20);
+
+  // Challenge discovery tracker
+  var discCount = getChallengeDiscoveryCount();
+  if (discCount > 0) {
+    ctx.fillStyle = "#664400";
+    ctx.font = "12px system-ui";
+    ctx.fillText("🔮 " + discCount + "/5 challenges", CX, H - 38);
+  }
 }
 
 function drawHUD() {
