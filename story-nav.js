@@ -5,6 +5,8 @@
   // Article order (newest first) — matches homepage grid order
   var articles = [
     
+    { slug: 'cfs-pjm-fusion-grid-critical-path', title: 'A Fusion Company Just Applied to Join America\'s Largest Power Grid. Here Are the 7 Things That Must Go Right. — Live in the Future' },
+    { slug: 'solid-state-battery-robots-first', title: 'Solid-State Batteries Arrive in 2027. Robots Will Get Them First. Here\'s the $800 Reason Why. — Live in the Future' },
     { slug: 'quantum-ecc-15bit-bitcoin-migration-gap', title: 'A Quantum Computer Just Cracked a 15-Bit Key. Bitcoin Uses 256. The Math Between Them Is Changing Faster Than Anyone Expected. — Live in the Future' },
     { slug: 'navy-underwater-drone-pivot-orca-deep-thoughts', title: 'The Navy Spent $489 Million on Two Underwater Drones. Now DARPA Wants to Build Dozens for the Same Price. — Live in the Future' },
     { slug: 'closed-loop-human-neurotransmitter-optimization', title: 'The Closed-Loop Human Is 7 Years Away. Here Is What Already Works. — Live in the Future' },
