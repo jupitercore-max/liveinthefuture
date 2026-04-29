@@ -5,6 +5,13 @@
   // Article order (newest first) — matches homepage grid order
   var articles = [
     
+    { slug: 'quantum-ecc-15bit-bitcoin-migration-gap', title: 'A Quantum Computer Just Cracked a 15-Bit Key. Bitcoin Uses 256. The Math Between Them Is Changing Faster Than Anyone Expected. — Live in the Future' },
+    { slug: 'navy-underwater-drone-pivot-orca-deep-thoughts', title: 'The Navy Spent $489 Million on Two Underwater Drones. Now DARPA Wants to Build Dozens for the Same Price. — Live in the Future' },
+    { slug: 'closed-loop-human-neurotransmitter-optimization', title: 'The Closed-Loop Human Is 7 Years Away. Here Is What Already Works. — Live in the Future' },
+    { slug: 'ai-agents-public-employee-transparency-foia', title: 'Every Public Employee in America Is Already Legally Observable. AI Agents Could Actually Do It. — Live in the Future' },
+    { slug: 'anthropic-automated-alignment-agents-outperform-humans', title: 'The First AI System to Outperform Its Own Creators at Keeping AI Safe Cost $22 an Hour. — Live in the Future' },
+    { slug: 'sony-ace-robot-beats-elite-table-tennis-nature', title: 'Sony\'s Robot Beat Elite Table Tennis Players. The 20-Millisecond Window That Made It Possible. — Live in the Future' },
+    { slug: 'cambridge-memristor-ai-energy-70-percent', title: 'Cambridge Built a Brain-Inspired Chip That Uses a Million Times Less Current. AI\'s Energy Crisis Has a New Rival. — Live in the Future' },
     { slug: 'free-ai-tutor-15-dollar-calculation', title: 'A Free AI Tutor for Every Student Would Cost $8 Per Year. Nobody Is Building It. — Live in the Future' },
     { slug: 'hiv-drug-reverses-biological-age-six-years', title: 'An FDA-Approved Drug Cut Biological Age by 22% in 12 Weeks. It Wasn\'t Designed to Do That. — Live in the Future' },
     { slug: 'tesla-cybercab-self-certifies-crash-rate-nine-times-human', title: 'Tesla\'s Robotaxi Crashes 9x More Often Than a Human Driver. It Just Passed Every Federal Safety Standard. — Live in the Future' },
