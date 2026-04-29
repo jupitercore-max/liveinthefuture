@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-024: Urban Tree Health Assessment via Fleet Vehicle Spectral Imaging and Graph Neural Networks | Live in the Future</title>
+  <meta name="description" content="Defensive prior art disclosure: A system that continuously assesses urban tree health using multispectral cameras mounted on municipal fleet vehicles, aggregating multi-pass observations into per-tree time series and predicting mortality risk via spatiotemporal graph neural networks.">
+  <meta property="og:title" content="System and Method for Continuous Urban Tree Health Assessment and Predictive Mortality Mapping Using Opportunistic Multi-Pass Spectral Imaging from Municipal Fleet Vehicles and Spatiotemporal Graph Neural Networks">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/fleet-urban-tree-canopy-health.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/fleet-urban-tree-canopy-health.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/priorart-fleet-urban-tree-canopy-health.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">← Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-024 · Urban Forestry / Remote Sensing</span>
+      <h1>System and Method for Continuous Urban Tree Health Assessment and Predictive Mortality Mapping Using Opportunistic Multi-Pass Spectral Imaging from Municipal Fleet Vehicles and Spatiotemporal Graph Neural Networks</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-04-29">Published April 29, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/priorart-fleet-urban-tree-canopy-health.jpg" alt="Municipal fleet vehicle with rooftop spectral sensor driving under urban tree canopy" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>⚖️ Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. § 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above. This disclosure is intended to prevent the patenting of these concepts by any party.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a system and method for continuously assessing the health of individual urban trees and predicting tree mortality 6-18 months in advance, without dedicated survey flights, manual arborist inspections, or satellite imagery. The system mounts compact multispectral camera modules (visible RGB + near-infrared at 850 nm) on municipal fleet vehicles that already traverse every city street on regular schedules: refuse collection trucks, street sweepers, postal delivery vehicles, transit buses, and utility service vans. Each camera module captures georeferenced imagery of roadside and median trees at 5-15 frames per second during normal vehicle operation. On-device preprocessing segments individual tree canopies using a MobileNetV3-based instance segmentation model, computes per-tree Normalized Difference Vegetation Index (NDVI), canopy area, crown diameters, and visible stress indicators (chlorosis fraction, defoliation percentage, crown dieback ratio). A central aggregation server fuses multi-pass observations of the same tree across days and weeks into per-tree health time series using a tree-matching algorithm based on geolocation clustering and canopy shape descriptors. A spatiotemporal graph neural network (ST-GNN) models the tree inventory as a graph where nodes are individual trees and edges encode spatial proximity (shared root zones, pest dispersal corridors) and environmental similarity (soil type, irrigation district, species). The ST-GNN ingests per-tree spectral time series along with auxiliary inputs (species, DBH, planting date, weather history, soil moisture) and outputs a 6-month mortality probability, a health trend classification (improving, stable, declining, critical), and a ranked risk score for each tree in the inventory. The system enables proactive hazard tree removal, targeted drought-response watering, early pest and disease outbreak detection at the neighborhood scale, and data-driven urban canopy management at a per-tree cost below $0.50 per year.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to urban forestry management and environmental remote sensing, specifically to methods for continuously monitoring the health of individual urban trees using opportunistic multispectral imaging from vehicles of opportunity combined with graph-based machine learning for spatiotemporal health prediction.</p>
+
+      <h2>Background</h2>
+
+      <p>Urban trees provide ecosystem services valued at <a href="https://www.fs.usda.gov/research/treesearch/52933">$18.3 billion annually</a> in the United States alone (Nowak &amp; Greenfield, USDA Forest Service General Technical Report NRS-200, 2018), including stormwater interception, air pollutant removal, carbon sequestration, and energy savings from shading. The nation's urban forest contains an estimated 5.5 billion trees (Nowak &amp; Greenfield, 2018). Municipal arboriculture budgets, however, average just <a href="https://www.urban.org/research">$5-15 per public tree per year</a> in most U.S. cities, with inspection cycles of 5-10 years for non-hazard trees.</p>
+
+      <p>Tree failures kill an average of <a href="https://pubmed.ncbi.nlm.nih.gov/31023356/">100 people annually</a> in the United States (Schmidlin, Natural Hazards 2009), with property damage from fallen trees and limbs exceeding $1 billion per year in insurance claims. The core problem is that most urban tree mortality is preceded by 12-36 months of gradual decline visible in the canopy, but current inspection methods cannot detect these signals at population scale. By the time a tree visibly fails, the window for intervention (root zone treatment, targeted irrigation, preventive removal) has closed.</p>
+
+      <p>Current urban tree monitoring methods have fundamental scalability limitations:</p>
+      <ul>
+        <li><strong>Manual arborist inspection:</strong> ISA-certified arborists perform visual tree risk assessments (TRAQ). Cost: $50-200 per tree. A single arborist can inspect 20-40 trees per day. For a city with 200,000 public trees, a complete inventory cycle at $100/tree costs $20 million. Most cities cannot afford inspection cycles shorter than 5-7 years.</li>
+        <li><strong>Satellite multispectral imagery:</strong> Platforms like Sentinel-2 (10 m/pixel) and WorldView-3 (1.24 m/pixel) provide NDVI at landscape scale. But 10 m resolution cannot resolve individual trees, and even 1.24 m resolution conflates overlapping canopies in dense streetscapes. Revisit periods (5-16 days) miss rapid decline events. Cloud cover causes data gaps lasting weeks. <a href="https://doi.org/10.1016/j.rse.2014.09.018">Alonzo et al. (Remote Sensing of Environment, 2014)</a> demonstrated species-level classification from airborne hyperspectral data but required a dedicated flight campaign costing $50,000+.</li>
+        <li><strong>LiDAR surveys:</strong> Airborne LiDAR provides canopy height and structure but no spectral health information. Per-city acquisition costs $100,000-$500,000. Frequency: once every 3-5 years at best. <a href="https://doi.org/10.1016/j.ufug.2017.10.007">Shrestha &amp; Wynne (Urban Forestry &amp; Urban Greening, 2018)</a> showed LiDAR-derived crown metrics correlate with health but cannot detect early-stage chlorosis or water stress.</li>
+        <li><strong>Drone surveys:</strong> High resolution but limited coverage. A single drone operator covers 50-100 acres per day. Regulatory constraints (FAA Part 107 in the U.S.) restrict flights over populated areas and near airports. Not viable for city-wide continuous monitoring.</li>
+      </ul>
+
+      <p>The gap in the art is a system that achieves individual-tree resolution at city scale, with observation frequency measured in days rather than years, at a marginal cost approaching zero by exploiting vehicles that already traverse every street. Google Street View proved that fleet-mounted cameras can capture every public road; this disclosure extends that principle to quantitative spectral health monitoring with an analytical layer designed for predictive urban forestry.</p>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. Sensor Module Hardware</h3>
+
+      <p>Each fleet vehicle carries a roof-mounted sensor module in a ruggedized IP67 enclosure (dimensions: approximately 180 × 120 × 80 mm). Core components: a dual-sensor camera assembly consisting of one RGB rolling-shutter CMOS (Sony IMX477, 12.3 MP, 1.55 µm pixel pitch) and one near-infrared (NIR) CMOS with 850 nm bandpass filter (Sony IMX296, 1.58 MP, 3.45 µm pixel pitch), aligned on a common optical axis using a beam-splitter prism so that RGB and NIR frames are spatially co-registered at capture time; a GNSS receiver (u-blox ZED-F9P, multi-band RTK-capable, 1 cm + 1 ppm horizontal accuracy with correction service) for centimeter-level geolocation of each frame; an inertial measurement unit (Bosch BMI270, 6-axis) for attitude correction during vehicle motion; an edge compute module (NVIDIA Jetson Orin Nano, 40 TOPS INT8) for on-device preprocessing; and a 4G LTE cellular modem for periodic data upload. Power draw: 15W sustained, supplied from the vehicle's 12V electrical system via a DC-DC converter. Target BOM cost per unit: $850-$1,200 at volume.</p>
+
+      <h3>2. Image Acquisition and Georeferencing</h3>
+
+      <p>The camera system captures synchronized RGB + NIR frame pairs at 10 fps during vehicle operation at speeds between 5 and 35 mph (8-56 km/h). At a typical refuse truck speed of 8 mph in residential areas, this yields one frame pair every 0.35 meters of travel. Each frame pair is tagged with sub-frame GNSS position (interpolated from 10 Hz GNSS updates), IMU-derived vehicle attitude (roll, pitch, yaw), timestamp (GPS time, ±50 ns), and vehicle speed. Frames captured during sharp turns (yaw rate > 15°/s), heavy braking (deceleration > 0.3 g), or at speeds below 3 mph (typically at stops) are flagged as low-quality and excluded from downstream processing.</p>
+
+      <p>Lens selection balances field of view against angular resolution. A 6 mm focal length on the RGB sensor yields a 62° horizontal field of view. At a typical capture distance of 8-15 meters from roadside trees, this provides a ground sample distance (GSD) of 3-6 mm per pixel for the RGB channel and 15-28 mm per pixel for the NIR channel. Sufficient to resolve individual leaves, detect chlorotic patches at the branch level, and measure canopy porosity.</p>
+
+      <h3>3. On-Device Canopy Segmentation and Feature Extraction</h3>
+
+      <p>Each frame pair undergoes on-device processing on the Jetson Orin Nano before any data leaves the vehicle. The pipeline consists of four stages:</p>
+
+      <p><strong>Stage 1: Tree canopy instance segmentation.</strong> A MobileNetV3-Large backbone with a Feature Pyramid Network (FPN) neck and a mask head outputs per-tree instance masks. The model is trained on a combination of <a href="https://lila.science/datasets/auto-arborist/">Auto-Arborist</a> (Google, 2022: 2.6 million trees across 23 U.S. cities, street-level imagery with bounding boxes), supplemented with custom mask annotations for 15,000 trees spanning 120 species. Model size: 22 MB (FP16). Inference time: 18 ms per frame on Orin Nano. The model distinguishes tree canopy from sky, buildings, utility poles, traffic signals, and other vegetation (shrubs, turf, climbing vines).</p>
+
+      <p><strong>Stage 2: Per-tree spectral index computation.</strong> For each segmented canopy mask, the system computes: NDVI = (NIR - Red) / (NIR + Red), using band-registered pixel values within the mask; Green Normalized Difference Vegetation Index (GNDVI) = (NIR - Green) / (NIR + Green), more sensitive to chlorophyll concentration variation than NDVI; canopy area in square meters (from mask pixel count × GSD²); crown diameter (major and minor axes of fitted ellipse); chlorosis fraction (percentage of canopy pixels with NDVI < 0.3 but NIR reflectance > 0.15, indicating live tissue with reduced chlorophyll); defoliation percentage (percentage of expected crown area showing sky-through or below-threshold NIR); and crown transparency index (mean NIR transmittance through the canopy interior, correlated with leaf area index).</p>
+
+      <p><strong>Stage 3: Multi-view tree matching.</strong> Because a single tree appears in multiple consecutive frames as the vehicle passes, the system performs tracklet-based association. Trees are tracked across frames using a combination of IoU overlap of projected canopy masks, GNSS-derived 3D position consistency (< 2 m centroid drift), and canopy shape descriptor similarity (Hu moments, aspect ratio). Per-tree features are aggregated across the best 5-15 frames by median filtering, which rejects transient artifacts from passing vehicles, pedestrians, or motion blur.</p>
+
+      <p><strong>Stage 4: Observation record generation.</strong> Each unique tree observation generates a compact record (approximately 512 bytes): geolocation (lat, lon, ±0.5 m), timestamp, NDVI (mean, std, min within canopy), GNDVI (mean), canopy area (m²), crown diameters, chlorosis fraction, defoliation percentage, transparency index, a 64-dimensional canopy texture embedding (from the penultimate layer of the segmentation backbone), and a quality score (0-1) encoding viewing angle, distance, lighting conditions, and occlusion level. Raw imagery is not uploaded. Only these compact observation records transmit over cellular, consuming approximately 2-5 MB per vehicle per hour of operation.</p>
+
+      <h3>4. Tree Identity Resolution and Inventory Matching</h3>
+
+      <p>The central server maintains a persistent tree inventory where each entry represents a physical tree with a unique ID, canonical geolocation, species (if known), and a running observation history. New observation records from fleet vehicles are matched to existing inventory entries using a hierarchical matching algorithm: first, spatial proximity (candidate trees within 3 m radius of observation geolocation); second, canopy shape similarity (cosine similarity of texture embeddings > 0.7); third, temporal consistency (NDVI within 2σ of recent history for that tree). Unmatched observations that persist across 3+ independent vehicle passes create new inventory entries. This process runs continuously and does not require a pre-existing GIS tree inventory, though integration with municipal tree databases (via species, DBH, planting date) improves prediction accuracy when available.</p>
+
+      <h3>5. Spatiotemporal Graph Neural Network for Health Prediction</h3>
+
+      <p>The tree inventory is modeled as a dynamic graph G = (V, E, X, A) where V is the set of tree nodes (one per physical tree), E encodes spatial relationships, X contains per-node feature time series, and A contains static node attributes.</p>
+
+      <p><strong>Edge construction:</strong> Edges connect trees within 30 meters of each other (approximate root zone interaction radius for mature urban trees). Edge features encode: Euclidean distance, whether trees share a planting strip or median, species compatibility for shared pest/disease vectors (encoded as a learned embedding from a pest-host bipartite graph), and soil type similarity derived from USDA SSURGO data at 10 m resolution.</p>
+
+      <p><strong>Node features (X):</strong> For each tree, the most recent 26 weeks of observation data, resampled to weekly resolution by median aggregation. Each weekly feature vector contains: mean NDVI, GNDVI, canopy area, chlorosis fraction, defoliation percentage, transparency index, observation count (as a confidence weight), and 7-day cumulative precipitation, mean temperature, and vapor pressure deficit from the nearest weather station.</p>
+
+      <p><strong>Static node attributes (A):</strong> Species (one-hot encoded over 200 most common urban species, with a catch-all category), estimated DBH (from canopy allometry if not in municipal database), years since planting (if known), hardscape fraction within 5 m radius (impervious surface percentage from satellite land cover), and proximity to known stressors (construction sites from permit data, recent utility excavations, road salt application routes).</p>
+
+      <p><strong>Architecture:</strong> The ST-GNN consists of a temporal encoder (1D dilated causal convolutions with residual connections, processing the 26-week feature time series per node into a 128-dimensional temporal embedding), followed by 3 layers of GraphSAGE message passing (Hamilton et al., 2017) with 128-dimensional hidden states and mean aggregation, then a prediction head (2-layer MLP) outputting: (a) 6-month mortality probability (sigmoid), (b) health trend class (4-class softmax: improving, stable, declining, critical), and (c) a continuous risk score (0-100). Training uses a weighted cross-entropy loss for mortality prediction with significant class imbalance correction (mortality events are roughly 1-3% of urban trees per year). The full model has approximately 2.4 million parameters and trains on a single GPU in under 4 hours for a city-scale inventory of 200,000 trees.</p>
+
+      <h3>6. Training Data and Label Acquisition</h3>
+
+      <p>Ground truth mortality labels derive from: municipal tree removal records (most cities log removal date and reason); insurance claim databases for storm-related failures; 311/service request records for fallen trees and limbs; and retrospective labeling from historical street-level imagery (e.g., Google Street View time series showing a tree present in one capture and removed in the next). Health trend labels are generated by arborist annotation of a stratified sample (2,000-5,000 trees per city) during an initial calibration campaign, with active learning selecting the most informative trees for subsequent annotation rounds. Transfer learning from a model pre-trained on a consortium of 5+ cities accelerates deployment in new cities to a 60-day calibration period.</p>
+
+      <h3>7. Output Applications</h3>
+
+      <ul>
+        <li><strong>Hazard tree prioritization:</strong> Trees with mortality probability > 0.4 and critical health trend within 50 m of pedestrian infrastructure (sidewalks, bus stops, playgrounds) are flagged for priority arborist inspection. The system ranks the top 1% of hazard candidates weekly, reducing arborist workload by focusing inspections where they matter most rather than cycling through the entire inventory.</li>
+        <li><strong>Drought response targeting:</strong> During water restriction periods, identify the trees experiencing the steepest NDVI decline and route emergency watering trucks to those specific locations rather than applying blanket watering schedules. Municipal water savings estimated at 30-50% versus uniform irrigation, based on the observation that drought stress varies dramatically by microsite within a single block.</li>
+        <li><strong>Pest and disease outbreak detection:</strong> The GNN's spatial message passing detects correlated health decline among neighboring trees of susceptible species. A cluster of 3+ declining trees of the same species within a 100 m radius, declining faster than climate-only predictions, triggers a pest/disease investigation alert. Early detection of emerald ash borer, Dutch elm disease, or sudden oak death at the neighborhood scale can enable containment before city-wide spread.</li>
+        <li><strong>Urban canopy equity mapping:</strong> Per-neighborhood canopy health indices identify communities with declining tree cover, enabling targeted planting and maintenance investment in historically underserved areas.</li>
+        <li><strong>Carbon sequestration verification:</strong> Continuous canopy area and health tracking provides auditable data for urban carbon credit programs, replacing periodic manual surveys with automated, high-frequency measurement.</li>
+      </ul>
+
+      <h3>8. Figures Description</h3>
+
+      <ul>
+        <li><strong>Figure 1:</strong> System architecture diagram showing fleet vehicles with roof-mounted sensor modules capturing imagery during normal routes, cellular upload of compact observation records, central server performing tree identity resolution and inventory maintenance, and ST-GNN inference pipeline producing per-tree health predictions.</li>
+        <li><strong>Figure 2:</strong> Example RGB and co-registered NIR imagery of a residential street, with per-tree instance segmentation masks overlaid and color-coded by NDVI value (green = healthy, yellow = stressed, red = critical).</li>
+        <li><strong>Figure 3:</strong> Spatiotemporal graph construction showing tree nodes connected by proximity edges, with node features representing 26-week NDVI time series and edge features encoding spatial and ecological relationships.</li>
+        <li><strong>Figure 4:</strong> City-scale mortality risk heatmap overlaid on a street map, showing predicted 6-month mortality probability for 200,000 trees with hazard tree clusters highlighted.</li>
+      </ul>
+
+      <h2>Claims</h2>
+
+      <ol>
+        <li>A system for continuous urban tree health monitoring, comprising: a plurality of sensor modules mounted on municipal fleet vehicles that traverse city streets during normal operations, each module containing a co-registered RGB and near-infrared camera assembly, a GNSS receiver, and an edge compute unit; wherein each module captures georeferenced multispectral imagery of roadside trees during vehicle operation, performs on-device canopy instance segmentation and per-tree spectral index computation, and generates compact observation records without transmitting raw imagery.</li>
+
+        <li>The system of claim 1, wherein the edge compute unit executes a neural network-based instance segmentation model to identify individual tree canopies and computes per-tree metrics including NDVI, GNDVI, canopy area, chlorosis fraction, defoliation percentage, and crown transparency index from co-registered RGB and NIR pixel data within each segmented canopy mask.</li>
+
+        <li>The system of claim 1, further comprising a central server that maintains a persistent tree inventory by matching observation records from multiple vehicle passes to physical tree identities using geolocation proximity, canopy shape descriptor similarity, and temporal feature consistency, thereby building and updating a city-scale tree inventory without requiring a pre-existing GIS database.</li>
+
+        <li>The system of claim 3, wherein the central server constructs a spatiotemporal graph with tree nodes connected by edges encoding spatial proximity, species-based pest susceptibility relationships, and environmental similarity, and applies a graph neural network to the graph to predict per-tree health outcomes including mortality probability, health trend classification, and risk scores.</li>
+
+        <li>The system of claim 4, wherein the graph neural network comprises a temporal encoder processing per-tree spectral feature time series into temporal embeddings, followed by spatial message-passing layers that aggregate health signals from neighboring trees to detect spatially correlated decline patterns indicative of pest outbreaks, disease spread, or shared environmental stressors.</li>
+
+        <li>A method for predicting urban tree mortality comprising: deploying multispectral camera modules on vehicles that regularly traverse city streets; capturing georeferenced RGB and near-infrared imagery of urban trees during normal vehicle operation; performing on-device canopy segmentation and spectral feature extraction; matching observations across multiple vehicle passes to build per-tree health time series; constructing a spatial graph of the urban tree population; and applying a spatiotemporal graph neural network to the graph to output per-tree mortality probability, health trend classification, and prioritized risk rankings.</li>
+
+        <li>The method of claim 6, further comprising detecting spatially correlated health decline among neighboring trees of pest-susceptible species by analyzing spatial message-passing activations in the graph neural network, and generating pest or disease outbreak alerts when correlated decline exceeds climate-only baseline predictions.</li>
+
+        <li>The method of claim 6, wherein observation records transmitted from vehicles consist of compact per-tree feature vectors of approximately 512 bytes each, preserving privacy by excluding raw imagery and enabling operation over standard cellular connections with bandwidth consumption below 5 MB per vehicle per hour.</li>
+
+        <li>The system of claim 1, wherein the sensor module has a bill-of-materials cost below $1,500 and the per-tree annual monitoring cost is below $0.50 for a city operating at least 20 fleet vehicles with sensor modules, based on the observation frequency achieved by normal fleet routing without route modification.</li>
+
+        <li>The method of claim 6, further comprising a transfer learning procedure wherein a graph neural network pre-trained on tree inventory data from multiple cities is fine-tuned on a target city using a calibration dataset of 2,000-5,000 arborist-annotated trees, enabling deployment in a new city within 60 days without training a model from scratch.</li>
+      </ol>
+
+      <h2>Implementation Notes</h2>
+
+      <p>A practical deployment path begins with refuse collection vehicles, which visit every residential street weekly on fixed routes, providing the most consistent temporal sampling. A city with a fleet of 50 refuse trucks, each equipped with a sensor module, would observe every public street tree approximately once per week during leaf-on season (April-October in temperate climates) and once every 1-2 weeks during leaf-off. At $1,000 per module, the hardware investment totals $50,000, less than the cost of a single arborist conducting 500 manual inspections.</p>
+
+      <p>The system's value compounds with time. The first 90 days establish baseline health profiles. By month 6, trend detection identifies declining trees. By month 12, the mortality model has one full seasonal cycle for calibration. By year 2, the model has sufficient history to make accurate 6-month predictions. This temporal bootstrapping period means the system should be evaluated on a 2-year horizon rather than expecting immediate prediction accuracy.</p>
+
+      <p>Key open challenges include: nighttime operation (refuse collection often begins before dawn; the NIR channel can operate with active IR illumination but RGB data quality degrades); winter deciduous monitoring (leaf-off season provides structural information but not chlorophyll-based health signals, requiring the model to learn dormancy patterns); and calibration in cities with no existing tree inventory (the system must bootstrap both tree locations and health baselines simultaneously). These limitations are addressable but should inform deployment expectations.</p>
+
+      <h2>Prior Art References</h2>
+
+      <ol>
+        <li><a href="https://www.fs.usda.gov/research/treesearch/52933">Nowak &amp; Greenfield, USDA Forest Service GTR NRS-200, 2018</a> — U.S. urban forest value: $18.3B/year ecosystem services, 5.5 billion trees</li>
+        <li><a href="https://pubmed.ncbi.nlm.nih.gov/31023356/">Schmidlin, Natural Hazards 2009</a> — Tree-related fatalities in the United States (~100/year)</li>
+        <li><a href="https://doi.org/10.1016/j.rse.2014.09.018">Alonzo et al., Remote Sensing of Environment 2014</a> — Urban tree species classification from airborne hyperspectral imagery</li>
+        <li><a href="https://doi.org/10.1016/j.ufug.2017.10.007">Shrestha &amp; Wynne, Urban Forestry &amp; Urban Greening 2018</a> — LiDAR-derived crown metrics for urban tree health</li>
+        <li><a href="https://lila.science/datasets/auto-arborist/">Auto-Arborist (Google, 2022)</a> — 2.6 million tree annotations across 23 U.S. cities from street-level imagery</li>
+        <li><a href="https://doi.org/10.48550/arXiv.1706.02216">Hamilton et al., NeurIPS 2017</a> — Inductive Representation Learning on Large Graphs (GraphSAGE)</li>
+        <li><a href="https://sentinel.esa.int/web/sentinel/missions/sentinel-2">ESA Sentinel-2</a> — Multispectral satellite imagery at 10 m resolution, 5-day revisit</li>
+        <li><a href="https://www.maxar.com/products/optical-imagery">Maxar WorldView-3</a> — Sub-meter satellite multispectral imagery</li>
+        <li><a href="https://websoilsurvey.nrcs.usda.gov/">USDA SSURGO Soil Survey</a> — Gridded soil property data at 10 m resolution</li>
+        <li><a href="https://www.sony-semicon.com/en/products/is/industry/product.html">Sony IMX477 / IMX296</a> — CMOS image sensor datasheets</li>
+        <li><a href="https://www.u-blox.com/en/product/zed-f9p-module">u-blox ZED-F9P</a> — Multi-band RTK GNSS receiver module</li>
+        <li><a href="https://developer.nvidia.com/embedded/jetson-orin-nano">NVIDIA Jetson Orin Nano</a> — Edge AI compute module, 40 TOPS INT8</li>
+        <li><a href="https://doi.org/10.1016/j.envsoft.2021.105116">Branson et al., Environmental Modelling &amp; Software 2022</a> — Graph neural networks for environmental prediction</li>
+      </ol>
+
+    </div>
+  </article>
+
+<script src="../story.js"></script>
+</body>
+</html>
