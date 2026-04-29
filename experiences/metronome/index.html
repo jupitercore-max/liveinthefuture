@@ -110,6 +110,34 @@ var timingLastOffset = 0;
 var sessionTimingHits = [];    // all hits for session summary
 var lastSessionTiming = null;  // persisted after stop for display
 
+// --- Adaptive Beat Emphasis (coaching) ---
+// Tracks per-beat timing accuracy; emphasizes beats user consistently rushes/drags
+var perBeatOffsets = {};    // beatNum -> [offset, ...] last N hits
+var perBeatMaxHits = 12;
+
+function recordPerBeat(beatNum, offset) {
+  if (!perBeatOffsets[beatNum]) perBeatOffsets[beatNum] = [];
+  perBeatOffsets[beatNum].push(offset);
+  if (perBeatOffsets[beatNum].length > perBeatMaxHits) perBeatOffsets[beatNum].shift();
+}
+
+function getPerBeatMean(beatNum) {
+  var arr = perBeatOffsets[beatNum];
+  if (!arr || arr.length < 3) return 0;
+  var sum = 0;
+  for (var i = 0; i < arr.length; i++) sum += arr[i];
+  return sum / arr.length;
+}
+
+function getBeatEmphasis(beatNum) {
+  // Returns emphasis info if this beat needs coaching, null otherwise
+  var mean = getPerBeatMean(beatNum);
+  if (Math.abs(mean) < 20) return null; // within tolerance
+  return { volBoost: 0.12, sharp: true, rushing: mean < 0 };
+}
+
+function clearPerBeat() { perBeatOffsets = {}; }
+
 function initMic() {
   if (micActive || micFailed || micIniting) return;
   micIniting = true;
@@ -178,6 +206,14 @@ function detectTiming() {
     timingFlash = 1.0;
     timingHits.push({ time: now, offset: offset });
     sessionTimingHits.push({ time: now, offset: offset });
+    // Track per-beat for adaptive emphasis
+    if (offset >= 0) {
+      recordPerBeat(currentBeat, offset);
+    } else {
+      // Negative offset = rushing the next beat
+      var nextBeat = (currentBeat % beatsPerMeasure) + 1;
+      recordPerBeat(nextBeat, offset);
+    }
     if (timingHits.length > timingMaxHits) timingHits.shift();
   }
 }
@@ -330,11 +366,21 @@ function beat() {
   lastBeatStamp = performance.now();
   currentBeat = (currentBeat % beatsPerMeasure) + 1;
   subTick = 0;
+  var emphasis = getBeatEmphasis(currentBeat);
   if (currentBeat === 1) {
-    clickHi();
+    if (emphasis) {
+      woodblock(1600, 0.35 + emphasis.volBoost, true);
+      woodblock(2400, 0.12 + emphasis.volBoost * 0.5, true);
+    } else {
+      clickHi();
+    }
     flashIntensity = 1.0;
   } else {
-    clickLo();
+    if (emphasis) {
+      woodblock(1100, 0.22 + emphasis.volBoost, emphasis.sharp);
+    } else {
+      clickLo();
+    }
     flashIntensity = 0.6;
   }
   pendulumTarget = -pendulumTarget;
@@ -583,6 +629,14 @@ function draw() {
       ctx.fill();
       ctx.restore();
     }
+    // Adaptive coaching indicator: small dot below coached beats
+    var beatEmph = getBeatEmphasis(i + 1);
+    if (beatEmph && playing) {
+      ctx.fillStyle = beatEmph.rushing ? '#ff8c00' : '#b39ddb';
+      ctx.beginPath();
+      ctx.arc(dx, dy + 14, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   // Preset name (below tempo name)
@@ -807,6 +861,7 @@ document.addEventListener('keydown', function(e) {
     } else {
       beatsPerMeasure = beatsPerMeasure >= 8 ? 1 : beatsPerMeasure + 1;
       currentBeat = 0;
+      clearPerBeat();
       savePrefs();
     }
   } else if (e.key === 'Enter') {
@@ -826,13 +881,13 @@ document.addEventListener('keydown', function(e) {
       if (sessionTimingHits.length >= 3) {
         lastSessionTiming = getTimingStats(sessionTimingHits);
       } else { lastSessionTiming = null; }
-      timingHits = []; sessionTimingHits = [];
+      timingHits = []; sessionTimingHits = []; clearPerBeat();
     } else {
       playing = true;
       sessionStartTime = performance.now();
       lastBeatTime = performance.now();
       currentBeat = 0;
-      timingHits = []; sessionTimingHits = []; lastSessionTiming = null;
+      timingHits = []; sessionTimingHits = []; lastSessionTiming = null; clearPerBeat();
       beat();
     }
   } else if (e.key === 'Escape' || e.key === 'Backspace') {
