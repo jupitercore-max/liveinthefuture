@@ -4,10 +4,18 @@
 
   // Article order (newest first) — matches homepage grid order
   var articles = [
-    
+    { slug: 'intellia-lonvoz-crispr-hae-one-dose-cure', title: '62% of Patients Were Completely Cured by a Single IV Infusion. Current Treatment Costs $500,000 a Year. — Live in the Future' },
+    { slug: '1x-neo-teleoperation-economics', title: '1X Sold 10,000 Robots in 5 Days. Each One Needs a Human Hiding Inside It. — Live in the Future' },
+    { slug: 'joby-nyc-evtol-throughput-ceiling', title: 'Joby Flew JFK to Manhattan in 7 Minutes. 3 Heliports Can\'t Justify an $8.6 Billion Valuation. — Live in the Future' },
+    { slug: 'pentagon-drone-budget-244x', title: 'The Pentagon Spent $225 Million on Drones Last Year. Now It Wants $55 Billion. Here\'s the Math That Forced the Pivot. — Live in the Future' },
+    { slug: 'fda-real-time-clinical-trials-dead-time', title: 'The FDA Hasn\'t Changed How It Runs Clinical Trials in 60 Years. That Ended Monday. — Live in the Future' },
+    { slug: 'ai-self-automation-clone-yourself', title: 'Try to Automate Your Entire Job. What\'s Left Is Why You\'re Valuable. | Live in the Future' },
+    { slug: 'terrapower-natrium-construction-cost-reality', title: 'Bill Gates\' Nuclear Reactor Just Broke Ground. At $11,594 Per Kilowatt, Here\'s What \'Affordable\' Actually Means. — Live in the Future' },
+    { slug: 'xreal-ipo-smart-glasses-unit-economics', title: 'The First Smart Glasses Company to Publish Audited Financials Ships 130,000 Units a Year. Meta Ships 7 Million. — Live in the Future' },
+    { slug: 'stratos-dac-scaling-math', title: 'STRATOS Will Remove 500,000 Tons of CO2 Per Year. The Planet Emits 40 Billion. Here\'s the Math Nobody Wants to Do. — Live in the Future' },
     { slug: 'cfs-pjm-fusion-grid-critical-path', title: 'A Fusion Company Just Applied to Join America\'s Largest Power Grid. Here Are the 7 Things That Must Go Right. — Live in the Future' },
-    { slug: 'solid-state-battery-robots-first', title: 'Solid-State Batteries Arrive in 2027. Robots Will Get Them First. Here\'s the $800 Reason Why. — Live in the Future' },
     { slug: 'quantum-ecc-15bit-bitcoin-migration-gap', title: 'A Quantum Computer Just Cracked a 15-Bit Key. Bitcoin Uses 256. The Math Between Them Is Changing Faster Than Anyone Expected. — Live in the Future' },
+    { slug: 'solid-state-battery-robots-first', title: 'Solid-State Batteries Arrive in 2027. Robots Will Get Them First. Here\'s the $800 Reason Why. — Live in the Future' },
     { slug: 'navy-underwater-drone-pivot-orca-deep-thoughts', title: 'The Navy Spent $489 Million on Two Underwater Drones. Now DARPA Wants to Build Dozens for the Same Price. — Live in the Future' },
     { slug: 'closed-loop-human-neurotransmitter-optimization', title: 'The Closed-Loop Human Is 7 Years Away. Here Is What Already Works. — Live in the Future' },
     { slug: 'ai-agents-public-employee-transparency-foia', title: 'Every Public Employee in America Is Already Legally Observable. AI Agents Could Actually Do It. — Live in the Future' },
@@ -270,7 +278,7 @@
     { slug: 'longevity-escape-velocity', title: 'Longevity Escape Velocity — Live in the Future' },
     { slug: 'spacex-launch-cost', title: 'SpaceX Charges $2,720 Per Kilogram to Orbit — Live in the Future' },
     { slug: 'waymo-deaths-per-mile', title: 'Waymo Has Driven 50 Million Miles Without Killing Anyone — Live in the Future' },
-  ];
+  ]
   // Find current article
   var path = window.location.pathname;
   var match = path.match(/stories\/([^\/]+)\.html/);
