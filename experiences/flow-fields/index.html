@@ -112,6 +112,56 @@ var rawLevel = 0, rawBass = 0, rawTreble = 0;
 
 var micFailed = false;
 
+// Head tracking (deviceorientation) — viewport into infinite noise space
+var headActive = false;
+var headYaw = 0, headPitch = 0; // smoothed relative values
+var initialYaw = null, initialPitch = null; // captured on first reading
+var headOffsetX = 0, headOffsetY = 0; // noise-space pixel offset
+var headRequested = false;
+
+function initHead() {
+  if (headActive || headRequested) return;
+  headRequested = true;
+  function handleOrientation(e) {
+    var yaw, pitch;
+    if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+      yaw = e.webkitCompassHeading;
+    } else if (e.alpha !== null) {
+      yaw = (360 - e.alpha) % 360;
+    } else return;
+    pitch = e.beta !== null ? e.beta : 0;
+    if (!headActive) headActive = true;
+    // Capture initial position
+    if (initialYaw === null) { initialYaw = yaw; initialPitch = pitch; }
+    // Relative offsets with wrap-around
+    var dYaw = yaw - initialYaw;
+    if (dYaw > 180) dYaw -= 360;
+    if (dYaw < -180) dYaw += 360;
+    var dPitch = pitch - initialPitch;
+    // Clamp to comfortable range
+    dYaw = Math.max(-45, Math.min(45, dYaw));
+    dPitch = Math.max(-30, Math.min(30, dPitch));
+    // Heavy smoothing to prevent jitter (0.04 lerp = ~25 frame settling)
+    headYaw += (dYaw - headYaw) * 0.04;
+    headPitch += (dPitch - headPitch) * 0.04;
+  }
+  if (typeof DeviceOrientationEvent !== 'undefined') {
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission().then(function(state) {
+        if (state === 'granted') window.addEventListener('deviceorientation', handleOrientation);
+      }).catch(function() {});
+    } else {
+      window.addEventListener('deviceorientation', handleOrientation);
+    }
+  }
+}
+
+function recalibrateHead() {
+  initialYaw = null; initialPitch = null;
+  headYaw = 0; headPitch = 0;
+  headOffsetX = 0; headOffsetY = 0;
+}
+
 // Ambient mood classification
 var currentMood = 'Still';
 var moodSmooth = { level: 0, bass: 0, treble: 0, variance: 0 };
@@ -373,7 +423,8 @@ function drawHeader() {
   ctx.textAlign = 'right';
   var micLabel = micActive ? ' 🎤 ' + Math.round(micLevel * 100) + '%' : '';
   var synthLabel = synthActive && synthEnabled ? ' 🔊' : synthActive ? ' 🔇' : '';
-  ctx.fillText(palettes[palIdx].name + ' · ' + particleCount + 'p' + micLabel + synthLabel, W - 14, 20);
+  var headLabel = headActive ? ' 📐' : '';
+  ctx.fillText(palettes[palIdx].name + ' · ' + particleCount + 'p' + micLabel + headLabel + synthLabel, W - 14, 20);
 
   // Mood classification display (big, centered, below header)
   if (micActive) {
@@ -472,6 +523,12 @@ function draw() {
     if (curTrail < 0.01) curTrail = 0.01;
   }
 
+  // Head tracking: map yaw/pitch to noise-space offset
+  if (headActive) {
+    headOffsetX = (headYaw / 45) * 200;  // ±45° yaw → ±200 noise pixels
+    headOffsetY = (headPitch / 30) * 120; // ±30° pitch → ±120 noise pixels
+  }
+
   // Fade trail
   ctx.fillStyle = 'rgba(13,13,13,' + curTrail + ')';
   ctx.fillRect(0, 0, W, H);
@@ -479,7 +536,7 @@ function draw() {
   // Update and draw particles
   for (var i = 0; i < particles.length; i++) {
     var p = particles[i];
-    var angle = noise2D(p.x * curScale, p.y * curScale + timeOffset) * Math.PI * 4;
+    var angle = noise2D((p.x + headOffsetX) * curScale, (p.y + headOffsetY) * curScale + timeOffset) * Math.PI * 4;
 
     // Cursor influence on particles
     if (influenceMode !== 'off') {
@@ -577,8 +634,9 @@ function draw() {
 // Input
 document.addEventListener('keydown', function(e) {
   e.preventDefault();
-  // Init mic and synth on any keypress (needs user gesture for permission)
+  // Init mic, head tracking, and synth on any keypress (needs user gesture for permission)
   if (!micActive && !micFailed) initMic();
+  if (!headRequested) initHead();
   if (!synthActive) initSynth();
   if (influenceMode === 'off') {
     // Off mode = settings mode: ←→ palette, ↑ synth toggle, ↓ new seed
@@ -595,6 +653,7 @@ document.addEventListener('keydown', function(e) {
       seed = Math.floor(Math.random() * 99999);
       initNoise(seed);
       resetParticles();
+      recalibrateHead();
     } else if (e.key === 'Enter') {
       influenceIdx = (influenceIdx + 1) % influenceModes.length;
       influenceMode = influenceModes[influenceIdx];
