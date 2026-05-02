@@ -4,6 +4,9 @@
 
   // Article order (newest first) — matches homepage grid order
   var articles = [
+    { slug: 'catl-4-minute-battery-grid-bottleneck', title: 'CATL\'s New Battery Charges to 80% in Under 4 Minutes. The Grid Can Deliver That Power to Almost None of the World\'s Chargers. — Live in the Future' },
+    { slug: 'ai-designed-ribosome-19-amino-acids', title: 'All Life Uses 20 Amino Acids. These Bacteria Run Their Most Ancient Machine on 19. — Live in the Future' },
+    { slug: 'cortec-bidirectional-bci-stroke-pong', title: 'A Brain Implant Healed His Stroke. Then He Used It to Play Pong. No One Has Done Both Before. — Live in the Future' },
     { slug: 'intellia-lonvoz-crispr-hae-one-dose-cure', title: '62% of Patients Were Completely Cured by a Single IV Infusion. Current Treatment Costs $500,000 a Year. — Live in the Future' },
     { slug: '1x-neo-teleoperation-economics', title: '1X Sold 10,000 Robots in 5 Days. Each One Needs a Human Hiding Inside It. — Live in the Future' },
     { slug: 'joby-nyc-evtol-throughput-ceiling', title: 'Joby Flew JFK to Manhattan in 7 Minutes. 3 Heliports Can\'t Justify an $8.6 Billion Valuation. — Live in the Future' },
