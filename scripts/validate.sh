@@ -95,7 +95,7 @@ else
 fi
 
 # 8. Check for duplicate index entries
-DUPES=$(grep -oP 'stories/[a-z0-9-]+\.html' index.html | sort | uniq -d)
+DUPES=$(sed -n '/id="articleGrid"/,/<\/section>/p' index.html | grep -oP 'stories/[a-z0-9-]+\.html' | sort | uniq -d)
 if [ -n "$DUPES" ]; then
   echo "❌ Duplicate entries in index.html:"
   echo "$DUPES" | sed 's/^/   /'

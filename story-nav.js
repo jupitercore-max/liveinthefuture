@@ -4,6 +4,7 @@
 
   // Article order (newest first) — matches homepage grid order
   var articles = [
+    { slug: 'china-ai-layoffs-illegal-global-comparison', title: 'A Chinese Court Says You Can\u0027t Fire Someone Because AI Took Their Job. In America, 160 Companies Filed AI Layoffs and Zero Called Them That. — Live in the Future' },
     { slug: 'catl-4-minute-battery-grid-bottleneck', title: 'CATL\'s New Battery Charges to 80% in Under 4 Minutes. The Grid Can Deliver That Power to Almost None of the World\'s Chargers. — Live in the Future' },
     { slug: 'ai-designed-ribosome-19-amino-acids', title: 'All Life Uses 20 Amino Acids. These Bacteria Run Their Most Ancient Machine on 19. — Live in the Future' },
     { slug: 'cortec-bidirectional-bci-stroke-pong', title: 'A Brain Implant Healed His Stroke. Then He Used It to Play Pong. No One Has Done Both Before. — Live in the Future' },
