@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-027: Predictive Pavement Life from Fleet-Mounted Thermal Infrared Imaging | Live in the Future</title>
+  <meta name="description" content="Defensive prior art disclosure: A system for estimating remaining useful life of asphalt pavement using thermal inertia measurements from low-cost infrared cameras mounted on fleet vehicles, combined with physics-informed neural networks.">
+  <meta property="og:title" content="System and Method for Predictive Remaining Useful Life Estimation of Asphalt Pavement Using Fleet-Vehicle-Mounted Thermal Infrared Imaging and Physics-Informed Thermal Inertia Inverse Modeling">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/thermal-inertia-pavement-life.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/thermal-inertia-pavement-life.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/priorart-thermal-inertia-pavement-life.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">← Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-027 · Transportation Infrastructure / Thermal Sensing</span>
+      <h1>System and Method for Predictive Remaining Useful Life Estimation of Asphalt Pavement Using Fleet-Vehicle-Mounted Thermal Infrared Imaging and Physics-Informed Thermal Inertia Inverse Modeling</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-05-03">Published May 3, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/priorart-thermal-inertia-pavement-life.jpg" alt="Fleet vehicle with thermal infrared camera scanning urban road surface with thermal heatmap overlay" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>⚖️ Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. § 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above. This disclosure is intended to prevent the patenting of these concepts by any party.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a system and method for estimating the remaining useful life (RUL) of asphalt pavement at city scale using thermal inertia measurements derived from low-cost longwave infrared (LWIR) camera modules mounted on municipal fleet vehicles such as transit buses, refuse trucks, and street sweepers. Asphalt pavement degrades through oxidative aging, moisture infiltration, and aggregate-binder separation, each of which progressively reduces the material's thermal conductivity and volumetric heat capacity. These changes produce measurable shifts in the pavement's thermal inertia: its resistance to temperature change when subjected to solar heating or nocturnal radiative cooling. The system acquires georeferenced thermal images of the road surface during optimal measurement windows (pre-dawn cooling or post-sunset), computes per-pixel apparent thermal inertia by combining surface temperature observations across multiple vehicle passes at different times with a 1-D heat conduction forward model, and feeds the resulting thermal inertia maps into a spatiotemporal convolutional neural network trained on paired thermal inertia and ground-truth Pavement Condition Index (PCI) surveys to predict segment-level RUL in years. The system detects subsurface degradation 12 to 24 months before cracks, rutting, or raveling become visible at the surface, enabling preventive maintenance interventions that cost 3 to 8 times less than reactive rehabilitation.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to transportation infrastructure condition assessment, specifically to the non-contact estimation of asphalt pavement remaining useful life using passive thermal infrared imaging from fleet vehicles combined with physics-informed machine learning for thermal property inversion and degradation prediction.</p>
+
+      <h2>Background</h2>
+
+      <p>The United States maintains approximately <a href="https://www.bts.gov/content/public-road-and-street-mileage-united-states-type-surfacepavement">4.19 million miles of paved road</a> (Bureau of Transportation Statistics, 2023), with an estimated replacement value exceeding <a href="https://infrastructurereportcard.org/cat-item/roads-infrastructure/">$4.6 trillion</a> (ASCE Infrastructure Report Card, 2021). Pavement condition directly impacts vehicle operating costs: the average American motorist spends <a href="https://tripnet.org/reports/nations-roads-deteriorate-2022/">$621 per year</a> in additional vehicle operating costs from driving on roads in poor condition (TRIP, 2022).</p>
+
+      <p>Current pavement condition assessment methods are expensive and infrequent:</p>
+      <ul>
+        <li><strong>Manual PCI surveys:</strong> Trained inspectors walk road segments and catalog distresses per <a href="https://www.astm.org/d6433-20.html">ASTM D6433</a>. Cost: $30 to $80 per lane-mile. Most municipalities survey each road segment once every 2 to 5 years. Many small cities and counties have never conducted a complete network survey.</li>
+        <li><strong>Automated distress detection vehicles:</strong> Specialized vans equipped with 3D laser scanners and high-resolution cameras (e.g., <a href="https://www.fugro.com/about-fugro/our-expertise/technology/roadware">Fugro ARAN</a>, <a href="https://www.pavemetrics.com/applications/road-inspection/lcms-2/">Pavemetrics LCMS</a>) can survey 60 to 200 lane-miles per day. Acquisition cost: $300,000 to $800,000 per vehicle. Operating cost: $100 to $300 per lane-mile including mobilization. Only state DOTs and large cities own these vehicles.</li>
+        <li><strong>Crowdsourced roughness sensing:</strong> <a href="https://www.mdpi.com/2673-7590/5/4/162">Volkswagen's Floating Car Data program</a> and research at UMass Amherst use vehicle accelerometer data to estimate International Roughness Index (IRI). This approach detects roughness but not the specific distress mechanisms that determine RUL. A road with a smooth surface can have severe oxidative aging and be months from catastrophic failure; a road with moderate roughness from utility cuts can have decades of structural life remaining.</li>
+        <li><strong>Satellite and aerial thermal surveys:</strong> <a href="https://mdpi.com/1424-8220/8/2/1278">Pascucci et al. (2008)</a> demonstrated airborne thermal remote sensing for pavement defect detection using MIVIS imagery over Venice. <a href="https://link.springer.com/article/10.1186/s43065-024-00110-2">PS-InSAR</a> has been used for pavement deformation monitoring. These approaches provide snapshots at satellite revisit intervals (days to weeks) and lack the spatial resolution needed for segment-level RUL estimation from orbital altitude.</li>
+      </ul>
+
+      <p>The physical basis for using thermal properties as a pavement condition proxy is well established. <a href="https://doi.org/10.1016/j.conbuildmat.2018.09.045">Hassn et al. (Construction and Building Materials, 2016)</a> demonstrated that asphalt aging reduces thermal conductivity by 8 to 15% over 10 years as the binder oxidizes and becomes brittle, creating micro-voids that act as thermal insulators. <a href="https://www.mdpi.com/2227-9717/9/11/2078">Palyvos et al. (Processes, 2021)</a> showed that asphalt surface temperature is strongly governed by albedo and thermal inertia through validated CFD modeling. The <a href="https://infotechnology.fhwa.dot.gov/infrared-thermography-pav/">FHWA InfoTechnology program</a> has endorsed infrared thermography for detecting thermal segregation, delamination, and compaction defects during construction. <a href="https://dot.ca.gov/-/media/dot-media/programs/research-innovation-system-information/documents/research-notes/task3924-rrs-06-24-a11y.pdf">Caltrans (2024)</a> completed integration of thermal IR imaging into its inspection program for pavements and bridge decks, confirming the technology's field viability.</p>
+
+      <p>However, all existing thermal approaches treat IR imaging as a one-time inspection tool deployed from specialized vehicles or aircraft. The gap in the art is a system that: (a) performs continuous, city-scale thermal inertia measurement using low-cost IR cameras on vehicles that already traverse every street weekly, (b) computes apparent thermal inertia from multi-pass observations rather than single thermal snapshots, (c) uses physics-informed inverse modeling to extract material properties from surface temperature observations, and (d) predicts remaining useful life years before visible distresses appear, enabling the shift from reactive to preventive pavement maintenance.</p>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. Physical Principle: Thermal Inertia as a Pavement Health Biomarker</h3>
+
+      <p>Thermal inertia (TI) is defined as the square root of the product of thermal conductivity (k), density (ρ), and specific heat capacity (c<sub>p</sub>): TI = √(k · ρ · c<sub>p</sub>), with units of J·m⁻²·K⁻¹·s⁻½. For fresh, dense-graded hot mix asphalt (HMA), typical values are k = 1.2 to 1.5 W·m⁻¹·K⁻¹, ρ = 2,300 to 2,400 kg·m⁻³, and c<sub>p</sub> = 920 to 1,000 J·kg⁻¹·K⁻¹, yielding TI ≈ 1,600 to 1,900 J·m⁻²·K⁻¹·s⁻½.</p>
+
+      <p>As asphalt ages, three degradation mechanisms reduce TI:</p>
+
+      <p>First: oxidative hardening of the binder. Asphalt binder absorbs oxygen over years, converting maltenes to asphaltenes and increasing viscosity. The binder becomes brittle, losing its ability to flex under thermal expansion and traffic loading. This process creates micro-cracks at the binder-aggregate interface that fill with air (k<sub>air</sub> = 0.026 W·m⁻¹·K⁻¹, versus k<sub>binder</sub> ≈ 0.17 W·m⁻¹·K⁻¹), reducing the composite thermal conductivity by 0.5 to 1.5% per year.</p>
+
+      <p>Second: moisture damage and stripping. Water infiltration through surface cracks dissolves the adhesive bond between binder and aggregate (stripping). Moisture in the pore structure changes the thermal response: wet voids have higher heat capacity than dry voids but create periodic thermal anomalies as water undergoes freeze-thaw cycling in cold climates. The diurnal temperature amplitude of stripped pavement is 15 to 25% higher than sound pavement at the same solar exposure.</p>
+
+      <p>Third: density loss from fatigue cracking. Repeated traffic loading generates bottom-up fatigue cracks that propagate upward through the asphalt layer. As crack density increases, the effective density of the pavement cross-section decreases, further reducing TI. A pavement section with a PCI of 25 (very poor, near failure) typically exhibits TI values 20 to 35% lower than the same section at PCI 85 (good condition).</p>
+
+      <p>The key insight is that these TI changes are measurable from the surface 12 to 24 months before cracks and distresses become visible. Subsurface oxidation, stripping, and micro-cracking alter thermal behavior while the surface remains visually intact. By the time an inspector can see alligator cracking, the pavement has already lost 30 to 50% of its structural capacity.</p>
+
+      <h3>2. Sensor Hardware</h3>
+
+      <p>Each fleet vehicle is equipped with a downward-facing thermal imaging module mounted on the vehicle undercarriage or rear bumper, aimed at the road surface 1.5 to 3.0 meters behind the rear axle to avoid thermal contamination from exhaust:</p>
+
+      <ul>
+        <li><strong>Thermal camera:</strong> A LWIR microbolometer module such as the <a href="https://oem.flir.com/en-150/products/lepton/">Teledyne FLIR Lepton 3.5</a> (160 × 120 pixels, 8 to 14 μm spectral range, NETD &lt; 50 mK, 57° horizontal FOV) or the Seek Thermal CompactPRO (320 × 240 pixels, 32° FOV). At 0.5 m mounting height and 57° FOV, the Lepton covers a 0.54 m wide swath with 3.4 mm ground sample distance. Unit cost: $50 to $200.</li>
+        <li><strong>GPS receiver:</strong> A u-blox ZED-F9P GNSS module providing RTK-corrected positions at 10 Hz with 2 cm horizontal accuracy when base station corrections are available, or 1.5 m CEP with standalone SBAS. Each thermal frame is geotagged with sub-frame timing accuracy.</li>
+        <li><strong>Ambient sensors:</strong> A BME280 environmental sensor (temperature ±0.5°C, humidity ±3% RH, pressure ±1 hPa) records conditions that affect the thermal model: air temperature, humidity (which modulates longwave atmospheric emittance), and barometric pressure (for altitude correction of solar irradiance).</li>
+        <li><strong>Processing unit:</strong> A Raspberry Pi CM4 or NVIDIA Jetson Nano with 4 GB RAM, running the thermal frame acquisition pipeline at 9 Hz (Lepton frame rate). Raw radiometric frames (16-bit per pixel, temperature in centi-Kelvin) are stored to a 256 GB microSD card and uploaded via LTE modem during vehicle dwell periods (depot, layover). Storage requirement: approximately 6 GB per 8-hour shift at 9 fps with lossless compression.</li>
+        <li><strong>Vehicle integration:</strong> The module draws 3.5 W total from the vehicle's 12V accessory circuit. No structural modification is required; the unit attaches via magnetic mount or existing bolt holes on the bumper bracket. A splash guard (IP65) protects the thermal lens from road spray. Total BOM cost per vehicle: $180 to $350.</li>
+      </ul>
+
+      <h3>3. Optimal Measurement Windows</h3>
+
+      <p>Thermal inertia estimation requires observing the pavement's temperature response to known thermal forcing. The most informative measurement windows occur during thermal transitions when the rate of temperature change is governed primarily by TI rather than by instantaneous solar flux:</p>
+
+      <ul>
+        <li><strong>Pre-dawn cooling (3:00 AM to 6:00 AM local):</strong> After a full night of radiative cooling with no solar input, the pavement surface temperature is dominated by the accumulated nighttime heat loss, which is proportional to TI. High-TI pavement (healthy) retains more heat and reads warmer; low-TI pavement (degraded) cools faster and reads colder. Temperature differences of 1 to 4°C between PCI 85 and PCI 25 pavement are typical at dawn in summer.</li>
+        <li><strong>Post-sunset transition (30 to 120 minutes after sunset):</strong> The initial cooling rate immediately after solar input ceases is a direct measurement of apparent thermal inertia. The cooling rate dT/dt during the first hour post-sunset is inversely proportional to TI: dT/dt = (Q<sub>net</sub>) / (TI · √(π · t)), where Q<sub>net</sub> is the net radiative flux. Healthy pavement cools at 2 to 3°C/hour; degraded pavement cools at 4 to 7°C/hour.</li>
+        <li><strong>Morning warming (6:00 AM to 9:00 AM):</strong> The rate of surface temperature rise after sunrise, corrected for solar angle and cloud cover, provides a complementary TI measurement. This window is most useful for fleet vehicles (buses, refuse trucks) that operate during early morning hours.</li>
+      </ul>
+
+      <p>Measurements during midday (10:00 AM to 4:00 PM) are less informative because the pavement surface is in near-equilibrium with solar forcing; surface temperature is dominated by albedo rather than TI. The system tags each thermal frame with a measurement quality score based on time of day, cloud cover (estimated from ambient light sensor readings), and elapsed time since last precipitation (wet pavement invalidates TI measurements).</p>
+
+      <h3>4. Thermal Inertia Inversion Algorithm</h3>
+
+      <p>The core computational challenge is recovering apparent thermal inertia from a time series of surface temperature observations. Unlike satellite thermal inertia mapping (which benefits from consistent orbital revisit geometry), fleet vehicle observations are opportunistic: the same road segment may be observed by different vehicles at different times of day, with varying ambient conditions.</p>
+
+      <p>The system uses a physics-informed inversion approach:</p>
+
+      <p><strong>Step 1: Forward model.</strong> A 1-D heat conduction model simulates the temperature profile through a multi-layer pavement cross-section (surface course, binder course, base, subgrade) as a function of TI, albedo, surface emissivity (assumed 0.95 for asphalt), and time-varying boundary conditions (solar irradiance from a clear-sky model adjusted for cloud factor; longwave atmospheric radiation computed from air temperature and humidity using the Brutsaert equation; convective heat transfer using wind speed estimates).</p>
+
+      <p><strong>Step 2: Observation assembly.</strong> For each 5 m × 5 m road segment (indexed by GPS), the system collects all thermal observations across a 30-day rolling window. Each observation consists of the median surface temperature of all pixels falling within the segment, the observation timestamp, and the ambient conditions at observation time. A typical bus route provides 2 to 8 observations per segment per week across different times of day.</p>
+
+      <p><strong>Step 3: Bayesian inversion.</strong> The system fits the forward model to the observation time series by optimizing the posterior probability of TI (and albedo as a nuisance parameter) given the observations, using Markov Chain Monte Carlo (MCMC) sampling. The prior on TI is a log-normal distribution centered on 1,700 J·m⁻²·K⁻¹·s⁻½ with a coefficient of variation of 0.3. The observation likelihood assumes Gaussian noise with standard deviation estimated from the inter-pixel variance within each segment. Output: posterior mean and 95% credible interval for TI at each segment.</p>
+
+      <p><strong>Step 4: Temporal differencing.</strong> The system maintains a rolling 6-month history of TI estimates for each segment. The rate of TI decline (dTI/dt) is computed via linear regression on the monthly TI estimates, weighted by posterior uncertainty. Segments with statistically significant TI decline (p &lt; 0.05 for non-zero slope) are flagged as actively degrading.</p>
+
+      <h3>5. Remaining Useful Life Prediction</h3>
+
+      <p>A spatiotemporal convolutional neural network (ST-CNN) maps per-segment TI estimates and TI decline rates to predicted remaining useful life (RUL) in years. The network architecture is:</p>
+
+      <ul>
+        <li><strong>Input:</strong> For each 100 m road segment: a 20 × 1 spatial vector of 5 m sub-segment TI values (capturing within-segment spatial variability); the segment-level TI mean and standard deviation; the 6-month TI slope and its uncertainty; road metadata (functional class, traffic volume from HPMS, climate zone, pavement age if known from permit records).</li>
+        <li><strong>Spatial convolution:</strong> A 1-D convolutional layer with 32 filters (kernel size 5) processes the sub-segment TI vector to extract spatial texture features. Localized TI depression (a cold spot within an otherwise warm segment) indicates a different failure mode (utility trench settlement, localized stripping) than uniform TI decline (network-wide aging).</li>
+        <li><strong>Temporal module:</strong> A GRU (gated recurrent unit) with 64 hidden units processes monthly TI observations over the past 12 months, capturing seasonal patterns (freeze-thaw cycles cause periodic TI fluctuations in cold climates that differ in amplitude between healthy and degraded pavement).</li>
+        <li><strong>Output:</strong> Predicted RUL in years (continuous value, 0 to 25) and a categorical distress mode prediction (oxidative aging, moisture damage, structural fatigue, utility-related). The network is trained with an asymmetric loss function that penalizes under-prediction (predicting 8 years when the road fails in 3) more heavily than over-prediction (predicting 3 years when the road lasts 8), because the cost of unexpected failure exceeds the cost of premature maintenance.</li>
+      </ul>
+
+      <p>Training data is derived from pairing historical PCI survey timelines with TI measurements from the fleet system. A minimum of 2 PCI surveys spanning 3+ years is required per segment to establish a ground-truth degradation trajectory. Initial model training requires approximately 500 to 1,000 lane-miles of paired data; transfer learning from climate-similar cities reduces this requirement to 100 to 200 lane-miles for deployment in new municipalities.</p>
+
+      <h3>6. Preventive Maintenance Decision Support</h3>
+
+      <ul>
+        <li><strong>Optimal treatment timing:</strong> For each segment, the system computes the net present cost of immediate preventive treatment (crack seal, fog seal, microsurfacing: $1 to $5 per square yard) versus deferred rehabilitation (mill and overlay, full-depth reclamation: $8 to $25 per square yard). The optimal treatment year minimizes lifecycle cost by scheduling intervention while the pavement still has sufficient structural integrity for a surface treatment to extend life by 5 to 8 years.</li>
+        <li><strong>Spatial clustering for project packaging:</strong> Adjacent segments with similar RUL predictions are grouped into contiguous maintenance projects, reducing mobilization costs (which can exceed 30% of total project cost for small, isolated treatments).</li>
+        <li><strong>Budget optimization:</strong> Given a constrained annual maintenance budget, the system solves a knapsack optimization to select the set of projects that maximizes network-level condition improvement per dollar spent, weighted by traffic volume and safety criticality.</li>
+        <li><strong>Performance tracking:</strong> After treatment, the system monitors TI recovery to verify treatment effectiveness. A successful crack seal should arrest TI decline within 3 months; continued decline after treatment indicates the wrong treatment was applied or the treatment failed.</li>
+      </ul>
+
+      <h3>7. Figures Description</h3>
+
+      <ul>
+        <li><strong>Figure 1:</strong> System architecture showing fleet vehicle sensor module, GPS-tagged thermal frame acquisition, cloud data aggregation, thermal inertia inversion pipeline, and RUL prediction output with maintenance recommendation dashboard.</li>
+        <li><strong>Figure 2:</strong> Cross-sectional diagram of asphalt pavement showing three degradation mechanisms (oxidative aging, moisture stripping, fatigue cracking) and their effects on thermal conductivity, density, and thermal inertia at each layer.</li>
+        <li><strong>Figure 3:</strong> Time-lapse thermal imagery of four road segments at PCI 85, 65, 45, and 25, captured at 4:00 AM showing progressive temperature depression with increasing degradation severity.</li>
+        <li><strong>Figure 4:</strong> Bayesian inversion results for a single road segment: observed surface temperatures (markers) overlaid on forward model predictions (ribbons) at the posterior mean TI, with marginal posterior distribution for TI shown in inset.</li>
+        <li><strong>Figure 5:</strong> City-scale RUL heatmap showing predicted years to failure for 2,400 lane-miles, with maintenance project clusters highlighted and cost-optimal treatment schedule indicated by color coding.</li>
+      </ul>
+
+      <h2>Claims</h2>
+
+      <ol>
+        <li>A system for estimating remaining useful life of asphalt pavement, comprising: one or more thermal infrared camera modules mounted on fleet vehicles that regularly traverse a road network; a GPS receiver providing georeferenced position for each thermal image frame; a processing unit that computes apparent thermal inertia for road segments by inverting a physics-based heat conduction model against surface temperature observations collected across multiple vehicle passes at different times of day; and a machine learning model that maps per-segment thermal inertia values and their temporal trends to predicted remaining useful life in years.</li>
+
+        <li>The system of claim 1, wherein the thermal infrared camera is a LWIR microbolometer with noise-equivalent temperature difference less than 50 mK, mounted on the vehicle undercarriage facing downward at the road surface, and wherein the total sensor module cost is less than $400 per vehicle.</li>
+
+        <li>The system of claim 1, wherein the physics-based heat conduction model is a 1-D multi-layer thermal model with surface boundary conditions derived from clear-sky solar irradiance models, atmospheric longwave radiation computed from measured air temperature and humidity, and convective heat transfer estimates, and wherein model parameters including thermal inertia and albedo are recovered via Bayesian inversion using Markov Chain Monte Carlo sampling.</li>
+
+        <li>The system of claim 1, wherein the machine learning model is a spatiotemporal convolutional neural network comprising spatial convolution layers that process sub-segment thermal inertia spatial profiles and temporal recurrent units that process monthly thermal inertia time series, trained with an asymmetric loss function that penalizes under-prediction of failure timing more heavily than over-prediction.</li>
+
+        <li>The system of claim 1, wherein thermal measurements are tagged with quality scores based on time of day, cloud cover, and elapsed time since precipitation, and wherein the system preferentially weights observations from optimal measurement windows including pre-dawn cooling periods and post-sunset thermal transitions when surface temperature is dominated by thermal inertia rather than instantaneous solar forcing.</li>
+
+        <li>A method for predictive pavement maintenance comprising: continuously acquiring georeferenced thermal infrared images of road surfaces from cameras mounted on fleet vehicles; computing apparent thermal inertia for each road segment by fitting a forward thermal model to multi-pass temperature observations via Bayesian inversion; detecting actively degrading segments by monitoring the rate of thermal inertia decline over rolling time windows; predicting remaining useful life using a neural network trained on paired thermal inertia and historical pavement condition survey data; and generating cost-optimal maintenance schedules that minimize lifecycle cost by timing preventive interventions before structural capacity is lost.</li>
+
+        <li>The method of claim 6, further comprising spatial clustering of adjacent segments with similar remaining useful life predictions into contiguous maintenance projects, and budget optimization that selects projects maximizing network-level condition improvement per dollar spent under a constrained annual budget.</li>
+
+        <li>The method of claim 6, further comprising post-treatment performance monitoring that tracks thermal inertia recovery after maintenance interventions and flags treatments that fail to arrest thermal inertia decline within a specified verification period.</li>
+
+        <li>The method of claim 6, wherein the system detects subsurface pavement degradation including oxidative aging, moisture stripping, and fatigue micro-cracking through thermal inertia reduction 12 to 24 months before corresponding distresses become visually observable at the pavement surface.</li>
+
+        <li>The system of claim 1, wherein transfer learning enables deployment in new municipalities with a minimum of 100 to 200 lane-miles of paired thermal inertia and pavement condition index survey data, by fine-tuning a model pre-trained on data from a climate-similar source city.</li>
+      </ol>
+
+      <h2>Implementation Notes</h2>
+
+      <p>A pilot deployment on a transit fleet of 50 buses covering 200 route-miles could achieve full-network thermal inertia mapping within 4 weeks, with weekly update cadence thereafter. The estimated annual cost of the sensor program ($180 to $350 per vehicle × 50 buses = $9,000 to $17,500) is approximately 0.1% of a typical mid-size city's annual pavement maintenance budget ($10 to $20 million), while the shift from reactive to preventive maintenance could reduce lifecycle pavement costs by 15 to 30%.</p>
+
+      <p>Key implementation considerations include thermal camera calibration drift (recommend factory recalibration annually or cross-calibration against reference targets at the vehicle depot), GPS accuracy in urban canyons (RTK correction mitigates multipath; dead reckoning from vehicle odometer provides fallback), and the cold-start problem for new deployments (the RUL prediction model requires 6 to 12 months of TI history before decline rates become statistically significant; immediate value can be delivered through single-epoch TI mapping correlated with known PCI values).</p>
+
+      <h2>Prior Art References</h2>
+
+      <ol>
+        <li><a href="https://www.bts.gov/content/public-road-and-street-mileage-united-states-type-surfacepavement">Bureau of Transportation Statistics</a> — 4.19 million miles of paved U.S. roads</li>
+        <li><a href="https://infrastructurereportcard.org/cat-item/roads-infrastructure/">ASCE Infrastructure Report Card, 2021</a> — $4.6 trillion road replacement value</li>
+        <li><a href="https://tripnet.org/reports/nations-roads-deteriorate-2022/">TRIP National Transportation Research Group, 2022</a> — $621/year per motorist from poor roads</li>
+        <li><a href="https://www.astm.org/d6433-20.html">ASTM D6433-20</a> — Standard Practice for Roads and Parking Lots Pavement Condition Index Surveys</li>
+        <li><a href="https://www.fugro.com/about-fugro/our-expertise/technology/roadware">Fugro ARAN</a> — Automated pavement distress detection vehicle</li>
+        <li><a href="https://www.pavemetrics.com/applications/road-inspection/lcms-2/">Pavemetrics LCMS</a> — Laser Crack Measurement System for pavement</li>
+        <li><a href="https://www.mdpi.com/2673-7590/5/4/162">Floating Car Data for Road Roughness (MDPI, 2024)</a> — Volkswagen crowdsourced roughness monitoring</li>
+        <li><a href="https://mdpi.com/1424-8220/8/2/1278">Pascucci et al. (Sensors, 2008)</a> — Airborne thermal remote sensing for pavement defects</li>
+        <li><a href="https://doi.org/10.1016/j.conbuildmat.2018.09.045">Hassn et al. (Construction and Building Materials, 2016)</a> — Thermal conductivity reduction from asphalt aging</li>
+        <li><a href="https://www.mdpi.com/2227-9717/9/11/2078">Palyvos et al. (Processes, 2021)</a> — Albedo and thermal inertia effects on pavement temperature via CFD</li>
+        <li><a href="https://infotechnology.fhwa.dot.gov/infrared-thermography-pav/">FHWA InfoTechnology — Infrared Thermography for Pavements</a> — Federal endorsement of IR for pavement inspection</li>
+        <li><a href="https://dot.ca.gov/-/media/dot-media/programs/research-innovation-system-information/documents/research-notes/task3924-rrs-06-24-a11y.pdf">Caltrans (2024)</a> — Integration of thermal IR imaging into pavement and bridge deck inspection</li>
+        <li><a href="https://www.mdpi.com/1424-8220/22/23/9365">Deep Learning Based Infrared Thermal Image Analysis of Pavement Defects (Sensors, 2022)</a> — 92% accuracy in defect detection across seasons</li>
+        <li><a href="https://oem.flir.com/en-150/products/lepton/">Teledyne FLIR Lepton</a> — LWIR micro thermal camera module (OEM)</li>
+        <li><a href="https://link.springer.com/article/10.1186/s43065-024-00110-2">PS-InSAR Pavement Monitoring (2024)</a> — Space-based long-term pavement condition monitoring</li>
+      </ol>
+
+    </div>
+  </article>
+
+<script src="../story.js"></script>
+</body>
+</html>
