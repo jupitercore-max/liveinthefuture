@@ -4,6 +4,8 @@
 
   // Article order (newest first) — matches homepage grid order
   var articles = [
+    { slug: 'us-eastern-range-five-rockets-sixty-year-record', title: 'Five Different Rockets Launched From the Same Spaceport in April. That Hadn\u0027t Happened in 60 Years. Here\u0027s What Each One Cost Per Kilogram. \u2014 Live in the Future' },
+    { slug: 'mayo-clinic-redmod-pancreatic-cancer-ai', title: 'An AI Caught 73% of Invisible Pancreatic Cancers 475 Days Before Doctors Could. Running It on Every CT in America Would Cost $10 Per Scan. \u2014 Live in the Future' },
     { slug: 'china-ai-layoffs-illegal-global-comparison', title: 'A Chinese Court Says You Can\u0027t Fire Someone Because AI Took Their Job. In America, 160 Companies Filed AI Layoffs and Zero Called Them That. — Live in the Future' },
     { slug: 'catl-4-minute-battery-grid-bottleneck', title: 'CATL\'s New Battery Charges to 80% in Under 4 Minutes. The Grid Can Deliver That Power to Almost None of the World\'s Chargers. — Live in the Future' },
     { slug: 'ai-designed-ribosome-19-amino-acids', title: 'All Life Uses 20 Amino Acids. These Bacteria Run Their Most Ancient Machine on 19. — Live in the Future' },
