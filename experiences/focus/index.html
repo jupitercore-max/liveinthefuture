@@ -54,6 +54,24 @@ canvas{display:block;width:600px;height:600px}
   var ambientBaseline = 0.05;
   var micTimeDomain = null;
 
+  // --- Voice Activity Detection (focus quality) ---
+  var focusStartMs = 0;
+  var focusEndMs = 0;
+  var focusBreakEvents = [];
+  var isInFocusBreak = false;
+  var currentBreakStartMs = 0;
+  var speechDetecting = false;
+  var speechAboveStartMs = 0;
+  var focusQuietFrames = 0;
+  var focusTotalFrames = 0;
+  var SPEECH_MULT = 2.5;
+  var SPEECH_MIN_MS = 2000;
+  var lastRefocusChimeMs = 0;
+  var sessionFocusQuality = 100;
+  var showSessionSummary = false;
+  var sessionSummaryStartMs = 0;
+  var bestFocusQuality = 0;
+
   // --- Ambient focus drone ---
   var ambientEnabled = true;
   var ambientType = 0; // 0=warm, 1=rain, 2=wind
@@ -121,6 +139,74 @@ canvas{display:block;width:600px;height:600px}
     micLevel = Math.sqrt(sum / micTimeDomain.length);
     smoothMicLevel = smoothMicLevel * 0.95 + micLevel * 0.05;
     ambientBaseline = ambientBaseline * 0.997 + smoothMicLevel * 0.003;
+  }
+
+  function updateVoiceActivity(now) {
+    if (state !== 'focus' || !micEnabled) return;
+    focusTotalFrames++;
+    var threshold = Math.max(ambientBaseline * SPEECH_MULT, 0.04);
+    if (smoothMicLevel > threshold) {
+      if (!speechDetecting) {
+        speechDetecting = true;
+        speechAboveStartMs = now;
+      } else if (!isInFocusBreak && now - speechAboveStartMs > SPEECH_MIN_MS) {
+        isInFocusBreak = true;
+        currentBreakStartMs = speechAboveStartMs;
+      }
+    } else {
+      if (isInFocusBreak) {
+        focusBreakEvents.push({ startMs: currentBreakStartMs, endMs: now });
+        isInFocusBreak = false;
+        if (now - lastRefocusChimeMs > 5000) {
+          playRefocusChime();
+          lastRefocusChimeMs = now;
+        }
+      }
+      speechDetecting = false;
+      focusQuietFrames++;
+    }
+    sessionFocusQuality = focusTotalFrames > 0 ? Math.round((focusQuietFrames / focusTotalFrames) * 100) : 100;
+  }
+
+  function getFocusBreakTotalSec() {
+    var total = 0;
+    for (var i = 0; i < focusBreakEvents.length; i++) {
+      total += focusBreakEvents[i].endMs - focusBreakEvents[i].startMs;
+    }
+    if (isInFocusBreak) total += (focusEndMs || Date.now()) - currentBreakStartMs;
+    return Math.round(total / 1000);
+  }
+
+  function getLongestQuietSec() {
+    var end = focusEndMs || Date.now();
+    if (focusBreakEvents.length === 0 && !isInFocusBreak) {
+      return Math.round(Math.max(0, end - focusStartMs) / 1000);
+    }
+    var events = focusBreakEvents.slice();
+    if (isInFocusBreak) events.push({ startMs: currentBreakStartMs, endMs: end });
+    var longest = Math.max(0, (events[0].startMs - focusStartMs) / 1000);
+    for (var i = 1; i < events.length; i++) {
+      var gap = (events[i].startMs - events[i - 1].endMs) / 1000;
+      if (gap > longest) longest = gap;
+    }
+    var last = events[events.length - 1];
+    var finalGap = (end - last.endMs) / 1000;
+    if (finalGap > longest) longest = finalGap;
+    return Math.max(0, Math.round(longest));
+  }
+
+  function resetFocusQuality() {
+    focusStartMs = Date.now();
+    focusEndMs = 0;
+    focusBreakEvents = [];
+    isInFocusBreak = false;
+    currentBreakStartMs = 0;
+    focusQuietFrames = 0;
+    focusTotalFrames = 0;
+    speechDetecting = false;
+    speechAboveStartMs = 0;
+    sessionFocusQuality = 100;
+    showSessionSummary = false;
   }
 
   // --- Noise buffer ---
@@ -324,6 +410,29 @@ canvas{display:block;width:600px;height:600px}
     } catch(e) {}
   }
 
+  function playRefocusChime() {
+    if (!audioCtx) return;
+    try {
+      var t = audioCtx.currentTime;
+      var osc1 = audioCtx.createOscillator();
+      var g1 = audioCtx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.value = 523;
+      g1.gain.setValueAtTime(0.03, t);
+      g1.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+      osc1.connect(g1); g1.connect(audioCtx.destination);
+      osc1.start(t); osc1.stop(t + 0.2);
+      var osc2 = audioCtx.createOscillator();
+      var g2 = audioCtx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.value = 659;
+      g2.gain.setValueAtTime(0.03, t + 0.12);
+      g2.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      osc2.connect(g2); g2.connect(audioCtx.destination);
+      osc2.start(t + 0.12); osc2.stop(t + 0.35);
+    } catch(e) {}
+  }
+
   // --- Challenge system ---
   var challengeActive = false;
   var challengeType = null; // 'skip_break', 'sprint', 'zen', 'double_down'
@@ -436,6 +545,7 @@ canvas{display:block;width:600px;height:600px}
           todaySessions = d.today || 0;
         }
         bestStreak = d.best || 0;
+        bestFocusQuality = d.bestFQ || 0;
       }
     } catch(e) {}
   }
@@ -446,7 +556,8 @@ canvas{display:block;width:600px;height:600px}
       localStorage.setItem('litf_focus_stats', JSON.stringify({
         date: today,
         today: todaySessions,
-        best: bestStreak
+        best: bestStreak,
+        bestFQ: bestFocusQuality
       }));
     } catch(e) {}
   }
@@ -489,6 +600,7 @@ canvas{display:block;width:600px;height:600px}
 
     // Update mic
     updateMic();
+    updateVoiceActivity(now);
 
     // Update ambient drone
     if (ambientActive) updateAmbientDrone();
@@ -523,6 +635,14 @@ canvas{display:block;width:600px;height:600px}
             if (todaySessions > bestStreak) bestStreak = todaySessions;
             checkAchievements();
             saveStats();
+            if (isInFocusBreak) {
+              focusBreakEvents.push({ startMs: currentBreakStartMs, endMs: Date.now() });
+              isInFocusBreak = false;
+            }
+            focusEndMs = Date.now();
+            showSessionSummary = true;
+            sessionSummaryStartMs = Date.now();
+            if (sessionFocusQuality > bestFocusQuality) bestFocusQuality = sessionFocusQuality;
             playSessionComplete();
             stopAmbientDrone();
             rollChallenge();
@@ -594,6 +714,15 @@ canvas{display:block;width:600px;height:600px}
     else if (state === 'longbreak') label = 'LONG BREAK';
     else if (state === 'paused') label = '\u23F8 PAUSED';
     ctx.fillText(label, CX, CY + 38);
+
+    // Focus quality indicator (during focus, when mic active and >1 sec of data)
+    if (isFocus && micEnabled && focusTotalFrames > 60) {
+      var fqColor = sessionFocusQuality >= 85 ? '#66bb6a' : sessionFocusQuality >= 65 ? '#ff9800' : '#ef5350';
+      ctx.font = '13px system-ui';
+      ctx.fillStyle = fqColor;
+      ctx.textAlign = 'center';
+      ctx.fillText('\uD83E\uDDE0 ' + sessionFocusQuality + '%' + (isInFocusBreak ? ' \u25CF' : ''), CX, CY + 56);
+    }
 
     // Session dots
     var dotY2 = CY + 70;
@@ -780,6 +909,46 @@ canvas{display:block;width:600px;height:600px}
       ctx.globalAlpha = 1;
     }
 
+    // --- Focus quality session summary (shown briefly after focus completes) ---
+    if (showSessionSummary && Date.now() - sessionSummaryStartMs < 5000) {
+      var sumAlpha = 1;
+      var sumElapsed = Date.now() - sessionSummaryStartMs;
+      if (sumElapsed > 4000) sumAlpha = 1 - (sumElapsed - 4000) / 1000;
+      ctx.globalAlpha = sumAlpha;
+      var fqBorder = sessionFocusQuality >= 85 ? '#66bb6a' : sessionFocusQuality >= 65 ? '#ff9800' : '#ef5350';
+      var bCount = focusBreakEvents.length;
+      var boxH = bCount > 0 ? 130 : 105;
+      ctx.fillStyle = 'rgba(13,13,13,0.92)';
+      ctx.fillRect(100, 145, 400, boxH);
+      ctx.strokeStyle = fqBorder;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(100, 145, 400, boxH);
+      ctx.font = 'bold 15px system-ui';
+      ctx.fillStyle = '#e0e0e0';
+      ctx.textAlign = 'center';
+      ctx.fillText('SESSION COMPLETE', CX, 170);
+      ctx.font = 'bold 20px system-ui';
+      ctx.fillStyle = fqBorder;
+      ctx.fillText('\uD83E\uDDE0 Focus Quality: ' + sessionFocusQuality + '%', CX, 198);
+      ctx.font = '13px system-ui';
+      ctx.fillStyle = '#aaa';
+      if (bCount === 0) {
+        ctx.fillText('No distractions detected \u2014 deep focus!', CX, 222);
+      } else {
+        var bSec = getFocusBreakTotalSec();
+        ctx.fillText('\u23F8 ' + bCount + ' distraction' + (bCount > 1 ? 's' : '') + ' (' + fmtTime(bSec) + ' total)', CX, 222);
+        ctx.fillText('\uD83D\uDD25 Longest unbroken: ' + fmtTime(getLongestQuietSec()), CX, 244);
+      }
+      if (bestFocusQuality > 0) {
+        ctx.font = '11px system-ui';
+        ctx.fillStyle = '#555';
+        ctx.fillText('Best: ' + bestFocusQuality + '%', CX, bCount > 0 ? 266 : 244);
+      }
+      ctx.globalAlpha = 1;
+    } else if (showSessionSummary) {
+      showSessionSummary = false;
+    }
+
     // --- Badge gallery (press Esc on idle, or ↓ during idle) ---
     if (showBadges) {
       ctx.fillStyle = 'rgba(13,13,13,0.95)';
@@ -901,6 +1070,7 @@ canvas{display:block;width:600px;height:600px}
             if (ambientEnabled) startAmbientDrone();
             playTick();
           }
+          resetFocusQuality();
         } else {
           // Decline challenge
           challengeOffer = null;
@@ -924,6 +1094,7 @@ canvas{display:block;width:600px;height:600px}
         challengeOffer = null;
         playTick();
         if (ambientEnabled) startAmbientDrone();
+        resetFocusQuality();
       } else if (state === 'focus' || state === 'break' || state === 'longbreak') {
         pausedFrom = state;
         state = 'paused';
