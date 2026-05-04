@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/games/hex-collapse.html" />
+  <meta property="og:title" content="Hex Collapse - Hypernova WebApp" />
+  <meta property="og:url" content="https://liveinthefuture.org/games/hex-collapse.html" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Hex Collapse - Hypernova WebApp</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d0d0d;color:#e8e8e8;width:600px;height:600px;overflow:hidden;-webkit-user-select:none;user-select:none}
+canvas{display:block}
+
+/* Mobile responsive: scale 600x600 canvas to fit viewport */
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+var W = 600, H = 600;
+
+// Audio
+var audioCtx = null;
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+// === BGM System ===
+var bgmAudio = null, bgmGameover = null, bgmMuted = false, bgmStarted = false;
+function bgmInit() {
+  bgmAudio = new Audio('audio/hex-collapse-bgm.mp3');
+  bgmAudio.loop = true;
+  bgmAudio.volume = 0.15;
+  bgmGameover = new Audio('audio/gameover-gentle.mp3');
+  bgmGameover.volume = 0.25;
+}
+function bgmPlay() {
+  if (bgmMuted || !bgmAudio) return;
+  if (!bgmStarted) { bgmAudio.currentTime = 0; bgmStarted = true; }
+  bgmAudio.play().catch(function(){});
+}
+function bgmStop() { if (bgmAudio) { bgmAudio.pause(); } bgmStarted = false; }
+function bgmGameOver() {
+  bgmStop();
+  if (bgmMuted || !bgmGameover) return;
+  bgmGameover.currentTime = 0;
+  bgmGameover.play().catch(function(){});
+}
+function bgmToggle() {
+  bgmMuted = !bgmMuted;
+  if (bgmMuted) { if (bgmAudio) bgmAudio.pause(); }
+  else bgmPlay();
+}
+
+function playTone(freq, dur, vol) {
+  if (!audioCtx) return;
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.type = 'sine';
+  o.frequency.value = freq;
+  g.gain.value = vol || 0.1;
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+function playPop() { playTone(600 + Math.random()*400, 0.1, 0.15); }
+function playChain() { playTone(800 + Math.random()*600, 0.15, 0.2); }
+function playFail() { playTone(200, 0.3, 0.1); }
+// Color-specific tones — pentatonic scale so any sequence sounds musical
+var COLOR_NOTES = [262, 294, 330, 392, 440, 523, 587]; // C4 D4 E4 G4 A4 C5 D5
+function playCursorTone(colorIdx) {
+  if (colorIdx < 0) { playTone(150, 0.05, 0.03); return; } // empty cell = muted thud
+  var note = COLOR_NOTES[colorIdx % COLOR_NOTES.length];
+  playTone(note, 0.08, 0.07);
+}
+
+// Mic input
+var micStream = null, micAnalyser = null, micData = null;
+var micVolume = 0, micSmooth = 0, micPeak = 0, micPeakDecay = 0;
+var micBass = 0, micTreble = 0;
+var micFailed = false;
+var bombReady = true, bombCooldown = 0, bombCooldownMax = 180; // 3s at 60fps
+var bombFlash = 0, bombRipple = 0, bombRippleX = 0, bombRippleY = 0;
+var spikeThreshold = 0.45, spikeHeld = false;
+
+function initMic() {
+  if (micStream || micFailed) return;
+  micFailed = true; // set before call
+  try {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      micFailed = false;
+      micStream = stream;
+      var ac = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (!audioCtx) audioCtx = ac;
+      micAnalyser = ac.createAnalyser();
+      micAnalyser.fftSize = 256;
+      micAnalyser.smoothingTimeConstant = 0.8;
+      var src = ac.createMediaStreamSource(stream);
+      src.connect(micAnalyser);
+      micData = new Uint8Array(micAnalyser.frequencyBinCount);
+    }).catch(function() { micFailed = true; });
+  } catch(e) { micFailed = true; }
+}
+
+function updateMic() {
+  if (!micAnalyser || !micData) return;
+  micAnalyser.getByteFrequencyData(micData);
+  var sum = 0, bassSum = 0, trebSum = 0;
+  var len = micData.length;
+  for (var i = 0; i < len; i++) {
+    sum += micData[i];
+    if (i < len * 0.25) bassSum += micData[i];
+    else if (i > len * 0.6) trebSum += micData[i];
+  }
+  var raw = sum / (len * 255);
+  micVolume = raw;
+  micSmooth = micSmooth * 0.85 + raw * 0.15;
+  micBass = bassSum / (len * 0.25 * 255);
+  micTreble = trebSum / (len * 0.4 * 255);
+  if (raw > micPeak) micPeak = raw;
+  micPeakDecay++;
+  if (micPeakDecay > 60) { micPeak *= 0.95; micPeakDecay = 0; }
+
+  // Spike detection — tap on glasses frame
+  if (raw > spikeThreshold && !spikeHeld && bombReady && state === ST_PLAY) {
+    spikeHeld = true;
+    triggerSoundBomb();
+  }
+  if (raw < spikeThreshold * 0.5) spikeHeld = false;
+}
+
+function triggerSoundBomb() {
+  var color = grid[curR][curC];
+  if (color < 0) return;
+  var cleared = [];
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      if (grid[r][c] === color) cleared.push([r, c]);
+    }
+  }
+  if (cleared.length < 1) return;
+  // Score: all cleared hexes at combo bonus
+  combo++;
+  var bonuses = getRankBonuses();
+  var pts = Math.floor(cleared.length * 15 * combo * bonuses.scoreMult);
+  score += pts;
+  moves++;
+  removeGroup(cleared);
+  comboText = '💥 BOOM +' + pts;
+  comboTextTimer = 50;
+  shakeTimer = 12;
+  // Bomb effects
+  var cp = hexCenter(curR, curC);
+  bombRippleX = cp.x; bombRippleY = cp.y;
+  bombRipple = 30;
+  bombFlash = 10;
+  bombReady = false;
+  bombCooldown = Math.floor(bombCooldownMax * getRankBonuses().bombCdMult);
+  // Big bass sound
+  playTone(80, 0.4, 0.3);
+  setTimeout(function() { playTone(60, 0.3, 0.2); }, 50);
+  // Best score
+  if (score > bestScore) {
+    bestScore = score;
+    try { localStorage.setItem('hc_best', bestScore); } catch(e){}
+  }
+  state = ST_ANIM;
+  animTimer = 15;
+}
+
+// States
+var ST_MENU = 0, ST_PLAY = 1, ST_OVER = 2, ST_ANIM = 3;
+var state = ST_MENU;
+
+// Hex grid config
+var COLS = 9, ROWS = 9;
+var HEX_R = 28;
+var HEX_W = HEX_R * Math.sqrt(3);
+var HEX_H = HEX_R * 2;
+var GRID_X = 45, GRID_Y = 70;
+var ALL_COLORS = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#1abc9c','#e67e22'];
+var COLORS = ALL_COLORS.slice(0, 4);
+
+var grid = [];
+var curR = 0, curC = 0;
+var score = 0, combo = 0, moves = 0, level = 1;
+var bestScore = 0;
+try { bestScore = parseInt(localStorage.getItem('hc_best')) || 0; } catch(e){}
+
+// Rank progression — cumulative total score across all games
+var RANKS = [
+  { name: 'Novice',     threshold: 0,     bonus: 'None' },
+  { name: 'Matcher',    threshold: 1000,  bonus: 'Score +20%' },
+  { name: 'Chainer',    threshold: 3000,  bonus: 'Combo starts x1.5' },
+  { name: 'Collapser',  threshold: 7000,  bonus: 'Bomb cooldown -25%' },
+  { name: 'Architect',  threshold: 15000, bonus: 'Score +40%' },
+  { name: 'Strategist', threshold: 28000, bonus: 'Combo starts x2' },
+  { name: 'Hex Master', threshold: 50000, bonus: 'Bomb cooldown -40%' },
+  { name: 'Chromatic',  threshold: 80000, bonus: 'All bonuses max' }
+];
+var totalScore = 0;
+try { totalScore = parseInt(localStorage.getItem('hc_totalScore')) || 0; } catch(e){}
+
+function getRankIdx() {
+  for (var i = RANKS.length - 1; i >= 0; i--) {
+    if (totalScore >= RANKS[i].threshold) return i;
+  }
+  return 0;
+}
+function getRankBonuses() {
+  var idx = getRankIdx();
+  var scoreMult = 1.0;
+  var comboStart = 0; // combo resets to this instead of 0
+  var bombCdMult = 1.0;
+  if (idx >= 1) scoreMult = 1.2;
+  if (idx >= 2) comboStart = 0.5; // combo = floor(0.5) = 0 but trySelect does combo++ so effectively +0 ... better: track as integer
+  if (idx >= 3) bombCdMult = 0.75;
+  if (idx >= 4) scoreMult = 1.4;
+  if (idx >= 5) comboStart = 1; // combo starts at 1, so first match is x2
+  if (idx >= 6) bombCdMult = 0.6;
+  if (idx >= 7) { scoreMult = 1.5; comboStart = 1; bombCdMult = 0.5; }
+  return { scoreMult: scoreMult, comboStart: comboStart, bombCdMult: bombCdMult };
+}
+var rankUpAnim = 0; // >0 means rank up display active
+var prevRankIdx = getRankIdx();
+var particles = [];
+var animTimer = 0;
+var falling = false;
+var comboText = '';
+var comboTextTimer = 0;
+var shakeTimer = 0;
+var LEVEL_TARGETS = [0, 200, 500, 1000, 1800, 2800, 4000, 5500, 7500, 10000];
+var allValidGroups = []; // cached list of all matchable groups
+var validGroupMap = {}; // key "r,c" → group index for quick lookup
+
+function getNumColors() { return Math.min(3 + level, ALL_COLORS.length); }
+function getLevelTarget() { return LEVEL_TARGETS[Math.min(level, LEVEL_TARGETS.length-1)]; }
+
+function hexCenter(r, c) {
+  var x = GRID_X + c * HEX_W + (r % 2 === 1 ? HEX_W / 2 : 0);
+  var y = GRID_Y + r * (HEX_H * 0.75);
+  return { x: x, y: y };
+}
+
+function initGrid() {
+  COLORS = ALL_COLORS.slice(0, getNumColors());
+  grid = [];
+  for (var r = 0; r < ROWS; r++) {
+    grid[r] = [];
+    for (var c = 0; c < COLS; c++) {
+      grid[r][c] = Math.floor(Math.random() * COLORS.length);
+    }
+  }
+  curR = Math.floor(ROWS/2);
+  curC = Math.floor(COLS/2);
+  score = 0; combo = getRankBonuses().comboStart; moves = 0;
+  comboText = ''; comboTextTimer = 0; shakeTimer = 0;
+  prevRankIdx = getRankIdx();
+  computeAllValidGroups();
+}
+
+function getNeighbors(r, c) {
+  var nb = [];
+  var even = r % 2 === 0;
+  var dirs = even ?
+    [[-1,-1],[-1,0],[0,-1],[0,1],[1,-1],[1,0]] :
+    [[-1,0],[-1,1],[0,-1],[0,1],[1,0],[1,1]];
+  for (var i = 0; i < dirs.length; i++) {
+    var nr = r + dirs[i][0], nc = c + dirs[i][1];
+    if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) nb.push([nr, nc]);
+  }
+  return nb;
+}
+
+function findGroup(r, c) {
+  var color = grid[r][c];
+  if (color < 0) return [];
+  var visited = {};
+  var stack = [[r, c]];
+  var group = [];
+  while (stack.length > 0) {
+    var cur = stack.pop();
+    var key = cur[0] + ',' + cur[1];
+    if (visited[key]) continue;
+    visited[key] = true;
+    if (grid[cur[0]][cur[1]] === color) {
+      group.push(cur);
+      var nb = getNeighbors(cur[0], cur[1]);
+      for (var i = 0; i < nb.length; i++) stack.push(nb[i]);
+    }
+  }
+  return group;
+}
+
+function removeGroup(group) {
+  for (var i = 0; i < group.length; i++) {
+    var pos = hexCenter(group[i][0], group[i][1]);
+    for (var j = 0; j < 4; j++) {
+      particles.push({
+        x: pos.x, y: pos.y,
+        vx: (Math.random()-0.5)*6, vy: (Math.random()-0.5)*6,
+        life: 30, color: ALL_COLORS[grid[group[i][0]][group[i][1]]]
+      });
+    }
+    grid[group[i][0]][group[i][1]] = -1;
+  }
+}
+
+function applyGravity() {
+  var moved = false;
+  for (var c = 0; c < COLS; c++) {
+    for (var r = ROWS - 1; r >= 0; r--) {
+      if (grid[r][c] === -1) {
+        for (var above = r - 1; above >= 0; above--) {
+          if (grid[above][c] >= 0) {
+            grid[r][c] = grid[above][c];
+            grid[above][c] = -1;
+            moved = true;
+            break;
+          }
+        }
+      }
+    }
+    // Fill empty top cells — mic biases color spawning
+    for (var r2 = 0; r2 < ROWS; r2++) {
+      if (grid[r2][c] === -1) {
+        var nc = getNumColors();
+        if (micStream && nc >= 4) {
+          // Bass → warm colors (red, orange, yellow = indices 0,3,6)
+          // Treble → cool colors (blue, green, purple = indices 1,2,4)
+          var roll = Math.random();
+          if (micBass > 0.3 && roll < 0.4) {
+            var warm = [0, 3, 6].filter(function(i) { return i < nc; });
+            grid[r2][c] = warm[Math.floor(Math.random() * warm.length)];
+          } else if (micTreble > 0.3 && roll < 0.4) {
+            var cool = [1, 2, 4].filter(function(i) { return i < nc; });
+            grid[r2][c] = cool[Math.floor(Math.random() * cool.length)];
+          } else {
+            grid[r2][c] = Math.floor(Math.random() * nc);
+          }
+        } else {
+          grid[r2][c] = Math.floor(Math.random() * getNumColors());
+        }
+        moved = true;
+      }
+    }
+  }
+  return moved;
+}
+
+function hasValidMoves() {
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      if (findGroup(r, c).length >= 3) return true;
+    }
+  }
+  return false;
+}
+
+function computeAllValidGroups() {
+  allValidGroups = [];
+  validGroupMap = {};
+  var visited = {};
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      var key = r + ',' + c;
+      if (visited[key]) continue;
+      if (grid[r][c] < 0) continue;
+      var g = findGroup(r, c);
+      // Mark all cells in this group as visited
+      for (var i = 0; i < g.length; i++) {
+        visited[g[i][0] + ',' + g[i][1]] = true;
+      }
+      if (g.length >= 3) {
+        var idx = allValidGroups.length;
+        allValidGroups.push(g);
+        for (var j = 0; j < g.length; j++) {
+          validGroupMap[g[j][0] + ',' + g[j][1]] = idx;
+        }
+      }
+    }
+  }
+}
+
+function trySelect() {
+  var group = findGroup(curR, curC);
+  if (group.length >= 3) {
+    combo++;
+    var bonuses = getRankBonuses();
+    var pts = Math.floor(group.length * 10 * combo * bonuses.scoreMult);
+    score += pts;
+    moves++;
+    // Capture matched color BEFORE removeGroup destroys grid cells
+    var matchedColorIdx = grid[curR][curC];
+    removeGroup(group);
+    // Ascending arpeggio — starts from matched color's pentatonic note
+    var baseFreq = COLOR_NOTES[matchedColorIdx % COLOR_NOTES.length];
+    for (var si = 0; si < Math.min(group.length, 8); si++) {
+      (function(idx, base) {
+        setTimeout(function() { playTone(base + idx * 50, 0.1, 0.12); }, idx * 40);
+      })(si, baseFreq);
+    }
+    comboText = '+' + pts + (combo > 1 ? ' x' + combo + '!' : '');
+    comboTextTimer = 40;
+    if (combo >= 3) shakeTimer = 8;
+    state = ST_ANIM;
+    animTimer = 15;
+    // Level up check
+    if (score >= getLevelTarget() && level < 7) {
+      level++;
+      COLORS = ALL_COLORS.slice(0, getNumColors());
+    }
+    // Best score
+    if (score > bestScore) {
+      bestScore = score;
+      try { localStorage.setItem('hc_best', bestScore); } catch(e){}
+    }
+  } else {
+    combo = getRankBonuses().comboStart;
+    playFail();
+    shakeTimer = 4;
+    computeAllValidGroups();
+  }
+}
+
+function drawHex(x, y, r, fill, stroke, lw) {
+  ctx.beginPath();
+  for (var i = 0; i < 6; i++) {
+    var angle = Math.PI / 6 + i * Math.PI / 3;
+    var px = x + r * Math.cos(angle);
+    var py = y + r * Math.sin(angle);
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 2; ctx.stroke(); }
+}
+
+function drawMenu() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.font = 'bold 48px -apple-system, sans-serif';
+  ctx.fillText('⬡ HEX COLLAPSE', W/2, 170);
+  ctx.font = '20px -apple-system, sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.fillText('Match 3+ adjacent hexes', W/2, 220);
+  ctx.fillText('Each color has its own note — listen!', W/2, 250);
+
+  // Rank display
+  var rIdx = getRankIdx();
+  var rank = RANKS[rIdx];
+  ctx.font = 'bold 18px -apple-system, sans-serif';
+  ctx.fillStyle = '#f39c12';
+  ctx.fillText('⬡ ' + rank.name, W/2, 295);
+  // Progress bar to next rank
+  if (rIdx < RANKS.length - 1) {
+    var nextRank = RANKS[rIdx + 1];
+    var prog2 = (totalScore - rank.threshold) / (nextRank.threshold - rank.threshold);
+    prog2 = Math.min(Math.max(prog2, 0), 1);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(W/2 - 100, 305, 200, 10);
+    ctx.fillStyle = '#f39c12';
+    ctx.fillRect(W/2 - 100, 305, 200 * prog2, 10);
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.fillStyle = '#888';
+    ctx.fillText(totalScore + ' / ' + nextRank.threshold + '  →  ' + nextRank.name, W/2, 330);
+  } else {
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.fillStyle = '#f39c12';
+    ctx.fillText('MAX RANK — Total: ' + totalScore, W/2, 330);
+  }
+
+  ctx.font = '22px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText('↑↓←→  Move Cursor', W/2, 390);
+  ctx.fillText('Enter  Select Hex', W/2, 425);
+  ctx.fillText('Esc  Back', W/2, 460);
+  ctx.fillStyle = '#e8e8e8';
+  ctx.font = 'bold 24px -apple-system, sans-serif';
+  var pulse = 0.6 + 0.4 * Math.sin(Date.now() / 500);
+  ctx.globalAlpha = pulse;
+  ctx.fillText('Press Enter to Start', W/2, 520);
+  ctx.globalAlpha = 1;
+  ctx.font = '14px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.fillText('🎤 Tap glasses to clear colors!', W/2, 555);
+}
+
+function drawGame() {
+  // Screen shake
+  var sx = 0, sy = 0;
+  if (shakeTimer > 0) {
+    shakeTimer--;
+    sx = (Math.random()-0.5) * 6;
+    sy = (Math.random()-0.5) * 6;
+  }
+  ctx.save();
+  ctx.translate(sx, sy);
+
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(-10, -10, W+20, H+20);
+
+  // HUD
+  ctx.textAlign = 'left';
+  ctx.font = 'bold 18px -apple-system, sans-serif';
+  ctx.fillStyle = '#e8e8e8';
+  ctx.fillText('Score: ' + score, 16, 28);
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.fillText('Best: ' + bestScore, 16, 46);
+  // Rank label
+  ctx.fillStyle = '#f39c12';
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillText('⬡ ' + RANKS[getRankIdx()].name, 16, 58);
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 16px -apple-system, sans-serif';
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillText('Level ' + level + '  (' + getNumColors() + ' colors)', W/2, 28);
+  // Progress bar
+  var prevTarget = level > 1 ? LEVEL_TARGETS[Math.min(level-1, LEVEL_TARGETS.length-1)] : 0;
+  var nextTarget = getLevelTarget();
+  var prog = nextTarget > prevTarget ? Math.min((score - prevTarget) / (nextTarget - prevTarget), 1) : 1;
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(W/2 - 80, 35, 160, 8);
+  ctx.fillStyle = '#4a9eff';
+  ctx.fillRect(W/2 - 80, 35, 160 * prog, 8);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#888';
+  ctx.font = '13px -apple-system, sans-serif';
+  ctx.fillText('Moves: ' + moves, W-16, 28);
+  // Available matches count
+  ctx.fillStyle = allValidGroups.length > 3 ? '#2ecc71' : allValidGroups.length > 0 ? '#f39c12' : '#e74c3c';
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillText(allValidGroups.length + ' matches', W-16, 44);
+
+  // Hex grid
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      var pos = hexCenter(r, c);
+      var color = grid[r][c] >= 0 ? ALL_COLORS[grid[r][c]] : '#1a1a1a';
+
+      // Mic-reactive glow — hexes pulse with bass
+      if (micStream && micBass > 0.1 && grid[r][c] >= 0) {
+        ctx.globalAlpha = micBass * 0.3;
+        drawHex(pos.x, pos.y, HEX_R + 2, color, null);
+        ctx.globalAlpha = 1;
+      }
+
+      drawHex(pos.x, pos.y, HEX_R - 2, color, '#2a2a2a', 1);
+
+      // Cursor
+      if (r === curR && c === curC) {
+        var pulse2 = 2 + Math.sin(Date.now() / 200);
+        drawHex(pos.x, pos.y, HEX_R + 1, null, '#4a9eff', pulse2);
+      }
+      // Idle valid-group hint — subtle pulsing dot for matchable hexes (not the cursor group)
+      else if (validGroupMap.hasOwnProperty(r + ',' + c)) {
+        var gIdx = validGroupMap[r + ',' + c];
+        var hintAlpha = 0.15 + 0.1 * Math.sin(Date.now() / 600 + gIdx * 1.3);
+        ctx.globalAlpha = hintAlpha;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  // Highlight matching group
+  var group = findGroup(curR, curC);
+  if (group.length >= 3) {
+    ctx.globalAlpha = 0.3 + 0.2 * Math.sin(Date.now() / 300);
+    for (var i = 0; i < group.length; i++) {
+      var gp = hexCenter(group[i][0], group[i][1]);
+      drawHex(gp.x, gp.y, HEX_R - 2, '#fff', null);
+    }
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 16px -apple-system, sans-serif';
+    ctx.fillStyle = '#4a9eff';
+    var noteNames = ['C','D','E','G','A','C','D'];
+    var curColor = grid[curR][curC];
+    var noteName = curColor >= 0 ? '♪' + noteNames[curColor % noteNames.length] : '';
+    ctx.fillText('Match: ' + group.length + ' hexes ' + noteName, W/2, H - 20);
+  }
+
+  // Particles
+  for (var p = particles.length - 1; p >= 0; p--) {
+    var pt = particles[p];
+    pt.x += pt.vx; pt.y += pt.vy; pt.vy += 0.2; pt.life--;
+    ctx.globalAlpha = pt.life / 30;
+    ctx.fillStyle = pt.color;
+    ctx.fillRect(pt.x - 3, pt.y - 3, 6, 6);
+    if (pt.life <= 0) particles.splice(p, 1);
+  }
+  ctx.globalAlpha = 1;
+
+  // Bomb ripple effect
+  if (bombRipple > 0) {
+    var ripR = (30 - bombRipple) * 15;
+    ctx.globalAlpha = bombRipple / 30 * 0.4;
+    ctx.strokeStyle = '#f39c12';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(bombRippleX, bombRippleY, ripR, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // Bomb flash
+  if (bombFlash > 0) {
+    ctx.globalAlpha = bombFlash / 10 * 0.15;
+    ctx.fillStyle = '#f39c12';
+    ctx.fillRect(-10, -10, W+20, H+20);
+    ctx.globalAlpha = 1;
+  }
+
+  // Mic HUD — bottom left
+  if (micStream) {
+    // Volume bar
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(12, H - 30, 60, 8);
+    ctx.fillStyle = micSmooth > 0.4 ? '#e74c3c' : micSmooth > 0.2 ? '#f39c12' : '#2ecc71';
+    ctx.fillRect(12, H - 30, 60 * Math.min(micSmooth * 2, 1), 8);
+    ctx.font = '10px -apple-system, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#555';
+    ctx.fillText('🎤 ' + Math.round(micSmooth * 100) + '%', 12, H - 34);
+  }
+
+  // Bomb cooldown indicator — bottom right
+  if (!bombReady && bombCooldown > 0) {
+    var pct = 1 - (bombCooldown / bombCooldownMax);
+    ctx.textAlign = 'right';
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.fillStyle = '#555';
+    ctx.fillText('💥 ' + Math.ceil(bombCooldown / 60) + 's', W - 12, H - 34);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(W - 72, H - 30, 60, 8);
+    ctx.fillStyle = '#f39c12';
+    ctx.fillRect(W - 72, H - 30, 60 * pct, 8);
+  } else if (bombReady && micStream) {
+    ctx.textAlign = 'right';
+    ctx.font = '12px -apple-system, sans-serif';
+    var bp = 0.6 + 0.4 * Math.sin(Date.now() / 400);
+    ctx.globalAlpha = bp;
+    ctx.fillStyle = '#f39c12';
+    ctx.fillText('💥 TAP READY', W - 12, H - 24);
+    ctx.globalAlpha = 1;
+  }
+
+  // Combo text float
+  if (comboTextTimer > 0) {
+    comboTextTimer--;
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 28px -apple-system, sans-serif';
+    ctx.globalAlpha = comboTextTimer / 40;
+    ctx.fillStyle = combo > 2 ? '#f39c12' : '#4a9eff';
+    ctx.fillText(comboText, W/2, 60 - (40 - comboTextTimer));
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.restore();
+}
+
+function drawGameOver() {
+  drawGame();
+  ctx.fillStyle = 'rgba(0,0,0,0.8)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#e74c3c';
+  ctx.font = 'bold 42px -apple-system, sans-serif';
+  ctx.fillText('GAME OVER', W/2, 160);
+  ctx.fillStyle = '#e8e8e8';
+  ctx.font = '24px -apple-system, sans-serif';
+  ctx.fillText('Score: ' + score, W/2, 210);
+  ctx.fillText('Level: ' + level, W/2, 245);
+  ctx.fillStyle = '#f39c12';
+  ctx.fillText('Best: ' + bestScore, W/2, 280);
+  ctx.fillStyle = '#888';
+  ctx.font = '18px -apple-system, sans-serif';
+  ctx.fillText('Moves: ' + moves, W/2, 315);
+
+  // Rank progress
+  var rIdx = getRankIdx();
+  var rank = RANKS[rIdx];
+  ctx.font = 'bold 18px -apple-system, sans-serif';
+  ctx.fillStyle = '#f39c12';
+  ctx.fillText('⬡ ' + rank.name, W/2, 360);
+  if (rIdx < RANKS.length - 1) {
+    var nextRank = RANKS[rIdx + 1];
+    var prog3 = (totalScore - rank.threshold) / (nextRank.threshold - rank.threshold);
+    prog3 = Math.min(Math.max(prog3, 0), 1);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(W/2 - 80, 370, 160, 8);
+    ctx.fillStyle = '#f39c12';
+    ctx.fillRect(W/2 - 80, 370, 160 * prog3, 8);
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.fillStyle = '#888';
+    ctx.fillText(Math.round(prog3 * 100) + '% → ' + nextRank.name + ' (' + nextRank.bonus + ')', W/2, 395);
+  }
+
+  // Rank up announcement
+  if (rankUpAnim > 0) {
+    rankUpAnim--;
+    var ra = Math.min(rankUpAnim / 30, 1);
+    ctx.globalAlpha = ra;
+    ctx.font = 'bold 28px -apple-system, sans-serif';
+    ctx.fillStyle = '#f39c12';
+    ctx.fillText('⬡ RANK UP! ⬡', W/2, 440);
+    ctx.font = '20px -apple-system, sans-serif';
+    ctx.fillText(rank.name + ' — ' + rank.bonus, W/2, 470);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.fillStyle = '#4a9eff';
+  ctx.font = '20px -apple-system, sans-serif';
+  ctx.fillText('Enter: Play Again', W/2, 520);
+  ctx.fillText('Esc: Back to Gallery', W/2, 555);
+}
+
+function update() {
+  updateMic();
+  if (bombCooldown > 0) { bombCooldown--; if (bombCooldown <= 0) bombReady = true; }
+  if (bombRipple > 0) bombRipple--;
+  if (bombFlash > 0) bombFlash--;
+  if (state === ST_ANIM) {
+    animTimer--;
+    if (animTimer <= 0) {
+      applyGravity();
+      // Check for auto-chains
+      var foundChain = false;
+      for (var r = 0; r < ROWS && !foundChain; r++) {
+        for (var c = 0; c < COLS && !foundChain; c++) {
+          var g = findGroup(r, c);
+          if (g.length >= 3) {
+            combo++;
+            score += Math.floor(g.length * 10 * combo * getRankBonuses().scoreMult);
+            removeGroup(g);
+            playChain();
+            animTimer = 12;
+            foundChain = true;
+          }
+        }
+      }
+      if (!foundChain) {
+        combo = getRankBonuses().comboStart;
+        computeAllValidGroups();
+        if (allValidGroups.length > 0) {
+          state = ST_PLAY;
+        } else {
+          // Save total score for rank progression
+          totalScore += score;
+          try { localStorage.setItem('hc_totalScore', totalScore); } catch(e){}
+          // Check rank up
+          var newRankIdx = getRankIdx();
+          if (newRankIdx > prevRankIdx) {
+            rankUpAnim = 120; // 2 seconds display
+            // Ascending C-E-G-C chime
+            playTone(523, 0.2, 0.15);
+            setTimeout(function() { playTone(659, 0.2, 0.15); }, 150);
+            setTimeout(function() { playTone(784, 0.2, 0.15); }, 300);
+            setTimeout(function() { playTone(1047, 0.3, 0.2); }, 450);
+          }
+          state = ST_OVER; bgmGameOver();
+        }
+      }
+    }
+  }
+}
+
+function draw() {
+  if (state === ST_MENU) drawMenu();
+  else if (state === ST_OVER) drawGameOver();
+  else drawGame();
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// Clamp cursor to valid grid
+function clampCursor() {
+  if (curR < 0) curR = 0;
+  if (curR >= ROWS) curR = ROWS - 1;
+  if (curC < 0) curC = 0;
+  if (curC >= COLS) curC = COLS - 1;
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'm' || e.key === 'M') { bgmToggle(); return; }
+  e.preventDefault();
+  initAudio(); if(!bgmAudio) bgmInit(); bgmPlay();
+  if (!micStream && !micFailed) initMic();
+
+  if (state === ST_MENU) {
+    if (e.key === 'Enter') { level = 1; initGrid(); state = ST_PLAY; playTone(440, 0.1, 0.1); }
+    if (e.key === 'Escape' || e.key === 'Backspace') window.location.href = './';
+    return;
+  }
+  if (state === ST_OVER) {
+    if (e.key === 'Enter') { level = 1; initGrid(); state = ST_PLAY; }
+    if (e.key === 'Escape' || e.key === 'Backspace') window.location.href = './';
+    return;
+  }
+  if (state === ST_ANIM) return;
+  if (state === ST_PLAY) {
+    if (e.key === 'ArrowUp') { curR--; clampCursor(); playCursorTone(grid[curR][curC]); }
+    if (e.key === 'ArrowDown') { curR++; clampCursor(); playCursorTone(grid[curR][curC]); }
+    if (e.key === 'ArrowLeft') { curC--; clampCursor(); playCursorTone(grid[curR][curC]); }
+    if (e.key === 'ArrowRight') { curC++; clampCursor(); playCursorTone(grid[curR][curC]); }
+    if (e.key === 'Enter') trySelect();
+    if (e.key === 'Escape' || e.key === 'Backspace') window.location.href = './';
+  }
+});
+
+gameLoop();
+</script>
+<script>
+/* === MRBD D-pad Fix === */
+(function() {
+  // Prevent MRBD browser from intercepting D-pad for spatial navigation
+  document.addEventListener('keydown', function(e) {
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) {
+      e.preventDefault();
+    }
+  }, true); // capture phase to beat browser's handler
+  // Auto-focus canvas and click-to-refocus
+  var c = document.querySelector('canvas');
+  if (c) {
+    if (!c.getAttribute('tabindex')) c.setAttribute('tabindex', '0');
+    c.style.outline = 'none';
+    c.focus();
+    c.addEventListener('click', function() { c.focus(); });
+    c.addEventListener('touchstart', function() { c.focus(); });
+  }
+  // Disable focusable elements during gameplay to prevent arrow-key focus stealing
+  document.querySelectorAll('a, button, input, select, textarea').forEach(function(el) {
+    el.setAttribute('tabindex', '-1');
+  });
+})();
+/* === End MRBD D-pad Fix === */
+</script>
+<script src="../touch-controls.js"></script>
+</body>
+</html>

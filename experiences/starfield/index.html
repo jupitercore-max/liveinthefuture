@@ -184,6 +184,18 @@ var micLevel = 0;
 var micBass = 0;
 var micMode = false;
 
+// ── Head Tracking (depth parallax) ──
+var headInitAttempted = false;
+var headActive = false;
+var headRefYaw = null;
+var headRefPitch = null;
+var headYaw = 0;
+var headPitch = 0;
+var parallaxX = 0;
+var parallaxY = 0;
+var HEAD_PARALLAX = 60;
+var HEAD_SMOOTHING = 0.04;
+
 // ── Procedural Audio ──
 var synthCtx = null;
 var synthStarted = false;
@@ -454,6 +466,36 @@ function initMic() {
   } catch(e) { micActive = false; }
 }
 
+function initHead() {
+  if (headInitAttempted) return;
+  headInitAttempted = true;
+  function attachHead() {
+    window.addEventListener('deviceorientation', function(e) {
+      if (e.alpha == null) return;
+      var yaw = e.alpha;
+      var pitch = e.beta;
+      if (headRefYaw === null) { headRefYaw = yaw; headRefPitch = pitch; }
+      var dy = yaw - headRefYaw;
+      if (dy > 180) dy -= 360;
+      if (dy < -180) dy += 360;
+      dy = Math.max(-45, Math.min(45, dy));
+      var dp = pitch - headRefPitch;
+      dp = Math.max(-30, Math.min(30, dp));
+      headYaw = dy;
+      headPitch = dp;
+      headActive = true;
+    });
+  }
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission()
+      .then(function(r) { if (r === 'granted') attachHead(); })
+      .catch(function(){});
+  } else {
+    attachHead();
+  }
+}
+
 function updateMic() {
   if (!micActive || !analyser) return;
   analyser.getByteFrequencyData(freqData);
@@ -472,6 +514,7 @@ document.addEventListener('keydown', function(e) {
   e.preventDefault();
   if (e.key === 'ArrowUp') {
     if (!synthStarted) initSynth();
+    initHead();
     if (deepSpace && gameMode === 1 && !voyagerComplete && pingRemaining > 0 && !pingActive) {
       // Sonar ping: 1-second clarity window through bone conduction
       pingActive = true;
@@ -483,6 +526,7 @@ document.addEventListener('keydown', function(e) {
     }
   } else if (e.key === 'ArrowDown') {
     if (!synthStarted) initSynth();
+    initHead();
     if (gameMode === 1 && !voyagerComplete) {
       // Toggle Deep Space difficulty in Voyager mode
       deepSpace = !deepSpace;
@@ -492,12 +536,15 @@ document.addEventListener('keydown', function(e) {
     }
   } else if (e.key === 'ArrowLeft') {
     if (!synthStarted) initSynth();
+    initHead();
     vanishX = Math.max(-1, vanishX - 0.08);
   } else if (e.key === 'ArrowRight') {
     if (!synthStarted) initSynth();
+    initHead();
     vanishX = Math.min(1, vanishX + 0.08);
   } else if (e.key === 'Enter') {
     if (!synthStarted) initSynth();
+    initHead();
     if (gameMode === 0) {
       // Toggle: Free Roam → Mic Mode → Voyager → Free Roam
       if (!micMode) {
@@ -555,6 +602,13 @@ function formatTime(secs) {
 function draw() {
   tick++;
   updateMic();
+
+  // Head-tracked depth parallax: near stars shift more, far stars stay still
+  var targetParX = headYaw / 45 * HEAD_PARALLAX;
+  var targetParY = headPitch / 30 * HEAD_PARALLAX;
+  parallaxX += (targetParX - parallaxX) * HEAD_SMOOTHING;
+  parallaxY += (targetParY - parallaxY) * HEAD_SMOOTHING;
+
   updateSynth();
   updateBeacon();
 
@@ -598,13 +652,15 @@ function draw() {
     if (nb.x < -nb.r) nb.x = W + nb.r;
     if (nb.x > W + nb.r) nb.x = -nb.r;
     if (nb.y > H + nb.r) { nb.y = -nb.r; nb.hue = Math.floor(Math.random() * 360); }
-    var grad = ctx.createRadialGradient(nb.x, nb.y, 0, nb.x, nb.y, nb.r);
+    var nbDrawX = nb.x + parallaxX * 0.15;
+    var nbDrawY = nb.y + parallaxY * 0.15;
+    var grad = ctx.createRadialGradient(nbDrawX, nbDrawY, 0, nbDrawX, nbDrawY, nb.r);
     var nbAlpha = nb.alpha * (1 + speed * 0.5);
     if (deepSpace && gameMode === 1) nbAlpha *= 0.15;
     grad.addColorStop(0, 'hsla(' + nb.hue + ',60%,40%,' + nbAlpha + ')');
     grad.addColorStop(1, 'hsla(' + nb.hue + ',60%,40%,0)');
     ctx.fillStyle = grad;
-    ctx.fillRect(nb.x - nb.r, nb.y - nb.r, nb.r * 2, nb.r * 2);
+    ctx.fillRect(nbDrawX - nb.r, nbDrawY - nb.r, nb.r * 2, nb.r * 2);
   }
 
   // Stars
@@ -617,14 +673,15 @@ function draw() {
       s.x = ns.x; s.y = ns.y; s.z = 1.0;
       s.brightness = ns.brightness; s.color = ns.color; s.size = ns.size;
     }
-    var sx = cx + (s.x / s.z) * focalLen;
-    var sy = cy + (s.y / s.z) * focalLen;
+    var parShift = 1 - s.z;
+    var sx = cx + (s.x / s.z) * focalLen + parallaxX * parShift;
+    var sy = cy + (s.y / s.z) * focalLen + parallaxY * parShift;
 
     if (sx < -20 || sx > W + 20 || sy < -20 || sy > H + 20) continue;
 
     var prevZ = s.z + speed * 0.016;
-    var psx = cx + (s.x / prevZ) * focalLen;
-    var psy = cy + (s.y / prevZ) * focalLen;
+    var psx = cx + (s.x / prevZ) * focalLen + parallaxX * (1 - prevZ);
+    var psy = cy + (s.y / prevZ) * focalLen + parallaxY * (1 - prevZ);
 
     var depth = 1 - s.z;
     var alpha = s.brightness * (0.3 + depth * 0.7);
@@ -705,14 +762,15 @@ function draw() {
       waypoints.splice(wi, 1);
       continue;
     }
-    var wpSx = cx + (wp.cx / wp.z) * focalLen;
-    var wpSy = cy + (wp.cy / wp.z) * focalLen;
+    var wpParShift = 1 - wp.z;
+    var wpSx = cx + (wp.cx / wp.z) * focalLen + parallaxX * wpParShift;
+    var wpSy = cy + (wp.cy / wp.z) * focalLen + parallaxY * wpParShift;
     var wpDepth = 1 - wp.z;
 
     for (var pi = 0; pi < wp.particles.length; pi++) {
       var pp = wp.particles[pi];
-      var ppx = cx + ((wp.cx + pp.ox) / wp.z) * focalLen;
-      var ppy = cy + ((wp.cy + pp.oy) / wp.z) * focalLen;
+      var ppx = cx + ((wp.cx + pp.ox) / wp.z) * focalLen + parallaxX * wpParShift;
+      var ppy = cy + ((wp.cy + pp.oy) / wp.z) * focalLen + parallaxY * wpParShift;
       if (ppx < -30 || ppx > W + 30 || ppy < -30 || ppy > H + 30) continue;
       var ppAlpha = pp.bright * (0.3 + wpDepth * 0.7) * (0.6 + Math.sin(tick * 0.08 + pi) * 0.4);
       var ppR = pp.size * (0.5 + wpDepth * 3);
