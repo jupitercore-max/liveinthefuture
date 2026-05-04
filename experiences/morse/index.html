@@ -37,6 +37,9 @@ var MORSE = {
   '5':'.....','6':'-....','7':'--...','8':'---..','9':'----.'
 };
 
+var MORSE_INV = {};
+for (var k in MORSE) { if (MORSE.hasOwnProperty(k)) MORSE_INV[MORSE[k]] = k; }
+
 var LETTERS = 'ETIANMSURWDKGOHVFLPJBXCYZQ'.split('');
 var ALL_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
 
@@ -48,7 +51,7 @@ var toneFreq = 650;
 // State
 var mode = 0; // 0=menu, 1=listen, 2=tap, 3=stats, 4=speed
 var menuIdx = 0;
-var menuItems = ['Listen Mode', 'Speed Challenge', 'Tap Mode', 'Mic Key', 'Stats'];
+var menuItems = ['Listen Mode', 'Speed Challenge', 'Tap Mode', 'Mic Key', 'Decode', 'Stats'];
 
 // Listen mode state
 var listenChar = '';
@@ -96,6 +99,20 @@ var micCorrect = 0;
 var micDiffLevel = 0;
 var micPending = false;
 var micLiveFreq = 0;
+
+// Decode mode state
+var decodeText = '';
+var decodeCurrent = '';
+var decodeToneOn = false;
+var decodeToneStart = 0;
+var decodeWPM = 15;
+var decodeToneThreshold = 30;
+var decodeCharTimer = null;
+var decodeWordTimer = null;
+var decodePeakFreq = 0;
+var decodePeakMag = 0;
+var decodeNoiseFloor = 0;
+var decodeCharsDecoded = 0;
 
 // Speed Challenge state
 var speedActive = false;
@@ -376,6 +393,60 @@ function processMic() {
   }
 }
 
+function processDecodeMic() {
+  if (!micAnalyser || mode !== 6) return;
+  var freqData = new Uint8Array(micAnalyser.frequencyBinCount);
+  micAnalyser.getByteFrequencyData(freqData);
+  var sr = audioCtx ? audioCtx.sampleRate : 48000;
+  var binHz = sr / (micAnalyser.fftSize || 512);
+  var startBin = Math.max(1, Math.round(350 / binHz));
+  var endBin = Math.min(freqData.length - 1, Math.round(1100 / binHz));
+  var maxMag = 0, maxBin = 0;
+  for (var i = startBin; i <= endBin; i++) {
+    if (freqData[i] > maxMag) { maxMag = freqData[i]; maxBin = i; }
+  }
+  var noiseSum = 0, nc = 0;
+  for (var j = endBin + 5; j < Math.min(freqData.length, endBin + 35); j++) { noiseSum += freqData[j]; nc++; }
+  decodeNoiseFloor = nc > 0 ? noiseSum / nc : 0;
+  decodePeakMag = maxMag;
+  decodePeakFreq = Math.round(maxBin * binHz);
+  var threshold = Math.max(decodeToneThreshold, decodeNoiseFloor + 20);
+  var now = Date.now();
+  var ditMs = 1200 / decodeWPM;
+  if (maxMag > threshold) {
+    if (!decodeToneOn) {
+      decodeToneOn = true;
+      decodeToneStart = now;
+      if (decodeCharTimer) { clearTimeout(decodeCharTimer); decodeCharTimer = null; }
+      if (decodeWordTimer) { clearTimeout(decodeWordTimer); decodeWordTimer = null; }
+    }
+  } else {
+    if (decodeToneOn) {
+      decodeToneOn = false;
+      var dur = now - decodeToneStart;
+      if (dur > 25) {
+        decodeCurrent += (dur < ditMs * 2) ? '.' : '-';
+      }
+      if (decodeCurrent) {
+        if (decodeCharTimer) clearTimeout(decodeCharTimer);
+        decodeCharTimer = setTimeout(function() {
+          var ch = MORSE_INV[decodeCurrent] || '\u00B7';
+          decodeText += ch;
+          decodeCharsDecoded++;
+          decodeCurrent = '';
+          playTone(880, 25);
+          decodeCharTimer = null;
+          if (decodeWordTimer) clearTimeout(decodeWordTimer);
+          decodeWordTimer = setTimeout(function() {
+            decodeText += ' ';
+            decodeWordTimer = null;
+          }, ditMs * 4);
+        }, ditMs * 2.5);
+      }
+    }
+  }
+}
+
 function submitMicInput() {
   if (!micInput || micResult) return;
   micTotal++;
@@ -512,6 +583,7 @@ function draw() {
   else if (mode === 3) drawStats();
   else if (mode === 4) drawSpeed();
   else if (mode === 5) drawMicKey();
+  else if (mode === 6) drawDecode();
 
   // Footer
   ctx.fillStyle = '#1a1a1a';
@@ -523,6 +595,7 @@ function draw() {
     mode === 4 && speedShowResult ? 'Enter Retry · ↓ Level · Esc Menu' :
     mode === 4 && speedActive ? '←→↑↓ Select · Enter Guess' :
     mode === 5 ? 'Sound=Key · ←→ Dit/Dah · Enter Submit · ↓ Level · Esc Back' :
+    mode === 6 ? '↑↓ Sensitivity · ←→ WPM · Enter Clear · Esc Back' :
     'Starting...';
   drawText(footerText, W/2, H - 15, 11, '#888');
 }
@@ -534,9 +607,9 @@ function drawMenu() {
   drawMorseVisual('·−·−·−', W/2, 150, 10);
 
   for (var i = 0; i < menuItems.length; i++) {
-    var y = 200 + i * 54;
+    var y = 200 + i * 48;
     drawFocusBox(130, y - 25, 340, 50, i === menuIdx);
-    var icon = i === 0 ? '👂' : i === 1 ? '⚡' : i === 2 ? '✋' : i === 3 ? '🎤' : '📊';
+    var icon = i === 0 ? '👂' : i === 1 ? '⚡' : i === 2 ? '✋' : i === 3 ? '🎤' : i === 4 ? '📡' : '📊';
     var label = menuItems[i];
     drawText(icon + ' ' + label, W/2, y, 20, i === menuIdx ? '#fff' : '#888');
 
@@ -773,6 +846,146 @@ function drawMicKey() {
 
   // Hint
   drawText('Auto-submits after silence \u00B7 D-pad also works', W/2, 510, 11, '#444');
+}
+
+function drawDecode() {
+  drawText('DECODE', W/2, 35, 18, '#4fc3f7');
+  drawText(decodeWPM + ' WPM', W/2, 58, 12, '#666');
+  if (decodeCharsDecoded > 0) drawText(decodeCharsDecoded + ' decoded', W - 70, 35, 14, '#888');
+
+  if (micPending) {
+    drawText('Requesting microphone...', W/2, 300, 18, '#888');
+    return;
+  }
+  if (!micStream) {
+    drawText('Mic access denied', W/2, 280, 18, '#ef5350');
+    drawText('Press Esc to go back', W/2, 320, 14, '#666');
+    return;
+  }
+
+  // Spectrum visualization for CW band
+  if (micAnalyser) {
+    var freqData = new Uint8Array(micAnalyser.frequencyBinCount);
+    micAnalyser.getByteFrequencyData(freqData);
+    var specX = 50, specW = 500, specY = 78, specH = 55;
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.roundRect(specX, specY, specW, specH, 8);
+    ctx.fill();
+    var sr = audioCtx ? audioCtx.sampleRate : 48000;
+    var binHz = sr / (micAnalyser.fftSize || 512);
+    var drawStart = Math.max(1, Math.round(200 / binHz));
+    var drawEnd = Math.min(freqData.length - 1, Math.round(1500 / binHz));
+    var cwStart = Math.round(350 / binHz);
+    var cwEnd = Math.round(1100 / binHz);
+    var numBins = drawEnd - drawStart + 1;
+    var barW = (specW - 8) / numBins;
+    for (var bi = drawStart; bi <= drawEnd; bi++) {
+      var mag = freqData[bi] / 255;
+      var inBand = (bi >= cwStart && bi <= cwEnd);
+      var barH = Math.max(1, mag * (specH - 8));
+      ctx.fillStyle = inBand ? (decodeToneOn ? '#69f0ae' : '#4fc3f7') : '#333';
+      ctx.globalAlpha = inBand ? 1 : 0.4;
+      ctx.fillRect(specX + 4 + (bi - drawStart) * barW, specY + specH - 4 - barH, Math.max(1, barW - 1), barH);
+    }
+    ctx.globalAlpha = 1;
+    // Threshold line
+    var threshNorm = Math.max(decodeToneThreshold, decodeNoiseFloor + 20) / 255;
+    var threshLY = specY + specH - 4 - threshNorm * (specH - 8);
+    if (threshLY > specY && threshLY < specY + specH) {
+      ctx.strokeStyle = '#ffd740';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(specX + 4, threshLY);
+      ctx.lineTo(specX + specW - 4, threshLY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Tone state indicator
+  var toneY = 162;
+  if (decodeToneOn) {
+    var pulse = 0.6 + Math.sin(Date.now() / 80) * 0.4;
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#69f0ae';
+    ctx.beginPath();
+    ctx.arc(W/2, toneY, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    drawBoldText('TONE', W/2, toneY, 10, '#0d0d0d');
+    drawText(decodePeakFreq + ' Hz', W/2, toneY + 28, 12, '#69f0ae');
+  } else {
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(W/2, toneY, 18, 0, Math.PI * 2);
+    ctx.stroke();
+    drawText('\u00B7\u00B7\u00B7', W/2, toneY, 14, '#444');
+  }
+
+  // Current symbol accumulation
+  if (decodeCurrent) {
+    drawText(decodeCurrent, W/2, 210, 24, '#ffd740');
+    drawMorseVisual(decodeCurrent, W/2, 234, 8);
+  } else if (!decodeText) {
+    drawText('awaiting signal', W/2, 210, 13, '#444');
+  }
+
+  // Decoded text box
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.roundRect(30, 255, 540, 180, 12);
+  ctx.fill();
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  drawText('Decoded text:', 50, 272, 11, '#666', 'left');
+
+  if (decodeText) {
+    var maxCPL = 30;
+    var lines = [];
+    var remaining = decodeText;
+    while (remaining.length > maxCPL) {
+      lines.push(remaining.substring(0, maxCPL));
+      remaining = remaining.substring(maxCPL);
+    }
+    lines.push(remaining);
+    var visible = lines.slice(-6);
+    for (var li = 0; li < visible.length; li++) {
+      drawText(visible[li], 50, 296 + li * 22, 16, '#4fc3f7', 'left');
+    }
+    if (Date.now() % 1000 < 500) {
+      var lastLen = visible[visible.length - 1].length;
+      ctx.fillStyle = '#4fc3f7';
+      ctx.fillRect(50 + lastLen * 9.5, 296 + (visible.length - 1) * 22 - 9, 2, 18);
+    }
+  } else {
+    drawText('Point glasses mic at morse audio', W/2, 340, 14, '#444');
+    drawText('CW radio, app, or practice oscillator', W/2, 365, 12, '#555');
+  }
+
+  // Sensitivity control
+  var ctrlY = 455;
+  drawText('Sensitivity', 140, ctrlY, 11, '#888');
+  ctx.fillStyle = '#222';
+  ctx.fillRect(200, ctrlY - 4, 200, 8);
+  var sensRatio = 1 - (decodeToneThreshold - 10) / 80;
+  ctx.fillStyle = sensRatio > 0.7 ? '#69f0ae' : sensRatio > 0.3 ? '#ffd740' : '#ef5350';
+  ctx.fillRect(200, ctrlY - 4, 200 * Math.max(0, Math.min(1, sensRatio)), 8);
+  drawText('\u2191\u2193', 415, ctrlY, 11, '#555');
+
+  // WPM control
+  drawText('Speed', 140, ctrlY + 22, 11, '#888');
+  ctx.fillStyle = '#222';
+  ctx.fillRect(200, ctrlY + 18, 200, 8);
+  var wpmRatio = (decodeWPM - 5) / 25;
+  ctx.fillStyle = '#4fc3f7';
+  ctx.fillRect(200, ctrlY + 18, 200 * Math.max(0, Math.min(1, wpmRatio)), 8);
+  drawText('\u2190\u2192  ' + decodeWPM + ' WPM', 415, ctrlY + 22, 11, '#555');
+
+  drawText('Enter = Clear text', W/2, ctrlY + 50, 11, '#444');
 }
 
 function drawSpeed() {
@@ -1027,6 +1240,15 @@ document.addEventListener('keydown', function(e) {
           if (ok) newMicRound();
         });
       }
+      else if (menuIdx === 4) {
+        mode = 6;
+        decodeText = '';
+        decodeCurrent = '';
+        decodeToneOn = false;
+        decodeCharsDecoded = 0;
+        initAudio();
+        initMic(function(ok) {});
+      }
       else { mode = 3; statsScroll = 0; }
     }
   } else if (mode === 1) {
@@ -1253,12 +1475,42 @@ document.addEventListener('keydown', function(e) {
       mode = 0;
       micResult = '';
     }
+  } else if (mode === 6) {
+    // Decode mode
+    if (e.key === 'ArrowUp') {
+      decodeToneThreshold = Math.max(10, decodeToneThreshold - 5);
+      playClickSound();
+    } else if (e.key === 'ArrowDown') {
+      decodeToneThreshold = Math.min(90, decodeToneThreshold + 5);
+      playClickSound();
+    } else if (e.key === 'ArrowLeft') {
+      decodeWPM = Math.max(5, decodeWPM - 1);
+      playClickSound();
+    } else if (e.key === 'ArrowRight') {
+      decodeWPM = Math.min(30, decodeWPM + 1);
+      playClickSound();
+    } else if (e.key === 'Enter') {
+      decodeText = '';
+      decodeCurrent = '';
+      decodeCharsDecoded = 0;
+      if (decodeCharTimer) { clearTimeout(decodeCharTimer); decodeCharTimer = null; }
+      if (decodeWordTimer) { clearTimeout(decodeWordTimer); decodeWordTimer = null; }
+      playClickSound();
+    } else if (e.key === 'Escape') {
+      if (decodeCharTimer) { clearTimeout(decodeCharTimer); decodeCharTimer = null; }
+      if (decodeWordTimer) { clearTimeout(decodeWordTimer); decodeWordTimer = null; }
+      decodeText = '';
+      decodeCurrent = '';
+      decodeToneOn = false;
+      mode = 0;
+    }
   }
 });
 
 // Animation loop
 function frame() {
   if (mode === 5) processMic();
+  if (mode === 6) processDecodeMic();
   draw();
   requestAnimationFrame(frame);
 }
