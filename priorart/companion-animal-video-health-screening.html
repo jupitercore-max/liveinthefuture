@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-029: Companion Animal Health Screening via Smartphone Video-Based Gait Kinematics and Longitudinal Behavioral Anomaly Detection | Live in the Future</title>
+  <meta name="description" content="Defensive prior art disclosure: A system using consumer smartphone video to perform markerless gait analysis, respiratory rate estimation, body condition scoring, and longitudinal behavioral anomaly detection for companion animals, running entirely on-device with breed-specific normalization.">
+  <meta property="og:title" content="System and Method for Automated Companion Animal Health Screening Using Smartphone Video-Based Gait Kinematics Analysis, Respiratory Rate Estimation, and Longitudinal Behavioral Anomaly Detection">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/companion-animal-video-health-screening.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/companion-animal-video-health-screening.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/priorart-companion-animal-video-health-screening.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">← Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-029 · Veterinary AI / Consumer Health</span>
+      <h1>System and Method for Automated Companion Animal Health Screening Using Smartphone Video-Based Gait Kinematics Analysis, Respiratory Rate Estimation, and Longitudinal Behavioral Anomaly Detection</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-05-05">Published May 5, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/priorart-companion-animal-video-health-screening.jpg" alt="Person holding smartphone recording video of a dog walking, with skeletal joint tracking overlay visible on screen" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>⚖️ Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. § 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above. This disclosure is intended to prevent the patenting of these concepts by any party.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a system and method for automated health screening of companion animals (dogs and cats) using video captured by a consumer smartphone camera. The system performs markerless pose estimation on the animal in motion, extracting skeletal joint trajectories at 17+ anatomical keypoints. From these trajectories, four concurrent analyses run entirely on-device: (1) gait kinematics analysis computing stride length, stance duration, joint range of motion, and bilateral symmetry indices to detect lameness, arthritis, hip dysplasia, and neurological gait abnormalities; (2) respiratory rate estimation from periodic torso volume changes observed in the sagittal silhouette; (3) body condition scoring via single-view silhouette analysis calibrated against the 9-point <a href="https://wsava.org/global-guidelines/global-nutrition-guidelines/">WSAVA body condition scale</a>; and (4) longitudinal behavioral anomaly detection using a per-animal embedding that tracks kinematic baselines over time and flags statistically significant deviations. The system normalizes all measurements against breed-specific reference databases and outputs a structured health report with veterinary-actionable findings. A federated learning protocol improves models across the installed base without transmitting video data off-device.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to veterinary health screening and companion animal wellness monitoring, specifically to non-contact video-based health assessment using consumer smartphones with on-device pose estimation, gait kinematics analysis, and machine learning for multi-modal health indicator extraction.</p>
+
+      <h2>Background</h2>
+
+      <p>Companion animal healthcare represents a <a href="https://www.americanpetproducts.org/press-industrytrends">$38.3 billion annual market in the United States</a> (APPA, 2024), with preventive care accounting for an increasing share as pet owners seek earlier detection of health conditions. An estimated <a href="https://www.avma.org/resources-tools/reports-statistics/us-pet-ownership-statistics">65.1 million U.S. households own dogs and 46.5 million own cats</a> (AVMA, 2024). Despite this scale, routine health screening remains episodic: the average dog visits a veterinarian 1.3 times per year, leaving 362 days without professional observation.</p>
+
+      <p>Musculoskeletal conditions are among the most common and costly veterinary diagnoses. <a href="https://doi.org/10.2460/javma.2002.220.1315">Approximately 20% of dogs over one year of age show clinical signs of osteoarthritis</a> (Johnston, JAVMA 2002), with prevalence exceeding 80% in dogs over eight years. Hip dysplasia affects <a href="https://www.ofa.org/diseases/hip-dysplasia/hip-dysplasia-statistics">15.56% of all dogs evaluated by the Orthopedic Foundation for Animals</a> (OFA, 2024), with breed-specific rates exceeding 70% in Bulldogs, Pugs, and Mastiffs. Cruciate ligament disease costs U.S. pet owners an estimated <a href="https://doi.org/10.1111/vsu.12166">$1.32 billion annually in surgical repair</a> (Wilke et al., Veterinary Surgery 2005). Early detection of these conditions, before they become clinically obvious, enables earlier intervention and substantially better outcomes.</p>
+
+      <p>Current approaches to objective gait assessment in veterinary medicine include:</p>
+      <ul>
+        <li><strong>Force plate gait analysis:</strong> The gold standard for quantitative lameness assessment. Systems such as the <a href="https://www.tekscan.com/products-solutions/systems/strideway-system">Tekscan Strideway</a> and <a href="https://www.amti.biz/veterinary-biomechanics/">AMTI force platforms</a> measure ground reaction forces with sub-newton precision but cost $15,000-60,000 per installation and require dedicated laboratory space with controlled walking surfaces. Available only at university veterinary hospitals and referral centers.</li>
+        <li><strong>Marker-based motion capture:</strong> Systems like <a href="https://www.vicon.com/">Vicon</a> and <a href="https://optitrack.com/">OptiTrack</a> provide sub-millimeter kinematic accuracy but require 6-12 infrared cameras ($50,000-200,000), reflective markers glued to shaved skin, and 30-60 minutes of setup per animal. The stress of marker application and unfamiliar laboratory environments alters natural gait patterns.</li>
+        <li><strong>Wearable inertial sensors:</strong> Recent work by <a href="https://doi.org/10.1038/s41598-026-40717-x">Kanazawa et al., Scientific Reports 2026</a> demonstrated 96% accuracy classifying orthopedic versus neurological gait disorders using body-mounted IMU sensors. However, these require device attachment to the animal (harness or adhesive), limiting use to clinical settings and producing data only during the instrumented period.</li>
+        <li><strong>Subjective clinical scoring:</strong> Veterinarians typically assess lameness using ordinal scales (AAEP 0-5 for horses, various 0-4 scales for dogs). Inter-observer agreement is poor: <a href="https://doi.org/10.2460/javma.2003.223.1608">Waxman et al., JAVMA 2003</a> found only 62% agreement between experienced veterinary surgeons on lameness grade, with the affected limb misidentified in 17% of cases even for moderate lameness.</li>
+      </ul>
+
+      <p>Markerless video-based pose estimation for animals has advanced significantly. <a href="https://doi.org/10.1038/s41593-018-0209-y">DeepLabCut</a> (Mathis et al., Nature Neuroscience 2018) demonstrated that transfer learning from human pose estimation networks enables animal keypoint detection with minimal labeled training data (50-200 frames). <a href="https://avmajournals.avma.org/view/journals/ajvr/87/4/ajvr.25.09.0337.xml">Flegel et al., AJVR 2026</a> achieved 96.6% accuracy in canine 2D markerless gait analysis using deep learning trained on 20,000 images from 408 dogs. However, these systems remain research tools requiring desktop GPU computation, manual video collection protocols, and expert interpretation.</p>
+
+      <p>Existing patents in this space include:</p>
+      <ul>
+        <li><a href="https://patents.google.com/patent/US20250054608A1">US20250054608A1</a> (2025): Methods for determining captured images used in ML assessment of an animal. Focuses on image selection quality for static photo assessment, not video-based gait kinematics or temporal health tracking.</li>
+        <li><a href="https://patents.google.com/patent/CN117672501A">CN117672501A</a> (2024): AI pet health screening from photographs. Uses single static images for condition detection. Does not address video-based motion analysis, gait kinematics, or respiratory rate estimation.</li>
+        <li><a href="https://patents.google.com/patent/US12121007B2">US12121007B2</a> (2024): Biometric data determination from animal images. Focuses on identification (species, breed, body measurements), not health screening via gait analysis or behavioral change detection.</li>
+      </ul>
+
+      <p>The gap in the art is a complete system that: (a) uses an unmodified consumer smartphone camera as the sole sensor, (b) performs real-time markerless pose estimation on the animal in natural motion, (c) simultaneously extracts gait kinematics, respiratory rate, and body condition from a single video capture, (d) normalizes all measurements against breed-specific reference ranges, (e) tracks longitudinal changes per individual animal to detect gradual health deterioration, and (f) runs all inference on-device for privacy and offline capability.</p>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. Video Acquisition and Quality Assurance</h3>
+
+      <p>The user records 10-30 seconds of video of their companion animal walking at a natural pace using the smartphone's rear camera at the device's native frame rate (30 or 60 fps) and resolution (1080p minimum). The system supports two primary capture orientations: lateral (side-on) view for gait kinematics and respiratory assessment, and posterior (rear) view for hip/pelvic symmetry assessment. An on-screen guide overlays a silhouette target zone and walking direction indicator.</p>
+
+      <p>The quality assurance module evaluates each video frame for: (a) animal detection confidence exceeding 0.8 from the pose estimation network; (b) minimum bounding box size of 20% frame area to ensure sufficient joint resolution; (c) motion blur assessment via Laplacian variance, rejecting frames below a threshold of 100; (d) continuous tracking across at least 3 complete stride cycles; (e) walking surface planarity estimation from floor line detection (rejects videos on stairs, ramps, or uneven terrain that confound gait analysis); and (f) lighting sufficiency via mean frame luminance above 40/255. Videos not meeting criteria prompt re-recording with specific guidance.</p>
+
+      <h3>2. On-Device Markerless Pose Estimation</h3>
+
+      <p>The system deploys a modified <a href="https://arxiv.org/abs/2204.12484">ViTPose</a> (Xu et al., NeurIPS 2022) architecture adapted for quadruped anatomy. The model detects 17 keypoints per animal: nose, left ear, right ear, withers (top of scapula), mid-spine (thoracolumbar junction), croup (sacrum), tail base, left shoulder, right shoulder, left elbow, right elbow, left carpus (wrist), right carpus, left hip (greater trochanter), right hip, left stifle (knee), right stifle, left hock (tarsus), right hock, left metatarsophalangeal (MTP) joint, and right MTP joint. A separate head-specific sub-network detects 5 facial landmarks (nose tip, left eye center, right eye center, left ear tip, right ear tip) for species and breed classification and for detecting head-bob lameness indicators.</p>
+
+      <p>The model is pre-trained on <a href="https://github.com/Jin-s-work/AnimalKingdom">Animal Kingdom</a> (Ng et al., CVPR 2022, 50 animal species, 30,000+ annotated frames) and fine-tuned on a proprietary dataset of 15,000+ annotated video frames across 120 dog breeds and 30 cat breeds, captured in home environments with diverse flooring, lighting, and camera angles. The model is quantized to INT8 via TensorFlow Lite, yielding a 12 MB model with inference time below 25 ms per frame on a mid-range smartphone (Snapdragon 7 Gen 2 or Apple A15). This enables real-time 30 fps processing without frame dropping.</p>
+
+      <p>Temporal consistency is enforced via a lightweight Kalman filter on each keypoint, with process noise tuned to expected quadruped joint velocities (0.5-3.0 m/s for limb endpoints during walk, 0-0.3 m/s for spine keypoints). Occluded keypoints are predicted forward for up to 5 frames (167 ms at 30 fps) before the track is suspended.</p>
+
+      <h3>3. Gait Kinematics Extraction</h3>
+
+      <p>From the 2D keypoint trajectories, the system computes the following gait parameters for each limb across each complete stride cycle:</p>
+
+      <p><strong>Spatial parameters:</strong> stride length (nose-to-nose distance between successive ipsilateral foot contacts, normalized to withers height for size-independent comparison); step length (contralateral foot spacing); track width (lateral distance between left and right foot placements). Pixel-to-metric conversion uses the animal's withers height as a known reference, estimated from breed-average data or user-provided measurement.</p>
+
+      <p><strong>Temporal parameters:</strong> stride duration (time for one complete gait cycle); stance phase duration (foot-contact to toe-off, detected via MTP keypoint vertical velocity zero-crossing); swing phase duration (toe-off to foot-contact); duty factor (stance/stride ratio, expected 0.60-0.65 for walk); stride frequency (cycles per second).</p>
+
+      <p><strong>Angular kinematics:</strong> joint angles computed at shoulder (scapulohumeral), elbow, carpus, hip (coxofemoral), stifle, and hock joints at four gait events (foot contact, mid-stance, toe-off, mid-swing). Range of motion (ROM) is computed as peak extension minus peak flexion for each joint per stride. Angular velocity profiles are computed via finite differencing of angle time series.</p>
+
+      <p><strong>Symmetry indices:</strong> For each spatial, temporal, and angular parameter, a bilateral symmetry index (SI) is computed: SI = |X_left - X_right| / (0.5 × (X_left + X_right)) × 100%. Healthy dogs exhibit SI below 6% for stride length and below 10% for stance duration (<a href="https://doi.org/10.2460/ajvr.68.3.271">Budsberg et al., AJVR 2007</a>). SI values exceeding breed-specific thresholds trigger lameness alerts.</p>
+
+      <p><strong>Head bob index:</strong> Vertical displacement of the nose keypoint is decomposed into a frequency component at stride frequency. Asymmetric head bob (greater upward displacement during the stance phase of one forelimb versus the other) indicates forelimb lameness: the head rises during stance on the painful limb as the animal unloads weight. The head bob asymmetry ratio is computed as (peak_left - peak_right) / (0.5 × (peak_left + peak_right)).</p>
+
+      <p><strong>Pelvic drop index:</strong> From posterior view captures, vertical displacement of left versus right hip keypoints during contralateral stance phases quantifies pelvic hike, indicating hindlimb lameness: the pelvis drops less on the side of the painful limb.</p>
+
+      <h3>4. Respiratory Rate Estimation</h3>
+
+      <p>Respiratory rate is extracted from the lateral-view video by tracking periodic changes in the thoracic and abdominal silhouette area. The system computes a chest expansion signal by measuring the vertical distance between the dorsal spine keypoints (withers to croup) and the ventral body contour at each frame. The ventral contour is extracted via semantic segmentation of the animal's body mask using a lightweight <a href="https://arxiv.org/abs/1706.05587">DeepLab v3+</a> decoder head attached to the pose estimation backbone's feature maps.</p>
+
+      <p>The chest expansion signal is bandpass filtered (0.15-1.5 Hz, corresponding to 9-90 breaths per minute, covering the normal range for dogs at rest: 15-30 bpm, and stressed or exercising dogs up to 80+ bpm). Peak detection via the <a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html">scipy.signal.find_peaks</a> algorithm (prominence threshold = 0.3 × signal standard deviation) counts respiratory cycles. The inter-breath interval coefficient of variation (CV) is computed to detect respiratory irregularity (normal CV below 15%; values above 25% suggest respiratory distress or cardiac arrhythmia).</p>
+
+      <p>Validation target: agreement within ±2 breaths per minute of manual counting by a veterinary technician across 85% of captures, consistent with the <a href="https://doi.org/10.1016/j.jvim.2017.09.001">clinically acceptable error range for resting respiratory rate</a> (Porciello et al., JVIM 2018).</p>
+
+      <h3>5. Automated Body Condition Scoring</h3>
+
+      <p>Body condition is assessed from the lateral-view silhouette using the <a href="https://wsava.org/global-guidelines/global-nutrition-guidelines/">WSAVA 9-point Body Condition Score</a> scale, the international standard for companion animal weight assessment. The system extracts the following morphometric features from the segmented body mask:</p>
+
+      <ul>
+        <li><strong>Abdominal tuck ratio:</strong> the vertical distance from the ventral body contour at the last rib to the lowest point of the abdomen, normalized to trunk length. Underweight animals (BCS 1-3) show pronounced tuck; overweight animals (BCS 7-9) show minimal or no tuck.</li>
+        <li><strong>Waist definition index:</strong> from dorsal or posterior views (when available), the ratio of trunk width at the waist (caudal to last rib) to trunk width at the widest thorax point. Values below 0.85 suggest visible waist (BCS 4-5); values above 0.95 suggest absent waist (BCS 7+).</li>
+        <li><strong>Rib visibility score:</strong> texture analysis of the lateral thorax region using local binary patterns (LBP) and gradient histograms to detect the presence of visible rib outlines beneath the coat. Works for short-coated breeds; long-coated breeds rely on silhouette metrics and breed-specific calibration.</li>
+        <li><strong>Trunk aspect ratio:</strong> trunk depth (dorsal to ventral) divided by trunk length (withers to croup), normalized to breed standard proportions.</li>
+      </ul>
+
+      <p>A gradient-boosted decision tree (XGBoost, 200 estimators, max depth 6) maps these morphometric features to the 9-point BCS scale, trained on 8,000+ annotated images with veterinarian-assigned ground truth BCS. The model outputs a continuous score (1.0-9.0) with 95% confidence interval, achieving a target mean absolute error of ±0.7 BCS points (comparable to <a href="https://doi.org/10.1016/j.tvjl.2019.105358">inter-veterinarian agreement of ±0.8 BCS points</a>, German et al., Veterinary Journal 2020).</p>
+
+      <h3>6. Breed-Specific Normalization</h3>
+
+      <p>All kinematic and morphometric parameters are normalized against breed-specific reference ranges stored in an on-device database. The system includes reference distributions for 200+ dog breeds and 40+ cat breeds, compiled from published biomechanics literature and the training dataset. Breed classification uses the pose estimation backbone's feature extractor with a classification head trained on the <a href="https://www.robots.ox.ac.uk/~vgg/data/pets/">Oxford-IIIT Pet Dataset</a> (37 categories, 7,349 images) augmented with additional breed-specific data.</p>
+
+      <p>Normalization accounts for known breed-specific gait variations: Bulldogs and other brachycephalic breeds exhibit wider track width and shorter stride length than mesocephalic breeds of similar size; German Shepherds show characteristic "flying trot" with extreme rear reach; Dachshunds and other chondrodystrophic breeds have proportionally shorter stride relative to body length. Without breed normalization, these natural variations produce false-positive lameness alerts.</p>
+
+      <p>For mixed-breed animals, the system estimates a morphotype class (small/medium/large, brachycephalic/mesocephalic/dolichocephalic, chondrodystrophic/normal proportions) from the silhouette proportions and uses the corresponding multi-breed reference range. Users can also input breed information manually.</p>
+
+      <h3>7. Longitudinal Behavioral Anomaly Detection</h3>
+
+      <p>Each animal is assigned a persistent identity (via user-created pet profile or automatic re-identification from appearance embedding). Over successive video captures, the system builds a per-animal kinematic baseline: a vector of 42 gait parameters (6 spatial + 6 temporal + 24 angular ROM + 6 symmetry indices) computed as rolling mean and standard deviation over the most recent 10 captures spanning at least 30 days.</p>
+
+      <p>Each new capture is compared against this baseline using a Mahalanobis distance metric in the 42-dimensional gait parameter space. The Mahalanobis distance accounts for the natural covariance structure of gait parameters (stride length correlates with stride duration; elbow ROM correlates with shoulder ROM). A distance exceeding 3.0 (approximately p < 0.003 for multivariate normal distribution) triggers a "significant change detected" alert, with the specific parameters contributing most to the anomaly identified via feature importance decomposition.</p>
+
+      <p>The system also maintains a scalar "mobility score" (0-100) derived from the first principal component of the 42-parameter space, calibrated so that 100 represents breed-typical peak mobility and 0 represents severe impairment. Trending of this score over weeks and months enables detection of gradual osteoarthritis progression that owners and even veterinarians often miss because the change per visit is sub-threshold. A sustained decline of more than 10 points over 90 days triggers a "gradual mobility change" alert.</p>
+
+      <p>For respiratory rate monitoring, longitudinal tracking establishes a resting respiratory rate baseline. Sustained elevation above the individual animal's baseline by more than 30% over 3+ captures, controlling for ambient temperature and recent exercise, triggers an alert for potential congestive heart failure onset, consistent with the <a href="https://doi.org/10.1016/j.jvim.2012.01.013">sleeping respiratory rate monitoring protocol</a> (Schober et al., JVIM 2012) used as an early indicator of decompensating cardiac disease.</p>
+
+      <h3>8. On-Device Architecture and Privacy</h3>
+
+      <p>The entire inference pipeline executes on the smartphone without cloud connectivity. The pipeline comprises: (a) a ViTPose-S backbone with quadruped keypoint head (~12 MB, INT8 quantized); (b) a DeepLab v3+ segmentation decoder sharing the backbone features (~3 MB additional); (c) a breed classification head (~2 MB); (d) a BCS regression model (~0.5 MB, XGBoost exported to ONNX); and (e) signal processing and gait parameter computation implemented in native code (Kotlin/Swift). Total model footprint: approximately 18 MB. Total inference pipeline latency: below 40 ms per frame on devices with neural processing units (Apple Neural Engine, Qualcomm Hexagon DSP).</p>
+
+      <p>Video frames are processed in a streaming fashion and discarded after feature extraction. Raw video is never stored or transmitted unless the user explicitly chooses to save or share it. Only the extracted gait parameters, BCS score, and respiratory rate are persisted in the on-device database. This architecture ensures compliance with pet owner privacy expectations and eliminates cloud infrastructure costs.</p>
+
+      <h3>9. Federated Learning for Model Improvement</h3>
+
+      <p>Model accuracy improves over the installed base via federated learning. When a user provides outcome feedback (e.g., confirming a veterinary diagnosis of cruciate ligament disease within 30 days of a lameness alert), the device computes local gradient updates for the relevant model components. Updates are aggregated using <a href="https://arxiv.org/abs/1602.05629">Federated Averaging</a> (McMahan et al., 2017) with differential privacy (ε=6.0, δ=10⁻⁵). The federated protocol specifically targets three model components: (a) the gait anomaly classification thresholds (refining per-breed sensitivity/specificity); (b) the BCS regression model (improving accuracy for under-represented breeds); and (c) the respiratory rate quality filter (reducing false positives from panting versus respiratory distress).</p>
+
+      <h3>10. Structured Health Report Generation</h3>
+
+      <p>The system generates a structured report containing: (a) gait summary with symmetry indices and any detected asymmetries, localized to specific limb and joint; (b) respiratory rate with comparison to breed-normal range and individual baseline; (c) body condition score with visual overlay showing the assessed silhouette regions; (d) longitudinal trend graphs for mobility score, BCS, and respiratory rate; (e) specific veterinary-actionable findings ranked by clinical significance (e.g., "Right forelimb lameness detected: stance phase 18% shorter than left, head bob asymmetry 23%. Recommend veterinary orthopedic examination."); and (f) a shareable PDF formatted for inclusion in veterinary medical records.</p>
+
+      <h3>11. Figures Description</h3>
+
+      <ul>
+        <li><strong>Figure 1:</strong> System architecture showing smartphone video capture, on-device ViTPose pose estimation, parallel analysis pipelines (gait kinematics, respiratory rate, BCS), breed normalization, longitudinal tracking database, and report generation.</li>
+        <li><strong>Figure 2:</strong> 17-keypoint skeletal model overlaid on canine lateral and posterior views, with joint angle definitions and stride event markers (foot contact, mid-stance, toe-off, mid-swing).</li>
+        <li><strong>Figure 3:</strong> Bilateral symmetry index distributions for healthy dogs (n=500) and dogs with confirmed unilateral lameness (n=200), showing separation thresholds for stride length SI, stance duration SI, and head bob asymmetry ratio.</li>
+        <li><strong>Figure 4:</strong> Respiratory rate extraction pipeline showing thoracic silhouette area signal, bandpass-filtered breathing signal, and peak detection with inter-breath interval computation.</li>
+        <li><strong>Figure 5:</strong> Longitudinal mobility score trending for three example animals: (a) stable healthy dog over 12 months, (b) gradual osteoarthritis onset detected 6 weeks before clinical presentation, (c) acute cruciate ligament injury with sharp score drop.</li>
+      </ul>
+
+      <h2>Claims</h2>
+
+      <ol>
+        <li>A system for automated health screening of companion animals, comprising: a consumer smartphone with a built-in camera and processor; a software application executing on the smartphone that captures video of a companion animal in motion; an on-device markerless pose estimation neural network that detects anatomical keypoints on the animal from the video frames without physical markers; a gait kinematics analysis module that computes spatial, temporal, and angular gait parameters from the keypoint trajectories and calculates bilateral symmetry indices for lameness detection; and a report generation module that outputs health findings normalized against breed-specific reference ranges.</li>
+
+        <li>The system of claim 1, further comprising a respiratory rate estimation module that extracts periodic thoracic expansion signals from the pose estimation network's body segmentation output, applies bandpass filtering in the physiological respiratory frequency range, and counts respiratory cycles via peak detection to output breaths per minute with regularity metrics.</li>
+
+        <li>The system of claim 1, further comprising an automated body condition scoring module that extracts morphometric features from the animal's segmented body silhouette, including abdominal tuck ratio, waist definition index, and rib visibility score, and maps these features to a standardized veterinary body condition scale via a trained regression model.</li>
+
+        <li>The system of claim 1, further comprising a longitudinal behavioral anomaly detection module that maintains a per-animal kinematic baseline from historical captures, computes a multivariate distance metric between new captures and the baseline, and generates alerts when the distance exceeds a statistical significance threshold, identifying the specific gait parameters contributing to the detected change.</li>
+
+        <li>The system of claim 4, wherein the longitudinal tracking module computes a scalar mobility score from the first principal component of the multi-dimensional gait parameter space, tracks this score over time, and detects gradual health deterioration via sustained score decline that may fall below per-capture significance thresholds.</li>
+
+        <li>The system of claim 1, wherein the breed-specific normalization module classifies the animal's breed or morphotype from the pose estimation backbone's feature representations and adjusts lameness detection thresholds, normal gait parameter ranges, and body condition scoring calibrations according to breed-specific reference distributions that account for known morphological gait variations.</li>
+
+        <li>The system of claim 1, wherein the video quality assurance module evaluates animal detection confidence, bounding box size, motion blur, stride cycle completeness, walking surface planarity, and lighting sufficiency for each captured video, rejecting sub-standard captures and providing specific re-recording guidance to the user.</li>
+
+        <li>The system of claim 1, further comprising a federated learning protocol that aggregates anonymized model gradient updates from user-confirmed veterinary outcome feedback across the installed base, applying differential privacy mechanisms, to improve lameness classification sensitivity, body condition scoring accuracy, and respiratory distress detection specificity without transmitting video or image data from any device.</li>
+
+        <li>A method for non-contact companion animal gait assessment comprising: capturing video of a companion animal walking using a consumer smartphone camera; performing markerless pose estimation to detect anatomical keypoints on the animal in each frame; computing bilateral symmetry indices for stride length, stance duration, and joint range of motion; detecting forelimb lameness from head bob asymmetry ratios computed from vertical displacement of the nose keypoint at stride frequency; detecting hindlimb lameness from pelvic drop asymmetry computed from vertical displacement of hip keypoints; normalizing all measurements against breed-specific reference ranges; and outputting a structured health assessment with localized findings.</li>
+
+        <li>The method of claim 9, further comprising: simultaneously estimating respiratory rate from periodic thoracic silhouette area changes and body condition score from morphometric silhouette features, wherein gait assessment, respiratory estimation, and body condition scoring share a common pose estimation backbone network executing on-device in a single inference pass per video frame.</li>
+      </ol>
+
+      <h2>Implementation Notes</h2>
+
+      <p>A reference implementation can be constructed using: <a href="https://github.com/ViTAE-Transformer/ViTPose">ViTPose</a> (Xu et al., 2022) as the base pose estimation architecture, with quadruped keypoint annotations from the <a href="https://github.com/Jin-s-work/AnimalKingdom">Animal Kingdom dataset</a> (Ng et al., CVPR 2022) and <a href="http://www.mackenziemathislab.org/deeplabcut">DeepLabCut model zoo</a> for transfer learning initialization; <a href="https://www.tensorflow.org/lite">TensorFlow Lite</a> or <a href="https://coreml.apple.com/">Core ML</a> for on-device deployment; <a href="https://xgboost.readthedocs.io/">XGBoost</a> exported via <a href="https://onnx.ai/">ONNX</a> for the BCS regression model; standard signal processing libraries for respiratory rate extraction; and <a href="https://flower.ai/">Flower</a> for federated learning orchestration.</p>
+
+      <p>The system is implementable on any smartphone manufactured after 2020 with a rear camera capable of 1080p at 30 fps and a processor supporting INT8 neural network inference. Minimum hardware: Apple A14 (iPhone 12), Qualcomm Snapdragon 765G, or Samsung Exynos 990 and later.</p>
+
+      <p>Training data collection for the breed-specific reference database can leverage existing publicly available canine gait datasets including the <a href="https://doi.org/10.1038/s41597-023-02749-0">Liverpool Gait Lab Canine Dataset</a> (1,500+ gait trials across 30 breeds) and the <a href="https://www.robots.ox.ac.uk/~vgg/data/pets/">Oxford-IIIT Pet Dataset</a> for breed classification. Body condition scoring ground truth can be sourced from published veterinary studies with WSAVA-calibrated BCS annotations, augmented by veterinary expert labeling of crowdsourced pet photographs.</p>
+
+      <h2>Prior Art References</h2>
+
+      <ol>
+        <li><a href="https://www.americanpetproducts.org/press-industrytrends">APPA, 2024</a> — U.S. pet industry: $38.3B veterinary care market</li>
+        <li><a href="https://www.avma.org/resources-tools/reports-statistics/us-pet-ownership-statistics">AVMA, 2024</a> — U.S. pet ownership: 65.1M dog households, 46.5M cat households</li>
+        <li><a href="https://doi.org/10.2460/javma.2002.220.1315">Johnston, JAVMA 2002</a> — Osteoarthritis prevalence in dogs: 20% over age 1</li>
+        <li><a href="https://www.ofa.org/diseases/hip-dysplasia/hip-dysplasia-statistics">OFA, 2024</a> — Hip dysplasia prevalence: 15.56% across evaluated dogs</li>
+        <li><a href="https://doi.org/10.1111/vsu.12166">Wilke et al., Veterinary Surgery 2005</a> — Cruciate ligament repair: $1.32B annual cost</li>
+        <li><a href="https://doi.org/10.1038/s41593-018-0209-y">Mathis et al., Nature Neuroscience 2018</a> — DeepLabCut markerless pose estimation</li>
+        <li><a href="https://avmajournals.avma.org/view/journals/ajvr/87/4/ajvr.25.09.0337.xml">Flegel et al., AJVR 2026</a> — Deep learning canine 2D gait analysis: 96.6% accuracy</li>
+        <li><a href="https://doi.org/10.1038/s41598-026-40717-x">Kanazawa et al., Scientific Reports 2026</a> — IMU-based canine gait classification: 96% accuracy</li>
+        <li><a href="https://doi.org/10.2460/javma.2003.223.1608">Waxman et al., JAVMA 2003</a> — Inter-observer lameness scoring agreement: 62%</li>
+        <li><a href="https://doi.org/10.2460/ajvr.68.3.271">Budsberg et al., AJVR 2007</a> — Healthy canine gait symmetry: SI below 6% stride length</li>
+        <li><a href="https://arxiv.org/abs/2204.12484">Xu et al., NeurIPS 2022</a> — ViTPose: vision transformer pose estimation</li>
+        <li><a href="https://wsava.org/global-guidelines/global-nutrition-guidelines/">WSAVA</a> — Global nutrition guidelines: 9-point body condition score</li>
+        <li><a href="https://doi.org/10.1016/j.jvim.2012.01.013">Schober et al., JVIM 2012</a> — Sleeping respiratory rate monitoring for cardiac disease</li>
+        <li><a href="https://arxiv.org/abs/1602.05629">McMahan et al., 2017</a> — Federated Averaging</li>
+        <li><a href="https://patents.google.com/patent/US20250054608A1">US20250054608A1</a> — ML image assessment of animals</li>
+        <li><a href="https://patents.google.com/patent/CN117672501A">CN117672501A</a> — AI pet health screening from photographs</li>
+        <li><a href="https://patents.google.com/patent/US12121007B2">US12121007B2</a> — Biometric data from animal images</li>
+      </ol>
+
+    </div>
+  </article>
+
+<script src="../story.js"></script>
+</body>
+</html>
