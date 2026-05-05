@@ -4,6 +4,8 @@
 
   // Article order (newest first) — matches homepage grid order
   var articles = [
+    { slug: 'dac-opportunity-cost-renewables-nature-study', title: 'The U.S. Spent $3.5 Billion on Machines That Suck Carbon From the Air. A Nature Study Says Solar Panels Remove 10 Times More Carbon per Dollar. \u2014 Live in the Future' },
+    { slug: 'california-av-regulations-ticket-trucks-paradox', title: 'California Wrote 100 Pages of Rules for Ticketing Robots. The Same Document Lets 80,000-Pound Trucks Drive Themselves. \u2014 Live in the Future' },
     { slug: 'weekly-ai-roundup-may-4-2026', title: 'The Week Four Companies Bet $725 Billion on a Market That Doesn\u2019t Exist Yet \u2014 Live in the Future' },
     { slug: 'humanoid-robot-factory-race-cost-per-hour', title: 'Three Companies Opened Humanoid Robot Factories in 120 Days. At $1.48 Per Hour, the Math Against Human Workers Was Already Done. \u2014 Live in the Future' },
     { slug: 'nist-caisi-deepseek-v4-benchmark-gap', title: 'DeepSeek Says It\u0027s 2 Months Behind GPT-5. NIST Says 8. The Difference Is Which Tests You Run. \u2014 Live in the Future' },
