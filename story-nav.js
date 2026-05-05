@@ -4,6 +4,11 @@
 
   // Article order (newest first) — matches homepage grid order
   var articles = [
+    { slug: 'weekly-ai-roundup-may-4-2026', title: 'The Week Four Companies Bet $725 Billion on a Market That Doesn\u2019t Exist Yet \u2014 Live in the Future' },
+    { slug: 'humanoid-robot-factory-race-cost-per-hour', title: 'Three Companies Opened Humanoid Robot Factories in 120 Days. At $1.48 Per Hour, the Math Against Human Workers Was Already Done. \u2014 Live in the Future' },
+    { slug: 'nist-caisi-deepseek-v4-benchmark-gap', title: 'DeepSeek Says It\u0027s 2 Months Behind GPT-5. NIST Says 8. The Difference Is Which Tests You Run. \u2014 Live in the Future' },
+    { slug: 'nrc-part-57-microreactor-ai-data-center', title: 'The NRC Just Proposed a New Way to License Nuclear Reactors in 18 Months. The Old Way Took a Decade. Here\u0027s What Changed. \u2014 Live in the Future' },
+    { slug: 'pentagon-dawg-55b-drone-industrial-base', title: 'The Pentagon Requested a 24,070% Increase in Drone Spending. US Factories Build Fewer Drones in a Year Than DJI Ships in Three Months. \u2014 Live in the Future' },
     { slug: 'us-eastern-range-five-rockets-sixty-year-record', title: 'Five Different Rockets Launched From the Same Spaceport in April. That Hadn\u0027t Happened in 60 Years. Here\u0027s What Each One Cost Per Kilogram. \u2014 Live in the Future' },
     { slug: 'mayo-clinic-redmod-pancreatic-cancer-ai', title: 'An AI Caught 73% of Invisible Pancreatic Cancers 475 Days Before Doctors Could. Running It on Every CT in America Would Cost $10 Per Scan. \u2014 Live in the Future' },
     { slug: 'china-ai-layoffs-illegal-global-comparison', title: 'A Chinese Court Says You Can\u0027t Fire Someone Because AI Took Their Job. In America, 160 Companies Filed AI Layoffs and Zero Called Them That. — Live in the Future' },
