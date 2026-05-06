@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-030: Predictive Residential Wiring Degradation Detection via Power Line Communication Channel State Information | Live in the Future</title>
+  <meta name="description" content="Defensive prior art disclosure: A system using consumer broadband-over-powerline adapters to continuously monitor electrical wiring health by analyzing OFDM channel state information, detecting impedance anomalies indicative of loose connections, insulation degradation, and pre-arc conditions before faults manifest.">
+  <meta property="og:title" content="System and Method for Predictive Residential Electrical Wiring Degradation Detection Using Power Line Communication Channel State Information from Consumer Broadband-over-Powerline Adapters and On-Premises Edge Inference">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/plc-electrical-fault-predetection.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/plc-electrical-fault-predetection.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/priorart-plc-electrical-fault-predetection.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">← Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-030 · Smart Home / Electrical Safety</span>
+      <h1>System and Method for Predictive Residential Electrical Wiring Degradation Detection Using Power Line Communication Channel State Information from Consumer Broadband-over-Powerline Adapters and On-Premises Edge Inference</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-05-06">Published May 6, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/priorart-plc-electrical-fault-predetection.jpg" alt="Cross-section of residential electrical wiring with power line communication signals and neural network fault detection overlay" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>⚖️ Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. § 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above. This disclosure is intended to prevent the patenting of these concepts by any party.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a system and method for continuously monitoring the health of residential and commercial electrical wiring using channel state information (CSI) extracted from consumer broadband-over-powerline (BPL) adapters operating under the HomePlug AV2 or ITU-T G.hn standards. The system repurposes OFDM channel estimation data that BPL modems already compute for communication purposes, analyzing the frequency-domain transfer function H(f) across 2-86 MHz to detect impedance anomalies caused by loose connections, corroded terminals, insulation carbonization, moisture ingress, and thermal degradation of wire insulation. A lightweight temporal convolutional network running on the BPL adapter's existing ARM processor tracks channel response drift over days to weeks, classifying degradation patterns into fault precursor categories and localizing the affected branch circuit using multi-node time-domain reflectometry derived from the OFDM channel impulse response. The system provides pre-fault alerts hours to weeks before arc-fault conditions develop, complementing rather than replacing arc-fault circuit interrupters (AFCIs) which detect arcing only after it begins.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to residential electrical safety, specifically to passive wiring health monitoring using channel state information from consumer power line communication equipment and on-premises machine learning inference for predictive fault detection.</p>
+
+      <h2>Background</h2>
+
+      <p>Residential electrical fires remain a persistent safety crisis. The <a href="https://www.usfa.fema.gov/statistics/residential-fires/electrical.html">U.S. Fire Administration reports</a> that electrical malfunction fires caused an annual average of 23,700 residential fires, 305 deaths, and $1.5 billion in property losses between 2014 and 2023, with dollar losses increasing 28% over the decade. The <a href="https://www.nfpa.org/education-and-research/research/nfpa-research/fire-statistical-reports/home-electrical-fires">NFPA estimates</a> that electrical distribution and lighting equipment is the third-leading cause of home structure fires. Aging wiring infrastructure compounds the problem: approximately <a href="https://www.census.gov/programs-surveys/ahs.html">38% of U.S. housing units</a> were built before 1970 (American Housing Survey 2023), meaning their branch circuit wiring has been in service for 55+ years, well beyond the 30-40 year typical lifespan of thermoplastic-insulated copper conductors.</p>
+
+      <p>Current approaches to residential electrical safety monitoring include:</p>
+      <ul>
+        <li><strong>Arc-fault circuit interrupters (AFCIs):</strong> <a href="https://www.afcisafety.org/afci-nec-considerations/fast-facts/">Required by NEC since 1999</a> for bedroom circuits (expanded to nearly all living spaces by NEC 2014), AFCIs detect the characteristic high-frequency current signatures of series and parallel arcing events. However, AFCIs are reactive: they detect arcing only after it begins, providing no warning during the degradation phase that precedes arc initiation. AFCIs also suffer from nuisance tripping (5-10% false positive rate per <a href="https://www.nahb.org/advocacy/top-priorities/building-codes/arc-fault-circuit-interrupters">NAHB data</a>) and do not protect the approximately 80 million pre-2002 housing units lacking AFCI-protected circuits.</li>
+        <li><strong>Thermal imaging inspections:</strong> Infrared cameras (e.g., <a href="https://www.flir.com/instruments/electrical/">FLIR E-series</a> at $2,000-15,000) detect hot spots at electrical connections during periodic inspections. Requires trained thermographers, physical access to panels and junction boxes, and provides only point-in-time snapshots. Most homeowners never commission a thermal inspection.</li>
+        <li><strong>Smart circuit breaker panels:</strong> Products like <a href="https://www.leviton.com/en/products/brands/leviton-load-center">Leviton Smart Load Center</a> and <a href="https://span.io/">Span Panel</a> ($4,000-6,000 installed) monitor per-circuit current and power, detecting gross overloads and ground faults. They do not measure wiring impedance characteristics and cannot detect incipient insulation degradation or loose connections that draw normal current.</li>
+        <li><strong>Dedicated impedance spectroscopy instruments:</strong> Laboratory instruments like the <a href="https://www.hioki.com/en/products/detail/im3590.html">Hioki IM3590</a> ($8,000+) can characterize wiring impedance across frequency, but require de-energized circuits, direct physical connection, and trained operators. Impractical for continuous residential monitoring.</li>
+      </ul>
+
+      <p>Power line communication (PLC) technology transmits broadband data over existing AC wiring. The HomePlug AV2 standard (IEEE 1901-2020) uses OFDM modulation with 3,455 subcarriers spanning 2-86 MHz, achieving data rates up to 2 Gbps. The ITU-T G.hn standard similarly uses OFDM across comparable frequency bands. Both standards require continuous channel estimation: the transmitting modem sends known pilot symbols, and the receiving modem computes the channel frequency response H(f) to equalize received data. This channel estimation is performed on every transmitted frame (typically every 2-10 ms) and reflects the aggregate impedance characteristics of the wiring path between any two PLC nodes.</p>
+
+      <p>Research has begun exploring PLC for fault detection. <a href="https://www.frontiersin.org/journals/energy-research/articles/10.3389/fenrg.2023.1103298/full">Chen et al., Frontiers in Energy Research 2023</a> demonstrated fault monitoring using impedance estimation from PLC equipment in utility distribution networks, achieving less than 2.13% error in detecting high and low impedance faults. However, this work targeted utility-scale distribution (medium voltage, 1-35 kV) with dedicated industrial PLC equipment, not consumer BPL adapters in residential settings. <a href="https://patents.google.com/patent/US9696363B2/en">US9696363B2</a> (Leviton) integrates arc fault detection with PLC modems, detecting arcing signatures during PLC quiet intervals, but does not analyze the PLC channel response itself for pre-fault degradation patterns. <a href="https://patents.google.com/patent/US20190293701A1/en">US20190293701A1</a> describes detection of electrical discharges preceding fires using high-frequency voltage sensing, but requires dedicated sensing hardware rather than repurposing existing consumer PLC equipment. <a href="https://patents.google.com/patent/US12160095B2/en">US12160095B2</a> detects arcing in household wiring through spectral analysis of voltage readings but requires a dedicated monitoring device and detects active arcing, not pre-fault degradation.</p>
+
+      <p>The gap in the art is a complete system that: (a) repurposes channel estimation data already computed by consumer BPL adapters installed for networking purposes, requiring no additional hardware; (b) tracks channel response drift over time to detect gradual wiring degradation before faults develop; (c) classifies degradation patterns into specific pre-fault categories (loose connection, insulation carbonization, moisture ingress, thermal degradation); (d) localizes the degrading segment to a specific branch circuit using multi-node channel impulse response analysis; and (e) runs inference entirely on-premises on the BPL adapter's existing processor, preserving privacy and eliminating cloud dependency.</p>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. Channel State Information Extraction from Consumer BPL Adapters</h3>
+
+      <p>Consumer BPL adapters (e.g., TP-Link TL-PA9020P, Devolo Magic 2, ZyXEL PLA6456) contain Qualcomm QCA7500/QCA7550 or Broadcom BCM60500 chipsets that implement HomePlug AV2. These chipsets compute the channel frequency response H(f) = Y(f)/X(f) on every received frame, where Y(f) is the received signal spectrum and X(f) is the known transmitted pilot spectrum. The channel estimate comprises complex-valued coefficients (magnitude and phase) for each of the 3,455 OFDM subcarriers at 24.414 kHz spacing across 2-86 MHz.</p>
+
+      <p>The system accesses CSI data through one of three mechanisms: (a) vendor-specific diagnostic APIs already exposed by HomePlug AV2 chipsets (the Qualcomm Atheros Open Powerline Toolkit provides <code>ampstat</code> and <code>amptone</code> commands that dump per-subcarrier SNR and attenuation values via the management interface); (b) modified firmware that logs the raw H(f) coefficients computed during normal OFDM equalization, stored in a circular buffer in the adapter's 64-128 MB DDR3 RAM; or (c) a software agent running on the adapter's ARM Cortex-A7 or MIPS 34Kc processor (typical BPL chipset application processors) that samples the PHY layer's channel estimation output at configurable intervals (default: once per minute for long-term trending, burst mode at 10 Hz during diagnostic sweeps).</p>
+
+      <p>Each CSI snapshot produces a feature vector of 3,455 complex values (6,910 real values for magnitude and phase, or equivalently 3,455 attenuation values in dB and 3,455 group delay values in nanoseconds). At one snapshot per minute, daily storage is approximately 10 MB per node pair in 16-bit fixed-point representation, well within the 128 MB+ flash storage of modern BPL adapters.</p>
+
+      <h3>2. Wiring Degradation Signatures in the Channel Response</h3>
+
+      <p>Electrical wiring faults produce characteristic changes in the broadband channel response that are detectable well before arc-fault conditions develop:</p>
+
+      <p><strong>Loose connections (backstab receptacles, wire nut failures, panel bus bar contacts):</strong> A loose connection creates a variable-impedance junction that increases resistive loss and introduces frequency-dependent reflections. In the channel response, this manifests as: (a) broadband attenuation increase of 2-8 dB across all subcarriers, with greater attenuation at higher frequencies due to increased skin effect at the degraded junction; (b) increased temporal variance in H(f) magnitude (the loose contact vibrates with 60 Hz mechanical force and building vibration, causing the channel response to fluctuate at sub-second timescales); (c) periodic notching at frequencies where the electrical distance from the fault to the nearest impedance discontinuity creates destructive interference (standing wave nulls), with notch frequencies shifting as the contact impedance varies.</p>
+
+      <p><strong>Insulation carbonization (tracking):</strong> When wire insulation degrades from sustained heating, the carbonized track creates a parallel resistive path to ground or to an adjacent conductor. This produces: (a) progressive increase in attenuation concentrated in the 30-86 MHz band (carbon tracks exhibit frequency-dependent conductivity that increases with frequency); (b) reduction in channel impulse response sharpness (increased group delay spread) as energy leaks through the carbonized path; (c) correlation between attenuation changes and ambient temperature (carbonized insulation conductivity increases with temperature, creating a diurnal pattern in the channel response that tracks HVAC cycling).</p>
+
+      <p><strong>Moisture ingress (wet wire runs, condensation in junction boxes):</strong> Water changes the dielectric constant around conductors from approximately 1.0 (air) to 80 (water), dramatically altering the characteristic impedance of the affected segment. Signatures include: (a) narrowband attenuation peaks at frequencies determined by the length of the wetted segment (the impedance mismatch creates a notch filter); (b) rapid onset (hours) correlated with precipitation or plumbing events, distinguishable from gradual degradation patterns; (c) asymmetric attenuation between hot-neutral and hot-ground paths (moisture typically affects one conductor pair before the other).</p>
+
+      <p><strong>Thermal degradation of thermoplastic insulation:</strong> Sustained overheating (from overloaded circuits, undersized conductors, or thermal insulation contact) causes progressive embrittlement and cracking of PVC or THHN insulation. This produces: (a) slow, monotonic increase in high-frequency attenuation (above 40 MHz) over weeks to months as the insulation dielectric loss tangent increases; (b) increased susceptibility to conducted EMI from switching power supplies and LED drivers (degraded insulation provides less shielding from external interference, visible as increased noise floor in the channel estimate); (c) step changes in the channel response correlated with mechanical disturbance (e.g., door slams, HVAC blower activation) as cracked insulation shifts position.</p>
+
+      <h3>3. Multi-Node Fault Localization via Channel Impulse Response Analysis</h3>
+
+      <p>A typical home has 2-4 BPL adapter nodes (for networking purposes) distributed across different outlets. The system exploits the OFDM channel impulse response (CIR), computed as the inverse discrete Fourier transform of H(f), to localize degradation to a specific branch circuit.</p>
+
+      <p>The CIR h(t) = IDFT{H(f)} represents the time-domain impulse response of the wiring path between two nodes. Each impedance discontinuity along the path (junction boxes, receptacle connections, splice points, panel bus bar connections, and faults) produces a reflected echo visible as a distinct peak in the CIR. The time delay τ of each peak corresponds to the electrical distance d = (c × τ) / (2 × v_r) to the discontinuity, where c is the speed of light and v_r is the velocity ratio of the wiring (typically 0.55-0.70 for NM-B Romex cable, calibrated per installation).</p>
+
+      <p>With N BPL nodes, there are N×(N-1)/2 unique node pairs, each providing a CIR with a different perspective on the wiring topology. The system constructs a spatial map of impedance discontinuities by triangulating reflections across multiple CIRs. When a new reflection appears or an existing reflection changes amplitude, the spatial intersection of reflection distances from multiple node pairs localizes the degradation to a specific segment. For a 3-node installation (kitchen, living room, bedroom), the system typically achieves localization to within ±2 meters, sufficient to identify the affected branch circuit in most residential layouts.</p>
+
+      <p>The velocity ratio v_r is calibrated during an initial learning period (first 7 days of installation) by correlating known load switching events (e.g., the homeowner turns on a specific appliance) with the corresponding reflection changes in the CIR. Each appliance connection point creates a small impedance discontinuity when its load impedance appears; by matching the reflection timing to the known outlet location, the system calibrates propagation velocity for each wiring segment.</p>
+
+      <h3>4. Temporal Convolutional Network for Degradation Classification</h3>
+
+      <p>The system employs a temporal convolutional network (TCN) architecture running on the BPL adapter's application processor. The TCN takes as input a sliding window of CSI snapshots (default: 168 snapshots = 7 days at 1/hour sampling rate, subsampled from the 1/minute raw collection) and produces two outputs: (a) a 6-class degradation probability vector over {healthy, loose_connection, insulation_carbonization, moisture_ingress, thermal_degradation, external_interference}, and (b) a scalar degradation rate estimate (dB/week of additional attenuation at 60 MHz, the center of the most diagnostically informative band).</p>
+
+      <p>The TCN architecture consists of: (a) a 1D convolutional encoder that reduces the 3,455-subcarrier CSI vector to 128 features per timestep via three layers of 1D convolution (kernel sizes 15, 7, 3) with batch normalization and ReLU activation; (b) a dilated causal convolution stack (6 layers, dilation factors 1, 2, 4, 8, 16, 32) operating on the encoded feature sequence, capturing temporal patterns from 1-hour to 5-week timescales; (c) a global attention-weighted pooling layer that emphasizes the most informative timesteps; and (d) two fully connected heads for classification and regression.</p>
+
+      <p>The model is trained on a synthetic dataset generated by a physics-based wiring channel simulator. The simulator models residential wiring as cascaded two-port transmission line networks using the <a href="https://en.wikipedia.org/wiki/Telegrapher%27s_equations">telegrapher's equations</a> with per-unit-length RLCG parameters derived from published NM-B cable characterizations (<a href="https://doi.org/10.1109/TPWRD.2009.2028800">Tonello &amp; Versolatto, IEEE Trans. Power Delivery 2011</a>). Faults are injected by modifying the RLCG parameters at specific locations: loose connections as variable series resistance (1-50 mΩ, modulated at 0.1-120 Hz); insulation carbonization as parallel conductance increasing from 0 to 500 μS over simulated weeks; moisture ingress as localized dielectric constant change from 1.0 to 10-80; thermal degradation as progressive dielectric loss tangent increase from 0.02 to 0.15. The simulator generates 500,000 training sequences across 50 representative wiring topologies (ranging from 800 sq ft apartments to 4,000 sq ft houses), with augmentation via additive conducted noise profiles measured from common household loads (SMPS, LED drivers, motor controls).</p>
+
+      <p><strong>Model size and inference:</strong> The TCN has approximately 240,000 parameters (under 1 MB in INT8 quantization). Inference on a 168-timestep window requires approximately 2.4 million multiply-accumulate operations, completing in under 50 ms on an ARM Cortex-A7 at 700 MHz (typical BPL adapter processor). The model runs inference once per hour on the latest 7-day window, consuming negligible processor resources.</p>
+
+      <h3>5. Alert Hierarchy and Integration</h3>
+
+      <p>Degradation classifications are mapped to alert levels:</p>
+
+      <ul>
+        <li><strong>Watch (degradation rate &lt;0.5 dB/week):</strong> Silent logging. No user notification. Typical of seasonal temperature cycling and normal aging. Logged for long-term trending.</li>
+        <li><strong>Advisory (degradation rate 0.5-2.0 dB/week, or moisture_ingress detected):</strong> Local notification via the BPL adapter's companion app and/or integration with home automation platforms (MQTT, Home Assistant, SmartThings). Recommends electrician inspection within 30 days. Includes localization data identifying the affected branch circuit.</li>
+        <li><strong>Warning (degradation rate &gt;2.0 dB/week, or insulation_carbonization with confidence &gt;0.7):</strong> Urgent notification via push notification, email, and optional SMS. Recommends electrician inspection within 7 days. If the home has smart circuit breakers, the system can request the affected circuit be de-rated (reduced ampacity limit) as a precaution.</li>
+        <li><strong>Critical (degradation rate &gt;5.0 dB/week, or channel response exhibiting stochastic intermittent loss &gt;20 dB characteristic of micro-arcing):</strong> Immediate alert. If integrated with a smart panel, requests the affected circuit be disconnected. Calls the homeowner's designated emergency contact if the alert is not acknowledged within 30 minutes.</li>
+      </ul>
+
+      <p>The system exposes a local REST API on the home network for integration with home automation platforms. A Home Assistant integration component subscribes to the API and creates sensor entities for each monitored circuit segment (overall health score 0-100, degradation rate, fault classification, time since last anomaly). Alerts are also publishable via MQTT for compatibility with any home automation system.</p>
+
+      <h3>6. Privacy-Preserving Federated Model Improvement</h3>
+
+      <p>After installation, confirmed fault outcomes (electrician findings correlated with system predictions via user feedback in the companion app) are used to fine-tune the local model via on-device gradient descent. Gradient updates (not raw CSI data) are shared via federated averaging (<a href="https://arxiv.org/abs/1602.05629">McMahan et al., 2017</a>) with an aggregation service operated by the BPL adapter manufacturer. Differential privacy (Gaussian mechanism, ε=4.0, δ=10⁻⁶) is applied to gradient updates before upload. Raw CSI data never leaves the premises.</p>
+
+      <p>The federated learning protocol addresses a critical bootstrapping challenge: the initial model is trained entirely on synthetic data from the physics-based simulator. Real-world wiring topologies, load profiles, and degradation patterns exhibit variance that the simulator cannot fully capture. Federated learning from deployed units progressively closes the sim-to-real gap without requiring centralized collection of wiring signatures that could reveal occupancy patterns, appliance usage, or other private information.</p>
+
+      <h3>7. Calibration and Commissioning Protocol</h3>
+
+      <p>During the first 7 days after installation (commissioning period), the system establishes a baseline channel response for each node pair. The commissioning protocol: (a) identifies all unique reflection peaks in each CIR and catalogs them as known impedance discontinuities (junction boxes, receptacles, panel connections); (b) measures the temporal variance of H(f) under normal operating conditions to establish the per-subcarrier noise floor; (c) requests the user to cycle specific circuits on and off via the companion app to calibrate the wiring topology map (matching breaker positions to CIR reflection delays); and (d) computes the velocity ratio for each wiring segment from known physical distances (entered by the user or estimated from building floor plan data if available).</p>
+
+      <p>Post-commissioning, the baseline is updated via an exponential moving average with a 90-day time constant, adapting to slow seasonal changes (temperature-dependent RLCG parameters) while remaining sensitive to anomalous degradation patterns that deviate from the seasonal norm.</p>
+
+      <h3>8. Figures Description</h3>
+
+      <ul>
+        <li><strong>Figure 1:</strong> System architecture showing consumer BPL adapter nodes distributed across residential outlets, CSI extraction from the OFDM PHY layer, on-device TCN inference, and alert delivery via companion app and home automation integration.</li>
+        <li><strong>Figure 2:</strong> Channel frequency response H(f) waterfall plot showing (a) healthy baseline, (b) loose connection signature (broadband attenuation with temporal variance), (c) insulation carbonization (progressive high-frequency roll-off), and (d) moisture ingress (narrowband notches).</li>
+        <li><strong>Figure 3:</strong> Multi-node fault localization using channel impulse response triangulation across three BPL adapter positions, showing reflection peak alignment that identifies the degraded wiring segment.</li>
+        <li><strong>Figure 4:</strong> Temporal convolutional network architecture showing CSI encoder, dilated causal convolution stack, attention pooling, and dual classification/regression heads.</li>
+        <li><strong>Figure 5:</strong> Timeline of degradation detection showing the system identifying insulation carbonization onset 47 days before arc-fault conditions develop, compared to AFCI detection only at the arcing event.</li>
+      </ul>
+
+      <h2>Claims</h2>
+
+      <ol>
+        <li>A system for monitoring residential electrical wiring health, comprising: one or more consumer broadband-over-powerline communication adapters installed in electrical outlets of a building, each adapter comprising an OFDM modem that computes a channel frequency response during normal data communication; a software module executing on the adapter's processor that extracts channel state information from the OFDM modem's channel estimation output at periodic intervals; and a machine learning classifier executing on the adapter's processor that analyzes temporal sequences of channel state information to detect wiring degradation patterns indicative of pre-fault conditions.</li>
+
+        <li>The system of claim 1, wherein the machine learning classifier is a temporal convolutional network that processes a sliding window of channel state information snapshots spanning at least 24 hours, and outputs a degradation classification selected from the group consisting of: healthy, loose connection, insulation carbonization, moisture ingress, thermal degradation, and external interference.</li>
+
+        <li>The system of claim 1, further comprising a fault localization module that computes the channel impulse response as the inverse discrete Fourier transform of the channel frequency response, identifies reflection peaks corresponding to impedance discontinuities along the wiring path, and triangulates the location of new or changing reflections across multiple adapter node pairs to localize degradation to a specific branch circuit.</li>
+
+        <li>The system of claim 3, wherein the fault localization module calibrates the propagation velocity of each wiring segment by correlating known load switching events with corresponding reflection changes in the channel impulse response during a commissioning period.</li>
+
+        <li>The system of claim 1, wherein the machine learning classifier is trained on synthetic channel state information sequences generated by a physics-based wiring channel simulator that models residential wiring as cascaded two-port transmission line networks with injected fault conditions modifying per-unit-length resistance, inductance, capacitance, and conductance parameters.</li>
+
+        <li>The system of claim 1, further comprising a federated learning protocol wherein each adapter computes local gradient updates from confirmed fault outcomes, applies differential privacy noise, and transmits compressed gradient updates to a central aggregation server for model improvement without transmitting raw channel state information off-premises.</li>
+
+        <li>The system of claim 1, wherein the software module detects loose connections by measuring temporal variance of the channel frequency response magnitude at a sub-second timescale, identifying mechanical vibration modulation of contact resistance at the degraded junction.</li>
+
+        <li>The system of claim 1, wherein the software module detects insulation carbonization by identifying a progressive increase in channel attenuation concentrated in the 30-86 MHz frequency band that correlates with ambient temperature variations, indicating temperature-dependent conductivity of carbonized insulation tracks.</li>
+
+        <li>A method for predictive electrical fault detection in residential wiring, comprising: extracting channel state information from OFDM channel estimation performed by a consumer broadband-over-powerline adapter during normal data communication; storing a temporal sequence of channel state information snapshots representing at least 24 hours of monitoring; analyzing the temporal sequence using a machine learning model executing on the adapter's local processor to detect degradation patterns in the channel frequency response or channel impulse response; classifying detected degradation into a pre-fault category; and generating a graduated alert based on the degradation classification and rate, the alert delivered via a local network interface to a home automation platform or companion application.</li>
+
+        <li>The method of claim 9, further comprising: establishing a baseline channel response during a commissioning period; maintaining the baseline via an exponential moving average with a time constant of at least 30 days to adapt to seasonal variations; and detecting anomalous degradation as deviations from the seasonally-adjusted baseline that exceed a statistical threshold.</li>
+
+        <li>The method of claim 9, wherein the channel state information comprises per-subcarrier magnitude and phase values across at least 1,000 OFDM subcarriers spanning a frequency range of at least 2 MHz to 86 MHz, and wherein the machine learning model reduces the per-subcarrier channel state information to a fixed-dimensional feature representation via one-dimensional convolution before temporal analysis.</li>
+
+        <li>A non-transitory computer-readable medium storing instructions that, when executed by a processor of a consumer broadband-over-powerline adapter, cause the processor to: periodically extract channel frequency response data from the adapter's OFDM modem during normal powerline communication; compute a channel impulse response from the channel frequency response; detect changes in reflection peak amplitudes or timing in the channel impulse response relative to a stored baseline; classify detected changes using a trained neural network model into wiring degradation categories; and transmit an alert to a local network endpoint when a degradation classification exceeds a configurable severity threshold.</li>
+      </ol>
+
+      <h2>Implementation Notes</h2>
+
+      <p>A reference implementation can be constructed using: a TP-Link TL-PA9020P or similar HomePlug AV2 adapter with the <a href="https://github.com/qca/open-plc-utils">Qualcomm Atheros Open Powerline Toolkit</a> for CSI extraction; <a href="https://pytorch.org/mobile/home/">PyTorch Mobile</a> or <a href="https://www.tensorflow.org/lite">TensorFlow Lite</a> for on-device inference on the adapter's ARM processor; the <a href="https://en.wikipedia.org/wiki/Telegrapher%27s_equations">transmission line equations</a> with published NM-B cable RLCG parameters from <a href="https://doi.org/10.1109/TPWRD.2009.2028800">Tonello &amp; Versolatto (2011)</a> for the physics-based channel simulator; <a href="https://flower.ai/">Flower</a> for the federated learning protocol; and MQTT or the Home Assistant REST API for alert delivery and home automation integration.</p>
+
+      <p>The system requires a minimum of two BPL adapter nodes for basic degradation detection, and three or more nodes for fault localization. All inference executes on the adapter's existing processor (ARM Cortex-A7 at 700+ MHz or equivalent, present in all modern HomePlug AV2 chipsets). No cloud connectivity is required for monitoring or inference; cloud connectivity is used only for optional federated model updates.</p>
+
+      <h2>Prior Art References</h2>
+
+      <ol>
+        <li><a href="https://www.usfa.fema.gov/statistics/residential-fires/electrical.html">U.S. Fire Administration, 2024</a> — Residential electrical malfunction fire trends (2014-2023): 23,700 fires, 305 deaths, $1.5B in losses annually</li>
+        <li><a href="https://www.nfpa.org/education-and-research/research/nfpa-research/fire-statistical-reports/home-electrical-fires">NFPA, 2023</a> — Home electrical fires: third-leading cause of home structure fires</li>
+        <li><a href="https://www.census.gov/programs-surveys/ahs.html">U.S. Census Bureau, American Housing Survey 2023</a> — 38% of U.S. housing units built before 1970</li>
+        <li><a href="https://www.afcisafety.org/afci-nec-considerations/fast-facts/">AFCI Safety, 2024</a> — Arc-fault circuit interrupter technology overview and NEC requirements</li>
+        <li><a href="https://www.nahb.org/advocacy/top-priorities/building-codes/arc-fault-circuit-interrupters">NAHB, 2024</a> — AFCI adoption, nuisance tripping rates, and code compliance challenges</li>
+        <li><a href="https://www.frontiersin.org/journals/energy-research/articles/10.3389/fenrg.2023.1103298/full">Chen et al., Frontiers in Energy Research 2023</a> — Fault monitoring via PLC impedance estimation (&lt;2.13% error, utility-scale)</li>
+        <li><a href="https://doi.org/10.1109/TPWRD.2009.2028800">Tonello &amp; Versolatto, IEEE Trans. Power Delivery 2011</a> — PLC channel characterization and transmission line modeling for in-home networks</li>
+        <li><a href="https://doi.org/10.1109/JSAC.2016.2566018">Cano et al., IEEE JSAC 2016</a> — State of the art in power line communications: broadband characterization and indoor channel modeling</li>
+        <li><a href="https://patents.google.com/patent/US9696363B2/en">US9696363B2</a> (Leviton) — Arc fault detector integrated with PLC modem, detecting arcing during PLC quiet intervals</li>
+        <li><a href="https://patents.google.com/patent/US20190293701A1/en">US20190293701A1</a> — Detection of pre-fire electrical discharges using dedicated high-frequency voltage sensing hardware</li>
+        <li><a href="https://patents.google.com/patent/US12160095B2/en">US12160095B2</a> — Detecting electrical arcing in household wiring via spectral analysis of voltage readings (dedicated device, active arcing only)</li>
+        <li><a href="https://patents.google.com/patent/CN113422432B/en">CN113422432B</a> — Electrical fire prevention via non-intrusive load monitoring (NILM) with dynamic jump models</li>
+        <li><a href="https://arxiv.org/abs/1602.05629">McMahan et al., 2017</a> — Federated Averaging for communication-efficient distributed learning</li>
+        <li><a href="https://github.com/qca/open-plc-utils">Qualcomm Atheros Open Powerline Toolkit</a> — Open-source utilities for HomePlug AV/AV2 chipset management and diagnostics</li>
+        <li>IEEE 1901-2020 — Standard for broadband over power line networks (HomePlug AV2 profile)</li>
+        <li>ITU-T G.9960/G.9961 — G.hn specification for home networking over power lines, coaxial cables, and phone lines</li>
+      </ol>
+
+    </div>
+  </article>
+
+<script src="../story.js"></script>
+</body>
+</html>
