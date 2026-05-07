@@ -4,6 +4,9 @@
 
   // Article order (newest first) — matches homepage grid order
   var articles = [
+    { slug: 'boston-dynamics-atlas-625x-production-gap', title: 'Boston Dynamics Makes 4 Robots a Month. Hyundai Wants 30,000 a Year. The C-Suite Left. \u2014 Live in the Future' },
+    { slug: 'fervo-geothermal-ipo-fracking-clean-energy', title: 'Fervo Energy Wants $6.5 Billion to Turn Fracking Rigs Into Clean Power Plants. Its Contracted Revenue Already Exceeds That. \u2014 Live in the Future' },
+    { slug: 'av-funding-concentration-three-companies-84-percent', title: 'Three Companies Got 84% of $21.4 Billion in AV Funding. Each Waymo Ride Now Costs Investors More Than a First-Class Plane Ticket. \u2014 Live in the Future' },
     { slug: 'magnon-lifetime-100x-mini-quantum-computer', title: 'A Magnetization Wave Survived 18 Microseconds Inside a Crystal. The Old Record Was 200 Nanoseconds. The Bottleneck Was Never Physics. \u2014 Live in the Future' },
     { slug: 'dac-opportunity-cost-renewables-nature-study', title: 'The U.S. Spent $3.5 Billion on Machines That Suck Carbon From the Air. A Nature Study Says Solar Panels Remove 10 Times More Carbon per Dollar. \u2014 Live in the Future' },
     { slug: 'mit-pencil-beam-bbb-imaging-25x-faster', title: 'An MIT Grad Student Cranked a Laser to Near-Destruction. The Chaos Organized Itself Into a Beam That Images the Blood-Brain Barrier 25 Times Faster. \u2014 Live in the Future' },
