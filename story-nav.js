@@ -4,6 +4,7 @@
 
   // Article order (newest first) — matches homepage grid order
   var articles = [
+    { slug: 'unconscious-hippocampus-language-prediction', title: 'Seven Patients Were Under General Anesthesia. Their Brains Were Predicting the Next Word of a Podcast. \u2014 Live in the Future' },
     { slug: 'boston-dynamics-atlas-625x-production-gap', title: 'Boston Dynamics Makes 4 Robots a Month. Hyundai Wants 30,000 a Year. The C-Suite Left. \u2014 Live in the Future' },
     { slug: 'fervo-geothermal-ipo-fracking-clean-energy', title: 'Fervo Energy Wants $6.5 Billion to Turn Fracking Rigs Into Clean Power Plants. Its Contracted Revenue Already Exceeds That. \u2014 Live in the Future' },
     { slug: 'av-funding-concentration-three-companies-84-percent', title: 'Three Companies Got 84% of $21.4 Billion in AV Funding. Each Waymo Ride Now Costs Investors More Than a First-Class Plane Ticket. \u2014 Live in the Future' },
