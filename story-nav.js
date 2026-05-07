@@ -4,6 +4,7 @@
 
   // Article order (newest first) — matches homepage grid order
   var articles = [
+    { slug: 'glp1-muscle-loss-race-fix', title: 'Semaglutide Dissolves 23 Pounds in 26 Weeks. Eight of Those Pounds Are Muscle. Four Companies Are Racing to Fix the Ratio. \u2014 Live in the Future' },
     { slug: 'panthalassa-wave-ocean-ai-data-center', title: 'Panthalassa Claims It Can Run AI on Ocean Waves for $0.02/kWh. The Wave Energy Industry Average Is $0.30. \u2014 Live in the Future' },
     { slug: 'unconscious-hippocampus-language-prediction', title: 'Seven Patients Were Under General Anesthesia. Their Brains Were Predicting the Next Word of a Podcast. \u2014 Live in the Future' },
     { slug: 'boston-dynamics-atlas-625x-production-gap', title: 'Boston Dynamics Makes 4 Robots a Month. Hyundai Wants 30,000 a Year. The C-Suite Left. \u2014 Live in the Future' },
