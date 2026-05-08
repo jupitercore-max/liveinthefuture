@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-032: Urban Heat Island Microclimate Mapping Using Fleet Vehicle External Temperature Sensor Telemetry | Live in the Future</title>
+  <meta name="description" content="Defensive prior art disclosure: A system that aggregates ambient temperature readings from the external thermistor sensors of connected fleet vehicles to produce street-level urban heat island maps with sub-block spatial resolution, using spatiotemporal kriging with land use regression covariates.">
+  <meta property="og:title" content="System and Method for Continuous Urban Heat Island Microclimate Mapping Using Fleet Vehicle External Temperature Sensor Telemetry, Spatiotemporal Kriging, and Land Use Regression Covariates">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/vehicle-temperature-urban-heat-mapping.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/vehicle-temperature-urban-heat-mapping.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/priorart-vehicle-temperature-urban-heat-mapping.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">← Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-032 · UrbanTech / Climate Science</span>
+      <h1>System and Method for Continuous Urban Heat Island Microclimate Mapping Using Fleet Vehicle External Temperature Sensor Telemetry, Spatiotemporal Kriging, and Land Use Regression Covariates</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-05-08">Published May 8, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/priorart-vehicle-temperature-urban-heat-mapping.jpg" alt="Aerial view of city streets with fleet vehicles showing temperature sensor readings and heat map overlay of urban microclimate gradients" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>⚖️ Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. § 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above. This disclosure is intended to prevent the patenting of these concepts by any party.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a system and method for producing continuous, street-level urban heat island (UHI) microclimate maps by harvesting ambient air temperature readings from the external thermistor sensors already installed in connected fleet vehicles. Virtually every passenger vehicle manufactured after 2005 includes a negative temperature coefficient (NTC) thermistor mounted in the front bumper or grille area, reporting ambient temperature to the engine management system via the OBD-II PID 0x46 (ambient air temperature) or proprietary CAN bus addresses. Connected fleet vehicles — delivery vans, rideshare cars, transit buses, freight trucks — transmit this reading alongside GPS coordinates through telematics platforms at 1–30 second intervals. The system aggregates these time-stamped, geolocated temperature observations across thousands of vehicles; applies a vehicle-specific thermal bias correction model that compensates for engine heat soak, vehicle speed, solar load on the sensor housing, and radiator proximity effects; fuses the corrected observations with static land use regression (LUR) covariates including building density, impervious surface fraction, normalized difference vegetation index (NDVI), sky view factor, and proximity to water bodies; and interpolates the combined data using spatiotemporal kriging with an anisotropic Matérn covariance function to produce continuous temperature field estimates at sub-block spatial resolution (50–100 m) and sub-hourly temporal resolution. The resulting maps enable targeted urban greening investment, heat-vulnerable population alerting, building energy demand forecasting, and validation of mesoscale climate models at a fraction of the cost of deploying dedicated weather station networks.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to urban climate monitoring, specifically to the generation of high-resolution spatiotemporal temperature maps from ambient air temperature telemetry of connected fleet vehicles combined with land use regression modeling and geostatistical interpolation.</p>
+
+      <h2>Background</h2>
+
+      <p>Urban heat islands kill people. The EPA estimates that extreme heat causes more deaths in the United States annually than hurricanes, tornadoes, floods, and lightning combined (<a href="https://www.epa.gov/climate-indicators/climate-change-indicators-heat-related-deaths">EPA Climate Indicators</a>). The effect is spatially heterogeneous: a tree-lined residential street may sit 5–8°C cooler than a nearby parking lot during a summer afternoon (<a href="https://doi.org/10.1016/j.rse.2018.11.003">Zhou et al., Remote Sensing of Environment 2019</a>). Yet the monitoring infrastructure to capture this variation barely exists.</p>
+
+      <p>Current approaches to urban temperature monitoring include:</p>
+      <ul>
+        <li><strong>Official weather stations:</strong> The Automated Surface Observing System (ASOS) network provides the backbone of surface temperature observations in the US, with roughly 900 stations nationwide. Most are sited at airports, far from urban cores where heat island effects are strongest. Typical station spacing in metropolitan areas is 10–30 km, missing sub-neighborhood variability entirely. The <a href="https://www.weather.gov/rah/ASOS">National Weather Service ASOS program</a> explicitly notes that airport siting avoids urban heat contamination — the very signal this disclosure aims to measure.</li>
+        <li><strong>Citizen weather networks:</strong> Personal weather stations reporting through <a href="https://www.wunderground.com/pws/overview">Weather Underground</a> and similar aggregators number approximately 250,000 globally. Spatial density is better than ASOS in affluent neighborhoods but nearly absent in low-income areas — precisely the communities most vulnerable to extreme heat. Station quality varies wildly; <a href="https://doi.org/10.1175/BAMS-D-12-00117.1">Bell et al., Bulletin of the American Meteorological Society 2015</a> found that 30–40% of citizen weather stations exhibit systematic biases exceeding 2°C due to improper siting (proximity to buildings, pavement, HVAC exhausts).</li>
+        <li><strong>Satellite-derived land surface temperature (LST):</strong> Instruments like <a href="https://modis.gsfc.nasa.gov/">MODIS</a> on Terra/Aqua and <a href="https://landsat.gsfc.nasa.gov/satellites/landsat-8/">TIRS on Landsat 8/9</a> provide thermal imagery at 1 km (MODIS) to 100 m (Landsat TIRS) spatial resolution. However, LST measures surface skin temperature, not the 2-meter air temperature that humans experience. The two can diverge by 10–20°C over sunlit pavement (<a href="https://doi.org/10.1016/j.rse.2011.05.009">Voogt and Oke, Remote Sensing of Environment 2003</a>). Cloud cover creates data gaps. Revisit times (1–2 days for MODIS, 16 days for Landsat) miss the diurnal cycle entirely.</li>
+        <li><strong>Dedicated urban sensor networks:</strong> Projects like <a href="https://arrayofthings.github.io/">Array of Things</a> in Chicago deployed purpose-built environmental sensor nodes on light poles. Each node costs $2,000–5,000 to manufacture, install, and commission, plus ongoing power, connectivity, and maintenance. Chicago's deployment — one of the most ambitious globally — covered 200 nodes across 590 km², or one per 3 km². Scaling to 50-meter resolution across a mid-size metro would require ~200,000 nodes at a cost exceeding $500 million.</li>
+      </ul>
+
+      <p>The vehicle fleet represents an untapped, massive, and already-funded temperature sensing network. The US Department of Transportation estimated 290 million registered vehicles in the US as of 2023 (<a href="https://www.bts.gov/product/national-transportation-statistics">BTS National Transportation Statistics</a>). Among commercially connected fleets alone, <a href="https://www.geotab.com/">Geotab</a> reports over 4 million connected vehicles in their telematics platform; <a href="https://www.samsara.com/">Samsara</a> manages over 1 million connected assets. Add Uber (~1 million active US drivers per quarter), Lyft, Amazon Delivery Service Partners (~275,000 vans per <a href="https://www.aboutamazon.com/news/transportation/how-amazon-works-with-delivery-service-partners">Amazon</a>), UPS (~127,000 package cars), FedEx Ground (~83,000 vehicles), USPS (~230,000 vehicles), plus municipal transit fleets (over 70,000 transit buses per <a href="https://www.apta.com/">APTA</a>), and the connected vehicle fleet traversing US streets at any given hour numbers in the millions.</p>
+
+      <p>Every one of these vehicles carries an ambient temperature sensor. The OBD-II standard (SAE J1979, since 1996) defines PID 0x46 as ambient air temperature, and the CAN bus broadcasts this reading continuously. Telematics units from Geotab, Samsara, CalAmp, Sierra Wireless, and others already harvest engine parameters including ambient temperature as standard data fields. The data exists. Nobody is using it for urban microclimate mapping.</p>
+
+      <p>Prior work on vehicle-based temperature sensing is sparse. <a href="https://doi.org/10.1175/JAMC-D-16-0150.1">Mahoney and O'Sullivan, Journal of Applied Meteorology and Climatology 2017</a> demonstrated that car thermistors could detect road surface temperature gradients in a controlled fleet study of 12 vehicles. <a href="https://patents.google.com/patent/US20190346575A1/en">US20190346575A1</a> (Ford) describes using vehicle temperature sensors for weather prediction, but focuses on precipitation detection for autonomous driving path planning rather than spatial temperature field reconstruction. <a href="https://patents.google.com/patent/US10393899B2/en">US10393899B2</a> (GM) describes fusing vehicle sensor data with weather forecasts for HVAC preconditioning. Neither patent, nor any prior art found, describes: (a) aggregating ambient temperature telemetry from fleet vehicles as a large-scale distributed urban temperature sensing network, (b) applying a vehicle-specific thermal bias correction model to deconvolve engine heat contamination from true ambient temperature, (c) fusing corrected vehicle observations with land use regression covariates, or (d) applying spatiotemporal kriging to produce continuous urban heat island maps at sub-block resolution.</p>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. Vehicle Ambient Temperature Sensor Characteristics and Bias Sources</h3>
+
+      <p>The NTC thermistor used in virtually all vehicles for ambient air temperature measurement is mounted in the front bumper opening, ahead of the radiator and condenser stack. Its primary automotive function is to provide intake air density estimation for fuel injection calibration and to enable HVAC automatic temperature control. The sensor typically operates in the −40°C to +80°C range with a nominal accuracy of ±1.5°C from the factory, degrading to ±2–3°C after 5+ years due to thermistor drift and contamination.</p>
+
+      <p>However, the raw sensor reading is contaminated by several systematic biases that must be corrected before the data becomes useful for climate mapping:</p>
+
+      <ul>
+        <li><strong>Engine heat soak:</strong> After the vehicle has been running, radiated and convected heat from the engine bay elevates the thermistor reading by 2–8°C, depending on engine load, ambient conditions, and airflow. At idle or low speeds (&lt;15 km/h), convective cooling of the sensor diminishes and heat soak dominates. At highway speeds (&gt;60 km/h), forced airflow through the bumper opening provides sufficient cooling to bring the sensor within 1°C of true ambient.</li>
+        <li><strong>Solar radiation loading:</strong> Direct sunlight on the bumper fascia heats the sensor housing. Dark-colored bumpers on south-facing roads at midday can elevate the sensor reading by 1–3°C beyond heat soak effects. The magnitude depends on vehicle orientation (captured via GPS heading), solar altitude angle (computed from time and latitude), and bumper color/material (captured per vehicle model from the VIN).</li>
+        <li><strong>Radiator reject heat:</strong> At low speeds with the cooling fan active, hot air exhausted through the radiator stack can recirculate to the thermistor. This is vehicle-model-specific and correlates with coolant temperature (OBD-II PID 0x05), fan duty cycle, and vehicle speed.</li>
+        <li><strong>Road surface radiation:</strong> Hot pavement radiates longwave infrared energy upward. A sensor mounted 30–50 cm above asphalt at 60°C receives measurable radiative heating, particularly at low mounting heights (sedans) versus high mounting heights (buses, trucks). Vehicle class (passenger car, SUV, van, bus) derived from VIN provides an approximation of sensor height.</li>
+      </ul>
+
+      <p>The system applies a per-vehicle bias correction model of the form:</p>
+
+      <p>T_corrected = T_raw − f(v, T_coolant, T_raw, θ_sun, α_bumper, h_sensor, Δt_since_start)</p>
+
+      <p>where v is vehicle speed, T_coolant is engine coolant temperature, θ_sun is solar altitude, α_bumper is bumper solar absorptivity (estimated from vehicle model/color), h_sensor is approximate sensor mounting height from vehicle class, and Δt_since_start is time since engine start (cold start vs. warm). The function f is parameterized as a gradient-boosted regression tree (GBRT) trained on controlled calibration drives where co-located reference-grade aspirated temperature shields (RM Young 43502 or equivalent) provide ground truth. A fleet of 50–100 calibration vehicles across 5 climate zones and 4 seasons suffices to train a generalizable model that reduces systematic bias from ±5°C (raw) to ±1.0°C (corrected) under typical driving conditions.</p>
+
+      <h3>2. Telematics Data Ingestion Pipeline</h3>
+
+      <p>Connected fleet vehicles transmit telematics data through a chain of systems: the vehicle CAN bus → telematics control unit (TCU) or aftermarket OBD-II dongle → cellular modem → telematics cloud platform (Geotab MyGeotab, Samsara Dashboard, etc.) → API. The system ingests data through telematics platform APIs, extracting the following fields per observation:</p>
+
+      <ul>
+        <li>Timestamp (UTC, millisecond precision from GPS)</li>
+        <li>Latitude, longitude (WGS-84, typically ±2–5 m from GPS/GNSS)</li>
+        <li>Vehicle speed (km/h, from GPS or wheel speed sensors)</li>
+        <li>Ambient air temperature (°C, from PID 0x46 or proprietary CAN address)</li>
+        <li>Engine coolant temperature (°C, from PID 0x05)</li>
+        <li>Vehicle identification number (VIN, for model/class/bumper color lookup)</li>
+        <li>GPS heading (degrees, for solar orientation correction)</li>
+      </ul>
+
+      <p>Data volume scales linearly with fleet size and reporting interval. A fleet of 10,000 vehicles reporting every 10 seconds generates ~86 million observations per day, or approximately 12 GB of structured data. The system processes this in near-real-time using a streaming architecture (Apache Kafka → Apache Flink or similar) that applies the bias correction model to each observation as it arrives, tags it with the nearest land use regression cell, and feeds it into the spatial interpolation engine.</p>
+
+      <h3>3. Land Use Regression Covariates</h3>
+
+      <p>Vehicle observations, even after bias correction, provide temperature measurements only along road networks. To interpolate into the spaces between roads (building interiors, parks, courtyards), the system incorporates static and semi-static land use regression (LUR) covariates that are known predictors of urban temperature variation. These covariates are pre-computed on a regular spatial grid (50 m × 50 m cells) from publicly available geospatial datasets:</p>
+
+      <ul>
+        <li><strong>Impervious surface fraction:</strong> Derived from the <a href="https://www.mrlc.gov/data/nlcd-2021-percent-developed-imperviousness-conus">NLCD Percent Developed Imperviousness</a> dataset (30 m resolution, updated every 2–3 years). Impervious surfaces store and re-radiate solar energy, creating the primary UHI mechanism. Each 10% increase in impervious fraction within a 100 m radius correlates with ~0.3–0.5°C increase in summer daytime air temperature (<a href="https://doi.org/10.1016/j.landurbplan.2016.06.014">Heaviside et al., Landscape and Urban Planning 2017</a>).</li>
+        <li><strong>Normalized difference vegetation index (NDVI):</strong> Computed from <a href="https://sentinel.esa.int/web/sentinel/missions/sentinel-2">Sentinel-2</a> multispectral imagery (10 m resolution, 5-day revisit). Vegetation provides evapotranspiration cooling. A mature street tree canopy reduces local air temperature by 1–5°C compared to an adjacent unshaded street (<a href="https://doi.org/10.1016/j.ufug.2013.01.001">Bowler et al., Urban Forestry & Urban Greening 2010</a>). The system uses monthly NDVI composites to capture seasonal leaf-on/leaf-off transitions.</li>
+        <li><strong>Sky view factor (SVF):</strong> Computed from <a href="https://www.usgs.gov/3d-elevation-program">3DEP LiDAR</a> point clouds or building footprint + height databases (e.g., <a href="https://github.com/microsoft/USBuildingFootprints">Microsoft Building Footprints</a> with height estimates). SVF quantifies the fraction of the sky hemisphere visible from a point at ground level. Canyon-like street geometries (SVF &lt; 0.3) trap longwave radiation at night, sustaining elevated nocturnal temperatures. Tall buildings can also create daytime shading that reduces solar loading.</li>
+        <li><strong>Distance to water bodies:</strong> Proximity to rivers, lakes, and the ocean provides evaporative and thermal mass cooling effects. The system computes distance-to-water for each grid cell from the <a href="https://www.usgs.gov/national-hydrography">National Hydrography Dataset</a>.</li>
+        <li><strong>Building density and height:</strong> Anthropogenic heat from building HVAC systems, particularly in summer, contributes 2–4 W/m² in residential areas and 20–75 W/m² in dense commercial districts (<a href="https://doi.org/10.1016/j.enbuild.2009.02.005">Sailor and Lu, Energy and Buildings 2004</a>). Building footprint and height data encode this heating source.</li>
+        <li><strong>Surface albedo:</strong> Derived from <a href="https://modis.gsfc.nasa.gov/data/dataprod/mod43.php">MODIS MCD43A3</a> albedo product (500 m, daily) or <a href="https://sentinel.esa.int/web/sentinel/missions/sentinel-2">Sentinel-2</a> surface reflectance (10 m). Low-albedo surfaces (dark asphalt, dark roofs) absorb more shortwave radiation.</li>
+      </ul>
+
+      <p>The LUR covariates serve dual roles: they inform the kriging mean function (universal kriging / kriging with external drift), and they enable physically plausible interpolation into areas where vehicle observations are sparse or absent (pedestrian zones, parks, industrial compounds).</p>
+
+      <h3>4. Spatiotemporal Kriging with Land Use Drift</h3>
+
+      <p>The system combines bias-corrected vehicle temperature observations with LUR covariates using universal spatiotemporal kriging. The model decomposes the temperature field T(s, t) at spatial location s and time t as:</p>
+
+      <p>T(s, t) = μ(s, t) + Z(s, t) + ε(s, t)</p>
+
+      <p>where μ(s, t) is the deterministic trend (drift) function, Z(s, t) is a zero-mean spatiotemporally correlated Gaussian process, and ε(s, t) is the per-observation measurement noise.</p>
+
+      <p><strong>Drift function.</strong> The drift captures large-scale, predictable temperature variation using the LUR covariates: μ(s, t) = β₀ + β₁·NDVI(s) + β₂·ISF(s) + β₃·SVF(s) + β₄·D_water(s) + β₅·albedo(s) + β₆·building_density(s) + β₇·solar_altitude(t) + β₈·hour_of_day(t) + β₉·NDVI(s)·solar_altitude(t), where the interaction term captures the diurnal modulation of vegetation cooling (strong during daytime, weak at night). Coefficients are estimated jointly with the covariance parameters via restricted maximum likelihood (REML).</p>
+
+      <p><strong>Spatiotemporal covariance.</strong> The system uses a separable space-time covariance model: C(h, u) = C_s(h) × C_t(u), where h is spatial lag and u is temporal lag. The spatial component C_s uses an anisotropic Matérn covariance with ν = 3/2, allowing different length scales along the dominant wind direction (capturing advective heat transport) versus the perpendicular direction. The temporal component C_t uses an exponential covariance with a characteristic timescale of 1–4 hours, capturing the decorrelation of temperature fluctuations as weather systems evolve. Wind direction and speed from the nearest ASOS station, or from reanalysis data (<a href="https://www.ecmwf.int/en/forecasts/dataset/ecmwf-reanalysis-v5">ERA5</a>, 0.25° hourly), inform the anisotropy ellipse orientation.</p>
+
+      <p><strong>Scalable computation.</strong> With millions of observations per day, direct kriging (O(N³) inversion) is intractable. The system partitions the spatiotemporal domain into local neighborhoods using a moving window: for each prediction point, only observations within a spatial radius of 2 km and a temporal window of ±1 hour contribute to the local kriging system, yielding local matrices of size 200–2,000 that invert in milliseconds. The <a href="https://cran.r-project.org/web/packages/gstat/index.html">gstat</a> and <a href="https://spacetimewithr.org/">spTimer</a> R packages, or the <a href="https://pyspatialml.readthedocs.io/">pyspatialml</a> Python library, provide reference implementations. For operational deployment, the system implements the local kriging in C++ with BLAS-accelerated linear algebra, achieving &lt;100 ms per prediction grid update on a 16-core server.</p>
+
+      <h3>5. Temporal Calibration and Drift Tracking</h3>
+
+      <p>The vehicle bias correction model must remain accurate as new vehicle models enter the fleet, as vehicles age, and as sensor degradation occurs. The system addresses temporal drift through three mechanisms:</p>
+
+      <ul>
+        <li><strong>Fleet-wide residual monitoring:</strong> The system continuously computes the residual between kriging-predicted temperature and each vehicle's corrected observation. Systematic positive or negative residuals for a specific vehicle model indicate model drift. When the fleet-wide mean residual for a vehicle model exceeds ±0.5°C over a 30-day rolling window, the bias correction parameters for that model are flagged for re-calibration.</li>
+        <li><strong>Anchor station cross-validation:</strong> Wherever a vehicle passes within 200 m of a reference weather station (ASOS, mesonet, or citizen weather station with confirmed quality), the system computes the difference between the corrected vehicle reading and the station reading. These paired observations accumulate into a per-vehicle (or per-model) calibration dataset that enables continuous, passive recalibration without dedicated calibration drives.</li>
+        <li><strong>Cold start exploitation:</strong> A vehicle that has been parked for 4+ hours with the engine off has a thermistor reading that closely approximates true ambient temperature (no engine heat soak). The first reading after ignition — before the engine has warmed significantly — provides a quasi-reference observation. The system identifies cold starts from the telematics data (ignition event + low coolant temperature) and uses these readings as high-confidence anchor points with reduced observation noise in the kriging system.</li>
+      </ul>
+
+      <h3>6. Output Products</h3>
+
+      <p>The system produces the following outputs from the continuous urban temperature field:</p>
+
+      <ul>
+        <li><strong>Real-time heat maps:</strong> Rasterized temperature fields at 50–100 m resolution, updated every 15–60 minutes, served as map tiles compatible with web mapping libraries (Mapbox GL, Leaflet, Google Maps API). Each pixel carries a mean temperature, a kriging standard deviation (uncertainty), and the number of supporting observations. Historical maps are archived for trend analysis.</li>
+        <li><strong>Heat vulnerability alerts:</strong> The system cross-references the temperature field with demographic data (CDC Social Vulnerability Index, US Census tract data on elderly population, poverty rate, lack of vehicle access) to identify areas where dangerous heat levels coincide with vulnerable populations. Alerts are generated when the predicted temperature in a high-vulnerability tract exceeds the NWS Heat Advisory threshold (heat index ≥ 105°F) and the kriging standard deviation is below a configurable confidence threshold (e.g., 1.5°C).</li>
+        <li><strong>Cool corridor identification:</strong> By analyzing the spatial temperature gradient, the system identifies connected paths through the urban fabric that remain cooler than surrounding areas. These "cool corridors" — typically tree-lined streets, waterfront paths, and shaded arcade walkways — can be recommended to pedestrians via navigation apps during heat events. The system computes both daytime and nighttime cool corridors, as the spatial pattern inverts between day (vegetation cooling dominant) and night (sky view factor trapping dominant).</li>
+        <li><strong>Urban greening ROI estimation:</strong> By correlating the NDVI covariate with the kriging-estimated temperature field, the system quantifies the cooling benefit per unit of vegetation cover in each neighborhood. Municipal planners can input a proposed tree planting or green roof project, and the system estimates the expected temperature reduction and spatial extent of the cooling effect using the fitted LUR relationship, providing cost-benefit analysis for urban greening investment.</li>
+        <li><strong>Building energy demand disaggregation:</strong> The street-level temperature field enables per-building exterior temperature estimation, improving the accuracy of building energy simulation models (EnergyPlus, eQUEST) that currently use a single airport weather station temperature for all buildings in a city. For a building on a south-facing, high-ISF, low-NDVI block, the actual cooling load may exceed the airport-based estimate by 15–30% during peak summer afternoons.</li>
+        <li><strong>Climate model validation dataset:</strong> Mesoscale climate models (WRF-Urban, ENVI-met) used for urban planning and climate adaptation studies are validated against surface observations. The vehicle-derived temperature field provides a spatially continuous validation dataset at resolutions matching or exceeding the model grid, replacing the current practice of validating against a handful of fixed weather stations.</li>
+      </ul>
+
+      <h3>7. Figures Description</h3>
+
+      <ul>
+        <li><strong>Figure 1:</strong> System architecture showing fleet vehicles with OBD-II temperature telemetry flowing through telematics platforms, through the bias correction pipeline, merging with LUR covariates, and feeding into the spatiotemporal kriging engine that produces continuous temperature maps.</li>
+        <li><strong>Figure 2:</strong> Schematic of vehicle bumper thermistor placement showing the four bias sources (engine heat soak, solar loading, radiator reject heat, road surface radiation) with representative magnitudes as a function of vehicle speed.</li>
+        <li><strong>Figure 3:</strong> Example temperature field for a 20 km × 20 km urban area at 14:00 local time on a summer day, showing hot spots over commercial/industrial zones (parking lots, warehouses) and cool zones along riparian corridors and mature canopy neighborhoods, with kriging standard deviation overlay indicating uncertainty.</li>
+        <li><strong>Figure 4:</strong> Bias correction performance: scatter plot of raw vehicle temperature vs. reference station temperature (R² ≈ 0.82, RMSE ≈ 3.2°C) compared to corrected vehicle temperature vs. reference (R² ≈ 0.97, RMSE ≈ 0.9°C), demonstrating the effectiveness of the GBRT correction model.</li>
+      </ul>
+
+      <h2>Claims</h2>
+
+      <ol>
+        <li>A system for urban heat island microclimate mapping comprising: a data ingestion pipeline that receives ambient air temperature readings, GPS coordinates, vehicle speed, and engine coolant temperature from connected fleet vehicles via telematics platform APIs; a bias correction module that applies a per-vehicle thermal bias model to remove systematic errors from engine heat soak, solar radiation loading, radiator reject heat, and road surface thermal radiation; a land use regression covariate database containing impervious surface fraction, vegetation index, sky view factor, distance to water bodies, building density, and surface albedo on a regular spatial grid; and a spatiotemporal kriging module that combines the corrected vehicle temperature observations with land use covariates to produce continuous temperature field estimates with quantified uncertainty at sub-block spatial resolution.</li>
+
+        <li>The system of claim 1, wherein the bias correction module implements a gradient-boosted regression tree model parameterized by vehicle speed, engine coolant temperature, solar altitude angle, bumper solar absorptivity derived from vehicle identification number, approximate sensor mounting height from vehicle class, and time since engine start, trained on controlled calibration drives with co-located reference-grade aspirated temperature shields.</li>
+
+        <li>The system of claim 1, wherein the spatiotemporal kriging module uses universal kriging with a deterministic drift function incorporating NDVI, impervious surface fraction, sky view factor, distance to water bodies, surface albedo, building density, solar altitude, hour of day, and an NDVI-solar interaction term, with drift coefficients estimated jointly with covariance parameters via restricted maximum likelihood.</li>
+
+        <li>The system of claim 1, wherein the spatial covariance component uses an anisotropic Matérn kernel with the anisotropy ellipse oriented along the dominant wind direction obtained from a reference weather station or reanalysis data, capturing advective heat transport.</li>
+
+        <li>The system of claim 1, further comprising a cold start exploitation module that identifies vehicles recently started after extended parking (4+ hours with engine off) from telematics ignition events and low coolant temperature readings, and assigns reduced observation noise to the first temperature reading after ignition as a high-confidence ambient reference point.</li>
+
+        <li>The system of claim 1, further comprising an anchor station cross-validation module that accumulates paired observations whenever a vehicle passes within a configurable distance of a reference weather station, enabling continuous passive recalibration of the per-model bias correction parameters without dedicated calibration drives.</li>
+
+        <li>The system of claim 1, further comprising a heat vulnerability alert module that cross-references the kriging-estimated temperature field with demographic vulnerability indices to generate targeted alerts when predicted temperature in a high-vulnerability area exceeds a heat advisory threshold with confidence exceeding a configurable kriging standard deviation bound.</li>
+
+        <li>The system of claim 1, further comprising a cool corridor identification module that analyzes the spatial temperature gradient field to identify connected pedestrian-traversable paths that remain below a specified temperature threshold, computing both daytime and nighttime corridor maps to account for the diurnal inversion of the UHI spatial pattern.</li>
+
+        <li>A method for mapping urban heat island microclimates, comprising: ingesting time-stamped, geolocated ambient air temperature readings from external thermistor sensors of connected fleet vehicles via telematics APIs; applying a vehicle-specific thermal bias correction model that compensates for engine heat soak, solar loading, radiator effects, and road surface radiation as functions of vehicle speed, coolant temperature, solar geometry, and vehicle class; computing land use regression covariates from remote sensing and geospatial datasets on a regular spatial grid; performing spatiotemporal kriging with land use drift to interpolate bias-corrected vehicle observations and covariates into a continuous temperature field estimate; and generating temperature map products with per-pixel uncertainty bounds at sub-block spatial resolution and sub-hourly temporal resolution.</li>
+
+        <li>The method of claim 9, wherein the spatiotemporal domain is partitioned into local neighborhoods using a moving window of configurable spatial radius and temporal half-width, and kriging is performed independently within each neighborhood to achieve computational scalability with millions of daily observations.</li>
+
+        <li>The method of claim 9, further comprising estimating urban greening cooling benefit by correlating the fitted land use regression relationship between vegetation index and kriging-predicted temperature with proposed vegetation interventions, producing expected temperature reduction estimates for urban planning cost-benefit analysis.</li>
+
+        <li>The method of claim 9, further comprising generating per-building exterior temperature estimates from the continuous temperature field for input into building energy simulation models, replacing the conventional use of a single airport weather station temperature for all buildings in a metropolitan area.</li>
+      </ol>
+
+      <h2>Implementation Notes</h2>
+
+      <p>A minimum viable deployment requires API access to a single telematics platform with 1,000+ connected vehicles in a metropolitan area. Geotab's <a href="https://developers.geotab.com/">MyGeotab SDK</a> and Samsara's <a href="https://developers.samsara.com/">Developer API</a> both provide ambient temperature, GPS, speed, coolant temperature, and VIN through standard REST endpoints. Initial bias correction can be bootstrapped from cold start observations alone (no dedicated calibration vehicles needed), achieving ±1.5°C accuracy before refining to ±1.0°C with full model training. The LUR covariates are all available from free, public US government datasets. Kriging inference runs on a single server with 32 GB RAM for a metro area of 2,000 km². Total infrastructure cost for a city-scale deployment: approximately $5,000/month in cloud compute plus API subscription fees, compared to $50–500 million for equivalent density from dedicated sensor hardware.</p>
+
+      <h2>Prior Art References</h2>
+
+      <ol>
+        <li><a href="https://www.epa.gov/climate-indicators/climate-change-indicators-heat-related-deaths">EPA — Heat-Related Deaths</a> — Climate change indicators on extreme heat mortality in the United States</li>
+        <li><a href="https://doi.org/10.1016/j.rse.2018.11.003">Zhou et al., Remote Sensing of Environment 2019</a> — Intra-urban variation of surface and air temperatures and their drivers</li>
+        <li><a href="https://doi.org/10.1175/BAMS-D-12-00117.1">Bell et al., Bulletin of the American Meteorological Society 2015</a> — Quality assessment of citizen weather station networks</li>
+        <li><a href="https://doi.org/10.1016/j.rse.2011.05.009">Voogt and Oke, Remote Sensing of Environment 2003</a> — Thermal remote sensing of urban climates and the divergence between LST and air temperature</li>
+        <li><a href="https://arrayofthings.github.io/">Array of Things Project, University of Chicago</a> — Urban environmental sensing infrastructure</li>
+        <li><a href="https://www.bts.gov/product/national-transportation-statistics">Bureau of Transportation Statistics — National Transportation Statistics</a></li>
+        <li><a href="https://doi.org/10.1175/JAMC-D-16-0150.1">Mahoney and O'Sullivan, JAMC 2017</a> — Vehicle-based road surface temperature sensing in a fleet study</li>
+        <li><a href="https://patents.google.com/patent/US20190346575A1/en">US20190346575A1</a> (Ford) — Vehicle sensor-based weather prediction for autonomous driving</li>
+        <li><a href="https://patents.google.com/patent/US10393899B2/en">US10393899B2</a> (GM) — Fusing vehicle sensor data with weather forecasts for HVAC preconditioning</li>
+        <li><a href="https://doi.org/10.1016/j.landurbplan.2016.06.014">Heaviside et al., Landscape and Urban Planning 2017</a> — Impervious surface fraction and urban air temperature</li>
+        <li><a href="https://doi.org/10.1016/j.ufug.2013.01.001">Bowler et al., Urban Forestry & Urban Greening 2010</a> — Urban greening and local air temperature reduction</li>
+        <li><a href="https://doi.org/10.1016/j.enbuild.2009.02.005">Sailor and Lu, Energy and Buildings 2004</a> — Anthropogenic heat generation in urban areas</li>
+        <li><a href="https://www.mrlc.gov/data/nlcd-2021-percent-developed-imperviousness-conus">NLCD 2021 — Percent Developed Imperviousness</a></li>
+        <li><a href="https://www.ecmwf.int/en/forecasts/dataset/ecmwf-reanalysis-v5">ECMWF ERA5 Reanalysis</a> — Hourly gridded wind and temperature fields</li>
+        <li><a href="https://developers.geotab.com/">Geotab MyGeotab SDK</a> — Fleet telematics API with ambient temperature endpoint</li>
+        <li><a href="https://developers.samsara.com/">Samsara Developer API</a> — Connected fleet data access</li>
+      </ol>
+
+    </div>
+  </article>
+
+<script src="../story.js"></script>
+</body>
+</html>
