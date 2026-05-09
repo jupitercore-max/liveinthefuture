@@ -73,7 +73,12 @@ function playTone(freq, dur, vol) {
   o.start(); o.stop(audioCtx.currentTime + dur);
 }
 function playPop() { playTone(600 + Math.random()*400, 0.1, 0.15); }
-function playChain() { playTone(800 + Math.random()*600, 0.15, 0.2); }
+function playChain(comboLevel) {
+  // Escalating pitch encodes chain length through bone conduction —
+  // higher combo = higher pitch, so you hear the cascade building
+  var freq = Math.min(500 + (comboLevel || 1) * 100, 1800);
+  playTone(freq, 0.15, 0.2);
+}
 function playFail() { playTone(200, 0.3, 0.1); }
 // Color-specific tones — pentatonic scale so any sequence sounds musical
 var COLOR_NOTES = [262, 294, 330, 392, 440, 523, 587]; // C4 D4 E4 G4 A4 C5 D5
@@ -844,7 +849,7 @@ function update() {
             combo++;
             score += Math.floor(g.length * 10 * combo * getRankBonuses().scoreMult);
             removeGroup(g);
-            playChain();
+            playChain(combo);
             animTimer = 12;
             foundChain = true;
           }
