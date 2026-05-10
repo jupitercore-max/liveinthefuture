@@ -400,9 +400,9 @@ function drawFooter() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   if (arpActive) {
-    ctx.fillText('←→ Speed  ↑ Pattern  ↓ Scale  Esc Stop  ' + arpBPM + ' BPM', W / 2, H - 18);
+    ctx.fillText('←→ Speed  ↑ Pattern  ↓ Scale  Enter Stop  Esc Mic  ' + arpBPM + ' BPM', W / 2, H - 18);
   } else {
-    ctx.fillText('←→ Note  ↑ Wave  ↓ Delay  Hold=Arp  Esc Mic Filter', W / 2, H - 18);
+    ctx.fillText('←→ Note  ↑ Wave  ↓ Delay  Hold=Arp  Esc Mic', W / 2, H - 18);
   }
 }
 
@@ -711,7 +711,10 @@ document.addEventListener('keydown', function(e) {
       }
     }
   } else if (e.key === 'Enter') {
-    if (!enterDown) {
+    if (arpActive) {
+      // Arp latch: tap Enter to stop latched arp
+      stopArp();
+    } else if (!enterDown) {
       enterDown = true;
       enterHoldStart = Date.now();
       playNote();
@@ -723,11 +726,8 @@ document.addEventListener('keydown', function(e) {
       }, 300);
     }
   } else if (e.key === 'Escape' || e.key === 'Backspace') {
-    if (arpActive) {
-      stopArp();
-    } else {
-      toggleMicFilter();
-    }
+    // Esc always toggles mic filter — consistent in all modes
+    toggleMicFilter();
   }
 });
 
@@ -735,11 +735,11 @@ document.addEventListener('keyup', function(e) {
   if (e.key === 'Enter') {
     enterDown = false;
     if (arpHoldTimer) { clearTimeout(arpHoldTimer); arpHoldTimer = null; }
-    if (arpActive) {
-      stopArp();
-    } else {
+    if (!arpActive) {
+      // Only stop note if arp isn't latched
       stopNote();
     }
+    // If arp IS running, let it continue (latch mode — hands free for instrument)
   }
 });
 
