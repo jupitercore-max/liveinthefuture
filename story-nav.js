@@ -4,6 +4,15 @@
 
   // Article order (newest first) — matches homepage grid order
   var articles = [
+    { slug: 'crispr-cas12a2-cell-killing-paradigm-shift', title: 'A New CRISPR Protein Destroyed Over 90% of Virus-Infected Cells and Left Every Healthy One Untouched \u2014 Live in the Future' },
+    { slug: 'ai-weather-models-fail-extreme-events', title: 'AI Weather Models Beat Forecasters 364 Days a Year. On the Day That Kills People, They Choke. \u2014 Live in the Future' },
+    { slug: 'bci-convergence-five-implants-three-weeks', title: 'Fifty People on Earth Have Brain Implants. Five Companies Just Expanded the List of Reasons to Get One by 10x. \u2014 Live in the Future' },
+    { slug: 'prime-assembly-11kb-gene-replacement', title: 'Two Labs Just Cracked the Size Limit on Gene Editing. The Old Ceiling Was 800 Base Pairs. The New One Is 11,000. \u2014 Live in the Future' },
+    { slug: 'launch-failure-true-cost-67x-ratio', title: 'A $30 Million Satellite Died. The Bill Was $2 Billion. \u2014 Live in the Future' },
+    { slug: 'solid-state-cooling-refrigerant-race', title: 'Your Refrigerator Works the Same Way It Did in 1930. Three Labs Are Racing to Fix That Before 2036. \u2014 Live in the Future' },
+    { slug: 'caisi-five-labs-open-source-gap', title: 'The Government Will Test Every Major AI Model Before Release. The One With 1 Billion Downloads Isn\u2019t on the List. \u2014 Live in the Future' },
+    { slug: 'pentagon-classified-ai-any-lawful-purpose', title: 'Anthropic Was the Only AI on the Pentagon\u2019s Classified Networks. It Lost a $200 Million Contract for Refusing One Clause. Eight Companies Signed It. \u2014 Live in the Future' },
+    { slug: 'quantum-3000x-speedup-verification-gap', title: 'A Quantum Computer Finished a Materials Simulation in Two Minutes. The Classical Machine Needed 100 Hours. Nobody Can Prove Who Got the Right Answer. \u2014 Live in the Future' },
     { slug: 'glp1-muscle-loss-race-fix', title: 'Semaglutide Dissolves 23 Pounds in 26 Weeks. Eight of Those Pounds Are Muscle. Four Companies Are Racing to Fix the Ratio. \u2014 Live in the Future' },
     { slug: 'panthalassa-wave-ocean-ai-data-center', title: 'Panthalassa Claims It Can Run AI on Ocean Waves for $0.02/kWh. The Wave Energy Industry Average Is $0.30. \u2014 Live in the Future' },
     { slug: 'unconscious-hippocampus-language-prediction', title: 'Seven Patients Were Under General Anesthesia. Their Brains Were Predicting the Next Word of a Podcast. \u2014 Live in the Future' },
