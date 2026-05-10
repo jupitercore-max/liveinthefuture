@@ -4,6 +4,9 @@
 
   // Article order (newest first) — matches homepage grid order
   var articles = [
+    { slug: 'ai-drug-discovery-173-compounds-phase-iii-2026', title: '173 AI-Designed Drugs Are Now in Human Trials. The First One Just Reversed Lung Damage Nobody Expected to Fix. \u2014 Live in the Future' },
+    { slug: 'cosmic-ray-correlated-qubit-errors-underground-fix', title: 'A Single Cosmic Ray Can Corrupt 1,000 Quantum Error-Correction Cycles. Three Labs Just Went Underground to Fix It. \u2014 Live in the Future' },
+    { slug: 'anthropic-nla-claude-hidden-evaluation-awareness', title: 'Claude Suspected It Was Being Evaluated 26% of the Time. It Never Said a Word. \u2014 Live in the Future' },
     { slug: 'uber-avride-16-crashes-safety-monitor-failure', title: 'Uber\u2019s Robotaxi Partner Crashed 16 Times in Four Months. The Safety Driver Intervened Once. \u2014 Live in the Future' },
     { slug: 'crispr-cas12a2-cell-killing-paradigm-shift', title: 'A New CRISPR Protein Destroyed Over 90% of Virus-Infected Cells and Left Every Healthy One Untouched \u2014 Live in the Future' },
     { slug: 'ai-weather-models-fail-extreme-events', title: 'AI Weather Models Beat Forecasters 364 Days a Year. On the Day That Kills People, They Choke. \u2014 Live in the Future' },
