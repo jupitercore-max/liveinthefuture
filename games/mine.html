@@ -228,6 +228,11 @@ var proximitySoundTimer = 0;
 var titleBlink = 0;
 var deathReason = '';
 
+// Crystal cavern tracking
+var caverns = [];
+var cavernsFound = 0;
+var sessionCaverns = 0;
+
 // Persistence
 var bestDepth = 0;
 var totalGems = 0;
@@ -236,6 +241,7 @@ try {
   bestDepth = parseInt(localStorage.getItem('mine_best_depth')) || 0;
   totalGems = parseInt(localStorage.getItem('mine_total_gems')) || 0;
   runs = parseInt(localStorage.getItem('mine_runs')) || 0;
+  cavernsFound = parseInt(localStorage.getItem('mine_caverns_found')) || 0;
 } catch(e) {}
 
 // --- Rank System ---
@@ -286,6 +292,51 @@ function playRankUpChime() {
   }
 }
 
+function playCavernDiscovery() {
+  if (!audioCtx) return;
+  var now = audioCtx.currentTime;
+  // Crystalline ascending chord: C5-E5-G5-C6 with shimmer
+  var notes = [523.25, 659.25, 783.99, 1046.50];
+  for (var i = 0; i < notes.length; i++) {
+    (function(idx){
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.type = 'triangle';
+      o.frequency.value = notes[idx];
+      g.gain.setValueAtTime(0, now + idx * 0.06);
+      g.gain.linearRampToValueAtTime(0.07, now + idx * 0.06 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.5);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(now + idx * 0.06); o.stop(now + idx * 0.06 + 0.55);
+    })(i);
+  }
+  // High shimmer note
+  var sg = audioCtx.createOscillator();
+  var sgg = audioCtx.createGain();
+  sg.type = 'sine';
+  sg.frequency.value = 2093.00; // C7
+  sgg.gain.setValueAtTime(0.03, now + 0.15);
+  sgg.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+  sg.connect(sgg); sgg.connect(audioCtx.destination);
+  sg.start(now + 0.15); sg.stop(now + 0.85);
+}
+
+function checkCavernDiscovery() {
+  for (var i = 0; i < caverns.length; i++) {
+    var cav = caverns[i];
+    if (cav.found) continue;
+    var dist = Math.abs(playerX - cav.cx) + Math.abs(playerY - cav.cy);
+    if (dist <= 2) {
+      cav.found = true;
+      cavernsFound++;
+      sessionCaverns++;
+      try { localStorage.setItem('mine_caverns_found', cavernsFound); } catch(e) {}
+      playCavernDiscovery();
+      addFloat(playerX, playerY, '⛏ CRYSTAL CAVERN!', '#88ffcc');
+    }
+  }
+}
+
 function savePersist() {
   try {
     if (depth > bestDepth) { bestDepth = depth; localStorage.setItem('mine_best_depth', bestDepth); }
@@ -308,9 +359,10 @@ function generateRows(startRow, count) {
         grid[r][c] = BLOCK_EMPTY;
       } else {
         var roll = Math.random();
-        var gasChance = 0.02 + depthFactor * 0.06;
-        var gemChance = 0.06 + depthFactor * 0.02;
-        var rareChance = 0.01 + depthFactor * 0.03;
+        // Reduced scatter rates — most gems/gas now come from veins/pockets
+        var gasChance = 0.01 + depthFactor * 0.025;
+        var gemChance = 0.025 + depthFactor * 0.012;
+        var rareChance = 0.005 + depthFactor * 0.012;
         var hardChance = 0.1 + depthFactor * 0.25;
         
         if (roll < gasChance) {
@@ -331,12 +383,146 @@ function generateRows(startRow, count) {
       grid[r][10] = BLOCK_ROCK; // easy dig near start
     }
   }
+  // Add geological structure: ore veins + gas pockets + crystal caverns
+  generateVeins(startRow, count);
+  generateCaverns(startRow, count);
   totalRows = startRow + count;
+}
+
+function generateVeins(startRow, count) {
+  if (startRow === 0 && count <= 5) return;
+  var depthFactor = Math.min(startRow / 80, 1);
+  // 2-4 gem veins per chunk, more at depth
+  var numVeins = 2 + Math.floor(Math.random() * (2 + Math.floor(depthFactor * 2)));
+  
+  for (var v = 0; v < numVeins; v++) {
+    var sr = startRow + Math.max(1, 2 + Math.floor(Math.random() * Math.max(1, count - 4)));
+    var sc = 1 + Math.floor(Math.random() * (COLS - 2));
+    var len = 3 + Math.floor(Math.random() * 5); // 3-7 gems per vein
+    var hasRare = Math.random() < (0.1 + depthFactor * 0.2);
+    var rareIdx = Math.floor(len / 2); // rare gem in middle of vein
+    
+    var cr = sr, cc = sc;
+    for (var i = 0; i < len; i++) {
+      if (cr > 0 && cr >= startRow && cr < startRow + count && cc >= 0 && cc < COLS) {
+        if (grid[cr][cc] !== BLOCK_EMPTY && grid[cr][cc] !== BLOCK_GAS) {
+          if (hasRare && i === rareIdx) {
+            grid[cr][cc] = BLOCK_RARE_GEM;
+          } else {
+            grid[cr][cc] = BLOCK_GEM;
+          }
+        }
+      }
+      // Random walk biased downward — veins tend to go deep
+      var dir = Math.random();
+      if (dir < 0.45) cr++;
+      else if (dir < 0.55) cr--;
+      else if (dir < 0.775) cc++;
+      else cc--;
+      cr = Math.max(Math.max(1, startRow), Math.min(startRow + count - 1, cr));
+      cc = Math.max(0, Math.min(COLS - 1, cc));
+    }
+  }
+  
+  // Gas pockets: clustered danger zones (0-2 per chunk, deeper = more likely)
+  var numGas = Math.random() < (0.4 + depthFactor * 0.3) ? 1 : 0;
+  if (depthFactor > 0.5 && Math.random() < 0.3) numGas++;
+  for (var gp = 0; gp < numGas; gp++) {
+    var gr = startRow + Math.max(1, 3 + Math.floor(Math.random() * Math.max(1, count - 6)));
+    var gc = 2 + Math.floor(Math.random() * (COLS - 4));
+    var pSize = 2 + Math.floor(Math.random() * 3); // 2-4 cells
+    var pr = gr, pc = gc;
+    for (var pi = 0; pi < pSize; pi++) {
+      if (pr > 0 && pr >= startRow && pr < startRow + count && pc >= 0 && pc < COLS) {
+        grid[pr][pc] = BLOCK_GAS;
+      }
+      var pdir = Math.random();
+      if (pdir < 0.35) pr++;
+      else if (pdir < 0.65) pc++;
+      else if (pdir < 0.85) pr--;
+      else pc--;
+      pr = Math.max(Math.max(1, startRow), Math.min(startRow + count - 1, pr));
+      pc = Math.max(0, Math.min(COLS - 1, pc));
+    }
+  }
+}
+
+function generateCaverns(startRow, count) {
+  // Crystal caverns: gem-lined open rooms, only below depth 15
+  if (startRow < 15) return;
+  var depthFactor = Math.min(startRow / 80, 1);
+  
+  // ~25% chance per 20-row section (slightly more common deeper)
+  var sections = Math.floor(count / 20);
+  for (var s = 0; s < sections; s++) {
+    if (Math.random() > 0.25 + depthFactor * 0.1) continue;
+    
+    var sectionStart = startRow + s * 20;
+    var cSize = 3; // 3x3 open room
+    var cr = sectionStart + 4 + Math.floor(Math.random() * 12);
+    var cc = 2 + Math.floor(Math.random() * (COLS - cSize - 4));
+    
+    // Bounds check
+    if (cr + cSize >= startRow + count || cc + cSize >= COLS) continue;
+    
+    // Carve the open room
+    for (var dr = 0; dr < cSize; dr++) {
+      for (var dc = 0; dc < cSize; dc++) {
+        var wr = cr + dr, wc = cc + dc;
+        if (wr > 0 && wr < startRow + count && wc >= 0 && wc < COLS) {
+          grid[wr][wc] = BLOCK_EMPTY;
+        }
+      }
+    }
+    
+    // Line walls with gems (55% chance per wall cell)
+    var wallCells = [];
+    for (var dc = -1; dc <= cSize; dc++) { wallCells.push([cr - 1, cc + dc]); }
+    for (var dc = -1; dc <= cSize; dc++) { wallCells.push([cr + cSize, cc + dc]); }
+    for (var dr = 0; dr < cSize; dr++) { wallCells.push([cr + dr, cc - 1]); }
+    for (var dr = 0; dr < cSize; dr++) { wallCells.push([cr + dr, cc + cSize]); }
+    
+    for (var wi = 0; wi < wallCells.length; wi++) {
+      var wr2 = wallCells[wi][0], wc2 = wallCells[wi][1];
+      if (wr2 > 0 && wr2 >= startRow && wr2 < startRow + count && wc2 >= 0 && wc2 < COLS) {
+        if (Math.random() < 0.55) {
+          grid[wr2][wc2] = BLOCK_GEM;
+        }
+      }
+    }
+    
+    // Place 1-2 rare gems in the walls
+    var rareCount = 1 + (Math.random() < depthFactor * 0.4 ? 1 : 0);
+    for (var ri = 0; ri < rareCount; ri++) {
+      var rw = wallCells[Math.floor(Math.random() * wallCells.length)];
+      if (rw[0] > 0 && rw[0] >= startRow && rw[0] < startRow + count && rw[1] >= 0 && rw[1] < COLS) {
+        grid[rw[0]][rw[1]] = BLOCK_RARE_GEM;
+      }
+    }
+    
+    // Optional: gas guard near one entrance (~40% chance, more common deeper)
+    if (Math.random() < 0.3 + depthFactor * 0.2) {
+      var gasDir = Math.floor(Math.random() * 4);
+      var gasR, gasC;
+      if (gasDir === 0) { gasR = cr - 2; gasC = cc + Math.floor(Math.random() * cSize); }
+      else if (gasDir === 1) { gasR = cr + cSize + 1; gasC = cc + Math.floor(Math.random() * cSize); }
+      else if (gasDir === 2) { gasR = cr + Math.floor(Math.random() * cSize); gasC = cc - 2; }
+      else { gasR = cr + Math.floor(Math.random() * cSize); gasC = cc + cSize + 1; }
+      if (gasR > 0 && gasR >= startRow && gasR < startRow + count && gasC >= 0 && gasC < COLS) {
+        grid[gasR][gasC] = BLOCK_GAS;
+      }
+    }
+    
+    // Track cavern for discovery
+    caverns.push({cx: cc + 1, cy: cr + 1, found: false});
+  }
 }
 
 function initGame() {
   grid = [];
   totalRows = 0;
+  caverns = [];
+  sessionCaverns = 0;
   generateRows(0, 60);
   playerX = 10;
   playerY = 0;
@@ -450,6 +636,9 @@ function tryMove(dx, dy) {
     playerX = nx;
     playerY = ny;
     depth = Math.max(depth, playerY);
+    
+    // Check for crystal cavern discovery
+    checkCavernDiscovery();
     
     // Proximity sounds for nearby interesting blocks
     proximitySoundTimer++;
@@ -612,6 +801,13 @@ function drawTitle() {
   if (bestDepth > 0) {
     ctx.fillStyle = '#555';
     ctx.fillText('Best: ' + bestDepth + 'm  |  Gems: ' + totalGems + '  |  Runs: ' + runs, 300, 430);
+  }
+  
+  // Cavern discovery count
+  if (cavernsFound > 0) {
+    ctx.fillStyle = '#88ffcc';
+    ctx.font = '13px system-ui';
+    ctx.fillText('⛏ Caverns discovered: ' + cavernsFound, 300, 455);
   }
   
   // Start prompt
@@ -868,6 +1064,13 @@ function drawDeath() {
   ctx.fillStyle = '#666';
   ctx.font = '13px system-ui';
   ctx.fillText('Total gems: ' + totalGems + '  |  Runs: ' + runs, 300, 470);
+  
+  // Session cavern count
+  if (sessionCaverns > 0) {
+    ctx.fillStyle = '#88ffcc';
+    ctx.font = '13px system-ui';
+    ctx.fillText('⛏ Caverns found: ' + sessionCaverns, 300, 492);
+  }
   
   var alpha = 0.5 + Math.sin(Date.now() / 300) * 0.5;
   ctx.fillStyle = 'rgba(100,180,255,' + alpha + ')';
