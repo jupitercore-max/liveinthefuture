@@ -113,7 +113,7 @@ function playTone(freq, dur, type, vol, pan) {
   o.start(); o.stop(audioCtx.currentTime + dur);
 }
 
-function playNoise(dur, freq, vol) {
+function playNoise(dur, freq, vol, pan) {
   if (!audioCtx) return;
   var bufSize = audioCtx.sampleRate * dur;
   var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
@@ -128,7 +128,10 @@ function playNoise(dur, freq, vol) {
   var g = audioCtx.createGain();
   g.gain.setValueAtTime(vol || 0.1, audioCtx.currentTime);
   g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
-  src.connect(filt); filt.connect(g); g.connect(audioCtx.destination);
+  var p = (pan !== undefined && pan !== 0 && audioCtx.createStereoPanner) ? audioCtx.createStereoPanner() : null;
+  src.connect(filt); filt.connect(g);
+  if (p) { g.connect(p); p.pan.value = pan; p.connect(audioCtx.destination); }
+  else { g.connect(audioCtx.destination); }
   src.start(); src.stop(audioCtx.currentTime + dur);
 }
 
@@ -171,7 +174,7 @@ function playProximitySound(blockType, dx, dy) {
   } else if (blockType === BLOCK_RARE_GEM) {
     playTone(880 + Math.random()*100, 0.2, 'sine', vol * 1.3, pan);
   } else if (blockType === BLOCK_GAS) {
-    playNoise(0.2, 4000, vol * 0.8);
+    playNoise(0.2, 4000, vol * 0.8, pan);
   } else if (blockType === BLOCK_HARD) {
     playTone(100 + Math.random()*30, 0.1, 'triangle', vol * 0.6, pan);
   }
