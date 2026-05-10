@@ -124,12 +124,23 @@ var modCooldown = 0;
 var MOD_INTERVAL = 15000; // ms between modifiers
 var MOD_DURATION = 8000;  // ms each modifier lasts
 var modFlash = 0;
+var modDiscovered = JSON.parse(localStorage.getItem('rp_mods') || '{}');
+var modNewFlash = 0;
+function getModDiscoveryCount() {
+  var c = 0; for (var k in modDiscovered) if (modDiscovered[k]) c++; return c;
+}
 
 function spawnModifier() {
   var lane = Math.floor(Math.random() * LANE_COUNT);
   var type = MOD_TYPES[Math.floor(Math.random() * MOD_TYPES.length)];
   activeMod = { lane: lane, type: type, timer: MOD_DURATION, duration: MOD_DURATION };
   modFlash = 1;
+  // Track modifier discovery
+  if (!modDiscovered[type.id]) {
+    modDiscovered[type.id] = true;
+    localStorage.setItem('rp_mods', JSON.stringify(modDiscovered));
+    modNewFlash = 1.0;
+  }
   // Audio cue: rising sine sweep
   if (audioCtx) {
     try {
@@ -608,6 +619,7 @@ function update(dt) {
   if (activeMod) {
     activeMod.timer -= dt;
     modFlash *= 0.97;
+    if (modNewFlash > 0) modNewFlash -= dt / 2000;
     if (activeMod.timer <= 0) { activeMod = null; modCooldown = MOD_INTERVAL; }
   } else {
     modCooldown -= dt;
@@ -748,6 +760,16 @@ function drawTitle() {
   ctx.fillStyle = '#555555';
   ctx.font = '14px system-ui';
   ctx.fillText('ESC → back to games', W/2, 575);
+
+  // Modifier discovery tracker
+  var modCount = getModDiscoveryCount();
+  if (modCount > 0) {
+    ctx.font = '12px system-ui';
+    ctx.fillStyle = '#664400';
+    ctx.textAlign = 'left';
+    ctx.fillText('✨ Modifiers: ' + modCount + '/' + MOD_TYPES.length, 10, 592);
+    ctx.textAlign = 'center';
+  }
 }
 
 function drawLanes() {
@@ -790,6 +812,15 @@ function drawLanes() {
       ctx.font = 'bold 16px system-ui';
       ctx.textAlign = 'center';
       ctx.fillText(activeMod.type.desc, x, 30);
+
+      // NEW discovery indicator
+      if (modNewFlash > 0) {
+        ctx.globalAlpha = modNewFlash;
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 13px system-ui';
+        ctx.fillText('✨ NEW!', x, 55);
+        ctx.globalAlpha = 1;
+      }
 
       // Timer bar at top
       var barW = LANE_WIDTH - 10;
