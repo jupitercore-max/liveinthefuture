@@ -4,6 +4,7 @@
 
   // Article order (newest first) — matches homepage grid order
   var articles = [
+    { slug: 'uber-avride-16-crashes-safety-monitor-failure', title: 'Uber\u2019s Robotaxi Partner Crashed 16 Times in Four Months. The Safety Driver Intervened Once. \u2014 Live in the Future' },
     { slug: 'crispr-cas12a2-cell-killing-paradigm-shift', title: 'A New CRISPR Protein Destroyed Over 90% of Virus-Infected Cells and Left Every Healthy One Untouched \u2014 Live in the Future' },
     { slug: 'ai-weather-models-fail-extreme-events', title: 'AI Weather Models Beat Forecasters 364 Days a Year. On the Day That Kills People, They Choke. \u2014 Live in the Future' },
     { slug: 'bci-convergence-five-implants-three-weeks', title: 'Fifty People on Earth Have Brain Implants. Five Companies Just Expanded the List of Reasons to Get One by 10x. \u2014 Live in the Future' },
