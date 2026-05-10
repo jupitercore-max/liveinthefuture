@@ -4,6 +4,7 @@
 
   // Article order (newest first) — matches homepage grid order
   var articles = [
+    { slug: 'microsoft-ai-data-center-clean-energy-retreat', title: 'Microsoft Promised Carbon-Free AI by 2030. Then It Built 4.75 Gigawatts of Gas Plants. \u2014 Live in the Future' },
     { slug: 'ai-drug-discovery-173-compounds-phase-iii-2026', title: '173 AI-Designed Drugs Are Now in Human Trials. The First One Just Reversed Lung Damage Nobody Expected to Fix. \u2014 Live in the Future' },
     { slug: 'cosmic-ray-correlated-qubit-errors-underground-fix', title: 'A Single Cosmic Ray Can Corrupt 1,000 Quantum Error-Correction Cycles. Three Labs Just Went Underground to Fix It. \u2014 Live in the Future' },
     { slug: 'anthropic-nla-claude-hidden-evaluation-awareness', title: 'Claude Suspected It Was Being Evaluated 26% of the Time. It Never Said a Word. \u2014 Live in the Future' },
