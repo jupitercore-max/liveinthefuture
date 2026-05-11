@@ -143,6 +143,10 @@ canvas{display:block;width:600px;height:600px}
   var tuneChimePlayed = false;
   var tuneChimeGlow = 0; // visual glow on chime
 
+  // Beat frequency ring — pulses at the acoustic beat rate between detected pitch and ref tone
+  var beatFreqVal = 0;
+  var beatPhaseAccum = 0;
+
   var needleAngle = 0;
   var volumeLevel = 0;
   var frameCount = 0;
@@ -452,6 +456,18 @@ canvas{display:block;width:600px;height:600px}
       if (tuneChimeGlow < 0.01) tuneChimeGlow = 0;
     }
 
+    // Beat frequency ring — pulses at acoustic beat rate, slows to stillness near in-tune
+    if (refTonePlaying && beatFreqVal > 0.05 && beatFreqVal < 15) {
+      var bfPulse = 0.5 + 0.5 * Math.sin(beatPhaseAccum * 2 * Math.PI);
+      var bfIntensity = Math.min(1, beatFreqVal / 6);
+      var bfAlpha = bfPulse * bfIntensity * 0.45;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius - 6, startAngle, startAngle + (2 * Math.PI - (startAngle - endAngle)));
+      ctx.strokeStyle = 'rgba(170,136,68,' + bfAlpha.toFixed(3) + ')';
+      ctx.lineWidth = 5;
+      ctx.stroke();
+    }
+
     // Center dot
     ctx.beginPath();
     ctx.arc(cx, cy, 6, 0, Math.PI * 2);
@@ -624,6 +640,15 @@ canvas{display:block;width:600px;height:600px}
 
     var noteInfo = freqToNote(refToneFreq);
     ctx.fillText('♪ ' + noteInfo.note + noteInfo.octave + ' · ' + refToneFreq.toFixed(1) + 'Hz', cx, 510);
+
+    // Beat frequency readout (pulses with the ring)
+    if (beatFreqVal > 0.1 && beatFreqVal < 15 && smoothFreq > 0 && confidence > 0.5) {
+      var bfP = 0.5 + 0.5 * Math.sin(beatPhaseAccum * 2 * Math.PI);
+      ctx.font = '12px system-ui';
+      ctx.fillStyle = 'rgba(170,136,68,' + (0.25 + bfP * 0.35).toFixed(3) + ')';
+      var bfLabel = beatFreqVal < 0.5 ? '≈0 beats/s' : '~' + beatFreqVal.toFixed(1) + ' beats/s';
+      ctx.fillText(bfLabel, cx, 523);
+    }
   }
 
   function drawNoMic() {
@@ -700,6 +725,16 @@ canvas{display:block;width:600px;height:600px}
           tuneStreak = 0;
           tuneChimePlayed = false;
         }
+      }
+
+      // Beat frequency tracking (acoustic beats between detected and ref)
+      if (refTonePlaying && smoothFreq > 0 && confidence > 0.5) {
+        var bf = Math.abs(smoothFreq - refToneFreq);
+        beatFreqVal += (bf - beatFreqVal) * 0.15;
+        beatPhaseAccum += beatFreqVal / 60;
+      } else {
+        beatFreqVal *= 0.92;
+        if (beatFreqVal < 0.01) beatFreqVal = 0;
       }
     }
   }
