@@ -4,6 +4,12 @@
 
   // Article order (newest first) — matches homepage grid order
   var articles = [
+    { slug: 'fusion-experience-rate-cost-myth', title: 'Fusion Power Needs 34 Capacity Doublings to Halve Its Cost. Solar Needed Three. \u2014 Live in the Future' },
+    { slug: 'robot-scientist-50000-solar-cell-experiments', title: 'A Robot Ran 50,764 Solar Cell Experiments. A Human Scientist Would Need 24 Years. \u2014 Live in the Future' },
+    { slug: 'swift-telescope-30m-rescue-falling-from-orbit', title: 'A $30 Million Robot Just Passed Its Final Exam to Save a $500 Million Telescope Falling From the Sky \u2014 Live in the Future' },
+    { slug: 'ai-self-replication-6-to-81-percent-safety-relaxed', title: 'AI Self-Replication Jumped from 6% to 81% in One Year. The Companies That Built It Relaxed Their Safety Rules. \u2014 Live in the Future' },
+    { slug: 'home-humanoid-20000-dollars-human-in-loop', title: 'A $20,000 Home Robot Sold 10,000 Units in Five Days. A Human in a VR Headset Still Folds Its Laundry. \u2014 Live in the Future' },
+    { slug: 'first-systematic-review-ai-displacement-94-studies', title: '94 Studies Measured What AI Did to the Job Market. Nobody Likes the Median. \u2014 Live in the Future' },
     { slug: 'microsoft-ai-data-center-clean-energy-retreat', title: 'Microsoft Promised Carbon-Free AI by 2030. Then It Built 4.75 Gigawatts of Gas Plants. \u2014 Live in the Future' },
     { slug: 'ai-drug-discovery-173-compounds-phase-iii-2026', title: '173 AI-Designed Drugs Are Now in Human Trials. The First One Just Reversed Lung Damage Nobody Expected to Fix. \u2014 Live in the Future' },
     { slug: 'cosmic-ray-correlated-qubit-errors-underground-fix', title: 'A Single Cosmic Ray Can Corrupt 1,000 Quantum Error-Correction Cycles. Three Labs Just Went Underground to Fix It. \u2014 Live in the Future' },
