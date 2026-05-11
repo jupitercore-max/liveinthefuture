@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-035: Drive-By Classification of Buried Water Service Line Materials Using Multi-Frequency Electromagnetic Induction and Ground-Penetrating Radar Fusion | Live in the Future</title>
+  <meta name="description" content="Defensive prior art disclosure: A system deploying multi-frequency electromagnetic induction arrays and ground-penetrating radar on utility fleet vehicles to classify buried water service line materials (lead, copper, galvanized steel, ductile iron, PVC) and estimate wall condition without excavation.">
+  <meta property="og:title" content="System and Method for Non-Invasive Classification of Buried Water Service Line Materials and Condition Assessment Using Vehicle-Mounted Multi-Frequency Electromagnetic Induction Arrays, Ground-Penetrating Radar, and Deep Learning Material Fingerprinting">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/service-line-material-classification.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/service-line-material-classification.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/priorart-service-line-material-classification.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">← Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-035 · Infrastructure / Water Utility</span>
+      <h1>System and Method for Non-Invasive Classification of Buried Water Service Line Materials and Condition Assessment Using Vehicle-Mounted Multi-Frequency Electromagnetic Induction Arrays, Ground-Penetrating Radar, and Deep Learning Material Fingerprinting</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-05-11">Published May 11, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/priorart-service-line-material-classification.jpg" alt="Utility vehicle with sensor arrays scanning buried water pipes underground, showing color-coded pipe materials detected by electromagnetic induction" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>⚖️ Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. § 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above. This disclosure is intended to prevent the patenting of these concepts by any party.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a system and method for non-invasive identification and condition assessment of buried water service lines using sensor arrays mounted on routine utility fleet vehicles. The system combines multi-frequency electromagnetic induction (EMI) sensing at 6 discrete frequencies spanning 1 kHz to 100 kHz with vehicle-mounted ground-penetrating radar (GPR) operating at 800 MHz and 1.6 GHz center frequencies. EMI response signatures differ systematically across service line materials: lead pipes exhibit high conductivity (4.8 × 10⁶ S/m) with negligible magnetic permeability (μᵣ ≈ 1), producing strong in-phase response with minimal quadrature at all frequencies; galvanized steel shows moderate conductivity (5.8 × 10⁶ S/m for the zinc coating, 1.0 × 10⁷ S/m for the steel substrate) combined with high relative permeability (μᵣ ≈ 200-1,000), generating frequency-dependent phase rotation; copper exhibits the highest conductivity (5.96 × 10⁷ S/m) with no ferromagnetic response; ductile iron combines high permeability (μᵣ ≈ 100-500) with moderate conductivity; and PVC generates no electromagnetic response, identifiable by GPR reflection alone. A convolutional neural network processes fused EMI phase-quadrature spectrograms and GPR B-scan radargrams to classify pipe material with target accuracy exceeding 92%, estimate nominal pipe diameter (½″, ¾″, 1″, 1¼″, 2″), and infer wall condition from corrosion-induced conductivity degradation profiles. The system operates at normal driving speeds of 15-25 mph, processes data on-board via edge GPU, and uploads classified segments with GPS coordinates to a GIS database for utility asset management and regulatory compliance with the EPA Lead and Copper Rule Revision.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to subsurface utility infrastructure characterization, specifically to the non-invasive identification of buried water service line materials and condition assessment using vehicle-mounted electromagnetic induction and ground-penetrating radar sensor fusion with machine learning classification.</p>
+
+      <h2>Background</h2>
+
+      <p>The United States has approximately <a href="https://www.epa.gov/ground-water-and-drinking-water/revised-lead-and-copper-rule">9.2 million lead service lines</a> connecting water mains to residential buildings (EPA estimate, 2024). The revised Lead and Copper Rule (LCRR), finalized October 2024, requires all water systems to complete a comprehensive service line inventory by October 2027, classifying every service line as lead, galvanized requiring replacement, or non-lead. Systems with lead service lines must replace them within 10 years. The <a href="https://www.whitehouse.gov/briefing-room/statements-releases/2024/11/14/fact-sheet-biden-harris-administration-announces-new-actions-and-resources-to-get-the-lead-out/">Biden-Harris administration allocated $15 billion</a> from the Bipartisan Infrastructure Law specifically for lead service line replacement, with an additional $11.7 billion in EPA Drinking Water State Revolving Fund financing. The <a href="https://www.awwa.org/Resources-Tools/Resource-Topics/Lead-Service-Lines">American Water Works Association estimated</a> total national replacement costs at $60 billion.</p>
+
+      <p>The fundamental challenge is not replacement itself but identification: most water utilities do not know what their service lines are made of. A <a href="https://www.awwa.org/Portals/0/AWWA/Government/2016ServiceLineReport.pdf">2016 AWWA survey</a> found that 40% of utilities had incomplete or no records of service line material. Many pre-1950 water systems maintained paper records that have been lost, damaged, or never digitized. The LCRR's inventory deadline has forced utilities into a massive identification campaign under severe time pressure.</p>
+
+      <p>Current service line material identification methods have critical limitations:</p>
+      <ul>
+        <li><strong>Records review:</strong> Searching historical plumbing permits, tap cards, and meter installation records. Cheapest approach ($5-15 per line) but incomplete; <a href="https://www.michigan.gov/egle/-/media/Project/Websites/egle/Documents/Programs/DWEHD/Lead-Copper-Rule/service-line-inventory-report.pdf">Michigan's statewide inventory</a> found records could classify only 38% of service lines with confidence.</li>
+        <li><strong>Physical excavation ("potholing"):</strong> Digging to expose the pipe at the property line. Definitive identification but costs $500-3,000 per address and takes 30-60 minutes of crew time. At 9.2 million lead lines nationwide (and roughly 100 million total service lines needing classification), full excavation would cost $50-300 billion and take decades.</li>
+        <li><strong>Predictive modeling:</strong> Statistical models using building age, neighborhood demographics, and historical plumbing practices to predict material likelihood. <a href="https://doi.org/10.1021/acs.est.0c05239">Trueman et al. (Environmental Science &amp; Technology, 2021)</a> achieved 74-85% accuracy, insufficient for regulatory compliance which requires "verifiable" identification.</li>
+        <li><strong>Interior inspection:</strong> Scratching exposed pipe at the water meter or building entry point with a coin (lead is soft and silvery; copper is hard and reddish). Requires interior access to every building, homeowner coordination, and only identifies the interior portion. The service line material may differ between the utility-owned and customer-owned segments.</li>
+        <li><strong>Mechanical wave testing:</strong> <a href="https://doi.org/10.1061/(ASCE)WR.1943-5452.0001592">Daghigh et al. (Journal of Water Resources Planning and Management, 2022)</a> demonstrated that acoustic wave velocity in pressurized pipes differs by material (lead: ~1,200 m/s, copper: ~1,300 m/s, PVC: ~500 m/s), but requires direct pipe access and water flow for coupling.</li>
+      </ul>
+
+      <p>Electromagnetic induction has been used for decades in geophysical surveying and utility locating. <a href="https://doi.org/10.1016/j.jappgeo.2019.04.012">Everett (Journal of Applied Geophysics, 2019)</a> provides a comprehensive review of frequency-domain EMI for near-surface characterization. The key physics: an oscillating magnetic field from a transmitter coil induces eddy currents in subsurface conductors; these eddy currents generate a secondary magnetic field detectable by a receiver coil. The secondary field's amplitude and phase relative to the primary field encode the conductor's electrical conductivity and magnetic permeability, which differ systematically across pipe materials. Multi-frequency EMI extends this by sampling the conductor's response across a range of skin depths: higher frequencies (shorter skin depth) probe surface/coating properties, while lower frequencies penetrate to the pipe's full cross-section. This frequency-dependent response creates a material "fingerprint" that single-frequency systems cannot resolve.</p>
+
+      <p>Ground-penetrating radar for utility detection is well-established. <a href="https://doi.org/10.1016/j.tust.2016.03.017">Jaw and Hashim (Tunnelling and Underground Space Technology, 2013)</a> review GPR for buried pipe detection, noting that metallic pipes produce strong reflections (the metal-soil impedance contrast is very high) while plastic pipes produce weaker reflections distinguishable by their hyperbolic diffraction patterns. GPR provides geometric information (depth, diameter, orientation) that EMI alone cannot resolve.</p>
+
+      <p>The gap in the art is a complete vehicle-deployable system that: (a) combines multi-frequency EMI and GPR for material classification rather than simple detection, (b) uses deep learning to classify pipe material from the fused sensor data without requiring excavation or direct pipe contact, (c) operates at normal driving speeds from routine utility fleet vehicles to achieve city-scale coverage, and (d) produces regulatory-grade inventory data compliant with LCRR requirements.</p>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. Vehicle-Mounted Sensor Array Hardware</h3>
+
+      <p>The sensor platform mounts beneath or behind a standard utility fleet vehicle (meter-reading truck, water department pickup, or dedicated survey vehicle) using a trailer-mounted sled or underbody frame positioned 15-30 cm above the road surface. The mechanical assembly includes vibration isolation (elastomeric mounts, resonant frequency &lt; 5 Hz) to decouple road-surface roughness from sensor alignment.</p>
+
+      <p>The EMI subsystem comprises: a transmitter coil (40 cm diameter, 200 turns of 18 AWG Litz wire, driven by a programmable direct digital synthesis signal generator) operating sequentially at 6 frequencies (1 kHz, 3 kHz, 10 kHz, 30 kHz, 60 kHz, 100 kHz); two receiver coils in horizontal coplanar (HCP) and vertical coplanar (VCP) configurations at 1.0 m offset from the transmitter, providing sensitivity to both horizontal and vertical conductors; phase-sensitive detection using a lock-in amplifier architecture (AD630 analog multiplier with digital quadrature demodulation) measuring in-phase and quadrature components at each frequency with 0.1% amplitude resolution and 0.1° phase resolution; and a reference magnetometer (fluxgate, ±100 μT range, 10 pT/√Hz noise floor) for ambient field subtraction. The full six-frequency sweep completes in 50 ms, yielding 24 data channels (6 frequencies × 2 configurations × 2 components) per measurement point.</p>
+
+      <p>The GPR subsystem comprises: a dual-frequency antenna array with an 800 MHz center-frequency bow-tie antenna (penetration: 1.5-2.5 m in typical urban soils, resolution: ~5 cm) for service line detection at typical burial depths of 0.6-1.8 m, and a 1.6 GHz center-frequency horn antenna (penetration: 0.5-1.2 m, resolution: ~2.5 cm) for high-resolution pipe diameter estimation and coating characterization; a real-time sampling digitizer (16-bit, 10 GS/s equivalent-time sampling) with 512 samples per trace and 50 traces per second at 15 mph; and Hilbert envelope detection for real-time B-scan generation.</p>
+
+      <p>Positioning uses RTK-GNSS (ZED-F9P receiver, L1/L2 bands, 2 cm horizontal accuracy) fused with a MEMS IMU (BMI088, 6-axis, 2 kHz output rate) via an extended Kalman filter for continuous trajectory estimation at 10 cm along-track resolution. A wheel odometer provides backup distance measurement. The combined sensor platform has an estimated bill-of-materials cost of $12,000-18,000 per vehicle, excluding the edge compute module.</p>
+
+      <h3>2. Physics of Multi-Frequency EMI Material Discrimination</h3>
+
+      <p>The electromagnetic skin depth δ = √(2/ωμσ), where ω is angular frequency, μ is magnetic permeability, and σ is electrical conductivity. For a given frequency, the eddy current distribution within the pipe wall depends on the ratio of wall thickness t to skin depth δ. When t/δ &lt; 1 (low frequency or thin wall), the full cross-section contributes to the response; when t/δ &gt; 3 (high frequency or thick wall), the response is dominated by the outer surface layer. This frequency-dependent penetration creates the material fingerprint.</p>
+
+      <p>Specific material signatures at 1.0 m coil offset, 1.0 m burial depth, ¾″ nominal diameter:</p>
+      <ul>
+        <li><strong>Lead (Pb):</strong> σ = 4.8 × 10⁶ S/m, μᵣ ≈ 1. Skin depths: 7.3 mm (1 kHz) to 0.73 mm (100 kHz). Lead's ¾″ Schedule 40 wall thickness is 3.9 mm. At 1 kHz, t/δ = 0.53 (underdamped, full penetration) producing modest in-phase response with large quadrature. At 100 kHz, t/δ = 5.3 (surface-dominated), with strong in-phase and small quadrature. The transition from quadrature-dominated to in-phase-dominated response occurs at approximately 8-15 kHz for lead, creating a distinctive crossover frequency.</li>
+        <li><strong>Copper (Cu):</strong> σ = 5.96 × 10⁷ S/m, μᵣ ≈ 1. Skin depths: 2.1 mm (1 kHz) to 0.21 mm (100 kHz). Copper's higher conductivity shifts the crossover frequency lower (approximately 2-5 kHz) and produces 3-4× stronger in-phase response at high frequencies than lead at equivalent geometry, because the eddy current density is proportionally higher.</li>
+        <li><strong>Galvanized steel:</strong> σ ≈ 1.0 × 10⁷ S/m (steel core), μᵣ ≈ 200-1,000 (depends on grade and magnetization history). The high permeability dramatically reduces skin depth: δ = 0.11-0.36 mm at 1 kHz. Even at the lowest frequency, the response is surface-dominated. The ferromagnetic response creates a large in-phase anomaly at all frequencies, 5-20× larger than non-ferromagnetic materials at equivalent geometry. The quadrature response is suppressed by the high permeability. The zinc coating (σ = 1.7 × 10⁷ S/m, μᵣ ≈ 1, thickness 50-100 μm) creates a thin non-magnetic shell detectable as a high-frequency quadrature shoulder above 30 kHz.</li>
+        <li><strong>Ductile iron:</strong> σ ≈ 2.0 × 10⁶ S/m, μᵣ ≈ 100-500. Similar to galvanized steel in character (ferromagnetic-dominated) but with lower conductivity producing weaker eddy current response. Distinguishable from galvanized steel by the ratio of in-phase response at 1 kHz to 100 kHz: ductile iron shows less frequency dependence because the skin depth is already much smaller than the wall thickness at all measurement frequencies.</li>
+        <li><strong>PVC/HDPE (plastic):</strong> σ ≈ 0, μᵣ = 1. No EMI response. Identifiable by GPR reflection alone (lower reflection coefficient than metallic pipes; distinctive hyperbolic diffraction from the dielectric contrast rather than the conductor contrast). The 1.6 GHz GPR channel can estimate wall thickness from the time delay between outer-surface and inner-surface reflections in plastic pipes.</li>
+      </ul>
+
+      <h3>3. GPR Data Processing and Pipe Geometry Extraction</h3>
+
+      <p>Raw GPR traces undergo background subtraction (mean trace removal over a 2 m sliding window) to eliminate direct-wave and ground-surface reflections, bandpass filtering (400-1200 MHz for the 800 MHz channel; 800-2400 MHz for the 1.6 GHz channel), and Kirchhoff migration to collapse diffraction hyperbolas to point reflectors, yielding a focused subsurface image.</p>
+
+      <p>Pipe detection operates on the migrated B-scan image using a matched-filter approach: a library of synthetic hyperbolic signatures (parameterized by depth, diameter, and soil permittivity) is cross-correlated with the migrated image. Peaks in the cross-correlation function above a detection threshold (configurable, default 0.6) identify candidate pipe locations with estimated depth (±5 cm), diameter (±1 cm for metallic, ±2 cm for plastic), and burial angle relative to the survey direction.</p>
+
+      <p>For metallic pipes, the GPR reflection is a strong, simple polarity reversal (metal is a near-perfect reflector). For plastic pipes, the reflection is weaker and frequency-dependent, with a characteristic "ringing" pattern from multiple internal reflections between the inner and outer pipe surfaces. This ringing pattern, when present, directly encodes wall thickness through the relation t = c·Δt / (2·√εᵣ), where Δt is the time separation between successive reflections and εᵣ is the pipe material's relative permittivity (PVC: εᵣ ≈ 3.0, HDPE: εᵣ ≈ 2.3).</p>
+
+      <h3>4. Deep Learning Fusion Classifier</h3>
+
+      <p>The classification model is a dual-branch convolutional neural network that processes EMI and GPR data streams independently before fusion:</p>
+
+      <p><strong>EMI branch:</strong> Input is a 24-channel vector (6 frequencies × 2 coil configurations × 2 components) per measurement point, stacked into a 2D spectrogram image over a 3 m along-track window (approximately 30 measurement points at 10 cm spacing). Architecture: 4 convolutional layers (32/64/128/256 filters, 3×3 kernels, batch normalization, ReLU, max pooling), producing a 256-dimensional feature vector. The frequency dimension is treated analogously to the spectral dimension in remote sensing imagery, preserving the physics-meaningful frequency-response relationships.</p>
+
+      <p><strong>GPR branch:</strong> Input is a dual-channel (800 MHz + 1.6 GHz) B-scan image over the same 3 m window, cropped to the depth range 0.3-2.0 m. Architecture: ResNet-18 backbone (pretrained on ImageNet, fine-tuned on GPR data), producing a 512-dimensional feature vector. Attention mechanisms weight the depth region containing the detected pipe.</p>
+
+      <p><strong>Fusion:</strong> The EMI and GPR feature vectors are concatenated (768-dimensional), passed through two fully connected layers (512, 256 neurons, dropout 0.3), and fed to a multi-task output head:</p>
+      <ul>
+        <li>Material classification (softmax over 6 classes: lead, copper, galvanized steel, ductile iron, PVC/HDPE, unknown/indeterminate)</li>
+        <li>Diameter regression (continuous output, loss = smooth L1)</li>
+        <li>Condition score (ordinal regression, 5 classes: new/good/fair/poor/critical, trained on corrosion-induced conductivity degradation patterns)</li>
+        <li>Confidence calibration (temperature scaling on held-out validation set, targeting &lt;5% expected calibration error)</li>
+      </ul>
+
+      <p>Training data is generated from three sources: (a) synthetic forward-model simulations using <a href="https://doi.org/10.1190/1.3148747">Ward and Hohmann's (1988)</a> layered-earth EM induction model and <a href="https://www.gprmax.com/">gprMax</a> FDTD GPR simulator, parameterized over material, diameter, depth (0.3-2.0 m), soil conductivity (1-100 mS/m), and soil permittivity (4-25), generating 500,000+ synthetic examples; (b) controlled field experiments at utility test beds with known pipe installations (e.g., <a href="https://www.epa.gov/water-research/water-security-test-bed">EPA Water Security Test Bed</a>); and (c) operational survey data where material was subsequently verified by excavation, creating a continuously growing labeled dataset. Domain adaptation via adversarial training (gradient reversal layer) bridges the synthetic-to-real domain gap.</p>
+
+      <h3>5. Condition Assessment via Conductivity Degradation Profiling</h3>
+
+      <p>Metallic pipe corrosion reduces effective conductivity by replacing metal with lower-conductivity corrosion products (iron oxides: σ ≈ 10⁻²-10⁻⁴ S/m; lead carbonates: σ ≈ 10⁻⁵ S/m; copper patina: σ ≈ 10⁻³ S/m). This manifests in the multi-frequency EMI response as a reduction in high-frequency in-phase signal (which is dominated by the outer surface, where corrosion initiates) relative to low-frequency in-phase signal (which integrates the full wall including uncorroded core). The ratio of in-phase response at 100 kHz to in-phase response at 1 kHz, normalized by the expected ratio for uncorroded pipe of the classified material and diameter, serves as a corrosion severity index.</p>
+
+      <p>Additionally, corrosion tuberculation in cast iron and ductile iron creates localized magnetic anomalies from magnetite (Fe₃O₄, μᵣ ≈ 50-300) corrosion products. These appear as high-spatial-frequency variations in the in-phase EMI response that are absent in uncorroded pipe. A 1D convolutional filter operating along the survey track direction detects tuberculation signatures.</p>
+
+      <p>The condition assessment model is trained on pipes with known corrosion states from replacement programs (utilities typically photograph and document replaced pipes). Each training example pairs the EMI/GPR survey data from before excavation with the observed corrosion state of the extracted pipe.</p>
+
+      <h3>6. Operational Deployment on Utility Fleet Vehicles</h3>
+
+      <p>The system is designed for deployment on vehicles that already traverse every service line connection on a regular schedule: meter-reading trucks (monthly routes), water quality sampling vehicles, and main flushing crews. Sensor data is collected opportunistically during normal operations, requiring no dedicated survey drives, route planning, or traffic control.</p>
+
+      <p>At 15-25 mph survey speed, a single vehicle covers 50-100 lane-miles per day. A typical small-to-medium water utility serves 20,000-100,000 service connections across 200-1,000 lane-miles of distribution network. Complete coverage is achievable in 5-20 working days per vehicle. Multiple passes over the same street (from different lanes and at different times) improve classification confidence through spatial diversity and temporal averaging.</p>
+
+      <p>Edge processing on a vehicle-mounted GPU module (e.g., NVIDIA Jetson Orin, 275 TOPS INT8) performs real-time pipe detection, material classification, and data compression. Each classified segment record contains: GPS coordinates (latitude, longitude, accuracy), pipe material classification with confidence score, estimated diameter, estimated depth, condition score, raw EMI spectrogram (compressed), and GPR B-scan thumbnail. Records are uploaded via cellular modem to a cloud GIS database for integration with the utility's asset management system and LCRR compliance reporting.</p>
+
+      <h3>7. Regulatory Compliance Integration</h3>
+
+      <p>The LCRR defines specific material categories for inventory purposes: "lead" (any service line containing lead), "galvanized requiring replacement" (galvanized pipe ever downstream of lead), "non-lead" (verified as copper, PVC, HDPE, or other non-lead material), and "lead status unknown." The classifier's output maps directly to these categories. A confidence threshold (configurable by the utility, default 0.85) determines whether a classification counts as "verified" or remains "unknown" requiring follow-up investigation.</p>
+
+      <p>The system generates audit-ready documentation: for each service line classified above the confidence threshold, the report includes the raw sensor data, classifier output with probability distribution over all classes, GPS track showing the survey path, and a reproducibility hash allowing the classification to be re-derived from archived raw data. This evidence package supports the LCRR requirement that material identification be based on "records, construction methods, or inspection methods that are demonstrated to the state to be reliable."</p>
+
+      <h3>8. Figures Description</h3>
+
+      <ul>
+        <li><strong>Figure 1:</strong> System architecture showing vehicle-mounted sensor sled, EMI coil geometry, GPR antenna placement, edge compute module, cellular uplink, and cloud GIS integration.</li>
+        <li><strong>Figure 2:</strong> Multi-frequency EMI response spectra for five pipe materials at 1.0 m burial depth, showing in-phase and quadrature components at 6 frequencies, illustrating the material-dependent crossover frequency and ferromagnetic/non-ferromagnetic discrimination.</li>
+        <li><strong>Figure 3:</strong> GPR B-scan comparison of metallic (strong, simple reflection) and plastic (weak, ringing) pipe signatures at 800 MHz and 1.6 GHz.</li>
+        <li><strong>Figure 4:</strong> Dual-branch CNN architecture diagram showing EMI spectrogram and GPR B-scan processing streams, feature fusion, and multi-task output head.</li>
+        <li><strong>Figure 5:</strong> Corrosion severity index derivation showing high-frequency/low-frequency in-phase ratio for new, moderately corroded, and heavily corroded lead pipes.</li>
+        <li><strong>Figure 6:</strong> Operational deployment showing fleet vehicle route coverage accumulation over 30 days for a 50,000-connection utility, demonstrating progression from partial to complete inventory coverage.</li>
+      </ul>
+
+      <h2>Claims</h2>
+
+      <ol>
+        <li>A system for non-invasive classification of buried water service line materials, comprising: a vehicle-mounted multi-frequency electromagnetic induction sensor array operating at three or more discrete frequencies spanning at least two orders of magnitude; a vehicle-mounted ground-penetrating radar subsystem operating at one or more center frequencies; a positioning subsystem providing sub-meter georeferencing of sensor measurements; and a processor executing a trained machine learning classifier that receives fused EMI and GPR data and outputs a material classification for each detected buried pipe segment.</li>
+
+        <li>The system of claim 1, wherein the EMI sensor array measures both in-phase and quadrature components of the secondary magnetic field at each frequency, and the machine learning classifier uses the frequency-dependent ratio of in-phase to quadrature response as a discriminating feature between materials with different conductivity-permeability products.</li>
+
+        <li>The system of claim 1, wherein the machine learning classifier is a dual-branch convolutional neural network that processes EMI frequency-response data and GPR radargrams through separate feature extraction branches before concatenating feature vectors for joint classification.</li>
+
+        <li>The system of claim 1, wherein the classifier distinguishes between ferromagnetic service line materials (galvanized steel, ductile iron) and non-ferromagnetic materials (lead, copper) based on the magnitude of the in-phase EMI response relative to the quadrature response across the measured frequency range.</li>
+
+        <li>The system of claim 1, wherein the classifier further distinguishes lead from copper based on the crossover frequency at which the quadrature EMI response transitions from exceeding to falling below the in-phase response, said crossover frequency being lower for copper than for lead at equivalent pipe geometry due to copper's higher electrical conductivity.</li>
+
+        <li>The system of claim 1, wherein PVC and HDPE service lines are identified by the absence of EMI response combined with the presence of a GPR reflection exhibiting multiple internal reflections from which pipe wall thickness is estimated using the known dielectric permittivity of the classified plastic material.</li>
+
+        <li>A method for assessing corrosion condition of buried metallic water service lines without excavation, comprising: measuring multi-frequency electromagnetic induction response of a buried pipe from above the ground surface; classifying the pipe material using a trained classifier; computing a corrosion severity index from the ratio of high-frequency to low-frequency in-phase EMI response, normalized by the expected ratio for uncorroded pipe of the classified material and estimated diameter; and outputting a condition score for the pipe segment.</li>
+
+        <li>The method of claim 7, wherein corrosion tuberculation in ferromagnetic pipes is detected from high-spatial-frequency variations in the along-track in-phase EMI response that exceed a threshold derived from the expected response of smooth, uncorroded pipe of the classified material.</li>
+
+        <li>The system of claim 1, wherein the sensor array is mounted on a utility fleet vehicle that traverses service line connections during normal operations (meter reading, water quality sampling, main flushing), requiring no dedicated survey drives, and wherein multiple passes over the same street from different lanes and at different times are aggregated to improve classification confidence through spatial diversity.</li>
+
+        <li>The system of claim 1, wherein training data for the machine learning classifier is generated from a combination of synthetic forward-model electromagnetic induction and GPR simulations parameterized over material, diameter, burial depth, and soil properties; controlled field experiments at utility test beds with known pipe installations; and operational survey data where material classification was subsequently verified by excavation.</li>
+
+        <li>The system of claim 10, wherein a domain adaptation module using adversarial training with a gradient reversal layer bridges the distribution gap between synthetic training data and real-world sensor measurements, enabling the classifier to generalize from simulation-dominated training sets to field-collected data.</li>
+
+        <li>The system of claim 1, further comprising a regulatory compliance reporting module that maps classifier outputs to EPA Lead and Copper Rule Revision inventory categories, applies a configurable confidence threshold to determine whether each classification qualifies as "verified" or "lead status unknown," and generates audit-ready documentation including raw sensor data, probability distributions, GPS tracks, and reproducibility hashes.</li>
+
+        <li>A method for city-scale water service line material inventory using utility fleet vehicles, comprising: equipping one or more utility fleet vehicles with the system of claim 1; collecting EMI and GPR data during normal vehicle operations over a service territory; classifying each detected service line segment by material, diameter, and condition; aggregating classifications in a GIS database georeferenced to utility parcel records; identifying service lines requiring follow-up investigation based on low classification confidence; and generating a regulatory-compliant inventory report.</li>
+      </ol>
+
+      <h2>Prior Art References</h2>
+
+      <ol>
+        <li><a href="https://www.epa.gov/ground-water-and-drinking-water/revised-lead-and-copper-rule">EPA Revised Lead and Copper Rule (LCRR)</a> — 9.2 million estimated lead service lines, October 2027 inventory deadline</li>
+        <li><a href="https://www.whitehouse.gov/briefing-room/statements-releases/2024/11/14/fact-sheet-biden-harris-administration-announces-new-actions-and-resources-to-get-the-lead-out/">Biden-Harris Lead Service Line Replacement Initiative</a> — $15 billion from Bipartisan Infrastructure Law</li>
+        <li><a href="https://www.awwa.org/Resources-Tools/Resource-Topics/Lead-Service-Lines">AWWA Lead Service Line Resource Center</a> — $60 billion estimated national replacement cost</li>
+        <li><a href="https://www.awwa.org/Portals/0/AWWA/Government/2016ServiceLineReport.pdf">AWWA 2016 Service Line Survey</a> — 40% of utilities with incomplete material records</li>
+        <li><a href="https://www.michigan.gov/egle/-/media/Project/Websites/egle/Documents/Programs/DWEHD/Lead-Copper-Rule/service-line-inventory-report.pdf">Michigan Statewide Service Line Inventory Report</a> — Records-only approach classified 38% of lines</li>
+        <li><a href="https://doi.org/10.1021/acs.est.0c05239">Trueman et al., Environmental Science &amp; Technology, 2021</a> — Predictive modeling for LSL identification (74-85% accuracy)</li>
+        <li><a href="https://doi.org/10.1061/(ASCE)WR.1943-5452.0001592">Daghigh et al., Journal of Water Resources Planning and Management, 2022</a> — Acoustic wave velocity for pipe material identification</li>
+        <li><a href="https://doi.org/10.1016/j.jappgeo.2019.04.012">Everett, Journal of Applied Geophysics, 2019</a> — Multi-frequency EMI for near-surface characterization review</li>
+        <li><a href="https://doi.org/10.1016/j.tust.2016.03.017">Jaw &amp; Hashim, Tunnelling and Underground Space Technology, 2013</a> — GPR for buried pipe detection review</li>
+        <li><a href="https://doi.org/10.1190/1.3148747">Ward &amp; Hohmann, Electromagnetic Methods in Applied Geophysics, 1988</a> — Layered-earth EM induction forward model</li>
+        <li><a href="https://www.gprmax.com/">gprMax</a> — Open-source GPR FDTD simulation software</li>
+        <li><a href="https://www.epa.gov/water-research/water-security-test-bed">EPA Water Security Test Bed</a> — Controlled environment for water infrastructure research</li>
+        <li><a href="https://www.espressif.com/en/products/socs/esp32-s3">NVIDIA Jetson Orin Module</a> — Edge GPU compute for real-time inference (275 TOPS INT8)</li>
+        <li><a href="https://doi.org/10.1190/1.3658246">Won &amp; Huang, Geophysics, 2004</a> — Multi-frequency EMI for unexploded ordnance classification (demonstrating material discrimination from frequency-dependent EM response)</li>
+        <li><a href="https://doi.org/10.1029/2020WR028643">Niu et al., Water Resources Research, 2021</a> — Machine learning for buried infrastructure characterization from geophysical data</li>
+      </ol>
+
+    </div>
+  </article>
+
+<script src="../story.js"></script>
+<script src="../nav.js"></script>
+</body>
+</html>
