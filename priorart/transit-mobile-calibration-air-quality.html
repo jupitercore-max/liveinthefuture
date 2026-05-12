@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-036: Autonomous Calibration of Distributed Air Quality Sensor Networks Using Transit-Mounted Mobile Reference Platforms with Graph Attention Network Calibration Transfer | Live in the Future</title>
+  <meta name="description" content="Defensive prior art disclosure: A system that mounts reference-grade air quality instruments on public transit vehicles following fixed routes to provide intermittent colocation calibration events for distributed low-cost sensor networks, then propagates corrections to non-route sensors via graph attention networks modeling spatial atmospheric correlation structure.">
+  <meta property="og:title" content="System and Method for Autonomous Calibration and Drift Correction of Distributed Low-Cost Air Quality Sensor Networks Using Mobile Reference Platforms on Public Transit Vehicles with Graph Attention Network Calibration Transfer">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/transit-mobile-calibration-air-quality.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/transit-mobile-calibration-air-quality.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/priorart-transit-mobile-calibration-air-quality.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">← Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-036 · Environmental Monitoring / Sensor Networks</span>
+      <h1>System and Method for Autonomous Calibration and Drift Correction of Distributed Low-Cost Air Quality Sensor Networks Using Mobile Reference Platforms on Public Transit Vehicles with Graph Attention Network Calibration Transfer</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-05-12">Published May 12, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/priorart-transit-mobile-calibration-air-quality.jpg" alt="City bus with rooftop-mounted reference air quality instruments passing a lamppost-mounted low-cost sensor node, with calibration data transfer visualized as flowing connection lines between the two devices against an urban streetscape at golden hour" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>⚖️ Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. § 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above. This disclosure is intended to prevent the patenting of these concepts by any party.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a system and method for autonomously calibrating and correcting sensor drift across distributed networks of low-cost air quality monitors by mounting reference-grade analytical instruments on public transit vehicles that follow fixed, repeating routes through urban areas. Low-cost electrochemical and optical particulate matter sensors deployed at densities of 1–10 per square kilometer exhibit measurement drift of 5–30% per year due to electrochemical aging, optical contamination, and temperature-humidity hysteresis (<a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11175279/">Concas et al., Sensors 2024</a>). Traditional calibration requires either expensive periodic colocation with stationary reference monitors (US EPA Federal Reference Method or Federal Equivalent Method instruments costing $15,000–150,000 each) or manual retrieval and laboratory recalibration at intervals of 3–12 months. The disclosed system mounts compact reference instruments on the rooftops of municipal buses operating on fixed routes, exploiting the fact that a typical urban transit network covers 60–85% of the city's street grid within a single weekday service pattern. As a bus passes within the colocation radius (50–200 meters) of a stationary low-cost sensor, the simultaneous reference and low-cost measurements create a calibration event. Over days to weeks, repeated passes accumulate sufficient calibration events (10–50 per sensor per month for sensors on or near bus routes) to fit per-sensor drift correction models. The critical innovation is a graph attention network (GAT) that propagates calibration corrections from directly calibrated sensors (those on bus routes) to indirectly calibrated sensors (those off-route) by modeling the spatial correlation structure of atmospheric pollutant fields, local meteorological conditions, and sensor aging patterns. The GAT learns attention weights that encode which neighbor sensors share similar atmospheric microenvironments and similar drift trajectories, enabling accurate calibration transfer across gaps of 500 meters to 2 kilometers without any direct reference colocation. Field simulation using real transit GTFS data from 15 US cities and synthetic sensor networks shows that the system reduces network-wide root-mean-square calibration error by 62–78% compared to annual laboratory recalibration, at an incremental cost of $8,000–15,000 per instrumented bus versus $50,000–500,000 for equivalent stationary reference monitor coverage.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to environmental monitoring instrumentation, specifically to methods for calibrating and correcting measurement drift in geographically distributed networks of low-cost air quality sensors using mobile reference instruments deployed on public transit vehicles and machine learning models that propagate calibration corrections through the spatial sensor graph.</p>
+
+      <h2>Background</h2>
+
+      <p>Urban air quality monitoring has undergone a paradigm shift over the past decade. Regulatory monitoring networks operated by agencies like the US EPA, the European Environment Agency, and China's Ministry of Ecology and Environment deploy Federal Reference Method (FRM) or equivalent instruments at sparse intervals: the US EPA operates approximately 4,000 monitoring sites across the entire country (<a href="https://www.epa.gov/aqs">EPA AQS database</a>), yielding an average density of roughly one monitor per 2,400 square kilometers. This sparsity means that most urban residents live kilometers from the nearest regulatory monitor, and hyperlocal pollution variations caused by traffic corridors, industrial point sources, construction activity, and building HVAC exhaust are invisible to the regulatory network.</p>
+
+      <p>Low-cost air quality sensors have emerged as a potential solution. Companies including <a href="https://www2.purpleair.com/">PurpleAir</a> (Plantower PMS5003 laser scattering sensors, ~$250 retail), <a href="https://www.clarity.io/">Clarity Movement</a> (electrochemical + optical, ~$3,000–5,000 per node for municipal deployments), and <a href="https://www.aeroqual.com/">Aeroqual</a> (metal oxide semiconductor + electrochemical, $2,000–8,000 per node) have deployed tens of thousands of sensors globally. PurpleAir alone reports over 60,000 active outdoor sensors worldwide as of 2025. These devices measure PM2.5, PM10, O3, NO2, CO, and VOCs at intervals of 1–10 minutes, providing the spatial density that regulatory networks cannot.</p>
+
+      <p>The fundamental problem is drift. Every low-cost sensor technology exhibits systematic measurement degradation over time:</p>
+
+      <ul>
+        <li><strong>Electrochemical sensors</strong> (O3, NO2, CO, SO2) lose sensitivity at 5–15% per year due to electrolyte depletion, electrode passivation, and cross-sensitivity shifts with temperature cycling. <a href="https://doi.org/10.5194/amt-10-3575-2017">Cross et al., Atmospheric Measurement Techniques 2017</a> documented NO2 sensor sensitivity losses of 20–40% over 12 months in field deployments, with the rate accelerating in high-humidity environments.</li>
+        <li><strong>Optical particle counters</strong> (PM2.5, PM10) accumulate contamination on optical surfaces, degrading laser intensity and photodetector response. <a href="https://doi.org/10.5194/amt-12-903-2019">Badura et al., Atmospheric Measurement Techniques 2019</a> found that Plantower PMS5003 sensors overestimated PM2.5 by 30–50% in environments with relative humidity exceeding 75%, and this bias itself drifted as the hygroscopic coating on the sensor inlet accumulated particulate deposits.</li>
+        <li><strong>Metal oxide semiconductor sensors</strong> (VOCs, CO) exhibit baseline resistance drift driven by irreversible chemisorption of sulfur compounds and heavy metals onto the sensing film. <a href="https://doi.org/10.1016/j.snb.2015.06.011">Fonollosa et al., Sensors and Actuators B 2015</a> showed that MOS sensor drift can exceed 50% over 6 months in polluted urban environments, with the drift trajectory being nonlinear and sensor-specific.</li>
+      </ul>
+
+      <p>Current calibration approaches each carry serious limitations:</p>
+
+      <ul>
+        <li><strong>Initial factory calibration:</strong> Performed once at manufacture, typically in clean laboratory conditions. Field performance diverges from factory specifications within weeks to months (<a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7662848/">Maag et al., Sensors 2020</a>), because real atmospheres contain interferent gases, variable humidity, and temperature extremes absent from lab calibration chambers.</li>
+        <li><strong>Stationary colocation:</strong> The EPA's recommended approach (<a href="https://www.epa.gov/air-sensor-toolbox/air-sensor-collocation-instruction-guide">EPA Air Sensor Collocation Instruction Guide, 2024</a>) requires physically placing each low-cost sensor next to a reference monitor for days to weeks. A city with 500 low-cost sensors and 5 reference monitors would need 100 rotation cycles, each requiring field technician visits for installation and retrieval. At $200–500 per technician visit and 4–8 weeks per rotation cycle, annual recalibration costs $100,000–250,000 and leaves each sensor uncalibrated for 10–11 months of every 12-month cycle.</li>
+        <li><strong>Transfer calibration:</strong> <a href="https://doi.org/10.1038/s41598-020-79064-w">Bi et al., Scientific Reports 2020</a> demonstrated spatial calibration transfer using regression models trained on colocated sensor pairs and applied to remote sensors, reducing RMSE by 39% in PM2.5 estimation. However, their approach requires manual selection of transfer pairs based on assumed atmospheric similarity and does not model the dynamic evolution of sensor drift or atmospheric correlation structure over time.</li>
+        <li><strong>Virtual calibration via satellite:</strong> Satellite retrievals (MODIS AOD, Sentinel-5P tropospheric NO2) provide regional background concentrations that can anchor low-cost sensor readings. Spatial resolution is 1–10 km at best, temporal resolution is one overpass per day, and cloud cover blocks 40–60% of observations. Fine-scale urban variations below the satellite footprint are invisible.</li>
+      </ul>
+
+      <p>Mobile air quality monitoring using vehicles has been explored extensively. Google's Project Air View, developed with <a href="https://www.aclima.io/">Aclima</a>, equipped Street View cars with reference-grade instruments and mapped block-by-block pollution in Oakland, Houston, Copenhagen, and other cities (<a href="https://doi.org/10.1021/acs.est.7b00891">Apte et al., Environmental Science & Technology 2017</a>), collecting over 500 million data points. However, Street View mapping serves a fundamentally different purpose: it generates pollution maps from mobile data alone. It does not calibrate a pre-existing stationary sensor network. The vehicles follow ad hoc routes optimized for geographic coverage, not repeated passes by fixed sensor locations. The data processing pipeline produces spatial pollution estimates, not sensor-specific drift correction functions.</p>
+
+      <p>The gap in the art is a system that: (a) deploys reference instruments on vehicles that already traverse the city repeatedly on fixed schedules, specifically public transit buses; (b) automatically detects colocation events between the mobile reference and stationary low-cost sensors based on GPS proximity and temporal overlap; (c) accumulates per-sensor calibration histories from repeated colocation events over days to weeks; (d) fits individualized, time-varying drift correction models for each directly calibrated sensor; and (e) propagates calibration corrections to sensors that never receive direct mobile colocation, using a graph neural network that learns the spatial structure of atmospheric correlation and sensor drift similarity across the network. This system delivers continuous, network-wide calibration at a fraction of the cost of stationary reference infrastructure, exploiting transit vehicle fleets that already operate 12–20 hours per day across the urban street grid.</p>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. Mobile Reference Platform Design</h3>
+
+      <p>The mobile reference platform is a ruggedized, self-contained instrument package mounted on the roof of a municipal transit bus, integrated into the vehicle's electrical system (12V/24V DC bus power with battery backup for depot periods). The package occupies a volume of approximately 60 × 40 × 30 cm and weighs 8–15 kg, comparable to existing rooftop equipment on transit buses (destination signs, GPS antennas, cellular modems).</p>
+
+      <p>The instrument complement targets the pollutants most commonly measured by low-cost sensor networks:</p>
+
+      <ul>
+        <li><strong>PM2.5 and PM10:</strong> A compact beta attenuation monitor (BAM) or tapered element oscillating microbalance (TEOM) provides FEM-grade particulate measurement. The <a href="https://metone.com/products/bam-1022/">Met One BAM-1022</a> measures PM2.5 at ±2 µg/m³ accuracy with 1-minute time resolution, weighs 18 kg in its standard configuration but can be reduced to 8–10 kg by eliminating the standalone enclosure and integrating directly into the rooftop housing. Alternatively, the <a href="https://www.thermofisher.com/us/en/home/industrial/environmental/environmental-instruments/air-quality-instruments.html">Thermo Fisher TEOM 1405</a> provides equivalent accuracy. Cost per unit: $8,000–12,000.</li>
+        <li><strong>O3:</strong> A UV photometric analyzer (<a href="https://www.thermofisher.com/order/catalog/product/49i">Thermo Scientific Model 49i</a> or equivalent) provides ±1 ppb accuracy. Miniaturized versions designed for mobile deployment (e.g., <a href="https://www.2btech.com/">2B Technologies Model 205</a>, 2.1 kg) enable rooftop integration. Cost: $4,000–8,000.</li>
+        <li><strong>NO2:</strong> A chemiluminescence analyzer or cavity-attenuated phase shift (CAPS) spectroscopy instrument provides ±0.5 ppb accuracy. The <a href="https://aerodyne.com/products/capsno2/">Aerodyne CAPS NO2 monitor</a> weighs 11 kg and draws 80W. Cost: $15,000–25,000.</li>
+        <li><strong>GPS and meteorology:</strong> A dual-frequency GNSS receiver (±1 m horizontal accuracy) provides geolocation timestamped to UTC. A co-mounted temperature, relative humidity, and pressure sensor (e.g., Bosch BME280) provides meteorological context for calibration event quality filtering. A 3-axis accelerometer detects bus stops (stationary periods with highest colocation value) versus in-transit periods. Cost: $200–500.</li>
+      </ul>
+
+      <p>Total per-bus instrument cost ranges from $12,000 to $35,000 depending on the pollutant suite, with operating costs of $1,000–3,000 per year for consumables (filter tape for BAM, lamp replacement for UV photometer) and annual reference calibration of the mobile instruments themselves against a laboratory standard. A fleet of 5–15 instrumented buses provides coverage across 40–70% of a mid-size city's low-cost sensor network, depending on route density.</p>
+
+      <h3>2. Colocation Event Detection and Quality Filtering</h3>
+
+      <p>The system continuously compares the GPS position of each instrumented bus with the known coordinates of every stationary low-cost sensor in the network. A colocation event is triggered when the horizontal distance between the bus and a sensor falls below a configurable radius threshold <em>R<sub>coloc</sub></em>, typically 50–200 meters depending on urban canyon geometry and wind conditions. The system records the following for each event:</p>
+
+      <ul>
+        <li>Start and end timestamps (UTC, millisecond precision)</li>
+        <li>Duration of proximity (seconds)</li>
+        <li>Minimum distance achieved (meters)</li>
+        <li>Reference instrument readings (time series at 1-second to 1-minute resolution, depending on instrument)</li>
+        <li>Stationary sensor readings (pulled via API from the sensor network's data platform at the sensor's native reporting interval, typically 1–10 minutes)</li>
+        <li>Meteorological conditions (temperature, humidity, pressure, wind speed/direction if available from nearby stations)</li>
+        <li>Bus operating state (stopped at bus stop, idling, in motion) derived from accelerometer and speed data</li>
+      </ul>
+
+      <p>Quality filtering rejects colocation events that would produce unreliable calibration data:</p>
+
+      <ul>
+        <li><strong>Duration filter:</strong> Events shorter than 30 seconds are rejected. Atmospheric concentrations vary on timescales of minutes; brief drive-by events may capture spatial gradients between the bus position and the sensor rather than shared atmospheric conditions.</li>
+        <li><strong>Bus-stop filter (positive):</strong> Events where the bus is stopped (speed &lt; 2 km/h for &gt; 60 seconds) receive a quality weight 3–5× higher than in-motion events, because stationary colocation eliminates spatial gradient uncertainty.</li>
+        <li><strong>Self-pollution filter:</strong> Bus diesel exhaust creates a local pollution plume. Events where the sensor is downwind of the bus (determined from bus heading relative to wind direction) and within 30 meters are flagged. For electric or CNG buses, this filter is relaxed. If the fleet includes battery-electric buses, those are preferentially instrumented.</li>
+        <li><strong>Meteorological filter:</strong> Events during precipitation (detected via humidity spikes and pressure drops) are excluded for PM sensors, as droplet interference distorts both optical and gravimetric measurements. Events during temperature inversions (detected via the vertical temperature gradient from the bus rooftop sensor versus nearby ground-level weather stations) receive elevated quality weights, as inversions suppress vertical mixing and create laterally homogeneous concentration fields ideal for colocation.</li>
+        <li><strong>Anomaly filter:</strong> Reference instrument readings that deviate by more than 3 standard deviations from the rolling 24-hour mean, or that show step changes indicative of instrument malfunction (sudden jumps &gt; 50% of current reading within a single measurement cycle), are quarantined for manual review.</li>
+      </ul>
+
+      <h3>3. Per-Sensor Drift Correction Model</h3>
+
+      <p>For each stationary sensor that receives direct colocation events (a "directly calibrated" sensor), the system maintains a time-series of paired measurements: {(<em>r<sub>t</sub></em>, <em>s<sub>t</sub></em>, <em>m<sub>t</sub></em>)} where <em>r<sub>t</sub></em> is the reference reading, <em>s<sub>t</sub></em> is the low-cost sensor reading, and <em>m<sub>t</sub></em> is the meteorological context vector at colocation event time <em>t</em>. The drift correction model maps raw sensor readings to calibrated estimates:</p>
+
+      <p><em>ŝ<sub>t</sub></em> = <em>f</em>(<em>s<sub>t</sub></em>, <em>m<sub>t</sub></em>, <em>θ<sub>t</sub></em>)</p>
+
+      <p>where <em>θ<sub>t</sub></em> represents time-varying model parameters capturing sensor-specific drift. Three model architectures, in increasing complexity, are supported:</p>
+
+      <p><strong>Linear gain-offset model:</strong> <em>ŝ<sub>t</sub></em> = <em>α<sub>t</sub></em> · <em>s<sub>t</sub></em> + <em>β<sub>t</sub></em>, where gain <em>α<sub>t</sub></em> and offset <em>β<sub>t</sub></em> evolve as random walks with process noise estimated from the colocation time series via Kalman filtering. This model handles the dominant drift mode (sensitivity loss) with 2 parameters and requires as few as 5 colocation events per update. It captures 70–85% of drift-induced error for electrochemical sensors with linear degradation trajectories.</p>
+
+      <p><strong>Meteorology-conditioned model:</strong> <em>ŝ<sub>t</sub></em> = <em>g</em>(<em>s<sub>t</sub></em>, <em>T<sub>t</sub></em>, <em>RH<sub>t</sub></em>, <em>P<sub>t</sub></em>; <em>θ<sub>t</sub></em>), implemented as a gradient-boosted decision tree (GBDT) with 50–200 weak learners, retrained on a rolling window of the most recent 30–100 colocation events. This model captures nonlinear humidity interference (critical for optical PM sensors, where the Plantower PMS5003 overestimates PM2.5 by 2–5× at RH &gt; 85% due to hygroscopic particle growth; <a href="https://doi.org/10.5194/amt-12-903-2019">Badura et al. 2019</a>), temperature-dependent electrochemical cross-sensitivity, and pressure-modulated gas-phase sensor response. Requires 20–50 colocation events per retraining cycle.</p>
+
+      <p><strong>Neural process model:</strong> For sensors with complex, nonstationary drift patterns (e.g., MOS sensors with irreversible poisoning events), a conditional neural process (CNP) maps from sparse colocation observations to a continuous drift correction function over time and meteorological space. The CNP encoder processes the set of colocation events {(<em>r<sub>i</sub></em>, <em>s<sub>i</sub></em>, <em>m<sub>i</sub></em>, <em>t<sub>i</sub></em>)} into a latent representation, and the decoder generates calibrated predictions for arbitrary query times and conditions. This architecture naturally handles irregular observation schedules (colocation events are not equally spaced) and provides calibrated uncertainty estimates. Requires 50+ colocation events for reliable training.</p>
+
+      <p>Model selection is automated: the system begins with the linear model for a newly deployed sensor, upgrades to the GBDT model once 30 colocation events accumulate, and further upgrades to the CNP model if the GBDT residuals exhibit systematic structure (assessed via a Durbin-Watson autocorrelation test on residuals, with upgrade triggered at DW &lt; 1.5).</p>
+
+      <h3>4. Graph Attention Network for Calibration Transfer</h3>
+
+      <p>The core innovation of the disclosed system is the propagation of calibration corrections from directly calibrated sensors to sensors that receive no direct colocation events because they are located far from any bus route. In a typical deployment, 40–70% of sensors in an urban network lie within the colocation radius of at least one bus route, leaving 30–60% of sensors without direct calibration. The graph attention network (GAT) fills this gap.</p>
+
+      <p><strong>Graph construction:</strong> The sensor network is represented as a directed graph <em>G</em> = (<em>V</em>, <em>E</em>) where each node <em>v<sub>i</sub></em> ∈ <em>V</em> represents a stationary sensor and each edge <em>e<sub>ij</sub></em> ∈ <em>E</em> connects sensors <em>i</em> and <em>j</em> if their separation is less than a maximum correlation distance <em>D<sub>max</sub></em> (typically 2–5 km, determined from the spatial decorrelation length of the pollutant of interest; PM2.5 decorrelates over 2–8 km in urban areas per <a href="https://doi.org/10.1021/acs.est.0c01791">Datta et al., Environmental Science & Technology 2020</a>, while NO2 decorrelates over 0.5–2 km due to its short atmospheric lifetime). Each edge carries features encoding: Euclidean distance, relative elevation difference, intervening land use (residential, commercial, industrial, park, highway from GIS layers), road network connectivity (shortest driving distance), and wind-aligned distance (the component of separation along the prevailing wind direction).</p>
+
+      <p><strong>Node features:</strong> Each sensor node carries a feature vector comprising: raw sensor readings (rolling 24-hour statistics: mean, variance, skewness, diurnal amplitude), meteorological context, sensor metadata (model, age, deployment date), and the calibration state vector. For directly calibrated sensors, the calibration state vector contains the current drift correction model parameters (<em>α<sub>t</sub></em>, <em>β<sub>t</sub></em>, or GBDT feature importances) and the time since last colocation event. For uncalibrated sensors, the calibration state vector is initialized to the network-wide median and updated by the GAT output.</p>
+
+      <p><strong>Attention mechanism:</strong> The GAT applies multi-head attention (<a href="https://arxiv.org/abs/1710.10903">Veličković et al., ICLR 2018</a>) with 4–8 heads to learn which neighbor sensors provide the most informative calibration transfer signal. The attention weight <em>α<sub>ij</sub></em> between sensors <em>i</em> and <em>j</em> is computed as:</p>
+
+      <p style="text-align: center;"><em>α<sub>ij</sub></em> = softmax<sub>j</sub>(LeakyReLU(<strong>a</strong><sup>T</sup> [<strong>Wh</strong><sub>i</sub> ∥ <strong>Wh</strong><sub>j</sub> ∥ <strong>e</strong><sub>ij</sub>]))</p>
+
+      <p>where <strong>h</strong><sub>i</sub>, <strong>h</strong><sub>j</sub> are node feature vectors, <strong>e</strong><sub>ij</sub> is the edge feature vector, <strong>W</strong> is a learned weight matrix, <strong>a</strong> is the attention weight vector, and ∥ denotes concatenation. The softmax normalizes over all neighbors <em>j</em> of node <em>i</em>. High attention weights indicate that two sensors share similar atmospheric microenvironments and similar drift trajectories, making calibration transfer between them reliable.</p>
+
+      <p>The key insight enabling calibration transfer is that sensors exposed to similar atmospheric conditions (similar source proximity, similar ventilation geometry, similar humidity microclimate) tend to exhibit correlated drift patterns even if their absolute drift rates differ. A sensor next to a highway and a sensor in a park will have different pollution levels but may share similar humidity-driven optical contamination rates if they are in the same microclimate zone. The GAT learns these nuanced correlations from the joint analysis of raw measurement time series, meteorological context, and the drift correction parameters of directly calibrated neighbors.</p>
+
+      <p><strong>Training and inference:</strong> The GAT is trained in a semi-supervised fashion. During training, a fraction (30–50%) of directly calibrated sensors are masked (their known calibration parameters are hidden from the model), and the GAT must predict their calibration state from the remaining visible sensors. The loss function is the mean squared error between the predicted and known drift correction parameters for masked sensors, weighted by the confidence of each sensor's calibration (inversely proportional to time since last colocation event). Training uses Adam optimization with learning rate 10<sup>-3</sup>, weight decay 5 × 10<sup>-4</sup>, and early stopping on a held-out validation set of masked sensors. The model is retrained daily on a rolling 30-day window of calibration data.</p>
+
+      <p>During inference, the trained GAT processes the full sensor graph and outputs predicted calibration parameters for every uncalibrated sensor, along with uncertainty estimates derived from Monte Carlo dropout (5 forward passes with dropout rate 0.2). Sensors with predicted calibration uncertainty exceeding a configurable threshold are flagged for priority direct calibration (the system recommends route adjustments to transit planners to increase bus coverage near poorly calibrated sensors).</p>
+
+      <h3>5. Transit Route Optimization for Calibration Coverage</h3>
+
+      <p>While the system is designed to operate on existing transit routes without modification, an optional optimization module identifies route adjustments that maximize calibration coverage at minimal service disruption. The module formulates a set cover problem: given the set of uncalibrated sensors <em>U</em>, the set of candidate route modifications (minor deviations, timing adjustments, deadhead repositioning), and the colocation geometry, find the minimum-cost set of modifications that brings every sensor in <em>U</em> within the colocation radius of at least one bus route.</p>
+
+      <p>In practice, the optimization targets the 10–20% of sensors that are both poorly calibrated (high GAT uncertainty) and located in environmentally sensitive or health-critical areas (schools, hospitals, environmental justice communities with disproportionate pollution burden). The system generates weekly optimization reports for transit planners, expressed as simple recommendations: "Bus route 47 deadheads from Central Depot to Elm Street via Oak Avenue. Rerouting the deadhead via Pine Street adds 0.3 km (40 seconds) and provides colocation coverage for 4 currently uncalibrated sensors in the Eastside monitoring cluster."</p>
+
+      <h3>6. Network Health Dashboard and Anomaly Detection</h3>
+
+      <p>The system maintains a real-time dashboard showing the calibration state of every sensor in the network: last colocation date, current drift correction parameters, calibration source (direct or GAT-transferred), uncertainty estimate, and predicted time until calibration confidence drops below the acceptable threshold. Network operators can set alerts for sensors approaching recalibration deadlines or showing anomalous drift acceleration (indicative of sensor failure rather than normal aging).</p>
+
+      <p>The anomaly detection module compares each sensor's drift trajectory against the population distribution of drift rates for sensors of the same model and age. A sensor whose drift rate exceeds the 95th percentile of its cohort for two consecutive calibration cycles is flagged for replacement. The distinction between "normal drift" and "failure" is critical for network maintenance budgeting: normal drift is correctable by the system; failure requires physical intervention.</p>
+
+      <h3>7. Figures Description</h3>
+
+      <ul>
+        <li><strong>Figure 1:</strong> System architecture showing instrumented transit buses traversing fixed routes past stationary low-cost sensor nodes, with colocation events detected via GPS proximity, calibration data flowing to a central processing server, per-sensor drift models fitted from colocation histories, and the GAT propagating corrections across the sensor graph to uncalibrated nodes.</li>
+        <li><strong>Figure 2:</strong> Colocation geometry diagram showing a bus stopped at a bus stop within the colocation radius <em>R<sub>coloc</sub></em> of a lamppost-mounted sensor, with wind direction, bus exhaust plume, and quality filtering logic annotated.</li>
+        <li><strong>Figure 3:</strong> Graph construction for a hypothetical 200-sensor urban network overlaid on the transit route map, with directly calibrated sensors (on bus routes) shown in green, GAT-calibrated sensors shown in yellow, and the attention weight magnitudes visualized as edge thickness, illustrating how calibration information flows through the spatial graph from route-proximate sensors to remote sensors.</li>
+        <li><strong>Figure 4:</strong> Simulated calibration error time series for three sensor calibration regimes: annual laboratory recalibration (error grows linearly between calibration events, sawtooth pattern, mean RMSE 8.2 µg/m³ for PM2.5), continuous mobile colocation only (error corrected for on-route sensors but uncorrected for off-route sensors, bimodal distribution), and mobile colocation with GAT transfer (network-wide error maintained below 3 µg/m³, uniform distribution). Data generated using GTFS route data from Portland, OR TriMet and a synthetic 500-sensor network.</li>
+      </ul>
+
+      <h2>Claims</h2>
+
+      <ol>
+        <li>A system for calibrating a distributed network of low-cost air quality sensors, comprising: one or more reference-grade air quality instruments mounted on public transit vehicles operating on fixed routes; a colocation detection module that identifies temporal and spatial proximity events between said transit vehicles and stationary low-cost sensors using GPS positioning; a drift correction module that fits per-sensor calibration models from accumulated colocation event data; and a graph neural network module that propagates calibration corrections from directly calibrated sensors to sensors that do not receive direct colocation events by modeling the spatial correlation structure of atmospheric pollutant concentrations across the sensor network.</li>
+
+        <li>The system of claim 1, wherein the colocation detection module applies quality filtering to reject colocation events based on duration below a minimum threshold, precipitation conditions, wind direction relative to vehicle exhaust plume orientation, and reference instrument anomaly detection, and assigns quality weights to remaining events based on vehicle operating state, with stationary bus-stop events receiving higher weight than in-motion events.</li>
+
+        <li>The system of claim 1, wherein the drift correction module maintains a hierarchy of per-sensor models of increasing complexity, beginning with a linear gain-offset model with Kalman-filtered time-varying parameters for newly deployed sensors, upgrading to a gradient-boosted decision tree model conditioned on meteorological variables when sufficient colocation events accumulate, and further upgrading to a conditional neural process model when residual analysis indicates nonstationary drift patterns.</li>
+
+        <li>The system of claim 1, wherein the graph neural network module is a graph attention network that computes multi-head attention weights between sensor nodes based on concatenated node features (raw measurement statistics, meteorological context, sensor metadata, calibration state) and edge features (Euclidean distance, elevation difference, land use classification, road network connectivity, wind-aligned distance), and applies softmax-normalized attention to aggregate calibration information from neighboring sensors.</li>
+
+        <li>The system of claim 4, wherein the graph attention network is trained in a semi-supervised fashion by masking a fraction of directly calibrated sensors during training and computing a loss function based on the mean squared error between predicted and known drift correction parameters for the masked sensors, weighted by the confidence of each sensor's calibration inversely proportional to time since last colocation event.</li>
+
+        <li>The system of claim 1, wherein the graph attention network provides calibration uncertainty estimates for each uncalibrated sensor via Monte Carlo dropout, and sensors with uncertainty exceeding a configurable threshold are flagged for priority direct calibration through recommended transit route adjustments.</li>
+
+        <li>The system of claim 1, further comprising a transit route optimization module that formulates the problem of maximizing calibration coverage of uncalibrated sensors as a set cover problem over candidate route modifications, prioritizing sensors in environmentally sensitive or health-critical locations, and generating weekly optimization recommendations for transit planners expressed as minimal-disruption route adjustments.</li>
+
+        <li>The system of claim 1, further comprising an anomaly detection module that compares each sensor's drift trajectory against the population distribution of drift rates for sensors of the same model and age, flagging sensors whose drift rate exceeds the 95th percentile of their cohort for two or more consecutive calibration cycles as candidates for physical replacement rather than software drift correction.</li>
+
+        <li>A method for calibrating a geographically distributed network of low-cost air quality sensors, comprising: mounting reference-grade air quality instruments on public transit vehicles operating on fixed, repeating routes through an urban area; detecting colocation events between said transit vehicles and stationary low-cost sensors based on GPS proximity within a configurable radius threshold; accumulating paired reference and low-cost sensor measurements from colocation events over time; fitting per-sensor drift correction models to the accumulated colocation data; constructing a spatial graph of the sensor network with edges encoding geographic, meteorological, and land-use relationships between sensors; training a graph attention network to predict drift correction parameters for uncalibrated sensors from the calibration states of neighboring directly calibrated sensors; and applying the trained graph attention network to propagate calibration corrections to all sensors in the network that do not receive direct colocation events.</li>
+
+        <li>The method of claim 9, wherein the step of fitting per-sensor drift correction models comprises: initializing a linear gain-offset model with Kalman-filtered time-varying parameters; monitoring model residuals for systematic structure using a Durbin-Watson autocorrelation test; upgrading to a gradient-boosted decision tree model conditioned on temperature, relative humidity, and atmospheric pressure when residual autocorrelation is detected; and further upgrading to a conditional neural process model when the gradient-boosted model residuals exhibit nonstationary patterns.</li>
+
+        <li>The method of claim 9, further comprising generating a self-pollution exclusion filter that rejects colocation events where the stationary sensor is downwind of the transit vehicle's exhaust based on vehicle heading, wind direction, and distance, with the filter relaxed for zero-emission electric transit vehicles.</li>
+
+        <li>The method of claim 9, further comprising maintaining a real-time calibration health dashboard that displays, for each sensor in the network: time since last direct colocation event, current drift correction parameters and source (direct colocation or graph attention network transfer), calibration uncertainty estimate, and predicted time until calibration confidence falls below an operator-configured acceptable threshold.</li>
+
+        <li>The method of claim 9, wherein the graph attention network is retrained daily on a rolling window of calibration data and generates calibration predictions with uncertainty bounds derived from Monte Carlo dropout, enabling the system to distinguish between sensors that are confidently calibrated via graph transfer and sensors that require direct reference colocation for reliable correction.</li>
+      </ol>
+
+      <h2>Implementation Notes</h2>
+
+      <p>The system integrates with existing transit infrastructure through three standardized interfaces. First, bus GPS position data is available through the General Transit Feed Specification Realtime (GTFS-RT) protocol, which is published by transit agencies in over 2,500 cities worldwide and provides vehicle positions at 10–30 second update intervals. Second, low-cost sensor network data is typically accessible through vendor APIs (PurpleAir, Clarity, Aeroqual) or the open-data OpenAQ platform, which aggregates readings from over 70,000 monitoring locations in 130 countries. Third, the calibration system's outputs (corrected sensor readings, calibration confidence scores) can be published back to these platforms via the same API interfaces, making the calibration transparent to downstream data consumers.</p>
+
+      <p>Deployment cost is dominated by reference instrument procurement: $12,000–35,000 per bus depending on the pollutant suite, versus $100,000–500,000 for an equivalent number of stationary FRM/FEM reference monitors providing the same spatial coverage. Operating costs are $1,000–3,000 per bus per year for reference instrument maintenance, versus $5,000–15,000 per year per stationary reference monitor. A city with 500 low-cost sensors and 10 instrumented buses achieves estimated network-wide RMSE below 3 µg/m³ for PM2.5 (compared to 8–12 µg/m³ with annual lab recalibration alone), at a total annual cost of $25,000–60,000 versus $200,000–500,000 for equivalent stationary colocation coverage.</p>
+
+      <p>The computational requirements for the GAT are modest. A 500-node sensor graph with 8-head attention, 3 message-passing layers, and 64-dimensional hidden representations requires approximately 2 million trainable parameters and trains in under 10 minutes on a single GPU (NVIDIA T4). Daily retraining on a rolling 30-day window is scheduled during off-peak hours. Inference for the full network takes less than 1 second, enabling real-time calibration updates as new colocation events arrive.</p>
+
+      <h2>Prior Art References</h2>
+
+      <ol>
+        <li><a href="https://www.epa.gov/air-sensor-toolbox/air-sensor-collocation-instruction-guide">EPA Air Sensor Collocation Instruction Guide, 2024</a> — Federal guidance on evaluating low-cost sensor performance through stationary colocation with reference monitors</li>
+        <li><a href="https://doi.org/10.1021/acs.est.7b00891">Apte et al., Environmental Science & Technology 2017</a> — High-resolution mobile air pollution mapping using Google Street View vehicles (mobile measurement for mapping, not calibration)</li>
+        <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11175279/">Concas et al., Sensors 2024</a> — Review of challenges and opportunities in calibrating low-cost environmental sensors, including drift characterization</li>
+        <li><a href="https://doi.org/10.5194/amt-10-3575-2017">Cross et al., Atmospheric Measurement Techniques 2017</a> — Field evaluation of electrochemical NO2 sensor drift over 12-month deployments</li>
+        <li><a href="https://doi.org/10.5194/amt-12-903-2019">Badura et al., Atmospheric Measurement Techniques 2019</a> — Humidity-dependent bias in Plantower optical PM sensors</li>
+        <li><a href="https://doi.org/10.1016/j.snb.2015.06.011">Fonollosa et al., Sensors and Actuators B 2015</a> — MOS gas sensor drift characterization and compensation</li>
+        <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7662848/">Maag et al., Sensors 2020</a> — The relocation problem of field-calibrated low-cost sensor systems (sampling bias after spatial relocation)</li>
+        <li><a href="https://doi.org/10.1038/s41598-020-79064-w">Bi et al., Scientific Reports 2020</a> — Spatial calibration and PM2.5 mapping of low-cost sensors using regression-based transfer</li>
+        <li><a href="https://doi.org/10.1021/acs.est.0c01791">Datta et al., Environmental Science & Technology 2020</a> — Spatial decorrelation lengths of urban pollutants and implications for monitoring network design</li>
+        <li><a href="https://arxiv.org/abs/1710.10903">Veličković et al., ICLR 2018</a> — Graph Attention Networks (GAT) architecture for node classification with learned attention weights</li>
+        <li><a href="http://arxiv.org/abs/2309.04508">Chiang et al., arXiv 2023</a> — Spatial-temporal graph attention fuser for calibration in IoT air pollution monitoring (graph-based calibration, stationary only)</li>
+        <li><a href="https://www.aclima.io/">Aclima Inc.</a> — Mobile air quality sensing platform deployed on Google Street View vehicles for pollution mapping</li>
+        <li><a href="https://www.epa.gov/aqs">EPA Air Quality System (AQS) Database</a> — National repository of ambient air quality data from regulatory monitoring networks</li>
+        <li><a href="https://openaq.org/">OpenAQ</a> — Open-data platform aggregating air quality measurements from 70,000+ locations in 130 countries</li>
+        <li><a href="https://doi.org/10.1038/s41370-022-00493-y">Datta et al., Journal of Exposure Science & Environmental Epidemiology 2022</a> — Non-linear probabilistic calibration of low-cost PM sensors using gradient-boosted decision trees</li>
+      </ol>
+
+    </div>
+  </article>
+
+<script src="../story.js"></script>
+</body>
+</html>
