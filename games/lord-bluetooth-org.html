@@ -34,6 +34,75 @@ var bgmMuted = false;
 function initAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  tryInitVoiceAudio();
+}
+
+// ─── Voice Acting System ────────────────────────────────────────
+var voiceAudio = null;
+var voiceQueue = [];
+var voicePlaying = false;
+var voiceReady = false;
+var voicesLoaded = {};
+
+var VOICE_FILES = {
+  intro: 'audio/narrator-intro.mp3',
+  engineering: 'audio/narrator-engineering.mp3',
+  kitchen: 'audio/narrator-kitchen.mp3',
+  server: 'audio/narrator-server.mp3',
+  conference: 'audio/narrator-conference-trap.mp3',
+  rankup: 'audio/narrator-rankup.mp3',
+  win: 'audio/narrator-win.mp3',
+  lose: 'audio/narrator-lose.mp3',
+  ceo_pivot: 'audio/ceo-pivot.mp3',
+  ceo_rto: 'audio/ceo-rto.mp3',
+  ceo_reorg: 'audio/ceo-reorg.mp3',
+  ceo_pip: 'audio/ceo-pip.mp3',
+  ceo_okr: 'audio/ceo-okr.mp3',
+  ceo_aiclone: 'audio/ceo-ai-clone.mp3',
+  ceo_tweet: 'audio/ceo-tweet.mp3',
+  vp_aitransform: 'audio/vp-ai-transform.mp3',
+  vp_dogfood: 'audio/vp-dogfood.mp3',
+  vp_hackathon: 'audio/vp-hackathon.mp3'
+};
+
+// Map event specials to voice clips
+var VOICE_MAP = {
+  aiclone: 'ceo_aiclone',
+  reorg: 'ceo_reorg',
+  rto: 'ceo_rto',
+  stackrank: 'ceo_pip',
+  pivot: 'ceo_pivot',
+  okr: 'ceo_okr',
+  tweet: 'ceo_tweet',
+  dogfood: 'vp_dogfood',
+  hackathon: 'vp_hackathon',
+  aitransform: 'vp_aitransform'
+};
+
+function tryInitVoiceAudio() {
+  if (voiceReady) return;
+  // Preload a few key clips to test availability
+  var testA = new Audio();
+  testA.src = VOICE_FILES.intro;
+  testA.addEventListener('canplaythrough', function() { voiceReady = true; }, {once: true});
+  testA.addEventListener('error', function() { voiceReady = false; }, {once: true});
+}
+
+function playVoice(key) {
+  if (!VOICE_FILES[key]) return;
+  voiceQueue.push(key);
+  if (!voicePlaying) processVoiceQueue();
+}
+
+function processVoiceQueue() {
+  if (voiceQueue.length === 0) { voicePlaying = false; return; }
+  voicePlaying = true;
+  var key = voiceQueue.shift();
+  var a = new Audio(VOICE_FILES[key]);
+  a.volume = 0.8;
+  a.addEventListener('ended', function() { processVoiceQueue(); });
+  a.addEventListener('error', function() { processVoiceQueue(); });
+  a.play().catch(function() { processVoiceQueue(); });
 }
 
 function tone(freq, dur, type, vol) {
@@ -202,6 +271,7 @@ var maxBurnout = 3;
 
 var eventQueue = [];
 var eventCooldown = 0;
+var roomVoicePlayed = {};
 var currentEvent = null;
 var eventTimer = 0;
 var eventChoice = 0;
@@ -309,6 +379,8 @@ function initGame() {
   score = 0;
   bgmTimer = 0;
   state = STATE_PLAY;
+  roomVoicePlayed = {};
+  playVoice('intro');
 }
 
 // ─── Helpers ────────────────────────────────────────────────────
@@ -328,6 +400,7 @@ function checkRankUp() {
     energy = Math.min(energy + 20, maxEnergy);
     morale = Math.min(morale + 10, 100);
     playRankUp();
+    playVoice('rankup');
     showNotif('RANK UP: ' + RANKS[rankIdx].name + '!', 4);
     shakeTimer = 0.5;
     flashTimer = 0.3;
@@ -420,6 +493,11 @@ function applyEvent(ev, skip) {
   else if (ev.mDrain < 0) playGoodEvent();
   else playEvent();
 
+  // Voice acting: play clip matching event special
+  if (ev.special && VOICE_MAP[ev.special]) {
+    playVoice(VOICE_MAP[ev.special]);
+  }
+
   checkRankUp();
 }
 
@@ -507,6 +585,7 @@ function endDay() {
     gamesPlayed++;
     saveStats();
     playWin();
+    playVoice('win');
     return;
   }
   if (morale <= 0) {
@@ -515,6 +594,7 @@ function endDay() {
     gamesPlayed++;
     saveStats();
     playLose();
+    playVoice('lose');
     return;
   }
   if (burnoutDays >= maxBurnout) {
@@ -523,6 +603,7 @@ function endDay() {
     gamesPlayed++;
     saveStats();
     playLose();
+    playVoice('lose');
     return;
   }
   if (day > maxDays) {
@@ -656,6 +737,12 @@ function talkToPerson() {
   energy = clamp(energy - 5, 0, maxEnergy);
   
   var room = ROOMS[currentRoom];
+  
+  // Room voice commentary (one per room per game)
+  if (room.name === 'Engineering' && !roomVoicePlayed.engineering) { roomVoicePlayed.engineering = true; playVoice('engineering'); }
+  else if (room.name === 'Conference Room' && !roomVoicePlayed.conference) { roomVoicePlayed.conference = true; playVoice('conference'); }
+  else if (room.name === 'Kitchen' && !roomVoicePlayed.kitchen) { roomVoicePlayed.kitchen = true; playVoice('kitchen'); }
+  else if (room.name === 'Server Room' && !roomVoicePlayed.server) { roomVoicePlayed.server = true; playVoice('server'); }
   var roll = Math.random();
   
   if (room.name === 'Engineering') {
