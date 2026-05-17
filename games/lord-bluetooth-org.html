@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Lord Bluetooth — LITF Games</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;font-family:system-ui,-apple-system,sans-serif}
+canvas{display:block;width:600px;height:600px}
+@media (max-width: 600px) {
+  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
+}
+@media (max-height: 600px) and (max-width: 600px) {
+  canvas{max-height:100vh!important;max-width:100vh!important}
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<script>
+(function(){
+var cv = document.getElementById('c');
+var ctx = cv.getContext('2d');
+var W = 600, H = 600;
+
+// ─── Audio ──────────────────────────────────────────────────────
+var audioCtx = null;
+var bgmPlaying = false;
+var bgmTimer = 0;
+var bgmMuted = false;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function tone(freq, dur, type, vol) {
+  if (!audioCtx) return;
+  var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type || 'sine'; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol || 0.1, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+
+function playStep() { tone(200 + Math.random()*80, 0.06, 'sine', 0.04); }
+function playWork() { tone(440, 0.08, 'square', 0.05); setTimeout(function(){ tone(550, 0.08, 'square', 0.05); }, 80); }
+function playEvent() { tone(300, 0.15, 'sawtooth', 0.08); tone(200, 0.2, 'square', 0.06); }
+function playGoodEvent() { tone(523, 0.1, 'sine', 0.08); setTimeout(function(){ tone(659, 0.12, 'sine', 0.08); }, 100); setTimeout(function(){ tone(784, 0.15, 'sine', 0.08); }, 200); }
+function playBadEvent() { tone(220, 0.3, 'sawtooth', 0.1); setTimeout(function(){ tone(180, 0.4, 'sawtooth', 0.08); }, 200); }
+function playRankUp() {
+  var notes = [523, 659, 784, 1047];
+  for (var i = 0; i < notes.length; i++) {
+    (function(n, d) {
+      setTimeout(function(){ tone(n, 0.3, 'triangle', 0.1); }, d);
+    })(notes[i], i * 150);
+  }
+}
+function playWin() {
+  var notes = [523, 659, 784, 1047, 1319];
+  for (var i = 0; i < notes.length; i++) {
+    (function(n, d) {
+      setTimeout(function(){ tone(n, 0.4, 'sine', 0.1); }, d);
+    })(notes[i], i * 120);
+  }
+}
+function playLose() { tone(200, 0.5, 'sawtooth', 0.12); setTimeout(function(){ tone(150, 0.6, 'sawtooth', 0.1); }, 300); setTimeout(function(){ tone(100, 0.8, 'sawtooth', 0.08); }, 600); }
+function playAbility() { tone(880, 0.1, 'square', 0.1); tone(1100, 0.15, 'sine', 0.08); }
+
+function playBGM() {
+  if (!audioCtx || bgmMuted) return;
+  bgmTimer += 1;
+  // Corporate muzak — plodding, repetitive intervals
+  var baseNote = 261; // middle C
+  var scale = [1, 1.125, 1.25, 1.333, 1.5, 1.667, 1.875];
+  var measure = Math.floor(bgmTimer / 16) % 4;
+  var beat = bgmTimer % 16;
+  if (beat % 4 === 0) {
+    var idx = [0, 4, 2, 5][measure];
+    tone(baseNote * scale[idx], 0.3, 'sine', 0.03);
+  }
+  if (beat % 8 === 4) {
+    var idx2 = [2, 0, 4, 3][measure];
+    tone(baseNote * scale[idx2] * 0.5, 0.25, 'triangle', 0.02);
+  }
+}
+
+// ─── Mic Input ──────────────────────────────────────────────────
+var analyser = null;
+var micLevel = 0;
+var micSmooth = 0;
+var micActive = false;
+
+function initMic() {
+  try {
+    navigator.mediaDevices.getUserMedia({audio: true}).then(function(stream) {
+      if (!audioCtx) initAudio();
+      var src = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.85;
+      src.connect(analyser);
+      micActive = true;
+    }).catch(function(){});
+  } catch(e) {}
+}
+
+function updateMic() {
+  if (!analyser) return;
+  var data = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(data);
+  var sum = 0;
+  for (var i = 0; i < data.length; i++) sum += data[i];
+  micLevel = sum / (data.length * 255);
+  micSmooth += (micLevel - micSmooth) * 0.08;
+}
+
+// ─── Game Constants ─────────────────────────────────────────────
+var STATE_TITLE = 0, STATE_PLAY = 1, STATE_EVENT = 2, STATE_RESULT = 3;
+var state = STATE_TITLE;
+
+var RANKS = [
+  {name: 'Acting VP of Connectivity', threshold: 0, maxEnergy: 100, bonus: 1.0},
+  {name: 'VP of Connectivity', threshold: 25, maxEnergy: 110, bonus: 1.1},
+  {name: 'SVP of Connectivity & Standards', threshold: 50, maxEnergy: 120, bonus: 1.2},
+  {name: 'Chief Connectivity Officer', threshold: 75, maxEnergy: 130, bonus: 1.35},
+  {name: 'Lord Bluetooth, Duke of Spectrum', threshold: 95, maxEnergy: 150, bonus: 1.5}
+];
+
+var ROOMS = [
+  {name: 'Engineering', icon: '⚙', color: '#4CAF50', desc: 'Get work done', x: 0},
+  {name: 'Executive Suite', icon: '👑', color: '#FFD700', desc: 'Defend your team', x: 1},
+  {name: 'HR', icon: '📋', color: '#2196F3', desc: 'File complaints', x: 2},
+  {name: 'Server Room', icon: '🖥', color: '#9C27B0', desc: 'Deploy code', x: 3},
+  {name: 'Kitchen', icon: '🍕', color: '#FF9800', desc: 'Restore energy', x: 4},
+  {name: 'Conference Room', icon: '🎭', color: '#F44336', desc: 'TRAP ZONE', x: 5}
+];
+
+var ROOM_Y = 200; // top of room rendering area
+
+// ─── Events ─────────────────────────────────────────────────────
+var EVENTS = [
+  // Meeting Hell
+  {id: 'synergy', cat: 'meeting', title: 'Synergy Alignment Standup', desc: '3 hours of synergy talk. Nothing is decided.', eDrain: 15, mDrain: 3, pDrain: 0},
+  {id: 'allhands', cat: 'meeting', title: "All-Hands: CEO's Vision 2.0", desc: 'CEO pivots to blockchain/AI/metaverse.', eDrain: 10, mDrain: 5, pDrain: 10},
+  {id: 'crossfunc', cat: 'meeting', title: 'Cross-Functional Sync', desc: '7 managers, 0 engineers attend.', eDrain: 20, mDrain: 5, pDrain: 0},
+  {id: 'skiplvl', cat: 'meeting', title: 'Skip-Level 1:1', desc: "Your boss's boss wants to 'understand your roadmap.'", eDrain: 10, mDrain: 2, pDrain: 0},
+  // Corporate Theater
+  {id: 'okr', cat: 'theater', title: 'OKR Rewrite Season', desc: 'All engineering stops to rewrite quarterly objectives.', eDrain: 0, mDrain: 5, pDrain: 8},
+  {id: 'reorg', cat: 'theater', title: 'Reorg Roulette', desc: 'Your team is restructured. Someone might leave...', eDrain: 5, mDrain: 10, pDrain: 5, special: 'reorg'},
+  {id: 'rto', cat: 'theater', title: 'Return to Office Mandate', desc: 'Everyone must come in 5 days/week.', eDrain: 0, mDrain: 15, pDrain: 3, special: 'rto'},
+  {id: 'dogfood', cat: 'theater', title: 'Dogfooding Day', desc: 'Use the broken AI product all day instead of working.', eDrain: 25, mDrain: 5, pDrain: 0},
+  {id: 'culture', cat: 'theater', title: 'Culture Values Refresh', desc: 'Mandatory training on new corporate values.', eDrain: 15, mDrain: 10, pDrain: 0},
+  // Leadership Chaos
+  {id: 'aiclone', cat: 'leadership', title: "CEO's AI Clone Memo", desc: 'AI version of CEO will handle communications. +5 energy drain per day permanently.', eDrain: 10, mDrain: 5, pDrain: 0, special: 'aiclone'},
+  {id: 'stackrank', cat: 'leadership', title: 'Stack Ranking Season', desc: "You must PIP someone. It's probably your best engineer.", eDrain: 5, mDrain: 20, pDrain: 5, special: 'stackrank'},
+  {id: 'pivot', cat: 'leadership', title: 'The Pivot', desc: "CEO saw a competitor's demo. Direction changes.", eDrain: 10, mDrain: 10, pDrain: 25},
+  {id: 'offsite', cat: 'leadership', title: 'Executive Offsite', desc: 'All VPs go to a retreat. Free food though.', eDrain: 0, mDrain: -5, pDrain: 0, special: 'offsite'},
+  // Engineering Disasters
+  {id: 'depgone', cat: 'engineering', title: 'Dependency Team Was Laid Off', desc: 'Critical dependency gone. Must find alternative.', eDrain: 5, mDrain: 5, pDrain: 15},
+  {id: 'aibot', cat: 'engineering', title: 'AI Code Review Bot Goes Rogue', desc: 'Bot rejects all PRs as "not AI-native."', eDrain: 5, mDrain: 8, pDrain: 5},
+  {id: 'leak', cat: 'engineering', title: 'Leaked Memo', desc: 'Your roadmap leaked to The Verge. Board emergency.', eDrain: 20, mDrain: 5, pDrain: 0},
+  {id: 'cloudbill', cat: 'engineering', title: 'Cloud Bill Shock', desc: 'AWS bill 10x over budget. Spend frozen.', eDrain: 0, mDrain: 5, pDrain: 10},
+  // Satirical
+  {id: 'tweet', cat: 'satire', title: "Billionaire Founder's 3am Tweet", desc: 'Unhinged tweet crashes stock 4%. Emergency PR meeting.', eDrain: 15, mDrain: 3, pDrain: 0},
+  {id: 'severance', cat: 'satire', title: 'Severance Floor Activated', desc: 'Nobody knows who still works here.', eDrain: 5, mDrain: 10, pDrain: 3},
+  {id: 'vpai', cat: 'satire', title: 'New VP of AI Transformation', desc: 'Role created above you. Never shipped a product.', eDrain: 0, mDrain: 15, pDrain: 5},
+  {id: 'hackathon', cat: 'satire', title: 'Hackathon Week', desc: 'Mandatory "fun." All real work stops.', eDrain: 0, mDrain: -10, pDrain: 8},
+  {id: 'acquisition', cat: 'satire', title: 'Acquisition Integration', desc: 'MEGACORP bought a startup. Integrate their competing product.', eDrain: 10, mDrain: 5, pDrain: 20},
+  {id: 'townhall', cat: 'satire', title: 'Impromptu Town Hall', desc: 'CEO reads blog comments aloud for an hour.', eDrain: 12, mDrain: 7, pDrain: 0},
+  {id: 'rebrand', cat: 'satire', title: 'Corporate Rebrand', desc: 'New logo. New mission statement. Same product.', eDrain: 8, mDrain: 8, pDrain: 0}
+];
+
+// ─── Corporate Myths (Discovery System) ─────────────────────────
+var MYTHS = [
+  {id: 'staffed', icon: '🏢', title: 'The Fully Staffed Team', desc: 'Headcount filled for one day! Double bonuses!'},
+  {id: 'replyall', icon: '📧', title: 'The Reply-All Apocalypse', desc: '47-reply chain. Everyone distracted. Peace for 2 days.'},
+  {id: 'freelunch', icon: '🍕', title: 'The Free Lunch That Was Actually Free', desc: 'No strings attached. +30 energy, +20 morale.'},
+  {id: 'sensibleokr', icon: '🎯', title: 'The OKR That Made Sense', desc: 'An objective that aligned with your work. +15% progress.'},
+  {id: 'competent', icon: '🤝', title: 'The Competent Manager', desc: 'Unblocks you instead of creating work. Half energy costs for 3 days.'},
+  {id: 'cleanship', icon: '🚀', title: 'The Clean Ship', desc: 'Product reaches 100% with 0 incidents. Secret ending.'}
+];
+
+// ─── Game State ─────────────────────────────────────────────────
+var day = 1;
+var maxDays = 90;
+var energy = 100;
+var maxEnergy = 100;
+var morale = 75;
+var progress = 0;
+var currentRoom = 0;
+var rankIdx = 0;
+var frame = 0;
+var lastTick = 0;
+var dayTimer = 0;
+var dayLength = 60; // 60 seconds per day
+var burnoutDays = 0;
+var maxBurnout = 3;
+
+var eventQueue = [];
+var eventCooldown = 0;
+var currentEvent = null;
+var eventTimer = 0;
+var eventChoice = 0;
+
+var abilityCharge = 0;
+var abilityUsed = false;
+var skipMeetingAvail = false;
+var techDebtAvail = false;
+var nukeUsed = false;
+
+var aiClonePenalty = 0;
+var competentManagerDays = 0;
+var offsiteDays = 0;
+var replyAllPeace = 0;
+var frozenProgress = 0;
+var prodIncidents = 0;
+var bestEngineerAlive = true;
+
+var discoveries = {};
+var discoveryCount = 0;
+var mythCheckCooldown = 0;
+
+var px = 50, py = 300; // player position
+var pxTarget = 50, pyTarget = 300;
+var pMoving = false;
+var pDir = 1; // 1=right, -1=left
+
+var notification = null;
+var notifTimer = 0;
+
+var shakeTimer = 0;
+var flashTimer = 0;
+var flashColor = '#fff';
+
+var workedThisFrame = false;
+var workCooldown = 0;
+
+var score = 0;
+var gamesPlayed = 0;
+var bestScore = 0;
+
+var keyState = {};
+
+// ─── Save/Load ──────────────────────────────────────────────────
+function loadStats() {
+  try {
+    var raw = localStorage.getItem('lb_stats');
+    if (raw) {
+      var s = JSON.parse(raw);
+      gamesPlayed = s.gamesPlayed || 0;
+      bestScore = s.bestScore || 0;
+      discoveries = s.discoveries || {};
+      discoveryCount = Object.keys(discoveries).length;
+    }
+  } catch(e) {}
+}
+
+function saveStats() {
+  try {
+    localStorage.setItem('lb_stats', JSON.stringify({
+      gamesPlayed: gamesPlayed,
+      bestScore: bestScore,
+      discoveries: discoveries
+    }));
+  } catch(e) {}
+}
+
+// ─── Init ───────────────────────────────────────────────────────
+function initGame() {
+  day = 1;
+  energy = 100;
+  maxEnergy = 100;
+  morale = 75;
+  progress = 0;
+  currentRoom = 0;
+  rankIdx = 0;
+  burnoutDays = 0;
+  eventQueue = [];
+  eventCooldown = 5;
+  currentEvent = null;
+  eventTimer = 0;
+  eventChoice = 0;
+  abilityCharge = 0;
+  abilityUsed = false;
+  skipMeetingAvail = false;
+  techDebtAvail = false;
+  nukeUsed = false;
+  aiClonePenalty = 0;
+  competentManagerDays = 0;
+  offsiteDays = 0;
+  replyAllPeace = 0;
+  frozenProgress = 0;
+  prodIncidents = 0;
+  bestEngineerAlive = true;
+  mythCheckCooldown = 0;
+  notification = null;
+  notifTimer = 0;
+  shakeTimer = 0;
+  flashTimer = 0;
+  dayTimer = 0;
+  px = 50; py = 340;
+  pxTarget = 50; pyTarget = 340;
+  pMoving = false;
+  workCooldown = 0;
+  score = 0;
+  bgmTimer = 0;
+  state = STATE_PLAY;
+}
+
+// ─── Helpers ────────────────────────────────────────────────────
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function getRank() { return RANKS[rankIdx]; }
+
+function showNotif(text, dur) {
+  notification = text;
+  notifTimer = dur || 3;
+}
+
+function checkRankUp() {
+  if (rankIdx < RANKS.length - 1 && progress >= RANKS[rankIdx + 1].threshold) {
+    rankIdx++;
+    maxEnergy = RANKS[rankIdx].maxEnergy;
+    energy = Math.min(energy + 20, maxEnergy);
+    morale = Math.min(morale + 10, 100);
+    playRankUp();
+    showNotif('RANK UP: ' + RANKS[rankIdx].name + '!', 4);
+    shakeTimer = 0.5;
+    flashTimer = 0.3;
+    flashColor = '#FFD700';
+  }
+}
+
+function checkAbilities() {
+  skipMeetingAvail = abilityCharge >= 25;
+  techDebtAvail = abilityCharge >= 50;
+}
+
+function spawnEvent() {
+  if (replyAllPeace > 0) return;
+  // Filter out events we've seen recently
+  var pool = EVENTS.slice();
+  var ev = pool[Math.floor(Math.random() * pool.length)];
+  currentEvent = {
+    data: ev,
+    timer: 8
+  };
+  eventChoice = 0;
+  playEvent();
+  state = STATE_EVENT;
+}
+
+function applyEvent(ev, skip) {
+  if (skip) {
+    if (skipMeetingAvail) {
+      abilityCharge -= 25;
+      morale = clamp(morale - 5, 0, 100);
+      showNotif('Meeting skipped! (-5 morale)', 2);
+      playAbility();
+    }
+    checkAbilities();
+    return;
+  }
+
+  var eCost = ev.eDrain;
+  var mCost = ev.mDrain;
+  var pCost = ev.pDrain;
+
+  if (competentManagerDays > 0) {
+    eCost = Math.ceil(eCost * 0.5);
+  }
+
+  energy = clamp(energy - eCost, 0, maxEnergy);
+  morale = clamp(morale - mCost, 0, 100);
+  progress = clamp(progress - pCost, 0, 100);
+
+  if (pCost > 0) shakeTimer = 0.3;
+  if (eCost > 15 || mCost > 10) { flashTimer = 0.2; flashColor = '#F44336'; }
+
+  // Special effects
+  if (ev.special === 'aiclone') aiClonePenalty += 5;
+  if (ev.special === 'reorg') {
+    if (bestEngineerAlive && Math.random() < 0.3) {
+      bestEngineerAlive = false;
+      showNotif('Your best engineer was transferred!', 3);
+      morale = clamp(morale - 10, 0, 100);
+    }
+  }
+  if (ev.special === 'rto') {
+    if (bestEngineerAlive && Math.random() < 0.2) {
+      bestEngineerAlive = false;
+      showNotif('An engineer quit over RTO!', 3);
+      morale = clamp(morale - 10, 0, 100);
+    }
+  }
+  if (ev.special === 'stackrank') {
+    if (bestEngineerAlive && Math.random() < 0.4) {
+      bestEngineerAlive = false;
+      showNotif('Best engineer PIP\'d for "low visibility"', 3);
+      progress = clamp(progress - 10, 0, 100);
+    }
+  }
+  if (ev.special === 'offsite') {
+    offsiteDays = 3;
+    showNotif('Offsite for 3 days... at least the food is good.', 3);
+  }
+  if (ev.special === 'aibot') {
+    frozenProgress = 1;
+    showNotif('All PRs blocked for 1 day!', 3);
+  }
+  if (ev.special === 'acquisition') {
+    frozenProgress = 2;
+  }
+
+  if (ev.pDrain > 0) playBadEvent();
+  else if (ev.mDrain < 0) playGoodEvent();
+  else playEvent();
+
+  checkRankUp();
+}
+
+function tryMyth() {
+  if (replyAllPeace > 0) return;
+  if (Math.random() > 0.20) return; // ~20% per week check
+  var unseen = MYTHS.filter(function(m) { return !discoveries[m.id]; });
+  if (unseen.length === 0) return;
+  var myth = unseen[Math.floor(Math.random() * unseen.length)];
+  discoveries[myth.id] = true;
+  discoveryCount = Object.keys(discoveries).length;
+  saveStats();
+
+  switch (myth.id) {
+    case 'staffed':
+      energy = clamp(energy + 30, 0, maxEnergy);
+      morale = clamp(morale + 15, 0, 100);
+      progress = clamp(progress + 5, 0, 100);
+      break;
+    case 'replyall':
+      replyAllPeace = 14; // 2 days of peace
+      break;
+    case 'freelunch':
+      energy = clamp(energy + 30, 0, maxEnergy);
+      morale = clamp(morale + 20, 0, 100);
+      break;
+    case 'sensibleokr':
+      progress = clamp(progress + 15, 0, 100);
+      break;
+    case 'competent':
+      competentManagerDays = 21; // 3 days
+      break;
+    case 'cleanship':
+      // Only triggers if close to shipping with 0 incidents
+      if (progress >= 90 && prodIncidents === 0) {
+        progress = 100;
+      }
+      break;
+  }
+  showNotif('📜 DISCOVERY: ' + myth.icon + ' ' + myth.title + '! (' + discoveryCount + '/6)', 5);
+  playGoodEvent();
+  checkRankUp();
+}
+
+function endDay() {
+  day++;
+  if (offsiteDays > 0) {
+    offsiteDays--;
+    showNotif('Still at offsite... Day ' + day, 2);
+    return;
+  }
+
+  var dailyEnergyPenalty = aiClonePenalty;
+  maxEnergy = RANKS[rankIdx].maxEnergy;
+  energy = Math.max(0, maxEnergy - dailyEnergyPenalty);
+
+  if (energy <= 0) {
+    burnoutDays++;
+    morale = clamp(morale - 15, 0, 100);
+    showNotif('BURNOUT! Day ' + burnoutDays + '/' + maxBurnout, 3);
+    playBadEvent();
+  } else {
+    burnoutDays = Math.max(0, burnoutDays - 1);
+  }
+
+  if (competentManagerDays > 0) competentManagerDays--;
+  if (replyAllPeace > 0) replyAllPeace--;
+  if (frozenProgress > 0) frozenProgress--;
+
+  // Myth check ~once per week
+  mythCheckCooldown--;
+  if (mythCheckCooldown <= 0) {
+    tryMyth();
+    mythCheckCooldown = 7;
+  }
+
+  // Check win/lose
+  if (progress >= 100) {
+    state = STATE_RESULT;
+    var ending = 'normal';
+    if (prodIncidents === 0) ending = 'clean';
+    if (rankIdx >= RANKS.length - 1) ending = 'duke';
+    score = Math.round(day * 100 + morale * 50 + (100 - burnoutDays * 33) * 10 + discoveryCount * 200);
+    if (score > bestScore) bestScore = score;
+    gamesPlayed++;
+    saveStats();
+    playWin();
+    return;
+  }
+  if (morale <= 0) {
+    state = STATE_RESULT;
+    score = 0;
+    gamesPlayed++;
+    saveStats();
+    playLose();
+    return;
+  }
+  if (burnoutDays >= maxBurnout) {
+    state = STATE_RESULT;
+    score = 0;
+    gamesPlayed++;
+    saveStats();
+    playLose();
+    return;
+  }
+  if (day > maxDays) {
+    state = STATE_RESULT;
+    score = Math.round(progress * 5);
+    gamesPlayed++;
+    saveStats();
+    playLose();
+    return;
+  }
+
+  showNotif('Day ' + day + ' begins. Energy: ' + Math.round(energy) + '/' + maxEnergy, 3);
+}
+
+// ─── Input ──────────────────────────────────────────────────────
+var keys = {};
+document.addEventListener('keydown', function(e) {
+  keys[e.key] = true;
+  if (state === STATE_TITLE) {
+    initAudio();
+    initMic();
+    initGame();
+    return;
+  }
+  if (state === STATE_RESULT) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      state = STATE_TITLE;
+    }
+    return;
+  }
+  if (state === STATE_EVENT) {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      eventChoice = eventChoice === 0 ? 1 : 0;
+      playStep();
+    }
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'a') {
+      if (eventChoice === 0) {
+        applyEvent(currentEvent.data, false);
+      } else {
+        // Try to skip
+        if (skipMeetingAvail) {
+          applyEvent(currentEvent.data, true);
+        } else {
+          applyEvent(currentEvent.data, false);
+        }
+      }
+      currentEvent = null;
+      state = STATE_PLAY;
+    }
+    e.preventDefault();
+    return;
+  }
+  // STATE_PLAY controls
+  if (e.key === 'ArrowLeft') {
+    if (currentRoom > 0) {
+      currentRoom--;
+      pxTarget = 50;
+      playStep();
+    }
+    e.preventDefault();
+  }
+  if (e.key === 'ArrowRight') {
+    if (currentRoom < ROOMS.length - 1) {
+      currentRoom++;
+      pxTarget = 50;
+      playStep();
+    }
+    e.preventDefault();
+  }
+  if (e.key === 'ArrowUp') {
+    // Talk to person in room
+    talkToPerson();
+    e.preventDefault();
+  }
+  if (e.key === 'ArrowDown') {
+    // Work on product
+    workOnProduct();
+    e.preventDefault();
+  }
+  if (e.key === 'Enter' || e.key === 'a') {
+    // Special ability
+    useAbility();
+    e.preventDefault();
+  }
+  if (e.key === 'm') {
+    bgmMuted = !bgmMuted;
+  }
+});
+document.addEventListener('keyup', function(e) { keys[e.key] = false; });
+
+// Touch controls for mobile
+var touchStartX = 0, touchStartY = 0;
+cv.addEventListener('touchstart', function(e) {
+  initAudio(); initMic();
+  if (state === STATE_TITLE) { initGame(); return; }
+  if (state === STATE_RESULT) { state = STATE_TITLE; return; }
+  if (state === STATE_EVENT) {
+    eventChoice = eventChoice === 0 ? 1 : 0;
+    return;
+  }
+  var t = e.touches[0];
+  touchStartX = t.clientX;
+  touchStartY = t.clientY;
+  e.preventDefault();
+}, {passive: false});
+
+cv.addEventListener('touchend', function(e) {
+  if (state === STATE_EVENT) {
+    if (eventChoice === 0) applyEvent(currentEvent.data, false);
+    else applyEvent(currentEvent.data, skipMeetingAvail);
+    currentEvent = null;
+    state = STATE_PLAY;
+    return;
+  }
+  var t = e.changedTouches[0];
+  var dx = t.clientX - touchStartX;
+  var dy = t.clientY - touchStartY;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    if (dx < -30 && currentRoom > 0) { currentRoom--; playStep(); }
+    else if (dx > 30 && currentRoom < ROOMS.length - 1) { currentRoom++; playStep(); }
+  } else {
+    if (dy < -30) talkToPerson();
+    else if (dy > 30) workOnProduct();
+  }
+  e.preventDefault();
+}, {passive: false});
+
+// ─── Player Actions ─────────────────────────────────────────────
+function talkToPerson() {
+  if (energy < 5) { showNotif('Too exhausted to talk...', 2); return; }
+  energy = clamp(energy - 5, 0, maxEnergy);
+  
+  var room = ROOMS[currentRoom];
+  var roll = Math.random();
+  
+  if (room.name === 'Engineering') {
+    if (roll < 0.4) {
+      var boost = bestEngineerAlive ? 4 : 2;
+      progress = clamp(progress + boost, 0, 100);
+      showNotif('Engineer shares a breakthrough! +' + boost + '% progress', 2);
+      playGoodEvent();
+    } else if (roll < 0.7) {
+      energy = clamp(energy - 8, 0, maxEnergy);
+      showNotif('Engineer vents about tech debt. -8 energy.', 2);
+    } else {
+      showNotif('Engineer nods silently. Nothing happens.', 1);
+    }
+  } else if (room.name === 'Executive Suite') {
+    if (roll < 0.3) {
+      morale = clamp(morale + 5, 0, 100);
+      showNotif('Exec compliments your roadmap. +5 morale', 2);
+      playGoodEvent();
+    } else if (roll < 0.6) {
+      energy = clamp(energy - 10, 0, maxEnergy);
+      showNotif('Exec assigns you a new "initiative." -10 energy.', 2);
+    } else {
+      morale = clamp(morale - 5, 0, 100);
+      showNotif('Exec asks why you\'re not "AI-native" yet. -5 morale.', 2);
+    }
+  } else if (room.name === 'HR') {
+    if (roll < 0.5) {
+      morale = clamp(morale + 8, 0, 100);
+      showNotif('HR actually helps for once! +8 morale.', 2);
+      playGoodEvent();
+    } else {
+      energy = clamp(energy - 5, 0, maxEnergy);
+      showNotif('HR makes you fill out a form. -5 energy.', 2);
+    }
+  } else if (room.name === 'Server Room') {
+    if (roll < 0.35) {
+      progress = clamp(progress + 6, 0, 100);
+      showNotif('Successful deploy! +6% progress', 2);
+      playGoodEvent();
+    } else if (roll < 0.5) {
+      prodIncidents++;
+      progress = clamp(progress - 5, 0, 100);
+      morale = clamp(morale - 5, 0, 100);
+      showNotif('PRODUCTION INCIDENT! 🚨 -5% progress, -5 morale', 3);
+      playBadEvent();
+      shakeTimer = 0.3;
+      flashTimer = 0.2;
+      flashColor = '#F44336';
+    } else {
+      showNotif('Server humming along. Nothing to see.', 1);
+    }
+  } else if (room.name === 'Kitchen') {
+    var restore = 15 + Math.floor(Math.random() * 15);
+    energy = clamp(energy + restore, 0, maxEnergy);
+    showNotif('Snacks! +' + restore + ' energy', 2);
+    playGoodEvent();
+    if (roll > 0.7) {
+      energy = clamp(energy - 8, 0, maxEnergy);
+      showNotif('...but someone corners you for a "quick sync." -8 energy', 3);
+    }
+  } else if (room.name === 'Conference Room') {
+    energy = clamp(energy - 10, 0, maxEnergy);
+    if (roll < 0.3) {
+      morale = clamp(morale - 10, 0, 100);
+      showNotif('Trapped in back-to-back meetings! -10 energy, -10 morale', 3);
+      playBadEvent();
+    } else {
+      showNotif('Another meeting that could\'ve been an email. -10 energy.', 2);
+    }
+  }
+  checkRankUp();
+  checkAbilities();
+}
+
+function workOnProduct() {
+  if (energy < 3) { showNotif('No energy to work!', 2); return; }
+  if (frozenProgress > 0) { showNotif('Progress is frozen! (' + frozenProgress + ' days)', 2); return; }
+  
+  var cost = 5;
+  if (competentManagerDays > 0) cost = 3;
+  if (currentRoom === 0) cost = Math.max(1, cost - 1); // Engineering bonus
+  if (currentRoom === 5) cost += 5; // Conference room penalty
+  
+  energy = clamp(energy - cost, 0, maxEnergy);
+  
+  var gain = 1.5 * getRank().bonus;
+  if (currentRoom === 0) gain *= 1.3; // Engineering floor bonus
+  if (currentRoom === 3) gain *= 1.15; // Server room bonus
+  if (currentRoom === 5) gain *= 0.3; // Conference room penalty
+  if (!bestEngineerAlive) gain *= 0.8;
+  
+  // Mic bonus: quiet office = better focus
+  gain *= (1.2 - micSmooth * 0.5);
+  
+  progress = clamp(progress + gain, 0, 100);
+  abilityCharge = clamp(abilityCharge + gain * 0.3, 0, 100);
+  
+  playWork();
+  checkRankUp();
+  checkAbilities();
+}
+
+function useAbility() {
+  if (abilityCharge >= 100 && !nukeUsed) {
+    // Nuclear option
+    nukeUsed = true;
+    abilityCharge = 0;
+    energy = maxEnergy;
+    morale = 100;
+    eventCooldown = 15;
+    showNotif('☢️ RESIGNATION THREAT! Full energy + morale restored!', 4);
+    playAbility();
+    flashTimer = 0.5;
+    flashColor = '#FFD700';
+    shakeTimer = 0.5;
+    checkAbilities();
+    return;
+  }
+  if (abilityCharge >= 50 && techDebtAvail) {
+    abilityCharge -= 50;
+    progress = clamp(progress + 20, 0, 100);
+    showNotif('🔧 Technical Debt Forgiveness! +20% progress!', 3);
+    playAbility();
+    checkAbilities();
+    checkRankUp();
+    return;
+  }
+  if (abilityCharge >= 25 && skipMeetingAvail && state === STATE_EVENT) {
+    // Handled in event choice
+    return;
+  }
+  showNotif('Ability not ready yet. (Charge: ' + Math.round(abilityCharge) + '%)', 2);
+}
+
+// ─── Drawing ────────────────────────────────────────────────────
+
+// Pixel art Lord Bluetooth
+function drawLordBluetooth(x, y, scale) {
+  var s = scale || 2;
+  ctx.save();
+  // Body (purple cape)
+  ctx.fillStyle = '#7B1FA2';
+  ctx.fillRect(x - 5*s, y - 4*s, 10*s, 14*s);
+  // Cape edges
+  ctx.fillStyle = '#4A148C';
+  ctx.fillRect(x - 7*s, y - 2*s, 3*s, 10*s);
+  ctx.fillRect(x + 4*s, y - 2*s, 3*s, 10*s);
+  // Head
+  ctx.fillStyle = '#FFCC80';
+  ctx.fillRect(x - 4*s, y - 9*s, 8*s, 6*s);
+  // Crown (gold)
+  ctx.fillStyle = '#FFD700';
+  ctx.fillRect(x - 5*s, y - 12*s, 10*s, 3*s);
+  ctx.fillRect(x - 5*s, y - 14*s, 2*s, 3*s);
+  ctx.fillRect(x - 1*s, y - 15*s, 2*s, 4*s);
+  ctx.fillRect(x + 3*s, y - 14*s, 2*s, 3*s);
+  // Crown jewels
+  ctx.fillStyle = '#2196F3';
+  ctx.fillRect(x - 4*s, y - 12*s, 1*s, 2*s);
+  ctx.fillRect(x + 3*s, y - 12*s, 1*s, 2*s);
+  ctx.fillStyle = '#F44336';
+  ctx.fillRect(x, y - 13*s, 1*s, 2*s);
+  // Eyes
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(x - 3*s, y - 7*s, 2*s, 1*s);
+  ctx.fillRect(x + 1*s, y - 7*s, 2*s, 1*s);
+  // Blue eyes glow
+  ctx.fillStyle = '#64B5F6';
+  ctx.fillRect(x - 3*s, y - 7*s, 1*s, 1*s);
+  ctx.fillRect(x + 2*s, y - 7*s, 1*s, 1*s);
+  // Feet
+  ctx.fillStyle = '#333';
+  ctx.fillRect(x - 4*s, y + 10*s, 3*s, 2*s);
+  ctx.fillRect(x + 1*s, y + 10*s, 3*s, 2*s);
+  // Bluetooth symbol on cape
+  ctx.fillStyle = '#42A5F5';
+  ctx.fillRect(x - 1*s, y - 1*s, 2*s, 4*s);
+  ctx.fillRect(x + 1*s, y + 1*s, 1*s, 1*s);
+  ctx.fillRect(x - 2*s, y - 1*s, 1*s, 1*s);
+  ctx.restore();
+}
+
+// Draw a tiny pixel person
+function drawNPC(x, y, color, type) {
+  var s = 1.5;
+  ctx.fillStyle = color;
+  ctx.fillRect(x - 2*s, y - 6*s, 4*s, 8*s);
+  ctx.fillStyle = '#FFCC80';
+  ctx.fillRect(x - 2*s, y - 10*s, 4*s, 4*s);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(x - 1*s, y - 8*s, 1*s, 1*s);
+  ctx.fillRect(x + 1*s, y - 8*s, 1*s, 1*s);
+  if (type === 'manager') {
+    ctx.fillStyle = '#333';
+    ctx.fillRect(x - 3*s, y - 12*s, 6*s, 2*s); // tie
+  }
+}
+
+// Draw room background
+function drawRoom() {
+  var room = ROOMS[currentRoom];
+  
+  // Floor
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, ROOM_Y, W, H - ROOM_Y);
+  
+  // Room-specific decorations
+  if (currentRoom === 0) {
+    // Engineering — desks with monitors
+    ctx.fillStyle = '#263238';
+    for (var i = 0; i < 3; i++) {
+      ctx.fillRect(60 + i * 180, 240, 80, 8);
+      ctx.fillRect(80 + i * 180, 200, 40, 40);
+      // Screen glow
+      ctx.fillStyle = '#00e676';
+      ctx.fillRect(83 + i * 180, 203, 34, 34);
+      ctx.fillStyle = '#263238';
+    }
+    // Desks
+    ctx.fillStyle = '#37474F';
+    ctx.fillRect(50, 248, 120, 4);
+    ctx.fillRect(230, 248, 120, 4);
+    ctx.fillRect(410, 248, 120, 4);
+  } else if (currentRoom === 1) {
+    // Executive — fancy
+    ctx.fillStyle = '#4a1a1a';
+    ctx.fillRect(100, 230, 400, 60);
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(120, 240, 360, 40);
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(280, 200, 40, 30); // Trophy
+    ctx.fillStyle = '#D32F2F';
+    ctx.fillRect(282, 202, 36, 26);
+  } else if (currentRoom === 2) {
+    // HR — boring office
+    ctx.fillStyle = '#37474F';
+    for (var i = 0; i < 4; i++) {
+      ctx.fillRect(40 + i * 140, 220, 100, 50);
+      ctx.fillStyle = '#E8E8E8';
+      ctx.fillRect(55 + i * 140, 230, 70, 30);
+      ctx.fillStyle = '#37474F';
+    }
+    ctx.fillStyle = '#1565C0';
+    ctx.fillRect(50, 215, 80, 5); // HR sign
+  } else if (currentRoom === 3) {
+    // Server room — racks
+    for (var i = 0; i < 5; i++) {
+      ctx.fillStyle = '#1B5E20';
+      ctx.fillRect(30 + i * 115, 220, 30, 80);
+      // Blinking lights
+      for (var j = 0; j < 6; j++) {
+        ctx.fillStyle = (frame + j + i * 3) % 30 < 15 ? '#76FF03' : '#33691E';
+        ctx.fillRect(35 + i * 115, 225 + j * 12, 4, 4);
+        ctx.fillRect(48 + i * 115, 225 + j * 12, 4, 4);
+      }
+    }
+  } else if (currentRoom === 4) {
+    // Kitchen
+    ctx.fillStyle = '#5D4037';
+    ctx.fillRect(20, 220, 200, 80); // Counter
+    ctx.fillStyle = '#8D6E63';
+    ctx.fillRect(25, 240, 60, 50); // Cabinets
+    ctx.fillRect(95, 240, 60, 50);
+    ctx.fillRect(165, 240, 50, 50);
+    // Pizza box
+    ctx.fillStyle = '#FFB74D';
+    ctx.fillRect(400, 260, 80, 20);
+    ctx.fillStyle = '#FF8A65';
+    ctx.fillRect(405, 263, 70, 14);
+    // Coffee machine
+    ctx.fillStyle = '#424242';
+    ctx.fillRect(280, 230, 30, 40);
+    ctx.fillStyle = '#795548';
+    ctx.fillRect(283, 250, 24, 15);
+  } else if (currentRoom === 5) {
+    // Conference room — TRAP
+    ctx.fillStyle = '#3E2723';
+    ctx.fillRect(80, 220, 440, 100); // Table
+    ctx.fillStyle = '#5D4037';
+    ctx.fillRect(100, 240, 400, 60);
+    // Chairs
+    for (var i = 0; i < 8; i++) {
+      ctx.fillStyle = '#455A64';
+      ctx.fillRect(110 + i * 50, 210, 20, 15);
+      ctx.fillRect(110 + i * 50, 305, 20, 15);
+    }
+    // Warning sign
+    if (Math.sin(frame * 0.1) > 0) {
+      ctx.fillStyle = 'rgba(244, 67, 54, 0.3)';
+      ctx.fillRect(0, ROOM_Y, W, 30);
+    }
+  }
+  
+  // NPCs in room
+  if (currentRoom === 0) {
+    drawNPC(100, 350, '#4CAF50', 'engineer');
+    drawNPC(300, 350, '#66BB6A', 'engineer');
+    if (bestEngineerAlive) drawNPC(500, 350, '#00E676', 'engineer');
+  } else if (currentRoom === 1) {
+    drawNPC(200, 350, '#FFD700', 'manager');
+    drawNPC(400, 350, '#FFA000', 'manager');
+  } else if (currentRoom === 2) {
+    drawNPC(300, 350, '#2196F3', 'manager');
+  } else if (currentRoom === 3) {
+    drawNPC(450, 350, '#9C27B0', 'engineer');
+  } else if (currentRoom === 4) {
+    drawNPC(150, 350, '#FF9800', 'engineer');
+    drawNPC(350, 350, '#FFB74D', 'manager');
+  } else if (currentRoom === 5) {
+    drawNPC(150, 350, '#78909C', 'manager');
+    drawNPC(300, 350, '#90A4AE', 'manager');
+    drawNPC(450, 350, '#607D8B', 'manager');
+  }
+}
+
+function drawHUD() {
+  // Top bar background
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, 55);
+  
+  // Day counter
+  ctx.fillStyle = '#888';
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText('DAY', 10, 14);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 16px system-ui';
+  ctx.fillText(day + '/' + maxDays, 10, 32);
+  
+  // Day timer bar
+  var dayProg = dayTimer / dayLength;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(10, 40, 70, 5);
+  ctx.fillStyle = dayProg > 0.8 ? '#F44336' : '#4CAF50';
+  ctx.fillRect(10, 40, 70 * dayProg, 5);
+  
+  // Energy bar
+  ctx.fillStyle = '#888';
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText('ENERGY', 100, 14);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(100, 20, 120, 12);
+  var ePct = energy / maxEnergy;
+  ctx.fillStyle = ePct > 0.5 ? '#4CAF50' : ePct > 0.25 ? '#FF9800' : '#F44336';
+  ctx.fillRect(100, 20, 120 * ePct, 12);
+  ctx.fillStyle = '#fff';
+  ctx.font = '10px system-ui';
+  ctx.fillText(Math.round(energy) + '/' + maxEnergy, 105, 30);
+  
+  // Morale bar
+  ctx.fillStyle = '#888';
+  ctx.font = '11px system-ui';
+  ctx.fillText('MORALE', 240, 14);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(240, 20, 120, 12);
+  var mPct = morale / 100;
+  ctx.fillStyle = mPct > 0.5 ? '#2196F3' : mPct > 0.25 ? '#FF9800' : '#F44336';
+  ctx.fillRect(240, 20, 120 * mPct, 12);
+  ctx.fillStyle = '#fff';
+  ctx.font = '10px system-ui';
+  ctx.fillText(Math.round(morale), 245, 30);
+  
+  // Progress bar (main goal)
+  ctx.fillStyle = '#888';
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText('PRODUCT', 380, 14);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(380, 20, 150, 12);
+  ctx.fillStyle = '#FFD700';
+  ctx.fillRect(380, 20, 150 * (progress / 100), 12);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 10px system-ui';
+  ctx.fillText(Math.round(progress) + '%', 385, 30);
+  
+  // Ability charge
+  ctx.fillStyle = '#888';
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'right';
+  ctx.fillText('ABILITY', W - 10, 14);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(W - 60, 20, 50, 12);
+  var aColor = abilityCharge >= 100 ? '#FF5722' : abilityCharge >= 50 ? '#FF9800' : abilityCharge >= 25 ? '#FFC107' : '#555';
+  ctx.fillStyle = aColor;
+  ctx.fillRect(W - 60, 20, 50 * (abilityCharge / 100), 12);
+  ctx.fillStyle = '#fff';
+  ctx.font = '9px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText(Math.round(abilityCharge) + '%', W - 35, 30);
+  
+  // Rank
+  ctx.fillStyle = '#FFD700';
+  ctx.font = 'bold 11px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText(getRank().name, 10, 52);
+  
+  // Active effects
+  var effects = [];
+  if (frozenProgress > 0) effects.push('❄ Frozen x' + frozenProgress);
+  if (competentManagerDays > 0) effects.push('🤝 Competent Mgr x' + competentManagerDays);
+  if (replyAllPeace > 0) effects.push('☮ Reply-All Peace x' + replyAllPeace);
+  if (aiClonePenalty > 0) effects.push('🤖 AI Clone -' + aiClonePenalty + '/day');
+  if (offsiteDays > 0) effects.push('🏝 Offsite x' + offsiteDays);
+  if (!bestEngineerAlive) effects.push('💀 Best Eng Gone');
+  
+  if (effects.length > 0) {
+    ctx.fillStyle = '#555';
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText(effects.join(' | '), W - 10, 52);
+  }
+}
+
+function drawRoomTabs() {
+  var tabY = 58;
+  var tabW = W / ROOMS.length;
+  for (var i = 0; i < ROOMS.length; i++) {
+    var active = i === currentRoom;
+    ctx.fillStyle = active ? ROOMS[i].color : '#222';
+    ctx.fillRect(i * tabW, tabY, tabW, 25);
+    ctx.fillStyle = active ? '#000' : '#666';
+    ctx.font = (active ? 'bold ' : '') + '11px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(ROOMS[i].icon + ' ' + ROOMS[i].name, i * tabW + tabW / 2, tabY + 16);
+  }
+  // Room description
+  ctx.fillStyle = '#444';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText(ROOMS[currentRoom].desc + '  |  ← → Switch Room  |  ↑ Talk  |  ↓ Work  |  Enter Ability', W / 2, tabY + 38);
+}
+
+function drawPlayer() {
+  var bob = Math.sin(frame * 0.1) * 2;
+  drawLordBluetooth(px, py + bob, 2);
+}
+
+function drawNotification() {
+  if (!notification || notifTimer <= 0) return;
+  var alpha = Math.min(1, notifTimer);
+  ctx.fillStyle = 'rgba(0,0,0,' + (0.8 * alpha) + ')';
+  ctx.fillRect(20, 130, W - 40, 30);
+  ctx.strokeStyle = 'rgba(255,215,0,' + alpha + ')';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(20, 130, W - 40, 30);
+  ctx.fillStyle = 'rgba(255,255,255,' + alpha + ')';
+  ctx.font = '12px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText(notification, W / 2, 150);
+}
+
+function drawEventPopup() {
+  if (!currentEvent) return;
+  var ev = currentEvent.data;
+  
+  // Dim background
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+  
+  // Event card
+  var cardX = 50, cardY = 120, cardW = 500, cardH = 360;
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(cardX, cardY, cardW, cardH);
+  
+  // Category color
+  var catColor = '#F44336';
+  if (ev.cat === 'meeting') catColor = '#FF9800';
+  else if (ev.cat === 'theater') catColor = '#9C27B0';
+  else if (ev.cat === 'leadership') catColor = '#F44336';
+  else if (ev.cat === 'engineering') catColor = '#2196F3';
+  else if (ev.cat === 'satire') catColor = '#FF5722';
+  
+  ctx.fillStyle = catColor;
+  ctx.fillRect(cardX, cardY, cardW, 6);
+  
+  // Email icon
+  ctx.fillStyle = '#FFD700';
+  ctx.fillRect(cardX + 20, cardY + 20, 40, 30);
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(cardX + 24, cardY + 24, 32, 22);
+  ctx.fillStyle = '#FFD700';
+  // Envelope flap
+  ctx.beginPath();
+  ctx.moveTo(cardX + 20, cardY + 20);
+  ctx.lineTo(cardX + 40, cardY + 35);
+  ctx.lineTo(cardX + 60, cardY + 20);
+  ctx.stroke();
+  
+  // Title
+  ctx.fillStyle = catColor;
+  ctx.font = 'bold 20px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText(ev.title, cardX + 80, cardY + 42);
+  
+  // Category badge
+  ctx.fillStyle = catColor;
+  ctx.font = '10px system-ui';
+  ctx.fillText(ev.cat.toUpperCase(), cardX + 80, cardY + 58);
+  
+  // Description
+  ctx.fillStyle = '#ccc';
+  ctx.font = '14px system-ui';
+  var lines = wrapText(ev.desc, cardW - 40);
+  for (var i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], cardX + 20, cardY + 90 + i * 20);
+  }
+  
+  // Effects
+  var ey = cardY + 150;
+  ctx.fillStyle = '#888';
+  ctx.font = '12px system-ui';
+  if (ev.eDrain > 0) { ctx.fillStyle = '#F44336'; ctx.fillText('⚡ Energy: -' + ev.eDrain, cardX + 20, ey); ey += 20; }
+  if (ev.eDrain < 0) { ctx.fillStyle = '#4CAF50'; ctx.fillText('⚡ Energy: +' + Math.abs(ev.eDrain), cardX + 20, ey); ey += 20; }
+  if (ev.mDrain > 0) { ctx.fillStyle = '#F44336'; ctx.fillText('😔 Morale: -' + ev.mDrain, cardX + 20, ey); ey += 20; }
+  if (ev.mDrain < 0) { ctx.fillStyle = '#4CAF50'; ctx.fillText('😊 Morale: +' + Math.abs(ev.mDrain), cardX + 20, ey); ey += 20; }
+  if (ev.pDrain > 0) { ctx.fillStyle = '#F44336'; ctx.fillText('📉 Progress: -' + ev.pDrain + '%', cardX + 20, ey); ey += 20; }
+  
+  // Choices
+  var choiceY = cardY + 260;
+  // Accept
+  var acceptActive = eventChoice === 0;
+  ctx.fillStyle = acceptActive ? '#F44336' : '#333';
+  ctx.fillRect(cardX + 20, choiceY, 220, 40);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('Accept Fate', cardX + 130, choiceY + 25);
+  if (acceptActive) {
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cardX + 20, choiceY, 220, 40);
+  }
+  
+  // Skip (if ability available)
+  var skipActive = eventChoice === 1;
+  if (skipMeetingAvail) {
+    ctx.fillStyle = skipActive ? '#FF9800' : '#333';
+    ctx.fillRect(cardX + 260, choiceY, 220, 40);
+    ctx.fillStyle = '#fff';
+    ctx.fillText('Skip Meeting (-25%⚡, -5😊)', cardX + 370, choiceY + 25);
+    if (skipActive) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cardX + 260, choiceY, 220, 40);
+    }
+  } else {
+    ctx.fillStyle = '#222';
+    ctx.fillRect(cardX + 260, choiceY, 220, 40);
+    ctx.fillStyle = '#555';
+    ctx.fillText('Skip (Need 25% ability)', cardX + 370, choiceY + 25);
+  }
+  
+  // Instructions
+  ctx.fillStyle = '#666';
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('← → Choose  |  Enter/Space Accept', W / 2, choiceY + 70);
+}
+
+function wrapText(text, maxW) {
+  ctx.font = '14px system-ui';
+  var words = text.split(' ');
+  var lines = [];
+  var line = '';
+  for (var i = 0; i < words.length; i++) {
+    var test = line + words[i] + ' ';
+    if (ctx.measureText(test).width > maxW) {
+      lines.push(line.trim());
+      line = words[i] + ' ';
+    } else {
+      line = test;
+    }
+  }
+  if (line.trim()) lines.push(line.trim());
+  return lines;
+}
+
+function drawTitle() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  
+  // Animated background — office grid
+  ctx.strokeStyle = 'rgba(123, 31, 162, 0.1)';
+  ctx.lineWidth = 1;
+  for (var i = 0; i < 20; i++) {
+    var y = (i * 40 + frame * 0.5) % H;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+  for (var i = 0; i < 15; i++) {
+    var x = (i * 50 + frame * 0.3) % W;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, H);
+    ctx.stroke();
+  }
+  
+  // Title
+  ctx.fillStyle = '#FFD700';
+  ctx.font = 'bold 42px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('LORD BLUETOOTH', W / 2, 130);
+  
+  ctx.fillStyle = '#7B1FA2';
+  ctx.font = 'bold 18px system-ui';
+  ctx.fillText('& MEGACORP ORG MANAGEMENT', W / 2, 160);
+  
+  // Lord Bluetooth on title screen
+  var bob = Math.sin(frame * 0.05) * 5;
+  drawLordBluetooth(W / 2, 220 + bob, 4);
+  
+  // Subtitle
+  ctx.fillStyle = '#888';
+  ctx.font = '14px system-ui';
+  ctx.fillText('Ship a Bluetooth product in 90 days.', W / 2, 300);
+  ctx.fillText('Survive the org.', W / 2, 320);
+  
+  // Best score
+  if (bestScore > 0) {
+    ctx.fillStyle = '#FFD700';
+    ctx.font = '14px system-ui';
+    ctx.fillText('Best Score: ' + bestScore + ' | Games: ' + gamesPlayed, W / 2, 360);
+  }
+  
+  // Discoveries
+  if (discoveryCount > 0) {
+    ctx.fillStyle = '#888';
+    ctx.font = '12px system-ui';
+    ctx.fillText('📜 Corporate Myths Discovered: ' + discoveryCount + '/6', W / 2, 385);
+    var mythStr = '';
+    for (var i = 0; i < MYTHS.length; i++) {
+      mythStr += discoveries[MYTHS[i].id] ? MYTHS[i].icon : '🔒';
+    }
+    ctx.fillText(mythStr, W / 2, 405);
+  }
+  
+  // Controls
+  ctx.fillStyle = '#555';
+  ctx.font = '12px system-ui';
+  ctx.fillText('← → Switch Rooms  |  ↑ Talk  |  ↓ Work  |  Enter Ability', W / 2, 450);
+  ctx.fillText('M = Toggle Music', W / 2, 470);
+  
+  // Start prompt
+  if (Math.sin(frame * 0.08) > 0) {
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 18px system-ui';
+    ctx.fillText('Press any key to start', W / 2, 530);
+  }
+}
+
+function drawResult() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  
+  var won = progress >= 100;
+  
+  if (won) {
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 36px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('PRODUCT SHIPPED! 🎉', W / 2, 100);
+    
+    drawLordBluetooth(W / 2, 170, 4);
+    
+    ctx.fillStyle = '#4CAF50';
+    ctx.font = '18px system-ui';
+    ctx.fillText('Day ' + day + ' | Score: ' + score, W / 2, 250);
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px system-ui';
+    ctx.fillText('Rank: ' + getRank().name, W / 2, 280);
+    ctx.fillText('Morale Remaining: ' + Math.round(morale), W / 2, 305);
+    ctx.fillText('Production Incidents: ' + prodIncidents, W / 2, 325);
+    
+    if (prodIncidents === 0) {
+      ctx.fillStyle = '#FFD700';
+      ctx.font = 'bold 14px system-ui';
+      ctx.fillText('🌟 FLAWLESS SHIP — Zero Production Incidents!', W / 2, 350);
+    }
+  } else {
+    ctx.fillStyle = '#F44336';
+    ctx.font = 'bold 36px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('GAME OVER', W / 2, 100);
+    
+    drawLordBluetooth(W / 2, 170, 4);
+    
+    ctx.fillStyle = '#888';
+    ctx.font = '14px system-ui';
+    var reason = morale <= 0 ? 'The board fired you (morale hit 0).' :
+                 burnoutDays >= maxBurnout ? 'Complete burnout. You couldn\'t go on.' :
+                 'Ran out of time. Only ' + Math.round(progress) + '% shipped.';
+    ctx.fillText(reason, W / 2, 250);
+    
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px system-ui';
+    ctx.fillText('Day ' + day + '/' + maxDays + ' | Progress: ' + Math.round(progress) + '%', W / 2, 285);
+    ctx.fillText('Score: ' + score, W / 2, 310);
+  }
+  
+  // Discoveries
+  ctx.fillStyle = '#888';
+  ctx.font = '12px system-ui';
+  ctx.fillText('📜 Myths: ' + discoveryCount + '/6', W / 2, 380);
+  var mythStr = '';
+  for (var i = 0; i < MYTHS.length; i++) {
+    mythStr += discoveries[MYTHS[i].id] ? MYTHS[i].icon : '🔒';
+  }
+  ctx.fillText(mythStr, W / 2, 400);
+  
+  if (bestScore > 0) {
+    ctx.fillStyle = '#FFD700';
+    ctx.font = '13px system-ui';
+    ctx.fillText('Best Score: ' + bestScore, W / 2, 430);
+  }
+  
+  if (Math.sin(frame * 0.08) > 0) {
+    ctx.fillStyle = '#666';
+    ctx.font = '16px system-ui';
+    ctx.fillText('Press any key to continue', W / 2, 500);
+  }
+}
+
+// ─── Update ─────────────────────────────────────────────────────
+function update(dt) {
+  frame++;
+  updateMic();
+  
+  if (state === STATE_PLAY) {
+    // Day timer
+    dayTimer += dt;
+    if (dayTimer >= dayLength) {
+      dayTimer = 0;
+      endDay();
+      if (state !== STATE_PLAY) return;
+    }
+    
+    // Event spawning
+    eventCooldown -= dt;
+    if (offsiteDays <= 0 && replyAllPeace <= 0 && eventCooldown <= 0) {
+      // More events with louder mic (open office)
+      var eventChance = 0.02 + micSmooth * 0.08;
+      if (currentRoom === 5) eventChance *= 2; // Conference room = more meetings
+      if (Math.random() < eventChance) {
+        spawnEvent();
+        eventCooldown = 8 + Math.random() * 12;
+      }
+    }
+    
+    // Notification timer
+    if (notifTimer > 0) notifTimer -= dt;
+    
+    // Shake/flash timers
+    if (shakeTimer > 0) shakeTimer -= dt;
+    if (flashTimer > 0) flashTimer -= dt;
+    
+    // Continuous work with held key
+    workCooldown -= dt;
+    if (keys['ArrowDown'] && workCooldown <= 0) {
+      workOnProduct();
+      workCooldown = 0.3; // Can work every 0.3s while holding
+    }
+    
+    // Player animation
+    px += (pxTarget - px) * 0.1;
+    
+    // BGM
+    if (frame % 8 === 0) playBGM();
+  }
+  
+  if (state === STATE_EVENT) {
+    if (currentEvent) {
+      currentEvent.timer -= dt;
+      // Auto-accept if timer runs out
+      if (currentEvent.timer <= 0) {
+        applyEvent(currentEvent.data, false);
+        currentEvent = null;
+        state = STATE_PLAY;
+      }
+    }
+    if (notifTimer > 0) notifTimer -= dt;
+  }
+}
+
+// ─── Render ─────────────────────────────────────────────────────
+function render() {
+  ctx.save();
+  
+  // Screen shake
+  if (shakeTimer > 0) {
+    var sx = (Math.random() - 0.5) * 8 * shakeTimer;
+    var sy = (Math.random() - 0.5) * 8 * shakeTimer;
+    ctx.translate(sx, sy);
+  }
+  
+  if (state === STATE_TITLE) {
+    drawTitle();
+  } else if (state === STATE_PLAY) {
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(-10, -10, W + 20, H + 20);
+    
+    drawHUD();
+    drawRoomTabs();
+    drawRoom();
+    drawPlayer();
+    drawNotification();
+    
+    // Progress indicator at bottom
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, H - 60, W, 60);
+    ctx.fillStyle = '#222';
+    ctx.fillRect(10, H - 50, W - 20, 20);
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(10, H - 50, (W - 20) * (progress / 100), 20);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('PRODUCT PROGRESS: ' + Math.round(progress) + '%', W / 2, H - 36);
+    
+    // Controls reminder
+    ctx.fillStyle = '#444';
+    ctx.font = '10px system-ui';
+    ctx.fillText('↓=Work  ↑=Talk  ←→=Move  Enter=Ability  M=Mute', W / 2, H - 14);
+    
+    // Ability status
+    var abY = H - 50;
+    ctx.textAlign = 'right';
+    ctx.font = '9px system-ui';
+    if (abilityCharge >= 100 && !nukeUsed) {
+      ctx.fillStyle = '#FF5722';
+      ctx.fillText('☢ NUCLEAR: Resignation Threat [Enter]', W - 10, abY);
+    } else if (abilityCharge >= 50) {
+      ctx.fillStyle = '#FF9800';
+      ctx.fillText('🔧 Tech Debt Forgiveness [Enter]', W - 10, abY);
+    } else if (abilityCharge >= 25) {
+      ctx.fillStyle = '#FFC107';
+      ctx.fillText('⏩ Skip Meeting [during event]', W - 10, abY);
+    } else {
+      ctx.fillStyle = '#555';
+      ctx.fillText('Work to charge ability (' + Math.round(abilityCharge) + '%)', W - 10, abY);
+    }
+    
+  } else if (state === STATE_EVENT) {
+    // Draw game underneath
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(-10, -10, W + 20, H + 20);
+    drawHUD();
+    drawRoomTabs();
+    drawRoom();
+    drawPlayer();
+    drawEventPopup();
+    drawNotification();
+  } else if (state === STATE_RESULT) {
+    drawResult();
+  }
+  
+  // Screen flash
+  if (flashTimer > 0) {
+    ctx.fillStyle = flashColor;
+    ctx.globalAlpha = flashTimer * 0.3;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+  
+  ctx.restore();
+}
+
+// ─── Main Loop ──────────────────────────────────────────────────
+loadStats();
+lastTick = Date.now();
+
+function loop() {
+  var now = Date.now();
+  var dt = (now - lastTick) / 1000;
+  lastTick = now;
+  dt = Math.min(dt, 0.1); // Cap delta
+  
+  update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// Focus canvas
+cv.focus();
+
+})();
+</script>
+</body>
+</html>
