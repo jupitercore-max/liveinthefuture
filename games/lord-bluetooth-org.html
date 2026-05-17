@@ -12,43 +12,44 @@ canvas{display:block;width:600px;height:600px}
 @media(max-height:600px) and (max-width:600px){canvas{max-height:100vh!important;max-width:100vh!important}}
 
 /* Mobile touch controls */
-#mobile-controls{display:none;position:fixed;bottom:0;left:0;right:0;height:120px;z-index:100;
-  background:linear-gradient(transparent,rgba(0,0,0,0.85));
-  padding:8px 12px 16px;gap:8px;
-  justify-content:space-between;align-items:center}
+#mobile-controls{display:none;position:fixed;bottom:0;left:0;right:0;height:140px;z-index:100;
+  background:linear-gradient(transparent,rgba(0,0,0,0.9));
+  padding:10px 10px 20px;gap:6px;
+  flex-direction:column;justify-content:flex-end}
 #mobile-controls.visible{display:flex}
+.mc-row{display:flex;gap:6px;align-items:center;justify-content:center;width:100%}
 .mc-btn{
-  width:56px;height:56px;border-radius:14px;border:2px solid rgba(255,255,255,0.2);
-  background:rgba(255,255,255,0.08);color:#fff;font-size:22px;
+  min-width:52px;height:48px;border-radius:12px;border:2px solid rgba(255,255,255,0.15);
+  background:rgba(255,255,255,0.06);color:#ccc;font-size:13px;font-weight:600;
   display:flex;align-items:center;justify-content:center;
   -webkit-tap-highlight-color:transparent;user-select:none;
-  touch-action:manipulation;cursor:pointer;transition:background .1s}
+  touch-action:manipulation;cursor:pointer;transition:background .1s,border-color .1s}
 .mc-btn:active{background:rgba(255,215,0,0.3);border-color:#FFD700}
-.mc-btn.wide{width:72px;font-size:13px;font-weight:600}
-.mc-btn.accent{border-color:#FFD700;color:#FFD700}
-.mc-col{display:flex;flex-direction:column;gap:6px;align-items:center}
-.mc-row{display:flex;gap:6px;align-items:center}
+.mc-btn.big{flex:1;height:52px;font-size:15px;font-weight:700;border-color:#FFD700;color:#FFD700;
+  background:rgba(255,215,0,0.08)}
+.mc-btn.big:active{background:rgba(255,215,0,0.4)}
+.mc-btn.nav{font-size:22px;min-width:60px}
+.mc-btn.util{font-size:16px;min-width:44px}
+.mc-btn.hidden{display:none}
+.mc-hint{color:#888;font-size:10px;text-align:center;margin-top:2px}
 </style>
 </head>
 <body>
 <canvas id="c" width="600" height="600" tabindex="0"></canvas>
 <div id="mobile-controls">
-  <div class="mc-col">
-    <button class="mc-btn" id="mb-left">◀</button>
-    <button class="mc-btn" id="mb-up">▲</button>
+  <div class="mc-hint" id="mc-hint"></div>
+  <div class="mc-row">
+    <button class="mc-btn nav" id="mb-left">◀</button>
+    <button class="mc-btn nav" id="mb-up">▲</button>
+    <button class="mc-btn nav" id="mb-down">▼</button>
+    <button class="mc-btn nav" id="mb-right">▶</button>
+    <button class="mc-btn big" id="mb-action">ACTION</button>
+    <button class="mc-btn util" id="mb-cancel">✕</button>
   </div>
-  <div class="mc-col" style="flex:1;gap:4px">
-    <button class="mc-btn wide accent" id="mb-action">ACTION</button>
-    <div class="mc-row">
-      <button class="mc-btn" id="mb-shop">🛒</button>
-      <button class="mc-btn" id="mb-coffee">☕</button>
-      <button class="mc-btn" id="mb-endday">⏭</button>
-      <button class="mc-btn" id="mb-mute">🔊</button>
-    </div>
-  </div>
-  <div class="mc-col">
-    <button class="mc-btn" id="mb-right">▶</button>
-    <button class="mc-btn" id="mb-down">⚡</button>
+  <div class="mc-row">
+    <button class="mc-btn util" id="mb-shop">🛒</button>
+    <button class="mc-btn util" id="mb-endday">⏭ Day</button>
+    <button class="mc-btn util" id="mb-mute">🔊</button>
   </div>
 </div>
 <script>
@@ -60,8 +61,7 @@ var FS=isMobile?1.3:1; // font scale for mobile readability
 function fz(px){return Math.round(px*FS)+"px system-ui"}
 if(isMobile){
   document.getElementById('mobile-controls').classList.add('visible');
-  // Adjust canvas to leave room for controls
-  var mcH=120;
+  var mcH=140;
   document.querySelector('canvas').style.maxHeight='calc(100vh - '+mcH+'px)';
 }
 
@@ -72,46 +72,122 @@ function mBtn(id,fn){
   b.addEventListener('touchstart',function(e){e.preventDefault();e.stopPropagation();fn();},{passive:false});
   b.addEventListener('mousedown',function(e){e.preventDefault();fn();});
 }
-mBtn('mb-left',function(){if(currentRoom>0){currentRoom--;playStep();}});
-mBtn('mb-right',function(){if(currentRoom<ROOMS.length-1){currentRoom++;playStep();}});
+function mcEl(id){return document.getElementById(id)}
+function mcShow(id,show){var e=mcEl(id);if(e){e.style.display=show?'flex':'none'}}
+function mcLabel(id,txt){var e=mcEl(id);if(e)e.textContent=txt}
+function mcHint(txt){var e=mcEl('mc-hint');if(e)e.textContent=txt}
+
+// Update button labels/visibility based on current game state
+function updateMobileUI(){
+  if(!isMobile)return;
+  var hint='',actLabel='ACTION';
+  var showCancel=false,showShop=false,showEndDay=false;
+
+  if(state===ST_TITLE){
+    actLabel='▶ START';hint='Tap to begin';
+  }else if(state===ST_STANDUP){
+    actLabel='SKIP ▶';hint='Skip standup';showEndDay=true;
+  }else if(state===ST_RESULT){
+    actLabel='▶ AGAIN';hint='Game over! Tap to retry';
+  }else if(state===ST_EOD){
+    actLabel='NEXT DAY ▶';hint='End of day results';
+  }else if(state===ST_EVENT){
+    actLabel='✓ CONFIRM';hint='Event! ◀▶ pick choice, ✓ confirm';
+  }else if(state===ST_SHOP){
+    actLabel='BUY';hint='▲▼ browse, BUY purchase, ✕ close';showCancel=true;
+  }else if(state===ST_WORK){
+    if(assignStep===1){
+      actLabel='✓ PICK';hint='▲▼ select engineer, ✓ pick, ✕ cancel';showCancel=true;
+    }else if(assignStep===2){
+      actLabel='✓ ASSIGN';hint='◀▶ pick task, ✓ assign';showCancel=true;
+    }else if(currentRoom===0){
+      actLabel='👥 ASSIGN';hint='Engineering — assign tasks to engineers';
+    }else if(currentRoom===1){
+      actLabel='☕ DRINK';hint='Coffee Shop — caffeine boost!';
+    }else if(currentRoom===2){
+      actLabel='📝 HIRE';hint='HR — recruit an engineer';
+    }else if(currentRoom===3){
+      actLabel='🛒 SHOP';hint='Exec Suite — buy upgrades';
+      showShop=true;
+    }else if(currentRoom===4){
+      actLabel='🍕 SNACKS';hint='Kitchen — team morale boost';
+    }else if(currentRoom===5){
+      actLabel='🖥 FIX';hint='Server Room — reduce prod risk';
+    }else if(currentRoom===6){
+      actLabel='🎭 RISK';hint='Conference — dangerous!';
+    }
+    showEndDay=true;showShop=(currentRoom===3);
+  }
+  mcLabel('mb-action',actLabel);mcHint(hint);
+  mcShow('mb-cancel',showCancel);mcShow('mb-shop',showShop);mcShow('mb-endday',showEndDay);
+}
+
+mBtn('mb-left',function(){
+  if(state===ST_WORK&&assignStep===2){assignTask=Math.max(0,assignTask-1);playStep();updateMobileUI();return}
+  if(state===ST_EVENT){eventChoice=Math.max(0,eventChoice-1);playStep();updateMobileUI();return}
+  if(state===ST_WORK&&assignStep===0&&currentRoom>0){currentRoom--;playStep();updateMobileUI();return}
+  if(state===ST_WORK&&assignStep===1){assignStep=0;updateMobileUI();return} // cancel out of eng select
+});
+mBtn('mb-right',function(){
+  if(state===ST_WORK&&assignStep===2){assignTask=Math.min(TASKS.length-1,assignTask+1);playStep();updateMobileUI();return}
+  if(state===ST_EVENT){eventChoice=Math.min((currentEvent?currentEvent.choices.length:1)-1,eventChoice+1);playStep();updateMobileUI();return}
+  if(state===ST_WORK&&assignStep===0&&currentRoom<ROOMS.length-1){currentRoom++;playStep();updateMobileUI();return}
+});
 mBtn('mb-up',function(){
-  if(state===ST_SHOP){shopCursor=Math.max(0,shopCursor-1);playStep();return;}
-  doRoomAction();
+  if(state===ST_SHOP){shopCursor=Math.max(0,shopCursor-1);playStep();updateMobileUI();return}
+  if(state===ST_WORK&&assignStep===1){var ae=aliveEngs();assignEng=Math.max(0,assignEng-1);playStep();updateMobileUI();return}
 });
 mBtn('mb-down',function(){
-  if(state===ST_SHOP){shopCursor=Math.min(UPGRADES.length-1,shopCursor+1);playStep();return;}
-  doRoomAction(); // tap down = action (not day skip)
+  if(state===ST_SHOP){shopCursor=Math.min(UPGRADES.length-1,shopCursor+1);playStep();updateMobileUI();return}
+  if(state===ST_WORK&&assignStep===1){var ae2=aliveEngs();assignEng=Math.min(ae2.length-1,assignEng+1);playStep();updateMobileUI();return}
 });
 mBtn('mb-action',function(){
-  if(state===ST_TITLE){initGame();return;}
-  if(state===ST_RESULT){state=ST_TITLE;return;}
-  if(state===ST_EOD&&!eodAnimating){startNextDay();return;}
-  if(state===ST_STANDUP){phaseTimer=0;return;}
+  if(state===ST_TITLE){initGame();updateMobileUI();return}
+  if(state===ST_RESULT){state=ST_TITLE;updateMobileUI();return}
+  if(state===ST_EOD&&!eodAnimating){startNextDay();updateMobileUI();return}
+  if(state===ST_STANDUP){phaseTimer=0;updateMobileUI();return}
   if(state===ST_SHOP){
     var u=UPGRADES[shopCursor];
     if(!upgrades[u.id]&&polCap>=u.cost){polCap-=u.cost;upgrades[u.id]=true;showNotif("Bought "+u.name+"!",3);playVoice("upgrade_buy");playAbility();saveStats()}
     else showNotif(upgrades[u.id]?"Already owned":"Need more PC",2);
-    return;
+    updateMobileUI();return;
   }
   if(state===ST_EVENT){
     if(applyChoice(currentEvent,eventChoice)){currentEvent=null;state=ST_WORK}
-    return;
+    updateMobileUI();return;
   }
-  doRoomAction();
+  // WORK state — contextual room actions
+  if(state===ST_WORK){
+    if(currentRoom===0){
+      // Engineering: toggle assign mode
+      if(assignStep===0){assignStep=1;assignEng=0;showNotif("Select engineer",2)}
+      else if(assignStep===1){
+        var ae3=aliveEngs();if(ae3.length>0){assignStep=2;assignTask=0;playStep()}
+      }else if(assignStep===2){
+        var ae4=aliveEngs();if(assignEng<ae4.length){ae4[assignEng].task=assignTask;showNotif(ae4[assignEng].name+" → "+TASKS[assignTask].name,2);playGood()}
+        assignStep=0;
+      }
+    }else{
+      doRoomAction();
+    }
+    updateMobileUI();return;
+  }
+});
+mBtn('mb-cancel',function(){
+  if(state===ST_SHOP){state=ST_WORK;updateMobileUI();return}
+  if(state===ST_WORK){
+    if(assignStep===2){assignStep=1;updateMobileUI();return}
+    if(assignStep===1){assignStep=0;updateMobileUI();return}
+  }
 });
 mBtn('mb-shop',function(){
-  if(state===ST_SHOP){state=ST_WORK;return;} // close shop
-  if(state===ST_WORK && currentRoom===4){state=ST_SHOP;shopCursor=0;return;} // open shop
-  useAbility();
+  if(state===ST_SHOP){state=ST_WORK;updateMobileUI();return}
+  if(state===ST_WORK&&currentRoom===3){state=ST_SHOP;shopCursor=0;updateMobileUI();return}
 });
-mBtn('mb-coffee',function(){
-  // Quick coffee
-  if(state===ST_WORK && currentRoom===1){addCaff(150);energy=clamp(energy+10,0,maxEnergy);morale=clamp(morale+3,0,100);showNotif('☕ +150mg caffeine, +10 energy, +3 morale',2);playStep();}
-});
-mBtn('mb-endday',function(){phaseTimer=0;});
+mBtn('mb-endday',function(){phaseTimer=0;updateMobileUI()});
 mBtn('mb-mute',function(){
   bgmMuted=!bgmMuted;
-  document.getElementById('mb-mute').textContent=bgmMuted?'🔇':'🔊';
+  mcLabel('mb-mute',bgmMuted?'🔇':'🔊');
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -705,7 +781,8 @@ function drawRoomBG(){
     ctx.fillText(ROOMS[i].icon+ROOMS[i].name,i*tw+tw/2,64);
   }
   ctx.fillStyle="#444";ctx.font=fz(9);ctx.textAlign="center";
-  ctx.fillText("\u2190\u2192 Room | \u2191 Action | \u2193 End Day | Enter Assign",W/2,80);
+  if(isMobile)ctx.fillText(ROOMS[currentRoom].icon+" "+ROOMS[currentRoom].name+" — tap ACTION",W/2,80);
+  else ctx.fillText("\u2190\u2192 Room | \u2191 Action | \u2193 End Day | Enter Assign",W/2,80);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1038,6 +1115,7 @@ function drawShop(){
 // ═══════════════════════════════════════════════════════════════
 function update(dt){
   frame++;updateMic();
+  if(isMobile&&frame%15===0)updateMobileUI();
   if(notification&&notifTimer>0)notifTimer-=dt;
   if(shakeTimer>0)shakeTimer-=dt;
   if(flashTimer>0)flashTimer-=dt;
