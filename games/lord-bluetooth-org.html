@@ -47,6 +47,7 @@ canvas{display:block;width:600px;height:600px}
     <button class="mc-btn util" id="mb-cancel">✕</button>
   </div>
   <div class="mc-row">
+    <button class="mc-btn util" id="mb-auto">⚡ Auto</button>
     <button class="mc-btn util" id="mb-shop">🛒</button>
     <button class="mc-btn util" id="mb-endday">⏭ Day</button>
     <button class="mc-btn util" id="mb-mute">🔊</button>
@@ -101,7 +102,7 @@ function updateMobileUI(){
     }else if(assignStep===2){
       actLabel='✓ ASSIGN';hint='◀▶ pick task, ✓ assign';showCancel=true;
     }else if(currentRoom===0){
-      actLabel='👥 ASSIGN';hint='Engineering — assign tasks to engineers';
+      actLabel='👥 ASSIGN';hint='Engineering — assign tasks, or ⚡Auto';
     }else if(currentRoom===1){
       actLabel='☕ DRINK';hint='Coffee Shop — caffeine boost!';
     }else if(currentRoom===2){
@@ -120,6 +121,7 @@ function updateMobileUI(){
   }
   mcLabel('mb-action',actLabel);mcHint(hint);
   mcShow('mb-cancel',showCancel);mcShow('mb-shop',showShop);mcShow('mb-endday',showEndDay);
+  mcShow('mb-auto',state===ST_WORK&&currentRoom===0);
 }
 
 mBtn('mb-left',function(){
@@ -184,6 +186,9 @@ mBtn('mb-shop',function(){
   if(state===ST_SHOP){state=ST_WORK;updateMobileUI();return}
   if(state===ST_WORK&&currentRoom===3){state=ST_SHOP;shopCursor=0;updateMobileUI();return}
 });
+mBtn('mb-auto',function(){
+  if(state===ST_WORK){autoAssign();updateMobileUI()}
+});
 mBtn('mb-endday',function(){phaseTimer=0;updateMobileUI()});
 mBtn('mb-mute',function(){
   bgmMuted=!bgmMuted;
@@ -230,7 +235,12 @@ var VF={
   task_failure:"audio/task-failure.mp3",engineer_lost:"audio/engineer-lost.mp3",
   engineer_hired:"audio/engineer-hired.mp3",upgrade_buy:"audio/upgrade-buy.mp3",
   prod_incident:"audio/prod-incident.mp3",breakthrough:"audio/breakthrough.mp3",
-  slots_spin:"audio/slots-spin.mp3"
+  slots_spin:"audio/slots-spin.mp3",
+  boz_zuck_synergy:"audio/boz-zuck-synergy.mp3",
+  boz_inspiration:"audio/boz-inspiration.mp3",
+  zuck_ai_native:"audio/zuck-ai-native.mp3",
+  boz_rap_battle:"audio/boz-rap-battle.mp3",
+  zuck_rap_response:"audio/zuck-rap-response.mp3"
 };
 function playVoice(k){if(!VF[k])return;voiceQueue.push(k);if(!voicePlaying)pVQ()}
 function pVQ(){if(!voiceQueue.length){voicePlaying=false;return}voicePlaying=true;var k=voiceQueue.shift();var a=new Audio(VF[k]);a.volume=0.8;a.onended=pVQ;a.onerror=pVQ;a.play().catch(pVQ)}
@@ -314,7 +324,11 @@ var EVENTS=[
   {id:"hackathon",cat:"satire",title:"Hackathon Week",desc:"Mandatory 'fun.' All real work stops.",voice:"vp_hackathon",choices:[{name:"Participate",mG:10,pD:8},{name:"Use for real work",mD:5},{name:"Win it (+10 PC)",mD:5,sp:"hack_win"}]},
   {id:"acquisition",cat:"satire",title:"Acquisition Integration",desc:"MEGACORP bought a startup. Integrate their competing product.",voice:"ceo_acquisition",choices:[{name:"Integrate",mD:5,pD:20},{name:"Slow-walk (15 PC)",pc:15,pD:5}]},
   {id:"townhall",cat:"satire",title:"Impromptu Town Hall",desc:"CEO reads blog comments aloud for an hour.",voice:"ceo_townhall",choices:[{name:"Suffer",eD:12,mD:7},{name:"Leave early",eD:3,mD:2}]},
-  {id:"rebrand",cat:"satire",title:"Corporate Rebrand",desc:"New logo. New mission. Same product.",voice:"ceo_rebrand",choices:[{name:"Rebrand everything",eD:8,mD:8},{name:"Just update README",eD:2,mD:3}]}
+  {id:"rebrand",cat:"satire",title:"Corporate Rebrand",desc:"New logo. New mission. Same product.",voice:"ceo_rebrand",choices:[{name:"Rebrand everything",eD:8,mD:8},{name:"Just update README",eD:2,mD:3}]},
+  {id:"boz_zuck_synergy",cat:"satire",title:"All-Hands: Boz & Zuck Synergy Keynote",desc:"Boz takes the stage. 'We're going to be the most AI-native company in human history.' Zuck appears on the jumbotron. 'Synergy isn't a buzzword. It's a lifestyle. We're building the metaverse of AI-native synergy.' 45 minutes of slides with words like 'paradigm', 'leverage', and '10x'. Someone in the back starts crying.",voice:"ceo_synergy",choices:[{name:"Absorb the synergy",mD:8,eD:20,pG:5,sp:"synergy_boost"},{name:"Live-tweet it (+10 PC)",pc:10,eD:5,mD:3},{name:"Sneak out back (+3 PC)",pc:3,eD:2}]},
+  {id:"boz_inspiration",cat:"satire",title:"Boz's Morning Inspiration Blast",desc:"Boz sends an all-company email: 'Every one of you is a 10xer. The competitors are scared. We're shipping the future. AI-native or die. If you're not disrupted, you're the disruptor.' Attached: a 14-slide deck with stock photos of eagles and rockets.",voice:"boz_inspiration",choices:[{name:"Feel inspired",mG:8,eD:3},{name:"Roll eyes (5 PC)",pc:5,mD:3},{name:"Forward to team",mG:15,mD:5,sp:"team_rally"}]},
+  {id:"zuck_ai_native",cat:"satire",title:"Zuck's AI-Native Mandate",desc:"Emergency broadcast from Zuck: 'Every team must be AI-native by Friday. I don't know what it means either but our competitors are saying it and we need to say it louder. AI-native everything. AI-native bathrooms. AI-native break rooms. Go.'",voice:"zuck_ai_native",choices:[{name:"Embrace AI-native",eD:15,pG:10},{name:"Pivot team to AI-native",eD:10,mD:5,pG:5},{name:"Add AI-native to all docs",eD:3,pc:5,pG:8}]},
+  {id:"boz_rap_battle",cat:"satire",title:"FIRE DRILL: Boz vs Zuck Rap Battle",desc:"Boz grabs the mic at all-hands. 'Yo yo yo, it's Boz on the mic!' Zuck appears on the jumbotron and fires back. The entire company stops working to watch. Someone is filming on their phone. This is definitely going viral.",voice:"boz_rap_battle",choices:[{name:"Watch in horror",eD:15,mG:5,sp:"rap_hype"},{name:"Leave and actually work",eD:2,pG:5},{name:"Jump on the mic (+15 PC)",pc:15,eD:10,mD:8,sp:"rap_join"}]}
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -585,6 +599,10 @@ function applyChoice(ev,ci){
   if(ch.sp==="gain_ally")polCap+=10;
   if(ch.sp==="hack_win")polCap+=10;
   if(ch.sp==="rto_rebel"&&Math.random()<0.2){energy=clamp(energy-20,0,100);showNotif("Caught! -20 energy",3)}
+  if(ch.sp==="synergy_boost"){progress=clamp(progress+8,0,100);addCaff(200);showNotif("You feel synergized. +8 progress, +200mg caffeine.",3)}
+  if(ch.sp==="team_rally"){aliveEngs().forEach(function(e){e.energy=clamp(e.energy+10,0,100)})}
+  if(ch.sp==="rap_hype"){addCaff(100);aliveEngs().forEach(function(e){e.morale=clamp(e.morale+3,0,100)});showNotif("That was legendary! +100mg caffeine",3)}
+  if(ch.sp==="rap_join"){polCap+=5;showNotif("You dropped bars! +5 extra PC",3)}
   checkRankUp();return true;
 }
 
@@ -611,6 +629,37 @@ function tryMyth(){
 // ═══════════════════════════════════════════════════════════════
 // ROOM ACTIONS
 // ═══════════════════════════════════════════════════════════════
+// AUTO-ASSIGN: smart task allocation
+function autoAssign(){
+  var ae=aliveEngs();
+  if(ae.length===0){showNotif("No engineers to assign!",2);return}
+  var unassigned=ae.filter(function(e){return e.task<0});
+  if(unassigned.length===0){showNotif("Everyone already assigned!",2);return}
+  // Priority: bugs if prodRisk>50, then feature, then balance
+  // Assign highest-skill to hardest task, specialties matter
+  unassigned.forEach(function(e){
+    var best=0,bestScore=-1;
+    TASKS.forEach(function(t,i){
+      var sc=e.skill;
+      // Specialty bonus
+      if(t.id==="feature"&&e.specialty==="Frontend")sc+=1;
+      if(t.id==="feature"&&e.specialty==="Backend")sc+=1;
+      if(t.id==="bugs"&&e.specialty==="QA")sc+=2;
+      if(t.id==="techdebt"&&e.specialty==="Infra")sc+=2;
+      if(t.id==="ai"&&e.specialty==="AI/ML")sc+=2;
+      if(t.id==="politics"&&e.skill>=4)sc+=1;
+      // Urgency bonus
+      if(t.id==="bugs"&&prodRisk>50)sc+=3;
+      if(t.id==="feature"&&progress<30)sc+=2;
+      // Morale penalty — low morale engineers do worse
+      sc*=Math.max(0.3,e.morale/100);
+      if(sc>bestScore){bestScore=sc;best=i}
+    });
+    e.task=best;
+  });
+  showNotif("\u2699 Auto-assigned "+unassigned.length+" engineer(s)!",3);playGood();
+}
+
 function doRoomAction(){
   if(energy<3){showNotif("No energy!",2);return}
   if(currentRoom===0){
@@ -781,8 +830,8 @@ function drawRoomBG(){
     ctx.fillText(ROOMS[i].icon+ROOMS[i].name,i*tw+tw/2,64);
   }
   ctx.fillStyle="#444";ctx.font=fz(9);ctx.textAlign="center";
-  if(isMobile)ctx.fillText(ROOMS[currentRoom].icon+" "+ROOMS[currentRoom].name+" — tap ACTION",W/2,80);
-  else ctx.fillText("\u2190\u2192 Room | \u2191 Action | \u2193 End Day | Enter Assign",W/2,80);
+  if(isMobile)ctx.fillText(ROOMS[currentRoom].icon+" "+ROOMS[currentRoom].name+" — tap ACTION or ⚡Auto",W/2,80);
+  else ctx.fillText("\u2190\u2192 Room | \u2191 Action | \u2193 End Day | Enter Assign | Q Auto-Assign",W/2,80);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1267,6 +1316,10 @@ document.addEventListener("keydown",function(e){
   if(e.key==="Enter"||e.key==="a"){
     if(currentRoom===0){assignStep=assignStep===0?1:0;assignEng=0;showNotif(assignStep?"Select engineer":"Assign mode off",2)}
     else doRoomAction();
+    e.preventDefault();return;
+  }
+  if(e.key==="q"||e.key==="Q"){
+    if(state===ST_WORK){autoAssign()}
     e.preventDefault();return;
   }
   if(e.key==="m"||e.key==="M"){bgmMuted=!bgmMuted}
