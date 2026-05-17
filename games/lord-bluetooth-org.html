@@ -10,14 +10,88 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;font-family:
 canvas{display:block;width:600px;height:600px}
 @media(max-width:600px){html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}}
 @media(max-height:600px) and (max-width:600px){canvas{max-height:100vh!important;max-width:100vh!important}}
+
+/* Mobile touch controls */
+#mobile-controls{display:none;position:fixed;bottom:0;left:0;right:0;height:120px;z-index:100;
+  background:linear-gradient(transparent,rgba(0,0,0,0.85));
+  padding:8px 12px 16px;gap:8px;
+  justify-content:space-between;align-items:center}
+#mobile-controls.visible{display:flex}
+.mc-btn{
+  width:56px;height:56px;border-radius:14px;border:2px solid rgba(255,255,255,0.2);
+  background:rgba(255,255,255,0.08);color:#fff;font-size:22px;
+  display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;user-select:none;
+  touch-action:manipulation;cursor:pointer;transition:background .1s}
+.mc-btn:active{background:rgba(255,215,0,0.3);border-color:#FFD700}
+.mc-btn.wide{width:72px;font-size:13px;font-weight:600}
+.mc-btn.accent{border-color:#FFD700;color:#FFD700}
+.mc-col{display:flex;flex-direction:column;gap:6px;align-items:center}
+.mc-row{display:flex;gap:6px;align-items:center}
 </style>
 </head>
 <body>
 <canvas id="c" width="600" height="600" tabindex="0"></canvas>
+<div id="mobile-controls">
+  <div class="mc-col">
+    <button class="mc-btn" id="mb-left">◀</button>
+    <button class="mc-btn" id="mb-up">▲</button>
+  </div>
+  <div class="mc-col" style="flex:1;gap:4px">
+    <button class="mc-btn wide accent" id="mb-action">ACTION</button>
+    <div class="mc-row">
+      <button class="mc-btn" id="mb-shop">🛒</button>
+      <button class="mc-btn" id="mb-coffee">☕</button>
+      <button class="mc-btn" id="mb-mute">🔊</button>
+    </div>
+  </div>
+  <div class="mc-col">
+    <button class="mc-btn" id="mb-right">▶</button>
+    <button class="mc-btn" id="mb-down">▼</button>
+  </div>
+</div>
 <script>
 (function(){
 "use strict";
 var cv=document.getElementById("c"),ctx=cv.getContext("2d"),W=600,H=600;
+var isMobile=/Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent)||('ontouchstart' in window && window.innerWidth < 800);
+if(isMobile){
+  document.getElementById('mobile-controls').classList.add('visible');
+  // Adjust canvas to leave room for controls
+  var mcH=120;
+  document.querySelector('canvas').style.maxHeight='calc(100vh - '+mcH+'px)';
+}
+
+// Mobile button wiring
+function mBtn(id,fn){
+  var b=document.getElementById(id);
+  if(!b)return;
+  b.addEventListener('touchstart',function(e){e.preventDefault();e.stopPropagation();fn();},{passive:false});
+  b.addEventListener('mousedown',function(e){e.preventDefault();fn();});
+}
+mBtn('mb-left',function(){if(currentRoom>0){currentRoom--;playStep();}});
+mBtn('mb-right',function(){if(currentRoom<ROOMS.length-1){currentRoom++;playStep();}});
+mBtn('mb-up',function(){doRoomAction();});
+mBtn('mb-down',function(){phaseTimer=0;});
+mBtn('mb-action',function(){
+  if(state===ST_TITLE){initGame();return;}
+  if(state===ST_RESULT){state=ST_TITLE;return;}
+  if(state===ST_EOD&&!eodAnimating){startNextDay();return;}
+  if(state===ST_STANDUP){phaseTimer=0;return;}
+  doRoomAction();
+});
+mBtn('mb-shop',function(){
+  // Toggle shop display (same as Enter key in exec suite)
+  if(state===ST_WORK && currentRoom===4) useAbility();
+});
+mBtn('mb-coffee',function(){
+  // Quick coffee
+  if(state===ST_WORK && currentRoom===1){addCaff(150);energy=clamp(energy+10,0,maxEnergy);morale=clamp(morale+3,0,100);showNotif('☕ +150mg caffeine, +10 energy, +3 morale',2);playStep();}
+});
+mBtn('mb-mute',function(){
+  bgmMuted=!bgmMuted;
+  document.getElementById('mb-mute').textContent=bgmMuted?'🔇':'🔊';
+});
 
 // ═══════════════════════════════════════════════════════════════
 // AUDIO SYSTEM
