@@ -42,12 +42,13 @@ canvas{display:block;width:600px;height:600px}
     <div class="mc-row">
       <button class="mc-btn" id="mb-shop">🛒</button>
       <button class="mc-btn" id="mb-coffee">☕</button>
+      <button class="mc-btn" id="mb-endday">⏭</button>
       <button class="mc-btn" id="mb-mute">🔊</button>
     </div>
   </div>
   <div class="mc-col">
     <button class="mc-btn" id="mb-right">▶</button>
-    <button class="mc-btn" id="mb-down">▼</button>
+    <button class="mc-btn" id="mb-down">⚡</button>
   </div>
 </div>
 <script>
@@ -79,7 +80,7 @@ mBtn('mb-up',function(){
 });
 mBtn('mb-down',function(){
   if(state===ST_SHOP){shopCursor=Math.min(UPGRADES.length-1,shopCursor+1);playStep();return;}
-  phaseTimer=0;
+  doRoomAction(); // tap down = action (not day skip)
 });
 mBtn('mb-action',function(){
   if(state===ST_TITLE){initGame();return;}
@@ -107,6 +108,7 @@ mBtn('mb-coffee',function(){
   // Quick coffee
   if(state===ST_WORK && currentRoom===1){addCaff(150);energy=clamp(energy+10,0,maxEnergy);morale=clamp(morale+3,0,100);showNotif('☕ +150mg caffeine, +10 energy, +3 morale',2);playStep();}
 });
+mBtn('mb-endday',function(){phaseTimer=0;});
 mBtn('mb-mute',function(){
   bgmMuted=!bgmMuted;
   document.getElementById('mb-mute').textContent=bgmMuted?'🔇':'🔊';
@@ -1225,12 +1227,14 @@ cv.addEventListener("touchend",function(e){
     applyChoice(currentEvent,eventChoice);currentEvent=null;state=ST_WORK;return;
   }
   var t=e.changedTouches[0],dx=t.clientX-touchX,dy=t.clientY-touchY;
+  // Tap (no significant swipe) = room action
+  if(Math.abs(dx)<15 && Math.abs(dy)<15){doRoomAction();e.preventDefault();return;}
   if(Math.abs(dx)>Math.abs(dy)){
     if(dx<-30&&currentRoom>0)currentRoom--;
     else if(dx>30&&currentRoom<ROOMS.length-1)currentRoom++;
   }else{
-    if(dy<-30)doRoomAction();
-    else if(dy>30)phaseTimer=0;
+    if(dy<-40)doRoomAction(); // swipe up = action
+    // swipe down does nothing (removed day skip)
   }
   e.preventDefault();
 },{passive:false});
