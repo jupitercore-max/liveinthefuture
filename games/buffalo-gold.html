@@ -5,1456 +5,224 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>Buffalo Gold — LITF Games</title>
 <style>
+:root{--gold:#ffd700;--copper:#c87820;--dark:#0a0500;--brown:#5c3d1e;--sunset:#e8731a;--felt:#1a0800}
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;background:#0d0d0d;font-family:system-ui,-apple-system,sans-serif}
-canvas{display:block;width:600px;height:600px}
+body{background:#050200;font-family:'Georgia','Times New Roman',serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;color:white;overflow:hidden}
+.game-container{width:100%;max-width:500px;padding:12px;background:linear-gradient(180deg,#1a0800,#0d0300);border:3px solid var(--copper);border-radius:16px;box-shadow:0 0 50px rgba(200,120,32,0.25),inset 0 0 40px rgba(0,0,0,0.6)}
 
-/* Mobile responsive: scale 600x600 canvas to fit viewport */
-@media (max-width: 600px) {
-  html,body{width:100%!important;height:100%!important;margin:0;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
-  canvas{max-width:100vw!important;max-height:100vh!important;width:auto!important;height:auto!important;aspect-ratio:1/1}
-}
-@media (max-height: 600px) and (max-width: 600px) {
-  canvas{max-height:100vh!important;max-width:100vh!important}
-}
+.header{text-align:center;padding:15px 10px 8px;background:linear-gradient(90deg,transparent,rgba(200,120,32,0.12),transparent);margin:-12px -12px 0;border-radius:13px 13px 0 0}
+.header h1{font-size:2.2em;color:var(--gold);text-shadow:0 0 20px rgba(255,215,0,0.5),0 2px 4px rgba(0,0,0,0.8);letter-spacing:4px;font-weight:700}
+.header .subtitle{font-size:0.7em;color:var(--copper);margin-top:2px;letter-spacing:1px;font-family:system-ui,sans-serif}
+
+.balance-bar{display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,0.5);border:1px solid rgba(200,120,32,0.3);border-radius:10px;padding:10px 15px;margin:12px 0;font-size:0.9em;font-family:system-ui,sans-serif}
+.balance-bar .balance{color:var(--gold);font-weight:700;font-size:1.1em}
+.balance-bar .bet-ctl{display:flex;align-items:center;gap:8px}
+.balance-bar button{background:rgba(200,120,32,0.15);border:1px solid rgba(200,120,32,0.4);color:var(--gold);border-radius:8px;width:34px;height:30px;font-size:1.1em;cursor:pointer;font-weight:700}
+.balance-bar button:active{background:var(--gold);color:var(--dark)}
+.balance-bar .bet-val{min-width:55px;text-align:center;font-weight:600;color:var(--gold)}
+
+.freespins-banner{display:none;background:linear-gradient(90deg,var(--sunset),var(--gold),var(--sunset));color:var(--dark);text-align:center;padding:10px;font-weight:700;border-radius:10px;margin:8px 0;font-size:1.15em;letter-spacing:1px;box-shadow:0 0 20px rgba(255,215,0,0.4)}
+
+.win-display{text-align:center;min-height:55px;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:8px 0}
+.win-display .win-amount{font-size:2em;color:var(--gold);font-weight:700;display:none;text-shadow:0 0 15px rgba(255,215,0,0.5)}
+.win-display .win-amount.show{display:block;animation:jackpotFlash 0.3s ease 4}
+.win-display .win-label{font-size:0.8em;color:var(--copper);font-family:system-ui,sans-serif;letter-spacing:1px}
+
+.reels-frame{background:linear-gradient(180deg,#2a1500,#1a0800,#2a1500);border:3px solid var(--copper);border-radius:14px;padding:12px;margin:10px 0;box-shadow:0 0 40px rgba(200,120,32,0.2),inset 0 0 25px rgba(0,0,0,0.7);position:relative}
+.reels-frame::before{content:'🦬';position:absolute;left:-1px;top:50%;transform:translateY(-50%);font-size:1.4em;opacity:0.25;filter:grayscale(0.5)}
+.reels-frame::after{content:'🦬';position:absolute;right:-1px;top:50%;transform:translateY(-50%);font-size:1.4em;opacity:0.25;filter:grayscale(0.5)}
+
+.reels{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.reel{display:flex;flex-direction:column;gap:4px}
+.cell{background:linear-gradient(180deg,#2a1a0a,#150800);border:2px solid rgba(200,120,32,0.35);border-radius:8px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:2.2em;position:relative;transition:all 0.3s;box-shadow:inset 0 1px 0 rgba(255,215,0,0.08),0 2px 4px rgba(0,0,0,0.5)}
+.cell.winning{animation:cellWin 0.5s ease infinite alternate;border-color:var(--gold);box-shadow:0 0 20px rgba(255,215,0,0.7),inset 0 1px 0 rgba(255,215,0,0.15)}
+.cell.buffalo{color:#8B4513;text-shadow:0 0 10px rgba(200,120,32,0.4)}
+.cell.gold-buffalo{color:var(--gold);text-shadow:0 0 15px rgba(255,215,0,0.8);animation:goldGlow 1s ease infinite alternate}
+.cell.sunset{color:var(--sunset);text-shadow:0 0 10px rgba(232,115,26,0.5)}
+.cell.spin{animation:slotSpin 0.08s linear infinite}
+
+@keyframes cellWin{0%{transform:scale(1);background:linear-gradient(180deg,#2a1a0a,#150800)}100%{transform:scale(1.1);background:linear-gradient(180deg,#3a2a1a,#2a1a0a);box-shadow:0 0 25px rgba(255,215,0,0.8)}}
+@keyframes goldGlow{0%{filter:brightness(1)}100%{filter:brightness(1.4)}}
+@keyframes slotSpin{0%{transform:translateY(0)}50%{transform:translateY(-5px)}100%{transform:translateY(5px)}}
+@keyframes jackpotFlash{0%,100%{opacity:1}50%{opacity:0.2}}
+
+.controls{display:flex;gap:10px;margin-top:12px}
+.spin-btn{padding:16px;border:none;border-radius:12px;font-size:1.15em;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:2px;transition:all 0.15s;font-family:system-ui,sans-serif}
+.spin-btn:active{transform:scale(0.96)}
+.spin-btn.main{flex:1;background:linear-gradient(180deg,#ffd700,#c87820,#a06010);color:#1a0800;box-shadow:0 4px 25px rgba(200,120,32,0.5);text-shadow:0 1px 0 rgba(255,255,255,0.2)}
+.spin-btn.main:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+.spin-btn.max{flex:0.35;background:linear-gradient(180deg,#e8731a,#b05010);color:white;box-shadow:0 4px 15px rgba(232,115,26,0.3);text-shadow:0 1px 2px rgba(0,0,0,0.5)}
+
+.paytable{margin-top:15px;background:rgba(0,0,0,0.4);border:1px solid rgba(200,120,32,0.2);border-radius:10px;padding:12px;font-size:0.7em;font-family:system-ui,sans-serif;opacity:0.75}
+.paytable h3{color:var(--gold);margin-bottom:6px;font-size:1em;font-family:'Georgia',serif;letter-spacing:1px}
+.paytable table{width:100%;border-collapse:collapse}
+.paytable td{padding:3px 8px;border-bottom:1px solid rgba(200,120,32,0.15)}
+.paytable td:first-child{text-align:left}
+.paytable td:last-child{text-align:right;color:var(--gold)}
+
+.commentary{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(180deg,rgba(26,8,0,0.97),rgba(10,5,0,0.97));color:var(--gold);padding:12px 15px;font-size:0.85em;display:none;z-index:100;border-top:2px solid var(--copper);font-family:system-ui,sans-serif}
+.commentary .avatar{display:inline-block;background:linear-gradient(180deg,var(--gold),var(--copper));color:var(--dark);border-radius:50%;width:26px;height:26px;text-align:center;line-height:26px;font-size:0.7em;margin-right:10px;font-weight:700;box-shadow:0 0 10px rgba(255,215,0,0.3)}
 </style>
 </head>
 <body>
-<canvas id="c" width="600" height="600" tabindex="0"></canvas>
+
+<div class="game-container">
+<div class="header">
+<h1>🦬 BUFFALO GOLD</h1>
+<div class="subtitle">🎙️ with Mark commentary</div>
+</div>
+
+<div class="balance-bar">
+<div>Balance: <span class="balance" id="balance">$1,000</span></div>
+<div class="bet-ctl">
+<button onclick="changeBet(-10)">−</button>
+<div class="bet-val">Bet: $<span id="bet">10</span></div>
+<button onclick="changeBet(10)">+</button>
+</div>
+</div>
+
+<div class="freespins-banner" id="freeBanner">🎰 FREE SPINS: <span id="freeCount">0</span> 🎰</div>
+
+<div class="win-display">
+<div class="win-label" id="winLabel"></div>
+<div class="win-amount" id="winAmount">$0</div>
+</div>
+
+<div class="reels-frame">
+<div class="reels" id="reels"></div>
+</div>
+
+<div class="controls">
+<button class="spin-btn max" onclick="maxBet()">MAX</button>
+<button class="spin-btn main" id="spinBtn" onclick="spin()">🎰 SPIN</button>
+</div>
+
+<div class="paytable">
+<h3>🦬 Paytable</h3>
+<table>
+<tr><td>🦬 Buffalo x5</td><td>500x</td></tr>
+<tr><td>🦬 Buffalo x4</td><td>100x</td></tr>
+<tr><td>🦬 Buffalo x3</td><td>50x</td></tr>
+<tr><td>🦅 Eagle x5</td><td>150x</td></tr>
+<tr><td>🐺 Wolf x5</td><td>120x</td></tr>
+<tr><td>🦌 Elk x5</td><td>100x</td></tr>
+<tr><td>🌅 Sunset (Wild)</td><td>Subs + 2x</td></tr>
+<tr><td>💰 Gold x3+</td><td>8 Free Spins</td></tr>
+</table>
+</div>
+</div>
+
+<div class="commentary" id="commentary">
+<span class="avatar">M</span>
+<span id="commentaryText"></span>
+</div>
+
 <script>
-(function(){
-"use strict";
-var canvas = document.getElementById("c");
-var ctx = canvas.getContext("2d");
-var W = 600, H = 600;
+const SYMBOLS=['🦬','🦅','🐺','🦌','🌅','💰','A','K','Q','J'];
+const WEIGHTS=[25,15,12,12,5,4,8,7,6,6];
+const COLS=5,ROWS=3;
+let balance=1000,bet=10,spinning=false,freeSpins=0;
 
-// ─── Audio Context ───
-var audioCtx = null;
-var analyser = null;
-var micLevel = 0;
-var micSmooth = 0;
-var micActive = false;
-var micFailed = false;
-var dataArray = null;
-
-function initAudio() {
-  if (audioCtx) return;
-  try {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      dataArray = new Uint8Array(analyser.frequencyBinCount);
-      var src = audioCtx.createMediaStreamSource(stream);
-      src.connect(analyser);
-      micActive = true;
-    }).catch(function() { micFailed = true; });
-  } catch(e) { micFailed = true; }
-}
-
-function updateMic() {
-  if (!analyser || !dataArray) return;
-  analyser.getByteFrequencyData(dataArray);
-  var sum = 0;
-  for (var i = 0; i < dataArray.length; i++) sum += dataArray[i];
-  micLevel = sum / (dataArray.length * 255);
-  micSmooth += (micLevel - micSmooth) * 0.1;
-}
-
-// ─── Sound Effects (bone conduction friendly) ───
-function playTone(freq, dur, type, vol) {
-  if (!audioCtx) return;
-  var o = audioCtx.createOscillator();
-  var g = audioCtx.createGain();
-  o.type = type || "sine";
-  o.frequency.value = freq;
-  g.gain.value = vol || 0.08;
-  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
-  o.connect(g); g.connect(audioCtx.destination);
-  o.start(); o.stop(audioCtx.currentTime + dur);
-}
-
-function playReelStop(idx) {
-  playTone(200 + idx * 60, 0.08, "triangle", 0.06);
-}
-
-function playWin(amount) {
-  var base = amount > 500 ? 400 : amount > 100 ? 300 : 220;
-  for (var i = 0; i < 4; i++) {
-    setTimeout(function(f) { return function() { playTone(f, 0.15, "sine", 0.07); }; }(base + i * 80), i * 80);
-  }
-}
-
-function playBigWin() {
-  var notes = [261, 329, 392, 523, 659, 784];
-  for (var i = 0; i < notes.length; i++) {
-    setTimeout(function(f) { return function() { playTone(f, 0.3, "triangle", 0.09); }; }(notes[i]), i * 120);
-  }
-}
-
-function playScatter() {
-  playTone(880, 0.4, "sine", 0.1);
-  setTimeout(function() { playTone(1100, 0.3, "sine", 0.08); }, 150);
-  setTimeout(function() { playTone(1320, 0.5, "triangle", 0.1); }, 300);
-}
-
-function playBuffaloCollect() {
-  playTone(150, 0.3, "sawtooth", 0.06);
-  setTimeout(function() { playTone(200, 0.2, "triangle", 0.08); }, 100);
-}
-
-function playSpinStart() {
-  playTone(120, 0.1, "triangle", 0.04);
-}
-
-function playLossStreak() {
-  playTone(80, 0.4, "sawtooth", 0.04);
-}
-
-function playJackpot() {
-  var notes = [523, 659, 784, 1047, 784, 1047, 1319, 1568];
-  for (var i = 0; i < notes.length; i++) {
-    setTimeout(function(f) { return function() { playTone(f, 0.4, "triangle", 0.1); }; }(notes[i]), i * 150);
-  }
-}
-
-// ─── Symbols ───
-var SYM = {
-  BUFFALO: 0, EAGLE: 1, WOLF: 2, ELK: 3, HORSE: 4,
-  ACE: 5, KING: 6, QUEEN: 7, JACK: 8, TEN: 9, NINE: 10,
-  SCATTER: 11
+const audioBase='audio/buffalo/';
+const voiceLines={
+  jackpot:'buffalo-jackpot.mp3',bigWin:'buffalo-big-win.mp3',win:'buffalo-win.mp3',
+  spin:'buffalo-spin.mp3',lose:'buffalo-lose.mp3',intro:'buffalo-intro.mp3',
+  bonus:'buffalo-bonus.mp3',fiveBuffalo:'buffalo-five-buffalo.mp3',multiplier:'buffalo-multiplier.mp3'
 };
-var SYM_NAMES = ["🦬","🦅","🐺","🫎","🐴","A","K","Q","J","10","9","🌅"];
-var SYM_COLORS = ["#FFD700","#B8860B","#808080","#8B4513","#A0522D","#E8E8E8","#C0C0C0","#DDA0DD","#87CEEB","#90EE90","#FFB6C1","#FF6347"];
-var SYM_LABELS = ["BUFFALO","EAGLE","WOLF","ELK","HORSE","A","K","Q","J","10","9","SUNSET"];
 
-// Pay table: ways pay (symbol appears on adjacent reels from left)
-// [3-of-a-kind, 4-of-a-kind, 5-of-a-kind] multiplied by bet
-var PAYS = [
-  [10, 50, 200],   // BUFFALO (wild)
-  [8, 30, 100],    // EAGLE
-  [6, 25, 80],     // WOLF
-  [5, 20, 60],     // ELK
-  [5, 15, 50],     // HORSE
-  [4, 12, 40],     // ACE
-  [3, 10, 30],     // KING
-  [3, 8, 25],      // QUEEN
-  [2, 6, 20],      // JACK
-  [2, 5, 15],      // TEN
-  [2, 4, 10],      // NINE
-  [0, 0, 0]        // SCATTER (pays separately)
-];
+function playVoice(n){const f=voiceLines[n];if(!f)return;const a=new Audio(audioBase+f);a.volume=0.8;a.play().catch(()=>{});}
+function showCommentary(t,d=4000){const el=document.getElementById('commentary');document.getElementById('commentaryText').textContent=t;el.style.display='block';setTimeout(()=>el.style.display='none',d);}
+function weightedRandom(){const t=WEIGHTS.reduce((a,b)=>a+b,0);let r=Math.random()*t;for(let i=0;i<SYMBOLS.length;i++){r-=WEIGHTS[i];if(r<=0)return i;}return 0;}
 
-// Scatter pays: 3/4/5 scatters anywhere
-var SCATTER_PAY = [0, 0, 0, 5, 20, 100]; // indexed by count
-
-// Reel strips (weighted symbol distribution per reel)
-var REEL_STRIPS = [];
-function buildReelStrips() {
-  // Each reel has 32 positions with weighted symbol distribution
-  // Buffalo is rarer (wild), scatter is rare, animals medium, cards common
-  var weights = [
-    [2, 3, 3, 4, 4, 5, 5, 5, 5, 5, 5, 2], // Reel 1: fewer buffalos/scatters
-    [3, 3, 3, 4, 4, 4, 5, 5, 5, 5, 5, 2], // Reel 2
-    [3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 2], // Reel 3
-    [3, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 2], // Reel 4
-    [2, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 2]  // Reel 5
-  ];
-  for (var r = 0; r < 5; r++) {
-    var strip = [];
-    for (var s = 0; s < 12; s++) {
-      for (var w = 0; w < weights[r][s]; w++) strip.push(s);
-    }
-    // Shuffle
-    for (var i = strip.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var tmp = strip[i]; strip[i] = strip[j]; strip[j] = tmp;
-    }
-    REEL_STRIPS.push(strip);
-  }
-}
-buildReelStrips();
-
-// ─── Ranks ───
-var RANKS = [
-  { name: "Tenderfoot", threshold: 0, betMult: 1.0, freeSpinBonus: 0 },
-  { name: "Prospector", threshold: 5000, betMult: 1.05, freeSpinBonus: 0 },
-  { name: "Trailblazer", threshold: 25000, betMult: 1.1, freeSpinBonus: 1 },
-  { name: "Wrangler", threshold: 100000, betMult: 1.15, freeSpinBonus: 1 },
-  { name: "Sheriff", threshold: 300000, betMult: 1.2, freeSpinBonus: 2 },
-  { name: "Marshal", threshold: 750000, betMult: 1.25, freeSpinBonus: 2 },
-  { name: "Gold Baron", threshold: 2000000, betMult: 1.3, freeSpinBonus: 3 },
-  { name: "Buffalo King", threshold: 5000000, betMult: 1.4, freeSpinBonus: 3 }
-];
-
-// ─── Discovery System ───
-var DISCOVERIES = [
-  "Full Screen Buffalo",     // 0: all 20 positions are buffalo/wild
-  "5 Scatters",              // 1: 5 scatter symbols
-  "Mega Multiplier",         // 2: 15x+ total multiplier in free spins
-  "Gold Rush",               // 3: 8+ buffalo collected in single free spin session
-  "Stampede Jackpot",        // 4: single spin win > 1000x bet
-  "Lucky Streak"             // 5: 5+ consecutive winning spins
-];
-var DISCOVERY_EMOJI = ["🦬","🌅","✖️","⛏️","💰","🍀"];
-
-// ─── Persistence ───
-var stats = { credits: 1000, totalWon: 0, totalBet: 0, totalSpins: 0, biggestWin: 0,
-              maxBuffaloCollected: 0, freeSpinsTriggered: 0, discoveries: 0, rank: 0 };
-
-function loadStats() {
-  try {
-    var s = localStorage.getItem("buffalo_gold_stats");
-    if (s) { var p = JSON.parse(s); for (var k in p) { if (stats.hasOwnProperty(k)) stats[k] = p[k]; } }
-  } catch(e) {}
-  if (stats.credits <= 0) stats.credits = 1000; // safety net
-}
-function saveStats() {
-  try { localStorage.setItem("buffalo_gold_stats", JSON.stringify(stats)); } catch(e) {}
-}
-function getRankIdx() {
-  var idx = 0;
-  for (var i = RANKS.length - 1; i >= 0; i--) {
-    if (stats.totalWon >= RANKS[i].threshold) { idx = i; break; }
-  }
-  return idx;
-}
-function addDiscovery(idx) {
-  var mask = 1 << idx;
-  if (!(stats.discoveries & mask)) {
-    stats.discoveries |= mask;
-    discoveryFlash = 180; // 3 seconds at 60fps
-    discoveryName = DISCOVERIES[idx];
-    discoveryEmoji = DISCOVERY_EMOJI[idx];
-    saveStats();
-  }
-}
-function countDiscoveries() {
-  var c = 0;
-  for (var i = 0; i < DISCOVERIES.length; i++) {
-    if (stats.discoveries & (1 << i)) c++;
-  }
-  return c;
+function initReels(){
+  const reels=document.getElementById('reels');reels.innerHTML='';
+  for(let c=0;c<COLS;c++){const col=document.createElement('div');col.className='reel';
+    for(let r=0;r<ROWS;r++){const cell=document.createElement('div');cell.className='cell';cell.id=`c${c}r${r}`;
+      const idx=weightedRandom();cell.textContent=SYMBOLS[idx];applyClass(cell,idx);col.appendChild(cell);}
+    reels.appendChild(col);}
 }
 
-loadStats();
-
-// ─── Game State ───
-var STATE_TITLE = 0, STATE_PLAY = 1, STATE_SPINNING = 2, STATE_EVALUATING = 3;
-var STATE_WIN_SHOW = 4, STATE_FREE_SPINS = 5, STATE_FREE_SPINNING = 6;
-var STATE_FREE_EVAL = 7, STATE_FREE_WIN = 8, STATE_FREE_END = 9;
-var STATE_BROKE = 10, STATE_PAYTABLE = 11, STATE_NUDGE = 12;
-var state = STATE_TITLE;
-var titleFocus = 0; // 0 = spin, 1 = bet
-
-// Nudge system: after reels stop, brief window to nudge last reel
-var nudgeAvailable = false;
-var nudgeTimer = 0;
-var nudgeReel = 4; // always last reel
-var nudgeUsed = false;
-var nudgeCost = 0; // 20% of bet in normal, free in free spins
-var nudgeFromFreeSpins = false;
-
-// Pay table scroll
-var payTableScroll = 0;
-
-// Grid: 5 reels × 4 rows
-var grid = []; // grid[reel][row]
-for (var r = 0; r < 5; r++) {
-  grid.push([0, 0, 0, 0]);
+function applyClass(cell,idx){
+  cell.className='cell';
+  if(idx===0)cell.classList.add('buffalo');
+  if(idx===5)cell.classList.add('gold-buffalo');
+  if(idx===4)cell.classList.add('sunset');
 }
 
-// Reel animation
-var reelPos = [0, 0, 0, 0, 0]; // current scroll position
-var reelTarget = [0, 0, 0, 0, 0]; // target position
-var reelStopped = [true, true, true, true, true];
-var reelSpeed = [0, 0, 0, 0, 0];
-var spinStartTime = 0;
-
-// Bet
-var BET_LEVELS = [1, 2, 5, 10, 20, 50, 100];
-var betIndex = 2; // start at 5
-var totalBet = 0;
-
-// Win display
-var winAmount = 0;
-var winLines = []; // [{syms, count, pay, positions}]
-var winTimer = 0;
-var winPhase = 0;
-var scatterCount = 0;
-
-// Free spins
-var freeSpinsRemaining = 0;
-var freeSpinsTotalWon = 0;
-var buffaloCollected = [0, 0, 0, 0, 0]; // per reel (reels 1-4, index 0-4, but only 1-4 collect)
-var buffaloCollectAnims = []; // [{reel, row, timer}]
-var freeSpinNum = 0;
-var freeSpinTotalCount = 0;
-
-// Effects
-var discoveryFlash = 0;
-var discoveryName = "";
-var discoveryEmoji = "";
-var winStreakCount = 0;
-var lossStreakCount = 0;
-var particles = [];
-var screenShake = 0;
-var goldFlash = 0;
-var lastEvalPositions = {}; // cached win positions from evaluation
-
-// Volatility from mic
-var volatilityMod = 1.0; // 0.8-1.3 based on ambient noise
-
-// ─── Layout Constants ───
-var REEL_X = 30;    // left edge of first reel
-var REEL_Y = 100;   // top of reel area
-var CELL_W = 108;   // cell width
-var CELL_H = 95;    // cell height
-var REEL_GAP = 0;
-var GRID_W = CELL_W * 5;
-var GRID_H = CELL_H * 4;
-var HUD_Y = 8;      // top HUD
-var BOT_Y = 492;    // bottom info area
-
-// ─── Drawing Helpers ───
-function drawBG() {
-  // Dark western gradient
-  var grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, "#1a0f00");
-  grad.addColorStop(0.3, "#0d0d0d");
-  grad.addColorStop(1, "#0a0500");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
+function getCell(c,r){return document.getElementById(`c${c}r${r}`);}
+function changeBet(d){bet=Math.max(10,Math.min(100,bet+d));document.getElementById('bet').textContent=bet;}
+function maxBet(){bet=100;document.getElementById('bet').textContent=bet;}
+function updateBalance(){document.getElementById('balance').textContent='$'+balance.toLocaleString();}
+function showWin(amount,label='WIN'){
+  const el=document.getElementById('winAmount');el.textContent='$'+amount.toLocaleString();
+  el.className='win-amount show';document.getElementById('winLabel').textContent=label;
+  setTimeout(()=>el.className='win-amount',3000);
 }
 
-function drawSymbol(sym, x, y, w, h, highlight) {
-  var cx = x + w / 2;
-  var cy = y + h / 2;
-  var sz = Math.min(w, h) * 0.7;
-
-  if (highlight) {
-    ctx.fillStyle = "rgba(255,215,0,0.15)";
-    ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
-  }
-
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  if (sym === SYM.BUFFALO) {
-    // Golden buffalo head
-    ctx.font = "bold " + Math.floor(sz * 0.8) + "px system-ui";
-    ctx.fillStyle = "#FFD700";
-    ctx.fillText("🦬", cx, cy - 4);
-    ctx.font = "bold 10px system-ui";
-    ctx.fillStyle = "#FFD700";
-    ctx.fillText("WILD", cx, cy + sz * 0.35);
-  } else if (sym === SYM.SCATTER) {
-    ctx.font = Math.floor(sz * 0.7) + "px system-ui";
-    ctx.fillStyle = "#FF6347";
-    ctx.fillText("🌅", cx, cy - 4);
-    ctx.font = "bold 10px system-ui";
-    ctx.fillStyle = "#FF6347";
-    ctx.fillText("BONUS", cx, cy + sz * 0.35);
-  } else if (sym <= SYM.HORSE) {
-    // Animal symbols
-    ctx.font = Math.floor(sz * 0.7) + "px system-ui";
-    ctx.fillStyle = SYM_COLORS[sym];
-    ctx.fillText(SYM_NAMES[sym], cx, cy - 2);
-    ctx.font = "bold 9px system-ui";
-    ctx.fillStyle = SYM_COLORS[sym];
-    ctx.fillText(SYM_LABELS[sym], cx, cy + sz * 0.32);
-  } else {
-    // Card symbols
-    ctx.font = "bold " + Math.floor(sz * 0.55) + "px system-ui";
-    ctx.fillStyle = SYM_COLORS[sym];
-    ctx.shadowColor = SYM_COLORS[sym];
-    ctx.shadowBlur = 4;
-    ctx.fillText(SYM_NAMES[sym], cx, cy);
-    ctx.shadowBlur = 0;
-  }
+function getPayout(idx,count){
+  const p={0:{3:50,4:100,5:500},1:{3:30,4:60,5:150},2:{3:25,4:50,5:120},3:{3:20,4:40,5:100},6:{3:10,4:20,5:50},7:{3:8,4:15,5:40},8:{3:5,4:10,5:30},9:{3:5,4:10,5:25}};
+  return (p[idx]||{})[count]||0;
 }
 
-function drawReelFrame() {
-  // Reel border
-  ctx.strokeStyle = "#3d2b1f";
-  ctx.lineWidth = 3;
-  ctx.strokeRect(REEL_X - 2, REEL_Y - 2, GRID_W + 4, GRID_H + 4);
+async function spin(){
+  if(spinning)return;
+  if(balance<bet&&freeSpins<=0){showCommentary("Out of cash! The buffalo waits for no one.");return;}
+  spinning=true;document.getElementById('spinBtn').disabled=true;
+  const isFree=freeSpins>0;
+  if(isFree){freeSpins--;document.getElementById('freeCount').textContent=freeSpins;}
+  else{balance-=bet;updateBalance();}
 
-  // Reel dividers
-  ctx.strokeStyle = "#2a1a0e";
-  ctx.lineWidth = 1;
-  for (var r = 1; r < 5; r++) {
-    var x = REEL_X + r * CELL_W;
-    ctx.beginPath();
-    ctx.moveTo(x, REEL_Y);
-    ctx.lineTo(x, REEL_Y + GRID_H);
-    ctx.stroke();
+  const results=[];
+  for(let c=0;c<COLS;c++){results[c]=[];
+    for(let r=0;r<ROWS;r++){
+      if(Math.random()<0.18)results[c][r]=0;
+      else if(Math.random()<0.03)results[c][r]=5;
+      else results[c][r]=weightedRandom();
+    }
   }
-  // Row dividers
-  for (var row = 1; row < 4; row++) {
-    var yy = REEL_Y + row * CELL_H;
-    ctx.beginPath();
-    ctx.moveTo(REEL_X, yy);
-    ctx.lineTo(REEL_X + GRID_W, yy);
-    ctx.stroke();
+
+  playVoice('spin');
+  for(let c=0;c<COLS;c++)for(let r=0;r<ROWS;r++){
+    const cell=getCell(c,r);cell.classList.add('spin');cell.textContent=SYMBOLS[Math.floor(Math.random()*SYMBOLS.length)];
   }
+
+  for(let c=0;c<COLS;c++){
+    await new Promise(res=>setTimeout(res,250));
+    for(let r=0;r<ROWS;r++){const cell=getCell(c,r);cell.classList.remove('spin');const idx=results[c][r];cell.textContent=SYMBOLS[idx];applyClass(cell,idx);}
+  }
+
+  let totalWin=0,buffaloCount=0,scatterCount=0,hasSunset=false;
+  const allCells=[];
+  for(let c=0;c<COLS;c++)for(let r=0;r<ROWS;r++){
+    const idx=results[c][r];if(idx===0)buffaloCount++;if(idx===5)scatterCount++;if(idx===4)hasSunset=true;allCells.push({c,r,idx});
+  }
+
+  const winCells=new Set();
+  for(let r=0;r<ROWS;r++){let sym=results[0][r],count=1;
+    for(let c=1;c<COLS;c++){if(results[c][r]===sym||results[c][r]===4){count++;}else break;}
+    if(count>=3){for(let c=0;c<count;c++)winCells.add(`c${c}r${r}`);totalWin+=getPayout(sym,count);}
+  }
+
+  if(buffaloCount>=3){const bonus=[0,0,0,25,100,500][Math.min(buffaloCount,5)];totalWin+=bonus*bet;allCells.filter(c=>c.idx===0).forEach(c=>winCells.add(`c${c.r}r${c.c}`));}
+  if(hasSunset&&totalWin>0)totalWin*=2;
+  if(scatterCount>=3){freeSpins+=8;document.getElementById('freeBanner').style.display='block';document.getElementById('freeCount').textContent=freeSpins;playVoice('bonus');showCommentary("FREE SPINS! 8 bonus spins! Gold buffaloes upgrade your symbols!",5000);}
+
+  winCells.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('winning');});
+
+  if(totalWin>0){balance+=totalWin;updateBalance();
+    if(buffaloCount>=5){showWin(totalWin,'🎰 JACKPOT!!! 🎰');playVoice('jackpot');showCommentary("ALL BUFFALO! BUFFALOOOO! This is the DREAM!",5000);}
+    else if(totalWin>=bet*50){showWin(totalWin,'🔥 BIG WIN! 🔥');playVoice('bigWin');showCommentary("Big win! The buffalo stampede is REAL!",4000);}
+    else if(buffaloCount>=4){showWin(totalWin,'🦬 FOUR BUFFALO!');playVoice('fiveBuffalo');}
+    else{showWin(totalWin);playVoice('win');}
+  }else{document.getElementById('winAmount').className='win-amount';document.getElementById('winLabel').textContent='';if(Math.random()<0.3)playVoice('lose');}
+
+  setTimeout(()=>document.querySelectorAll('.cell.winning').forEach(c=>c.classList.remove('winning')),2000);
+  if(freeSpins<=0)document.getElementById('freeBanner').style.display='none';
+  spinning=false;document.getElementById('spinBtn').disabled=false;
 }
 
-function drawGrid(winPositions) {
-  var wp = winPositions || {};
-  for (var r = 0; r < 5; r++) {
-    for (var row = 0; row < 4; row++) {
-      var x = REEL_X + r * CELL_W;
-      var y = REEL_Y + row * CELL_H;
-      var key = r + "," + row;
-      var hl = wp[key] || false;
-      drawSymbol(grid[r][row], x, y, CELL_W, CELL_H, hl);
-    }
-  }
-}
-
-function drawTopHUD() {
-  var rankIdx = getRankIdx();
-  var rank = RANKS[rankIdx];
-
-  // Credits
-  ctx.textAlign = "left";
-  ctx.font = "bold 16px system-ui";
-  ctx.fillStyle = "#FFD700";
-  ctx.fillText("💰 " + stats.credits.toLocaleString(), 12, HUD_Y + 18);
-
-  // Rank
-  ctx.textAlign = "center";
-  ctx.font = "13px system-ui";
-  ctx.fillStyle = "#B8860B";
-  ctx.fillText("⭐ " + rank.name, W / 2, HUD_Y + 18);
-
-  // Discovery count
-  var disc = countDiscoveries();
-  ctx.textAlign = "right";
-  ctx.font = "13px system-ui";
-  ctx.fillStyle = disc === DISCOVERIES.length ? "#FFD700" : "#666";
-  ctx.fillText("✨ " + disc + "/" + DISCOVERIES.length, W - 12, HUD_Y + 18);
-
-  // Mic indicator
-  if (micActive) {
-    ctx.fillStyle = "rgba(255,215,0," + (0.3 + micSmooth * 0.7) + ")";
-    ctx.fillRect(W - 40, HUD_Y + 24, 28 * micSmooth, 3);
-  }
-}
-
-function drawBottomHUD() {
-  // Bet info
-  var bet = BET_LEVELS[betIndex];
-  ctx.textAlign = "left";
-  ctx.font = "14px system-ui";
-  ctx.fillStyle = "#888";
-  ctx.fillText("BET: " + bet + " × 40 = " + (bet * 40), 12, BOT_Y + 20);
-
-  // Controls hint
-  ctx.textAlign = "right";
-  ctx.font = "11px system-ui";
-  ctx.fillStyle = "#555";
-  if (state === STATE_PLAY) {
-    ctx.fillText("↑↓ Bet  ← Pay Table  → Max  ⏎ Spin", W - 12, BOT_Y + 20);
-  }
-
-  // Volatility bar (mic-driven)
-  if (micActive) {
-    ctx.textAlign = "left";
-    ctx.font = "10px system-ui";
-    ctx.fillStyle = "#555";
-    ctx.fillText("VOLATILITY", 12, BOT_Y + 42);
-    var barW = 80;
-    ctx.fillStyle = "#1a1a1a";
-    ctx.fillRect(82, BOT_Y + 34, barW, 8);
-    var vMod = (volatilityMod - 0.8) / 0.5; // normalize 0-1
-    var vColor = vMod > 0.6 ? "#FF6347" : vMod > 0.3 ? "#FFD700" : "#3FAA61";
-    ctx.fillStyle = vColor;
-    ctx.fillRect(82, BOT_Y + 34, barW * vMod, 8);
-  }
-
-  // Free spins indicator
-  if (state >= STATE_FREE_SPINS && state <= STATE_FREE_WIN) {
-    ctx.fillStyle = "rgba(255,99,71,0.15)";
-    ctx.fillRect(0, BOT_Y + 50, W, 50);
-    ctx.textAlign = "center";
-    ctx.font = "bold 16px system-ui";
-    ctx.fillStyle = "#FF6347";
-    ctx.fillText("🌅 FREE SPINS: " + freeSpinsRemaining + " remaining", W / 2, BOT_Y + 72);
-
-    // Buffalo collection display
-    ctx.font = "12px system-ui";
-    ctx.fillStyle = "#FFD700";
-    var collStr = "";
-    for (var r = 0; r < 5; r++) {
-      collStr += (r > 0 ? "  " : "") + "R" + (r + 1) + ":" + (buffaloCollected[r] > 0 ? buffaloCollected[r] + "×" : "-");
-    }
-    ctx.fillText(collStr, W / 2, BOT_Y + 92);
-
-    // Free spin wins
-    ctx.textAlign = "left";
-    ctx.font = "13px system-ui";
-    ctx.fillStyle = "#FFD700";
-    ctx.fillText("Won: " + freeSpinsTotalWon.toLocaleString(), 12, BOT_Y + 92);
-  }
-}
-
-function drawBuffaloCollectors() {
-  // Draw golden buffalo heads above reels for free spin collection
-  if (state < STATE_FREE_SPINS || state > STATE_FREE_END) return;
-  for (var r = 0; r < 5; r++) {
-    var x = REEL_X + r * CELL_W + CELL_W / 2;
-    var y = REEL_Y - 22;
-    var count = buffaloCollected[r];
-    if (count > 0) {
-      ctx.textAlign = "center";
-      ctx.font = "16px system-ui";
-      ctx.fillStyle = "#FFD700";
-      ctx.fillText("🦬×" + count, x, y);
-      // Glow
-      ctx.shadowColor = "#FFD700";
-      ctx.shadowBlur = 8;
-      ctx.fillText("🦬×" + count, x, y);
-      ctx.shadowBlur = 0;
-    }
-  }
-}
-
-function drawParticles() {
-  for (var i = particles.length - 1; i >= 0; i--) {
-    var p = particles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vy += 0.15;
-    p.life--;
-    if (p.life <= 0) { particles.splice(i, 1); continue; }
-    var alpha = p.life / p.maxLife;
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = p.color;
-    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
-  }
-  ctx.globalAlpha = 1;
-}
-
-function spawnParticles(x, y, color, count) {
-  for (var i = 0; i < count; i++) {
-    particles.push({
-      x: x, y: y,
-      vx: (Math.random() - 0.5) * 6,
-      vy: (Math.random() - 1) * 5,
-      size: 2 + Math.random() * 4,
-      color: color,
-      life: 30 + Math.random() * 30,
-      maxLife: 60
-    });
-  }
-}
-
-function spawnGoldBurst(x, y) {
-  var colors = ["#FFD700", "#FFA500", "#FF8C00", "#FFFACD", "#B8860B"];
-  for (var i = 0; i < 20; i++) {
-    particles.push({
-      x: x, y: y,
-      vx: (Math.random() - 0.5) * 10,
-      vy: (Math.random() - 1) * 8,
-      size: 3 + Math.random() * 5,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      life: 40 + Math.random() * 40,
-      maxLife: 80
-    });
-  }
-}
-
-// ─── Spin Logic ───
-function getRandomSymbol(reel) {
-  var strip = REEL_STRIPS[reel];
-  return strip[Math.floor(Math.random() * strip.length)];
-}
-
-function spinReels() {
-  for (var r = 0; r < 5; r++) {
-    reelStopped[r] = false;
-    reelSpeed[r] = 15 + r * 2;
-    reelPos[r] = 0;
-    reelTarget[r] = 20 + r * 8 + Math.floor(Math.random() * 5);
-  }
-  spinStartTime = Date.now();
-}
-
-function generateResult() {
-  // Mic affects volatility: louder = more high-value symbols possible
-  volatilityMod = 0.85 + micSmooth * 0.45;
-
-  for (var r = 0; r < 5; r++) {
-    for (var row = 0; row < 4; row++) {
-      var sym = getRandomSymbol(r);
-      // Volatility mod: higher volatility slightly increases buffalo/scatter chance
-      if (volatilityMod > 1.1 && Math.random() < (volatilityMod - 1.0) * 0.15) {
-        if (Math.random() < 0.4) sym = SYM.BUFFALO;
-        else if (Math.random() < 0.15) sym = SYM.SCATTER;
-        else sym = Math.floor(Math.random() * 5); // animal
-      }
-      grid[r][row] = sym;
-    }
-  }
-}
-
-// ─── Evaluation: 1024 Ways ───
-function evaluateWin() {
-  var bet = BET_LEVELS[betIndex];
-  var totalWin = 0;
-  var lines = [];
-  var posMap = {};
-
-  // Count scatters
-  scatterCount = 0;
-  var scatterPos = [];
-  for (var r = 0; r < 5; r++) {
-    for (var row = 0; row < 4; row++) {
-      if (grid[r][row] === SYM.SCATTER) {
-        scatterCount++;
-        scatterPos.push({ r: r, row: row });
-      }
-    }
-  }
-  if (scatterCount >= 3) {
-    var sPay = SCATTER_PAY[scatterCount] * bet * 40;
-    totalWin += sPay;
-    for (var i = 0; i < scatterPos.length; i++) {
-      posMap[scatterPos[i].r + "," + scatterPos[i].row] = true;
-    }
-    lines.push({ name: "SCATTER ×" + scatterCount, pay: sPay });
-  }
-
-  // 1024 ways evaluation
-  // For each non-scatter, non-buffalo symbol, count ways from left
-  for (var sym = 0; sym <= SYM.NINE; sym++) {
-    if (sym === SYM.SCATTER) continue;
-
-    // Get matching positions per reel (including buffalo as wild for non-buffalo syms)
-    var reelMatches = [];
-    for (var rr = 0; rr < 5; rr++) {
-      var matches = [];
-      for (var ro = 0; ro < 4; ro++) {
-        if (grid[rr][ro] === sym || (sym !== SYM.BUFFALO && grid[rr][ro] === SYM.BUFFALO)) {
-          matches.push(ro);
-        }
-      }
-      reelMatches.push(matches);
-    }
-
-    // Count consecutive reels from left with at least one match
-    var consecutive = 0;
-    var ways = 1;
-    for (var rr2 = 0; rr2 < 5; rr2++) {
-      if (reelMatches[rr2].length === 0) break;
-      consecutive++;
-      ways *= reelMatches[rr2].length;
-    }
-
-    if (consecutive >= 3) {
-      var payIdx = consecutive - 3; // 0=3oak, 1=4oak, 2=5oak
-      var basePay = PAYS[sym][payIdx];
-      // In free spins, apply buffalo multipliers
-      var mult = 1;
-      if (state >= STATE_FREE_SPINS && state <= STATE_FREE_WIN) {
-        for (var mr = 0; mr < consecutive; mr++) {
-          if (buffaloCollected[mr] > 0) mult *= (buffaloCollected[mr] + 1);
-        }
-      }
-      var linePay = basePay * bet * ways * mult;
-      if (linePay > 0) {
-        totalWin += linePay;
-        // Mark winning positions
-        for (var rr3 = 0; rr3 < consecutive; rr3++) {
-          for (var mi = 0; mi < reelMatches[rr3].length; mi++) {
-            posMap[rr3 + "," + reelMatches[rr3][mi]] = true;
-          }
-        }
-        var multStr = mult > 1 ? " ×" + mult : "";
-        lines.push({
-          name: SYM_LABELS[sym] + " ×" + consecutive + " (" + ways + "w)" + multStr,
-          pay: linePay
-        });
-      }
-    }
-  }
-
-  return { total: totalWin, lines: lines, positions: posMap };
-}
-
-// ─── Free Spins ───
-function startFreeSpins() {
-  var baseSpins = scatterCount === 3 ? 8 : scatterCount === 4 ? 15 : 25;
-  var rankBonus = RANKS[getRankIdx()].freeSpinBonus;
-  freeSpinsRemaining = baseSpins + rankBonus;
-  freeSpinsTotalWon = 0;
-  freeSpinNum = 0;
-  freeSpinTotalCount = freeSpinsRemaining;
-  buffaloCollected = [0, 0, 0, 0, 0];
-  buffaloCollectAnims = [];
-  stats.freeSpinsTriggered++;
-  state = STATE_FREE_SPINS;
-  playScatter();
-}
-
-function collectBuffalos() {
-  // During free spins, buffalo on reels 1-4 (index 1-4) get collected
-  var collected = 0;
-  for (var r = 0; r < 5; r++) {
-    for (var row = 0; row < 4; row++) {
-      if (grid[r][row] === SYM.BUFFALO) {
-        buffaloCollected[r]++;
-        collected++;
-        buffaloCollectAnims.push({ reel: r, row: row, timer: 30 });
-        spawnGoldBurst(REEL_X + r * CELL_W + CELL_W / 2, REEL_Y + row * CELL_H + CELL_H / 2);
-        playBuffaloCollect();
-      }
-    }
-  }
-  var totalColl = 0;
-  for (var i = 0; i < 5; i++) totalColl += buffaloCollected[i];
-  if (totalColl > stats.maxBuffaloCollected) stats.maxBuffaloCollected = totalColl;
-  if (totalColl >= 8) addDiscovery(3); // Gold Rush
-
-  // Check mega multiplier
-  var mult = 1;
-  for (var j = 0; j < 5; j++) {
-    if (buffaloCollected[j] > 0) mult *= (buffaloCollected[j] + 1);
-  }
-  if (mult >= 15) addDiscovery(2); // Mega Multiplier
-
-  return collected;
-}
-
-// ─── Title Screen ───
-function drawTitle() {
-  drawBG();
-
-  // Title
-  ctx.textAlign = "center";
-  ctx.font = "bold 48px system-ui";
-  ctx.fillStyle = "#FFD700";
-  ctx.shadowColor = "#FF8C00";
-  ctx.shadowBlur = 20;
-  ctx.fillText("BUFFALO", W / 2, 120);
-  ctx.font = "bold 36px system-ui";
-  ctx.fillText("G O L D", W / 2, 170);
-  ctx.shadowBlur = 0;
-
-  // Buffalo emoji
-  ctx.font = "64px system-ui";
-  ctx.fillText("🦬", W / 2, 250);
-
-  // Menu
-  var items = ["🎰  SPIN", "💰  BET: " + BET_LEVELS[betIndex] + " × 40"];
-  for (var i = 0; i < items.length; i++) {
-    var y = 320 + i * 50;
-    if (i === titleFocus) {
-      ctx.fillStyle = "rgba(255,215,0,0.15)";
-      ctx.fillRect(W / 2 - 120, y - 18, 240, 36);
-      ctx.fillStyle = "#FFD700";
-      ctx.font = "bold 18px system-ui";
-    } else {
-      ctx.fillStyle = "#888";
-      ctx.font = "18px system-ui";
-    }
-    ctx.fillText(items[i], W / 2, y + 6);
-  }
-
-  // Stats
-  var rankIdx = getRankIdx();
-  ctx.font = "14px system-ui";
-  ctx.fillStyle = "#B8860B";
-  ctx.fillText("⭐ " + RANKS[rankIdx].name + "  |  💰 " + stats.credits.toLocaleString(), W / 2, 440);
-
-  ctx.font = "12px system-ui";
-  ctx.fillStyle = "#666";
-  ctx.fillText("Spins: " + stats.totalSpins + "  |  Biggest Win: " + stats.biggestWin.toLocaleString(), W / 2, 465);
-
-  // Discovery
-  var disc = countDiscoveries();
-  ctx.fillStyle = disc === DISCOVERIES.length ? "#FFD700" : "#555";
-  ctx.fillText("✨ Discoveries: " + disc + "/" + DISCOVERIES.length, W / 2, 490);
-
-  // Controls
-  ctx.font = "11px system-ui";
-  ctx.fillStyle = "#444";
-  ctx.fillText("↑↓ Navigate  ←→ Adjust Bet  ⏎ Select", W / 2, 560);
-  ctx.fillText("1024 Ways  •  Free Spins  •  Stacking Multipliers", W / 2, 580);
-}
-
-// ─── Broke Screen ───
-function drawBroke() {
-  drawBG();
-  ctx.textAlign = "center";
-  ctx.font = "bold 28px system-ui";
-  ctx.fillStyle = "#FF6347";
-  ctx.fillText("BUSTED", W / 2, 200);
-  ctx.font = "64px system-ui";
-  ctx.fillText("💸", W / 2, 280);
-  ctx.font = "16px system-ui";
-  ctx.fillStyle = "#888";
-  ctx.fillText("The house always wins...", W / 2, 340);
-  ctx.fillText("But here's 1000 credits to try again.", W / 2, 370);
-  ctx.fillStyle = "#FFD700";
-  ctx.font = "bold 16px system-ui";
-  ctx.fillText("⏎ Continue", W / 2, 430);
-}
-
-// ─── Update/Draw per frame ───
-var lastTime = 0;
-var frameCount = 0;
-
-function update() {
-  frameCount++;
-  updateMic();
-
-  // Decay effects
-  if (discoveryFlash > 0) discoveryFlash--;
-  if (screenShake > 0) screenShake--;
-  if (goldFlash > 0) goldFlash--;
-
-  // Update buffalo collect animations
-  for (var i = buffaloCollectAnims.length - 1; i >= 0; i--) {
-    buffaloCollectAnims[i].timer--;
-    if (buffaloCollectAnims[i].timer <= 0) buffaloCollectAnims.splice(i, 1);
-  }
-
-  // Reel animation
-  if (state === STATE_SPINNING || state === STATE_FREE_SPINNING) {
-    var allStopped = true;
-    var elapsed = Date.now() - spinStartTime;
-    for (var r = 0; r < 5; r++) {
-      if (!reelStopped[r]) {
-        // Each reel stops with stagger
-        var stopDelay = 200 + r * 250;
-        if (elapsed > stopDelay) {
-          reelPos[r] += reelSpeed[r] * 0.3;
-          reelSpeed[r] *= 0.85;
-          if (reelSpeed[r] < 0.5) {
-            reelStopped[r] = true;
-            reelSpeed[r] = 0;
-            playReelStop(r);
-            // Particles at reel stop
-            spawnParticles(REEL_X + r * CELL_W + CELL_W / 2, REEL_Y + GRID_H / 2, "#FFD700", 5);
-          }
-        }
-        allStopped = false;
-      }
-    }
-    if (allStopped) {
-      if (state === STATE_SPINNING) {
-        nudgeFromFreeSpins = false;
-        nudgeAvailable = true;
-        nudgeTimer = 120;
-        nudgeUsed = false;
-        nudgeCost = Math.floor(BET_LEVELS[betIndex] * 40 * 0.2);
-        state = STATE_NUDGE;
-      } else {
-        collectBuffalos();
-        nudgeFromFreeSpins = true;
-        nudgeAvailable = true;
-        nudgeTimer = 120;
-        nudgeUsed = false;
-        nudgeCost = 0;
-        state = STATE_NUDGE;
-      }
-    }
-  }
-
-  // Nudge state
-  var wasInFreeSpins = false;
-  if (state === STATE_NUDGE) {
-    nudgeTimer--;
-    if (nudgeTimer <= 0) {
-      nudgeAvailable = false;
-      state = nudgeFromFreeSpins ? STATE_FREE_EVAL : STATE_EVALUATING;
-    }
-  }
-
-  // Evaluating
-  if (state === STATE_EVALUATING) {
-    var result = evaluateWin();
-    winAmount = result.total;
-    winLines = result.lines;
-    lastEvalPositions = result.positions;
-    winTimer = 0;
-
-    if (winAmount > 0) {
-      stats.credits += winAmount;
-      stats.totalWon += winAmount;
-      if (winAmount > stats.biggestWin) stats.biggestWin = winAmount;
-      winStreakCount++;
-      lossStreakCount = 0;
-      if (winStreakCount >= 5) addDiscovery(5); // Lucky Streak
-
-      // Check for jackpot discovery
-      if (winAmount >= BET_LEVELS[betIndex] * 40 * 1000) addDiscovery(4); // Stampede Jackpot
-
-      // Check full screen buffalo
-      var allBuff = true;
-      for (var rr = 0; rr < 5; rr++) {
-        for (var ro = 0; ro < 4; ro++) {
-          if (grid[rr][ro] !== SYM.BUFFALO) allBuff = false;
-        }
-      }
-      if (allBuff) addDiscovery(0);
-
-      if (winAmount >= BET_LEVELS[betIndex] * 40 * 50) {
-        playBigWin();
-        screenShake = 30;
-        goldFlash = 60;
-        for (var pr = 0; pr < 5; pr++) {
-          spawnGoldBurst(REEL_X + pr * CELL_W + CELL_W / 2, REEL_Y + GRID_H / 2);
-        }
-      } else {
-        playWin(winAmount);
-      }
-
-      state = STATE_WIN_SHOW;
-    } else {
-      lossStreakCount++;
-      winStreakCount = 0;
-      if (lossStreakCount >= 8) playLossStreak();
-
-      // Check for scatter trigger
-      if (scatterCount >= 3) {
-        if (scatterCount >= 5) addDiscovery(1);
-        startFreeSpins();
-      } else {
-        state = STATE_PLAY;
-      }
-    }
-    saveStats();
-  }
-
-  // Free spin evaluation
-  if (state === STATE_FREE_EVAL) {
-    var fresult = evaluateWin();
-    winAmount = fresult.total;
-    winLines = fresult.lines;
-    lastEvalPositions = fresult.positions;
-    winTimer = 0;
-
-    if (winAmount > 0) {
-      stats.credits += winAmount;
-      stats.totalWon += winAmount;
-      freeSpinsTotalWon += winAmount;
-      if (winAmount > stats.biggestWin) stats.biggestWin = winAmount;
-      if (winAmount >= BET_LEVELS[betIndex] * 40 * 1000) addDiscovery(4);
-
-      if (winAmount >= BET_LEVELS[betIndex] * 40 * 50) {
-        playBigWin();
-        screenShake = 30;
-      } else {
-        playWin(winAmount);
-      }
-      state = STATE_FREE_WIN;
-    } else {
-      // Check retrigger
-      if (scatterCount >= 3) {
-        var extraSpins = scatterCount === 3 ? 5 : scatterCount === 4 ? 10 : 20;
-        freeSpinsRemaining += extraSpins;
-        freeSpinTotalCount += extraSpins;
-        playScatter();
-      }
-
-      if (freeSpinsRemaining > 0) {
-        state = STATE_FREE_SPINS;
-      } else {
-        state = STATE_FREE_END;
-        winTimer = 0;
-      }
-    }
-    saveStats();
-  }
-
-  // Win show timer
-  if (state === STATE_WIN_SHOW) {
-    winTimer++;
-    if (winTimer > 120) { // 2 seconds
-      // Check scatter trigger
-      if (scatterCount >= 3) {
-        if (scatterCount >= 5) addDiscovery(1);
-        startFreeSpins();
-      } else {
-        state = STATE_PLAY;
-      }
-    }
-  }
-
-  // Free win show timer
-  if (state === STATE_FREE_WIN) {
-    winTimer++;
-    if (winTimer > 90) {
-      if (scatterCount >= 3) {
-        var extraSpins2 = scatterCount === 3 ? 5 : scatterCount === 4 ? 10 : 20;
-        freeSpinsRemaining += extraSpins2;
-        freeSpinTotalCount += extraSpins2;
-      }
-      if (freeSpinsRemaining > 0) {
-        state = STATE_FREE_SPINS;
-      } else {
-        state = STATE_FREE_END;
-        winTimer = 0;
-      }
-    }
-  }
-
-  // Free spins end display
-  if (state === STATE_FREE_END) {
-    winTimer++;
-    // wait for Enter
-  }
-}
-
-function draw() {
-  ctx.save();
-
-  // Screen shake
-  if (screenShake > 0) {
-    var sx = (Math.random() - 0.5) * screenShake * 0.5;
-    var sy = (Math.random() - 0.5) * screenShake * 0.5;
-    ctx.translate(sx, sy);
-  }
-
-  if (state === STATE_TITLE) {
-    drawTitle();
-    ctx.restore();
-    return;
-  }
-  if (state === STATE_BROKE) {
-    drawBroke();
-    ctx.restore();
-    return;
-  }
-  if (state === STATE_PAYTABLE) {
-    drawPayTable();
-    ctx.restore();
-    return;
-  }
-
-  drawBG();
-
-  // Gold flash overlay
-  if (goldFlash > 0) {
-    ctx.fillStyle = "rgba(255,215,0," + (goldFlash / 120) + ")";
-    ctx.fillRect(0, 0, W, H);
-  }
-
-  drawTopHUD();
-  drawReelFrame();
-
-  // Determine winning positions for highlight
-  var wp = {};
-  if ((state === STATE_WIN_SHOW || state === STATE_FREE_WIN) && winTimer % 30 < 20) {
-    wp = lastEvalPositions;
-  }
-
-  drawGrid(wp);
-  drawBuffaloCollectors();
-  drawBottomHUD();
-  drawParticles();
-
-  // Win display
-  if (state === STATE_WIN_SHOW || state === STATE_FREE_WIN) {
-    // Win amount banner
-    ctx.fillStyle = "rgba(0,0,0,0.7)";
-    ctx.fillRect(0, REEL_Y + GRID_H + 5, W, 50);
-    ctx.textAlign = "center";
-    ctx.font = "bold 24px system-ui";
-    ctx.fillStyle = "#FFD700";
-    ctx.shadowColor = "#FF8C00";
-    ctx.shadowBlur = 10;
-    ctx.fillText("WIN: " + winAmount.toLocaleString(), W / 2, REEL_Y + GRID_H + 35);
-    ctx.shadowBlur = 0;
-
-    // Win lines (scroll through them)
-    if (winLines.length > 0) {
-      var lineIdx = Math.floor(winTimer / 30) % winLines.length;
-      ctx.font = "12px system-ui";
-      ctx.fillStyle = "#B8860B";
-      ctx.fillText(winLines[lineIdx].name + " = " + winLines[lineIdx].pay.toLocaleString(), W / 2, REEL_Y + GRID_H + 52);
-    }
-  }
-
-  // Spinning visual effect (blur on active reels)
-  if (state === STATE_SPINNING || state === STATE_FREE_SPINNING) {
-    for (var r = 0; r < 5; r++) {
-      if (!reelStopped[r]) {
-        ctx.fillStyle = "rgba(13,13,13,0.6)";
-        ctx.fillRect(REEL_X + r * CELL_W + 1, REEL_Y + 1, CELL_W - 2, GRID_H - 2);
-        // Scrolling symbol hints
-        var offset = (frameCount * reelSpeed[r] * 0.3) % CELL_H;
-        ctx.globalAlpha = 0.3;
-        for (var fakeRow = 0; fakeRow < 5; fakeRow++) {
-          var fy = REEL_Y + fakeRow * CELL_H - offset;
-          if (fy > REEL_Y - CELL_H && fy < REEL_Y + GRID_H) {
-            var fakeSym = Math.floor(Math.random() * 12);
-            drawSymbol(fakeSym, REEL_X + r * CELL_W, fy, CELL_W, CELL_H, false);
-          }
-        }
-        ctx.globalAlpha = 1;
-      }
-    }
-  }
-
-  // Free spins banner
-  if (state === STATE_FREE_SPINS) {
-    ctx.fillStyle = "rgba(255,99,71,0.1)";
-    ctx.fillRect(0, REEL_Y - 35, W, 30);
-    ctx.textAlign = "center";
-    ctx.font = "bold 14px system-ui";
-    ctx.fillStyle = "#FF6347";
-    ctx.fillText("🌅 FREE SPIN " + (freeSpinNum + 1) + " of " + freeSpinTotalCount + "  —  Press ⏎ to Spin", W / 2, REEL_Y - 16);
-  }
-
-  // Free spins end overlay
-  if (state === STATE_FREE_END) {
-    ctx.fillStyle = "rgba(0,0,0,0.85)";
-    ctx.fillRect(0, 0, W, H);
-    ctx.textAlign = "center";
-    ctx.font = "bold 32px system-ui";
-    ctx.fillStyle = "#FFD700";
-    ctx.shadowColor = "#FF8C00";
-    ctx.shadowBlur = 15;
-    ctx.fillText("FREE SPINS COMPLETE", W / 2, 180);
-    ctx.shadowBlur = 0;
-
-    ctx.font = "48px system-ui";
-    ctx.fillText("🦬", W / 2, 250);
-
-    ctx.font = "bold 22px system-ui";
-    ctx.fillStyle = "#FFD700";
-    ctx.fillText("TOTAL WON: " + freeSpinsTotalWon.toLocaleString(), W / 2, 310);
-
-    // Show buffalo collection summary
-    var totalBuff = 0;
-    for (var br = 0; br < 5; br++) totalBuff += buffaloCollected[br];
-    ctx.font = "16px system-ui";
-    ctx.fillStyle = "#B8860B";
-    ctx.fillText(totalBuff + " Buffalos Collected", W / 2, 350);
-
-    // Multiplier breakdown
-    var multStr2 = "";
-    for (var br2 = 0; br2 < 5; br2++) {
-      if (buffaloCollected[br2] > 0) {
-        multStr2 += "R" + (br2 + 1) + ":" + (buffaloCollected[br2] + 1) + "× ";
-      }
-    }
-    if (multStr2) {
-      ctx.font = "13px system-ui";
-      ctx.fillStyle = "#888";
-      ctx.fillText("Multipliers: " + multStr2, W / 2, 380);
-    }
-
-    ctx.font = "bold 14px system-ui";
-    ctx.fillStyle = "#FFD700";
-    var blink = Math.floor(frameCount / 30) % 2;
-    if (blink) ctx.fillText("⏎ Continue", W / 2, 440);
-  }
-
-  // Nudge prompt
-  if (state === STATE_NUDGE && nudgeAvailable) {
-    var nudgeAlpha = Math.min(1, nudgeTimer / 30);
-    ctx.fillStyle = "rgba(255,165,0," + (nudgeAlpha * 0.15) + ")";
-    ctx.fillRect(REEL_X + 4 * CELL_W, REEL_Y, CELL_W, GRID_H);
-    ctx.textAlign = "center";
-    ctx.font = "bold 12px system-ui";
-    ctx.fillStyle = "rgba(255,165,0," + nudgeAlpha + ")";
-    var costStr = nudgeCost > 0 ? " (" + nudgeCost + " cr)" : " (FREE)";
-    ctx.fillText("↑↓ NUDGE R5" + costStr, W / 2, REEL_Y + GRID_H + 18);
-    ctx.font = "11px system-ui";
-    ctx.fillStyle = "rgba(136,136,136," + nudgeAlpha + ")";
-    ctx.fillText("⏎ Skip  •  " + Math.ceil(nudgeTimer / 60) + "s", W / 2, REEL_Y + GRID_H + 35);
-  }
-
-  // Discovery flash
-  if (discoveryFlash > 0) {
-    var dAlpha = Math.min(1, discoveryFlash / 60);
-    ctx.fillStyle = "rgba(255,215,0," + (dAlpha * 0.2) + ")";
-    ctx.fillRect(0, 0, W, H);
-    ctx.textAlign = "center";
-    ctx.font = "bold 20px system-ui";
-    ctx.fillStyle = "rgba(255,215,0," + dAlpha + ")";
-    ctx.fillText("✨ NEW DISCOVERY: " + discoveryEmoji + " " + discoveryName, W / 2, 50);
-  }
-
-  ctx.restore();
-}
-
-// ─── Pay Table Screen ───
-function drawPayTable() {
-  drawBG();
-  ctx.textAlign = "center";
-  ctx.font = "bold 22px system-ui";
-  ctx.fillStyle = "#FFD700";
-  ctx.fillText("PAY TABLE", W / 2, 35);
-
-  var startY = 55 - payTableScroll * 25;
-  var items = [
-    { sym: "🦬 BUFFALO (WILD)", vals: "10× / 50× / 200×", color: "#FFD700", note: "Substitutes for all except Scatter" },
-    { sym: "🦅 EAGLE", vals: "8× / 30× / 100×", color: "#B8860B" },
-    { sym: "🐺 WOLF", vals: "6× / 25× / 80×", color: "#808080" },
-    { sym: "🫎 ELK", vals: "5× / 20× / 60×", color: "#8B4513" },
-    { sym: "🐴 HORSE", vals: "5× / 15× / 50×", color: "#A0522D" },
-    { sym: "A ACE", vals: "4× / 12× / 40×", color: "#E8E8E8" },
-    { sym: "K KING", vals: "3× / 10× / 30×", color: "#C0C0C0" },
-    { sym: "Q QUEEN", vals: "3× / 8× / 25×", color: "#DDA0DD" },
-    { sym: "J JACK", vals: "2× / 6× / 20×", color: "#87CEEB" },
-    { sym: "10 TEN", vals: "2× / 5× / 15×", color: "#90EE90" },
-    { sym: "9 NINE", vals: "2× / 4× / 10×", color: "#FFB6C1" },
-    { sym: "🌅 SCATTER", vals: "3=8 Free | 4=15 Free | 5=25 Free", color: "#FF6347", note: "Anywhere on reels" }
-  ];
-
-  ctx.textAlign = "left";
-  for (var i = 0; i < items.length; i++) {
-    var y = startY + i * 36;
-    if (y < 40 || y > 520) continue;
-    ctx.font = "bold 14px system-ui";
-    ctx.fillStyle = items[i].color;
-    ctx.fillText(items[i].sym, 30, y + 14);
-    ctx.font = "13px system-ui";
-    ctx.fillStyle = "#999";
-    ctx.fillText(items[i].vals, 200, y + 14);
-    if (items[i].note) {
-      ctx.font = "10px system-ui";
-      ctx.fillStyle = "#666";
-      ctx.fillText(items[i].note, 200, y + 28);
-    }
-  }
-
-  // Mechanics section
-  var mechY = startY + items.length * 36 + 20;
-  if (mechY < 550 && mechY > 40) {
-    ctx.textAlign = "center";
-    ctx.font = "bold 14px system-ui";
-    ctx.fillStyle = "#FFD700";
-    ctx.fillText("─── MECHANICS ───", W / 2, mechY);
-    ctx.textAlign = "left";
-    ctx.font = "12px system-ui";
-    ctx.fillStyle = "#888";
-    var lines = [
-      "• 1024 WAYS: Match symbols on adjacent reels from left (4⁵ = 1024)",
-      "• WILDS: Buffalo substitutes for all symbols except Scatter",
-      "• FREE SPINS: Buffalo symbols collected as reel multipliers",
-      "• NUDGE: After reels stop, ↑↓ shifts Reel 5 (free in bonus!)",
-      "• VOLATILITY: Room noise through mic affects payout variance",
-      "• RETRIGGER: 3+ Scatters during Free Spins adds more spins"
-    ];
-    for (var li = 0; li < lines.length; li++) {
-      var ly = mechY + 20 + li * 18;
-      if (ly > 40 && ly < 570) ctx.fillText(lines[li], 30, ly);
-    }
-  }
-
-  ctx.textAlign = "center";
-  ctx.font = "11px system-ui";
-  ctx.fillStyle = "#555";
-  ctx.fillText("↑↓ Scroll  •  ⏎ or ← Back", W / 2, 585);
-}
-
-// ─── Input ───
-function handleKey(e) {
-  var key = e.key || e.code;
-  e.preventDefault();
-
-  if (!audioCtx) initAudio();
-
-  if (state === STATE_TITLE) {
-    if (key === "ArrowUp") {
-      titleFocus = Math.max(0, titleFocus - 1);
-    } else if (key === "ArrowDown") {
-      titleFocus = Math.min(1, titleFocus + 1);
-    } else if (key === "ArrowLeft") {
-      if (titleFocus === 1) betIndex = Math.max(0, betIndex - 1);
-    } else if (key === "ArrowRight") {
-      if (titleFocus === 1) betIndex = Math.min(BET_LEVELS.length - 1, betIndex + 1);
-    } else if (key === "Enter") {
-      if (titleFocus === 0) {
-        state = STATE_PLAY;
-        generateResult(); // Pre-fill grid
-      }
-    } else if (key === "Escape" || key === "Backspace") {
-      window.location.href = "./";
-    }
-    return;
-  }
-
-  if (state === STATE_PAYTABLE) {
-    if (key === "ArrowUp") {
-      payTableScroll = Math.max(0, payTableScroll - 1);
-    } else if (key === "ArrowDown") {
-      payTableScroll = Math.min(12, payTableScroll + 1);
-    } else if (key === "Enter" || key === "ArrowLeft" || key === "Escape") {
-      state = STATE_PLAY;
-    }
-    return;
-  }
-
-  if (state === STATE_NUDGE) {
-    if (key === "ArrowUp" && nudgeAvailable && !nudgeUsed) {
-      // Nudge reel 5 up (shift symbols down, top gets new)
-      if (nudgeCost > 0 && stats.credits < nudgeCost) {
-        playTone(100, 0.2, "sawtooth", 0.05);
-        return;
-      }
-      stats.credits -= nudgeCost;
-      nudgeUsed = true;
-      nudgeAvailable = false;
-      // Shift: row 3→discard, row 2→3, row 1→2, row 0→1, new→0
-      grid[4][3] = grid[4][2];
-      grid[4][2] = grid[4][1];
-      grid[4][1] = grid[4][0];
-      grid[4][0] = getRandomSymbol(4);
-      playTone(400, 0.1, "triangle", 0.06);
-      spawnParticles(REEL_X + 4 * CELL_W + CELL_W / 2, REEL_Y + 20, "#FFA500", 8);
-      state = nudgeFromFreeSpins ? STATE_FREE_EVAL : STATE_EVALUATING;
-    } else if (key === "ArrowDown" && nudgeAvailable && !nudgeUsed) {
-      // Nudge reel 5 down (shift symbols up, bottom gets new)
-      if (nudgeCost > 0 && stats.credits < nudgeCost) {
-        playTone(100, 0.2, "sawtooth", 0.05);
-        return;
-      }
-      stats.credits -= nudgeCost;
-      nudgeUsed = true;
-      nudgeAvailable = false;
-      grid[4][0] = grid[4][1];
-      grid[4][1] = grid[4][2];
-      grid[4][2] = grid[4][3];
-      grid[4][3] = getRandomSymbol(4);
-      playTone(300, 0.1, "triangle", 0.06);
-      spawnParticles(REEL_X + 4 * CELL_W + CELL_W / 2, REEL_Y + GRID_H - 20, "#FFA500", 8);
-      state = nudgeFromFreeSpins ? STATE_FREE_EVAL : STATE_EVALUATING;
-    } else if (key === "Enter") {
-      // Skip nudge
-      nudgeAvailable = false;
-      state = nudgeFromFreeSpins ? STATE_FREE_EVAL : STATE_EVALUATING;
-    }
-    return;
-  }
-
-  if (state === STATE_BROKE) {
-    if (key === "Enter") {
-      stats.credits = 1000;
-      saveStats();
-      state = STATE_PLAY;
-    }
-    return;
-  }
-
-  if (state === STATE_PLAY) {
-    if (key === "ArrowUp") {
-      betIndex = Math.min(BET_LEVELS.length - 1, betIndex + 1);
-      playTone(300 + betIndex * 40, 0.05, "sine", 0.04);
-    } else if (key === "ArrowDown") {
-      betIndex = Math.max(0, betIndex - 1);
-      playTone(300 + betIndex * 40, 0.05, "sine", 0.04);
-    } else if (key === "ArrowLeft") {
-      // Pay table
-      payTableScroll = 0;
-      state = STATE_PAYTABLE;
-    } else if (key === "ArrowRight") {
-      // Quick bet: max
-      betIndex = BET_LEVELS.length - 1;
-      playTone(500, 0.05, "sine", 0.03);
-    } else if (key === "Enter") {
-      totalBet = BET_LEVELS[betIndex] * 40;
-      if (stats.credits >= totalBet) {
-        stats.credits -= totalBet;
-        stats.totalBet += totalBet;
-        stats.totalSpins++;
-        generateResult();
-        spinReels();
-        state = STATE_SPINNING;
-        playSpinStart();
-      } else if (stats.credits <= 0) {
-        state = STATE_BROKE;
-      } else {
-        // Not enough credits, flash bet
-        playTone(100, 0.2, "sawtooth", 0.05);
-      }
-    } else if (key === "Escape" || key === "Backspace") {
-      state = STATE_TITLE;
-    }
-    return;
-  }
-
-  if (state === STATE_WIN_SHOW) {
-    if (key === "Enter") {
-      winTimer = 999; // skip to next
-    }
-    return;
-  }
-
-  if (state === STATE_FREE_SPINS) {
-    if (key === "Enter") {
-      freeSpinsRemaining--;
-      freeSpinNum++;
-      totalBet = BET_LEVELS[betIndex] * 40; // for pay calculation, but no deduction
-      generateResult();
-      spinReels();
-      state = STATE_FREE_SPINNING;
-      playSpinStart();
-    }
-    return;
-  }
-
-  if (state === STATE_FREE_WIN) {
-    if (key === "Enter") {
-      winTimer = 999;
-    }
-    return;
-  }
-
-  if (state === STATE_FREE_END) {
-    if (key === "Enter") {
-      state = STATE_PLAY;
-      buffaloCollected = [0, 0, 0, 0, 0];
-    }
-    return;
-  }
-}
-
-canvas.addEventListener("keydown", handleKey);
-canvas.focus();
-
-// Touch controls for mobile
-var touchStartX = 0, touchStartY = 0;
-canvas.addEventListener("touchstart", function(e) {
-  e.preventDefault();
-  if (!audioCtx) initAudio();
-  touchStartX = e.touches[0].clientX;
-  touchStartY = e.touches[0].clientY;
-});
-canvas.addEventListener("touchend", function(e) {
-  e.preventDefault();
-  if (!e.changedTouches[0]) return;
-  var dx = e.changedTouches[0].clientX - touchStartX;
-  var dy = e.changedTouches[0].clientY - touchStartY;
-  var absDx = Math.abs(dx), absDy = Math.abs(dy);
-
-  if (absDx < 15 && absDy < 15) {
-    // Tap = Enter
-    handleKey({ key: "Enter", preventDefault: function(){} });
-  } else if (absDx > absDy) {
-    handleKey({ key: dx > 0 ? "ArrowRight" : "ArrowLeft", preventDefault: function(){} });
-  } else {
-    handleKey({ key: dy > 0 ? "ArrowDown" : "ArrowUp", preventDefault: function(){} });
-  }
-});
-
-// ─── Game Loop ───
-function loop(ts) {
-  requestAnimationFrame(loop);
-  update();
-  draw();
-}
-requestAnimationFrame(loop);
-
-})();
+initReels();
+setTimeout(()=>{playVoice('intro');showCommentary("Welcome to Buffalo Gold! Line up buffaloes for massive payouts. Let's ride.",5000);},1000);
 </script>
 </body>
 </html>
