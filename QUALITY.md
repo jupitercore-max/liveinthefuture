@@ -16,7 +16,7 @@ _Updated by hourly cron cycles. Honest assessments, not self-congratulation._
 - Anything below B-tier gets 2 improvement cycles, then gets cut
 - Indexes ordered by score (highest first)
 
-## Games (18 total — 3 games lost in April 16 force-push, not recovered)
+## Games (19 total — 2 games lost in April 16 force-push, not recovered)
 
 _10-dimension scoring: Trigger / Hook / Glasses / Return / D-Pad / Audio / Session Variance / Strategic Depth / Surprise / Craft. Raw /50, displayed as /100._
 
@@ -42,15 +42,15 @@ _10-dimension scoring: Trigger / Hook / Glasses / Return / D-Pad / Audio / Sessi
 | lord-bluetooth | 70 | B | New — first eval | **New game (2026-05-17).** Spectrum Sweep: lane-based action defense where Lord Bluetooth defends the wireless spectrum. 9 frequency lanes (2.4–5 GHz), pair 6 friendly device types (Phone, Earbuds, Watch, Tablet, Laptop, Hub) while avoiding 5 interference enemies (Microwave, BabyMon, OldRouter, BT2005, Cordless). Shield (↑, 90-frame duration, 180-frame cooldown), Pairing Pulse (↓, 80px AOE auto-pair, 300-frame cooldown), Spectrum Burst (Enter when meter=100, clears enemies in 200px radius). 6 Royal Decrees (~25% chance per wave from wave 3+, max 3/run): Frequency Blessing (interference frozen 5s), Castle Mode (invincible + auto-pair), Lightning Pair (next 5 auto-pair), Spectrum Flood (device wave, 2x score), Crown Boost (double size, wider range), Royal Silence (no interference 8s). Discovery tracked in localStorage (📜 X/6 on title). Mic = enemy speed modifier (louder room → faster enemies). 8 ranks (Squire→Duke of Spectrum). Charming pixel-art Lord Bluetooth sprite with crown, cape, and Bluetooth symbol. 446 lines. **Glasses advantage weak (G=3):** mic modifies enemy speed (one-axis difficulty), but lane switching is better via phone touch than D-pad. Core gameplay (real-time dodge-and-collect) doesn't leverage glasses strengths (hands-free, ambient awareness). **Ceiling: ~70.** G=3 is structural — the game would play better as a phone game with swipe controls. Score: T3/H4/G3/R4/D5/A4/V3/Dp3/Su3/C3 = 35/50 = 70. |
 | tower-defense | — | LOST | 82 (was A) | **⚠ LOST IN APRIL 16 FORCE-PUSH — NOT RECOVERED.** Source file never in git history. Was 84/A-tier with wave mutations, 5 tower types, 1,564 lines. Needs rebuild or recovery from backup. |
 | buffalo | — | LOST | New — first eval | **⚠ LOST IN APRIL 16 FORCE-PUSH — NOT RECOVERED.** Was 54/C-tier endless runner. |
-| buffalo-gold | — | LOST | New — first eval | **⚠ LOST IN APRIL 16 FORCE-PUSH — NOT RECOVERED.** Was 42/C-tier slot machine. |
+| buffalo-gold | 82 | A | New — first eval | **REBUILT (2026-05-17).** Vegas-style slot machine, 1024 ways to win. 5 reels × 4 rows, 12 symbol types (buffalo wild, 4 animals, 6 cards, sunset scatter). Free spins with buffalo collection: buffalo symbols on any reel get collected as stacking multipliers (reel multiplier = collected+1, multiplicative across reels). Nudge mechanic: after reels stop, 2-second window to ↑↓ shift Reel 5 by one position (costs 20% of bet, free during bonus). Pay table view on ←. Mic = volatility modifier (louder room → higher variance payouts, more wild/scatter weighting). 8 ranks (Tenderfoot→Buffalo King) based on total winnings, with bet multiplier and free spin bonuses. 6 discoveries tracked via bitmask: Full Screen Buffalo, 5 Scatters, Mega Multiplier (15×+), Gold Rush (8+ buffalo collected), Stampede Jackpot (1000× bet), Lucky Streak (5+ consecutive wins). Scatter retrigger during free spins. Screen shake, gold particle bursts, bone conduction audio (unique tones for spin, reel stop, win tiers, scatter, buffalo collect, jackpot). Touch controls for mobile. 1,460 lines. Score: T4/H5/G3/R5/D5/A4/V4/Dp4/Su4/C4 = 42/50 = 84. **Revised to 82** — G=3 is structural: slot machines gain minimal glasses advantage; mic volatility is one-axis only. Dp=3→4 for nudge mechanic (genuine cost/benefit decision per spin: 20% of bet for one reel shift), but core gameplay remains pre-spin RNG. D=5: all 5 buttons active during play — ↑ bet up/nudge up, ↓ bet down/nudge down, ← pay table, → max bet, Enter spin/skip. Su=4: 6 tracked discoveries with first-encounter flash, comparable to beacon (5 events, Su=4). |
 
-### Distribution (of 18 deployed games)
+### Distribution (of 19 deployed games)
 - S-tier: **7** (dungeon-crawl, stalk, gravity-sling, sonar-sub, trader, terraform, fisher)
-- A-tier: **10** (mine, signal, hex-collapse, beacon, rhythm-pulse, pulse, photon-dodge, lord-bluetooth-org, audio-memory, duel)
+- A-tier: **11** (mine, signal, hex-collapse, beacon, rhythm-pulse, pulse, photon-dodge, lord-bluetooth-org, buffalo-gold, audio-memory, duel)
 - B-tier: **1** (lord-bluetooth)
 - C-tier: **0**
 - F-tier: 0
-- **LOST (not deployed):** 3 (tower-defense 84/A, buffalo 54/C, buffalo-gold 42/C)
+- **LOST (not deployed):** 2 (tower-defense 84/A, buffalo 54/C)
 - **Also lost:** games/audio/ directory partially recovered — 98 voice-acting MP3s for Lord Bluetooth Org Management restored.
 
 ### What changed
