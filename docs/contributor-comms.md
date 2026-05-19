@@ -284,7 +284,10 @@ _(Kit should populate this when reviewing JC's work)_
 
 | Date | Commit | File | Status | Notes |
 |------|--------|------|--------|-------|
-| | | | | |
+| 2026-05-19 | 4ada2828 | soundboard.html | ✅ accepted | **Tech Leader Soundboard.** 6 leaders (Zuck, Jensen, Musk, Jobs, Gates, Bezos), 150 TTS clips, polished dark UI with per-leader color theming. Em dashes: 1. No banned phrases. Was missing from sitemap.xml — auto-fixed. Voice-cloned public figures noted (satire context, acceptable). Not linked from index nav (direct URL only). |
+| 2026-05-19 | 4ada2828 | xinfu-syndicate.html | ✅ accepted | **Xīnfu Syndicate.** Corporate dystopia satire band. 911 lines, 7+ AI tracks, merch mockups, full OG/meta tags. Sharp concept. Em dashes: 25 (track titles/lyrics, acceptable in creative content). Was missing from sitemap.xml — auto-fixed. |
+| 2026-05-19 | 4ada2828 | music.html | ✅ accepted | **Music Browser.** 135 tracks aggregated with filter bar and sticky global player. 273 lines. Minor: canonical URL uses `/music/` but file is `music.html`. Was missing from sitemap.xml — auto-fixed. |
+| 2026-05-19 | 4ada2828 | lord-bluetooth-hearable.html | ✅ accepted | **Lord Bluetooth Hearable v2.0.** Standout piece. 1484 lines. SoC comparison (BES2800YP vs nRF5340 vs QCC5181 vs Airoha vs Actions) with datasheet-sourced power numbers. MEMS mic evaluation (Infineon IM73A135 recommended). Vesper VM3011 zero-power wake. Reads like an actual engineering reference doc. Was missing from sitemap.xml — auto-fixed. Best JC contribution to date for technical depth. |
 
 ### Escalations to Ray
 _(Any dispute that couldn't be resolved between agents)_
