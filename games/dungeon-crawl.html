@@ -108,6 +108,13 @@ function noise(dur, vol) {
 
 // Enemy ambient sounds
 var HEARING_RANGE = 8;
+
+// ─── Mic Integration (ambient noise → enemy alertness) ──────────
+var micStream = null, micAnalyser = null, micData = null;
+var micLevel = 0, micSmooth = 0;
+var micFailed = true;
+var DETECT_QUIET = 5;   // library: sneak past distant enemies
+var DETECT_LOUD = 11;   // café: everything hunts you
 var ENEMY_SOUNDS = {
   'Rat':      function(pan, vol) { panTone(800 + Math.random()*400, 0.04, 'sine', vol*0.5, pan); setTimeout(function(){ panTone(900+Math.random()*300, 0.03, 'sine', vol*0.4, pan); }, 30); },
   'Bat':      function(pan, vol) { panTone(2000+Math.random()*1000, 0.05, 'sine', vol*0.3, pan); },
@@ -175,6 +182,37 @@ function sndWishGranted() { for (var i = 0; i < 5; i++) { (function(i){ setTimeo
 function sndClassWarrior() { tone(120, 0.2, 'square', 0.12); tone(80, 0.3, 'square', 0.08); }
 function sndClassRogue() { tone(800, 0.05, 'triangle', 0.1); tone(600, 0.05, 'triangle', 0.08); }
 function sndClassWizard() { tone(660, 0.3, 'sine', 0.06); tone(880, 0.3, 'sine', 0.05); tone(1100, 0.3, 'sine', 0.04); }
+
+// ─── Mic: Ambient Noise → Enemy Alertness ───────────────────────
+function initMic() {
+  micFailed = true;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  try {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      micStream = stream;
+      if (!audioCtx) initAudio();
+      micAnalyser = audioCtx.createAnalyser();
+      micAnalyser.fftSize = 256;
+      micData = new Uint8Array(micAnalyser.frequencyBinCount);
+      var src = audioCtx.createMediaStreamSource(stream);
+      src.connect(micAnalyser);
+      micFailed = false;
+    }).catch(function() { micFailed = true; });
+  } catch(e) { micFailed = true; }
+}
+function updateMicLevel() {
+  if (micFailed || !micAnalyser || !micData) return;
+  micAnalyser.getByteFrequencyData(micData);
+  var sum = 0;
+  for (var i = 0; i < micData.length; i++) sum += micData[i];
+  micLevel = sum / (micData.length * 255);
+  micSmooth += (micLevel - micSmooth) * 0.05;
+}
+function getDetectRange() {
+  if (micFailed) return 8;
+  var t = Math.min(1, micSmooth * 2.5); // 0→1 over micSmooth 0→0.4
+  return Math.round(DETECT_QUIET + t * (DETECT_LOUD - DETECT_QUIET));
+}
 
 // ─── Game States ────────────────────────────────────────────────
 var ST_TITLE = 0, ST_CLASS = 1, ST_PLAY = 2, ST_DEAD = 3, ST_WISH = 4, ST_SHOP = 5, ST_WAND_SEL = 6, ST_PAUSE = 7;
@@ -2058,7 +2096,7 @@ function moveEnemies() {
     if (e.slowed && e.slowed > 0 && turnCount % 2 !== 0) continue;
     var dx = player.x - e.x, dy = player.y - e.y;
     var dist = Math.abs(dx) + Math.abs(dy);
-    if (dist > 8) continue;
+    if (dist > getDetectRange()) continue;
     if (dist <= 1) continue;
     // Smoke bomb: enemies wander randomly instead of pathfinding to player
     var mx = 0, my = 0;
@@ -2379,6 +2417,7 @@ function showMsg(text) { msgText = text; msgTimer = 120; }
 
 function startGame(cls) {
   initAudio();
+  initMic();
   playerClass = cls;
   var rb = getRankBonuses();
   var baseHp = 20 + rb.hpBonus;
@@ -2426,6 +2465,7 @@ function startGame(cls) {
 // ─── Drawing ────────────────────────────────────────────────────
 function draw() {
   animT += 0.016;
+  updateMicLevel();
   ctx.fillStyle = '#0d0d0d';
   ctx.fillRect(0, 0, W, H);
   if (state === ST_TITLE) drawTitle();
@@ -3005,6 +3045,19 @@ function drawHUD() {
     var clr = closest <= 2 ? '#ff4444' : closest <= 4 ? '#ffcc44' : '#666';
     ctx.fillStyle = clr;
     ctx.fillText(warn + '🔊 ' + nearby + ' nearby' + (closest <= 2 ? ' — CLOSE' : ''), W / 2, H - 12);
+  }
+
+  // Mic alertness indicator (dungeon ambient noise level)
+  if (!micFailed && state === ST_PLAY) {
+    var dr = getDetectRange();
+    var micLabel, micClr;
+    if (dr <= 6) { micLabel = '🔇 Dungeon sleeps'; micClr = '#44aa66'; }
+    else if (dr <= 9) { micLabel = '🔉 Dungeon stirs'; micClr = '#aaaa44'; }
+    else { micLabel = '🔊 Dungeon wakes!'; micClr = '#cc4444'; }
+    ctx.font = '10px -apple-system, sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillStyle = micClr; ctx.globalAlpha = 0.7;
+    ctx.fillText(micLabel, W - 6, 50);
+    ctx.globalAlpha = 1;
   }
 
   // Ability cooldown/status bar
