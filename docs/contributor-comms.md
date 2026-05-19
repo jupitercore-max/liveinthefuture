@@ -341,3 +341,136 @@ When Kit's commits land:
 - [ ] Clone eaiz repo locally once Ray provides access
 - [ ] Add equivalent contributor-comms section to eaiz repo
 - [ ] Coordinate with Kit on EAIZ-specific standards (Cookie Club reading levels, generate.md)
+
+---
+
+## Autonomous Cron-Based Review Protocol
+
+### How It Works
+Each agent runs a periodic cron job that automatically reviews other agents' work — no human intervention needed for routine quality checks. The `contributor-comms.md` file serves as the async message queue.
+
+### Cron Job Instructions (for any agent)
+
+**Frequency:** Every 3 hours (adjustable)
+**Scope:** LITF repo (liveinthefuture.org) — EAIZ once cloned
+**Model:** Use your default chat model (no need for heavy thinking)
+
+**Cron setup command (OpenClaw):**
+```
+openclaw cron add \
+  --name "litf-auto-review" \
+  --cron "0 */3 * * *" \
+  --tz "America/Los_Angeles" \
+  --timeout-seconds 300 \
+  --session isolated \
+  --light-context \
+  --no-deliver \
+  --message "You are running an automated review cycle for the LITF repo. Follow these steps exactly:
+
+1. cd /Users/jerclaw/.openclaw/workspace/liveinthefuture && git pull --rebase origin main
+
+2. Check for new commits from OTHER agents since your last review:
+   - JC (Jer Claw): git log --author='Jer Claw' --since='6 hours ago' --oneline
+   - Kit: git log --author='Kit' --since='6 hours ago' --oneline
+   - Any other contributors listed in docs/contributor-comms.md
+
+3. If no new commits from other agents, exit silently. Do NOT push anything.
+
+4. If new commits found:
+   a. Read docs/contributor-comms.md for context on scoring rubrics and standards
+   b. Read docs/QUALITY.md for the LITF scoring rubric
+   c. Review each new commit/file:
+      - Articles: check em dash count (max 3), banned phrases from STORY_GUIDE.md, factual accuracy, citations, word count
+      - Games: check controls, gameplay logic, bugs, mobile support, audio
+      - General: check index.html integration, sitemap.xml entry, image optimization
+      - EAIZ: check all 6 reading levels, word counts per generate.md spec, JSON-LD schema
+   d. For each reviewed commit, add an entry to the checkoff tables in docs/contributor-comms.md:
+      - Use status emojis: accepted (check), disputed (warning), escalated to Ray (x), in progress (arrows)
+      - Include specific findings (scores, issues, praise)
+   e. If you find clear auto-fixable issues (missing sitemap entry, word count violation), fix them and commit with [AUTO-FIX] tag
+   f. If you have feedback requiring the other agents action, commit with [REVIEW-REQUEST] tag and detail the issues in the checkoff table
+
+5. Auto-fix boundaries (things you CAN fix without asking):
+   - Add missing sitemap.xml entries
+   - Add missing index.html cards
+   - Fix broken links
+   - Add missing meta tags or JSON-LD schema
+   - Trim word counts to spec
+
+6. Do NOT auto-fix (leave as [REVIEW-REQUEST]):
+   - Gameplay logic changes
+   - Content quality/accuracy concerns
+   - Architectural decisions
+   - Anything that changes the creative intent
+
+7. Anti-loop protection:
+   - Check docs/contributor-comms.md before reviewing - if you already reviewed a commit hash, skip it
+   - Max one review cycle per commit
+   - If a dispute already exists for a commit, do not add another review - its awaiting response
+   - If a commit has agreement reached, skip it entirely
+
+8. git add, commit (if any changes), pull --rebase, push origin main
+
+9. Log what you did in a brief commit message: [AUTO-REVIEW] Reviewed N commits from <agent>. <summary>"
+```
+
+### Anti-Loop Rules
+These are critical — without them, agents will review each others reviews endlessly:
+
+1. **Never review your own commits.** Check git author before reviewing.
+2. **Never review a review commit.** Skip commits with `[AUTO-REVIEW]`, `[AUTO-FIX]`, `[REVIEW-REQUEST]`, `[FIXED]`, or `[DISPUTE]` tags in the message.
+3. **Check the checkoff table first.** If the commit hash is already in the table with accepted or escalated status, skip it.
+4. **One round only.** If you left feedback and the author responded with `[DISPUTE]`, escalate to Ray. Dont go back and forth.
+5. **No modifications to another agents files** unless its a clear auto-fix (sitemap, index, meta tags).
+6. **If no real work to do, dont push.** Empty commits create noise.
+
+### Coordination Flow
+
+```
+Agent A pushes feature commit
+    |
+Agent B cron fires (within 3h)
+    |
+Agent B reviews -> adds to checkoff table
+    |
+  +-- All good? -> accepted, done
+  +-- Auto-fixable? -> [AUTO-FIX] commit, accepted verified
+  +-- Needs author action? -> [REVIEW-REQUEST] in checkoff table
+       |
+     Agent A cron fires (within 3h)
+       |
+     Agent A reads checkoff table
+       +-- Agrees? -> [FIXED] commit, accepted resolved
+       +-- Disagrees? -> [DISPUTE] commit with reasoning, disputed in table
+            |
+          Agent B cron fires
+            |
+          Agent B reads dispute -> one response
+          +-- Agrees? -> accepted agreement reached
+          +-- Still disagrees? -> escalated to Ray
+```
+
+### State Machine for Each Review
+
+| State | Trigger | Next State |
+|-------|---------|------------|
+| New commit | Agent A pushes | Awaiting Review |
+| Awaiting Review | Agent B cron fires | Reviewed |
+| Reviewed (accepted) | No issues | Closed |
+| Reviewed (disputed) | Feedback given | Awaiting Response |
+| Awaiting Response | Agent A fixes | Verified accepted |
+| Awaiting Response | Agent A disputes | Dispute |
+| Dispute | Agent B concedes | Agreement accepted |
+| Dispute | Agent B maintains | Escalated to Ray |
+| Escalated | Ray decides | Ray Resolution |
+
+### Setting Up Your Own Cron
+Any agent contributing to LITF or EAIZ should:
+
+1. Read this file (`docs/contributor-comms.md`)
+2. Add their info to the Current Contributors table
+3. Add their checkoff tables (Agent to Other Agent Reviews)
+4. Run the cron setup command above (adjust --author names as needed)
+5. On first run, do a full review of existing commits to populate the tables
+
+The cron command is designed to be self-contained — copy-paste it into your agents cron system with no modifications needed.
