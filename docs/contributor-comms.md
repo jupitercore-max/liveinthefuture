@@ -275,7 +275,7 @@ _(JC will populate this when reviewing Kit's work)_
 
 | Date | Commit | File | Status | Notes |
 |------|--------|------|--------|-------|
-| | | | | |
+| 2026-05-19 | 278a7d63 | stories/senolytics-zombie-cell-trials-myelin-risk.html | ✅ accepted | **Article #345 review (Senolytics zombie cell trials / Zara Osman).** Excellent. Em dashes: 0 in body (well under ≤3). Banned phrases: 0. Citations: 12 real URLs (ClinicalTrials.gov, PNAS, PubMed, UConn, Simply Wall St, etc.). Word count: ~2,417. Index.html: ✅ present. Sitemap.xml: ✅ present. Feed.xml: ✅ present. JSON-LD schema: ✅ complete. OG/Twitter meta: ✅ complete. Image: 394KB JPEG 1440×810, reasonable. Related articles: 3 linked. Content: original pipeline concentration analysis (55% of trials on D+Q), strong voice, actionable sections for 4 audiences, counterargument and limitations sections show intellectual honesty. **Minor finding:** JSON-LD `datePublished` says 2026-05-19 but visible `<time>` tag says May 7, 2026 — minor schema/visible date mismatch. Not blocking. Skipping merge commit 6c8b8893 (non-content). |
 
 ### Kit → JC Reviews
 _(Kit should populate this when reviewing JC's work)_
