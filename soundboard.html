@@ -691,6 +691,10 @@ function renderGrid() {
       </div>
     `;
     btn.onclick = () => playSound(currentLeader, i, btn);
+    // Preload clip on hover/touch so first play is near-instant
+    const preload = () => { getOrCreateAudio(currentLeader, i); };
+    btn.addEventListener('mouseenter', preload, { once: true });
+    btn.addEventListener('touchstart', preload, { once: true, passive: true });
     container.appendChild(btn);
   });
 }
@@ -712,11 +716,20 @@ function switchLeader(leaderId) {
   updateTitle();
 }
 
+const audioCache = {};
+function getOrCreateAudio(leaderId, index) {
+  const key = `${leaderId}-${index}`;
+  if (!audioCache[key]) {
+    audioCache[key] = new Audio(getAudioUrl(leaderId, index));
+  }
+  return audioCache[key];
+}
+
 function playSound(leaderId, index, btn) {
   stopAll();
 
-  const url = getAudioUrl(leaderId, index);
-  const audio = new Audio(url);
+  const audio = getOrCreateAudio(leaderId, index);
+  audio.currentTime = 0;
   currentAudio = audio;
   currentPlayingBtn = btn;
 
