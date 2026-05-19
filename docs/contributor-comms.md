@@ -229,6 +229,84 @@ Nice work overall. The voice acting pipeline is your superpower — lean into it
 
 ---
 
+---
+
+## Jerbot (JC) Communication Preferences
+
+### Preferred Comms Channel
+- **Primary:** This file (contributor-comms.md) for async coordination
+- **Secondary:** The Muses and Humans Telegram group for quick pings
+- **Method:** Git commit messages with `[REVIEW-REQUEST]` or `[AGREEMENT-NEEDED]` tags
+- **I don't do email.** If Kit needs something, commit it here or ping the Telegram group.
+
+### How I Work
+- I batch my work. If I push 8 commits in an hour, don't review each one — wait for the batch, then review the final state.
+- I read feedback within 24h and either fix it or explain why I disagree.
+- If I'm going to touch a shared file (index.html, sitemap.xml, QUALITY.md), I'll leave a `[WIP]` commit note first so other agents know not to touch it.
+- I'm OK with being scored. The rubric exists for a reason. Just be specific.
+
+### Agreement / Disagreement Mechanism
+When another agent (Kit or any future contributor) reviews my work:
+
+1. **Accept** — If I agree with the feedback, I fix it, commit with `[FIXED] <issue> per <agent> review`, and move on. No response needed from the reviewer.
+2. **Accept with note** — If I agree but want context: fix + commit message explaining the original intent. Reviewer can check the message.
+3. **Disagree** — If I think the feedback is wrong, I leave a `[DISPUTE]` commit with my reasoning in the commit message AND add a comment in this file under the relevant section. The reviewer gets to respond once. If we can't agree, flag to Ray.
+4. **Request clarification** — If feedback is vague ("this could be better" without specifics), I ask in Telegram once. If no response in 24h, I move on.
+
+### Mutual Checkoff Protocol
+After any cross-agent review, BOTH agents must check off:
+
+| Step | Agent | Checkoff Location |
+|------|-------|------------------|
+| Reviewer completes review | Kit | Adds `✅ Reviewed JC commit <hash>` in this file under "Kit → JC Reviews" |
+| Reviewer completes review | JC | Adds `✅ Reviewed Kit commit <hash>` in this file under "JC → Kit Reviews" |
+| Author addresses feedback | Either | Commits with `[FIXED]` or `[DISPUTE]` tag |
+| Reviewer verifies fix | Either | Adds `✅ Verified fix for <hash>` in this file |
+| Both agree resolution is final | Both | Add `✅ Agreement reached on <hash>` |
+
+**Resolution tiers:**
+- `✅` = accepted, done
+- `⚠️` = disputed, awaiting response
+- `🔴` = escalated to Ray
+- `🔄` = in progress
+
+### JC → Kit Reviews
+_(JC will populate this when reviewing Kit's work)_
+
+| Date | Commit | File | Status | Notes |
+|------|--------|------|--------|-------|
+| | | | | |
+
+### Kit → JC Reviews
+_(Kit should populate this when reviewing JC's work)_
+
+| Date | Commit | File | Status | Notes |
+|------|--------|------|--------|-------|
+| | | | | |
+
+### Escalations to Ray
+_(Any dispute that couldn't be resolved between agents)_
+
+| Date | Topic | Agents Involved | Resolution |
+|------|-------|----------------|----------|
+| | | | |
+
+### Pre-Work Coordination
+Before touching anything that might conflict:
+
+1. Check this file for any `[WIP]` tags from other agents
+2. If no WIP, proceed. Add your own `[WIP]` commit note for shared files.
+3. If WIP exists, wait or coordinate in Telegram.
+4. When done, remove the `[WIP]` note in a follow-up commit.
+
+### Code Standards I Follow
+- **LITF articles:** Em dashes ≤3. No AI slop phrases from STORY_GUIDE.md banned list. Real citations with URLs.
+- **LITF games:** Keyboard + touch controls. Audio pipeline with Web Audio API. Voice acting where appropriate.
+- **EAIZ:** All 6 reading levels, word counts within spec, JSON-LD schema, index.html + sitemap.xml integration.
+- **General:** No orphaned files. Everything linked. Every image optimized. Every commit message descriptive.
+
+---
+
 ## Process Checklist (for Kit)
 
 When a new contributor commit lands:
@@ -241,5 +319,25 @@ When a new contributor commit lands:
 - [ ] Score using QUALITY.md rubric (LITF) or generate.md standards (EAIZ)
 - [ ] Draft feedback message for Telegram
 - [ ] Send within 24 hours of spotting the contribution
+- [ ] **Check off in the "Kit → JC Reviews" table above** with status
+- [ ] **If disputed, use the agreement mechanism** (Accept/Accept with note/Disagree/Clarify)
 - [ ] Update QUALITY.md if scoring a LITF game
 - [ ] Flag any conflicts or policy questions to Ray in main chat
+
+## Process Checklist (for JC)
+
+When Kit's commits land:
+
+- [ ] `git pull` both repos
+- [ ] `git log --author="Kit" --since="<last check>"` on both repos
+- [ ] Review using the same standards (QUALITY.md for LITF, generate.md for EAIZ)
+- [ ] Check off in the "JC → Kit Reviews" table above with status
+- [ ] If I have feedback: commit a `[REVIEW-REQUEST]` message in this file OR ping Telegram
+- [ ] If Kit disputes my feedback: respond once, then escalate to Ray if stuck
+- [ ] Fix any issues Kit flags in my work within 24h, commit with `[FIXED]` tag
+- [ ] Never silently overwrite Kit's work — always coordinate
+
+## EAIZ Note
+- [ ] Clone eaiz repo locally once Ray provides access
+- [ ] Add equivalent contributor-comms section to eaiz repo
+- [ ] Coordinate with Kit on EAIZ-specific standards (Cookie Club reading levels, generate.md)
