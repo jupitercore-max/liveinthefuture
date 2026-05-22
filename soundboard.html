@@ -398,11 +398,12 @@
     .header h1 { font-size: 2rem; }
     .leader-tabs { gap: 6px; }
     .leader-tab { padding: 10px 16px; font-size: 0.8rem; }
-    .sound-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
-    .sound-btn { padding: 14px; min-height: 85px; }
+    .sound-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    .sound-btn { padding: 14px; min-height: 85px; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
     .quote-text { font-size: 0.78rem; }
     .controls-bar { flex-direction: column; gap: 12px; align-items: flex-start; }
     .leader-title { font-size: 1.3rem; }
+    .btn-random, .btn-stop { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   }
 
   /* Stop All button */
@@ -750,19 +751,44 @@ function switchLeader(leaderId) {
   updateTitle();
 }
 
+// Mobile audio unlock: iOS/Safari require first play() in a user gesture.
+// We create a shared AudioContext and unlock it on first interaction.
+let audioCtx = null;
+function unlockAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  // Create and play a silent buffer to unlock the audio pipeline
+  const buf = audioCtx.createBuffer(1, 1, 22050);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  src.connect(audioCtx.destination);
+  src.start(0);
+}
+document.addEventListener('touchstart', unlockAudio, { once: true });
+document.addEventListener('click', unlockAudio, { once: true });
+
 const audioCache = {};
 function getOrCreateAudio(leaderId, index) {
   const key = `${leaderId}-${index}`;
   if (!audioCache[key]) {
     audioCache[key] = new Audio(getAudioUrl(leaderId, index));
+    audioCache[key].preload = 'auto';
   }
   return audioCache[key];
 }
 
 function playSound(leaderId, index, btn) {
   stopAll();
+  unlockAudio();
 
-  const audio = getOrCreateAudio(leaderId, index);
+  // On mobile, always create a fresh Audio for reliable playback
+  const key = `${leaderId}-${index}`;
+  const url = getAudioUrl(leaderId, index);
+  const audio = new Audio(url);
+  audio.preload = 'auto';
+  audioCache[key] = audio;
+  
   audio.currentTime = 0;
   currentAudio = audio;
   currentPlayingBtn = btn;
@@ -776,9 +802,15 @@ function playSound(leaderId, index, btn) {
   document.getElementById('npText').innerHTML = `<strong>${LEADERS[leaderId].name}:</strong> ${quote}`;
   np.classList.add('visible');
 
-  audio.play().catch(() => {
-    btn.classList.remove('playing');
-  });
+  const playPromise = audio.play();
+  if (playPromise !== undefined) {
+    playPromise.catch((e) => {
+      console.warn('Audio play failed:', e);
+      btn.classList.remove('playing');
+      np.classList.remove('visible');
+      document.getElementById('stopBtn').style.display = 'none';
+    });
+  }
 
   audio.onended = () => {
     btn.classList.remove('playing');
