@@ -104,10 +104,10 @@ function startWave(){
   wave++;waveActive=true;waveECnt=0;waveFCnt=0;waveSpawnT=60;
   waveAnn='WAVE '+wave;waveAnnT=120;sndSelect();
   if(wave>=3&&runDecrees<3&&Math.random()<0.25){
-    var pick=Math.floor(Math.random()*DECREES.length);
-    var d=DECREES[pick];actDecree=d;actDecreeT=d.dur;
+    var pw=[],pt=0;for(var di=0;di<DECREES.length;di++){var w=stats.decrees[DECREES[di].id]?1:3;pw.push(w);pt+=w}var pr=Math.random()*pt,pc=0,pick=0;for(var di=0;di<DECREES.length;di++){pc+=pw[di];if(pr<pc){pick=di;break}}
+    var d=DECREES[pick],isNew=!stats.decrees[d.id];actDecree=d;actDecreeT=d.dur;
     stats.decrees[d.id]=true;saveStats();runDecrees++;
-    waveAnn=d.emoji+' '+d.name+'!';waveAnnT=150;sndDecree();
+    waveAnn=(isNew?'\u2728 NEW! ':'')+d.emoji+' '+d.name+'!';waveAnnT=isNew?180:150;sndDecree();
     if(d.id==='lightning')P.lightning=5;
     if(d.id==='crown'){P.crown=true;P.crownT=420}
     if(d.id==='flood'){for(var f=0;f<8;f++)spawnFriend(true)}
@@ -236,6 +236,7 @@ function drawGameOver(){
   if(P.score>=stats.best&&P.score>0){ctx.fillStyle='#4CAF50';ctx.font='bold 14px monospace';ctx.fillText('NEW BEST!',W/2,330)}
   var dc=0;for(var k in stats.decrees)if(stats.decrees[k])dc++;
   ctx.fillStyle='#FF8C00';ctx.font='11px monospace';ctx.fillText('\u{1F4DC} Decrees discovered: '+dc+'/6',W/2,370);
+  for(var di=0;di<DECREES.length;di++){var dec=DECREES[di],found=stats.decrees[dec.id];ctx.fillStyle=found?dec.color:'#444';ctx.font='16px monospace';ctx.fillText(found?dec.emoji:'?',W/2-75+di*30,395)}
   ctx.fillStyle='#FFF';ctx.font='bold 14px monospace';if(Math.floor(frame/30)%2===0)ctx.fillText('Press ENTER or tap to retry',W/2,440);
   ctx.fillStyle='#888';ctx.font='10px monospace';ctx.fillText('ESC for title',W/2,470);
 }
