@@ -726,10 +726,10 @@ function renderGrid() {
       </div>
     `;
     btn.onclick = () => playSound(currentLeader, i, btn);
-    // Preload clip on hover/touch so first play is near-instant
+    // Preload clip on hover only (desktop) — skip touchstart preload on mobile
+    // to avoid double-fetch freezes
     const preload = () => { getOrCreateAudio(currentLeader, i); };
     btn.addEventListener('mouseenter', preload, { once: true });
-    btn.addEventListener('touchstart', preload, { once: true, passive: true });
     container.appendChild(btn);
   });
 }
@@ -782,12 +782,14 @@ function playSound(leaderId, index, btn) {
   stopAll();
   unlockAudio();
 
-  // On mobile, always create a fresh Audio for reliable playback
+  // Reuse cached audio if available, otherwise create fresh
   const key = `${leaderId}-${index}`;
-  const url = getAudioUrl(leaderId, index);
-  const audio = new Audio(url);
-  audio.preload = 'auto';
-  audioCache[key] = audio;
+  let audio = audioCache[key];
+  if (!audio) {
+    audio = new Audio(getAudioUrl(leaderId, index));
+    audio.preload = 'auto';
+    audioCache[key] = audio;
+  }
   
   audio.currentTime = 0;
   currentAudio = audio;
@@ -818,6 +820,16 @@ function playSound(leaderId, index, btn) {
     document.getElementById('stopBtn').style.display = 'none';
     currentAudio = null;
     currentPlayingBtn = null;
+  };
+
+  audio.onerror = () => {
+    btn.classList.remove('playing');
+    np.classList.remove('visible');
+    document.getElementById('stopBtn').style.display = 'none';
+    currentAudio = null;
+    currentPlayingBtn = null;
+    // Clear bad cache entry so next tap retries
+    delete audioCache[key];
   };
 }
 
