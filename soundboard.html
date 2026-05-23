@@ -211,6 +211,25 @@
     flex-direction: column;
     justify-content: space-between;
   }
+  .sound-btn .share-clip {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: #555;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 4px 6px;
+    border-radius: 6px;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+    z-index: 2;
+    line-height: 1;
+  }
+  .sound-btn:hover .share-clip, .sound-btn:active .share-clip { opacity: 1; }
+  .share-clip:hover { color: var(--leader-color); background: rgba(255,255,255,0.05); }
+  .share-clip.copied { color: var(--leader-color); opacity: 1; }
   .sound-btn::before {
     content: '';
     position: absolute;
@@ -437,6 +456,29 @@
     gap: 10px;
     align-items: center;
   }
+
+  .btn-share-leader {
+    padding: 10px 18px;
+    border-radius: 50px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-share-leader:hover { border-color: var(--leader-color); color: var(--text); }
+  .btn-share-leader.copied { border-color: var(--leader-color); color: var(--leader-color); }
+
+  /* Mobile: always show share icon on clips */
+  @media (max-width: 600px) {
+    .sound-btn .share-clip { opacity: 0.5; }
+  }
 </style>
 </head>
 <body>
@@ -455,6 +497,9 @@
     <div class="leader-title" id="leaderTitle"></div>
     <div class="controls-right">
       <button class="btn-stop" onclick="stopAll()" id="stopBtn" style="display:none">⏹ Stop</button>
+      <button class="btn-share-leader" onclick="shareLeader()" id="shareLeaderBtn">
+        <span>🔗</span> <span id="shareLeaderText">Share</span>
+      </button>
       <button class="btn-random" onclick="playRandom()">
         <span class="dice">🎲</span> Random Quote
       </button>
@@ -723,6 +768,7 @@ function renderGrid() {
     btn.className = 'sound-btn';
     btn.dataset.index = i;
     btn.innerHTML = `
+      <button class="share-clip" onclick="event.stopPropagation(); shareClip(${i})" title="Share clip">🔗</button>
       <div class="quote-text">${quote}</div>
       <div class="btn-footer">
         <span class="btn-number">${String(i).padStart(2, '0')}</span>
@@ -882,8 +928,104 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// --- URL hash routing & sharing ---
+
+function updateHash(leaderId, clipIndex) {
+  let hash = `#${leaderId}`;
+  if (clipIndex !== undefined && clipIndex !== null) hash += `-${clipIndex}`;
+  history.replaceState(null, '', hash);
+}
+
+function parseHash() {
+  const hash = location.hash.replace('#', '');
+  if (!hash) return {};
+  const match = hash.match(/^([a-z]+)(?:-(\d+))?$/);
+  if (!match) return {};
+  const leader = match[1];
+  const clip = match[2] !== undefined ? parseInt(match[2]) : null;
+  if (!LEADERS[leader]) return {};
+  return { leader, clip };
+}
+
+function shareClip(index) {
+  updateHash(currentLeader, index);
+  const url = location.href;
+  copyAndFlash(url, `.sound-btn[data-index="${index}"] .share-clip`);
+}
+
+function shareLeader() {
+  updateHash(currentLeader);
+  const url = location.href;
+  const btn = document.getElementById('shareLeaderBtn');
+  copyAndFlash(url, '#shareLeaderBtn');
+}
+
+function copyAndFlash(url, selector) {
+  if (navigator.share) {
+    navigator.share({ url }).catch(() => {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => flashCopied(selector));
+  } else {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    flashCopied(selector);
+  }
+}
+
+function flashCopied(selector) {
+  const el = document.querySelector(selector);
+  if (!el) return;
+  el.classList.add('copied');
+  const orig = el.querySelector('#shareLeaderText');
+  if (orig) orig.textContent = 'Copied!';
+  setTimeout(() => {
+    el.classList.remove('copied');
+    if (orig) orig.textContent = 'Share';
+  }, 1500);
+}
+
+// Override switchLeader to update hash
+const _origSwitchLeader = switchLeader;
+switchLeader = function(leaderId) {
+  _origSwitchLeader(leaderId);
+  updateHash(leaderId);
+};
+
+// On load: read hash and route
+function initFromHash() {
+  const { leader, clip } = parseHash();
+  if (leader) {
+    _origSwitchLeader(leader);
+    if (clip !== null && clip >= 0 && clip < LEADERS[leader].quotes.length) {
+      setTimeout(() => {
+        const btn = document.querySelector(`.sound-btn[data-index="${clip}"]`);
+        if (btn) {
+          btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Highlight briefly
+          btn.style.border = `2px solid ${LEADERS[leader].color}`;
+          setTimeout(() => { btn.style.border = ''; }, 2000);
+          // Auto-play on tap (don't autoplay on load — browsers block it)
+        }
+      }, 100);
+    }
+  } else {
+    _origSwitchLeader('mark');
+  }
+}
+
 // Init
-switchLeader('mark');
+initFromHash();
+window.addEventListener('hashchange', () => {
+  const { leader, clip } = parseHash();
+  if (leader && leader !== currentLeader) {
+    _origSwitchLeader(leader);
+  }
+});
 </script>
 
 </body>
