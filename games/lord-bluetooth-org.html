@@ -387,7 +387,7 @@ var phaseTimer=0;
 var eodResults=[],eodAnimIdx=0,eodAnimTimer=0,eodAnimating=false;
 var score=0,gamesPlayed=0,bestScore=0;
 var discoveries={},discoveryCount=0;
-var mythCooldown=0,techDebtBonus=0;
+var mythCooldown=0,techDebtBonus=0,peaceDays=0;
 var upgrades={};
 var upcomingEvents=[];
 var nukeUsed=false,microwaveUsed=false,emergencyUsed=false;
@@ -416,6 +416,7 @@ function checkRankUp(){
 
 function genUpcoming(){
   upcomingEvents=[];
+  if(peaceDays>0){peaceDays--;showNotif("\uD83D\uDCE7 Reply-All peace ("+(peaceDays+1)+" day"+(peaceDays?"s":"")+" left). No events today.",3);return}
   var c=day<=5?0:day<=10?1:day<=20?1+(Math.random()<0.3?1:0):2;
   for(var i=0;i<c;i++)upcomingEvents.push(EVENTS[0|Math.random()*EVENTS.length]);
 }
@@ -448,7 +449,7 @@ function initGame(){
   currentEvent=null;eventChoice=0;phaseTimer=8;
   eodResults=[];eodAnimIdx=0;eodAnimTimer=0;eodAnimating=false;
   score=0;nukeUsed=false;microwaveUsed=false;emergencyUsed=false;
-  skiplvlReady=hasUpg("skiplvl");techDebtBonus=0;
+  skiplvlReady=hasUpg("skiplvl");techDebtBonus=0;peaceDays=0;
   hrCooldown=0;shopCursor=0;assignStep=0;assignEng=0;assignTask=0;
   engineers=[];for(var i=0;i<3;i++)engineers.push(genEng());
   upcomingEvents=[];bgmTimer=0;mythCooldown=3;
@@ -617,7 +618,7 @@ function tryMyth(){
   discoveries[myth.id]=true;discoveryCount=Object.keys(discoveries).length;saveStats();
   switch(myth.id){
     case"staffed":aliveEngs().forEach(function(e){e.morale=clamp(e.morale+15,0,100)});break;
-    case"replyall":showNotif("Reply-All chain! Peace for 2 days.",3);break;
+    case"replyall":peaceDays=2;break;
     case"freelunch":energy=clamp(energy+30,0,100);aliveEngs().forEach(function(e){e.morale=clamp(e.morale+20,0,100)});break;
     case"sensibleokr":progress=clamp(progress+10,0,100);break;
     case"competent":aliveEngs().forEach(function(e){e.morale=clamp(e.morale+10,0,100)});break;
