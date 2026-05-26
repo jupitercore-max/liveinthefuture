@@ -44,8 +44,10 @@ var W = 600, H = 600;
 var audioCtx = null;
 var analyser = null;
 var timeData = null;
+var freqData = null;
 var micActive = false;
 var micFailed = false;
+var weightingMode = 'A'; // A, C, or Z
 
 // dB tracking
 var currentDb = 0;
@@ -130,9 +132,15 @@ function initMic() {
       analyser.smoothingTimeConstant = 0.3;
       src.connect(analyser);
       timeData = new Uint8Array(analyser.fftSize);
+      freqData = new Uint8Array(analyser.frequencyBinCount);
       micActive = true;
       micFailed = false;
       exposureStart = Date.now();
+      // Load weighting preference
+      try {
+        var saved = localStorage.getItem('decibel_weighting');
+        if (saved === 'A' || saved === 'C' || saved === 'Z') weightingMode = saved;
+      } catch(e) {}
       // Create feedback oscillator (muted until toggled on)
       feedbackOsc = audioCtx.createOscillator();
       feedbackGain = audioCtx.createGain();
@@ -157,17 +165,44 @@ function initMic() {
 
 function calcDb() {
   if (!micActive || !analyser) return 0;
-  analyser.getByteTimeDomainData(timeData);
-  var sum = 0;
-  for (var i = 0; i < timeData.length; i++) {
-    var v = (timeData[i] - 128) / 128;
-    sum += v * v;
+  if (weightingMode === 'Z') {
+    analyser.getByteTimeDomainData(timeData);
+    var sum = 0;
+    for (var i = 0; i < timeData.length; i++) {
+      var v = (timeData[i] - 128) / 128;
+      sum += v * v;
+    }
+    var rms = Math.sqrt(sum / timeData.length);
+    var db = 20 * Math.log10(Math.max(rms, 0.00001)) + 94;
+    return Math.max(0, Math.min(130, db));
+  } else {
+    // Frequency-weighted measurement
+    analyser.getByteFrequencyData(freqData);
+    var sum = 0;
+    var binCount = freqData.length;
+    var sampleRate = audioCtx.sampleRate;
+    for (var i = 0; i < binCount; i++) {
+      var freq = i * sampleRate / (analyser.fftSize);
+      if (freq < 20 || freq > 20000) continue;
+      var db = freqData[i] - 128; // approx dB relative
+      var weight = 0;
+      if (weightingMode === 'A') {
+        // A-weighting curve
+        var f2 = freq * freq;
+        var ra = (12194 * 12194 * f2 * f2) / ((f2 + 20.6 * 20.6) * Math.sqrt((f2 + 107.7 * 107.7) * (f2 + 737.9 * 737.9)) * (f2 + 12194 * 12194));
+        weight = 20 * Math.log10(ra) - 2.00;
+      } else if (weightingMode === 'C') {
+        // C-weighting curve
+        var f2 = freq * freq;
+        var rc = (12194 * 12194 * f2) / ((f2 + 20.6 * 20.6) * (f2 + 12194 * 12194));
+        weight = 20 * Math.log10(rc) - 0.06;
+      }
+      var weighted = db + weight;
+      sum += Math.pow(10, weighted / 10);
+    }
+    var db = 10 * Math.log10(sum / binCount) + 94;
+    return Math.max(0, Math.min(130, db));
   }
-  var rms = Math.sqrt(sum / timeData.length);
-  // Convert to approximate dB SPL (calibrated rough estimate)
-  // Web Audio mic RMS ~0.001 = ~30dB, ~0.5 = ~90dB
-  var db = 20 * Math.log10(Math.max(rms, 0.00001)) + 94;
-  return Math.max(0, Math.min(130, db));
 }
 
 function updateDb() {
@@ -854,7 +889,7 @@ function drawHeader() {
     var liveLabel = '● LIVE';
     if (feedbackOn) liveLabel += '  🔔 Audio';
     ctx.fillStyle = '#4a8a4a';
-    ctx.fillText(liveLabel, W - 14, 20);
+    ctx.fillText(liveLabel + '  ' + weightingMode + '-weight', W - 14, 20);
   }
 }
 
@@ -874,7 +909,7 @@ function drawPrompt() {
   ctx.fillStyle = '#4a9eff';
   ctx.fillText('Press Enter to enable microphone', W/2, H/2 + 30);
   ctx.fillStyle = '#555';
-  ctx.fillText('↑ Toggle audio feedback  •  ↓ Badges', W/2, H/2 + 60);
+  ctx.fillText('↑ Audio  •  ↓ Badges  •  ←→ Weighting', W/2, H/2 + 60);
   ctx.fillText('Enter: Reset stats  •  Esc: Back', W/2, H/2 + 80);
   // Show badge progress if returning user
   try {
@@ -982,6 +1017,14 @@ document.addEventListener('keydown', function(e) {
   }
   if (e.key === 'ArrowDown') {
     showBadges = !showBadges;
+  }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    var modes = ['A', 'C', 'Z'];
+    var idx = modes.indexOf(weightingMode);
+    if (e.key === 'ArrowLeft') idx = (idx - 1 + modes.length) % modes.length;
+    else idx = (idx + 1) % modes.length;
+    weightingMode = modes[idx];
+    try { localStorage.setItem('decibel_weighting', weightingMode); } catch(e) {}
   }
 });
 
