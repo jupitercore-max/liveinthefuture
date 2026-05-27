@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-049: Automated Detection and Localization of Unauthorized Nighttime Construction Activity Using Distributed Edge Acoustic Classification | Live in the Future</title>
+  <meta name="description" content="Defensive prior art disclosure: A mesh network of low-cost acoustic sensor nodes that classifies heavy construction equipment sounds at the edge and triangulates violations of nighttime noise ordinances.">
+  <meta property="og:title" content="System and Method for Automated Detection and Localization of Unauthorized Nighttime Construction Activity Using Distributed Edge Acoustic Classification">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/nighttime-construction-acoustic.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/nighttime-construction-acoustic.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/priorart-nighttime-construction-acoustic.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">← Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-049 · UrbanTech / Acoustic Enforcement</span>
+      <h1>System and Method for Automated Detection and Localization of Unauthorized Nighttime Construction Activity Using Distributed Edge Acoustic Classification</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-05-26">Published May 26, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/priorart-nighttime-construction-acoustic.jpg" alt="Night street with acoustic sensor nodes detecting construction equipment" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>⚖️ Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. § 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above. This disclosure is intended to prevent the patenting of these concepts by any party.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a system for automated detection and geolocation of unauthorized nighttime construction activity using a distributed mesh of low-cost acoustic sensor nodes mounted on existing street infrastructure. Each node continuously samples ambient audio at 16 kHz, computes mel-frequency cepstral coefficients, and runs an on-device convolutional neural network classifier trained to recognize heavy construction equipment including hydraulic excavators, jackhammers, concrete saws, pile drivers, and diesel generators. Classification outputs are timestamped with sub-millisecond precision using IEEE 1588 Precision Time Protocol over LoRa. When two or more nodes detect the same equipment class within a 500 ms correlation window, time-difference-of-arrival multilateration estimates the sound source location with approximately 15 meter accuracy. A rules engine compares detections against municipal noise ordinance schedules, permit databases, and quiet zone maps, generating automated violation reports with calibrated sound pressure level estimates, equipment type, duration, and location. The system operates fully at the edge with no audio leaves the nodes, addressing privacy concerns.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to urban noise enforcement and smart city sensing, specifically to automated detection of construction noise ordinance violations using distributed acoustic classification and spatial localization.</p>
+
+      <h2>Background</h2>
+
+      <p>Municipal noise ordinances typically prohibit construction activity between 8 PM and 7 AM on weekdays and all day Sunday in residential zones. Enforcement relies on resident complaints and manual inspector response. <a href="https://www.nyc.gov/site/dep/about/noise-code.page">New York City DEP</a> received 45,000 construction noise complaints in 2024, with average response time of 4.2 days. Only 12 percent resulted in violations due to lack of contemporaneous evidence.</p>
+
+      <p>Existing acoustic monitoring solutions are insufficient:</p>
+      <ul>
+        <li><strong>Fixed sound level meters:</strong> Type 1 meters cost $3,000 to $8,000 per unit, measure overall decibel levels but cannot identify equipment type or distinguish construction from traffic, sirens, or events.</li>
+        <li><strong>Citizen reporting apps:</strong> <a href="https://www1.nyc.gov/311/">NYC 311</a> and similar systems depend on human observation and rarely capture start times accurately.</li>
+        <li><strong>Video surveillance:</strong> Privacy concerns and limited nighttime visibility restrict deployment in residential areas.</li>
+      </ul>
+
+      <p>Environmental sound classification has advanced significantly. <a href="https://arxiv.org/abs/1608.04363">Salamon and Bello, 2017</a> demonstrated 79 percent accuracy on urban sound classification using CNNs. <a href="https://arxiv.org/abs/1901.08508">Kong et al., 2019</a> achieved 94 percent on AudioSet with pre-trained models. Construction equipment has distinctive acoustic signatures. <a href="https://www.sciencedirect.com/science/article/pii/S0003682X20308287">Li et al., Applied Acoustics 2021</a> classified excavator operating states from audio with 91 percent accuracy. <a href="https://patents.google.com/patent/US20210356584A1">US20210356584A1</a> describes general urban noise monitoring but does not perform equipment-specific classification, TDOA localization, or ordinance rule integration.</p>
+
+      <p>The gap is a complete system that identifies specific construction equipment types at the edge, localizes the source without cameras, and automatically correlates detections with permit data to generate enforceable violation reports.</p>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. Sensor Node Hardware</h3>
+
+      <p>Each node comprises a MEMS microphone with windscreen (Knowles SPH0645, -26 dBFS sensitivity), an ESP32-S3 microcontroller with 8 MB PSRAM, a SX1262 LoRa radio, a DS3231 real-time clock with temperature-compensated crystal oscillator, and a 5 W solar panel with 2000 mAh LiFePO4 battery. Enclosure is IP67 rated, mounted 3 to 4 meters high on streetlight poles using band clamps. Bill of materials target is $55 per node. Nodes are spaced 150 to 300 meters apart in a hexagonal grid, providing overlapping detection zones.</p>
+
+      <h3>2. Audio Acquisition and Feature Extraction</h3>
+
+      <p>Audio is sampled at 16 kHz, 16-bit. Processing occurs in 2-second frames with 50 percent overlap. Each frame undergoes pre-emphasis, computation of 40-band mel spectrogram using 512-point FFT with Hann window, and log compression. A voice activity detector based on spectral flux rejects frames dominated by speech or music. A wind noise detector using low-frequency energy ratio below 100 Hz gates processing during high wind conditions above 15 mph, reducing false positives.</p>
+
+      <h3>3. On-Device Equipment Classification</h3>
+
+      <p>A MobileNetV2 variant with depthwise separable convolutions processes mel spectrograms. Model is trained on 12,000 hours of labeled construction audio from the <a href="https://urbansounddataset.weebly.com/">UrbanSound8K</a> dataset, <a href="https://freesound.org/">Freesound</a> construction tags, and 800 hours of field recordings from permitted daytime construction sites across 6 cities. Classes include hydraulic excavator, tracked loader, jackhammer, concrete saw, pile driver, diesel generator, crane, and background. Model size is 340 KB after INT8 quantization. Inference runs in 85 ms per 2-second frame on ESP32-S3. Confidence threshold is 0.75, with temporal smoothing requiring 3 consecutive positive frames before triggering a detection event.</p>
+
+      <p>Sound pressure level is estimated from microphone sensitivity and preamp gain, calibrated in situ using a Class 2 sound level meter. Calibration offset is stored per node and updated quarterly.</p>
+
+      <h3>4. Time Synchronization and TDOA Localization</h3>
+
+      <p>Nodes maintain sub-millisecond synchronization using a LoRa-based implementation of IEEE 1588 Precision Time Protocol. Gateway nodes with GPS provide master clock. Detection events include precise timestamps and equipment class. When a node detects equipment, it broadcasts a compact event packet containing timestamp, class, confidence, and estimated SPL. Neighboring nodes within 600 meters listen for correlated events of the same class within 500 ms.</p>
+
+      <p>For events detected by 3 or more nodes, multilateration solves for source position using TDOA hyperbolas. Speed of sound is corrected for air temperature measured by onboard sensor. Typical localization error is 10 to 20 meters in urban canyons, improving to 8 meters in open areas. For 2-node detections, bearing is estimated and location is reported as a line segment.</p>
+
+      <h3>5. Ordinance Rule Engine and Permit Integration</h3>
+
+      <p>A municipal rules engine encodes noise ordinance parameters: prohibited hours by zone type, decibel limits, exempt equipment, and permit overrides. The engine queries a permit database API for active construction permits within 200 meters of the estimated location. Permits include allowed hours, equipment types, and noise mitigation requirements.</p>
+
+      <p>Violations are generated when: detection occurs during prohibited hours, estimated SPL exceeds zone limit by 5 dB or more, no valid permit covers the time and location, and detection persists for at least 10 minutes. A confidence score combines classification confidence, localization geometry dilution of precision, and SPL calibration age.</p>
+
+      <h3>6. Privacy-Preserving Reporting</h3>
+
+      <p>No raw audio leaves the nodes. Event packets contain only timestamps, equipment class, confidence, SPL estimate, and node ID. Audio buffers are overwritten after 30 seconds unless a violation is confirmed, in which case a 10-second anonymized clip with speech frequencies attenuated by 40 dB is retained for human review. Reports include location map, equipment type timeline, SPL graph, applicable ordinance section, and permit status. Reports are delivered to code enforcement via API or email.</p>
+
+      <h3>7. Figures Description</h3>
+
+      <ul>
+        <li><strong>Figure 1:</strong> System architecture showing mesh of acoustic nodes on streetlights, LoRa links to gateway, cloud rules engine, permit database integration, and enforcement dashboard.</li>
+        <li><strong>Figure 2:</strong> Mel spectrograms for six construction equipment classes showing distinctive temporal and spectral patterns.</li>
+        <li><strong>Figure 3:</strong> TDOA multilateration geometry with three nodes detecting a jackhammer, hyperbolic intersection, and estimated source location with uncertainty ellipse.</li>
+        <li><strong>Figure 4:</strong> Example violation report timeline showing equipment classification confidence, SPL, and ordinance prohibited hours overlay.</li>
+      </ul>
+
+      <h2>Claims</h2>
+
+      <ol>
+        <li>A system for automated detection of unauthorized nighttime construction activity, comprising a distributed mesh network of acoustic sensor nodes mounted on street infrastructure, each node comprising a MEMS microphone, a microcontroller running an on-device convolutional neural network classifier trained to recognize specific heavy construction equipment types from mel-frequency spectrograms, and a low-power radio module, wherein nodes transmit detection events with sub-millisecond timestamps without transmitting raw audio.</li>
+
+        <li>The system of claim 1, wherein the classifier distinguishes between hydraulic excavators, jackhammers, concrete saws, pile drivers, and diesel generators with confidence thresholding and temporal smoothing requiring multiple consecutive positive classifications.</li>
+
+        <li>The system of claim 1, further comprising a time-difference-of-arrival localization module that estimates sound source position by correlating detection events of the same equipment class from three or more nodes within a 500 millisecond window.</li>
+
+        <li>The system of claim 1, further comprising a municipal rules engine that automatically correlates detections with noise ordinance schedules, zoning maps, and construction permit databases to generate violation reports only when activity occurs during prohibited hours without valid permit coverage.</li>
+
+        <li>The system of claim 1, wherein each node estimates sound pressure level from microphone sensitivity and in situ calibration, and includes SPL estimates in violation reports.</li>
+
+        <li>The system of claim 1, wherein nodes maintain time synchronization using a LoRa-based implementation of IEEE 1588 Precision Time Protocol achieving sub-millisecond accuracy without GPS per node.</li>
+
+        <li>A method for privacy-preserving construction noise enforcement comprising deploying a mesh of acoustic nodes that perform equipment classification entirely at the edge, transmitting only structured detection metadata, retaining raw audio for no more than 30 seconds unless a violation is confirmed, and attenuating speech frequencies in any retained clips.</li>
+
+        <li>The method of claim 7, further comprising wind noise gating that suspends classification when low-frequency energy indicates wind speed above a threshold, reducing false positives.</li>
+
+        <li>The system of claim 1, wherein the bill of materials per node is below $70 and nodes operate autonomously via solar power with battery backup for at least 5 days.</li>
+      </ol>
+
+      <h2>Prior Art References</h2>
+
+      <ol>
+        <li><a href="https://www.nyc.gov/site/dep/about/noise-code.page">NYC DEP Noise Code</a> — Construction noise restrictions and complaint statistics</li>
+        <li><a href="https://arxiv.org/abs/1608.04363">Salamon and Bello, 2017</a> — Deep convolutional neural networks for urban sound classification</li>
+        <li><a href="https://arxiv.org/abs/1901.08508">Kong et al., 2019</a> — AudioSet classification with pre-trained models</li>
+        <li><a href="https://www.sciencedirect.com/science/article/pii/S0003682X20308287">Li et al., Applied Acoustics 2021</a> — Excavator operating state classification from audio</li>
+        <li><a href="https://patents.google.com/patent/US20210356584A1">US20210356584A1</a> — Urban noise monitoring system</li>
+        <li><a href="https://urbansounddataset.weebly.com/">UrbanSound8K</a> — Labeled urban sound dataset</li>
+        <li><a href="https://freesound.org/">Freesound</a> — Collaborative sound database</li>
+        <li><a href="https://www.iec.ch/dyn/www/f?p=103:38:0::::FSP_ORG_ID:1224">IEC 61672</a> — Sound level meter standards</li>
+        <li><a href="https://ieeexplore.ieee.org/document/4579760">IEEE 1588</a> — Precision Time Protocol</li>
+        <li><a href="https://www.semtech.com/lora">Semtech LoRa</a> — Long range low power radio</li>
+        <li><a href="https://www.espressif.com/en/products/socs/esp32-s3">ESP32-S3</a> — Microcontroller with AI acceleration</li>
+        <li><a href="https://www.knowles.com/">Knowles MEMS Microphones</a> — SPH0645 datasheet</li>
+      </ol>
+
+    </div>
+  </article>
+
+<script src="../story.js"></script>
+</body>
+</html>
