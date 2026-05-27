@@ -479,49 +479,7 @@
   @media (max-width: 600px) {
     .sound-btn .share-clip { opacity: 0.5; }
   }
-
-  .mode-toggle {
-    display: flex;
-    gap: 8px;
-    background: rgba(255,255,255,0.03);
-    padding: 4px;
-    border-radius: 50px;
-    border: 1px solid var(--border);
-  }
-  .mode-btn {
-    padding: 10px 20px;
-    border-radius: 50px;
-    border: none;
-    background: transparent;
-    color: #666;
-    font-size: 0.85rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .mode-btn.active {
-    background: var(--leader-color);
-    color: #fff;
-    box-shadow: 0 2px 10px var(--leader-glow);
-  }
-  .mode-btn:hover:not(.active) {
-    color: #aaa;
-    background: rgba(255,255,255,0.05);
-  }
-  body.ai-mode-active .leader-title .name span::after {
-    content: " (AI Mode)";
-    font-size: 0.8rem;
-    opacity: 0.7;
-  }
-  body.ai-mode-active {
-    --leader-glow: rgba(147,51,234,0.3);
-  }
-  body.ai-mode-active .bg-particles::before,
-  body.ai-mode-active .bg-particles::after {
-    background: rgba(147,51,234,0.2);
-  }
-
-  </style>
+</style>
 </head>
 <body>
 
@@ -537,10 +495,6 @@
 
   <div class="controls-bar">
     <div class="leader-title" id="leaderTitle"></div>
-    <div class="mode-toggle">
-      <button class="mode-btn active" id="modeRealBtn" onclick="setMode(false)">💬 Real Quotes</button>
-      <button class="mode-btn" id="modeAIBtn" onclick="setMode(true)">🤖 AI-isms</button>
-    </div>
     <div class="controls-right">
       <button class="btn-stop" onclick="stopAll()" id="stopBtn" style="display:none">⏹ Stop</button>
       <button class="btn-share-leader" onclick="shareLeader()" id="shareLeaderBtn">
@@ -773,37 +727,7 @@ const LEADERS = {
   }
 };
 
-const AI_ISMS = [
-  "you're absolutely right",
-  "great question",
-  "I understand how you feel",
-  "I'd be happy to help",
-  "that's a great point",
-  "you're right about that",
-  "I apologize for the confusion",
-  "let me know if you need anything else",
-  "I appreciate your patience",
-  "to clarify",
-  "as an AI assistant",
-  "I don't have personal opinions but",
-  "it depends on various factors",
-  "there are several possibilities",
-  "it's important to note",
-  "from my perspective",
-  "in my experience",
-  "I see what you mean",
-  "that makes sense",
-  "I completely understand",
-  "you're making a valid point",
-  "let's break this down",
-  "here are some key takeaways",
-  "to summarize",
-  "in conclusion"
-];
-
-
 let currentLeader = 'mark';
-let aiMode = false;
 let currentAudio = null;
 let currentPlayingBtn = null;
 
@@ -827,8 +751,48 @@ function renderTabs() {
     tab.innerHTML = `
       <span class="tab-emoji">${leader.emoji}</span>
       ${leader.name.split(' ')[0]}
-      <span class="tab-count">${aiMode ? AI_ISMS.length : leader.quotes.length}</span>
+      <span class="tab-count">${leader.quotes.length}</span>
     `;
+    tab.onclick = () => switchLeader(id);
+    container.appendChild(tab);
+  });
+}
+
+function renderGrid() {
+  const leader = LEADERS[currentLeader];
+  const container = document.getElementById('soundGrid');
+  container.innerHTML = '';
+
+  leader.quotes.forEach((quote, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'sound-btn';
+    btn.dataset.index = i;
+    btn.innerHTML = `
+      <button class="share-clip" onclick="event.stopPropagation(); shareClip(${i})" title="Share clip">🔗</button>
+      <div class="quote-text">${quote}</div>
+      <div class="btn-footer">
+        <span class="btn-number">${String(i).padStart(2, '0')}</span>
+        <div class="waveform">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+        <div class="play-indicator"><div class="tri"></div></div>
+      </div>
+    `;
+    btn.onclick = () => playSound(currentLeader, i, btn);
+    // Preload clip on hover only (desktop) — skip touchstart preload on mobile
+    // to avoid double-fetch freezes
+    const preload = () => { getOrCreateAudio(currentLeader, i); };
+    btn.addEventListener('mouseenter', preload, { once: true });
+    container.appendChild(btn);
+  });
+}
+
+function updateTitle() {
+  const leader = LEADERS[currentLeader];
+  document.getElementById('leaderTitle').innerHTML = `
+    <span class="emoji">${leader.emoji}</span>
+    <span class="name"><span>${leader.name}</span></span>
+  `;
 }
 
 function switchLeader(leaderId) {
@@ -836,16 +800,6 @@ function switchLeader(leaderId) {
   currentLeader = leaderId;
   setTheme(leaderId);
   renderTabs();
-
-function setMode(isAI) {
-  aiMode = isAI;
-  document.getElementById('modeRealBtn').classList.toggle('active', !isAI);
-  document.getElementById('modeAIBtn').classList.toggle('active', isAI);
-  document.body.classList.toggle('ai-mode-active', isAI);
-  renderTabs();
-  renderGrid();
-  updateTitle();
-}
   renderGrid();
   updateTitle();
 }
