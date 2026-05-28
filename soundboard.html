@@ -829,6 +829,44 @@ function renderTabs() {
       ${leader.name.split(' ')[0]}
       <span class="tab-count">${aiMode ? AI_ISMS.length : leader.quotes.length}</span>
     `;
+    tab.onclick = () => switchLeader(id);
+    container.appendChild(tab);
+  });
+}
+
+function renderGrid() {
+  const leader = LEADERS[currentLeader];
+  const container = document.getElementById('soundGrid');
+  container.innerHTML = '';
+
+  leader.quotes.forEach((quote, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'sound-btn';
+    btn.dataset.index = i;
+    btn.innerHTML = `
+      <button class="share-clip" onclick="event.stopPropagation(); shareClip(${i})" title="Share clip">🔗</button>
+      <div class="quote-text">${quote}</div>
+      <div class="btn-footer">
+        <span class="btn-number">${String(i).padStart(2, '0')}</span>
+        <div class="waveform">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+        <div class="play-indicator"><div class="tri"></div></div>
+      </div>
+    `;
+    btn.onclick = () => playSound(currentLeader, i, btn);
+    const preload = () => { getOrCreateAudio(currentLeader, i); };
+    btn.addEventListener('mouseenter', preload, { once: true });
+    container.appendChild(btn);
+  });
+}
+
+function updateTitle() {
+  const leader = LEADERS[currentLeader];
+  document.getElementById('leaderTitle').innerHTML = `
+    <span class="emoji">${leader.emoji}</span>
+    <span class="name"><span>${leader.name}</span></span>
+  `;
 }
 
 function switchLeader(leaderId) {
@@ -836,6 +874,9 @@ function switchLeader(leaderId) {
   currentLeader = leaderId;
   setTheme(leaderId);
   renderTabs();
+  renderGrid();
+  updateTitle();
+}
 
 function setMode(isAI) {
   aiMode = isAI;
@@ -843,9 +884,6 @@ function setMode(isAI) {
   document.getElementById('modeAIBtn').classList.toggle('active', isAI);
   document.body.classList.toggle('ai-mode-active', isAI);
   renderTabs();
-  renderGrid();
-  updateTitle();
-}
   renderGrid();
   updateTitle();
 }
