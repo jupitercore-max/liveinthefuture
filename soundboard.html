@@ -839,24 +839,35 @@ function renderGrid() {
   const container = document.getElementById('soundGrid');
   container.innerHTML = '';
 
-  leader.quotes.forEach((quote, i) => {
+  const items = aiMode ? AI_ISMS : leader.quotes;
+
+  items.forEach((quote, i) => {
     const btn = document.createElement('button');
     btn.className = 'sound-btn';
     btn.dataset.index = i;
-    btn.innerHTML = `
-      <button class="share-clip" onclick="event.stopPropagation(); shareClip(${i})" title="Share clip">🔗</button>
-      <div class="quote-text">${quote}</div>
-      <div class="btn-footer">
-        <span class="btn-number">${String(i).padStart(2, '0')}</span>
-        <div class="waveform">
-          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    if (aiMode) {
+      btn.innerHTML = `
+        <div class="quote-text">${quote}</div>
+        <div class="btn-footer">
+          <span class="btn-number">${String(i).padStart(2, '0')}</span>
         </div>
-        <div class="play-indicator"><div class="tri"></div></div>
-      </div>
-    `;
-    btn.onclick = () => playSound(currentLeader, i, btn);
-    const preload = () => { getOrCreateAudio(currentLeader, i); };
-    btn.addEventListener('mouseenter', preload, { once: true });
+      `;
+    } else {
+      btn.innerHTML = `
+        <button class="share-clip" onclick="event.stopPropagation(); shareClip(${i})" title="Share clip">🔗</button>
+        <div class="quote-text">${quote}</div>
+        <div class="btn-footer">
+          <span class="btn-number">${String(i).padStart(2, '0')}</span>
+          <div class="waveform">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          </div>
+          <div class="play-indicator"><div class="tri"></div></div>
+        </div>
+      `;
+      btn.onclick = () => playSound(currentLeader, i, btn);
+      const preload = () => { getOrCreateAudio(currentLeader, i); };
+      btn.addEventListener('mouseenter', preload, { once: true });
+    }
     container.appendChild(btn);
   });
 }
@@ -985,6 +996,7 @@ function stopAll() {
 }
 
 function playRandom() {
+  if (aiMode) return;
   const leader = LEADERS[currentLeader];
   const index = Math.floor(Math.random() * leader.quotes.length);
   const btn = document.querySelector(`.sound-btn[data-index="${index}"]`);
