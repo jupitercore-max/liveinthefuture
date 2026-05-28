@@ -809,6 +809,7 @@ let currentPlayingBtn = null;
 
 function getAudioUrl(leaderId, index) {
   const num = String(index).padStart(2, '0');
+  if (leaderId === 'ai') return `soundboard-audio/ai-${num}.mp3`;
   return `soundboard-audio/${leaderId}-${num}.mp3`;
 }
 
@@ -840,6 +841,7 @@ function renderGrid() {
   container.innerHTML = '';
 
   const items = aiMode ? AI_ISMS : leader.quotes;
+  const audioId = aiMode ? 'ai' : currentLeader;
 
   items.forEach((quote, i) => {
     const btn = document.createElement('button');
@@ -850,8 +852,15 @@ function renderGrid() {
         <div class="quote-text">${quote}</div>
         <div class="btn-footer">
           <span class="btn-number">${String(i).padStart(2, '0')}</span>
+          <div class="waveform">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          </div>
+          <div class="play-indicator"><div class="tri"></div></div>
         </div>
       `;
+      btn.onclick = () => playSound('ai', i, btn);
+      const preload = () => { getOrCreateAudio('ai', i); };
+      btn.addEventListener('mouseenter', preload, { once: true });
     } else {
       btn.innerHTML = `
         <button class="share-clip" onclick="event.stopPropagation(); shareClip(${i})" title="Share clip">🔗</button>
@@ -948,8 +957,9 @@ function playSound(leaderId, index, btn) {
 
   // Show now playing bar
   const np = document.getElementById('nowPlaying');
-  const quote = LEADERS[leaderId].quotes[index];
-  document.getElementById('npText').innerHTML = `<strong>${LEADERS[leaderId].name}:</strong> ${quote}`;
+  const quote = leaderId === 'ai' ? AI_ISMS[index] : LEADERS[leaderId].quotes[index];
+  const speakerName = leaderId === 'ai' ? '🤖 AI' : LEADERS[leaderId].name;
+  document.getElementById('npText').innerHTML = `<strong>${speakerName}:</strong> ${quote}`;
   np.classList.add('visible');
 
   const playPromise = audio.play();
@@ -996,12 +1006,12 @@ function stopAll() {
 }
 
 function playRandom() {
-  if (aiMode) return;
-  const leader = LEADERS[currentLeader];
-  const index = Math.floor(Math.random() * leader.quotes.length);
+  const items = aiMode ? AI_ISMS : LEADERS[currentLeader].quotes;
+  const audioId = aiMode ? 'ai' : currentLeader;
+  const index = Math.floor(Math.random() * items.length);
   const btn = document.querySelector(`.sound-btn[data-index="${index}"]`);
   if (btn) {
-    playSound(currentLeader, index, btn);
+    playSound(audioId, index, btn);
     btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
