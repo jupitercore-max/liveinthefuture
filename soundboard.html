@@ -809,7 +809,7 @@ let currentPlayingBtn = null;
 
 function getAudioUrl(leaderId, index) {
   const num = String(index).padStart(2, '0');
-  if (leaderId === 'ai') return `soundboard-audio/ai-${num}.mp3`;
+  if (aiMode) return `soundboard-audio/${leaderId}-ai-${num}.mp3`;
   return `soundboard-audio/${leaderId}-${num}.mp3`;
 }
 
@@ -858,8 +858,8 @@ function renderGrid() {
           <div class="play-indicator"><div class="tri"></div></div>
         </div>
       `;
-      btn.onclick = () => playSound('ai', i, btn);
-      const preload = () => { getOrCreateAudio('ai', i); };
+      btn.onclick = () => playSound(currentLeader, i, btn);
+      const preload = () => { getOrCreateAudio(currentLeader, i); };
       btn.addEventListener('mouseenter', preload, { once: true });
     } else {
       btn.innerHTML = `
@@ -957,8 +957,8 @@ function playSound(leaderId, index, btn) {
 
   // Show now playing bar
   const np = document.getElementById('nowPlaying');
-  const quote = leaderId === 'ai' ? AI_ISMS[index] : LEADERS[leaderId].quotes[index];
-  const speakerName = leaderId === 'ai' ? '🤖 AI' : LEADERS[leaderId].name;
+  const quote = aiMode ? AI_ISMS[index] : LEADERS[leaderId].quotes[index];
+  const speakerName = LEADERS[leaderId] ? LEADERS[leaderId].name : 'AI';
   document.getElementById('npText').innerHTML = `<strong>${speakerName}:</strong> ${quote}`;
   np.classList.add('visible');
 
@@ -1007,11 +1007,10 @@ function stopAll() {
 
 function playRandom() {
   const items = aiMode ? AI_ISMS : LEADERS[currentLeader].quotes;
-  const audioId = aiMode ? 'ai' : currentLeader;
   const index = Math.floor(Math.random() * items.length);
   const btn = document.querySelector(`.sound-btn[data-index="${index}"]`);
   if (btn) {
-    playSound(audioId, index, btn);
+    playSound(currentLeader, index, btn);
     btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
