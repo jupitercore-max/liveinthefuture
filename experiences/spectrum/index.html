@@ -90,6 +90,10 @@ var modesUsed = {};
 var zoomsUsed = {};
 var showBadgeGallery = false;
 
+// ── Snapshot/Reference Capture ──
+var snapshotFreqData = null; // null when no snapshot, Uint8Array when captured
+var snapshotZoomRange = null; // zoom range at time of capture
+
 // Persistence
 function loadAchievements() {
   try {
@@ -552,6 +556,13 @@ function drawHeader() {
   }
   ctx.fillStyle = '#4a9eff';
   ctx.fillText(modeNames[modeIdx] + ' · ' + zoomNames[zoomLevel], W - 14, 32);
+  // Snapshot indicator
+  if (snapshotFreqData) {
+    ctx.fillStyle = '#ff9944';
+    ctx.textAlign = 'left';
+    ctx.fillText('📸 REF CAPTURED', 14, 32);
+    ctx.textAlign = 'right';
+  }
 }
 
 function drawFooter() {
@@ -561,7 +572,7 @@ function drawFooter() {
   ctx.fillStyle = '#555';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  var hint = '←→ Mode  ↑ Zoom  ↓ Badges  Enter ' + (!micActive ? 'Mic' : refTonePlaying ? '■ Stop' : '♪ Ref Tone') + '  Esc Back';
+  var hint = '←→ Mode  ↑ Zoom  ↓ ' + (snapshotFreqData ? '✕ Clear' : '📸 Snap') + '  Enter ' + (!micActive ? 'Mic' : refTonePlaying ? '■ Stop' : '♪ Ref Tone') + '  Esc Back';
   ctx.fillText(hint, W / 2, H - 14);
 }
 
@@ -632,6 +643,30 @@ function drawBars() {
     ctx.fillRect(x, peakY, Math.max(1, barW - (barW > 3 ? 1 : 0)), 2);
     peaks[pi] *= peakDecay;
   }
+
+  // Snapshot/reference overlay — ghost bars in amber
+  if (snapshotFreqData && snapshotZoomRange) {
+    ctx.globalAlpha = 0.3;
+    var sr = snapshotZoomRange;
+    var sCount = sr.end - sr.start;
+    var sBarW = W / count; // use current bar width for alignment
+    for (var si = 0; si < count; si++) {
+      // Map current range position to snapshot range position
+      var srcBin = range.start + si;
+      if (srcBin >= sr.start && srcBin < sr.end) {
+        var sVal = snapshotFreqData[srcBin];
+        var sH = (sVal / 255) * areaH;
+        var sY = 44 + areaH - sH;
+        ctx.fillStyle = '#ff9944'; // amber ghost
+        if (sBarW > 3) {
+          ctx.fillRect(si * sBarW + 0.5, sY, sBarW - 1, sH);
+        } else {
+          ctx.fillRect(si * sBarW, sY, Math.max(1, sBarW), sH);
+        }
+      }
+    }
+    ctx.globalAlpha = 1.0;
+  }
 }
 
 function drawWaterfall() {
@@ -698,6 +733,31 @@ function drawCircular() {
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
     ctx.stroke();
+  }
+
+  // Snapshot ghost overlay in circular mode
+  if (snapshotFreqData && snapshotZoomRange) {
+    ctx.globalAlpha = 0.25;
+    var sr = snapshotZoomRange;
+    for (var si = 0; si < count; si++) {
+      var srcBin = range.start + si;
+      if (srcBin >= sr.start && srcBin < sr.end) {
+        var sVal = snapshotFreqData[srcBin];
+        var sAngle = (si / count) * Math.PI * 2 - Math.PI / 2;
+        var sR = innerR + (sVal / 255) * (outerR - innerR);
+        var sx1 = cx + Math.cos(sAngle) * innerR;
+        var sy1 = cy + Math.sin(sAngle) * innerR;
+        var sx2 = cx + Math.cos(sAngle) * sR;
+        var sy2 = cy + Math.sin(sAngle) * sR;
+        ctx.strokeStyle = '#ff9944';
+        ctx.lineWidth = Math.max(1, (Math.PI * 2 * innerR / count) * 0.8);
+        ctx.beginPath();
+        ctx.moveTo(sx1, sy1);
+        ctx.lineTo(sx2, sy2);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1.0;
   }
 
   // Center label
@@ -854,12 +914,6 @@ function drawPeakInfo() {
 // ── Main loop ──
 
 function frame() {
-  if (showBadgeGallery) {
-    drawBadgeGallery();
-    requestAnimationFrame(frame);
-    return;
-  }
-
   if (modeIdx === 0) drawBars();
   else if (modeIdx === 1) drawWaterfall();
   else if (modeIdx === 2) drawCircular();
@@ -894,10 +948,6 @@ function frame() {
 
 document.addEventListener('keydown', function(e) {
   e.preventDefault();
-  if (showBadgeGallery) {
-    showBadgeGallery = false;
-    return;
-  }
   if (e.key === 'ArrowLeft') {
     modeIdx = (modeIdx - 1 + modes.length) % modes.length;
     waterfallRows = [];
@@ -914,7 +964,14 @@ document.addEventListener('keydown', function(e) {
     zoomsUsed[zoomLevel] = true;
     saveAchievements();
   } else if (e.key === 'ArrowDown') {
-    showBadgeGallery = true;
+    // Snapshot/Reference capture: toggle spectrum hold for A/B comparison
+    if (snapshotFreqData) {
+      snapshotFreqData = null;
+      snapshotZoomRange = null;
+    } else if (freqData) {
+      snapshotFreqData = new Uint8Array(freqData);
+      snapshotZoomRange = getZoomRange();
+    }
   } else if (e.key === 'Enter') {
     if (!micActive && !micFailed) {
       initMic();
