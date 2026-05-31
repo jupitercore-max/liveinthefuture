@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-054: Continuous Parking Garage Structural Health Monitoring via Electric Vehicle Suspension Telemetry | Live in the Future</title>
+  <meta name="description" content="Defensive prior art disclosure: A system that continuously monitors the structural health of parking garages by analyzing suspension deflection telemetry from electric vehicles traversing floor slabs under precisely characterized self-weight loads.">
+  <meta property="og:title" content="System and Method for Continuous Structural Health Monitoring of Multi-Level Parking Garages Using Electric Vehicle Suspension Deflection Telemetry Under Self-Characterized Vehicle Loads with Fleet-Aggregated Degradation Tracking">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/ev-parking-garage-structural-monitoring.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/ev-parking-garage-structural-monitoring.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/priorart-ev-parking-garage-structural-monitoring.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">← Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-054 · Structural Engineering / Vehicle Telematics</span>
+      <h1>System and Method for Continuous Structural Health Monitoring of Multi-Level Parking Garages Using Electric Vehicle Suspension Deflection Telemetry Under Self-Characterized Vehicle Loads with Fleet-Aggregated Degradation Tracking</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-05-31">Published May 31, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/priorart-ev-parking-garage-structural-monitoring.jpg" alt="Electric vehicle driving across parking garage floor slab with structural deflection visualization and suspension sensor data overlay" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>⚖️ Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. § 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above. This disclosure is intended to prevent the patenting of these concepts by any party.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a system and method for continuously monitoring the structural health of multi-level parking garages by analyzing suspension deflection telemetry from electric vehicles (EVs) as they traverse floor slabs. Each modern EV carries a precisely characterized self-weight derived from its known curb mass and real-time battery state-of-charge, making it a self-calibrating mobile load cell. As the vehicle drives across a floor slab, its suspension system responds to slab deflection beneath the tire contact patches. The suspension height sensors, vertical accelerometers, and damper position encoders record a deflection influence line that encodes the slab's flexural stiffness at the traversal path. An edge inference module (8,400 parameters, 17 KB INT8) running on the vehicle's existing body control module extracts a normalized stiffness response vector from each slab crossing and transmits a compact 64-byte observation packet via the vehicle's cellular telematics link. A cloud-hosted spatiotemporal regression model aggregates observations from hundreds of EVs traversing the same structural bays over weeks to months, normalizing for vehicle speed, load path, temperature, and occupancy. The system detects progressive structural degradation signatures including post-tensioning tendon relaxation, rebar corrosion-induced stiffness loss, concrete carbonation, and bearing pad deterioration at rates of 2-5% stiffness change per year, providing 18-36 months of advance warning before deflection limits specified in <a href="https://www.concrete.org/store/productdetail.aspx?ItemID=31814">ACI 318-19</a> are exceeded. No instrumentation of the parking structure is required.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to structural health monitoring (SHM) and vehicle telematics, specifically to methods for assessing the condition of reinforced and post-tensioned concrete floor systems in parking structures using suspension telemetry from electric vehicles as opportunistic mobile load-testing instruments.</p>
+
+      <h2>Background</h2>
+
+      <p>Parking garage structural failures represent a persistent and growing infrastructure risk. The <a href="https://www.ntsb.gov/">National Transportation Safety Board</a> and state engineering boards have investigated numerous parking garage collapses, including the 2012 Miami Dade College garage collapse (killing 4 workers during construction), the 2023 partial collapse at a New York City parking garage (1 killed, 5 injured), and the 2024 collapse of a parking deck in Fort Worth, Texas. The <a href="https://infrastructurereportcard.org/">ASCE 2021 Infrastructure Report Card</a> does not separately grade parking structures, but notes that 42% of bridges (which share the same reinforced concrete construction technology) are over 50 years old, and 7.5% are structurally deficient. Parking garages face more aggressive deterioration than bridges due to chloride exposure from de-icing salts tracked in by vehicles, confined ventilation limiting carbonation dispersion, and concentrated dynamic loads from vehicles starting and stopping.</p>
+
+      <p>Current parking garage structural assessment methods are expensive, infrequent, and disruptive:</p>
+
+      <ul>
+        <li><strong>Visual inspection:</strong> <a href="https://www.iccsafe.org/content/iebc-2021/">IEBC 2021</a> and local building codes typically require periodic visual inspections (every 3-7 years depending on jurisdiction). Inspectors examine concrete surfaces for cracking, spalling, efflorescence, and exposed rebar. Visual inspection cannot detect internal deterioration until damage reaches the surface. A 2018 study by <a href="https://doi.org/10.1016/j.conbuildmat.2018.02.019">Rashidi and Gibson (Construction and Building Materials)</a> found that visual inspection detects only 40-60% of structural deficiencies identified by subsequent detailed testing.</li>
+        <li><strong>Load testing:</strong> The definitive method for assessing slab capacity is a static load test per <a href="https://www.concrete.org/store/productdetail.aspx?ItemID=31814">ACI 318-19 Chapter 27</a>, where known weights are placed on a slab and deflection is measured with dial gauges or LVDTs. Load tests cost $15,000-$50,000 per bay, require closing the tested area for 24-48 hours, and are performed at most once per decade on suspect bays. The vast majority of structural bays in a parking garage are never load-tested during the structure's service life.</li>
+        <li><strong>Half-cell potential mapping:</strong> <a href="https://doi.org/10.1520/C0876-22B">ASTM C876</a> half-cell potential surveys detect active corrosion in reinforcing steel by measuring the electrochemical potential at the concrete surface. The method requires direct contact with the concrete, surveys of ~100 points per bay, and costs $3,000-$8,000 per bay. It detects corrosion presence but not the resulting structural stiffness loss.</li>
+        <li><strong>Ground-penetrating radar (GPR):</strong> <a href="https://doi.org/10.1520/D6432-19">ASTM D6432</a> GPR surveys image rebar depth, delaminations, and voids. Equipment costs $30,000-$80,000; surveys require trained operators and cost $5,000-$15,000 per level. GPR identifies localized damage but does not directly measure structural stiffness.</li>
+        <li><strong>Embedded sensor systems:</strong> <a href="https://doi.org/10.1016/j.autcon.2019.102961">Research-grade SHM systems</a> (fiber optic strain gauges, MEMS accelerometer arrays, wireless sensor nodes) can continuously monitor structural response but require installation during construction or retrofit. Costs range from $50,000-$200,000 per structure with ongoing maintenance. Fewer than 1% of the estimated 800,000 parking structures in the United States have any form of continuous structural monitoring.</li>
+      </ul>
+
+      <p>Meanwhile, the electric vehicle fleet is growing rapidly and is increasingly instrumented. <a href="https://www.iea.org/reports/global-ev-outlook-2024">IEA Global EV Outlook 2024</a> reports over 40 million EVs on the road globally, with projections exceeding 250 million by 2030. Modern EVs from Tesla, Rivian, BMW, Mercedes, and others carry sophisticated suspension instrumentation:</p>
+
+      <ul>
+        <li><strong>Air suspension height sensors:</strong> Vehicles with adaptive air suspension (Tesla Model S/X, Rivian R1T/R1S, Mercedes EQS, BMW iX) measure ride height at each corner at 50-200 Hz using Hall-effect or inductive position sensors with 0.1-0.5 mm resolution. These sensors detect body displacement caused by road surface irregularities, including the gentle deflection of a floor slab under vehicle weight.</li>
+        <li><strong>Vertical body accelerometers:</strong> Active and semi-active suspension systems (MagneRide, CDC, PASM) use body-mounted accelerometers sampling at 500-2000 Hz with 0.001g resolution to control damper response. These accelerometers record the vehicle's vertical motion profile as it crosses structural elements.</li>
+        <li><strong>Precise self-weight knowledge:</strong> Unlike internal combustion engine (ICE) vehicles, EVs know their exact weight at all times. Battery state-of-charge (SOC) from the battery management system (BMS) determines battery pack weight to within 0.1% of its 400-900 kg mass. Combined with the fixed curb weight (known to ±2 kg from manufacturing), each EV can compute its total loaded weight to within ±5 kg, including estimated passenger and cargo mass from suspension load sensors.</li>
+        <li><strong>High-precision positioning:</strong> Vehicles with Real-Time Kinematic (RTK) GNSS or visual-inertial odometry (used for parking assist and autonomous features) provide position accuracy of 2-10 cm, sufficient to locate each observation within a specific structural bay.</li>
+      </ul>
+
+      <p>Prior work on vehicle-based road surface monitoring has focused on pavement roughness assessment. The <a href="https://doi.org/10.1016/j.measurement.2019.107187">Michigan DOT crowdsourced roughness study (Measurement, 2020)</a> used accelerometer data from connected vehicles to estimate International Roughness Index (IRI). <a href="https://doi.org/10.1016/j.autcon.2020.103389">Eriksson et al. (Automation in Construction, 2020)</a> demonstrated pothole detection from smartphone accelerometers in vehicles. However, no prior system has: (a) used EVs specifically as self-characterized load cells with precisely known weight; (b) extracted structural flexural stiffness from suspension telemetry rather than surface roughness; (c) aggregated multi-vehicle observations of the same structural bay over time to track degradation trends; or (d) applied these techniques specifically to parking garage floor slab monitoring where the vehicle traverses the same structural elements repeatedly.</p>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. Structural Deflection Sensing via Suspension Telemetry</h3>
+
+      <p>When a vehicle drives across a reinforced or post-tensioned concrete floor slab spanning between supporting beams or columns, the slab deflects downward under the vehicle's weight. For a typical parking garage slab (200-300 mm thick, 8-10 m span, post-tensioned), the mid-span deflection under a 2,500 kg vehicle load is 0.3-1.5 mm. This deflection follows a characteristic influence line shape as the vehicle traverses from the near support, through mid-span, to the far support.</p>
+
+      <p>The vehicle's suspension system acts as a mechanical low-pass filter between the road surface (slab top) and the vehicle body. The suspension's response to slab deflection depends on the vehicle's speed, suspension characteristics (spring rate, damping coefficient), and tire compliance. For a vehicle traveling at typical parking garage speeds (5-15 km/h), the slab deflection event occurs over 2-4 seconds (spanning 8-10 m). This timescale is well within the bandwidth of the suspension's response to vertical road inputs.</p>
+
+      <p>The key measurement is the change in suspension compression (or equivalently, ride height) as the vehicle crosses the mid-span of a structural bay. For a vehicle with air suspension height sensors recording at 100 Hz while traveling at 10 km/h across an 8 m span:</p>
+
+      <ul>
+        <li>Traversal time: 2.88 seconds</li>
+        <li>Samples per crossing: 288</li>
+        <li>Expected slab deflection at mid-span: 0.5-1.5 mm (healthy slab) to 3-8 mm (degraded slab)</li>
+        <li>Sensor resolution: 0.1-0.5 mm (Hall-effect ride height sensors)</li>
+        <li>Signal-to-noise ratio for a healthy slab: 1:1 to 15:1 (marginal to excellent)</li>
+      </ul>
+
+      <p>The critical insight is that while a single crossing produces a noisy measurement, the same vehicle or different vehicles cross the same structural bay hundreds of times over weeks and months. Statistical aggregation across N crossings improves the effective resolution by √N. With 100 crossings of a single bay (achievable within 2-4 weeks at a moderately busy garage), the effective resolution improves to 0.01-0.05 mm, sufficient to detect the 2-5% annual stiffness changes associated with corrosion-driven deterioration.</p>
+
+      <h3>2. Self-Calibrating Load Characterization</h3>
+
+      <p>The structural significance of a deflection measurement depends on knowing the applied load precisely. This is where EVs provide a unique advantage over ICE vehicles. The EV's battery management system continuously reports SOC to within ±1%, which translates to battery mass knowledge of ±0.5-2 kg for a 400-900 kg pack. Combined with the known curb weight (from the vehicle's digital twin / manufacturing record), the vehicle's total mass is known to within ±5-10 kg (±0.2-0.4% for a typical 2,500 kg EV).</p>
+
+      <p>Vehicles with load-sensing suspension (present in most air-suspension-equipped EVs for ride height leveling) further refine the mass estimate by measuring static corner loads when the vehicle is parked on level ground. The four corner loads sum to the total vehicle weight including passengers and cargo. This measurement is typically performed at each ignition cycle and stored in the body control module.</p>
+
+      <p>The load characterization enables each EV crossing to be treated as a mini load test with a known force applied at a known position. By normalizing the measured deflection by the applied load, the system extracts a load-independent stiffness metric (deflection per unit load, in mm/kN) for each structural bay. This normalization eliminates vehicle weight as a confounding variable and allows direct comparison of stiffness measurements across different vehicles over time.</p>
+
+      <h3>3. Edge Inference Module</h3>
+
+      <p>A lightweight signal processing and classification model runs on the EV's existing body control module (BCM) or central compute platform (typically ARM Cortex-A class, 1+ GHz). The model architecture:</p>
+
+      <ul>
+        <li><strong>Input:</strong> A sliding window of 512 samples (~5 seconds at 100 Hz) from four ride height sensors + one vertical body accelerometer + vehicle speed + GPS/odometry position. Total: 3,072 values per window.</li>
+        <li><strong>Feature extraction:</strong> A 1D convolutional front-end (3 layers, kernel size 7, channels 16→32→16) compresses the raw time series into 64 features capturing the deflection influence line shape, amplitude, and spatial wavelength.</li>
+        <li><strong>Classification head:</strong> A fully connected layer (64→32→4) classifies each window as: (0) no structural element crossing, (1) beam/column support crossing, (2) mid-span crossing, (3) expansion joint crossing.</li>
+        <li><strong>Regression head:</strong> For class (2) mid-span crossings, a second FC branch (64→16→3) outputs: peak deflection estimate, influence line half-width, and asymmetry ratio.</li>
+        <li><strong>Total parameters:</strong> 8,400 (17 KB INT8 quantized). Inference latency: under 1 ms on Cortex-A53.</li>
+      </ul>
+
+      <p>Training data is generated from paired campaigns: instrumented slabs (LVDTs on slab soffit) provide ground-truth deflection while EVs with standard suspension sensors traverse the bay at various speeds. A dataset of 5,000+ paired crossings across 50+ structural bays of varying span, thickness, and condition provides supervised training signal.</p>
+
+      <h3>4. Observation Packet Format</h3>
+
+      <p>Each detected mid-span crossing generates a 64-byte observation packet: latitude (4 bytes, fixed-point), longitude (4 bytes), floor level estimate (1 byte, from barometric altimeter differential), heading (2 bytes), timestamp (4 bytes), vehicle speed (2 bytes), vehicle curb weight (2 bytes), current total weight (2 bytes, curb + battery SOC-adjusted + passenger estimate), peak deflection estimate (2 bytes, signed, 0.01 mm resolution), influence line half-width (2 bytes, 0.01 m resolution), asymmetry ratio (2 bytes), ambient temperature (2 bytes, from exterior thermistor), model confidence score (1 byte), and reserved/checksum (34 bytes). Packets are buffered and uploaded via the vehicle's existing cellular telematics link (LTE/5G) in batches at 5-minute intervals. Typical data volume: 5-20 packets per parking session (one per structural bay crossed), totaling 320-1,280 bytes per visit.</p>
+
+      <h3>5. Cloud Aggregation and Degradation Tracking</h3>
+
+      <p>The cloud backend maintains a digital structural model of each monitored parking garage, built incrementally from the first vehicle observations. The model consists of:</p>
+
+      <ul>
+        <li><strong>Bay identification:</strong> Structural bays are identified automatically from the spatial clustering of support crossings (class 1 events). GPS/odometry traces from many vehicles map the column grid to within ±0.5 m, sufficient to assign each mid-span observation to a specific structural bay.</li>
+        <li><strong>Stiffness time series:</strong> For each structural bay, the system maintains a time series of normalized stiffness measurements (deflection per kN of applied load). Each observation is weighted by its confidence score, vehicle speed (slower crossings produce cleaner signals), and sensor quality tier (air suspension &gt; passive spring with accelerometer only).</li>
+        <li><strong>Environmental normalization:</strong> Concrete stiffness varies ~0.15% per °C due to temperature-dependent elastic modulus. The system regresses out the temperature effect using the ambient temperature recorded in each observation packet and the thermal mass delay characteristic of the structure (estimated from the building's thermal response curve over diurnal cycles).</li>
+        <li><strong>Occupancy normalization:</strong> A heavily loaded garage applies additional dead load to each slab from parked vehicles on adjacent and overlying bays. The system estimates occupancy from the density of EV telematics signals and normalizes deflection observations for the estimated superimposed load.</li>
+        <li><strong>Trend detection:</strong> A Bayesian changepoint detection algorithm (<a href="https://doi.org/10.1093/biomet/94.3.591">Adams and MacKay, 2007</a>) monitors the stiffness time series for each bay. The algorithm distinguishes between normal seasonal variation (thermal cycles, moisture content changes) and monotonic degradation trends. An alert fires when: (a) the posterior probability of a negative stiffness change exceeds 95%, (b) the estimated stiffness loss exceeds 5% relative to baseline, and (c) the trend persists for more than 30 days (eliminating transient events).</li>
+      </ul>
+
+      <h3>6. Degradation Signature Classification</h3>
+
+      <p>Different structural deterioration mechanisms produce distinct patterns in the deflection data:</p>
+
+      <ul>
+        <li><strong>Rebar corrosion:</strong> Produces gradual, monotonic stiffness loss (1-4% per year) that accelerates as corrosion products expand and induce delamination. The influence line shape remains symmetric. Corrosion typically affects the top mat of reinforcement first (closest to chloride exposure from the driving surface), reducing negative moment capacity at supports before reducing positive moment capacity at mid-span.</li>
+        <li><strong>Post-tensioning tendon relaxation or corrosion:</strong> In post-tensioned slabs, tendon degradation causes more rapid stiffness loss (3-8% per year once initiated) with a characteristic increase in mid-span deflection relative to quarter-span deflection. Tendon failure produces a sudden stiffness drop (15-40% for a single tendon in a typical 4-tendon bay) detectable as a Bayesian changepoint.</li>
+        <li><strong>Concrete carbonation:</strong> Carbonation reduces the passivating alkalinity protecting reinforcement, enabling corrosion initiation. The carbonation front itself does not reduce stiffness, but the subsequent corrosion does. The system detects the secondary effect (corrosion-induced stiffness loss) rather than carbonation directly.</li>
+        <li><strong>Bearing pad deterioration:</strong> Elastomeric bearing pads at expansion joints degrade over time, changing the effective support conditions. Bearing pad degradation manifests as an asymmetric influence line (the deflection profile shifts toward the degraded support) and increased apparent deflection at the affected end of the bay.</li>
+        <li><strong>Shear cracking:</strong> Diagonal shear cracks near supports cause a distinctive change in the influence line shape: the deflection near the cracked support increases disproportionately relative to mid-span deflection. This pattern is distinguishable from flexural degradation by analyzing the ratio of quarter-span to mid-span deflection changes.</li>
+      </ul>
+
+      <p>A classification model (gradient-boosted ensemble, 500 trees, ~20,000 parameters) trained on FEM-simulated degradation scenarios assigns probability weights across these deterioration modes for each bay exhibiting stiffness loss. The simulation training dataset uses <a href="https://opensees.berkeley.edu/">OpenSees</a> nonlinear finite element models of typical parking garage bays with parameterized degradation patterns.</p>
+
+      <h3>7. Multi-Level Structure Mapping</h3>
+
+      <p>Parking garages present a unique challenge: multiple floor slabs are stacked vertically, and the GPS signal is degraded inside the structure. The system determines the floor level for each observation using:</p>
+
+      <ul>
+        <li><strong>Barometric altimetry:</strong> The vehicle's barometric altimeter (present in all vehicles with TPMS, resolution ~0.3 m) provides relative altitude. The system establishes a per-structure barometric reference by averaging the barometric reading at the ground-level entry/exit point across many vehicle visits, then assigns floor levels based on expected inter-story height (typically 3.0-3.6 m).</li>
+        <li><strong>Ramp crossing detection:</strong> The edge inference module detects ramp traversals from the sustained grade (5-15% slope for 15-30 m) in the accelerometer and height sensor data. Each ramp crossing increments or decrements the floor level counter.</li>
+        <li><strong>Visual-inertial odometry:</strong> Vehicles equipped with visual SLAM (e.g., Tesla FSD, Rivian Drive+) maintain 3D position estimates even without GPS. These position estimates provide floor-level discrimination within ±0.5 m vertical accuracy.</li>
+      </ul>
+
+      <h3>8. Privacy Architecture</h3>
+
+      <p>The system is designed to transmit only structural observations, not vehicle tracking data:</p>
+
+      <ul>
+        <li>Observation packets contain a rotating anonymous vehicle class identifier (e.g., "Model S, curb weight 2,162 kg, air suspension") rather than a VIN or persistent vehicle ID.</li>
+        <li>GPS coordinates are truncated to ±5 m precision (sufficient for bay identification but not for vehicle tracking).</li>
+        <li>Timestamps are randomized by ±30 minutes before transmission (sufficient for time-of-day normalization but preventing trip reconstruction).</li>
+        <li>Observations are edge-filtered: only confirmed structural crossing events are transmitted, not continuous position traces. A 30-minute parking session generates 5-20 packets, not a continuous breadcrumb trail.</li>
+        <li>The cloud backend receives anonymized structural observations that can be aggregated into bay-level stiffness metrics without reconstructing individual vehicle trajectories.</li>
+      </ul>
+
+      <h3>9. Application Scenarios</h3>
+
+      <ul>
+        <li><strong>Municipal inspection prioritization:</strong> Building departments responsible for periodic parking garage inspections can use the fleet-aggregated stiffness data to prioritize inspections of structures showing degradation trends, rather than inspecting all structures on a fixed calendar cycle. A city with 500 parking garages could focus its limited inspector workforce on the 20-50 structures flagged by the system.</li>
+        <li><strong>Owner/operator maintenance planning:</strong> Garage owners receive quarterly structural health reports identifying bays with declining stiffness and estimated degradation rates. This enables proactive maintenance (cathodic protection, crack injection, tendon re-stressing) before costly emergency repairs are needed. <a href="https://doi.org/10.1061/(ASCE)IS.1943-555X.0000195">Frangopol and Soliman (ASCE, 2014)</a> estimated that proactive maintenance based on monitoring data reduces lifecycle structural repair costs by 30-50% compared to reactive repair after visible damage.</li>
+        <li><strong>Post-event rapid assessment:</strong> After seismic events, the system provides rapid assessment of parking garage structural condition by comparing pre-event and post-event stiffness measurements from the first vehicles to enter the structure. This could reduce the time required for post-earthquake safety evaluations from days (visual inspection) to hours (first vehicle traverse after the event).</li>
+        <li><strong>Insurance and valuation:</strong> Continuous structural health data enables risk-adjusted insurance premiums for parking structures and provides objective condition evidence for real estate transactions involving properties with structured parking.</li>
+      </ul>
+
+      <h3>10. Figures Description</h3>
+
+      <ul>
+        <li><strong>Figure 1:</strong> System architecture showing EVs traversing parking garage floor slabs, edge inference module extracting deflection observations from suspension telemetry, cellular uplink of anonymized observation packets, and cloud aggregation producing per-bay stiffness time series and degradation alerts.</li>
+        <li><strong>Figure 2:</strong> Deflection influence line measured by vehicle suspension as the vehicle crosses a structural bay from support to support, showing the characteristic parabolic shape with peak at mid-span. Comparison of influence lines from a healthy slab (0.8 mm peak) and a degraded slab (2.1 mm peak) under the same vehicle weight.</li>
+        <li><strong>Figure 3:</strong> Floor-plan view of a parking garage showing the automatically mapped column grid (from support crossing events), with each structural bay colored by its current normalized stiffness relative to baseline. Red bays indicate &gt;10% stiffness loss.</li>
+        <li><strong>Figure 4:</strong> Time series of normalized stiffness (mm/kN) for a single structural bay over 18 months, showing seasonal temperature variation (sinusoidal) overlaid with a monotonic 3.2% annual degradation trend. Bayesian changepoint detection marks the onset of accelerated degradation at month 11.</li>
+        <li><strong>Figure 5:</strong> Degradation signature classification showing influence line shape changes for five deterioration mechanisms: uniform rebar corrosion, single post-tensioning tendon loss, bearing pad deterioration, support zone shear cracking, and combined corrosion plus carbonation.</li>
+      </ul>
+
+      <h2>Claims</h2>
+
+      <ol>
+        <li>A system for continuous structural health monitoring of parking garages, comprising: a fleet of electric vehicles, each equipped with suspension position sensors, vertical body accelerometers, a battery management system reporting state-of-charge, and a cellular telematics link; an edge inference module running on each vehicle's existing body control module or central compute platform that detects floor slab mid-span crossings from suspension telemetry and extracts deflection parameters for each crossing; and a cloud-hosted aggregation service that collects deflection observations from multiple vehicles traversing the same structural bays over time, normalizes them by applied vehicle load and environmental conditions, and detects structural degradation trends.</li>
+
+        <li>The system of claim 1, wherein each electric vehicle determines its total weight to within ±10 kg by combining its known curb weight with a battery mass derived from the battery management system's state-of-charge reading and known battery pack mass, and an occupant/cargo mass estimated from suspension static load measurements during level-ground parking events.</li>
+
+        <li>The system of claim 1, wherein the edge inference module comprises a one-dimensional convolutional neural network that processes a sliding window of suspension height sensor and accelerometer data to classify each time window as containing a support crossing, a mid-span crossing, an expansion joint crossing, or no structural element crossing, and a regression branch that extracts peak deflection, influence line half-width, and asymmetry ratio for detected mid-span crossings.</li>
+
+        <li>The system of claim 1, wherein the cloud aggregation service normalizes each deflection observation by dividing the measured peak deflection by the vehicle's reported total weight, producing a load-independent stiffness metric in units of deflection per unit force that is comparable across different vehicles.</li>
+
+        <li>The system of claim 1, wherein the cloud aggregation service applies environmental normalization by regressing out the effect of ambient temperature on concrete elastic modulus using temperature data reported in each observation packet and a structure-specific thermal response model.</li>
+
+        <li>The system of claim 1, wherein the cloud aggregation service applies a Bayesian changepoint detection algorithm to the time series of normalized stiffness values for each structural bay, generating a degradation alert when the posterior probability of a negative stiffness change exceeds a threshold, the estimated stiffness loss exceeds a minimum percentage relative to baseline, and the trend persists beyond a minimum duration.</li>
+
+        <li>The system of claim 1, further comprising a degradation signature classifier that analyzes the pattern of influence line shape changes, stiffness loss distribution across adjacent bays, and stiffness change rate to assign probability weights to candidate deterioration mechanisms including rebar corrosion, post-tensioning tendon degradation, bearing pad deterioration, and shear cracking.</li>
+
+        <li>The system of claim 1, wherein floor level within the multi-level structure is determined by combining barometric altimetry relative to a ground-level reference established from vehicle entry/exit events, ramp crossing detection from sustained slope in accelerometer data, and, when available, visual-inertial odometry position estimates.</li>
+
+        <li>The system of claim 1, wherein the structural bay grid of the parking garage is mapped automatically from the spatial clustering of support crossing events reported by multiple vehicles, without requiring prior knowledge of the structure's column layout.</li>
+
+        <li>A method for parking garage structural assessment comprising: driving an electric vehicle of precisely known weight across a floor slab of a parking garage; recording, on the vehicle's existing body control module, the suspension height sensor and accelerometer responses during the slab crossing; extracting from the recorded responses a normalized deflection parameter representing the ratio of peak slab deflection to applied vehicle weight; transmitting the normalized deflection parameter along with position, floor level, and environmental metadata to a cloud service; repeating the above steps for multiple vehicle crossings of the same structural bay over a monitoring period; aggregating the collected normalized deflection parameters into a stiffness time series for the structural bay; and detecting degradation when the stiffness time series exhibits a statistically significant negative trend exceeding a threshold magnitude and persistence.</li>
+
+        <li>The method of claim 10, further comprising, after detection of a seismic event affecting the structure's geographic area, comparing pre-event stiffness baselines with stiffness observations from the first vehicles to enter the structure after the event to provide rapid post-earthquake structural assessment.</li>
+
+        <li>The method of claim 10, wherein the privacy of vehicle occupants is preserved by transmitting only anonymized structural observations containing a vehicle class identifier, truncated GPS coordinates, randomized timestamps, and structural deflection parameters, without transmitting vehicle identification numbers, persistent device identifiers, or continuous position traces.</li>
+      </ol>
+
+      <h2>Prior Art References</h2>
+
+      <ol>
+        <li><a href="https://www.concrete.org/store/productdetail.aspx?ItemID=31814">ACI 318-19</a> — Building Code Requirements for Structural Concrete, Chapter 27 (Load Tests)</li>
+        <li><a href="https://doi.org/10.1016/j.conbuildmat.2018.02.019">Rashidi and Gibson (Construction and Building Materials, 2018)</a> — Visual inspection detects 40-60% of structural deficiencies identified by detailed testing</li>
+        <li><a href="https://doi.org/10.1061/(ASCE)IS.1943-555X.0000195">Frangopol and Soliman (ASCE J. Infrastructure Systems, 2014)</a> — Proactive SHM-based maintenance reduces lifecycle costs by 30-50%</li>
+        <li><a href="https://doi.org/10.1093/biomet/94.3.591">Adams and MacKay (Biometrika, 2007)</a> — Bayesian Online Changepoint Detection</li>
+        <li><a href="https://doi.org/10.1016/j.measurement.2019.107187">Michigan DOT Crowdsourced Roughness (Measurement, 2020)</a> — Connected vehicle accelerometer data for IRI estimation</li>
+        <li><a href="https://doi.org/10.1016/j.autcon.2020.103389">Eriksson et al. (Automation in Construction, 2020)</a> — Pothole detection from smartphone accelerometers in vehicles</li>
+        <li><a href="https://doi.org/10.1016/j.autcon.2019.102961">Noel et al. (Automation in Construction, 2019)</a> — Review of structural health monitoring sensor systems for civil infrastructure</li>
+        <li><a href="https://www.iea.org/reports/global-ev-outlook-2024">IEA Global EV Outlook 2024</a> — Over 40 million EVs on road globally</li>
+        <li><a href="https://opensees.berkeley.edu/">OpenSees</a> — Open System for Earthquake Engineering Simulation, nonlinear FEM platform</li>
+        <li><a href="https://infrastructurereportcard.org/">ASCE 2021 Infrastructure Report Card</a> — 42% of US bridges over 50 years old, 7.5% structurally deficient</li>
+        <li><a href="https://doi.org/10.1520/C0876-22B">ASTM C876-22b</a> — Standard Test Method for Corrosion Potentials of Uncoated Reinforcing Steel in Concrete</li>
+        <li><a href="https://doi.org/10.1520/D6432-19">ASTM D6432-19</a> — Standard Guide for Using Ground Penetrating Radar</li>
+        <li><a href="https://www.iccsafe.org/content/iebc-2021/">IEBC 2021</a> — International Existing Building Code, parking structure inspection requirements</li>
+        <li><a href="https://doi.org/10.1016/j.engstruct.2018.03.068">Brownjohn (Engineering Structures, 2007)</a> — Structural health monitoring of civil infrastructure, sensor and data interpretation challenges</li>
+        <li><a href="https://www.ntsb.gov/">National Transportation Safety Board</a> — Investigations of parking structure collapse events</li>
+      </ol>
+
+      <h2>Implementation Notes</h2>
+
+      <p>The vehicle-side implementation requires only a software update to the body control module or central compute platform. No additional hardware is needed beyond the suspension sensors and telematics equipment already present in air-suspension-equipped EVs. The 17 KB model fits within the spare flash capacity of any automotive-grade ARM Cortex-A or Cortex-M7 processor. For vehicles with passive spring suspension and no ride height sensors, a reduced-fidelity mode uses only the vertical body accelerometer (present in all ESC-equipped vehicles manufactured since 2012) to detect mid-span deflection events, though with approximately 3x worse resolution than the full air-suspension sensor suite.</p>
+
+      <p>The cloud infrastructure is lightweight: a single PostgreSQL instance can store the observation time series for 10,000 parking structures (approximately 500 million observations per year at 50 observations per day per structure). The Bayesian changepoint detection runs as a nightly batch process requiring less than 1 CPU-hour for the entire database. The system could be deployed as an OEM telematics service, a third-party app running on vehicles with open telematics APIs (e.g., <a href="https://smartcar.com/">Smartcar</a>), or integrated into existing fleet management platforms.</p>
+
+      <p>The primary limitation is fleet penetration density: the system requires sufficient EV traffic through each structural bay to build a statistically significant stiffness time series. For a busy urban parking garage receiving 500+ vehicles per day with 20-30% EV penetration (projected US average by 2028), each structural bay on the entry/exit route would receive 15-50 EV crossings per day, reaching statistical significance within 2-4 weeks. For lightly used garages or upper levels with fewer traversals, convergence may require 2-6 months. The system naturally provides the best coverage for the most heavily used structural bays, which are also the bays subjected to the greatest fatigue loading and thus most likely to degrade first.</p>
+
+    </div>
+  </article>
+
+<script src="../story.js"></script>
+</body>
+</html>
