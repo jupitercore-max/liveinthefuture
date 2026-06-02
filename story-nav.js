@@ -4,6 +4,7 @@
 
   // Article order (newest first) — matches homepage grid order
   var articles = [
+    { slug: 'uber-avride-16-crashes-safety-monitor-failure', title: '16 Crashes in 4 Months, 1 Safety Monitor Intervention. Uber\u2019s Robotaxi Partner Has a 93.75% Failure-to-Act Rate. \u2014 Live in the Future' },
     { slug: 'fusion-experience-rate-cost-myth', title: 'Fusion Power Needs 34 Capacity Doublings to Halve Its Cost. Solar Needed Three. \u2014 Live in the Future' },
     { slug: 'robot-scientist-50000-solar-cell-experiments', title: 'A Robot Ran 50,764 Solar Cell Experiments. A Human Scientist Would Need 24 Years. \u2014 Live in the Future' },
     { slug: 'swift-telescope-30m-rescue-falling-from-orbit', title: 'A $30 Million Robot Just Passed Its Final Exam to Save a $500 Million Telescope Falling From the Sky \u2014 Live in the Future' },
