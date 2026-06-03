@@ -26,7 +26,7 @@ fi
 
 # 3. Check story-nav.js article count
 if [ -f "story-nav.js" ]; then
-  NAV_COUNT=$(grep -c "slug:" story-nav.js)
+  NAV_COUNT=$(grep -cE '"[a-z0-9-]+\.html"' story-nav.js || true)
   if [ "$NAV_COUNT" -ne "$STORIES" ]; then
     echo "❌ story-nav.js has $NAV_COUNT entries but should have $STORIES"
     ERRORS=$((ERRORS+1))
