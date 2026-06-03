@@ -64,7 +64,10 @@ var RANKS = [
   {name:'Shade',       ghosts:60, bonus:'Noise -30%'},
   {name:'Unseen',      ghosts:100,bonus:'All bonuses max'}
 ];
-var stats = {totalMissions:0, ghostMissions:0, bestLevel:0, totalSteps:0, rank:0};
+var stats = {totalMissions:0, ghostMissions:0, bestLevel:0, totalSteps:0, rank:0, disc:0};
+var DISC_PATROL=1, DISC_LISTENER=2, DISC_TRACKER=4, DISC_CREAKY=8, DISC_SHADOW=16;
+function discCount() { var d=stats.disc,c=0; while(d){c+=d&1;d>>=1;} return c; }
+function markDisc(bit) { if(stats.disc&bit) return false; stats.disc|=bit; saveStats(); return true; }
 
 function loadStats() {
   try {
@@ -479,8 +482,18 @@ function generateMap() {
   // New guard type intro
   newTypeIntro = '';
   newTypeIntroTimer = 0;
-  if (level === 2) { newTypeIntro = '⚠ NEW: LISTENER — stationary, 2× hearing range'; newTypeIntroTimer = 180; }
-  if (level === 3) { newTypeIntro = '⚠ NEW: TRACKER — remembers where you were'; newTypeIntroTimer = 180; }
+  // Mark patrol discovery on first ever game
+  markDisc(DISC_PATROL);
+  if (level === 2) {
+    var isNew = markDisc(DISC_LISTENER);
+    newTypeIntro = (isNew ? '✨ ' : '') + '⚠ NEW: LISTENER — stationary, 2× hearing range';
+    newTypeIntroTimer = 180;
+  }
+  if (level === 3) {
+    var isNewT = markDisc(DISC_TRACKER);
+    newTypeIntro = (isNewT ? '✨ ' : '') + '⚠ NEW: TRACKER — remembers where you were';
+    newTypeIntroTimer = 180;
+  }
 }
 
 function revealAround(cx, cy, radius) {
@@ -866,14 +879,15 @@ function draw() {
   
   // State overlays
   if (state === STATE_CAUGHT) {
-    var caughtSub = 'Level ' + level + ' · ' + RANKS[stats.rank].name + ' (' + stats.ghostMissions + ' ghosts)';
+    var discStr = ' · 🕵 ' + discCount() + '/5';
+    var caughtSub = 'Level ' + level + ' · ' + RANKS[stats.rank].name + ' (' + stats.ghostMissions + ' ghosts)' + discStr;
     drawOverlay('DETECTED', '#ff3333', caughtSub, 'Enter to retry');
   } else if (state === STATE_WIN) {
     var ghostStr = (wasGhostRun && detections === 0) ? '👻 GHOST RUN! · ' : '';
     var nextG = nextRankGhosts();
     var rankStr = RANKS[stats.rank].name;
     var progStr = nextG ? ' · ' + stats.ghostMissions + '/' + nextG + ' → ' + RANKS[stats.rank + 1].name : ' · MAX RANK';
-    var winSub = ghostStr + 'Level ' + level + ' · Steps: ' + steps + rankStr + progStr;
+    var winSub = ghostStr + 'Level ' + level + ' · Steps: ' + steps + rankStr + progStr + ' · 🕵 ' + discCount() + '/5';
     drawOverlay('ESCAPED', '#00ff66', winSub, 'Enter for next level');
   }
 }
@@ -1017,33 +1031,38 @@ function drawTitle() {
   ctx.fillText('Your mic detects noise — guards hear you', W/2, 332);
   ctx.fillStyle = '#555';
   ctx.font = '12px system-ui';
-  ctx.fillText('🔴 Patrol · 🟣 Listener (2× range) · 🟠 Tracker (hunts)', W/2, 352);
-  ctx.fillText('🟤 Creaky floors alert guards · 🟣 Shadows muffle you', W/2, 368);
+  var dc = discCount();
+  var dcColor = dc >= 5 ? '#ffd700' : dc >= 3 ? '#4af' : '#888';
+  ctx.fillStyle = dcColor;
+  ctx.fillText('🕵 ' + dc + '/5 discovered', W/2, 352);
+  ctx.fillStyle = '#555';
+  ctx.fillText('🔴 Patrol · 🟣 Listener (2× range) · 🟠 Tracker (hunts)', W/2, 370);
+  ctx.fillText('🟤 Creaky floors alert guards · 🟣 Shadows muffle you', W/2, 386);
   
   // Controls
   ctx.fillStyle = '#555';
   ctx.font = '13px system-ui';
-  ctx.fillText('↑↓←→  Move', W/2, 390);
-  ctx.fillText('Enter  Peek (reveal guards & creaky floors)', W/2, 412);
-  ctx.fillText('Esc    Back to gallery', W/2, 434);
+  ctx.fillText('↑↓←→  Move', W/2, 412);
+  ctx.fillText('Enter  Peek (reveal guards & creaky floors)', W/2, 434);
+  ctx.fillText('Esc    Back to gallery', W/2, 456);
   
   // Mic status
   var micPulse = 0.5 + 0.5 * Math.sin(Date.now() / 500);
   if (micActive) {
     ctx.fillStyle = 'rgba(50,255,100,' + micPulse + ')';
-    ctx.fillText('🎤 Mic active — noise level: ' + Math.round(smoothLevel * 100) + '%', W/2, 470);
+    ctx.fillText('🎤 Mic active — noise level: ' + Math.round(smoothLevel * 100) + '%', W/2, 490);
   } else if (micFailed) {
     ctx.fillStyle = '#ff5555';
-    ctx.fillText('🔇 Mic unavailable — simulated noise active', W/2, 470);
+    ctx.fillText('🔇 Mic unavailable — simulated noise active', W/2, 490);
   } else {
     ctx.fillStyle = 'rgba(255,200,50,' + micPulse + ')';
-    ctx.fillText('Press Enter to enable mic & start', W/2, 470);
+    ctx.fillText('Press Enter to enable mic & start', W/2, 490);
   }
   
   // Start
   ctx.fillStyle = '#4af';
   ctx.font = 'bold 18px system-ui';
-  ctx.fillText('Press Enter to start', W/2, 530);
+  ctx.fillText('Press Enter to start', W/2, 545);
 }
 
 // Input
@@ -1138,7 +1157,8 @@ document.addEventListener('keydown', function(e) {
         alertFlash = 10;
         if (firstCreaky) {
           firstCreaky = false;
-          newTypeIntro = '⚠ CREAKY FLOOR! Guards heard that — plan your route';
+          var isNewC = markDisc(DISC_CREAKY);
+          newTypeIntro = (isNewC ? '✨ ' : '') + '⚠ CREAKY FLOOR! Guards heard that — plan your route';
           newTypeIntroTimer = 150;
         }
       }
@@ -1152,7 +1172,8 @@ document.addEventListener('keydown', function(e) {
         playShadowEnter();
         if (firstShadow) {
           firstShadow = false;
-          newTypeIntro = '🌑 SHADOW ZONE — noise reduced by 60%';
+          var isNewS = markDisc(DISC_SHADOW);
+          newTypeIntro = (isNewS ? '✨ ' : '') + '🌑 SHADOW ZONE — noise reduced by 60%';
           newTypeIntroTimer = 120;
         }
       }
