@@ -4,6 +4,8 @@
 
   // Article order (newest first) — matches homepage grid order
   const articles = [
+    "alphabet-85b-equity-ai-capex-exceeds-cash-flow.html",
+    "magnetoelectric-microrobots-spinal-cord-regeneration-mice.html",
     "microsoft-ai-data-center-clean-energy-retreat.html",
     "apple-gemini-siri-billion-dollar-outsource.html",
     "uber-avride-16-crashes-safety-monitor-failure.html",
