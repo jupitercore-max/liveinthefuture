@@ -4,6 +4,9 @@
 
   // Article order (newest first) — matches homepage grid order
   const articles = [
+    "anthropic-pause-verification-game-theory.html",
+    "nvidia-reference-humanoid-robot-brain-tax.html",
+    "standing-desks.html",
     "waymo-ojai-purpose-built-robotaxi-cost-math.html",
     "alphabet-85b-equity-ai-capex-exceeds-cash-flow.html",
     "magnetoelectric-microrobots-spinal-cord-regeneration-mice.html",
