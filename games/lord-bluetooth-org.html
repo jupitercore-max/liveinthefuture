@@ -1301,6 +1301,21 @@ function update(dt){
 // RENDER LOOP
 // ═══════════════════════════════════════════════════════════════
 function render(){
+  // CYOA state: the overlay handles all visible UI. The sim canvas must NOT
+  // try to draw under it (would access undefined RANKS/engineers/etc. since
+  // the sim was never init'd from the title). Just clear, draw the mascot
+  // for atmosphere, and bail.
+  if(state===ST_CHAPTER||state===ST_EPILOGUE){
+    ctx.save();
+    if(shakeTimer>0)ctx.translate((Math.random()-0.5)*8*shakeTimer,(Math.random()-0.5)*8*shakeTimer);
+    ctx.fillStyle="#0d0d0d";ctx.fillRect(0,0,W,H);
+    if(!isMobile)drawLordBluetooth(W/2,H/2,3);
+    if(flashTimer>0){ctx.fillStyle=flashColor;ctx.globalAlpha=flashTimer*0.3;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1}
+    ctx.restore();
+    return;
+  }
+  ctx.save();
+  if(shakeTimer>0)ctx.translate((Math.random()-0.5)*8*shakeTimer,(Math.random()-0.5)*8*shakeTimer);
   ctx.save();
   if(shakeTimer>0)ctx.translate((Math.random()-0.5)*8*shakeTimer,(Math.random()-0.5)*8*shakeTimer);
 
