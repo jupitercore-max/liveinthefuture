@@ -1485,33 +1485,71 @@ var cyoaElems={
 };
 
 // ── Web Speech API ──
+// Voice pipeline: pre-rendered MP3s from the voice-cloning-local pipeline
+// (Chatterbox on MPS, andrew-bosworth.mp3 reference; would be VoxCPM2 on
+// the 4090 if vision were online). All quips are loaded into a manifest
+// once and played via <audio> so they cross-cancel with the sim's MP3
+// voice queue like a real TTS engine would.
 var cyoaSpeaking=false;
-function cyoaSpeak(text){
-  if(cyoaVoiceMuted||!('speechSynthesis' in window))return;
-  // Cross-cancel: stop any in-flight sim MP3 voice so TTS doesn't overlap.
+var cyoaAudioPool={};
+var cyoaManifest=null; // {quipKey: [audio/cyoa-quips/cyoa-NN.mp3, ...]}
+
+function cyoaLoadManifest(){
+  if(cyoaManifest)return;
+  // Build a key -> array-of-mp3-paths map from the QUIPS object. Each key
+  // has 1-2 variants; we hash the variant's text -> mp3 index by walking
+  // the same /tmp/cyoa-quips.tsv order used to generate the audio. The
+  // simpler structure: keep a static mapping table generated at build time.
+  cyoaManifest={
+    "title":         ["audio/cyoa-quips/cyoa-00.mp3"],
+    "ch1_open":      ["audio/cyoa-quips/cyoa-01.mp3","audio/cyoa-quips/cyoa-02.mp3"],
+    "ch1_choose":    ["audio/cyoa-quips/cyoa-03.mp3"],
+    "ch2_open":      ["audio/cyoa-quips/cyoa-04.mp3","audio/cyoa-quips/cyoa-05.mp3"],
+    "ch2_choose":    ["audio/cyoa-quips/cyoa-06.mp3"],
+    "ch3_open":      ["audio/cyoa-quips/cyoa-07.mp3","audio/cyoa-quips/cyoa-08.mp3"],
+    "ch3_choose":    ["audio/cyoa-quips/cyoa-09.mp3"],
+    "ch4_open":      ["audio/cyoa-quips/cyoa-10.mp3","audio/cyoa-quips/cyoa-11.mp3"],
+    "ch4_choose":    ["audio/cyoa-quips/cyoa-12.mp3"],
+    "ch5_open":      ["audio/cyoa-quips/cyoa-13.mp3","audio/cyoa-quips/cyoa-14.mp3"],
+    "ch5_choose":    ["audio/cyoa-quips/cyoa-15.mp3"],
+    "ch6_open":      ["audio/cyoa-quips/cyoa-16.mp3","audio/cyoa-quips/cyoa-17.mp3"],
+    "ch6_choose":    ["audio/cyoa-quips/cyoa-18.mp3"],
+    "epilogue_cco":      ["audio/cyoa-quips/cyoa-19.mp3"],
+    "epilogue_vp":       ["audio/cyoa-quips/cyoa-20.mp3"],
+    "epilogue_director": ["audio/cyoa-quips/cyoa-21.mp3"],
+    "epilogue_special":  ["audio/cyoa-quips/cyoa-22.mp3"],
+    "epilogue_quiet":    ["audio/cyoa-quips/cyoa-23.mp3"],
+    "day_start":     ["audio/cyoa-quips/cyoa-24.mp3"],
+    "promote":       ["audio/cyoa-quips/cyoa-25.mp3"],
+    "game_over":     ["audio/cyoa-quips/cyoa-26.mp3"],
+    "room_first":    ["audio/cyoa-quips/cyoa-27.mp3"]
+  };
+}
+
+function cyoaSpeak(key){
+  if(cyoaVoiceMuted)return;
+  cyoaLoadManifest();
+  var arr=cyoaManifest[key];
+  if(!arr||!arr.length)return;
+  var url=arr[Math.floor(Math.random()*arr.length)];
+  // Cross-cancel: stop any in-flight sim MP3 voice.
   try{voiceQueue.length=0;}catch(e){}
   if(typeof voiceCurrentAudio!=='undefined'&&voiceCurrentAudio){try{voiceCurrentAudio.pause();}catch(e){}voiceCurrentAudio=null;voicePlaying=false;}
-  // Cancel any in-flight TTS (Safari needs the lock to avoid cancel/speak races).
-  if(cyoaSpeaking){
-    try{window.speechSynthesis.cancel();}catch(e){}
-    cyoaSpeaking=false;
+  // Stop any in-flight cyoa audio so we don't overlap.
+  if(cyoaSpeaking&&cyoaAudioPool[url]){try{cyoaAudioPool[url].pause();cyoaAudioPool[url].currentTime=0;}catch(e){}}
+  // Reuse a pooled <audio> per URL so we don't create one per call.
+  var a=cyoaAudioPool[url];
+  if(!a){
+    a=new Audio(url);
+    a.preload='auto';
+    cyoaAudioPool[url]=a;
   }
-  try{
-    window.speechSynthesis.cancel();
-    var u=new SpeechSynthesisUtterance(text);
-    u.rate=1.05;u.pitch=0.9;u.volume=0.9;
-    var voices=window.speechSynthesis.getVoices();
-    if(voices.length){
-      var v=voices.find(function(v){return/en[-_]GB|en[-_]US/i.test(v.lang)&&/male|daniel|google uk english male|google us english/i.test(v.name)})
-        ||voices.find(function(v){return/^en/i.test(v.lang)})
-        ||voices[0];
-      if(v)u.voice=v;
-    }
-    u.onend=function(){cyoaSpeaking=false;};
-    u.onerror=function(){cyoaSpeaking=false;};
-    cyoaSpeaking=true;
-    window.speechSynthesis.speak(u);
-  }catch(e){cyoaSpeaking=false;}
+  try{a.currentTime=0;}catch(e){}
+  cyoaSpeaking=true;
+  var done=function(){cyoaSpeaking=false;};
+  a.onended=done;
+  a.onerror=done;
+  a.play().catch(done);
 }
 // Load voices async
 if('speechSynthesis' in window){
@@ -1798,7 +1836,7 @@ function showChapter(ch){
     cyoaElems.art.style.display=ART[ending.art]?"block":"none";
     cyoaElems.body.textContent=ending.body;
     cyoaElems.quip.textContent='"'+getQuip(ending.quipKey)+'"';
-    cyoaSpeak(getQuip(ending.quipKey));
+    cyoaSpeak(ending.quipKey);
     cyoaElems.choices.innerHTML='';
     // Add a "Return to Title" button
     var btn=document.createElement('div');
@@ -1816,7 +1854,7 @@ function showChapter(ch){
     cyoaElems.body.textContent=ch.body;
     var quip=getQuip(ch.quipKey);
     cyoaElems.quip.textContent=quip?'"'+quip+'"':'';
-    cyoaSpeak(quip);
+    cyoaSpeak(ch.quipKey);
     // Build choice buttons
     cyoaElems.choices.innerHTML='';
     var validIdx=0;
@@ -1862,8 +1900,7 @@ function selectChoice(idx){
   var c=currentCh.choices[idx];
   if(!checkGate(c))return;
   // Quip for choosing
-  var q=getQuip(currentCh.id.replace('ch','ch')+'_choose');
-  if(q)cyoaSpeak(q);
+  cyoaSpeak(currentCh.id+'_choose');
   // Apply effects
   applyChEffect(c);
   // Update role
@@ -1941,7 +1978,7 @@ function cyoaTick(dt){
       // Only quip once per standup
       if(!window._cyoaQuippedDay||window._cyoaQuippedDay!==day){
         window._cyoaQuippedDay=day;
-        if(Math.random()<0.3)cyoaSpeak(getQuip('day_start'));
+        if(Math.random()<0.3)cyoaSpeak('day_start');
       }
     }
   }
@@ -2011,7 +2048,7 @@ checkRankUp=function(){
   var prevRank=rankIdx;
   _origCheckRankUp();
   if(rankIdx>prevRank&&storyMode){
-    cyoaSpeak(getQuip('promote'));
+    cyoaSpeak('promote');
   }
 };
 
@@ -2020,7 +2057,7 @@ var _origCheckEnd=checkEnd;
 checkEnd=function(){
   var result=_origCheckEnd();
   if(result&&storyMode){
-    cyoaSpeak(getQuip('game_over'));
+    cyoaSpeak('game_over');
     // Trigger epilogue chapter if story mode
     if(storyChapterIdx<CHAPTERS.length&&CHAPTERS[storyChapterIdx].id==='epilogue'){
       setTimeout(function(){
