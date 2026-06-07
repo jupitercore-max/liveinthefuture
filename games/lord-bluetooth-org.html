@@ -1209,7 +1209,7 @@ function drawTitle(){
   if(allTimePeakCaffeine>0){ctx.fillStyle="#FF9800";ctx.fillText("Peak Caffeine: "+allTimePeakCaffeine+"mg",W/2,410)}
   var myths=0;for(var k in discoveries)myths++;
   if(myths>0){ctx.fillStyle="#888";ctx.fillText("Myths: "+myths+"/7",W/2,430)}
-  if(Math.sin(frame*0.08)>0){ctx.fillStyle="#FFD700";ctx.font="bold 18px system-ui";ctx.fillText("Press any key to start",W/2,540)}
+  if(Math.sin(frame*0.08)>0){ctx.fillStyle="#FFD700";ctx.font="bold 20px system-ui";ctx.fillText("Press ENTER to begin your story",W/2,525);ctx.fillStyle="#888";ctx.font="14px system-ui";ctx.fillText("Lord Bluetooth — Megacorp Org Management — A Choose Your Own Adventure",W/2,548);ctx.fillStyle="#555";ctx.font="11px system-ui";ctx.fillText("WiFi Aware • 7 chapters • voiced • your choices shape the ending",W/2,572)}
 }
 
 function drawResult(){
@@ -1804,7 +1804,7 @@ function showChapter(ch){
     var btn=document.createElement('div');
     btn.className='cyoa-choice active';
     btn.innerHTML='<div class="cyoa-choice-label"><span class="cyoa-num">↵</span> Return to Title</div><div class="cyoa-choice-desc">Your story is told. For now.</div>';
-    btn.onclick=function(){closeChapter();state=ST_RESULT};
+    btn.onclick=function(){closeChapter();state=ST_TITLE;titleModeChosen=false;};
     cyoaElems.choices.appendChild(btn);
     cyoaElems.hint.textContent='Press Enter to return';
   } else {
@@ -1998,101 +1998,7 @@ document.addEventListener('keydown',function(e){
   }
 },{capture:true});
 
-// ── OVERRIDE initGame to support story mode ──
-var _origInitGame=initGame;
-initGame=function(){
-  _origInitGame();
-  if(storyMode){
-    // Reset CYOA state
-    plotFlags={};storyChapterIdx=0;roomsVisited={};
-    cyoaRole="Acting Director of Connectivity";
-    window._cyoaQuippedDay=0;
-    // Chapter 1 will trigger via cyoaTick on day 1 standup
-  }
-};
-
-// ── OVERRIDE keydown to intercept title screen for story mode ──
-// We add a pre-filter: if on title and storyMode not yet chosen, show mode selection
-var titleModeChosen=false;
-var origTitleKeyHandler=true;
-
-// Patch: intercept title screen to offer mode choice
-// We do this by modifying the flow: first keypress shows CYOA mode choice instead of starting game
-(function(){
-  var origAddEv = null; // can't easily undo, so we use a flag approach
-  // Instead, we patch drawTitle to show mode choice, and handle it in a new keydown listener
-})();
-
-// ── STORY MODE TITLE SCREEN OVERLAY ──
-// Show a mode selection overlay on the canvas title screen
-var _origDrawTitle=drawTitle;
-drawTitle=function(){
-  if(!titleModeChosen){
-    // Draw enhanced title with mode buttons
-    _origDrawTitle();
-    // Overwrite the "Press any key" with mode selection
-    ctx.fillStyle="#0d0d0d";ctx.fillRect(0,500,W,100);
-    // Story mode button
-    ctx.fillStyle="#FFD700";ctx.font="bold 16px system-ui";ctx.textAlign="center";
-    ctx.fillText("▸ Press ENTER for STORY MODE (CYOA)",W/2,525);
-    ctx.fillStyle="#888";ctx.font="13px system-ui";
-    ctx.fillText("Press SPACE for FREE PLAY (classic sim)",W/2,550);
-    ctx.fillStyle="#555";ctx.font="11px system-ui";
-    ctx.fillText("WiFi Aware • 7 Chapters • Voiced • Your Choices Matter",W/2,575);
-    return;
-  }
-  _origDrawTitle();
-};
-
-// Override title key handling
-document.addEventListener('keydown',function(e){
-  if(state!==ST_TITLE)return;
-  if(titleModeChosen)return; // already handled
-  e.preventDefault();e.stopPropagation();
-  if(e.key==='Enter'||e.key==='1'){
-    titleModeChosen=true;storyMode=true;
-    initGame();
-  }else if(e.key===' '||e.key==='2'){
-    titleModeChosen=true;storyMode=false;
-    initGame();
-  }
-},{capture:true});
-
-// Override mobile action button for title
-var origMbAction=document.getElementById('mb-action');
-if(origMbAction){
-  // We add a tap handler that detects title state
-  (function(){
-    var origParent=origMbAction.parentNode;
-    // The existing mBtn handler already handles title→initGame
-    // We just need to set storyMode before initGame runs
-    // Patch: override initGame call in mobile buttons
-  })();
-}
-
-// Better: just patch the mobile action button for title state
-// The existing handler calls initGame() directly for ST_TITLE
-// We add a pre-check
-(function(){
-  var mbAct=document.getElementById('mb-action');
-  if(!mbAct)return;
-  // Add our own handler that fires before the existing one
-  mbAct.addEventListener('touchstart',function(e){
-    if(state===ST_TITLE&&!titleModeChosen){
-      e.preventDefault();e.stopPropagation();
-      titleModeChosen=true;storyMode=true; // default to story on mobile
-      initGame();
-    }
-  },{capture:true,passive:false});
-  mbAct.addEventListener('mousedown',function(e){
-    if(state===ST_TITLE&&!titleModeChosen){
-      e.preventDefault();e.stopPropagation();
-      titleModeChosen=true;storyMode=true;
-      initGame();
-    }
-  },{capture:true});
-})();
-
+// initGame is no longer called from the title — CYOA is the only flow.
 // ── TOUCH HANDLER FOR CHAPTER CHOICES ──
 cyoaOverlay.addEventListener('touchstart',function(e){
   if(state!==ST_CHAPTER)return;
@@ -2126,19 +2032,7 @@ checkEnd=function(){
   return result;
 };
 
-// ── Reset title mode on game end ──
-var _origStateSetter=null;
-// Watch for state returning to ST_TITLE to reset titleModeChosen
-(function(){
-  var interval=setInterval(function(){
-    if(state===ST_TITLE&&titleModeChosen){
-      titleModeChosen=false;storyMode=false;
-      // Reset cyoa overlay
-      cyoaOverlay.className='';
-      cyoaOverlay.setAttribute('aria-hidden','true');
-    }
-  },500);
-})();
+// Title reset is now handled by the keydown/mobile launchers above.
 
 // ── Console log ──
 console.log('[CYOA] Lord Bluetooth: Choose Your Own Adventure layer loaded. 7 chapters, 22 choices, 24 quips, 18 image placeholders.');
