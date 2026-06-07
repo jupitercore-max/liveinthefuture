@@ -1335,7 +1335,7 @@ function nextCard() {
         dom.fallbackLink.style.display = 'block';
         showMessage('VOICE UNAVAILABLE — TYPE INSTEAD', 'info');
       }
-    }, 2000);
+    }, 4000);
   } else {
     // fallback: show link/area
     enableFallback();
@@ -1532,9 +1532,21 @@ function startGame() {
 // =====================================================================
 // EVENT WIRING
 // =====================================================================
-dom.startBtn.addEventListener('click', () => {
+dom.startBtn.addEventListener('click', async () => {
   sfxClick();
   dom.startScreen.style.display = 'none';
+  // Explicitly request mic permission up-front so the browser shows the
+  // permission prompt immediately, instead of relying on recognition.start()
+  // to trigger it (silent in some browsers, triggers our 2s safety
+  // fallback too fast).
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop());
+    } catch (err) {
+      console.warn('Mic permission denied:', err);
+    }
+  }
   startGame();
 });
 dom.spinBtn.addEventListener('click', () => {
