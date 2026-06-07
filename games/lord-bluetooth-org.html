@@ -1934,11 +1934,18 @@ function closeChapter(){
     cyoaOverlay.className='';
     cyoaOverlay.setAttribute('aria-hidden','true');
     currentCh=null;
-    // Return to correct sim state
+    // In pure CYOA mode (no sim running) the next chapter can't be triggered
+    // by cyoaTick because it gates on nextCh.unlockDay===day and day never
+    // advances. Advance to the next chapter directly. storyChapterIdx has
+    // already been incremented by selectChoice().
     if(state===ST_CHAPTER){
-      // Determine what state to return to
-      if(day===1&&storyChapterIdx<=1){state=ST_STANDUP;phaseTimer=8}
-      else{state=ST_STANDUP;phaseTimer=8}
+      state=ST_CHAPTER; // stay here; showChapter will flip back to ST_CHAPTER
+      if(storyChapterIdx<CHAPTERS.length){
+        showChapter(CHAPTERS[storyChapterIdx]);
+        return;
+      }
+      // No more chapters — return to title for replay
+      state=ST_TITLE;
     }
   },300);
 }
