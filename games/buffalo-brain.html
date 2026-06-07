@@ -45,14 +45,18 @@ button{font-family:inherit;font-size:13px;font-weight:800;letter-spacing:1px;pad
 button:hover:not(:disabled){filter:brightness(1.3);transform:translateY(-1px)}
 button:active:not(:disabled){transform:translateY(0)}
 button:disabled{opacity:0.35;cursor:not-allowed}
-.btn-spin{border-color:#ffd700;color:#ffd700;text-shadow:0 0 8px #ffd700;box-shadow:0 0 12px rgba(255,215,0,0.3);min-width:100px}
-.btn-spin.armed{animation:armed-pulse 0.8s infinite alternate}
-@keyframes armed-pulse{from{box-shadow:0 0 12px rgba(255,215,0,0.3)}to{box-shadow:0 0 24px rgba(255,215,0,0.8),inset 0 0 12px rgba(255,215,0,0.4)}}
 .btn-hack{border-color:#42a5f5;color:#42a5f5;text-shadow:0 0 8px #42a5f5;box-shadow:0 0 12px rgba(66,165,245,0.3);font-size:11px}
-.btn-spin-kid{border-color:#4caf50;color:#4caf50;text-shadow:0 0 8px #4caf50;box-shadow:0 0 12px rgba(76,175,80,0.4);min-width:120px;font-size:15px;padding:11px 22px}
 
 .card{flex:1 1 0;padding:10px 16px 14px;display:flex;flex-direction:column;align-items:center;gap:6px;background:linear-gradient(180deg,transparent,rgba(0,0,0,0.3));min-height:0}
 .card-area{background:#1a1a1a;border:2px solid #555;border-radius:8px;padding:8px 12px;width:100%;max-width:520px;text-align:center;position:relative}
+.streak-row{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:4px;padding:2px 0 6px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.streak-label{font-size:10px;color:#aaa;letter-spacing:2px;text-transform:uppercase;font-weight:800}
+.streak-count{font-family:'SF Mono',Menlo,Consolas,monospace;font-size:24px;font-weight:900;color:#ffd700;text-shadow:0 0 8px rgba(255,215,0,0.6);line-height:1;letter-spacing:1px}
+.streak-count .slash{color:#555;font-weight:400;font-size:18px;margin:0 2px}
+.streak-count.ready{color:#4caf50;text-shadow:0 0 10px #4caf50;animation:ready-pulse 0.6s infinite alternate}
+@keyframes ready-pulse{from{transform:scale(1)}to{transform:scale(1.1)}}
+.streak-dots{font-size:14px;letter-spacing:4px;color:#555;line-height:1}
+.streak-dots .filled{color:#ffd700;text-shadow:0 0 6px #ffd700}
 .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
 .card-hint{font-size:10px;color:#888;letter-spacing:1px;text-transform:uppercase}
 .listen-dot{width:10px;height:10px;border-radius:50%;background:#333;display:inline-block;margin-left:6px;transition:background 0.2s}
@@ -79,6 +83,12 @@ button:disabled{opacity:0.35;cursor:not-allowed}
 .effects-tag{font-size:10px;color:#ff3a3a;letter-spacing:1px;text-transform:uppercase;height:13px;text-align:center;margin-top:2px;text-shadow:0 0 6px #ff3a3a;font-weight:800}
 .effects-tag:empty{display:none}
 
+.screen-flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,#ffd700 0%,#ff6b00 100%);pointer-events:none;opacity:0;z-index:80;animation:screen-flash 0.7s ease-out forwards}
+@keyframes screen-flash{
+  0%{opacity:0}
+  15%{opacity:0.7}
+  100%{opacity:0}
+}
 .modal-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;z-index:100;animation:fadein 0.4s}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
 .modal{background:linear-gradient(180deg,#180030,#0a0014);border:3px solid;border-radius:12px;padding:30px 40px;text-align:center;max-width:84%;animation:zoomin 0.5s cubic-bezier(0.34,1.56,0.64,1)}
@@ -165,7 +175,7 @@ button:disabled{opacity:0.35;cursor:not-allowed}
       <span class="sub" id="modeSub">Neurotransmitter Casino</span>
     </h1>
     <div class="status">
-      <div>SPINS <span class="v" id="spinCount">20</span>/20</div>
+      <div>SPINS <span class="v" id="spinCount">20</span> left</div>
       <div>SCORE <span class="v score-v" id="score">0</span></div>
       <div id="bcRow">BC <span class="v bc-v" id="bc">5</span> · ADD <span class="v add-v" id="addiction">0</span></div>
     </div>
@@ -185,13 +195,17 @@ button:disabled{opacity:0.35;cursor:not-allowed}
       </div>
     </div>
     <div class="controls">
-      <button class="btn-spin" id="spinBtn" disabled>SPIN</button>
       <button class="btn-hack" id="hackBtn" disabled>HACK (-1 BC)</button>
     </div>
   </div>
 
   <div class="card">
     <div class="card-area">
+      <div class="streak-row">
+        <span class="streak-label">Correct</span>
+        <span class="streak-count" id="streakCount">0<span class="slash">/2</span></span>
+        <span class="streak-dots" id="streakDots">○○</span>
+      </div>
       <div class="card-header">
         <div class="card-hint" id="cardHint">ADDITION</div>
         <div style="font-size:10px;color:#666">
@@ -223,13 +237,11 @@ button:disabled{opacity:0.35;cursor:not-allowed}
 const SYMBOLS = ['buffalo','eagle','wolf','elk','scatter'];
 
 const NT = {
-  // Adult mode
   D: { name:'D', full:'Dopamine',      color:'#ffd700', glow:'rgba(255,215,0,0.5)'  },
   S: { name:'S', full:'Serotonin',     color:'#26a69a', glow:'rgba(38,166,154,0.5)' },
   N: { name:'N', full:'Norepinephrine',color:'#ef5350', glow:'rgba(239,83,80,0.5)'  },
   A: { name:'A', full:'Acetylcholine', color:'#42a5f5', glow:'rgba(66,165,245,0.5)' },
   G: { name:'G', full:'GABA',          color:'#ab47bc', glow:'rgba(171,71,188,0.5)' },
-  // Kid mode (Happy / Bored / Sad)
   H: { name:'H', full:'Happy',         color:'#4caf50', glow:'rgba(76,175,80,0.5)'  },
   B: { name:'B', full:'Bored',         color:'#ffeb3b', glow:'rgba(255,235,59,0.5)' },
   Y: { name:'S', full:'Sad',           color:'#ef5350', glow:'rgba(239,83,80,0.5)'  }
@@ -240,6 +252,11 @@ const KID_KEYS    = ['H','B','Y'];
 const ADULT_START = { D:50, S:50, N:50, A:50, G:50 };
 const KID_START   = { H:80, B:80, Y:80 };
 
+const ADULT_STREAK_TARGET = 2;
+const KID_STREAK_TARGET   = 3;
+const ADULT_SPINS_TOTAL   = 20;
+const KID_SPINS_TOTAL     = 15;
+
 const PAYLINES = [
   [0,1,2],[3,4,5],[6,7,8],
   [0,3,6],[1,4,7],[2,5,8],
@@ -247,11 +264,9 @@ const PAYLINES = [
 ];
 
 const CARD_TIMER = 8000;
-const KID_CARD_TIMER = 12000; // kids get more time
+const KID_CARD_TIMER = 12000;
 const SPIN_BASE_MS = 1600;
-const SEIZURE_SPINS = 3;
 
-// Kid-mode voice lines
 const KID_VOICE = {
   correct: [
     "Great answer!",
@@ -271,6 +286,12 @@ const KID_VOICE = {
     "Take a breath, then go again!",
     "Oops! Buffalo believes in you anyway.",
     "It's OK. The next one is yours!"
+  ],
+  spinReady: [
+    "Spin! Let's see what the buffalo brings.",
+    "Here we go! Buffalo spin!",
+    "Three in a row! Big spin time!",
+    "Buffalo says SPIN!"
   ],
   threeBuff: [
     "THREE BUFFALOS! Buffalo is proud! +20 Happy!",
@@ -292,7 +313,7 @@ const KID_VOICE = {
     "Don't give up!",
     "Buffalo believes in you!"
   ],
-  win: "You did it! 20 spins! Boz is so proud!",
+  win: "You did it! Boz is so proud!",
   lose: "Oh no! Too many sad feelings. Let's try again!"
 };
 
@@ -300,8 +321,8 @@ const KID_VOICE = {
 // STATE
 // =====================================================================
 const state = {
-  mode: 'adult',     // 'adult' | 'kid'
-  phase: 'start',     // start | card | armed | spinning | resolved | gameover
+  mode: 'adult',
+  phase: 'start',
   spinsLeft: 20,
   spinNum: 0,
   score: 0,
@@ -317,7 +338,10 @@ const state = {
   gridFinal: null,
   reelStops: [0,0,0],
   matches: [],
-  payout: 0
+  payout: 0,
+  streak: 0,
+  streakTarget: ADULT_STREAK_TARGET,
+  correctCount: 0
 };
 
 // =====================================================================
@@ -325,7 +349,6 @@ const state = {
 // =====================================================================
 const $ = id => document.getElementById(id);
 function keys() { return state.mode === 'kid' ? KID_KEYS : ADULT_KEYS; }
-function val(k) { return state.nt[k]; }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function pick(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
 
@@ -350,7 +373,6 @@ const dom = {
   meters: $('meters'),
   reels: $('reels'),
   effectsTag: $('effectsTag'),
-  spinBtn: $('spinBtn'),
   hackBtn: $('hackBtn'),
   cardHint: $('cardHint'),
   cardProblem: $('cardProblem'),
@@ -362,7 +384,9 @@ const dom = {
   fallbackInput: $('fallbackInput'),
   answerInput: $('answerInput'),
   answerSubmit: $('answerSubmit'),
-  bozSay: $('bozSay')
+  bozSay: $('bozSay'),
+  streakCount: $('streakCount'),
+  streakDots: $('streakDots')
 };
 const ctx = dom.reels.getContext('2d');
 
@@ -392,35 +416,21 @@ function tone(freq, dur, type, vol, slide) {
   o.start(); o.stop(c.currentTime + dur);
 }
 function sfxReelStop(i) { tone(280 + i*70, 0.08, 'triangle', 0.06); }
-function sfxMatch() {
-  tone(440, 0.1, 'sine', 0.07);
-  setTimeout(()=>tone(660, 0.12, 'sine', 0.06), 80);
-  setTimeout(()=>tone(880, 0.14, 'sine', 0.06), 160);
-}
-function sfxJackpot() {
-  [523, 659, 784, 1047, 1319, 1568].forEach((f,i) => {
-    setTimeout(()=>tone(f, 0.22, 'triangle', 0.09), i*90);
-  });
-}
-function sfxMiss() {
-  tone(200, 0.25, 'sawtooth', 0.05);
-  setTimeout(()=>tone(150, 0.3, 'sawtooth', 0.04), 100);
-}
+function sfxMatch() { tone(440, 0.1, 'sine', 0.07); setTimeout(()=>tone(660, 0.12, 'sine', 0.06), 80); setTimeout(()=>tone(880, 0.14, 'sine', 0.06), 160); }
+function sfxJackpot() { [523, 659, 784, 1047, 1319, 1568].forEach((f,i) => setTimeout(()=>tone(f, 0.22, 'triangle', 0.09), i*90)); }
+function sfxMiss() { tone(200, 0.25, 'sawtooth', 0.05); setTimeout(()=>tone(150, 0.3, 'sawtooth', 0.04), 100); }
 function sfxHack() { tone(700, 0.08, 'sine', 0.06); setTimeout(()=>tone(1000, 0.1, 'sine', 0.06), 70); setTimeout(()=>tone(1400, 0.15, 'sine', 0.06), 140); }
 function sfxWin() { [523, 659, 784, 1047, 1319].forEach((f,i) => setTimeout(()=>tone(f, 0.4, 'sine', 0.1), i*180)); }
 function sfxLose() { [440, 392, 349, 294, 247].forEach((f,i) => setTimeout(()=>tone(f, 0.4, 'sawtooth', 0.07), i*220)); }
-function sfxKidHappy() {
-  [523, 659, 784, 1047].forEach((f,i) => setTimeout(()=>tone(f, 0.18, 'sine', 0.08), i*70));
-}
-function sfxKidWin() {
-  [523, 659, 784, 1047, 1319, 1568].forEach((f,i) => setTimeout(()=>tone(f, 0.32, 'sine', 0.1), i*120));
-}
+function sfxKidHappy() { [523, 659, 784, 1047].forEach((f,i) => setTimeout(()=>tone(f, 0.18, 'sine', 0.08), i*70)); }
+function sfxKidWin() { [523, 659, 784, 1047, 1319, 1568].forEach((f,i) => setTimeout(()=>tone(f, 0.32, 'sine', 0.1), i*120)); }
+function sfxSpinReady() { tone(660, 0.12, 'sine', 0.08); setTimeout(()=>tone(990, 0.18, 'sine', 0.08), 80); }
 function sfxCardCorrect() { tone(880, 0.08, 'sine', 0.06); setTimeout(()=>tone(1320, 0.12, 'sine', 0.06), 60); }
 function sfxCardWrong() { tone(220, 0.2, 'square', 0.05); }
 function sfxClick() { tone(600, 0.04, 'sine', 0.04); }
 
 // =====================================================================
-// BOZ SAY (kid mode friendly voice bubble)
+// BOZ SAY + SCREEN FLASH
 // =====================================================================
 let bozTimeout = null;
 function bozSay(text, dur) {
@@ -429,6 +439,39 @@ function bozSay(text, dur) {
   dom.bozSay.classList.add('show');
   if (bozTimeout) clearTimeout(bozTimeout);
   bozTimeout = setTimeout(() => dom.bozSay.classList.remove('show'), dur || 2500);
+}
+function screenFlash() {
+  const f = document.createElement('div');
+  f.className = 'screen-flash';
+  dom.app.appendChild(f);
+  setTimeout(() => f.remove(), 800);
+}
+
+// =====================================================================
+// STREAK UI
+// =====================================================================
+function updateStreakDisplay() {
+  const filled = '●'.repeat(state.streak);
+  const empty = '○'.repeat(state.streakTarget - state.streak);
+  dom.streakDots.innerHTML = '';
+  for (let i = 0; i < state.streak; i++) {
+    const s = document.createElement('span');
+    s.className = 'filled';
+    s.textContent = '●';
+    dom.streakDots.appendChild(s);
+  }
+  for (let i = state.streak; i < state.streakTarget; i++) {
+    const s = document.createElement('span');
+    s.textContent = '○';
+    dom.streakDots.appendChild(s);
+  }
+  const count = state.streak + '<span class="slash">/' + state.streakTarget + '</span>';
+  dom.streakCount.innerHTML = count;
+  if (state.streak >= state.streakTarget) {
+    dom.streakCount.classList.add('ready');
+  } else {
+    dom.streakCount.classList.remove('ready');
+  }
 }
 
 // =====================================================================
@@ -489,92 +532,49 @@ function updateEffects() {
 // MATH PROBLEM GENERATION
 // =====================================================================
 function randInt(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
-
 function generateProblem(spinNum) {
   if (state.mode === 'kid') return generateKidProblem(spinNum);
   return generateAdultProblem(spinNum);
 }
-
 function generateAdultProblem(spinNum) {
   let q, a, hint;
   if (spinNum <= 5) {
     const sub = Math.random() < 0.5;
-    if (sub) {
-      let x = randInt(3, 9), y = randInt(1, x-1);
-      q = x + ' − ' + y; a = x - y;
-    } else {
-      const x = randInt(1, 9), y = randInt(1, 9);
-      q = x + ' + ' + y; a = x + y;
-    }
+    if (sub) { let x = randInt(3, 9), y = randInt(1, x-1); q = x + ' − ' + y; a = x - y; }
+    else { const x = randInt(1, 9), y = randInt(1, 9); q = x + ' + ' + y; a = x + y; }
     hint = 'SINGLE-DIGIT ' + (q.includes('+') ? 'ADD' : 'SUB');
   } else if (spinNum <= 10) {
     const sub = Math.random() < 0.5;
-    if (sub) {
-      let x = randInt(20, 99), y = randInt(1, x-1);
-      q = x + ' − ' + y; a = x - y;
-    } else {
-      const x = randInt(10, 99), y = randInt(10, 99);
-      q = x + ' + ' + y; a = x + y;
-    }
+    if (sub) { let x = randInt(20, 99), y = randInt(1, x-1); q = x + ' − ' + y; a = x - y; }
+    else { const x = randInt(10, 99), y = randInt(10, 99); q = x + ' + ' + y; a = x + y; }
     hint = 'TWO-DIGIT ' + (q.includes('+') ? 'ADD' : 'SUB');
   } else if (spinNum <= 15) {
     const div = Math.random() < 0.5;
-    if (div) {
-      const y = randInt(2, 9); const qx = randInt(2, 9);
-      q = (y*qx) + ' ÷ ' + y; a = qx;
-    } else {
-      const x = randInt(2, 9), y = randInt(2, 9);
-      q = x + ' × ' + y; a = x * y;
-    }
+    if (div) { const y = randInt(2, 9); const qx = randInt(2, 9); q = (y*qx) + ' ÷ ' + y; a = qx; }
+    else { const x = randInt(2, 9), y = randInt(2, 9); q = x + ' × ' + y; a = x * y; }
     hint = 'SINGLE-DIGIT ' + (q.includes('×') ? 'MULT' : 'DIV');
   } else {
     const r = Math.random();
-    if (r < 0.4) {
-      const x = randInt(11, 19); const y = randInt(2, 9);
-      q = x + ' × ' + y; a = x * y; hint = 'TWO-DIGIT MULT';
-    } else if (r < 0.7) {
-      const y = randInt(2, 9); const qx = randInt(11, 19);
-      q = (y*qx) + ' ÷ ' + y; a = qx; hint = 'TWO-DIGIT DIV';
-    } else if (r < 0.85) {
-      const x = randInt(100, 999), y = randInt(100, 999);
-      q = x + ' + ' + y; a = x + y; hint = 'THREE-DIGIT ADD';
-    } else {
-      let x = randInt(200, 999), y = randInt(100, x-1);
-      q = x + ' − ' + y; a = x - y; hint = 'THREE-DIGIT SUB';
-    }
+    if (r < 0.4) { const x = randInt(11, 19); const y = randInt(2, 9); q = x + ' × ' + y; a = x * y; hint = 'TWO-DIGIT MULT'; }
+    else if (r < 0.7) { const y = randInt(2, 9); const qx = randInt(11, 19); q = (y*qx) + ' ÷ ' + y; a = qx; hint = 'TWO-DIGIT DIV'; }
+    else if (r < 0.85) { const x = randInt(100, 999), y = randInt(100, 999); q = x + ' + ' + y; a = x + y; hint = 'THREE-DIGIT ADD'; }
+    else { let x = randInt(200, 999), y = randInt(100, x-1); q = x + ' − ' + y; a = x - y; hint = 'THREE-DIGIT SUB'; }
   }
   if (state.nt.A < 30) hint = '· · ·';
   return { q, a, hint };
 }
-
 function generateKidProblem(spinNum) {
-  // 1-5: counting (say a number 1-10)
-  // 6-10: single-digit +/-
-  // 11-15: 2-digit +/-
-  // 16-20: 2-digit +/-
   let q, a, hint;
   if (spinNum <= 5) {
-    a = randInt(1, 10);
-    q = String(a);
-    hint = 'COUNT';
+    a = randInt(1, 10); q = String(a); hint = 'COUNT';
   } else if (spinNum <= 10) {
     const sub = Math.random() < 0.4;
-    if (sub) {
-      let x = randInt(3, 9), y = randInt(1, x-1);
-      q = x + ' − ' + y; a = x - y; hint = 'SUBTRACT';
-    } else {
-      const x = randInt(1, 9), y = randInt(1, 9);
-      q = x + ' + ' + y; a = x + y; hint = 'ADD';
-    }
+    if (sub) { let x = randInt(3, 9), y = randInt(1, x-1); q = x + ' − ' + y; a = x - y; hint = 'SUBTRACT'; }
+    else { const x = randInt(1, 9), y = randInt(1, 9); q = x + ' + ' + y; a = x + y; hint = 'ADD'; }
   } else {
     const sub = Math.random() < 0.4;
-    if (sub) {
-      let x = randInt(20, 60), y = randInt(1, Math.min(20, x-1));
-      q = x + ' − ' + y; a = x - y; hint = 'SUBTRACT';
-    } else {
-      const x = randInt(10, 50), y = randInt(10, 50);
-      q = x + ' + ' + y; a = x + y; hint = 'ADD';
-    }
+    if (sub) { let x = randInt(20, 60), y = randInt(1, Math.min(20, x-1)); q = x + ' − ' + y; a = x - y; hint = 'SUBTRACT'; }
+    else { const x = randInt(10, 50), y = randInt(10, 50); q = x + ' + ' + y; a = x + y; hint = 'ADD'; }
   }
   return { q, a, hint };
 }
@@ -601,14 +601,12 @@ function initSpeechRecognition() {
   recognition.onstart = () => { recognitionActive = true; updateListenUI(); };
   recognition.onend = () => {
     recognitionActive = false;
-    if (recognitionWanted) {
-      try { recognition.start(); } catch(e) {}
-    } else updateListenUI();
+    if (recognitionWanted) { try { recognition.start(); } catch(e) {} }
+    else updateListenUI();
   };
   recognition.onerror = (e) => {
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-      enableFallback();
-      recognitionWanted = false;
+      enableFallback(); recognitionWanted = false;
     } else if (e.error === 'no-speech') {
       if (recognitionWanted) { try { recognition.start(); } catch(e2) {} }
     }
@@ -622,10 +620,8 @@ function initSpeechRecognition() {
     }
     const spoken = (final + ' ' + interim).toLowerCase().trim();
     updateTranscriptDisplay(final, interim);
-
     if (state.mode === 'adult' && /\bpass\b/.test(spoken) && !state.currentAnswered) { handlePass(); return; }
     if (state.mode === 'adult' && /\bhack\b/.test(spoken) && !state.currentAnswered) { handleVoiceHack(); return; }
-
     if (state.currentCard && !state.currentAnswered) {
       const n = extractNumber(spoken);
       if (n !== null && n === state.currentCard.a) handleCardCorrect();
@@ -633,49 +629,23 @@ function initSpeechRecognition() {
   };
   return true;
 }
-
-function startListening() {
-  if (!recognition) return;
-  recognitionWanted = true;
-  try { recognition.start(); } catch(e) {}
-}
-function stopListening() {
-  recognitionWanted = false;
-  if (recognition) { try { recognition.stop(); } catch(e) {} }
-}
-
+function startListening() { if (!recognition) return; recognitionWanted = true; try { recognition.start(); } catch(e) {} }
+function stopListening() { recognitionWanted = false; if (recognition) { try { recognition.stop(); } catch(e) {} } }
 function updateListenUI() {
-  if (recognitionActive) {
-    dom.listenLabel.textContent = 'LISTENING';
-    dom.listenDot.classList.add('active');
-  } else {
-    dom.listenLabel.textContent = recognitionWanted ? 'STARTING…' : 'MIC OFF';
-    dom.listenDot.classList.remove('active');
-  }
+  if (recognitionActive) { dom.listenLabel.textContent = 'LISTENING'; dom.listenDot.classList.add('active'); }
+  else { dom.listenLabel.textContent = recognitionWanted ? 'STARTING…' : 'MIC OFF'; dom.listenDot.classList.remove('active'); }
 }
-
 function updateTranscriptDisplay(final, interim) {
   let html = '';
   if (final) html += '<span class="final">' + escHtml(final) + '</span>';
   if (interim) html += '<span class="interim">' + escHtml(interim) + '</span>';
-  if (!html) {
-    html = '<span class="interim">Say the answer…</span>';
-    dom.transcript.classList.add('empty');
-  } else dom.transcript.classList.remove('empty');
+  if (!html) { html = '<span class="interim">Say the answer…</span>'; dom.transcript.classList.add('empty'); }
+  else dom.transcript.classList.remove('empty');
   dom.transcript.innerHTML = html;
 }
-function escHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
-}
-
-const WORD_NUMS = {
-  zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,
-  ten:10,eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,eighteen:18,nineteen:19,
-  twenty:20,thirty:30,forty:40,fifty:50,sixty:60,seventy:70,eighty:80,ninety:90,hundred:100,thousand:1000
-};
-function normalizeText(s) {
-  return s.toLowerCase().trim().replace(/[.,!?;:'"()\-\u2013\u2014]/g,'').replace(/\s+/g,' ').trim();
-}
+function escHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+const WORD_NUMS = { zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9, ten:10,eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,eighteen:18,nineteen:19, twenty:20,thirty:30,forty:40,fifty:50,sixty:60,seventy:70,eighty:80,ninety:90,hundred:100,thousand:1000 };
+function normalizeText(s) { return s.toLowerCase().trim().replace(/[.,!?;:'"()\-\u2013\u2014]/g,'').replace(/\s+/g,' ').trim(); }
 function extractNumber(text) {
   if (text == null) return null;
   const s = normalizeText(text);
@@ -696,17 +666,10 @@ function extractNumber(text) {
   return found ? total : null;
 }
 
-// =====================================================================
-// FALLBACK TYPED INPUT
-// =====================================================================
 function enableFallback() {
-  fallbackMode = true;
-  speechAvailable = false;
+  fallbackMode = true; speechAvailable = false;
   dom.fallbackLink.style.display = 'block';
-  dom.fallbackLink.onclick = () => {
-    dom.fallbackInput.classList.add('show');
-    dom.answerInput.focus();
-  };
+  dom.fallbackLink.onclick = () => { dom.fallbackInput.classList.add('show'); dom.answerInput.focus(); };
 }
 
 // =====================================================================
@@ -867,13 +830,10 @@ function newGrid() {
   for (let i = 0; i < 9; i++) g[i] = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
   return g;
 }
-
 function evaluateSpin(grid) {
-  // Returns { payout, matches, counts } for adult; for kid returns { kind, delta, message }
   if (state.mode === 'kid') return evaluateKidSpin(grid);
   return evaluateAdultSpin(grid);
 }
-
 function evaluateAdultSpin(grid) {
   let payout = 0;
   const matches = [];
@@ -906,9 +866,7 @@ function evaluateAdultSpin(grid) {
   }
   return { payout, matches, counts };
 }
-
 function evaluateKidSpin(grid) {
-  // Kid payouts: 3 buffalos = +20 happy, 2 buffalos = +10, 3 of any other = +5, else = -5
   const counts = {};
   for (const s of grid) counts[s] = (counts[s] || 0) + 1;
   const buf = counts['buffalo'] || 0;
@@ -916,20 +874,17 @@ function evaluateKidSpin(grid) {
   if (buf >= 3) { kind = 'threeBuff'; delta = 20; voice = pick(KID_VOICE.threeBuff); }
   else if (buf >= 2) { kind = 'twoBuff'; delta = 10; voice = pick(KID_VOICE.twoBuff); }
   else {
-    // any 3-of-a-kind of a non-buffalo?
     const has3 = SYMBOLS.some(s => s !== 'buffalo' && s !== 'scatter' && (counts[s] || 0) >= 3);
     if (has3 || (counts['scatter'] || 0) >= 3) { kind = 'threeOther'; delta = 5; voice = pick(KID_VOICE.threeOther); }
     else { kind = 'noMatch'; delta = -5; voice = pick(KID_VOICE.noMatch); }
   }
   return { payout: delta, delta, kind, message: voice, counts };
 }
-
 function applyNeurochemOrMood(matches, counts) {
   const changes = [];
   if (state.mode === 'kid') return applyKidMood(matches, counts);
   return applyAdultNeurochem(matches, counts);
 }
-
 function applyAdultNeurochem(matches, counts) {
   const changes = [];
   if ((counts['buffalo'] || 0) >= 3) {
@@ -951,9 +906,7 @@ function applyAdultNeurochem(matches, counts) {
   });
   return changes;
 }
-
 function applyKidMood(matches, counts) {
-  // matches here is the kid-eval result { delta, kind, message, counts }
   const m = matches;
   setNT('H', state.nt.H + m.delta);
   flashMeter('H', m.delta > 0 ? 'boost' : 'drain');
@@ -1007,20 +960,12 @@ function renderReels() {
     });
   }
 }
-function startRenderLoop() {
-  function loop() { renderReels(); renderRAF = requestAnimationFrame(loop); }
-  if (!renderRAF) loop();
-}
-function stopRenderLoop() {
-  if (renderRAF) cancelAnimationFrame(renderRAF);
-  renderRAF = null;
-}
+function startRenderLoop() { function loop() { renderReels(); renderRAF = requestAnimationFrame(loop); } if (!renderRAF) loop(); }
+function stopRenderLoop() { if (renderRAF) cancelAnimationFrame(renderRAF); renderRAF = null; }
 
 function startSpin() {
   if (state.phase !== 'armed' && state.phase !== 'spinning') return;
   state.phase = 'spinning';
-  dom.spinBtn.disabled = true;
-  dom.spinBtn.classList.remove('armed');
   if (state.mode === 'adult') dom.hackBtn.disabled = true;
   stopListening();
   state.gridFinal = newGrid();
@@ -1037,6 +982,7 @@ function updateReel(col) {
   for (let r = 0; r < 3; r++) spinningGrid[r*3 + col] = state.gridFinal[r*3 + col];
   state.grid = spinningGrid.slice();
 }
+
 function finishSpin() {
   spinActive = false;
   state.grid = state.gridFinal.slice();
@@ -1046,12 +992,10 @@ function finishSpin() {
     state.seizureLeft--;
   }
   const evalRes = evaluateSpin(state.grid);
-  const matches = evalRes;
-  const counts = evalRes.counts;
   state.payout = evalRes.payout;
-  state.matches = [evalRes]; // wrap for highlight pass
   if (state.mode === 'adult') state.matches = evalRes.matches || [];
-  const chemChanges = applyNeurochemOrMood(state.mode === 'kid' ? evalRes : evalRes.matches, counts);
+  else state.matches = [evalRes];
+  const chemChanges = applyNeurochemOrMood(state.mode === 'kid' ? evalRes : evalRes.matches, evalRes.counts);
   const isJackpot = state.mode === 'adult' && state.matches.some(m => m.kind === '3-kind' && m.mult >= 2);
   if (state.mode === 'kid') {
     sfxKidHappy();
@@ -1062,6 +1006,7 @@ function finishSpin() {
   }
   state.score += evalRes.payout;
   dom.score.textContent = state.score;
+  // Decrement spinsLeft (this is now spins REMAINING)
   state.spinsLeft--;
   state.spinNum++;
   dom.spinCount.textContent = state.spinsLeft;
@@ -1083,9 +1028,12 @@ function finishSpin() {
   }
   state.phase = 'resolved';
   state.hackedThisSpin = false;
+  // Reset streak after a spin
+  state.streak = 0;
+  updateStreakDisplay();
   updateEffects();
   checkEndConditions();
-  if (state.phase === 'resolved') setTimeout(() => nextCard(), state.mode === 'kid' ? 1500 : 1800);
+  if (state.phase === 'resolved') setTimeout(() => nextCard(), state.mode === 'kid' ? 1400 : 1600);
 }
 
 // =====================================================================
@@ -1106,25 +1054,77 @@ function showMessage(text, kind) {
 }
 
 // =====================================================================
-// CARD HANDLERS
+// CARD HANDLERS (streak-based)
 // =====================================================================
 function handleCardCorrect() {
   if (state.phase !== 'card' || !state.currentCard) return;
   state.currentAnswered = true;
   sfxCardCorrect();
-  state.phase = 'armed';
+  state.correctCount++;
+  state.streak++;
+  updateStreakDisplay();
+  stopListening();
+
   if (state.mode === 'kid') {
     setNT('H', state.nt.H + 10); flashMeter('H','boost');
-    setNT('B', Math.max(0, state.nt.B - 5)); flashMeter('B','drain');
+    setNT('B', Math.max(0, state.nt.B - 1)); flashMeter('B','drain');
     bozSay(pick(KID_VOICE.correct));
-    dom.cardHint.textContent = '🎉 NICE! TAP SPIN';
-  } else {
-    dom.cardHint.textContent = '✓ LOCKED — TAP SPIN';
   }
-  dom.spinBtn.disabled = false;
-  dom.spinBtn.classList.add('armed');
-  stopListening();
-  setTimeout(() => { if (state.phase === 'armed') startSpin(); }, state.mode === 'kid' ? 1200 : 1800);
+
+  if (state.streak >= state.streakTarget) {
+    // Streak complete — fire the spin
+    state.phase = 'armed';
+    if (state.mode === 'kid') {
+      dom.cardHint.textContent = '🎯 SPIN!';
+    } else {
+      dom.cardHint.textContent = '🎯 STREAK COMPLETE';
+    }
+    sfxSpinReady();
+    bozSay(pick(KID_VOICE.spinReady));
+    screenFlash();
+    // Auto-spin after a brief pause for the player to enjoy the buildup
+    setTimeout(() => { if (state.phase === 'armed') startSpin(); }, state.mode === 'kid' ? 900 : 1100);
+  } else {
+    // Streak not full yet — keep going
+    state.phase = 'card';
+    if (state.mode === 'kid') {
+      dom.cardHint.textContent = `🎉 ${state.streak}/${state.streakTarget} — KEEP GOING!`;
+    } else {
+      dom.cardHint.textContent = `✓ ${state.streak}/${state.streakTarget} — NEXT`;
+    }
+    setTimeout(() => {
+      if (state.phase === 'card' && !state.currentAnswered) {
+        // No-op safety; next card is generated via setTimeout below
+      }
+      if (state.phase === 'card') {
+        state.currentCard = null;
+        nextCard();
+      }
+    }, 600);
+  }
+}
+
+function applyWrongCard() {
+  if (state.mode === 'kid') {
+    // Sad up, Bored up (more frustrated)
+    setNT('Y', Math.min(100, state.nt.Y + 5));
+    flashMeter('Y', 'drain');
+    setNT('B', Math.min(100, state.nt.B + 2));
+    flashMeter('B', 'drain');
+    bozSay(pick(KID_VOICE.wrong));
+  } else {
+    setNT('G', state.nt.G - 10);
+    flashMeter('G', 'drain');
+  }
+}
+
+function resetStreak(reason) {
+  const wasStreak = state.streak;
+  state.streak = 0;
+  updateStreakDisplay();
+  if (reason === 'miss' && wasStreak > 0) {
+    showMessage('STREAK BROKEN', 'bad');
+  }
 }
 
 function handlePass() {
@@ -1134,9 +1134,7 @@ function handlePass() {
   setNT('G', state.nt.G - 10);
   flashMeter('G', 'drain');
   showMessage('PASS — GABA −10', 'bad');
-  state.spinsLeft--;
-  state.spinNum++;
-  dom.spinCount.textContent = state.spinsLeft;
+  resetStreak('miss');
   stopListening();
   state.hackedThisSpin = false;
   state.phase = 'resolved';
@@ -1146,7 +1144,7 @@ function handlePass() {
       checkEndConditions();
       if (state.phase === 'resolved') nextCard();
     }
-  }, 1200);
+  }, 900);
 }
 
 function handleVoiceHack() {
@@ -1167,12 +1165,10 @@ function submitTypedAnswer() {
     handleCardCorrect();
   } else {
     sfxCardWrong();
-    showMessage('WRONG — −10', 'bad');
+    showMessage('WRONG', 'bad');
     applyWrongCard();
+    resetStreak('miss');
     state.currentAnswered = true;
-    state.spinsLeft--;
-    state.spinNum++;
-    dom.spinCount.textContent = state.spinsLeft;
     stopListening();
     state.phase = 'resolved';
     state.hackedThisSpin = false;
@@ -1182,20 +1178,7 @@ function submitTypedAnswer() {
         checkEndConditions();
         if (state.phase === 'resolved') nextCard();
       }
-    }, 1200);
-  }
-}
-
-function applyWrongCard() {
-  if (state.mode === 'kid') {
-    setNT('Y', Math.min(100, state.nt.Y + 5));
-    flashMeter('Y', 'drain');
-    setNT('B', Math.max(0, state.nt.B - 10));
-    flashMeter('B', 'drain');
-    bozSay(pick(KID_VOICE.wrong));
-  } else {
-    setNT('G', state.nt.G - 10);
-    flashMeter('G', 'drain');
+    }, 900);
   }
 }
 
@@ -1204,8 +1187,9 @@ function nextCard() {
   state.currentAnswered = false;
   state.phase = 'card';
   state.cardStartTs = performance.now();
+  // Difficulty scaling: still based on spinNum (number of spins taken, even though spinsLeft is now "remaining")
   const problemSpin = state.spinNum + 1;
-  if (problemSpin > 20 || state.spinsLeft <= 0) {
+  if (state.spinsLeft <= 0) {
     checkEndConditions();
     return;
   }
@@ -1260,10 +1244,8 @@ function handleCardTimeout() {
   state.currentAnswered = true;
   sfxCardWrong();
   applyWrongCard();
-  showMessage('TIMEOUT — −10', 'bad');
-  state.spinsLeft--;
-  state.spinNum++;
-  dom.spinCount.textContent = state.spinsLeft;
+  showMessage('TIMEOUT', 'bad');
+  resetStreak('miss');
   stopListening();
   state.phase = 'resolved';
   state.hackedThisSpin = false;
@@ -1273,7 +1255,7 @@ function handleCardTimeout() {
       checkEndConditions();
       if (state.phase === 'resolved') nextCard();
     }
-  }, 1200);
+  }, 900);
 }
 
 // =====================================================================
@@ -1295,10 +1277,7 @@ function openHackPicker() {
   dom.app.appendChild(overlay);
   sfxClick();
   inner.querySelectorAll('.opt').forEach(opt => {
-    opt.addEventListener('click', () => {
-      const k = opt.dataset.k;
-      executeHack(k, overlay);
-    });
+    opt.addEventListener('click', () => { executeHack(opt.dataset.k, overlay); });
   });
   inner.querySelector('.cancel').addEventListener('click', () => {
     sfxClick();
@@ -1306,7 +1285,6 @@ function openHackPicker() {
     if (state.phase === 'card' && recognition) startListening();
   });
 }
-
 function executeHack(target, overlay) {
   if (state.bc <= 0) { overlay.remove(); return; }
   state.bc--;
@@ -1334,17 +1312,22 @@ function executeHack(target, overlay) {
 function checkEndConditions() {
   if (state.mode === 'adult') {
     if (state.nt.D >= 80 && state.nt.S >= 80 && state.nt.N >= 80 && state.nt.A >= 80 && state.nt.G >= 80) {
-      endGame('win');
-      return;
+      endGame('win'); return;
     }
     for (const k of ADULT_KEYS) {
       if (state.nt[k] <= 0) { endGame('lose', `${NT[k].full} depleted`); return; }
     }
     if (state.spinsLeft <= 0 && state.phase !== 'gameover') { endGame('giveup'); return; }
   } else {
-    // Kid: lose if Sad (Y) = 100; win if 20 spins done
-    if (state.nt.Y >= 100) { endGame('lose'); return; }
-    if (state.spinsLeft <= 0 && state.phase !== 'gameover') { endGame('win'); return; }
+    // Kid: lose if Sad hits 100 (max sad = gave up) or any mood hits 0; win if all spins used without LOSE
+    if (state.nt.Y >= 100) { endGame('lose', 'Sad maxed out at 100'); return; }
+    if (state.nt.Y <= 0) { endGame('lose', 'Sad hit 0'); return; }
+    if (state.nt.B <= 0) { endGame('lose', 'Bored hit 0'); return; }
+    if (state.nt.H <= 0) { endGame('lose', 'Happy hit 0'); return; }
+    if (state.spinsLeft <= 0 && state.phase !== 'gameover') {
+      // For kid, "all spins used without LOSE" = WIN
+      endGame('win'); return;
+    }
   }
 }
 
@@ -1362,8 +1345,8 @@ function endGame(kind, reason) {
   const modal = document.createElement('div');
   let modalClass, title, sub;
   if (state.mode === 'kid') {
-    if (kind === 'win') { modalClass = 'kid-win'; title = '🎉 YOU DID IT!'; sub = '20 spins! Boz is so proud of you!'; }
-    else { modalClass = 'kid-lose'; title = 'BUFFALO SAYS:'; sub = KID_VOICE.lose; }
+    if (kind === 'win') { modalClass = 'kid-win'; title = '🎉 YOU DID IT!'; sub = KID_VOICE.win; }
+    else { modalClass = 'kid-lose'; title = 'BUFFALO SAYS:'; sub = reason || KID_VOICE.lose; }
   } else {
     modalClass = kind === 'win' ? 'win' : kind === 'lose' ? 'lose' : 'giveup';
     if (kind === 'win') { title = 'ENLIGHTENMENT'; sub = 'All neurotransmitters balanced. The brain thrives.'; }
@@ -1371,15 +1354,17 @@ function endGame(kind, reason) {
     else { title = 'GAVE UP'; sub = '20 spins used without enlightenment.'; }
   }
   modal.className = 'modal ' + modalClass;
+  const totalSpins = state.mode === 'kid' ? KID_SPINS_TOTAL : ADULT_SPINS_TOTAL;
   let stats = '';
   if (state.mode === 'kid') {
-    stats = `<div class="stat-line">Spins used: ${state.spinNum} / 20</div>
+    stats = `<div class="stat-line">Spins used: ${state.spinNum} / ${totalSpins}</div>
       <div class="stat-line">Happy ${state.nt.H} · Bored ${state.nt.B} · Sad ${state.nt.Y}</div>
-      <div class="stat-line">Correct: ${correctCount}</div>`;
+      <div class="stat-line">Correct answers: ${state.correctCount}</div>`;
   } else {
-    stats = `<div class="stat-line">Spins used: ${state.spinNum} / 20</div>
+    stats = `<div class="stat-line">Spins used: ${state.spinNum} / ${totalSpins}</div>
       <div class="stat-line">D ${state.nt.D} · S ${state.nt.S} · N ${state.nt.N} · A ${state.nt.A} · G ${state.nt.G}</div>
-      <div class="stat-line">BC remaining: ${state.bc} · Addiction: ${state.addiction}</div>`;
+      <div class="stat-line">BC remaining: ${state.bc} · Addiction: ${state.addiction}</div>
+      <div class="stat-line">Correct answers: ${state.correctCount}</div>`;
   }
   modal.innerHTML = `
     <h2>${title}</h2>
@@ -1399,41 +1384,36 @@ function endGame(kind, reason) {
 // =====================================================================
 // START
 // =====================================================================
-let correctCount = 0;
-
 function startGame(mode) {
   state.mode = mode;
-  // Reset meters
   state.nt = Object.assign({}, mode === 'kid' ? KID_START : ADULT_START);
   state.bc = mode === 'kid' ? 0 : 5;
   state.addiction = 0;
   state.seizureLeft = 0;
   state.hackedThisSpin = false;
   state.score = 0;
-  state.spinsLeft = 20;
+  const total = mode === 'kid' ? KID_SPINS_TOTAL : ADULT_SPINS_TOTAL;
+  state.spinsLeft = total;
   state.spinNum = 0;
-  correctCount = 0;
+  state.streak = 0;
+  state.streakTarget = mode === 'kid' ? KID_STREAK_TARGET : ADULT_STREAK_TARGET;
+  state.correctCount = 0;
   state.currentCard = null;
   state.currentAnswered = false;
   buildMeters();
-  dom.spinCount.textContent = '20';
+  dom.spinCount.textContent = String(total);
   dom.score.textContent = '0';
   if (mode === 'kid') {
     dom.bcRow.style.display = 'none';
     dom.hackBtn.style.display = 'none';
     dom.addictionBar.style.display = 'none';
     dom.modeSub.textContent = 'Kid Mode — Counting & Adding!';
-    dom.spinBtn.textContent = 'SPIN';
-    dom.spinBtn.classList.remove('btn-spin');
-    dom.spinBtn.classList.add('btn-spin-kid');
     bozSay("Hi! I'm Boz. Let's do math!", 3000);
   } else {
     dom.bcRow.style.display = '';
     dom.modeSub.textContent = 'Neurotransmitter Casino';
-    dom.spinBtn.textContent = 'SPIN';
-    dom.spinBtn.classList.remove('btn-spin-kid');
-    dom.spinBtn.classList.add('btn-spin');
   }
+  updateStreakDisplay();
   if (!initSpeechRecognition()) enableFallback();
   startRenderLoop();
   state.grid = newGrid();
@@ -1444,35 +1424,14 @@ function startGame(mode) {
 // =====================================================================
 // EVENT WIRING
 // =====================================================================
-dom.adultBtn.addEventListener('click', () => {
-  sfxClick();
-  dom.startScreen.style.display = 'none';
-  startGame('adult');
-});
-dom.kidBtn.addEventListener('click', () => {
-  sfxClick();
-  dom.startScreen.style.display = 'none';
-  startGame('kid');
-});
-// Click anywhere on the card also picks the mode
+dom.adultBtn.addEventListener('click', () => { sfxClick(); dom.startScreen.style.display = 'none'; startGame('adult'); });
+dom.kidBtn.addEventListener('click', () => { sfxClick(); dom.startScreen.style.display = 'none'; startGame('kid'); });
 dom.adultCard.addEventListener('click', () => dom.adultBtn.click());
 dom.kidCard.addEventListener('click', () => dom.kidBtn.click());
-
-dom.spinBtn.addEventListener('click', () => {
-  sfxClick();
-  if (state.phase === 'armed') startSpin();
-});
-dom.hackBtn.addEventListener('click', () => {
-  sfxClick();
-  openHackPicker();
-});
+dom.hackBtn.addEventListener('click', () => { sfxClick(); openHackPicker(); });
 dom.answerInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitTypedAnswer(); });
 dom.answerSubmit.addEventListener('click', submitTypedAnswer);
-dom.fallbackLink.addEventListener('click', () => {
-  sfxClick();
-  dom.fallbackInput.classList.add('show');
-  dom.answerInput.focus();
-});
+dom.fallbackLink.addEventListener('click', () => { sfxClick(); dom.fallbackInput.classList.add('show'); dom.answerInput.focus(); });
 
 setInterval(tickCardTimer, 80);
 
@@ -1494,7 +1453,8 @@ document.addEventListener('keydown', (e) => {
 // expose for testing
 window.__bb = {
   state, dom, startSpin, nextCard, handleCardCorrect, handlePass, startGame,
-  NT, ADULT_KEYS, KID_KEYS, ADULT_START, KID_START
+  applyWrongCard, resetStreak, updateStreakDisplay, NT, ADULT_KEYS, KID_KEYS,
+  ADULT_START, KID_START, ADULT_STREAK_TARGET, KID_STREAK_TARGET
 };
 
 })();
