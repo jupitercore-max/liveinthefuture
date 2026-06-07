@@ -2035,6 +2035,43 @@ checkEnd=function(){
 // Title reset is now handled by the keydown/mobile launchers above.
 
 // ── Console log ──
+
+// ── TITLE SCREEN LAUNCHER ──
+// Any keypress (or mobile Action tap) on the title screen launches straight into
+// Chapter 1, bypassing the sim entirely. The CYOA is the only game flow.
+// Capture: true is fine, but the original sim keydown handler at the top of
+// the file is on the same document with default phase. When the event target
+// IS document, capture/bubble don't apply and handlers fire in registration
+// order — so the sim's initGame() runs BEFORE this. stopImmediatePropagation
+// (not just stopPropagation) is required to block same-element listeners that
+// already fired or are about to fire.
+document.addEventListener('keydown',function(e){
+  if(state!==ST_TITLE)return;
+  e.preventDefault();e.stopImmediatePropagation();
+  storyMode=true;
+  plotFlags={};storyChapterIdx=0;roomsVisited={};
+  cyoaRole="Acting Director of Connectivity";
+  window._cyoaQuippedDay=0;
+  if(typeof CHAPTERS!=='undefined'&&CHAPTERS.length) showChapter(CHAPTERS[0]);
+},{capture:true});
+
+(function(){
+  var mbAct=document.getElementById('mb-action');
+  if(!mbAct)return;
+  function launchStory(e){
+    if(state!==ST_TITLE)return;
+    e.preventDefault();e.stopPropagation();
+    e.stopImmediatePropagation();
+    storyMode=true;
+    plotFlags={};storyChapterIdx=0;roomsVisited={};
+    cyoaRole="Acting Director of Connectivity";
+    window._cyoaQuippedDay=0;
+    if(typeof CHAPTERS!=='undefined'&&CHAPTERS.length) showChapter(CHAPTERS[0]);
+  }
+  mbAct.addEventListener('touchstart',launchStory,{capture:true,passive:false});
+  mbAct.addEventListener('mousedown',launchStory,{capture:true});
+})();
+
 console.log('[CYOA] Lord Bluetooth: Choose Your Own Adventure layer loaded. 7 chapters, 22 choices, 24 quips, 18 image placeholders.');
 
 
