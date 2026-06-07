@@ -309,8 +309,28 @@ var VF={
   boz_rap_battle:"audio/boz-rap-battle-beat.mp3",
   zuck_rap_response:"audio/zuck-rap-response-beat.mp3"
 };
-function playVoice(k){if(!VF[k])return;voiceQueue.push(k);if(!voicePlaying)pVQ()}
-function pVQ(){if(!voiceQueue.length){voicePlaying=false;return}voicePlaying=true;var k=voiceQueue.shift();var a=new Audio(VF[k]);a.volume=0.8;a.onended=pVQ;a.onerror=pVQ;a.play().catch(pVQ)}
+var voiceCurrentAudio=null;
+function playVoice(k){
+  if(!VF[k])return;
+  // Cross-cancel: stop any in-flight TTS so MP3 doesn't overlap.
+  if(cyoaSpeaking&&'speechSynthesis' in window){
+    try{window.speechSynthesis.cancel();}catch(e){}
+    cyoaSpeaking=false;
+  }
+  voiceQueue.push(k);
+  if(!voicePlaying)pVQ();
+}
+function pVQ(){
+  if(!voiceQueue.length){voicePlaying=false;voiceCurrentAudio=null;return}
+  voicePlaying=true;
+  var k=voiceQueue.shift();
+  var a=new Audio(VF[k]);
+  voiceCurrentAudio=a;
+  a.volume=0.8;
+  a.onended=function(){voiceCurrentAudio=null;pVQ();};
+  a.onerror=function(){voiceCurrentAudio=null;pVQ();};
+  a.play().catch(function(){voiceCurrentAudio=null;pVQ();});
+}
 
 // Synth sounds
 function tone(f,d,t,v){if(!audioCtx)return;var o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=t||"sine";o.frequency.value=f;g.gain.setValueAtTime(v||0.1,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+d);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+d)}
@@ -1465,8 +1485,17 @@ var cyoaElems={
 };
 
 // ── Web Speech API ──
+var cyoaSpeaking=false;
 function cyoaSpeak(text){
   if(cyoaVoiceMuted||!('speechSynthesis' in window))return;
+  // Cross-cancel: stop any in-flight sim MP3 voice so TTS doesn't overlap.
+  try{voiceQueue.length=0;}catch(e){}
+  if(typeof voiceCurrentAudio!=='undefined'&&voiceCurrentAudio){try{voiceCurrentAudio.pause();}catch(e){}voiceCurrentAudio=null;voicePlaying=false;}
+  // Cancel any in-flight TTS (Safari needs the lock to avoid cancel/speak races).
+  if(cyoaSpeaking){
+    try{window.speechSynthesis.cancel();}catch(e){}
+    cyoaSpeaking=false;
+  }
   try{
     window.speechSynthesis.cancel();
     var u=new SpeechSynthesisUtterance(text);
@@ -1478,8 +1507,11 @@ function cyoaSpeak(text){
         ||voices[0];
       if(v)u.voice=v;
     }
+    u.onend=function(){cyoaSpeaking=false;};
+    u.onerror=function(){cyoaSpeaking=false;};
+    cyoaSpeaking=true;
     window.speechSynthesis.speak(u);
-  }catch(e){}
+  }catch(e){cyoaSpeaking=false;}
 }
 // Load voices async
 if('speechSynthesis' in window){
