@@ -1,0 +1,1585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Buffalo Brain — Neurotransmitter Casino</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0014;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;color:#fff;-webkit-user-select:none;user-select:none}
+body{display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 0%,#2a0040 0%,#0a0014 70%)}
+#app{width:600px;height:820px;background:linear-gradient(180deg,#180030 0%,#0a0014 100%);border:2px solid #ffd700;box-shadow:0 0 40px rgba(255,215,0,0.4),inset 0 0 40px rgba(0,0,0,0.7);position:relative;overflow:hidden;display:flex;flex-direction:column;border-radius:4px}
+@media (max-width:620px),(max-height:840px){
+  #app{transform:scale(0.95);transform-origin:center}
+}
+@media (max-width:580px),(max-height:780px){
+  #app{transform:scale(0.85)}
+}
+@media (max-width:520px),(max-height:720px){
+  #app{transform:scale(0.7)}
+}
+@media (max-width:460px),(max-height:640px){
+  #app{transform:scale(0.55)}
+}
+
+header{
+  padding:8px 14px;
+  background:linear-gradient(180deg,rgba(255,215,0,0.1),transparent);
+  border-bottom:1px solid rgba(255,215,0,0.3);
+  flex:0 0 56px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+h1{
+  font-size:18px;font-weight:900;letter-spacing:2px;color:#ffd700;
+  text-shadow:0 0 10px #ffd700,0 0 20px #ff6b00;margin:0;line-height:1.1;
+}
+h1 .sub{font-size:10px;color:#42a5f5;text-shadow:0 0 6px #42a5f5;letter-spacing:1px;display:block;font-weight:400;margin-top:1px}
+.status{font-size:11px;text-align:right;color:#aaa;line-height:1.3;font-family:'SF Mono',Menlo,Consolas,monospace}
+.status .v{color:#fff;font-weight:700}
+.status .bc-v{color:#ffd700}
+.status .score-v{color:#42a5f5}
+.status .add-v{color:#ff9800}
+
+.meters{
+  flex:0 0 188px;padding:8px 14px;display:flex;flex-direction:column;gap:3px;
+  background:rgba(0,0,0,0.2);
+}
+.meter{display:grid;grid-template-columns:22px 1fr 38px;align-items:center;gap:8px;font-size:11px;height:24px;position:relative}
+.meter .name{font-weight:800;font-size:13px;text-align:center;border-radius:3px;background:rgba(255,255,255,0.1);padding:2px 0;color:#fff}
+.meter .bar{height:18px;background:rgba(0,0,0,0.6);border-radius:9px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.15)}
+.meter .fill{height:100%;border-radius:9px;transition:width 0.4s ease;position:relative;box-shadow:inset 0 0 6px rgba(255,255,255,0.25)}
+.meter .v{font-family:'SF Mono',Menlo,Consolas,monospace;font-size:12px;text-align:right;font-weight:700}
+.meter .threshold{position:absolute;top:-3px;bottom:-3px;width:1px;background:rgba(255,255,255,0.35);pointer-events:none}
+.meter.critical .v{animation:pulse-red 0.4s infinite alternate;font-size:13px}
+@keyframes pulse-red{from{color:#fff}to{color:#ff3a3a;text-shadow:0 0 8px #ff3a3a}}
+.meter.boost .fill{animation:boost-flash 0.6s ease-out}
+@keyframes boost-flash{0%{filter:brightness(2.5)}100%{filter:brightness(1)}}
+.meter.drain .fill{animation:drain-flash 0.6s ease-out}
+@keyframes drain-flash{0%{filter:brightness(2.5) hue-rotate(-30deg)}100%{filter:brightness(1) hue-rotate(0)}}
+
+.casino{
+  flex:0 0 340px;padding:6px 14px;display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:radial-gradient(circle at 50% 50%,rgba(255,215,0,0.05) 0%,transparent 70%);
+}
+.slot-frame{
+  background:linear-gradient(180deg,#2a1500 0%,#0a0014 100%);
+  border:3px solid #ffd700;border-radius:8px;padding:8px;
+  box-shadow:inset 0 0 20px rgba(255,215,0,0.2),0 0 20px rgba(255,215,0,0.3);
+}
+canvas#reels{display:block;background:linear-gradient(180deg,#1a0033 0%,#0a0014 100%);border-radius:4px;image-rendering:auto}
+.controls{display:flex;gap:10px;margin-top:6px}
+button{
+  font-family:inherit;font-size:13px;font-weight:800;letter-spacing:1px;padding:9px 18px;
+  border:2px solid;background:linear-gradient(180deg,rgba(0,0,0,0.4),rgba(0,0,0,0.6));
+  color:#fff;cursor:pointer;border-radius:6px;text-transform:uppercase;transition:all 0.15s;
+}
+button:hover:not(:disabled){filter:brightness(1.3);transform:translateY(-1px)}
+button:active:not(:disabled){transform:translateY(0)}
+button:disabled{opacity:0.35;cursor:not-allowed}
+.btn-spin{border-color:#ffd700;color:#ffd700;text-shadow:0 0 8px #ffd700;box-shadow:0 0 12px rgba(255,215,0,0.3);min-width:100px}
+.btn-spin.armed{animation:armed-pulse 0.8s infinite alternate}
+@keyframes armed-pulse{from{box-shadow:0 0 12px rgba(255,215,0,0.3)}to{box-shadow:0 0 24px rgba(255,215,0,0.8),inset 0 0 12px rgba(255,215,0,0.4)}}
+.btn-hack{border-color:#42a5f5;color:#42a5f5;text-shadow:0 0 8px #42a5f5;box-shadow:0 0 12px rgba(66,165,245,0.3);font-size:11px}
+
+.card{
+  flex:1 1 0;padding:10px 16px 14px;display:flex;flex-direction:column;align-items:center;gap:6px;
+  background:linear-gradient(180deg,transparent,rgba(0,0,0,0.3));min-height:0;
+}
+.card-area{
+  background:#1a1a1a;border:2px solid #555;border-radius:8px;padding:8px 12px;
+  width:100%;max-width:520px;text-align:center;position:relative;
+}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.card-hint{font-size:10px;color:#888;letter-spacing:1px;text-transform:uppercase}
+.listen-dot{width:10px;height:10px;border-radius:50%;background:#333;display:inline-block;margin-left:6px;transition:background 0.2s}
+.listen-dot.active{background:#ef5350;box-shadow:0 0 8px #ef5350;animation:pulse-dot 1s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.4}}
+.card-problem{
+  font-family:'SF Mono',Menlo,Consolas,monospace;font-size:30px;font-weight:700;color:#fff;
+  letter-spacing:2px;margin:4px 0;line-height:1.1;
+}
+.card-problem .eq{color:#888;font-weight:400;margin:0 6px}
+.transcript{
+  min-height:38px;padding:6px 8px;background:#0a0a0a;border-radius:4px;margin-top:4px;
+  font-size:18px;font-family:'SF Mono',Menlo,monospace;color:#fff;
+  display:flex;align-items:center;justify-content:center;letter-spacing:1px;
+  border:1px solid #333;
+}
+.transcript .final{color:#4caf50}
+.transcript .interim{color:#888;font-style:italic}
+.transcript.empty{color:#666}
+.timer-bar{width:100%;height:8px;background:#222;border-radius:4px;margin-top:6px;overflow:hidden;border:1px solid #444;position:relative}
+.timer-fill{height:100%;background:#4caf50;width:100%;transition:width 0.1s linear, background-color 0.3s}
+.timer-fill.urgent{background:#ff5722;animation:timer-pulse 0.4s infinite alternate}
+@keyframes timer-pulse{from{box-shadow:inset 0 0 0 rgba(255,87,34,0)}to{box-shadow:inset 0 0 8px rgba(255,87,34,0.6)}}
+.fallback-link{font-size:10px;color:#666;margin-top:4px;cursor:pointer;text-decoration:underline}
+.fallback-link:hover{color:#aaa}
+.fallback-input{
+  display:none;margin-top:6px;gap:6px;align-items:center;justify-content:center;
+}
+.fallback-input.show{display:flex}
+.fallback-input input{
+  width:100px;padding:4px 8px;font-size:16px;font-family:'SF Mono',Menlo,monospace;
+  text-align:center;background:#0a0a0a;color:#fff;border:2px solid #666;border-radius:4px;outline:none;
+}
+.fallback-input input:focus{border-color:#ffd700}
+.fallback-input button{border-color:#ffd700;color:#ffd700;padding:5px 10px;font-size:11px}
+
+.effects-tag{font-size:10px;color:#ff3a3a;letter-spacing:1px;text-transform:uppercase;height:13px;text-align:center;margin-top:2px;text-shadow:0 0 6px #ff3a3a;font-weight:800}
+.effects-tag:empty{display:none}
+
+.modal-overlay{
+  position:absolute;inset:0;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;
+  z-index:100;animation:fadein 0.4s;
+}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.modal{
+  background:linear-gradient(180deg,#180030,#0a0014);border:3px solid;border-radius:12px;
+  padding:30px 40px;text-align:center;max-width:84%;animation:zoomin 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes zoomin{from{transform:scale(0.5);opacity:0}to{transform:scale(1);opacity:1}}
+.modal h2{font-size:34px;font-weight:900;letter-spacing:4px;margin-bottom:14px}
+.modal p{font-size:13px;color:#ccc;margin:5px 0;line-height:1.5}
+.modal .score-final{font-size:48px;font-weight:900;color:#ffd700;text-shadow:0 0 20px #ffd700;margin:14px 0;font-family:'SF Mono',Menlo,monospace}
+.modal .stat-line{font-size:12px;color:#aaa;margin:3px 0;font-family:'SF Mono',Menlo,monospace}
+.modal button{margin-top:18px;font-size:14px;padding:11px 26px}
+.modal.win{border-color:#ffd700;box-shadow:0 0 60px rgba(255,215,0,0.7)}
+.modal.win h2{color:#ffd700;text-shadow:0 0 20px #ffd700,0 0 40px #ff6b00}
+.modal.lose{border-color:#ff3a3a;box-shadow:0 0 40px rgba(255,58,58,0.6)}
+.modal.lose h2{color:#ff3a3a;text-shadow:0 0 20px #ff3a3a}
+.modal.giveup{border-color:#888}
+.modal.giveup h2{color:#aaa}
+
+.hack-picker{position:absolute;inset:0;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;z-index:50}
+.hack-picker-inner{
+  background:linear-gradient(180deg,#180030,#0a0014);border:2px solid #42a5f5;border-radius:12px;
+  padding:18px;text-align:center;box-shadow:0 0 30px rgba(66,165,245,0.5);max-width:90%;
+}
+.hack-picker h3{color:#42a5f5;font-size:16px;letter-spacing:2px;margin-bottom:6px}
+.hack-picker p{font-size:11px;color:#aaa;margin-bottom:12px;line-height:1.4}
+.hack-picker .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
+.hack-picker .opt{
+  padding:10px 4px;border:2px solid;border-radius:6px;cursor:pointer;font-weight:800;font-size:13px;
+  background:rgba(0,0,0,0.5);transition:transform 0.1s;color:#fff;
+}
+.hack-picker .opt:hover{transform:scale(1.08)}
+.hack-picker .cancel{border-color:#888;color:#888;background:transparent;font-size:11px;padding:5px 12px}
+
+.start-screen{
+  position:absolute;inset:0;background:linear-gradient(180deg,#180030 0%,#0a0014 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center;z-index:200;
+}
+.start-screen h1{font-size:38px;letter-spacing:4px;margin-bottom:6px;text-shadow:0 0 20px #ffd700,0 0 40px #ff6b00;line-height:1}
+.start-screen .sub{font-size:13px;color:#42a5f5;letter-spacing:4px;margin-bottom:18px}
+.start-screen .desc{font-size:12px;color:#ccc;line-height:1.5;max-width:480px;margin:0 auto 16px}
+.start-screen ul{list-style:none;text-align:left;font-size:11px;color:#aaa;max-width:500px;margin:0 auto 16px;line-height:1.6}
+.start-screen ul li{padding:2px 0}
+.start-screen ul li b{color:#ffd700}
+.start-screen ul li .c-d{color:#ffd700}
+.start-screen ul li .c-s{color:#26a69a}
+.start-screen ul li .c-n{color:#ef5350}
+.start-screen ul li .c-a{color:#42a5f5}
+.start-screen ul li .c-g{color:#ab47bc}
+.start-screen .start-btn{border-color:#ffd700;color:#ffd700;font-size:20px;padding:14px 44px;text-shadow:0 0 12px #ffd700;box-shadow:0 0 20px rgba(255,215,0,0.4);letter-spacing:3px;margin-top:6px}
+.start-screen .warn{font-size:10px;color:#888;margin-top:10px;max-width:420px;line-height:1.4}
+
+.addiction-bar{
+  display:flex;align-items:center;gap:4px;margin-top:2px;
+  font-size:9px;color:#ff9800;letter-spacing:1px;text-transform:uppercase;font-weight:700;
+}
+.addiction-bar .a-fill{
+  height:4px;background:#ff9800;border-radius:2px;transition:width 0.4s;min-width:2px;
+  box-shadow:0 0 4px #ff9800;
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="start-screen" id="startScreen">
+    <h1>BUFFALO BRAIN</h1>
+    <div class="sub">NEUROTRANSMITTER CASINO</div>
+    <div class="desc">
+      20 spins. Speak the answer to each math problem to roll the slot machine.
+      Match symbols. Balance 5 neurotransmitters. Reach <b style="color:#ffd700">ENLIGHTENMENT</b> — or crash.
+    </div>
+    <ul>
+      <li>🗣️ <b>Speak the answer</b> when the card appears (8 seconds)</li>
+      <li>Say <b>"pass"</b> to skip — costs 10 GABA, no spin</li>
+      <li>Say <b>"hack"</b> to rebalance a neurotransmitter (-1 BC)</li>
+      <li><span class="c-d">Buffalo (gold)</span> = Dopamine reward · <span class="c-n">Wolf (red)</span> = Norepinephrine</li>
+      <li><span class="c-a">Eagle (cyan)</span> = Acetylcholine · <span class="c-s">Elk (teal)</span> = Serotonin · <span class="c-g">Scatter (purple)</span> = bonus</li>
+      <li>Low NT triggers effects: <b>depression / anxiety / brain fog / seizure</b></li>
+      <li><b style="color:#4caf50">WIN</b>: all 5 NTs at 80+ · <b style="color:#ff3a3a">LOSE</b>: any NT at 0 or 20 spins used</li>
+    </ul>
+    <button class="start-btn" id="startBtn">DEAL ME IN</button>
+    <div class="warn">
+      Microphone access required. Chrome/Edge recommended. If unavailable, a typed fallback appears automatically.
+    </div>
+  </div>
+
+  <header>
+    <h1>
+      BUFFALO BRAIN
+      <span class="sub">Neurotransmitter Casino</span>
+    </h1>
+    <div class="status">
+      <div>SPINS <span class="v" id="spinCount">20</span>/20</div>
+      <div>SCORE <span class="v score-v" id="score">0</span></div>
+      <div>BC <span class="v bc-v" id="bc">5</span> · ADD <span class="v add-v" id="addiction">0</span></div>
+    </div>
+  </header>
+
+  <div class="meters" id="meters"></div>
+
+  <div class="casino">
+    <div class="slot-frame">
+      <canvas id="reels" width="300" height="300"></canvas>
+    </div>
+    <div class="effects-tag" id="effectsTag"></div>
+    <div class="addiction-bar" id="addictionBar" style="display:none">
+      ADDICTION RISK
+      <div style="flex:1;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;margin-left:4px">
+        <div class="a-fill" id="addictionFill" style="width:0%"></div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="btn-spin" id="spinBtn" disabled>SPIN</button>
+      <button class="btn-hack" id="hackBtn" disabled>HACK (-1 BC)</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-area">
+      <div class="card-header">
+        <div class="card-hint" id="cardHint">ADDITION</div>
+        <div style="font-size:10px;color:#666">
+          <span id="listenLabel">MIC OFF</span>
+          <span class="listen-dot" id="listenDot"></span>
+        </div>
+      </div>
+      <div class="card-problem" id="cardProblem">7 + 3 = ?</div>
+      <div class="transcript empty" id="transcript"><span class="interim">Say the answer…</span></div>
+      <div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>
+      <div class="fallback-link" id="fallbackLink" style="display:none">type instead ▾</div>
+      <div class="fallback-input" id="fallbackInput">
+        <input type="text" inputmode="numeric" pattern="[0-9]*" id="answerInput" autocomplete="off" />
+        <button id="answerSubmit">SUBMIT</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+'use strict';
+
+// =====================================================================
+// CONSTANTS
+// =====================================================================
+const SYMBOLS = ['buffalo','eagle','wolf','elk','scatter'];
+
+const NT = {
+  D: { name:'D', full:'Dopamine',     color:'#ffd700', glow:'rgba(255,215,0,0.5)',  cssClass:'c-d' },
+  S: { name:'S', full:'Serotonin',    color:'#26a69a', glow:'rgba(38,166,154,0.5)', cssClass:'c-s' },
+  N: { name:'N', full:'Norepinephrine', color:'#ef5350', glow:'rgba(239,83,80,0.5)',  cssClass:'c-n' },
+  A: { name:'A', full:'Acetylcholine', color:'#42a5f5', glow:'rgba(66,165,245,0.5)', cssClass:'c-a' },
+  G: { name:'G', full:'GABA',         color:'#ab47bc', glow:'rgba(171,71,188,0.5)', cssClass:'c-g' }
+};
+
+const PAYLINES = [
+  [0,1,2],[3,4,5],[6,7,8],   // rows
+  [0,3,6],[1,4,7],[2,5,8],   // cols
+  [0,4,8],[2,4,6]            // diags
+];
+
+const CARD_TIMER = 8000;
+const SPIN_BASE_MS = 1600;
+const SEIZURE_SPINS = 3;
+
+// =====================================================================
+// STATE
+// =====================================================================
+const state = {
+  phase: 'start',     // start | card | armed | spinning | resolved | gameover
+  spinsLeft: 20,
+  spinNum: 0,         // 1..20
+  score: 0,
+  bc: 5,
+  hackedThisSpin: false,
+  addiction: 0,
+  seizureLeft: 0,
+  nt: { D:50, S:50, N:50, A:50, G:50 },
+  currentCard: null,
+  cardStartTs: 0,
+  grid: null,
+  gridFinal: null,
+  reelStops: [0,0,0],  // ms timestamps for each reel stop
+  reelSymbols: [null,null,null],
+  matches: [],
+  payout: 0,
+  resolvedAt: 0,
+  lastDelivered: 0    // index of last reel that delivered (for "seizure" shake)
+};
+
+// =====================================================================
+// DOM
+// =====================================================================
+const $ = id => document.getElementById(id);
+const dom = {
+  app: $('app'),
+  startScreen: $('startScreen'),
+  startBtn: $('startBtn'),
+  spinCount: $('spinCount'),
+  score: $('score'),
+  bc: $('bc'),
+  addiction: $('addiction'),
+  addictionBar: $('addictionBar'),
+  addictionFill: $('addictionFill'),
+  meters: $('meters'),
+  reels: $('reels'),
+  effectsTag: $('effectsTag'),
+  spinBtn: $('spinBtn'),
+  hackBtn: $('hackBtn'),
+  cardHint: $('cardHint'),
+  cardProblem: $('cardProblem'),
+  transcript: $('transcript'),
+  listenLabel: $('listenLabel'),
+  listenDot: $('listenDot'),
+  timerFill: $('timerFill'),
+  fallbackLink: $('fallbackLink'),
+  fallbackInput: $('fallbackInput'),
+  answerInput: $('answerInput'),
+  answerSubmit: $('answerSubmit')
+};
+const ctx = dom.reels.getContext('2d');
+
+// =====================================================================
+// AUDIO
+// =====================================================================
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e) { audioCtx = null; }
+  }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function tone(freq, dur, type, vol, slide) {
+  const c = getAudio();
+  if (!c) return;
+  const o = c.createOscillator();
+  const g = c.createGain();
+  o.type = type || 'sine';
+  o.frequency.value = freq;
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, c.currentTime + dur);
+  g.gain.value = vol != null ? vol : 0.08;
+  g.gain.exponentialRampToValueAtTime(0.0008, c.currentTime + dur);
+  o.connect(g); g.connect(c.destination);
+  o.start(); o.stop(c.currentTime + dur);
+}
+function sfxReelStop(i) { tone(280 + i*70, 0.08, 'triangle', 0.06); }
+function sfxMatch() {
+  tone(440, 0.1, 'sine', 0.07);
+  setTimeout(()=>tone(660, 0.12, 'sine', 0.06), 80);
+  setTimeout(()=>tone(880, 0.14, 'sine', 0.06), 160);
+}
+function sfxJackpot() {
+  [523, 659, 784, 1047, 1319, 1568].forEach((f,i) => {
+    setTimeout(()=>tone(f, 0.22, 'triangle', 0.09), i*90);
+  });
+}
+function sfxMiss() {
+  tone(200, 0.25, 'sawtooth', 0.05);
+  setTimeout(()=>tone(150, 0.3, 'sawtooth', 0.04), 100);
+}
+function sfxHack() {
+  tone(700, 0.08, 'sine', 0.06);
+  setTimeout(()=>tone(1000, 0.1, 'sine', 0.06), 70);
+  setTimeout(()=>tone(1400, 0.15, 'sine', 0.06), 140);
+}
+function sfxWin() {
+  [523, 659, 784, 1047, 1319].forEach((f,i) => {
+    setTimeout(()=>tone(f, 0.4, 'sine', 0.1), i*180);
+  });
+}
+function sfxLose() {
+  [440, 392, 349, 294, 247].forEach((f,i) => {
+    setTimeout(()=>tone(f, 0.4, 'sawtooth', 0.07), i*220);
+  });
+}
+function sfxCardCorrect() { tone(880, 0.08, 'sine', 0.06); setTimeout(()=>tone(1320, 0.12, 'sine', 0.06), 60); }
+function sfxCardWrong() { tone(220, 0.2, 'square', 0.05); }
+function sfxClick() { tone(600, 0.04, 'sine', 0.04); }
+
+// =====================================================================
+// METERS UI
+// =====================================================================
+function buildMeters() {
+  dom.meters.innerHTML = '';
+  ['D','S','N','A','G'].forEach(k => {
+    const m = document.createElement('div');
+    m.className = 'meter';
+    m.dataset.k = k;
+    m.innerHTML = `
+      <div class="name" style="color:${NT[k].color}">${NT[k].name}</div>
+      <div class="bar">
+        <div class="fill" style="background:linear-gradient(90deg,${NT[k].color}88,${NT[k].color});width:50%"></div>
+        <div class="threshold" style="left:30%"></div>
+        <div class="threshold" style="left:70%"></div>
+        <div class="threshold" style="left:80%"></div>
+      </div>
+      <div class="v" style="color:${NT[k].color}">50</div>
+    `;
+    dom.meters.appendChild(m);
+  });
+}
+function setNT(k, v) {
+  v = Math.max(0, Math.min(100, Math.round(v)));
+  state.nt[k] = v;
+  const el = dom.meters.querySelector(`.meter[data-k="${k}"]`);
+  if (el) {
+    el.querySelector('.fill').style.width = v + '%';
+    el.querySelector('.v').textContent = v;
+    if (v <= 15) el.classList.add('critical'); else el.classList.remove('critical');
+  }
+}
+function flashMeter(k, kind) {
+  const el = dom.meters.querySelector(`.meter[data-k="${k}"]`);
+  if (!el) return;
+  el.classList.remove('boost','drain');
+  void el.offsetWidth;
+  el.classList.add(kind);
+  setTimeout(() => el.classList.remove(kind), 600);
+}
+
+// =====================================================================
+// EFFECTS (status text + flags)
+// =====================================================================
+function updateEffects() {
+  const tags = [];
+  if (state.nt.S < 30) tags.push('🩸 DEPRESSION (×½)');
+  if (state.nt.N > 70) tags.push('⚡ ANXIETY (4s timer)');
+  if (state.nt.A < 30) tags.push('🌫️ BRAIN FOG (harder math)');
+  if (state.nt.G < 20) tags.push(`⚠️ SEIZURE (${state.seizureLeft} left)`);
+  dom.effectsTag.textContent = tags.join('  ·  ');
+}
+
+// =====================================================================
+// MATH PROBLEM GENERATION
+// =====================================================================
+function randInt(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
+
+function generateProblem(spinNum) {
+  // Difficulty tiers
+  // 1-5:  single-digit +/-
+  // 6-10: two-digit   +/-
+  // 11-15: single-digit ×/÷
+  // 16-20: two-digit ×/÷ and three-digit +/-
+  let q, a, hint;
+  if (spinNum <= 5) {
+    const sub = Math.random() < 0.5;
+    if (sub) {
+      let x = randInt(3, 9), y = randInt(1, x-1);
+      q = x + ' − ' + y;
+      a = x - y;
+    } else {
+      const x = randInt(1, 9), y = randInt(1, 9);
+      q = x + ' + ' + y;
+      a = x + y;
+    }
+    hint = 'SINGLE-DIGIT ' + (q.includes('+') ? 'ADD' : 'SUB');
+  } else if (spinNum <= 10) {
+    const sub = Math.random() < 0.5;
+    if (sub) {
+      let x = randInt(20, 99), y = randInt(1, x-1);
+      q = x + ' − ' + y;
+      a = x - y;
+    } else {
+      const x = randInt(10, 99), y = randInt(10, 99);
+      q = x + ' + ' + y;
+      a = x + y;
+    }
+    hint = 'TWO-DIGIT ' + (q.includes('+') ? 'ADD' : 'SUB');
+  } else if (spinNum <= 15) {
+    const div = Math.random() < 0.5;
+    if (div) {
+      const y = randInt(2, 9);
+      const qx = randInt(2, 9);
+      q = (y*qx) + ' ÷ ' + y;
+      a = qx;
+    } else {
+      const x = randInt(2, 9), y = randInt(2, 9);
+      q = x + ' × ' + y;
+      a = x * y;
+    }
+    hint = 'SINGLE-DIGIT ' + (q.includes('×') ? 'MULT' : 'DIV');
+  } else {
+    // 16-20: two-digit ×/÷ and three-digit +/-
+    const r = Math.random();
+    if (r < 0.4) {
+      // two-digit ×
+      const x = randInt(11, 19);
+      const y = randInt(2, 9);
+      q = x + ' × ' + y;
+      a = x * y;
+      hint = 'TWO-DIGIT MULT';
+    } else if (r < 0.7) {
+      // ÷ (clean)
+      const y = randInt(2, 9);
+      const qx = randInt(11, 19);
+      q = (y*qx) + ' ÷ ' + y;
+      a = qx;
+      hint = 'TWO-DIGIT DIV';
+    } else if (r < 0.85) {
+      // three-digit +
+      const x = randInt(100, 999), y = randInt(100, 999);
+      q = x + ' + ' + y;
+      a = x + y;
+      hint = 'THREE-DIGIT ADD';
+    } else {
+      // three-digit −
+      let x = randInt(200, 999), y = randInt(100, x-1);
+      q = x + ' − ' + y;
+      a = x - y;
+      hint = 'THREE-DIGIT SUB';
+    }
+  }
+  // brain fog: hide hint
+  if (state.nt.A < 30) hint = '· · ·';
+  return { q, a, hint };
+}
+
+// =====================================================================
+// SPEECH RECOGNITION
+// =====================================================================
+let recognition = null;
+let recognitionActive = false;
+let recognitionWanted = false;
+let speechAvailable = false;
+let fallbackMode = false;
+
+function initSpeechRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return false;
+  speechAvailable = true;
+  recognition = new SR();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+  recognition.maxAlternatives = 3;
+
+  recognition.onstart = () => {
+    recognitionActive = true;
+    updateListenUI();
+  };
+  recognition.onend = () => {
+    recognitionActive = false;
+    if (recognitionWanted) {
+      try { recognition.start(); } catch(e) { /* swallow */ }
+    } else {
+      updateListenUI();
+    }
+  };
+  recognition.onerror = (e) => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      // Mic blocked → switch to fallback
+      enableFallback();
+      recognitionWanted = false;
+    } else if (e.error === 'no-speech') {
+      // Just restart
+      if (recognitionWanted) {
+        try { recognition.start(); } catch(e2) {}
+      }
+    }
+  };
+  recognition.onresult = (e) => {
+    if (state.phase !== 'card') return;
+    let interim = '';
+    let final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const tr = e.results[i][0].transcript;
+      if (e.results[i].isFinal) final += tr;
+      else interim += tr;
+    }
+    const spoken = (final + ' ' + interim).toLowerCase().trim();
+    updateTranscriptDisplay(final, interim);
+
+    // Commands
+    if (/\bpass\b/.test(spoken) && !state.currentAnswered) {
+      handlePass();
+      return;
+    }
+    if (/\bhack\b/.test(spoken) && !state.currentAnswered) {
+      handleVoiceHack();
+      return;
+    }
+
+    // Number match
+    if (state.currentCard && !state.currentAnswered) {
+      const n = extractNumber(spoken);
+      if (n !== null && n === state.currentCard.a) {
+        handleCardCorrect();
+      }
+    }
+  };
+  return true;
+}
+
+function startListening() {
+  if (!recognition) return;
+  recognitionWanted = true;
+  try { recognition.start(); } catch(e) { /* may already be running */ }
+}
+function stopListening() {
+  recognitionWanted = false;
+  if (recognition) {
+    try { recognition.stop(); } catch(e) {}
+  }
+}
+
+function updateListenUI() {
+  if (recognitionActive) {
+    dom.listenLabel.textContent = 'LISTENING';
+    dom.listenDot.classList.add('active');
+  } else {
+    dom.listenLabel.textContent = recognitionWanted ? 'STARTING…' : 'MIC OFF';
+    dom.listenDot.classList.remove('active');
+  }
+}
+
+function updateTranscriptDisplay(final, interim) {
+  let html = '';
+  if (final) html += '<span class="final">' + escHtml(final) + '</span>';
+  if (interim) html += '<span class="interim">' + escHtml(interim) + '</span>';
+  if (!html) {
+    html = '<span class="interim">Say the answer…</span>';
+    dom.transcript.classList.add('empty');
+  } else {
+    dom.transcript.classList.remove('empty');
+  }
+  dom.transcript.innerHTML = html;
+}
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+
+const WORD_NUMS = {
+  zero:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9,
+  ten:10, eleven:11, twelve:12, thirteen:13, fourteen:14, fifteen:15, sixteen:16, seventeen:17, eighteen:18, nineteen:19,
+  twenty:20, thirty:30, forty:40, fifty:50, sixty:60, seventy:70, eighty:80, ninety:90,
+  hundred:100, thousand:1000
+};
+
+function normalizeText(s) {
+  return s.toLowerCase().trim()
+    .replace(/[.,!?;:'"()\-\u2013\u2014]/g,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function extractNumber(text) {
+  if (text == null) return null;
+  const s = normalizeText(text);
+
+  // Try direct digit match first
+  const m = s.match(/-?\d+/);
+  if (m) return parseInt(m[0], 10);
+
+  // Word-based: handle "twenty one", "fifty five", etc.
+  const tokens = s.split(' ').filter(t => t && t !== 'negative' && t !== 'minus');
+  let total = 0, current = 0, found = false;
+  for (const tok of tokens) {
+    if (WORD_NUMS[tok] !== undefined) {
+      found = true;
+      const v = WORD_NUMS[tok];
+      if (v === 100) { current = (current || 1) * 100; }
+      else if (v === 1000) { current = (current || 1) * 1000; total += current; current = 0; }
+      else if (v >= 20) { current += v; }
+      else { current += v; }
+    }
+  }
+  total += current;
+  if (!found) return null;
+  return total;
+}
+
+// =====================================================================
+// FALLBACK TYPED INPUT
+// =====================================================================
+function enableFallback() {
+  fallbackMode = true;
+  speechAvailable = false;
+  dom.fallbackLink.style.display = 'block';
+  // don't show input by default — just the link
+  dom.fallbackLink.onclick = () => {
+    dom.fallbackInput.classList.add('show');
+    dom.answerInput.focus();
+  };
+}
+
+// =====================================================================
+// SYMBOL DRAWING
+// =====================================================================
+function drawRoundRect(c, x, y, w, h, r) {
+  if (typeof r === 'number') r = {tl:r,tr:r,br:r,bl:r};
+  c.beginPath();
+  c.moveTo(x+r.tl,y);
+  c.lineTo(x+w-r.tr,y); c.quadraticCurveTo(x+w,y,x+w,y+r.tr);
+  c.lineTo(x+w,y+h-r.br); c.quadraticCurveTo(x+w,y+h,x+w-r.br,y+h);
+  c.lineTo(x+r.bl,y+h); c.quadraticCurveTo(x,y+h,x,y+h-r.bl);
+  c.lineTo(x,y+r.tl); c.quadraticCurveTo(x,y,x+r.tl,y);
+  c.closePath();
+}
+
+function drawStar(c, cx, cy, points, outerR, innerR, rot) {
+  c.beginPath();
+  for (let i = 0; i < points*2; i++) {
+    const r = i%2===0 ? outerR : innerR;
+    const a = (Math.PI * i) / points - Math.PI/2 + (rot||0);
+    const x = cx + Math.cos(a)*r;
+    const y = cy + Math.sin(a)*r;
+    if (i === 0) c.moveTo(x,y); else c.lineTo(x,y);
+  }
+  c.closePath();
+}
+
+function drawSymbol(c, sym, x, y, size, opts) {
+  opts = opts || {};
+  const dim = !!opts.dim;
+  const shake = opts.shake || 0;
+  x += (Math.random() - 0.5) * shake;
+  y += (Math.random() - 0.5) * shake;
+  const cx = x + size/2, cy = y + size/2;
+  c.save();
+
+  if (dim) c.globalAlpha = 0.5;
+
+  switch (sym) {
+    case 'buffalo': {
+      // Body
+      c.fillStyle = '#6d4c2e';
+      drawRoundRect(c, x+10, y+38, size-20, 30, 8); c.fill();
+      // Belly highlight
+      c.fillStyle = '#8d5a3a';
+      drawRoundRect(c, x+18, y+44, size-36, 18, 6); c.fill();
+      // Head
+      c.fillStyle = '#4a2f1d';
+      drawRoundRect(c, x+size/2-16, y+18, 32, 24, 6); c.fill();
+      // Snout
+      c.fillStyle = '#3a2412';
+      drawRoundRect(c, x+size/2-10, y+30, 20, 12, 4); c.fill();
+      // Horns
+      c.fillStyle = '#e0d8c0';
+      c.beginPath();
+      c.moveTo(x+size/2-14, y+22);
+      c.lineTo(x+size/2-20, y+8);
+      c.lineTo(x+size/2-12, y+20);
+      c.closePath(); c.fill();
+      c.beginPath();
+      c.moveTo(x+size/2+14, y+22);
+      c.lineTo(x+size/2+20, y+8);
+      c.lineTo(x+size/2+12, y+20);
+      c.closePath(); c.fill();
+      // Eye
+      c.fillStyle = '#fff';
+      c.beginPath(); c.arc(x+size/2-4, y+28, 2.2, 0, Math.PI*2); c.fill();
+      c.fillStyle = '#000';
+      c.beginPath(); c.arc(x+size/2-4, y+28, 1.2, 0, Math.PI*2); c.fill();
+      // Legs
+      c.fillStyle = '#4a2f1d';
+      c.fillRect(x+18, y+62, 8, 14);
+      c.fillRect(x+size-26, y+62, 8, 14);
+      break;
+    }
+    case 'eagle': {
+      // Body
+      c.fillStyle = '#0d47a1';
+      c.beginPath();
+      c.ellipse(cx, cy+8, 12, 24, 0, 0, Math.PI*2);
+      c.fill();
+      // Wings
+      c.fillStyle = '#1976d2';
+      c.beginPath();
+      c.moveTo(cx, cy-4);
+      c.quadraticCurveTo(cx-26, cy-20, cx-32, cy+4);
+      c.quadraticCurveTo(cx-18, cy+2, cx, cy+2);
+      c.closePath(); c.fill();
+      c.beginPath();
+      c.moveTo(cx, cy-4);
+      c.quadraticCurveTo(cx+26, cy-20, cx+32, cy+4);
+      c.quadraticCurveTo(cx+18, cy+2, cx, cy+2);
+      c.closePath(); c.fill();
+      // Wing tips
+      c.fillStyle = '#42a5f5';
+      c.beginPath();
+      c.moveTo(cx-30, cy+2); c.lineTo(cx-34, cy+8); c.lineTo(cx-26, cy+6);
+      c.closePath(); c.fill();
+      c.beginPath();
+      c.moveTo(cx+30, cy+2); c.lineTo(cx+34, cy+8); c.lineTo(cx+26, cy+6);
+      c.closePath(); c.fill();
+      // Head
+      c.fillStyle = '#fff';
+      c.beginPath(); c.arc(cx, y+12, 9, 0, Math.PI*2); c.fill();
+      // Beak
+      c.fillStyle = '#ff9800';
+      c.beginPath();
+      c.moveTo(cx, y+15); c.lineTo(cx+7, y+19); c.lineTo(cx, y+22);
+      c.closePath(); c.fill();
+      // Eye
+      c.fillStyle = '#000';
+      c.beginPath(); c.arc(cx+2, y+11, 1.5, 0, Math.PI*2); c.fill();
+      break;
+    }
+    case 'wolf': {
+      // Body
+      c.fillStyle = '#546e7a';
+      c.beginPath();
+      c.ellipse(cx-4, cy+10, 22, 14, 0, 0, Math.PI*2);
+      c.fill();
+      // Tail
+      c.fillStyle = '#37474f';
+      c.beginPath();
+      c.moveTo(cx-24, cy+8);
+      c.quadraticCurveTo(cx-36, cy+2, cx-32, cy-6);
+      c.quadraticCurveTo(cx-28, cy, cx-22, cy+4);
+      c.closePath(); c.fill();
+      // Head
+      c.fillStyle = '#455a64';
+      c.beginPath();
+      c.ellipse(cx+14, cy-2, 12, 11, 0, 0, Math.PI*2);
+      c.fill();
+      // Snout
+      c.beginPath();
+      c.ellipse(cx+24, cy+2, 6, 4, 0, 0, Math.PI*2);
+      c.fill();
+      // Ears
+      c.beginPath();
+      c.moveTo(cx+8, cy-10); c.lineTo(cx+6, cy-20); c.lineTo(cx+12, cy-9);
+      c.closePath(); c.fill();
+      c.beginPath();
+      c.moveTo(cx+16, cy-12); c.lineTo(cx+18, cy-22); c.lineTo(cx+22, cy-10);
+      c.closePath(); c.fill();
+      // Inner ear
+      c.fillStyle = '#ff8a80';
+      c.beginPath();
+      c.moveTo(cx+8, cy-11); c.lineTo(cx+8, cy-17); c.lineTo(cx+11, cy-10);
+      c.closePath(); c.fill();
+      // Legs
+      c.fillStyle = '#37474f';
+      c.fillRect(cx-16, cy+22, 6, 12);
+      c.fillRect(cx+8, cy+22, 6, 12);
+      // Eye
+      c.fillStyle = '#ffeb3b';
+      c.beginPath(); c.arc(cx+14, cy-4, 1.6, 0, Math.PI*2); c.fill();
+      c.fillStyle = '#000';
+      c.beginPath(); c.arc(cx+14, cy-4, 0.8, 0, Math.PI*2); c.fill();
+      // Nose
+      c.fillStyle = '#000';
+      c.beginPath(); c.arc(cx+29, cy+2, 1.5, 0, Math.PI*2); c.fill();
+      break;
+    }
+    case 'elk': {
+      // Body
+      c.fillStyle = '#a1887f';
+      c.beginPath();
+      c.ellipse(cx+4, cy+12, 22, 13, 0, 0, Math.PI*2);
+      c.fill();
+      // Neck
+      c.fillStyle = '#8d6e63';
+      c.beginPath();
+      c.moveTo(cx-12, cy+6);
+      c.lineTo(cx-18, cy-8);
+      c.lineTo(cx-12, cy-8);
+      c.lineTo(cx-6, cy+6);
+      c.closePath(); c.fill();
+      // Head
+      c.fillStyle = '#6d4c41';
+      c.beginPath();
+      c.ellipse(cx-16, cy-10, 7, 9, 0, 0, Math.PI*2);
+      c.fill();
+      // Antlers
+      c.strokeStyle = '#5d4037';
+      c.lineWidth = 2.2;
+      c.lineCap = 'round';
+      c.beginPath();
+      c.moveTo(cx-18, cy-16);
+      c.lineTo(cx-26, cy-28);
+      c.moveTo(cx-26, cy-28);
+      c.lineTo(cx-32, cy-30);
+      c.moveTo(cx-26, cy-28);
+      c.lineTo(cx-28, cy-36);
+      c.moveTo(cx-20, cy-22);
+      c.lineTo(cx-24, cy-26);
+      c.stroke();
+      c.beginPath();
+      c.moveTo(cx-12, cy-16);
+      c.lineTo(cx-6, cy-28);
+      c.moveTo(cx-6, cy-28);
+      c.lineTo(cx, cy-30);
+      c.moveTo(cx-6, cy-28);
+      c.lineTo(cx-4, cy-36);
+      c.moveTo(cx-10, cy-22);
+      c.lineTo(cx-6, cy-26);
+      c.stroke();
+      // Legs
+      c.fillStyle = '#5d4037';
+      c.fillRect(cx-4, cy+22, 5, 12);
+      c.fillRect(cx+12, cy+22, 5, 12);
+      // Eye
+      c.fillStyle = '#000';
+      c.beginPath(); c.arc(cx-18, cy-12, 1.2, 0, Math.PI*2); c.fill();
+      // Snout
+      c.fillStyle = '#3e2723';
+      c.fillRect(cx-22, cy-7, 4, 3);
+      break;
+    }
+    case 'scatter': {
+      // Outer glow
+      const grad = c.createRadialGradient(cx, cy, 0, cx, cy, size*0.7);
+      grad.addColorStop(0, 'rgba(255,215,0,0.6)');
+      grad.addColorStop(0.4, 'rgba(255,180,0,0.25)');
+      grad.addColorStop(1, 'rgba(255,180,0,0)');
+      c.fillStyle = grad;
+      c.fillRect(x, y, size, size);
+      // Star
+      c.fillStyle = '#ffd700';
+      c.strokeStyle = '#fff8dc';
+      c.lineWidth = 1.5;
+      drawStar(c, cx, cy, 5, size/2 - 8, (size/2 - 8)*0.42, 0);
+      c.fill(); c.stroke();
+      // Inner shine
+      c.fillStyle = 'rgba(255,255,255,0.5)';
+      drawStar(c, cx-3, cy-3, 5, size/2 - 16, (size/2 - 16)*0.4, 0);
+      c.fill();
+      // Sparkles
+      c.fillStyle = '#fff';
+      [[x+10,y+10],[x+size-12,y+8],[x+size-8,y+size-12],[x+8,y+size-10]].forEach(([sx,sy])=>{
+        c.beginPath(); c.arc(sx,sy,1.5,0,Math.PI*2); c.fill();
+      });
+      break;
+    }
+  }
+  c.restore();
+}
+
+// =====================================================================
+// SLOT MACHINE
+// =====================================================================
+function newGrid() {
+  const g = new Array(9);
+  for (let i = 0; i < 9; i++) g[i] = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+  return g;
+}
+
+function evaluateSpin(grid) {
+  let payout = 0;
+  const matches = [];
+  const counts = {};
+  for (const s of grid) counts[s] = (counts[s] || 0) + 1;
+
+  // 3-of-a-kind on paylines
+  PAYLINES.forEach((line, idx) => {
+    const [a,b,c] = line;
+    if (grid[a] === grid[b] && grid[b] === grid[c] && grid[a] !== 'scatter') {
+      const sym = grid[a];
+      const mult = 1 + Math.floor(Math.random() * 5);
+      const p = 100 * mult;
+      payout += p;
+      matches.push({ line: idx, symbol: sym, mult, payout: p, kind: '3-kind' });
+    }
+  });
+
+  // 2-of-a-kind (any symbol appears 2+ times, no 3-kind for that symbol)
+  for (const [sym, n] of Object.entries(counts)) {
+    if (sym === 'scatter') continue;
+    if (n >= 2 && !matches.some(m => m.kind === '3-kind' && m.symbol === sym)) {
+      payout += 25;
+      matches.push({ line: -1, symbol: sym, mult: 1, payout: 25, kind: '2-kind' });
+    }
+  }
+
+  // 3+ scatters anywhere
+  if (counts['scatter'] >= 3) {
+    payout += 200;
+    matches.push({ line: -1, symbol: 'scatter', mult: 1, payout: 200, kind: 'scatter' });
+  }
+
+  // Depression: multipliers halved
+  if (state.nt.S < 30) {
+    payout = Math.floor(payout * 0.5);
+    matches.forEach(m => m.payout = Math.floor(m.payout * 0.5));
+  }
+
+  return { payout, matches, counts };
+}
+
+function applyNeurochem(matches, counts) {
+  const changes = [];
+  // Symbol-specific neurochem (only if 3+ of that symbol anywhere on grid)
+  if ((counts['buffalo'] || 0) >= 3) {
+    setNT('D', state.nt.D + 30); flashMeter('D','boost'); changes.push('D+30');
+    setNT('S', state.nt.S - 5); flashMeter('S','drain'); changes.push('S-5');
+  }
+  if ((counts['wolf'] || 0) >= 3) {
+    setNT('N', state.nt.N + 40); flashMeter('N','boost'); changes.push('N+40');
+  }
+  if ((counts['eagle'] || 0) >= 3) {
+    setNT('A', state.nt.A + 30); flashMeter('A','boost'); changes.push('A+30');
+  }
+  // Jackpot: any 3-kind with mult >= 2 → +50 D, +5 addiction
+  matches.forEach(m => {
+    if (m.kind === '3-kind' && m.mult >= 2) {
+      setNT('D', state.nt.D + 50); flashMeter('D','boost'); changes.push('D+50 JP');
+      state.addiction += 5;
+      changes.push('ADD+5');
+    }
+  });
+  return changes;
+}
+
+let renderRAF = null;
+let spinStart = 0;
+let spinActive = false;
+let spinningGrid = new Array(9).fill(null);
+
+function renderReels() {
+  const W = 300, H = 300;
+  ctx.clearRect(0, 0, W, H);
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,215,0,0.35)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 1; i < 3; i++) {
+    ctx.moveTo(i*100, 6); ctx.lineTo(i*100, H-6);
+    ctx.moveTo(6, i*100); ctx.lineTo(W-6, i*100);
+  }
+  ctx.stroke();
+  // Outer frame
+  ctx.strokeStyle = 'rgba(255,215,0,0.7)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(4, 4, W-8, H-8);
+
+  for (let i = 0; i < 9; i++) {
+    const r = Math.floor(i/3), col = i%3;
+    const x = 6 + col*100;
+    const y = 6 + r*100;
+
+    if (spinActive) {
+      // rapidly changing symbol
+      const sym = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+      drawSymbol(ctx, sym, x, y, 88, { shake: 4 });
+    } else {
+      const grid = state.grid;
+      if (grid) {
+        const sym = grid[i];
+        drawSymbol(ctx, sym, x, y, 88, {});
+      }
+    }
+  }
+
+  // Highlight winning cells
+  if (!spinActive && state.matches && state.matches.length) {
+    ctx.lineWidth = 3;
+    state.matches.forEach(m => {
+      if (m.line < 0) return; // skip non-payline matches for highlight
+      const cells = PAYLINES[m.line];
+      ctx.strokeStyle = m.kind === '3-kind' && m.mult >= 2 ? '#ffd700' : '#42a5f5';
+      cells.forEach(cell => {
+        const r = Math.floor(cell/3), col = cell%3;
+        const x = 6 + col*100, y = 6 + r*100;
+        ctx.strokeRect(x+3, y+3, 94, 94);
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.shadowBlur = 12;
+        ctx.strokeRect(x+3, y+3, 94, 94);
+        ctx.shadowBlur = 0;
+      });
+    });
+  }
+}
+
+function startRenderLoop() {
+  function loop() {
+    renderReels();
+    renderRAF = requestAnimationFrame(loop);
+  }
+  if (!renderRAF) loop();
+}
+function stopRenderLoop() {
+  if (renderRAF) cancelAnimationFrame(renderRAF);
+  renderRAF = null;
+}
+
+function startSpin() {
+  if (state.phase !== 'armed' && state.phase !== 'spinning') return;
+  state.phase = 'spinning';
+  dom.spinBtn.disabled = true;
+  dom.spinBtn.classList.remove('armed');
+  dom.hackBtn.disabled = true;
+  stopListening();
+
+  state.gridFinal = newGrid();
+  const now = performance.now();
+  spinStart = now;
+  spinActive = true;
+  // Stagger reel stops
+  state.reelStops = [now + 600, now + 1100, now + 1600];
+
+  // First reel stop sound
+  setTimeout(() => { sfxReelStop(0); updateReel(0); }, 600);
+  setTimeout(() => { sfxReelStop(1); updateReel(1); }, 1100);
+  setTimeout(() => { sfxReelStop(2); updateReel(2); }, 1600);
+
+  // End of spin
+  setTimeout(finishSpin, 1900);
+}
+
+function updateReel(col) {
+  // Lock column symbols
+  for (let r = 0; r < 3; r++) {
+    spinningGrid[r*3 + col] = state.gridFinal[r*3 + col];
+  }
+  state.grid = spinningGrid.slice();
+}
+
+function finishSpin() {
+  spinActive = false;
+  state.grid = state.gridFinal.slice();
+
+  // Seizure: keep the visual but maybe shake more on next spin
+  const { payout, matches, counts } = evaluateSpin(state.grid);
+  state.payout = payout;
+  state.matches = matches;
+
+  // Seizure deduction
+  if (state.seizureLeft > 0) {
+    setNT('G', state.nt.G - 5);
+    flashMeter('G','drain');
+    state.seizureLeft--;
+  }
+
+  const chemChanges = applyNeurochem(matches, counts);
+
+  // SFX
+  const isJackpot = matches.some(m => m.kind === '3-kind' && m.mult >= 2);
+  if (matches.length > 0) {
+    if (isJackpot) sfxJackpot(); else sfxMatch();
+  } else {
+    sfxMiss();
+  }
+
+  // Score
+  state.score += payout;
+  dom.score.textContent = state.score;
+
+  // Spin counter
+  state.spinsLeft--;
+  state.spinNum++;
+  dom.spinCount.textContent = state.spinsLeft;
+
+  // Re-render
+  renderReels();
+
+  // Status message
+  let msg = payout > 0 ? `+${payout} POINTS` : 'NO MATCH';
+  if (chemChanges.length) msg += ' · ' + chemChanges.join(' ');
+  showMessage(msg, payout > 0 ? 'good' : 'bad');
+
+  // Addiction UI
+  dom.addiction.textContent = state.addiction;
+  if (state.addiction >= 10) {
+    dom.addictionBar.style.display = 'flex';
+    dom.addictionFill.style.width = Math.min(100, state.addiction) + '%';
+  }
+
+  state.phase = 'resolved';
+  state.resolvedAt = performance.now();
+  state.hackedThisSpin = false;
+
+  updateEffects();
+  checkEndConditions();
+  if (state.phase === 'resolved') {
+    setTimeout(() => nextCard(), 1800);
+  }
+}
+
+// =====================================================================
+// MESSAGE TOAST
+// =====================================================================
+let msgEl = null, msgTimeout = null;
+function showMessage(text, kind) {
+  if (!msgEl) {
+    msgEl = document.createElement('div');
+    msgEl.className = 'msg';
+    document.body.appendChild(msgEl);
+  }
+  msgEl.className = 'msg ' + (kind || 'info');
+  msgEl.textContent = text;
+  requestAnimationFrame(() => msgEl.classList.add('show'));
+  if (msgTimeout) clearTimeout(msgTimeout);
+  msgTimeout = setTimeout(() => msgEl.classList.remove('show'), 1500);
+}
+
+// =====================================================================
+// CARD HANDLERS
+// =====================================================================
+function handleCardCorrect() {
+  if (state.phase !== 'card' || !state.currentCard) return;
+  state.currentAnswered = true;
+  sfxCardCorrect();
+  state.phase = 'armed';
+  dom.cardHint.textContent = '✓ LOCKED — TAP SPIN';
+  dom.spinBtn.disabled = false;
+  dom.spinBtn.classList.add('armed');
+  stopListening();
+  // Auto-spin after 1.5s if user doesn't click
+  setTimeout(() => {
+    if (state.phase === 'armed') startSpin();
+  }, 1800);
+}
+
+function handlePass() {
+  if (state.phase !== 'card') return;
+  state.currentAnswered = true;
+  sfxCardWrong();
+  setNT('G', state.nt.G - 10);
+  flashMeter('G', 'drain');
+  showMessage('PASS — GABA −10', 'bad');
+  // consume spin
+  state.spinsLeft--;
+  state.spinNum++;
+  dom.spinCount.textContent = state.spinsLeft;
+  stopListening();
+  state.hackedThisSpin = false;
+  state.phase = 'resolved';
+  state.resolvedAt = performance.now();
+  setTimeout(() => {
+    if (state.phase === 'resolved') {
+      state.currentCard = null;
+      checkEndConditions();
+      if (state.phase === 'resolved') nextCard();
+    }
+  }, 1200);
+}
+
+function handleVoiceHack() {
+  if (state.bc <= 0 || state.hackedThisSpin) {
+    showMessage('HACK UNAVAILABLE', 'bad');
+    return;
+  }
+  // Open hack picker
+  stopListening();
+  openHackPicker();
+}
+
+function submitTypedAnswer() {
+  const v = dom.answerInput.value.trim();
+  if (v === '' || state.phase !== 'card' || !state.currentCard || state.currentAnswered) return;
+  const n = parseInt(v, 10);
+  if (isNaN(n)) return;
+  if (n === state.currentCard.a) {
+    handleCardCorrect();
+  } else {
+    sfxCardWrong();
+    showMessage('WRONG — GABA −10', 'bad');
+    setNT('G', state.nt.G - 10);
+    flashMeter('G', 'drain');
+    state.currentAnswered = true;
+    state.spinsLeft--;
+    state.spinNum++;
+    dom.spinCount.textContent = state.spinsLeft;
+    stopListening();
+    state.phase = 'resolved';
+    state.hackedThisSpin = false;
+    setTimeout(() => {
+      if (state.phase === 'resolved') {
+        state.currentCard = null;
+        checkEndConditions();
+        if (state.phase === 'resolved') nextCard();
+      }
+    }, 1200);
+  }
+}
+
+function nextCard() {
+  state.currentCard = null;
+  state.currentAnswered = false;
+  state.phase = 'card';
+  state.cardStartTs = performance.now();
+
+  // Generate next problem based on spin number (next spin to be played)
+  const problemSpin = state.spinNum + 1;
+  if (problemSpin > 20 || state.spinsLeft <= 0) {
+    checkEndConditions();
+    return;
+  }
+  const card = generateProblem(problemSpin);
+  state.currentCard = card;
+  dom.cardProblem.innerHTML = card.q.replace(/ /g, '&nbsp;') + ' <span class="eq">= ?</span>';
+  dom.cardHint.textContent = card.hint;
+  dom.transcript.innerHTML = '<span class="interim">Say the answer…</span>';
+  dom.transcript.classList.add('empty');
+  dom.timerFill.style.width = '100%';
+  dom.answerInput.value = '';
+
+  // HACK button: enabled if BC > 0 and !hackedThisSpin
+  updateHackButton();
+
+  // Listen
+  if (!fallbackMode && recognition) {
+    startListening();
+    // Safety: if recognition doesn't start within 2s, fall back to typed input
+    setTimeout(() => {
+      if (state.phase === 'card' && !recognitionActive && !fallbackMode) {
+        enableFallback();
+        dom.fallbackLink.style.display = 'block';
+        showMessage('VOICE UNAVAILABLE — TYPE INSTEAD', 'info');
+      }
+    }, 2000);
+  } else {
+    // fallback: show link/area
+    enableFallback();
+    dom.fallbackLink.style.display = 'block';
+  }
+}
+
+function updateHackButton() {
+  const ok = state.bc > 0 && !state.hackedThisSpin && (state.phase === 'card' || state.phase === 'armed');
+  dom.hackBtn.disabled = !ok;
+}
+
+function tickCardTimer() {
+  if (state.phase !== 'card') return;
+  const elapsed = performance.now() - state.cardStartTs;
+  const timerMs = state.nt.N > 70 ? CARD_TIMER / 2 : CARD_TIMER; // anxiety halves timer
+  const remaining = Math.max(0, timerMs - elapsed);
+  const pct = (remaining / timerMs) * 100;
+  dom.timerFill.style.width = pct + '%';
+  if (pct < 30) dom.timerFill.classList.add('urgent'); else dom.timerFill.classList.remove('urgent');
+  if (remaining <= 0) {
+    // Timeout
+    handleCardTimeout();
+  }
+}
+
+function handleCardTimeout() {
+  if (state.phase !== 'card' || !state.currentCard) return;
+  state.currentAnswered = true;
+  sfxCardWrong();
+  setNT('G', state.nt.G - 10);
+  flashMeter('G', 'drain');
+  showMessage('TIMEOUT — GABA −10', 'bad');
+  state.spinsLeft--;
+  state.spinNum++;
+  dom.spinCount.textContent = state.spinsLeft;
+  stopListening();
+  state.phase = 'resolved';
+  state.hackedThisSpin = false;
+  setTimeout(() => {
+    if (state.phase === 'resolved') {
+      state.currentCard = null;
+      checkEndConditions();
+      if (state.phase === 'resolved') nextCard();
+    }
+  }, 1200);
+}
+
+// =====================================================================
+// HACK
+// =====================================================================
+function openHackPicker() {
+  if (state.hackedThisSpin || state.bc <= 0) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'hack-picker';
+  const inner = document.createElement('div');
+  inner.className = 'hack-picker-inner';
+  let html = '<h3>HACK: REBALANCE</h3><p>Spend 1 BC to boost +20. One random other NT will drop 5–15.</p><div class="grid">';
+  ['D','S','N','A','G'].forEach(k => {
+    html += `<div class="opt" data-k="${k}" style="border-color:${NT[k].color};color:${NT[k].color}">${NT[k].name}<br><span style="font-size:10px;color:#aaa">${state.nt[k]}</span></div>`;
+  });
+  html += '</div><button class="cancel">CANCEL</button>';
+  inner.innerHTML = html;
+  overlay.appendChild(inner);
+  dom.app.appendChild(overlay);
+  sfxClick();
+
+  inner.querySelectorAll('.opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const k = opt.dataset.k;
+      executeHack(k, overlay);
+    });
+  });
+  inner.querySelector('.cancel').addEventListener('click', () => {
+    sfxClick();
+    overlay.remove();
+    if (state.phase === 'card' && recognition) startListening();
+  });
+}
+
+function executeHack(target, overlay) {
+  if (state.bc <= 0) { overlay.remove(); return; }
+  state.bc--;
+  dom.bc.textContent = state.bc;
+  state.hackedThisSpin = true;
+
+  // Boost target +20
+  setNT(target, state.nt[target] + 20);
+  flashMeter(target, 'boost');
+
+  // Pick random OTHER NT to drain 5-15
+  const others = ['D','S','N','A','G'].filter(k => k !== target);
+  const victim = others[Math.floor(Math.random() * others.length)];
+  const drain = 5 + Math.floor(Math.random() * 11);
+  setNT(victim, state.nt[victim] - drain);
+  flashMeter(victim, 'drain');
+
+  sfxHack();
+  showMessage(`HACK: ${NT[target].name} +20, ${NT[victim].name} -${drain}`, 'info');
+  updateEffects();
+  updateHackButton();
+  overlay.remove();
+
+  checkEndConditions();
+
+  if (state.phase === 'card' && recognition) {
+    setTimeout(() => startListening(), 600);
+  }
+}
+
+// =====================================================================
+// END CONDITIONS
+// =====================================================================
+function checkEndConditions() {
+  // Win
+  if (state.nt.D >= 80 && state.nt.S >= 80 && state.nt.N >= 80 && state.nt.A >= 80 && state.nt.G >= 80) {
+    endGame('win');
+    return;
+  }
+  // Lose: any 0
+  for (const k of ['D','S','N','A','G']) {
+    if (state.nt[k] <= 0) {
+      endGame('lose', `${NT[k].full} depleted`);
+      return;
+    }
+  }
+  // Lose: out of spins
+  if (state.spinsLeft <= 0 && state.phase !== 'gameover') {
+    endGame('giveup');
+    return;
+  }
+}
+
+function endGame(kind, reason) {
+  state.phase = 'gameover';
+  stopListening();
+  stopRenderLoop();
+  if (kind === 'win') sfxWin(); else sfxLose();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  const modal = document.createElement('div');
+  modal.className = 'modal ' + (kind === 'win' ? 'win' : kind === 'lose' ? 'lose' : 'giveup');
+
+  let title, sub;
+  if (kind === 'win') { title = 'ENLIGHTENMENT'; sub = 'All neurotransmitters balanced. The brain thrives.'; }
+  else if (kind === 'lose') { title = 'BRAIN CRASH'; sub = reason || 'A neurotransmitter hit zero.'; }
+  else { title = 'GAVE UP'; sub = '20 spins used without enlightenment.'; }
+
+  modal.innerHTML = `
+    <h2>${title}</h2>
+    <p>${sub}</p>
+    <div class="score-final">${state.score}</div>
+    <div class="stat-line">Spins used: ${state.spinNum} / 20</div>
+    <div class="stat-line">D ${state.nt.D} · S ${state.nt.S} · N ${state.nt.N} · A ${state.nt.A} · G ${state.nt.G}</div>
+    <div class="stat-line">BC remaining: ${state.bc} · Addiction: ${state.addiction}</div>
+    <button id="restartBtn">PLAY AGAIN</button>
+  `;
+  overlay.appendChild(modal);
+  dom.app.appendChild(overlay);
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    overlay.remove();
+    location.reload();
+  });
+}
+
+// =====================================================================
+// START
+// =====================================================================
+function startGame() {
+  // Init UI
+  buildMeters();
+  ['D','S','N','A','G'].forEach(k => setNT(k, 50));
+  dom.spinCount.textContent = '20';
+  dom.score.textContent = '0';
+  dom.bc.textContent = '5';
+  dom.addiction.textContent = '0';
+  dom.addictionBar.style.display = 'none';
+
+  // Init speech
+  if (!initSpeechRecognition()) {
+    enableFallback();
+  }
+
+  // Start render loop
+  startRenderLoop();
+  state.grid = newGrid();
+  renderReels();
+
+  // Begin first card
+  nextCard();
+}
+
+// =====================================================================
+// EVENT WIRING
+// =====================================================================
+dom.startBtn.addEventListener('click', () => {
+  sfxClick();
+  dom.startScreen.style.display = 'none';
+  startGame();
+});
+dom.spinBtn.addEventListener('click', () => {
+  sfxClick();
+  if (state.phase === 'armed') startSpin();
+});
+dom.hackBtn.addEventListener('click', () => {
+  sfxClick();
+  openHackPicker();
+});
+dom.answerInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') submitTypedAnswer();
+});
+dom.answerSubmit.addEventListener('click', submitTypedAnswer);
+dom.fallbackLink.addEventListener('click', () => {
+  sfxClick();
+  dom.fallbackInput.classList.add('show');
+  dom.answerInput.focus();
+});
+
+// Periodic timer for card
+setInterval(tickCardTimer, 80);
+
+// First-tap unlocks audio context
+function unlockAudio() {
+  getAudio();
+  document.removeEventListener('click', unlockAudio);
+  document.removeEventListener('touchstart', unlockAudio);
+  document.removeEventListener('keydown', unlockAudio);
+}
+document.addEventListener('click', unlockAudio, { once: false });
+document.addEventListener('touchstart', unlockAudio, { once: false });
+document.addEventListener('keydown', unlockAudio, { once: false });
+
+// Keyboard: number 1-9 also submits (for fallback / quick)
+document.addEventListener('keydown', (e) => {
+  if (state.phase !== 'card' || !state.currentCard || state.currentAnswered) return;
+  if (fallbackMode && document.activeElement === dom.answerInput) return; // let input handle
+  // Allow Enter to submit typed value if input is visible
+});
+
+// expose for testing
+window.__bb = { state, dom, startSpin, nextCard, handleCardCorrect, handlePass };
+
+})();
+</script>
+</body>
+</html>
