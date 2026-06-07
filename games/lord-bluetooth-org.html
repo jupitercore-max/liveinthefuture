@@ -32,6 +32,52 @@ canvas{display:block;width:600px;height:600px}
 .mc-btn.util{font-size:16px;min-width:44px}
 .mc-btn.hidden{display:none}
 .mc-hint{color:#888;font-size:10px;text-align:center;margin-top:2px}
+
+/* ═══ CYOA NARRATIVE OVERLAY ═══ */
+#cyoa-overlay{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at center,rgba(20,5,40,.92) 0%,rgba(0,0,0,.96) 70%);
+  padding:14px;font-family:system-ui,-apple-system,sans-serif}
+#cyoa-overlay.visible{display:flex;animation:cyoaFade .35s ease-out}
+#cyoa-overlay.fading{animation:cyoaFadeOut .3s ease-in forwards}
+@keyframes cyoaFade{from{opacity:0}to{opacity:1}}
+@keyframes cyoaFadeOut{from{opacity:1}to{opacity:0}}
+.cyoa-card{position:relative;width:100%;max-width:520px;max-height:calc(100vh - 40px);
+  background:linear-gradient(155deg,#1a0a3a 0%,#0d0524 60%,#1a0530 100%);
+  border:1px solid #7B1FA2;border-radius:14px;padding:18px 18px 14px;
+  color:#e8e8f0;box-shadow:0 0 0 1px rgba(123,31,162,.4),0 8px 40px rgba(123,31,162,.35);
+  display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+.cyoa-corner{position:absolute;width:18px;height:18px;border:2px solid #FFD700;opacity:.6}
+.cyoa-tl{top:6px;left:6px;border-right:none;border-bottom:none}
+.cyoa-tr{top:6px;right:6px;border-left:none;border-bottom:none}
+.cyoa-bl{bottom:6px;left:6px;border-right:none;border-top:none}
+.cyoa-br{bottom:6px;right:6px;border-left:none;border-top:none}
+.cyoa-header{display:flex;flex-direction:column;gap:2px;padding-bottom:6px;border-bottom:1px dashed rgba(255,215,0,.25)}
+.cyoa-chapter{font-size:11px;letter-spacing:2px;color:#FFD700;text-transform:uppercase;font-weight:700}
+.cyoa-role{font-size:13px;color:#42A5F5;font-style:italic}
+.cyoa-art{background:repeating-linear-gradient(45deg,rgba(123,31,162,.12) 0 6px,transparent 6px 14px),#0a0420;
+  border:1px dashed rgba(123,31,162,.5);border-radius:6px;padding:10px 12px;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:1.5;color:#b8a8d8;
+  white-space:pre-wrap;word-break:break-word}
+.cyoa-body{font-size:14px;line-height:1.55;color:#d8d8e8}
+.cyoa-quip{font-style:italic;color:#FFD700;font-size:13px;line-height:1.5;
+  padding:8px 12px;border-left:3px solid #FFD700;background:rgba(255,215,0,.05);border-radius:0 6px 6px 0}
+.cyoa-choices{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.cyoa-choice{display:flex;flex-direction:column;gap:3px;padding:11px 13px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(123,31,162,.5);border-radius:8px;
+  color:#e8e8f0;cursor:pointer;transition:all .15s;text-align:left;-webkit-tap-highlight-color:transparent}
+.cyoa-choice:hover,.cyoa-choice:focus{background:rgba(123,31,162,.18);border-color:#FFD700;outline:none}
+.cyoa-choice.active{background:rgba(255,215,0,.12);border-color:#FFD700;box-shadow:0 0 0 1px #FFD700 inset}
+.cyoa-choice.disabled{opacity:.45;cursor:not-allowed}
+.cyoa-choice-label{font-size:14px;font-weight:700;color:#FFD700;display:flex;align-items:center;gap:8px}
+.cyoa-choice-label .cyoa-num{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;background:#7B1FA2;color:#fff;font-size:12px}
+.cyoa-choice.active .cyoa-num{background:#FFD700;color:#1a0a3a}
+.cyoa-choice-desc{font-size:12px;color:#b8b8c8;line-height:1.4}
+.cyoa-choice-gate{font-size:11px;color:#F44336;font-style:italic;margin-top:2px}
+.cyoa-footer{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#888;padding-top:6px;border-top:1px solid rgba(123,31,162,.3)}
+.cyoa-mute{color:#888;cursor:pointer;user-select:none}
+.cyoa-mute.muted{color:#F44336}
+@media(max-width:480px){.cyoa-card{padding:14px 12px}.cyoa-art{font-size:10px;padding:8px 10px}.cyoa-body{font-size:13px}.cyoa-choice{padding:10px 11px}.cyoa-choice-label{font-size:13px}.cyoa-quip{font-size:12px;padding:7px 10px}}
+  .lb-cyoa-art{max-width:480px;width:100%;border:2px solid #FFD700;border-radius:6px;display:block;margin:8px auto;image-rendering:auto}
 </style>
 </head>
 <body>
@@ -53,6 +99,27 @@ canvas{display:block;width:600px;height:600px}
     <button class="mc-btn util" id="mb-mute">🔊</button>
   </div>
 </div>
+
+<!-- CYOA NARRATIVE OVERLAY -->
+<div id="cyoa-overlay" aria-hidden="true">
+  <div class="cyoa-card" id="cyoa-card">
+    <div class="cyoa-corner cyoa-tl"></div><div class="cyoa-corner cyoa-tr"></div>
+    <div class="cyoa-corner cyoa-bl"></div><div class="cyoa-corner cyoa-br"></div>
+    <div class="cyoa-header">
+      <div class="cyoa-chapter" id="cyoa-chapter">Chapter</div>
+      <div class="cyoa-role" id="cyoa-role">Acting Director of Connectivity</div>
+    </div>
+    <div class="cyoa-art" id="cyoa-art">[IMG placeholder]</div>
+    <div class="cyoa-body" id="cyoa-body">Body text.</div>
+    <div class="cyoa-quip" id="cyoa-quip"></div>
+    <div class="cyoa-choices" id="cyoa-choices"></div>
+    <div class="cyoa-footer">
+      <span id="cyoa-hint"></span>
+      <span class="cyoa-mute" id="cyoa-mute-btn">🔊 Voice</span>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
 "use strict";
@@ -242,8 +309,28 @@ var VF={
   boz_rap_battle:"audio/boz-rap-battle-beat.mp3",
   zuck_rap_response:"audio/zuck-rap-response-beat.mp3"
 };
-function playVoice(k){if(!VF[k])return;voiceQueue.push(k);if(!voicePlaying)pVQ()}
-function pVQ(){if(!voiceQueue.length){voicePlaying=false;return}voicePlaying=true;var k=voiceQueue.shift();var a=new Audio(VF[k]);a.volume=0.8;a.onended=pVQ;a.onerror=pVQ;a.play().catch(pVQ)}
+var voiceCurrentAudio=null;
+function playVoice(k){
+  if(!VF[k])return;
+  // Cross-cancel: stop any in-flight TTS so MP3 doesn't overlap.
+  if(cyoaSpeaking&&'speechSynthesis' in window){
+    try{window.speechSynthesis.cancel();}catch(e){}
+    cyoaSpeaking=false;
+  }
+  voiceQueue.push(k);
+  if(!voicePlaying)pVQ();
+}
+function pVQ(){
+  if(!voiceQueue.length){voicePlaying=false;voiceCurrentAudio=null;return}
+  voicePlaying=true;
+  var k=voiceQueue.shift();
+  var a=new Audio(VF[k]);
+  voiceCurrentAudio=a;
+  a.volume=0.8;
+  a.onended=function(){voiceCurrentAudio=null;pVQ();};
+  a.onerror=function(){voiceCurrentAudio=null;pVQ();};
+  a.play().catch(function(){voiceCurrentAudio=null;pVQ();});
+}
 
 // Synth sounds
 function tone(f,d,t,v){if(!audioCtx)return;var o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=t||"sine";o.frequency.value=f;g.gain.setValueAtTime(v||0.1,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+d);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+d)}
@@ -268,7 +355,7 @@ function updateMic(){if(!analyser)return;var d=new Uint8Array(analyser.frequency
 // ═══════════════════════════════════════════════════════════════
 // GAME CONSTANTS
 // ═══════════════════════════════════════════════════════════════
-var ST_TITLE=0,ST_STANDUP=1,ST_WORK=2,ST_EVENT=3,ST_EOD=4,ST_RESULT=5,ST_SHOP=6;
+var ST_TITLE=0,ST_STANDUP=1,ST_WORK=2,ST_EVENT=3,ST_EOD=4,ST_RESULT=5,ST_SHOP=6,ST_CHAPTER=7,ST_EPILOGUE=8;
 var state=ST_TITLE;
 
 var RANKS=[
@@ -717,7 +804,7 @@ function doRoomAction(){
 }
 
 // ═══════════════════════════════════════════════════════════════
-// DRAWING: Glenn-Correct Lord Bluetooth Sprite
+// DRAWING: Lord Bluetooth sprite (canonical pose)
 // ═══════════════════════════════════════════════════════════════
 function drawLordBluetooth(x,y,s){
   s=s||2;ctx.save();
@@ -1122,7 +1209,7 @@ function drawTitle(){
   if(allTimePeakCaffeine>0){ctx.fillStyle="#FF9800";ctx.fillText("Peak Caffeine: "+allTimePeakCaffeine+"mg",W/2,410)}
   var myths=0;for(var k in discoveries)myths++;
   if(myths>0){ctx.fillStyle="#888";ctx.fillText("Myths: "+myths+"/7",W/2,430)}
-  if(Math.sin(frame*0.08)>0){ctx.fillStyle="#FFD700";ctx.font="bold 18px system-ui";ctx.fillText("Press any key to start",W/2,540)}
+  if(Math.sin(frame*0.08)>0){ctx.fillStyle="#FFD700";ctx.font="bold 20px system-ui";ctx.fillText("Press ENTER to begin your story",W/2,525);ctx.fillStyle="#888";ctx.font="14px system-ui";ctx.fillText("Lord Bluetooth — Megacorp Org Management — A Choose Your Own Adventure",W/2,548);ctx.fillStyle="#555";ctx.font="11px system-ui";ctx.fillText("WiFi Aware • 7 chapters • voiced • your choices shape the ending",W/2,572)}
 }
 
 function drawResult(){
@@ -1375,8 +1462,655 @@ cv.addEventListener("touchend",function(e){
 // MAIN LOOP
 // ═══════════════════════════════════════════════════════════════
 loadStats();lastTick=Date.now();
-function loop(){var now=Date.now(),dt=(now-lastTick)/1000;lastTick=now;dt=Math.min(dt,0.1);update(dt);render();requestAnimationFrame(loop)}
+function loop(){var now=Date.now(),dt=(now-lastTick)/1000;lastTick=now;dt=Math.min(dt,0.1);update(dt);if(typeof cyoaTick==="function")cyoaTick(dt);render();requestAnimationFrame(loop)}
 requestAnimationFrame(loop);cv.focus();
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CYOA NARRATIVE LAYER — Lord Bluetooth: Choose Your Own Adventure
+// ═══════════════════════════════════════════════════════════════════════════════
+
+var storyMode=false, cyoaState='title', currentCh=null, chChoiceIdx=0;
+var plotFlags={}, cyoaRole="Acting Director of Connectivity";
+var storyChapterIdx=0, roomsVisited={}, cyoaVoiceMuted=false;
+var cyoaOverlay=document.getElementById('cyoa-overlay');
+var cyoaElems={
+  chapter:document.getElementById('cyoa-chapter'),
+  role:document.getElementById('cyoa-role'),
+  art:document.getElementById('cyoa-art'),
+  body:document.getElementById('cyoa-body'),
+  quip:document.getElementById('cyoa-quip'),
+  choices:document.getElementById('cyoa-choices'),
+  hint:document.getElementById('cyoa-hint'),
+  muteBtn:document.getElementById('cyoa-mute-btn')
+};
+
+// ── Web Speech API ──
+// Voice pipeline: pre-rendered MP3s from the voice-cloning-local pipeline
+// (Chatterbox on MPS, andrew-bosworth.mp3 reference; would be VoxCPM2 on
+// the 4090 if vision were online). All quips are loaded into a manifest
+// once and played via <audio> so they cross-cancel with the sim's MP3
+// voice queue like a real TTS engine would.
+var cyoaSpeaking=false;
+var cyoaAudioPool={};
+var cyoaManifest=null; // {quipKey: [audio/cyoa-quips/cyoa-NN.mp3, ...]}
+
+function cyoaLoadManifest(){
+  if(cyoaManifest)return;
+  // Build a key -> array-of-mp3-paths map from the QUIPS object. Each key
+  // has 1-2 variants; we hash the variant's text -> mp3 index by walking
+  // the same /tmp/cyoa-quips.tsv order used to generate the audio. The
+  // simpler structure: keep a static mapping table generated at build time.
+  cyoaManifest={
+    "title":         ["audio/cyoa-quips/cyoa-00.mp3"],
+    "ch1_open":      ["audio/cyoa-quips/cyoa-01.mp3","audio/cyoa-quips/cyoa-02.mp3"],
+    "ch1_choose":    ["audio/cyoa-quips/cyoa-03.mp3"],
+    "ch2_open":      ["audio/cyoa-quips/cyoa-04.mp3","audio/cyoa-quips/cyoa-05.mp3"],
+    "ch2_choose":    ["audio/cyoa-quips/cyoa-06.mp3"],
+    "ch3_open":      ["audio/cyoa-quips/cyoa-07.mp3","audio/cyoa-quips/cyoa-08.mp3"],
+    "ch3_choose":    ["audio/cyoa-quips/cyoa-09.mp3"],
+    "ch4_open":      ["audio/cyoa-quips/cyoa-10.mp3","audio/cyoa-quips/cyoa-11.mp3"],
+    "ch4_choose":    ["audio/cyoa-quips/cyoa-12.mp3"],
+    "ch5_open":      ["audio/cyoa-quips/cyoa-13.mp3","audio/cyoa-quips/cyoa-14.mp3"],
+    "ch5_choose":    ["audio/cyoa-quips/cyoa-15.mp3"],
+    "ch6_open":      ["audio/cyoa-quips/cyoa-16.mp3","audio/cyoa-quips/cyoa-17.mp3"],
+    "ch6_choose":    ["audio/cyoa-quips/cyoa-18.mp3"],
+    "epilogue_cco":      ["audio/cyoa-quips/cyoa-19.mp3"],
+    "epilogue_vp":       ["audio/cyoa-quips/cyoa-20.mp3"],
+    "epilogue_director": ["audio/cyoa-quips/cyoa-21.mp3"],
+    "epilogue_special":  ["audio/cyoa-quips/cyoa-22.mp3"],
+    "epilogue_quiet":    ["audio/cyoa-quips/cyoa-23.mp3"],
+    "day_start":     ["audio/cyoa-quips/cyoa-24.mp3"],
+    "promote":       ["audio/cyoa-quips/cyoa-25.mp3"],
+    "game_over":     ["audio/cyoa-quips/cyoa-26.mp3"],
+    "room_first":    ["audio/cyoa-quips/cyoa-27.mp3"]
+  };
+}
+
+function cyoaSpeak(key){
+  if(cyoaVoiceMuted)return;
+  cyoaLoadManifest();
+  var arr=cyoaManifest[key];
+  if(!arr||!arr.length)return;
+  var url=arr[Math.floor(Math.random()*arr.length)];
+  // Cross-cancel: stop any in-flight sim MP3 voice.
+  try{voiceQueue.length=0;}catch(e){}
+  if(typeof voiceCurrentAudio!=='undefined'&&voiceCurrentAudio){try{voiceCurrentAudio.pause();}catch(e){}voiceCurrentAudio=null;voicePlaying=false;}
+  // Stop any in-flight cyoa audio so we don't overlap.
+  if(cyoaSpeaking&&cyoaAudioPool[url]){try{cyoaAudioPool[url].pause();cyoaAudioPool[url].currentTime=0;}catch(e){}}
+  // Reuse a pooled <audio> per URL so we don't create one per call.
+  var a=cyoaAudioPool[url];
+  if(!a){
+    a=new Audio(url);
+    a.preload='auto';
+    cyoaAudioPool[url]=a;
+  }
+  try{a.currentTime=0;}catch(e){}
+  cyoaSpeaking=true;
+  var done=function(){cyoaSpeaking=false;};
+  a.onended=done;
+  a.onerror=done;
+  a.play().catch(done);
+}
+// Load voices async
+if('speechSynthesis' in window){
+  window.speechSynthesis.onvoiceschanged=function(){};
+  window.speechSynthesis.getVoices();
+}
+
+// ── QUIP DATABASE (24 quips) ──
+var QUIPS={
+  title:["Welcome back to the org chart. I've been expecting you. The coffee hasn't."],
+  ch1_open:[
+    "Acting Director. The word 'acting' is doing more heavy lifting than the rest of my LinkedIn.",
+    "My Bluetooth is on. My patience is off. Welcome to the department."
+  ],
+  ch1_choose:["Strategic alignment is just a fancy way of saying 'I agree with me.'"],
+  ch2_open:[
+    "WiFi Aware: a beautiful protocol that no consumer will ever understand and every executive will claim credit for.",
+    "Ah, the pilot results. Numbers so raw they still have the stickers on them."
+  ],
+  ch2_choose:["I asked for a budget. I got a Slack emoji reaction. Modern management."],
+  ch3_open:[
+    "Every reorg is a chance to become irreplaceable. Or unemployed.",
+    "They're merging us with Marketing. MARKETING. I may need to issue a strongly-worded RFC."
+  ],
+  ch3_choose:["Some say I'm demanding. I prefer 'stakeholder-aligned.'"],
+  ch4_open:[
+    "The WiFi Aware outage. Production is down. My blood pressure is up. Same meeting.",
+    "Engineering morale: 12%. WiFi Aware adoption: 0%. Slack threads: 14,000."
+  ],
+  ch4_choose:["If promotion were a protocol, I'd have already negotiated the handshake."],
+  ch5_open:[
+    "Pivoting. I love the word. It means 'we were wrong' but in a PowerPoint font.",
+    "Career crossroads. In corporate-speak that means 'someone else decides but we pretend you have agency.'"
+  ],
+  ch5_choose:["I don't always do org charts, but when I do, I prefer the ones that put me at the top."],
+  ch6_open:[
+    "The board doesn't read. They skim. So I'll put the WiFi Aware chart on a slide titled 'Profit.'",
+    "Board presentation. The only slide that matters is the one with the number that goes up."
+  ],
+  ch6_choose:["Let's agree to disagree, then I'll bring it up again in a different deck."],
+  epilogue_cco:["Chief Connectivity Officer. I've made it. The Bluetooth crown is no longer ironic."],
+  epilogue_vp:["VP of Wireless Strategy. I can feel the org chart bending toward me."],
+  epilogue_director:["Director of Connectivity. Steady hand. Stable ship. Boring slides."],
+  epilogue_special:["Special Projects. Unkillable. Unpromotable. Unbothered."],
+  epilogue_quiet:["Quiet Quitter. No forwarding address. Maximum personal bandwidth."],
+  day_start:["Another day, another standup that could have been a Slack message."],
+  promote:["Finally, a budget line item that funds the procurement of courage."],
+  game_over:["Per my last breath, I mean email."],
+  room_first:["They say 'culture eats strategy for breakfast.' My strategy is to make sure breakfast is catered."]
+};
+function getQuip(key){
+  var arr=QUIPS[key];
+  if(!arr)return"";
+  return arr[Math.floor(Math.random()*arr.length)];
+}
+
+// ── IMAGE PLACEHOLDERS ──
+var ART={
+  title:"<img src=\"lord-bluetooth-org-assets/01.png\" alt=\"Lord Bluetooth on a throne made of server racks, wearing a Bluetooth-branded blazer and a crooked crown, hold...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  ch1:"<img src=\"lord-bluetooth-org-assets/02.png\" alt=\"Lord Bluetooth standing in a corner office with a 'CONNECTIVITY DIVISION' placard on the door. The office is half-packed — pre...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  ch2:"<img src=\"lord-bluetooth-org-assets/03.png\" alt=\"Lord Bluetooth at a conference table staring at a laptop showing WiFi Aware pilot metrics. Charts going up. One engineer facep...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  ch3:"<img src=\"lord-bluetooth-org-assets/04.png\" alt=\"Lord Bluetooth in a reorg town hall. The slide behind him reads 'STRATEGIC REALIGNMENT' in Comic Sans. Marketing people in col...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  ch4:"<img src=\"lord-bluetooth-org-assets/05.png\" alt=\"Lord Bluetooth in the server room at 2am, bathed in red alert lighting, furiously typing on a laptop. WiFi Aware dashboards sh...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  ch5:"<img src=\"lord-bluetooth-org-assets/06.png\" alt=\"Lord Bluetooth at a career crossroads, literally standing at a fork in an office hallway. Three signs: UPWARD (golden escalato...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  ch6:"<img src=\"lord-bluetooth-org-assets/07.png\" alt=\"Lord Bluetooth at a boardroom podium, presenting to silhouetted board members. The slide behind him shows WiFi Aware network t...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  epilogue_cco:"<img src=\"lord-bluetooth-org-assets/08.png\" alt=\"Lord Bluetooth as Chief Connectivity Officer, standing on a rooftop overlooking a city where every building has a glowing Blue...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  epilogue_vp:"<img src=\"lord-bluetooth-org-assets/09.png\" alt=\"Lord Bluetooth as VP of Wireless Strategy, in a slightly nicer office with a view. Still has the Bluetooth blazer. A whiteboar...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  epilogue_director:"<img src=\"lord-bluetooth-org-assets/10.png\" alt=\"Lord Bluetooth as Director of Connectivity, at his desk, finally organized. Family photo. Bluetooth mouse. WiFi Aware certific...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  epilogue_special:"<img src=\"lord-bluetooth-org-assets/11.png\" alt=\"Lord Bluetooth in a windowless 'Special Projects' office surrounded by whiteboards covered in conspiracy-string diagrams conne...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  epilogue_quiet:"<img src=\"lord-bluetooth-org-assets/12.png\" alt=\"Lord Bluetooth on a beach, sunglasses on, Bluetooth crown in a cooler next to him. Phone is off. A seagull wears a tiny WiFi A...\" class=\"lb-cyoa-art\" loading=\"lazy\">"
+};
+
+// ── CHAPTER DATA (7 chapters, 22 total choices) ──
+var CHAPTERS=[
+  { // Chapter 1 — Day 1
+    id:"ch1",unlockDay:1,
+    title:"Chapter 1 — Acting Director of Connectivity",
+    body:"You are Lord Bluetooth. (You go by a normal name on weekdays, but weekdays are for HR.)\n\nYou've just been 'promoted' to Acting Director of Connectivity. Your predecessor is now 'Special Projects,' which is corporate for 'escorted out with a cardboard box.' The WiFi Aware pilot is live. The exec team wants a recommendation in 30 days. Your team is three engineers who haven't been briefed. The coffee machine is broken.\n\nPick your opening move, Acting Director.",
+    art:"ch1",quipKey:"ch1_open",role:"Acting Director of Connectivity",
+    choices:[
+      {id:"embrace",label:"Embrace the chaos",desc:"Walk the floor. Buy donuts. Send a motivational Slack with too many emojis. Lean in so hard you fall over.",
+        effects:{polCap:5},flag:"embrace_chaos"},
+      {id:"boundaries",label:"Set firm boundaries",desc:"Block all meetings. Demand a budget. Schedule 'focus time.' Be the adult in a room full of adult-children.",
+        effects:{polCap:3,prodRisk:-10},flag:"set_boundaries"},
+      {id:"scope",label:"Ask the CTO for clear scope",desc:"Draft a polite email asking what 'success' looks like. Brace for a reply that uses 'synergy' four times.",
+        effects:{polCap:8,energy:-10},flag:"ask_scope"}
+    ]
+  },
+  { // Chapter 2 — Day 5
+    id:"ch2",unlockDay:5,
+    title:"Chapter 2 — The Pilot Results Are In",
+    body:"Day 5. The WiFi Aware pilot data is on your desk. Neighbor Awareness Networking actually… works? Devices discovered each other. Latency is acceptable. The spec isn't even that bad — it's just that nobody outside this room will ever understand what 'NAN publish/subscribe' means.\n\nThe VP of Product wants your recommendation by EOD. The CFO wants to know why you need more access points. Your lead engineer has already named their WiFi Aware demo 'The Lord Bluetooth Protocol.'\n\nWhat's the call, Director?",
+    art:"ch2",quipKey:"ch2_open",role:"Acting Director of Connectivity",
+    choices:[
+      {id:"greenlight",label:"Greenlight org-wide WiFi Aware",desc:"Full rollout. High impact, high risk. You believe in the protocol. Or you believe in your ability to spin it if it fails.",
+        effects:{progress:15,polCap:-5},flag:"wifi_greenlit",
+        failChance:0.15,failEffects:{prodRisk:20}},
+      {id:"shelve",label:"Shelve it — more pilot needed",desc:"Safe play. Request another 90 days of pilot. Nobody gets fired for requesting more data. Nobody gets promoted either.",
+        effects:{polCap:3,morale:-5},flag:"wifi_shelved"},
+      {id:"leak",label:"Leak the results to a competitor",desc:"Chaos option. A friendly journalist owes you a favor. If the competitor adopts first, your company will HAVE to follow. Diabolical? Sure. Strategic? Also sure.",
+        effects:{polCap:15,progress:-5},flag:"wifi_leaked",
+        failChance:0.3,failEffects:{polCap:-20,morale:-15}}
+    ]
+  },
+  { // Chapter 3 — Day 10
+    id:"ch3",unlockDay:10,
+    title:"Chapter 3 — The Reorg Announcement",
+    body:"Day 10. An all-hands email lands at 4:59 PM on a Friday: 'Organizational Realignment — Connectivity Division to merge with Brand Experience.' You are now sharing an org chart with the people who once rebranded the company font to 'approachable.'\n\nYour engineers are updating their LinkedIn. Your WiFi Aware timeline just got a new dependency: Marketing's content calendar.\n\nHow do you handle this reorg, Lord Bluetooth?",
+    art:"ch3",quipKey:"ch3_open",role:"Acting Director of Connectivity",
+    choices:[
+      {id:"negotiate",label:"Negotiate from strength",desc:"March into the CTO's office with your pilot data. Argue that WiFi Aware needs autonomy, not a brand refresh.",
+        effects:{polCap:-10,progress:5},flag:"reorg_negotiated",
+        gate:{polCap:15},gateMsg:"Need 15 Political Capital"},
+      {id:"accept",label:"Accept quietly — pick your battles",desc:"Nod. Smile. Keep your head down. Use the merger to get closer to the marketing budget.",
+        effects:{polCap:5,morale:-10},flag:"reorg_accepted"},
+      {id:"sabotage",label:"Sabotage the merger from within",desc:"Volunteer for the integration committee. Then make every meeting 3 hours long. They'll beg to un-merge.",
+        effects:{polCap:10,morale:-5},flag:"reorg_sabotaged",
+        failChance:0.25,failEffects:{morale:-20,energy:-15}}
+    ]
+  },
+  { // Chapter 4 — Day 18
+    id:"ch4",unlockDay:18,
+    title:"Chapter 4 — The WiFi Aware Outage",
+    body:"Day 18. 2:14 AM. Your phone explodes with alerts. WiFi Aware is DOWN. Not the pilot — the PRODUCTION deployment that someone in ops quietly enabled last week because 'the pilot looked fine.'\n\n15,000 devices are failing to discover each other. The incident commander is a contractor who started yesterday. Your lead engineer is at a hackathon in another time zone.\n\nThe CTO is awake. The CEO is awake. You are awake. Everyone is awake.\n\nWhat do you do, Lord Bluetooth?",
+    art:"ch4",quipKey:"ch4_open",role:"Acting Director of Connectivity",
+    choices:[
+      {id:"take_fall",label:"Take the fall — protect the team",desc:"Step up. Write the post-mortem. Take the blame. It'll cost you, but your engineers will walk through walls for you.",
+        effects:{progress:-10,morale:15,polCap:5},flag:"took_fall"},
+      {id:"blame_vendor",label:"Blame the WiFi Alliance vendor",desc:"The spec was ambiguous. The SDK had a memory leak. It's technically true. Technically.",
+        effects:{morale:-5,polCap:10,prodRisk:10},flag:"blamed_vendor"},
+      {id:"save_day",label:"Save the day yourself",desc:"You wrote the spec. You know the code. RDP into prod and fix it. But you'd need serious skill and a lot of caffeine...",
+        effects:{progress:20,polCap:15,morale:10},flag:"saved_day",
+        gate:{engSkill:4,caffeine:300},gateMsg:"Need an engineer with 4+ skill AND 300mg+ caffeine",
+        failChance:0.35,failEffects:{progress:-15,energy:-30}}
+    ]
+  },
+  { // Chapter 5 — Day 25
+    id:"ch5",unlockDay:25,
+    title:"Chapter 5 — Promotion or Purgatory",
+    body:"Day 25. Your 30-day window is closing. The CTO's assistant schedules a 'career development conversation.' In corporate, this means one of three things: promotion, lateral move, or the world's politest termination.\n\nYour WiFi Aware decision has rippled through the org. Your reorg response has been noted. Your incident management is legend (or infamous). The question isn't whether you've done enough — it's which version of 'enough' they remember.\n\nTime to choose your path, Lord Bluetooth.",
+    art:"ch5",quipKey:"ch5_open",role:"Acting Director of Connectivity",
+    choices:[
+      {id:"path_up",label:"Push for VP of Wireless Strategy",desc:"Make the case. You shipped WiFi Aware (or didn't, but you have data). You survived the reorg. You want the title.",
+        effects:{polCap:-10,progress:10},flag:"path_vp",
+        gate:{minFlags:2},gateMsg:"Need at least 2 plot achievements"},
+      {id:"path_sideways",label:"Transfer to Special Projects",desc:"The unkillable role. No KPIs. No direct reports. No accountability. Just vibes and whiteboards.",
+        effects:{polCap:5,morale:10},flag:"path_special"},
+      {id:"path_out",label:"Ghost the org chart — Quiet Quit",desc:"Stop responding to emails. Update your Slack status to '🧘'. Discover inner peace. Or at least discover lunch.",
+        effects:{morale:20,polCap:-10},flag:"path_quiet"}
+    ]
+  },
+  { // Chapter 6 — Day 30
+    id:"ch6",unlockDay:30,
+    title:"Chapter 6 — The Board Presentation",
+    body:"Day 30. The boardroom. Real mahogany. Real anxiety. You have 12 slides and 8 minutes to justify your existence as more than a person who wears Bluetooth-branded clothing to quarterly reviews.\n\nThe board has read the summary (they haven't). The CEO is making eye contact that says 'don't embarrass me.' The CFO is already doing math on their phone.\n\nWiFi Aware is your legacy — or your cautionary tale. One way or another, this presentation ends the chapter.\n\nFinal boss time, Lord Bluetooth.",
+    art:"ch6",quipKey:"ch6_open",role:"Acting Director of Connectivity",
+    choices:[
+      {id:"defend",label:"Defend the WiFi Aware rollout",desc:"You've committed. Now sell it. Show the metrics. Show the vision. Show the future where every device is aware of every other device and the org chart is flat.",
+        effects:{progress:15,polCap:10},flag:"board_defended",
+        gate:{flag:"wifi_greenlit"},gateMsg:"Only available if you greenlit WiFi Aware"},
+      {id:"pivot",label:"Pivot to Bluetooth Mesh",desc:"WiFi Aware is the past. Bluetooth Mesh is the future. You're not abandoning ship — you're 'evolving the strategy.' Same energy, new acronym.",
+        effects:{progress:5,polCap:5},flag:"board_pivoted"},
+      {id:"resign",label:"Thank them and walk away",desc:"'It's been an honor.' You don't owe them a slide deck. You owe yourself a vacation. The door is right there.",
+        effects:{morale:20},flag:"board_resigned"}
+    ]
+  },
+  { // Chapter 7 — Epilogue (auto-triggers)
+    id:"epilogue",unlockDay:99,
+    title:"Epilogue",
+    body:"",
+    art:"",quipKey:"epilogue_cco",role:"",
+    choices:[]
+  }
+];
+
+// ── ENDING DETERMINATION ──
+function computeEnding(){
+  if(plotFlags.board_resigned||plotFlags.path_quiet) return{type:"quiet",title:"The Quiet Quitter",art:"epilogue_quiet",
+    body:"Lord Bluetooth walked out of that boardroom and never looked back. His LinkedIn now reads 'Independent Consultant,' which is code for 'sleeping in.' The WiFi Aware spec gathers dust. The coffee machine is still broken.\n\nBut on a beach somewhere, a seagull wears a tiny lanyard, and Lord Bluetooth smiles.",
+    quipKey:"epilogue_quiet",role:"Quiet Quitter — Maximum Personal Bandwidth"};
+
+  if(plotFlags.path_special) return{type:"special",title:"Special Projects",art:"epilogue_special",
+    body:"Lord Bluetooth disappeared into the Special Projects team — a black hole in the org chart where KPIs go to die and whiteboards go to live. Nobody knows what he does. Nobody asks. His WiFi Aware findings became a 47-page internal memo that nobody read but everyone CC'd.\n\nHe is unkillable. He is unbothered. He is still wearing the Bluetooth blazer.",
+    quipKey:"epilogue_special",role:"Special Projects — Unkillable"};
+
+  var score=0;
+  if(plotFlags.wifi_greenlit)score+=3;
+  if(plotFlags.saved_day)score+=3;
+  if(plotFlags.board_defended)score+=2;
+  if(plotFlags.reorg_negotiated)score+=2;
+  if(plotFlags.embrace_chaos)score+=1;
+  if(plotFlags.path_vp)score+=2;
+
+  if(score>=9) return{type:"cco",title:"Chief Connectivity Officer",art:"epilogue_cco",
+    body:"Lord Bluetooth ascended. Chief Connectivity Officer — a title he invented and then willed into existence through sheer force of WiFi Aware advocacy. The rollout succeeded. The board was impressed. The engineers still talk about 'The Lord Bluetooth Protocol.'\n\nHe got the corner office. He got the budget. He got the Bluetooth crown fitted for real.",
+    quipKey:"epilogue_cco",role:"Chief Connectivity Officer — The Crown Is Real"};
+
+  if(score>=6) return{type:"vp",title:"VP of Wireless Strategy",art:"epilogue_vp",
+    body:"VP of Wireless Strategy. Not bad for an Acting Director who started with a broken coffee machine and three confused engineers. WiFi Aware shipped — imperfectly, but it shipped. The org chart bent in Lord Bluetooth's direction.\n\nHe can feel the next reorg coming. But this time, he'll be ready.",
+    quipKey:"epilogue_vp",role:"VP of Wireless Strategy — The Org Chart Bends"};
+
+  return{type:"director",title:"Director of Connectivity",art:"epilogue_director",
+    body:"Director of Connectivity. The 'Acting' was dropped, which is the nicest thing this company has ever done for Lord Bluetooth. WiFi Aware didn't change the world, but it changed the meeting count, and honestly, that's enough.\n\nSteady ship. Stable hands. Boring slides. Lord Bluetooth has never been happier.",
+    quipKey:"epilogue_director",role:"Director of Connectivity — Steady Hand"};
+}
+
+// ── FLAG COUNT HELPER ──
+function countPlotFlags(){
+  var c=0;for(var k in plotFlags)if(plotFlags[k])c++;return c;
+}
+
+// ── APPLY CHOICE EFFECTS ──
+function applyChEffect(ch){
+  if(!ch.effects)return;
+  var e=ch.effects;
+  if(e.polCap)polCap=Math.max(0,polCap+(e.polCap||0));
+  if(e.progress)progress=clamp(progress+(e.progress||0),0,100);
+  if(e.morale){
+    var ae=aliveEngs();
+    var m=e.morale;
+    ae.forEach(function(eng){eng.morale=clamp(eng.morale+Math.ceil(m/Math.max(1,ae.length)),0,100)});
+  }
+  if(e.energy)energy=clamp(energy+(e.energy||0),0,100);
+  if(e.prodRisk)prodRisk=clamp(prodRisk+(e.prodRisk||0),0,100);
+  if(ch.flag)plotFlags[ch.flag]=true;
+  // Failure chance
+  if(ch.failChance&&Math.random()<ch.failChance&&ch.failEffects){
+    var fe=ch.failEffects;
+    if(fe.polCap)polCap=Math.max(0,polCap+fe.polCap);
+    if(fe.progress)progress=clamp(progress+fe.progress,0,100);
+    if(fe.morale){
+      var ae2=aliveEngs();
+      ae2.forEach(function(eng){eng.morale=clamp(eng.morale+Math.ceil(fe.morale/Math.max(1,ae2.length)),0,100)});
+    }
+    if(fe.energy)energy=clamp(energy+fe.energy,0,100);
+    if(fe.prodRisk)prodRisk=clamp(prodRisk+fe.prodRisk,0,100);
+    showNotif("Things did not go as planned...",3);
+    shakeTimer=0.4;
+  }
+}
+
+// ── CHECK CHOICE GATE ──
+function checkGate(ch){
+  if(!ch.gate)return true;
+  var g=ch.gate;
+  if(g.polCap&&polCap<g.polCap)return false;
+  if(g.engSkill){
+    var hasSk=false;aliveEngs().forEach(function(e){if(e.skill>=g.engSkill)hasSk=true});
+    if(!hasSk)return false;
+  }
+  if(g.caffeine&&caffeine<g.caffeine)return false;
+  if(g.flag&&!plotFlags[g.flag])return false;
+  if(g.minFlags&&countPlotFlags()<g.minFlags)return false;
+  return true;
+}
+
+// ── UPDATE ROLE TITLE ──
+function updateCyoaRole(){
+  var roles=[
+    {flag:"path_quiet",title:"Quiet Quitter — Maximum Personal Bandwidth"},
+    {flag:"path_special",title:"Special Projects — Unkillable"},
+    {flag:"board_resigned",title:"Former Director — Freed"},
+    {flag:"saved_day",title:"Director of Connectivity — The One Who Fixed It"},
+    {flag:"wifi_greenlit",title:"Director of Connectivity — WiFi Aware Advocate"},
+    {flag:null,title:"Acting Director of Connectivity"}
+  ];
+  for(var i=0;i<roles.length;i++){
+    if(roles[i].flag===null||plotFlags[roles[i].flag]){cyoaRole=roles[i].title;break}
+  }
+}
+
+// ── SHOW CHAPTER ──
+function showChapter(ch){
+  currentCh=ch;
+  chChoiceIdx=0;
+  cyoaState='chapter';
+  state=ST_CHAPTER;
+  var isEpilogue=ch.id==='epilogue';
+  if(isEpilogue){
+    var ending=computeEnding();
+    cyoaElems.chapter.textContent="Epilogue — "+ending.title;
+    cyoaElems.role.textContent=ending.role;
+    cyoaElems.art.textContent=ART[ending.art]||"";
+    cyoaElems.art.style.display=ART[ending.art]?"block":"none";
+    cyoaElems.body.textContent=ending.body;
+    cyoaElems.quip.textContent='"'+getQuip(ending.quipKey)+'"';
+    cyoaSpeak(ending.quipKey);
+    cyoaElems.choices.innerHTML='';
+    // Add a "Return to Title" button
+    var btn=document.createElement('div');
+    btn.className='cyoa-choice active';
+    btn.innerHTML='<div class="cyoa-choice-label"><span class="cyoa-num">↵</span> Return to Title</div><div class="cyoa-choice-desc">Your story is told. For now.</div>';
+    btn.onclick=function(){closeChapter();state=ST_TITLE;titleModeChosen=false;};
+    cyoaElems.choices.appendChild(btn);
+    cyoaElems.hint.textContent='Press Enter to return';
+  } else {
+    cyoaElems.chapter.textContent=ch.title;
+    updateCyoaRole();
+    cyoaElems.role.textContent=cyoaRole;
+    cyoaElems.art.textContent=ART[ch.art]||"";
+    cyoaElems.art.style.display=ART[ch.art]?"block":"none";
+    cyoaElems.body.textContent=ch.body;
+    var quip=getQuip(ch.quipKey);
+    cyoaElems.quip.textContent=quip?'"'+quip+'"':'';
+    cyoaSpeak(ch.quipKey);
+    // Build choice buttons
+    cyoaElems.choices.innerHTML='';
+    var validIdx=0;
+    for(var i=0;i<ch.choices.length;i++){
+      (function(ci){
+        var c=ch.choices[ci];
+        var gated=!checkGate(c);
+        var btn=document.createElement('div');
+        btn.className='cyoa-choice'+(gated?' disabled':'')+(ci===0&&!gated?' active':'');
+        btn.setAttribute('data-idx',ci);
+        var labelHtml='<div class="cyoa-choice-label"><span class="cyoa-num">'+(ci+1)+'</span> '+c.label+'</div>';
+        labelHtml+='<div class="cyoa-choice-desc">'+c.desc+'</div>';
+        if(gated)labelHtml+='<div class="cyoa-choice-gate">🔒 '+c.gateMsg+'</div>';
+        btn.innerHTML=labelHtml;
+        if(!gated){
+          btn.onclick=function(){selectChoice(ci)};
+          if(validIdx===0)chChoiceIdx=ci;
+          validIdx++;
+        }
+        cyoaElems.choices.appendChild(btn);
+      })(i);
+    }
+    // Fix chChoiceIdx to first valid choice
+    for(var j=0;j<ch.choices.length;j++){
+      if(checkGate(ch.choices[j])){chChoiceIdx=j;break}
+    }
+    highlightChoice(chChoiceIdx);
+    cyoaElems.hint.textContent=isMobile?'Tap a choice':'↑↓ choose · Enter confirm';
+  }
+  cyoaOverlay.setAttribute('aria-hidden','false');
+  cyoaOverlay.className='visible';
+}
+
+function highlightChoice(idx){
+  var btns=cyoaElems.choices.querySelectorAll('.cyoa-choice');
+  for(var i=0;i<btns.length;i++){
+    btns[i].classList.toggle('active',i===idx&&!btns[i].classList.contains('disabled'));
+  }
+}
+
+function selectChoice(idx){
+  if(!currentCh||!currentCh.choices[idx])return;
+  var c=currentCh.choices[idx];
+  if(!checkGate(c))return;
+  // Quip for choosing
+  cyoaSpeak(currentCh.id+'_choose');
+  // Apply effects
+  applyChEffect(c);
+  // Update role
+  updateCyoaRole();
+  // Advance chapter index
+  storyChapterIdx++;
+  // Close overlay with fade
+  closeChapter();
+  // Show notification
+  showNotif(c.label+" — done.",3);
+}
+
+function closeChapter(){
+  cyoaOverlay.className='fading';
+  setTimeout(function(){
+    cyoaOverlay.className='';
+    cyoaOverlay.setAttribute('aria-hidden','true');
+    currentCh=null;
+    // Return to correct sim state
+    if(state===ST_CHAPTER){
+      // Determine what state to return to
+      if(day===1&&storyChapterIdx<=1){state=ST_STANDUP;phaseTimer=8}
+      else{state=ST_STANDUP;phaseTimer=8}
+    }
+  },300);
+}
+
+// ── ROOM FIRST-VISIT IMAGE PLACEHOLDERS ──
+var ROOM_ART={
+  0:"<img src=\"lord-bluetooth-org-assets/13.png\" alt=\"The Engineering floor — monitors everywhere, three engineers coding furiously, one standing desk converted into a sta...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  1:"<img src=\"lord-bluetooth-org-assets/14.png\" alt=\"The Coffee Shop — artisanal setup with too many pour-over devices. Barista wearing a 'Hug Your Router' t-shirt. Lord Bluetooth...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  2:"<img src=\"lord-bluetooth-org-assets/15.png\" alt=\"HR Department — bright pastel walls, motivational posters ('Synergy Is Not A Buzzword'), a single HR rep looking over...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  3:"<img src=\"lord-bluetooth-org-assets/16.png\" alt=\"Executive Suite — dark wood, leather chairs, a framed photo of the CEO shaking hands with someone famous. The upgrade...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  4:"<img src=\"lord-bluetooth-org-assets/17.png\" alt=\"The Kitchen — half-eaten birthday cake from a reorg survivor's party. Microwave with a sign: 'DO NOT MICROWAVE FISH (...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  5:"<img src=\"lord-bluetooth-org-assets/18.png\" alt=\"Server Room — rows of blinking servers, a single engineer sitting cross-legged between racks, meditating. Temperature...\" class=\"lb-cyoa-art\" loading=\"lazy\">",
+  6:"<img src=\"lord-bluetooth-org-assets/19.png\" alt=\"Conference Room — THE DANGER ZONE. A projector showing slide 47 of 89. No windows. One clock that runs 7 minutes fast...\" class=\"lb-cyoa-art\" loading=\"lazy\">"
+};
+
+// ── CYOA TICK — runs every frame ──
+function cyoaTick(dt){
+  if(!storyMode)return;
+  if(state===ST_CHAPTER)return; // already in a chapter
+
+  // Check if a chapter should trigger
+  if(storyChapterIdx<CHAPTERS.length){
+    var nextCh=CHAPTERS[storyChapterIdx];
+    if(nextCh.id==='epilogue'){
+      // Epilogue triggers at game end
+      if(state===ST_RESULT){
+        storyChapterIdx++;
+        // Determine ending before showing
+        showChapter(nextCh);
+      }
+      return;
+    }
+    if(nextCh.unlockDay===day&&(state===ST_STANDUP)){
+      showChapter(nextCh);
+      return;
+    }
+  }
+
+  // First room visit notifications
+  if(state===ST_WORK&&!roomsVisited[currentRoom]){
+    roomsVisited[currentRoom]=true;
+    var art=ROOM_ART[currentRoom];
+    if(art){
+      showNotif(art.substring(0,80)+"...",8);
+    }
+  }
+
+  // Voice quips on state transitions
+  if(!cyoaVoiceMuted){
+    // Day start quip
+    if(state===ST_STANDUP&&phaseTimer>7.5){
+      // Only quip once per standup
+      if(!window._cyoaQuippedDay||window._cyoaQuippedDay!==day){
+        window._cyoaQuippedDay=day;
+        if(Math.random()<0.3)cyoaSpeak('day_start');
+      }
+    }
+  }
+}
+
+// ── MUTE TOGGLE (sync with existing) ──
+var origMuteHandler=null;
+cyoaElems.muteBtn.addEventListener('click',function(){
+  cyoaVoiceMuted=!cyoaVoiceMuted;
+  cyoaElems.muteBtn.textContent=cyoaVoiceMuted?'🔇 Muted':'🔊 Voice';
+  cyoaElems.muteBtn.className='cyoa-mute'+(cyoaVoiceMuted?' muted':'');
+  if(cyoaVoiceMuted&&'speechSynthesis' in window)window.speechSynthesis.cancel();
+});
+
+// ── KEYBOARD HANDLER FOR CHAPTER OVERLAY ──
+document.addEventListener('keydown',function(e){
+  if(state!==ST_CHAPTER)return;
+  if(!currentCh)return;
+  e.preventDefault();e.stopPropagation();
+
+  // Epilogue — any key returns
+  if(currentCh.id==='epilogue'){
+    if(e.key==='Enter'||e.key===' '){closeChapter();state=ST_RESULT}
+    return;
+  }
+
+  var choices=currentCh.choices;
+  if(e.key==='ArrowUp'||e.key==='ArrowLeft'){
+    // Move to previous valid choice
+    for(var i=chChoiceIdx-1;i>=0;i--){
+      if(checkGate(choices[i])){chChoiceIdx=i;break}
+    }
+    highlightChoice(chChoiceIdx);
+    playStep();
+  }
+  if(e.key==='ArrowDown'||e.key==='ArrowRight'){
+    for(var i=chChoiceIdx+1;i<choices.length;i++){
+      if(checkGate(choices[i])){chChoiceIdx=i;break}
+    }
+    highlightChoice(chChoiceIdx);
+    playStep();
+  }
+  if(e.key==='Enter'||e.key===' '){
+    selectChoice(chChoiceIdx);
+  }
+  if(e.key==='1'&&choices.length>0&&checkGate(choices[0])){selectChoice(0)}
+  if(e.key==='2'&&choices.length>1&&checkGate(choices[1])){selectChoice(1)}
+  if(e.key==='3'&&choices.length>2&&checkGate(choices[2])){selectChoice(2)}
+  if(e.key==='m'||e.key==='M'){
+    cyoaVoiceMuted=!cyoaVoiceMuted;
+    cyoaElems.muteBtn.textContent=cyoaVoiceMuted?'🔇 Muted':'🔊 Voice';
+    cyoaElems.muteBtn.className='cyoa-mute'+(cyoaVoiceMuted?' muted':'');
+    if(cyoaVoiceMuted&&'speechSynthesis' in window)window.speechSynthesis.cancel();
+  }
+},{capture:true});
+
+// initGame is no longer called from the title — CYOA is the only flow.
+// ── TOUCH HANDLER FOR CHAPTER CHOICES ──
+cyoaOverlay.addEventListener('touchstart',function(e){
+  if(state!==ST_CHAPTER)return;
+  // Let the choice buttons handle it via onclick
+},{passive:true});
+
+// ── Hook promotion quip ──
+var _origCheckRankUp=checkRankUp;
+checkRankUp=function(){
+  var prevRank=rankIdx;
+  _origCheckRankUp();
+  if(rankIdx>prevRank&&storyMode){
+    cyoaSpeak('promote');
+  }
+};
+
+// ── Hook game over quip ──
+var _origCheckEnd=checkEnd;
+checkEnd=function(){
+  var result=_origCheckEnd();
+  if(result&&storyMode){
+    cyoaSpeak('game_over');
+    // Trigger epilogue chapter if story mode
+    if(storyChapterIdx<CHAPTERS.length&&CHAPTERS[storyChapterIdx].id==='epilogue'){
+      setTimeout(function(){
+        storyChapterIdx++;
+        showChapter(CHAPTERS[storyChapterIdx-1]);
+      },1500);
+    }
+  }
+  return result;
+};
+
+// Title reset is now handled by the keydown/mobile launchers above.
+
+// ── Console log ──
+
+// ── TITLE SCREEN LAUNCHER ──
+// Any keypress (or mobile Action tap) on the title screen launches straight into
+// Chapter 1, bypassing the sim entirely. The CYOA is the only game flow.
+// Capture: true is fine, but the original sim keydown handler at the top of
+// the file is on the same document with default phase. When the event target
+// IS document, capture/bubble don't apply and handlers fire in registration
+// order — so the sim's initGame() runs BEFORE this. stopImmediatePropagation
+// (not just stopPropagation) is required to block same-element listeners that
+// already fired or are about to fire.
+document.addEventListener('keydown',function(e){
+  if(state!==ST_TITLE)return;
+  e.preventDefault();e.stopImmediatePropagation();
+  storyMode=true;
+  plotFlags={};storyChapterIdx=0;roomsVisited={};
+  cyoaRole="Acting Director of Connectivity";
+  window._cyoaQuippedDay=0;
+  if(typeof CHAPTERS!=='undefined'&&CHAPTERS.length) showChapter(CHAPTERS[0]);
+},{capture:true});
+
+(function(){
+  var mbAct=document.getElementById('mb-action');
+  if(!mbAct)return;
+  function launchStory(e){
+    if(state!==ST_TITLE)return;
+    e.preventDefault();e.stopPropagation();
+    e.stopImmediatePropagation();
+    storyMode=true;
+    plotFlags={};storyChapterIdx=0;roomsVisited={};
+    cyoaRole="Acting Director of Connectivity";
+    window._cyoaQuippedDay=0;
+    if(typeof CHAPTERS!=='undefined'&&CHAPTERS.length) showChapter(CHAPTERS[0]);
+  }
+  mbAct.addEventListener('touchstart',launchStory,{capture:true,passive:false});
+  mbAct.addEventListener('mousedown',launchStory,{capture:true});
+})();
+
+console.log('[CYOA] Lord Bluetooth: Choose Your Own Adventure layer loaded. 7 chapters, 22 choices, 24 quips, 18 image placeholders.');
+
 
 })();
 </script>
