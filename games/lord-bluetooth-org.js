@@ -1,15 +1,195 @@
-
 (function(){
 "use strict";
 var cv=document.getElementById("c"),ctx=cv.getContext("2d"),W=600,H=600;
+var isMobile=/Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent)||('ontouchstart' in window && window.innerWidth < 800);
+var FS=isMobile?1.3:1; // font scale for mobile readability
+function fz(px){return Math.round(px*FS)+"px system-ui"}
+if(isMobile){
+  document.getElementById('mobile-controls').classList.add('visible');
+  var mcH=140;
+  document.querySelector('canvas').style.maxHeight='calc(100vh - '+mcH+'px)';
+}
 
-// ═══ AUDIO ═══
+// Mobile button wiring
+function mBtn(id,fn){
+  var b=document.getElementById(id);
+  if(!b)return;
+  b.addEventListener('touchstart',function(e){e.preventDefault();e.stopPropagation();fn();},{passive:false});
+  b.addEventListener('mousedown',function(e){e.preventDefault();fn();});
+}
+function mcEl(id){return document.getElementById(id)}
+function mcShow(id,show){var e=mcEl(id);if(e){e.style.display=show?'flex':'none'}}
+function mcLabel(id,txt){var e=mcEl(id);if(e)e.textContent=txt}
+function mcHint(txt){var e=mcEl('mc-hint');if(e)e.textContent=txt}
+
+// Update button labels/visibility based on current game state
+function updateMobileUI(){
+  if(!isMobile)return;
+  var hint='',actLabel='ACTION';
+  var showCancel=false,showShop=false,showEndDay=false;
+
+  if(state===ST_TITLE){
+    actLabel='▶ START';hint='Tap to begin';
+  }else if(state===ST_STANDUP){
+    actLabel='SKIP ▶';hint='Skip standup';showEndDay=true;
+  }else if(state===ST_RESULT){
+    actLabel='▶ AGAIN';hint='Game over! Tap to retry';
+  }else if(state===ST_EOD){
+    actLabel='NEXT DAY ▶';hint='End of day results';
+  }else if(state===ST_EVENT){
+    actLabel='✓ CONFIRM';hint='Event! ◀▶ pick choice, ✓ confirm';
+  }else if(state===ST_SHOP){
+    actLabel='BUY';hint='▲▼ browse, BUY purchase, ✕ close';showCancel=true;
+  }else if(state===ST_WORK){
+    if(assignStep===1){
+      actLabel='✓ PICK';hint='▲▼ select engineer, ✓ pick, ✕ cancel';showCancel=true;
+    }else if(assignStep===2){
+      actLabel='✓ ASSIGN';hint='◀▶ pick task, ✓ assign';showCancel=true;
+    }else if(currentRoom===0){
+      actLabel='👥 ASSIGN';hint='Engineering — assign tasks, or ⚡Auto';
+    }else if(currentRoom===1){
+      actLabel='☕ DRINK';hint='Coffee Shop — caffeine boost!';
+    }else if(currentRoom===2){
+      actLabel='📝 HIRE';hint='HR — recruit an engineer';
+    }else if(currentRoom===3){
+      actLabel='🛒 SHOP';hint='Exec Suite — buy upgrades';
+      showShop=true;
+    }else if(currentRoom===4){
+      actLabel='🍕 SNACKS';hint='Kitchen — team morale boost';
+    }else if(currentRoom===5){
+      actLabel='🖥 FIX';hint='Server Room — reduce prod risk';
+    }else if(currentRoom===6){
+      actLabel='🎭 RISK';hint='Conference — dangerous!';
+    }
+    showEndDay=true;showShop=(currentRoom===3);
+  }
+  mcLabel('mb-action',actLabel);mcHint(hint);
+  mcShow('mb-cancel',showCancel);mcShow('mb-shop',showShop);mcShow('mb-endday',showEndDay);
+  mcShow('mb-auto',state===ST_WORK&&currentRoom===0);
+}
+
+mBtn('mb-left',function(){
+  if(state===ST_WORK&&assignStep===2){assignTask=Math.max(0,assignTask-1);playStep();updateMobileUI();return}
+  if(state===ST_EVENT){eventChoice=Math.max(0,eventChoice-1);playStep();updateMobileUI();return}
+  if(state===ST_WORK&&assignStep===0&&currentRoom>0){currentRoom--;playStep();updateMobileUI();return}
+  if(state===ST_WORK&&assignStep===1){assignStep=0;updateMobileUI();return} // cancel out of eng select
+});
+mBtn('mb-right',function(){
+  if(state===ST_WORK&&assignStep===2){assignTask=Math.min(TASKS.length-1,assignTask+1);playStep();updateMobileUI();return}
+  if(state===ST_EVENT){eventChoice=Math.min((currentEvent?currentEvent.choices.length:1)-1,eventChoice+1);playStep();updateMobileUI();return}
+  if(state===ST_WORK&&assignStep===0&&currentRoom<ROOMS.length-1){currentRoom++;playStep();updateMobileUI();return}
+});
+mBtn('mb-up',function(){
+  if(state===ST_SHOP){shopCursor=Math.max(0,shopCursor-1);playStep();updateMobileUI();return}
+  if(state===ST_WORK&&assignStep===1){var ae=aliveEngs();assignEng=Math.max(0,assignEng-1);playStep();updateMobileUI();return}
+});
+mBtn('mb-down',function(){
+  if(state===ST_SHOP){shopCursor=Math.min(UPGRADES.length-1,shopCursor+1);playStep();updateMobileUI();return}
+  if(state===ST_WORK&&assignStep===1){var ae2=aliveEngs();assignEng=Math.min(ae2.length-1,assignEng+1);playStep();updateMobileUI();return}
+});
+mBtn('mb-action',function(){
+  if(state===ST_TITLE){initGame();updateMobileUI();return}
+  if(state===ST_RESULT){state=ST_TITLE;updateMobileUI();return}
+  if(state===ST_EOD&&!eodAnimating){startNextDay();updateMobileUI();return}
+  if(state===ST_STANDUP){phaseTimer=0;updateMobileUI();return}
+  if(state===ST_SHOP){
+    var u=UPGRADES[shopCursor];
+    if(!upgrades[u.id]&&polCap>=u.cost){polCap-=u.cost;upgrades[u.id]=true;showNotif("Bought "+u.name+"!",3);playVoice("upgrade_buy");playAbility();saveStats()}
+    else showNotif(upgrades[u.id]?"Already owned":"Need more PC",2);
+    updateMobileUI();return;
+  }
+  if(state===ST_EVENT){
+    if(applyChoice(currentEvent,eventChoice)){currentEvent=null;state=ST_WORK}
+    updateMobileUI();return;
+  }
+  // WORK state — contextual room actions
+  if(state===ST_WORK){
+    if(currentRoom===0){
+      // Engineering: toggle assign mode
+      if(assignStep===0){assignStep=1;assignEng=0;showNotif("Select engineer",2)}
+      else if(assignStep===1){
+        var ae3=aliveEngs();if(ae3.length>0){assignStep=2;assignTask=0;playStep()}
+      }else if(assignStep===2){
+        var ae4=aliveEngs();if(assignEng<ae4.length){ae4[assignEng].task=assignTask;showNotif(ae4[assignEng].name+" → "+TASKS[assignTask].name,2);playGood()}
+        assignStep=0;
+      }
+    }else{
+      doRoomAction();
+    }
+    updateMobileUI();return;
+  }
+});
+mBtn('mb-cancel',function(){
+  if(state===ST_SHOP){state=ST_WORK;updateMobileUI();return}
+  if(state===ST_WORK){
+    if(assignStep===2){assignStep=1;updateMobileUI();return}
+    if(assignStep===1){assignStep=0;updateMobileUI();return}
+  }
+});
+mBtn('mb-shop',function(){
+  if(state===ST_SHOP){state=ST_WORK;updateMobileUI();return}
+  if(state===ST_WORK&&currentRoom===3){state=ST_SHOP;shopCursor=0;updateMobileUI();return}
+});
+mBtn('mb-auto',function(){
+  if(state===ST_WORK){autoAssign();updateMobileUI()}
+});
+mBtn('mb-endday',function(){phaseTimer=0;updateMobileUI()});
+mBtn('mb-mute',function(){
+  bgmMuted=!bgmMuted;
+  mcLabel('mb-mute',bgmMuted?'🔇':'🔊');
+});
+
+// ═══════════════════════════════════════════════════════════════
+// AUDIO SYSTEM
+// ═══════════════════════════════════════════════════════════════
 var audioCtx=null,bgmTimer=0,bgmMuted=false;
 function initAudio(){if(audioCtx)return;audioCtx=new(window.AudioContext||window.webkitAudioContext)()}
+
+// Voice acting system - all 98 audio files
 var voiceQueue=[],voicePlaying=false;
-var VF={intro:"audio/narrator-intro.mp3",engineering:"audio/narrator-engineering.mp3",kitchen:"audio/narrator-kitchen.mp3",server:"audio/narrator-server.mp3",conference:"audio/narrator-conference-trap.mp3",rankup:"audio/narrator-rankup.mp3",win:"audio/narrator-win.mp3",lose:"audio/narrator-lose.mp3",ceo_pivot:"audio/ceo-pivot.mp3",ceo_rto:"audio/ceo-rto.mp3",ceo_reorg:"audio/ceo-reorg.mp3",ceo_pip:"audio/ceo-pip.mp3",ceo_okr:"audio/ceo-okr.mp3",ceo_aiclone:"audio/ceo-ai-clone.mp3",ceo_tweet:"audio/ceo-tweet.mp3",ceo_karaoke:"audio/ceo-karaoke.mp3",ceo_standingdesk:"audio/ceo-standing-desk.mp3",ceo_wellnessapp:"audio/ceo-wellness-app.mp3",ceo_cfo:"audio/ceo-cfo.mp3",ceo_intern:"audio/ceo-intern.mp3",ceo_openplan:"audio/ceo-openplan.mp3",ceo_pingpong:"audio/ceo-pingpong.mp3",ceo_exitinterview:"audio/ceo-exit-interview.mp3",ceo_oatmilk:"audio/ceo-oat-milk.mp3",ceo_coldbrew:"audio/ceo-cold-brew.mp3",ceo_vision:"audio/ceo-vision.mp3",ceo_synergy:"audio/ceo-synergy.mp3",ceo_culture:"audio/ceo-culture.mp3",ceo_offsite:"audio/ceo-offsite.mp3",ceo_townhall:"audio/ceo-townhall.mp3",ceo_rebrand:"audio/ceo-rebrand.mp3",ceo_leak:"audio/ceo-leak.mp3",ceo_acquisition:"audio/ceo-acquisition.mp3",ceo_severance:"audio/ceo-severance.mp3",ceo_icebreaker:"audio/ceo-icebreaker.mp3",ceo_mentorship:"audio/ceo-mentorship.mp3",ceo_retreat:"audio/ceo-retreat.mp3",ceo_survey:"audio/ceo-survey.mp3",vp_aitransform:"audio/vp-ai-transform.mp3",vp_dogfood:"audio/vp-dogfood.mp3",vp_hackathon:"audio/vp-hackathon.mp3",vp_crossfunc:"audio/vp-crossfunc.mp3",vp_skiplvl:"audio/vp-skiplevel.mp3",event_depgone:"audio/event-dep-gone.mp3",event_aibot:"audio/event-ai-bot.mp3",event_cloudbill:"audio/event-cloud-bill.mp3",event_merger:"audio/event-merger.mp3",event_perfreview:"audio/event-perf-review.mp3",event_teamcoffee:"audio/event-team-coffee.mp3",event_foosball:"audio/event-foosball.mp3",event_stretch:"audio/event-stretch.mp3",event_trustfall:"audio/event-trust-fall.mp3",event_guestspeaker:"audio/event-guest-speaker.mp3",task_success:"audio/task-success.mp3",task_critical:"audio/task-critical.mp3",task_failure:"audio/task-failure.mp3",engineer_lost:"audio/engineer-lost.mp3",engineer_hired:"audio/engineer-hired.mp3",upgrade_buy:"audio/upgrade-buy.mp3",prod_incident:"audio/prod-incident.mp3",breakthrough:"audio/breakthrough.mp3",slots_spin:"audio/slots-spin.mp3"};
+var VF={
+  intro:"audio/narrator-intro.mp3",engineering:"audio/narrator-engineering.mp3",
+  kitchen:"audio/narrator-kitchen.mp3",server:"audio/narrator-server.mp3",
+  conference:"audio/narrator-conference-trap.mp3",rankup:"audio/narrator-rankup.mp3",
+  win:"audio/narrator-win.mp3",lose:"audio/narrator-lose.mp3",
+  ceo_pivot:"audio/ceo-pivot.mp3",ceo_rto:"audio/ceo-rto.mp3",
+  ceo_reorg:"audio/ceo-reorg.mp3",ceo_pip:"audio/ceo-pip.mp3",
+  ceo_okr:"audio/ceo-okr.mp3",ceo_aiclone:"audio/ceo-ai-clone.mp3",
+  ceo_tweet:"audio/ceo-tweet.mp3",ceo_karaoke:"audio/ceo-karaoke.mp3",
+  ceo_standingdesk:"audio/ceo-standing-desk.mp3",ceo_wellnessapp:"audio/ceo-wellness-app.mp3",
+  ceo_cfo:"audio/ceo-cfo.mp3",ceo_intern:"audio/ceo-intern.mp3",
+  ceo_openplan:"audio/ceo-openplan.mp3",ceo_pingpong:"audio/ceo-pingpong.mp3",
+  ceo_exitinterview:"audio/ceo-exit-interview.mp3",ceo_oatmilk:"audio/ceo-oatmilk.mp3",
+  ceo_coldbrew:"audio/ceo-coldbrew.mp3",ceo_vision:"audio/ceo-vision.mp3",
+  ceo_synergy:"audio/ceo-synergy.mp3",ceo_culture:"audio/ceo-culture.mp3",
+  ceo_offsite:"audio/ceo-offsite.mp3",ceo_townhall:"audio/ceo-townhall.mp3",
+  ceo_rebrand:"audio/ceo-rebrand.mp3",ceo_leak:"audio/ceo-leak.mp3",
+  ceo_acquisition:"audio/ceo-acquisition.mp3",ceo_severance:"audio/ceo-severance.mp3",
+  ceo_icebreaker:"audio/ceo-icebreaker.mp3",ceo_mentorship:"audio/ceo-mentorship.mp3",
+  ceo_retreat:"audio/ceo-retreat.mp3",ceo_survey:"audio/ceo-survey.mp3",
+  vp_aitransform:"audio/vp-ai-transform.mp3",vp_dogfood:"audio/vp-dogfood.mp3",
+  vp_hackathon:"audio/vp-hackathon.mp3",vp_crossfunc:"audio/vp-crossfunc.mp3",
+  vp_skiplvl:"audio/vp-skiplevel.mp3",
+  event_depgone:"audio/event-dep-gone.mp3",event_aibot:"audio/event-ai-bot.mp3",
+  event_cloudbill:"audio/event-cloud-bill.mp3",event_merger:"audio/event-merger.mp3",
+  event_perfreview:"audio/event-perf-review.mp3",event_teamcoffee:"audio/event-team-coffee.mp3",
+  event_foosball:"audio/event-foosball.mp3",event_stretch:"audio/event-stretch.mp3",
+  event_trustfall:"audio/event-trust-fall.mp3",event_guestspeaker:"audio/event-guest-speaker.mp3",
+  task_success:"audio/task-success.mp3",task_critical:"audio/task-critical.mp3",
+  task_failure:"audio/task-failure.mp3",engineer_lost:"audio/engineer-lost.mp3",
+  engineer_hired:"audio/engineer-hired.mp3",upgrade_buy:"audio/upgrade-buy.mp3",
+  prod_incident:"audio/prod-incident.mp3",breakthrough:"audio/breakthrough.mp3",
+  slots_spin:"audio/slots-spin.mp3",
+  boz_zuck_synergy:"audio/boz-zuck-synergy.mp3",
+  boz_inspiration:"audio/boz-inspiration.mp3",
+  zuck_ai_native:"audio/zuck-ai-native.mp3",
+  boz_rap_battle:"audio/boz-rap-battle-beat.mp3",
+  zuck_rap_response:"audio/zuck-rap-response-beat.mp3"
+};
 function playVoice(k){if(!VF[k])return;voiceQueue.push(k);if(!voicePlaying)pVQ()}
 function pVQ(){if(!voiceQueue.length){voicePlaying=false;return}voicePlaying=true;var k=voiceQueue.shift();var a=new Audio(VF[k]);a.volume=0.8;a.onended=pVQ;a.onerror=pVQ;a.play().catch(pVQ)}
+
+// Synth sounds
 function tone(f,d,t,v){if(!audioCtx)return;var o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=t||"sine";o.frequency.value=f;g.gain.setValueAtTime(v||0.1,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+d);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+d)}
 function playStep(){tone(200+Math.random()*80,0.06,"sine",0.04)}
 function playGood(){tone(523,0.1,"sine",0.08);setTimeout(function(){tone(659,0.12,"sine",0.08)},100);setTimeout(function(){tone(784,0.15,"sine",0.08)},200)}
@@ -23,80 +203,123 @@ function playSlotWin(){tone(523,0.15,"sine",0.12);setTimeout(function(){tone(784
 function playSlotFail(){tone(200,0.3,"sawtooth",0.08);tone(150,0.4,"square",0.06)}
 function playCritical(){for(var i=0;i<6;i++)(function(d){setTimeout(function(){tone(800+Math.random()*400,0.1,"sine",0.15)},d)})(i*60)}
 function playBGM(){if(!audioCtx||bgmMuted)return;bgmTimer++;var b=261,sc=[1,1.125,1.25,1.333,1.5,1.667,1.875],m=Math.floor(bgmTimer/16)%4,bt=bgmTimer%16;if(bt%4===0)tone(b*sc[[0,4,2,5][m]],0.3,"sine",0.03);if(bt%8===4)tone(b*sc[[2,0,4,3][m]]*0.5,0.25,"triangle",0.02)}
+
+// Mic input for noise detection
 var analyser=null,micSmooth=0;
 function initMic(){try{navigator.mediaDevices.getUserMedia({audio:true}).then(function(s){if(!audioCtx)initAudio();var src=audioCtx.createMediaStreamSource(s);analyser=audioCtx.createAnalyser();analyser.fftSize=256;analyser.smoothingTimeConstant=0.85;src.connect(analyser)}).catch(function(){})}catch(e){}}
 function updateMic(){if(!analyser)return;var d=new Uint8Array(analyser.frequencyBinCount);analyser.getByteFrequencyData(d);var s=0;for(var i=0;i<d.length;i++)s+=d[i];micSmooth+=(s/(d.length*255)-micSmooth)*0.08}
 
-
-// ═══ CONSTANTS ═══
-var ST_TITLE=0,ST_STANDUP=1,ST_WORK=2,ST_EVENT=3,ST_EOD=4,ST_RESULT=5,ST_SHOP=6;
+// ═══════════════════════════════════════════════════════════════
+// GAME CONSTANTS
+// ═══════════════════════════════════════════════════════════════
+var ST_TITLE=0,ST_STANDUP=1,ST_WORK=2,ST_EVENT=3,ST_EOD=4,ST_RESULT=5,ST_SHOP=6,ST_CHAPTER=7,ST_EPILOGUE=8;
 var state=ST_TITLE;
-var RANKS=[{name:"Acting VP of Connectivity",thr:0,mx:5,bonus:1},{name:"VP of Connectivity",thr:20,mx:6,bonus:1.1},{name:"SVP of Connectivity & Standards",thr:45,mx:7,bonus:1.25},{name:"Chief Connectivity Officer",thr:70,mx:8,bonus:1.4},{name:"Lord Bluetooth, Duke of Spectrum",thr:90,mx:10,bonus:1.6}];
+
+var RANKS=[
+  {name:"Acting VP of Connectivity",thr:0,mx:5,bonus:1},
+  {name:"VP of Connectivity",thr:20,mx:6,bonus:1.1},
+  {name:"SVP of Connectivity & Standards",thr:45,mx:7,bonus:1.25},
+  {name:"Chief Connectivity Officer",thr:70,mx:8,bonus:1.4},
+  {name:"Lord Bluetooth, Duke of Spectrum",thr:90,mx:10,bonus:1.6}
+];
+
 var NAMES=["Sreya","Tanvi","Ming","Hiro","Sven","Priya","Carlos","Aisha","Dmitri","Fiona","Kwame","Lena","Raj","Yuki","Omar","Bea","Jin","Nina","Tomas","Zara","Wei","Anya","Kai","Sato","Luis","Mika","Chen","Olga","Devi","Axel"];
 var QUIRKS=["runs K8s on a Smart Fridge","refactors in production","only talks via Git commits","has strong tab opinions","debates REST vs GraphQL at lunch","lives in standups","writes tests for tests","deploy-Fridays without fear","has a shrine to Dennis Ritchie","insists on 6 monitors","codes in vim, no plugins","ships before design review","production debugging tattoo","estimates everything in 2 weeks","replies-all to every email","thinks AI will replace us all","only drinks room-temp water","never missed a standup","names servers after pets","wrote their own framework"];
 var SPECS=["Frontend","Backend","Infra","QA","AI/ML"];
 var SP_C={Frontend:"#4CAF50",Backend:"#2196F3",Infra:"#FF9800",QA:"#9C27B0","AI/ML":"#FFEB3B"};
-var TASKS=[{id:"feature",name:"Feature Dev",desc:"Ship product",icon:"\uD83D\uDE80",color:"#4CAF50"},{id:"bugs",name:"Bug Fixes",desc:"Lower incident risk",icon:"\uD83D\uDC1B",color:"#9C27B0"},{id:"techdebt",name:"Tech Debt",desc:"Future speed boost",icon:"\uD83D\uDD27",color:"#FF9800"},{id:"ai",name:"AI Integration",desc:"+Political Capital",icon:"\uD83E\uDD16",color:"#FFEB3B"},{id:"politics",name:"Office Politics",desc:"Defend team",icon:"\uD83D\uDC54",color:"#2196F3"}];
-function genEng(){var sk=Math.random()<0.08?5:Math.random()<0.2?4:Math.random()<0.45?3:Math.random()<0.75?2:1;return{name:NAMES[0|Math.random()*NAMES.length],quirk:QUIRKS[0|Math.random()*QUIRKS.length],skill:sk,specialty:SPECS[0|Math.random()*SPECS.length],energy:70+(0|Math.random()*30),morale:55+(0|Math.random()*35),task:-1,alive:true}}
 
+// Task types
+var TASKS=[
+  {id:"feature",name:"Feature Dev",desc:"Ship product progress",icon:"\uD83D\uDE80",color:"#4CAF50"},
+  {id:"bugs",name:"Bug Fixes",desc:"Lower incident risk",icon:"\uD83D\uDC1B",color:"#9C27B0"},
+  {id:"techdebt",name:"Tech Debt",desc:"Permanent speed boost",icon:"\uD83D\uDD27",color:"#FF9800"},
+  {id:"ai",name:"AI Integration",desc:"+Political Capital",icon:"\uD83E\uDD16",color:"#FFEB3B"},
+  {id:"politics",name:"Office Politics",desc:"Defend team + PC",icon:"\uD83D\uDC54",color:"#2196F3"}
+];
+
+function genEng(){
+  var sk=Math.random()<0.08?5:Math.random()<0.2?4:Math.random()<0.45?3:Math.random()<0.75?2:1;
+  return{name:NAMES[0|Math.random()*NAMES.length],quirk:QUIRKS[0|Math.random()*QUIRKS.length],skill:sk,specialty:SPECS[0|Math.random()*SPECS.length],energy:70+(0|Math.random()*30),morale:55+(0|Math.random()*35),task:-1,alive:true};
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EVENTS WITH CHOICES
+// ═══════════════════════════════════════════════════════════════
 var EVENTS=[
-{id:"synergy",cat:"meeting",title:"Synergy Alignment Standup",desc:"3 hours of synergy talk. Nothing decided.",voice:"ceo_synergy",choices:[{name:"Accept",mD:3,eD:15},{name:"Skip (10 PC)",pc:10,mG:2}]},
-{id:"allhands",cat:"meeting",title:"All-Hands: CEO Vision 2.0",desc:"CEO pivots to blockchain/AI/metaverse.",voice:"ceo_vision",choices:[{name:"Sit through it",eD:10,mD:5,pD:10},{name:"Hide in bathroom (5 PC)",pc:5}]},
-{id:"crossfunc",cat:"meeting",title:"Cross-Functional Sync",desc:"7 managers, 0 engineers attend.",voice:"vp_crossfunc",choices:[{name:"Attend",eD:20,mD:5},{name:"Send delegate (5 PC)",pc:5,eD:5}]},
-{id:"okr",cat:"theater",title:"OKR Rewrite Season",desc:"All engineering stops to rewrite objectives.",voice:"ceo_okr",choices:[{name:"Comply",mD:5,pD:8},{name:"Copy-paste last Q (5 PC)",pc:5,mD:2}]},
-{id:"reorg",cat:"theater",title:"Reorg Roulette",desc:"Your team is being restructured...",voice:"ceo_reorg",choices:[{name:"Accept fate",mD:10,sp:"lose_eng"},{name:"Fight (20 PC, 60%)",pc:20,mD:3,sp:"fight_reorg"},{name:"Sacrifice worst eng",mD:5,sp:"sac_worst"}]},
-{id:"rto",cat:"theater",title:"Return to Office Mandate",desc:"Everyone must come in 5 days/week.",voice:"ceo_rto",choices:[{name:"Accept",mD:15},{name:"Negotiate (15 PC)",pc:15,mD:5},{name:"Secret remote",mD:3,sp:"rto_rebel"}]},
-{id:"stackrank",cat:"theater",title:"Stack Ranking Season",desc:"You must PIP someone.",voice:"ceo_pip",choices:[{name:"PIP random eng",mD:20,sp:"lose_eng"},{name:"Redirect (15 PC)",pc:15,mD:5},{name:"PIP worst eng",mD:10,sp:"sac_worst"}]},
-{id:"culture",cat:"theater",title:"Culture Values Refresh",desc:"Mandatory training on new corporate values.",voice:"ceo_culture",choices:[{name:"Endure it",eD:15,mD:10},{name:"Zone out (5 PC)",pc:5,eD:5,mD:5}]},
-{id:"aiclone",cat:"leadership",title:"CEO's AI Clone Memo",desc:"AI version of CEO handles comms.",voice:"ceo_aiclone",choices:[{name:"Accept AI overlord",sp:"aiclone_on"},{name:"Sabotage (20 PC)",pc:20}]},
-{id:"pivot",cat:"leadership",title:"The Pivot",desc:"CEO saw a competitor's demo.",voice:"ceo_pivot",choices:[{name:"Adapt",mD:10,pD:25},{name:"Argue (15 PC)",pc:15,mD:5,pD:10},{name:"Quietly ignore",mD:5,pD:5}]},
-{id:"offsite",cat:"leadership",title:"Executive Offsite",desc:"All VPs go to a retreat.",voice:"ceo_offsite",choices:[{name:"Go & eat free food",mG:10,eG:10},{name:"Stay & work",mD:5,pG:10}]},
-{id:"depgone",cat:"engineering",title:"Dependency Team Laid Off",desc:"Critical dependency gone.",voice:"event_depgone",choices:[{name:"Scramble",eD:5,mD:5,pD:15},{name:"Open source it (10 PC)",pc:10,eD:5,pD:5}]},
-{id:"aibot",cat:"engineering",title:"AI Code Review Bot Rogue",desc:"Bot rejects all PRs as not AI-native.",voice:"event_aibot",choices:[{name:"Fight the bot",eD:5,mD:8,pD:5},{name:"Disable it (10 PC)",pc:10}]},
-{id:"cloudbill",cat:"engineering",title:"Cloud Bill Shock",desc:"AWS bill 10x over budget.",voice:"event_cloudbill",choices:[{name:"Accept freeze",mD:5,pD:10},{name:"Negotiate (10 PC)",pc:10,pD:3}]},
-{id:"tweet",cat:"satire",title:"Billionaire Founder 3am Tweet",desc:"Unhinged tweet crashes stock 4%.",voice:"ceo_tweet",choices:[{name:"Emergency meeting",eD:15,mD:3},{name:"Ignore it"}]},
-{id:"severance",cat:"satire",title:"Severance Floor Activated",desc:"Nobody knows who still works here.",voice:"ceo_severance",choices:[{name:"Stay confused",mD:10,pD:3},{name:"Check badges (5 PC)",pc:5}]},
-{id:"vpai",cat:"satire",title:"New VP of AI Transformation",desc:"Role created above you.",voice:"vp_aitransform",choices:[{name:"Accept overlord",mD:15,pD:5},{name:"Befriend (15 PC)",pc:15,mG:5,sp:"gain_ally"}]},
-{id:"hackathon",cat:"satire",title:"Hackathon Week",desc:"Mandatory fun.",voice:"vp_hackathon",choices:[{name:"Participate",mG:10,pD:8},{name:"Use for real work",mD:5},{name:"Win it (+10 PC)",mD:5,sp:"hack_win"}]},
-{id:"acquisition",cat:"satire",title:"Acquisition Integration",desc:"MEGACORP bought a startup.",voice:"ceo_acquisition",choices:[{name:"Integrate",mD:5,pD:20},{name:"Slow-walk (15 PC)",pc:15,pD:5}]},
-{id:"townhall",cat:"satire",title:"Impromptu Town Hall",desc:"CEO reads blog comments for an hour.",voice:"ceo_townhall",choices:[{name:"Suffer",eD:12,mD:7},{name:"Leave early",eD:3,mD:2}]},
-{id:"rebrand",cat:"satire",title:"Corporate Rebrand",desc:"New logo. New mission. Same product.",voice:"ceo_rebrand",choices:[{name:"Rebrand everything",eD:8,mD:8},{name:"Just update README",eD:2,mD:3}]}
+  {id:"synergy",cat:"meeting",title:"Synergy Alignment Standup",desc:"3 hours of synergy talk. Nothing decided.",voice:"ceo_synergy",choices:[{name:"Accept",mD:3,eD:15},{name:"Skip (10 PC)",pc:10,mG:2}]},
+  {id:"allhands",cat:"meeting",title:"All-Hands: CEO Vision 2.0",desc:"CEO pivots to blockchain/AI/metaverse.",voice:"ceo_vision",choices:[{name:"Sit through it",eD:10,mD:5,pD:10},{name:"Hide (5 PC)",pc:5}]},
+  {id:"crossfunc",cat:"meeting",title:"Cross-Functional Sync",desc:"7 managers, 0 engineers attend.",voice:"vp_crossfunc",choices:[{name:"Attend",eD:20,mD:5},{name:"Send delegate (5 PC)",pc:5,eD:5}]},
+  {id:"skiplvl",cat:"meeting",title:"Skip-Level 1:1",desc:"Your boss's boss wants to chat about your roadmap.",voice:"vp_skiplvl",choices:[{name:"Accept",eD:10,mD:2},{name:"Deflect (8 PC)",pc:8}]},
+  {id:"okr",cat:"theater",title:"OKR Rewrite Season",desc:"All engineering stops to rewrite quarterly objectives.",voice:"ceo_okr",choices:[{name:"Comply",mD:5,pD:8},{name:"Copy-paste last Q (5 PC)",pc:5,mD:2}]},
+  {id:"reorg",cat:"theater",title:"Reorg Roulette",desc:"Your team is being restructured. Someone may leave.",voice:"ceo_reorg",choices:[{name:"Accept fate",mD:10,sp:"lose_eng"},{name:"Fight (20 PC, 60%)",pc:20,mD:3,sp:"fight_reorg"},{name:"Sacrifice worst",mD:5,sp:"sac_worst"}]},
+  {id:"rto",cat:"theater",title:"Return to Office Mandate",desc:"Everyone must come in 5 days/week.",voice:"ceo_rto",choices:[{name:"Accept",mD:15},{name:"Negotiate (15 PC)",pc:15,mD:5},{name:"Secret remote",mD:3,sp:"rto_rebel"}]},
+  {id:"stackrank",cat:"theater",title:"Stack Ranking Season",desc:"You must PIP someone. It's probably your best engineer.",voice:"ceo_pip",choices:[{name:"PIP random eng",mD:20,sp:"lose_eng"},{name:"Redirect (15 PC)",pc:15,mD:5},{name:"PIP worst eng",mD:10,sp:"sac_worst"}]},
+  {id:"culture",cat:"theater",title:"Culture Values Refresh",desc:"Mandatory training on new corporate values.",voice:"ceo_culture",choices:[{name:"Endure it",eD:15,mD:10},{name:"Zone out (5 PC)",pc:5,eD:5,mD:5}]},
+  {id:"aiclone",cat:"leadership",title:"CEO's AI Clone Memo",desc:"AI version of CEO handles communications.",voice:"ceo_aiclone",choices:[{name:"Accept AI overlord",sp:"aiclone_on"},{name:"Sabotage (20 PC)",pc:20}]},
+  {id:"pivot",cat:"leadership",title:"The Pivot",desc:"CEO saw a competitor's demo. Direction changes.",voice:"ceo_pivot",choices:[{name:"Adapt",mD:10,pD:25},{name:"Argue (15 PC)",pc:15,mD:5,pD:10},{name:"Quietly ignore",mD:5,pD:5}]},
+  {id:"offsite",cat:"leadership",title:"Executive Offsite",desc:"All VPs go to a retreat. Free food though.",voice:"ceo_offsite",choices:[{name:"Go & eat free food",mG:10,eG:10},{name:"Stay & work",mD:5,pG:10}]},
+  {id:"depgone",cat:"engineering",title:"Dependency Team Laid Off",desc:"Critical dependency gone. Must find alternative.",voice:"event_depgone",choices:[{name:"Scramble",eD:5,mD:5,pD:15},{name:"Open source it (10 PC)",pc:10,eD:5,pD:5}]},
+  {id:"aibot",cat:"engineering",title:"AI Code Review Bot Rogue",desc:"Bot rejects all PRs as not AI-native.",voice:"event_aibot",choices:[{name:"Fight the bot",eD:5,mD:8,pD:5},{name:"Disable it (10 PC)",pc:10}]},
+  {id:"cloudbill",cat:"engineering",title:"Cloud Bill Shock",desc:"AWS bill 10x over budget. Spend frozen.",voice:"event_cloudbill",choices:[{name:"Accept freeze",mD:5,pD:10},{name:"Negotiate (10 PC)",pc:10,pD:3}]},
+  {id:"leak",cat:"engineering",title:"Leaked Memo",desc:"Your roadmap leaked to The Verge.",voice:"ceo_leak",choices:[{name:"Damage control",eD:20,mD:5},{name:"Spin it (15 PC)",pc:15,mG:5}]},
+  {id:"tweet",cat:"satire",title:"Billionaire Founder 3am Tweet",desc:"Unhinged tweet crashes stock 4%.",voice:"ceo_tweet",choices:[{name:"Emergency meeting",eD:15,mD:3},{name:"Ignore it"}]},
+  {id:"severance",cat:"satire",title:"Severance Floor Activated",desc:"Nobody knows who still works here.",voice:"ceo_severance",choices:[{name:"Stay confused",mD:10,pD:3},{name:"Check badges (5 PC)",pc:5}]},
+  {id:"vpai",cat:"satire",title:"New VP of AI Transformation",desc:"Role created above you. Never shipped a product.",voice:"vp_aitransform",choices:[{name:"Accept overlord",mD:15,pD:5},{name:"Befriend (15 PC)",pc:15,mG:5,sp:"gain_ally"}]},
+  {id:"hackathon",cat:"satire",title:"Hackathon Week",desc:"Mandatory 'fun.' All real work stops.",voice:"vp_hackathon",choices:[{name:"Participate",mG:10,pD:8},{name:"Use for real work",mD:5},{name:"Win it (+10 PC)",mD:5,sp:"hack_win"}]},
+  {id:"acquisition",cat:"satire",title:"Acquisition Integration",desc:"MEGACORP bought a startup. Integrate their competing product.",voice:"ceo_acquisition",choices:[{name:"Integrate",mD:5,pD:20},{name:"Slow-walk (15 PC)",pc:15,pD:5}]},
+  {id:"townhall",cat:"satire",title:"Impromptu Town Hall",desc:"CEO reads blog comments aloud for an hour.",voice:"ceo_townhall",choices:[{name:"Suffer",eD:12,mD:7},{name:"Leave early",eD:3,mD:2}]},
+  {id:"rebrand",cat:"satire",title:"Corporate Rebrand",desc:"New logo. New mission. Same product.",voice:"ceo_rebrand",choices:[{name:"Rebrand everything",eD:8,mD:8},{name:"Just update README",eD:2,mD:3}]},
+  {id:"boz_zuck_synergy",cat:"satire",title:"All-Hands: Boz & Zuck Synergy Keynote",desc:"Boz takes the stage. 'We're going to be the most AI-native company in human history.' Zuck appears on the jumbotron. 'Synergy isn't a buzzword. It's a lifestyle. We're building the metaverse of AI-native synergy.' 45 minutes of slides with words like 'paradigm', 'leverage', and '10x'. Someone in the back starts crying.",voice:"ceo_synergy",choices:[{name:"Absorb the synergy",mD:8,eD:20,pG:5,sp:"synergy_boost"},{name:"Live-tweet it (+10 PC)",pc:10,eD:5,mD:3},{name:"Sneak out back (+3 PC)",pc:3,eD:2}]},
+  {id:"boz_inspiration",cat:"satire",title:"Boz's Morning Inspiration Blast",desc:"Boz sends an all-company email: 'Every one of you is a 10xer. The competitors are scared. We're shipping the future. AI-native or die. If you're not disrupted, you're the disruptor.' Attached: a 14-slide deck with stock photos of eagles and rockets.",voice:"boz_inspiration",choices:[{name:"Feel inspired",mG:8,eD:3},{name:"Roll eyes (5 PC)",pc:5,mD:3},{name:"Forward to team",mG:15,mD:5,sp:"team_rally"}]},
+  {id:"zuck_ai_native",cat:"satire",title:"Zuck's AI-Native Mandate",desc:"Emergency broadcast from Zuck: 'Every team must be AI-native by Friday. I don't know what it means either but our competitors are saying it and we need to say it louder. AI-native everything. AI-native bathrooms. AI-native break rooms. Go.'",voice:"zuck_ai_native",choices:[{name:"Embrace AI-native",eD:15,pG:10},{name:"Pivot team to AI-native",eD:10,mD:5,pG:5},{name:"Add AI-native to all docs",eD:3,pc:5,pG:8}]},
+  {id:"boz_rap_battle",cat:"satire",title:"FIRE DRILL: Boz vs Zuck Rap Battle",desc:"Boz grabs the mic at all-hands. 'Yo yo yo, it's Boz on the mic!' Zuck appears on the jumbotron and fires back. The entire company stops working to watch. Someone is filming on their phone. This is definitely going viral.",voice:"boz_rap_battle",choices:[{name:"Watch in horror",eD:15,mG:5,sp:"rap_hype"},{name:"Leave and actually work",eD:2,pG:5},{name:"Jump on the mic (+15 PC)",pc:15,eD:10,mD:8,sp:"rap_join"}]}
 ];
 
+// ═══════════════════════════════════════════════════════════════
+// UPGRADES
+// ═══════════════════════════════════════════════════════════════
 var UPGRADES=[
-{id:"coffee_machine",name:"Better Coffee Machine",cost:20,desc:"+20mg caffeine/coffee",icon:"\u2615"},
-{id:"soundproof",name:"Soundproof Engineering",cost:30,desc:"Engineers 10% more effective",icon:"\uD83D\uDD07"},
-{id:"dessert_budget",name:"Dessert Budget Increase",cost:25,desc:"Better morale recovery",icon:"\uD83C\uDF70"},
-{id:"skiplvl",name:"Skip-Level Relationship",cost:40,desc:"Auto-block 1 event/week",icon:"\uD83E\uDD1D"},
-{id:"microwave_shield",name:"Microwave Shield",cost:50,desc:"Immune to one reorg/game",icon:"\uD83D\uDEE1"},
-{id:"emergency_fund",name:"Emergency Fund",cost:35,desc:"Save one fired eng/game",icon:"\uD83D\uDCB0"},
-{id:"exec_bathroom",name:"Executive Bathroom Key",cost:60,desc:"+5 team morale/day",icon:"\uD83D\uDEBD"},
-{id:"ai_works",name:"AI That Works",cost:80,desc:"Free breakthrough/week",icon:"\u2728"},
-{id:"board_ally",name:"Board Member Ally",cost:100,desc:"Event damage -25%",icon:"\u265F"},
-{id:"nuke",name:"Resignation Threat",cost:120,desc:"Full restore, once/game",icon:"\u2622"}
+  {id:"coffee_machine",name:"Better Coffee Machine",cost:20,desc:"+20mg caffeine/coffee",icon:"\u2615"},
+  {id:"soundproof",name:"Soundproof Engineering",cost:30,desc:"Engineers 10% more effective",icon:"\uD83D\uDD07"},
+  {id:"dessert_budget",name:"Dessert Budget Increase",cost:25,desc:"Better morale recovery in Kitchen",icon:"\uD83C\uDF70"},
+  {id:"skiplvl",name:"Skip-Level Relationship",cost:40,desc:"Auto-block 1 event per week",icon:"\uD83E\uDD1D"},
+  {id:"microwave_shield",name:"Microwave Shield",cost:50,desc:"Block one reorg per game",icon:"\uD83D\uDEE1"},
+  {id:"emergency_fund",name:"Emergency Fund",cost:35,desc:"Save one fired engineer/game",icon:"\uD83D\uDCB0"},
+  {id:"exec_bathroom",name:"Executive Bathroom Key",cost:60,desc:"+5 team morale per day",icon:"\uD83D\uDEBD"},
+  {id:"ai_works",name:"AI That Works",cost:80,desc:"Free breakthrough every week",icon:"\u2728"},
+  {id:"board_ally",name:"Board Member Ally",cost:100,desc:"Event damage -25%",icon:"\u265F"},
+  {id:"nuke",name:"Resignation Threat",cost:120,desc:"Full restore, once per game",icon:"\u2622"}
 ];
 
+// ═══════════════════════════════════════════════════════════════
+// CORPORATE MYTHS (Discovery System)
+// ═══════════════════════════════════════════════════════════════
 var MYTHS=[
-{id:"staffed",icon:"\uD83C\uDFE2",title:"The Fully Staffed Team"},
-{id:"replyall",icon:"\uD83D\uDCE7",title:"The Reply-All Apocalypse"},
-{id:"freelunch",icon:"\uD83C\uDF55",title:"Free Lunch That Was Free"},
-{id:"sensibleokr",icon:"\uD83C\uDFAF",title:"The OKR That Made Sense"},
-{id:"competent",icon:"\uD83E\uDD1D",title:"The Competent Manager"},
-{id:"cleanship",icon:"\uD83D\uDE80",title:"The Clean Ship"},
-{id:"beyond800",icon:"\u2615",title:"Beyond 800mg"}
+  {id:"staffed",icon:"\uD83C\uDFE2",title:"The Fully Staffed Team"},
+  {id:"replyall",icon:"\uD83D\uDCE7",title:"The Reply-All Apocalypse"},
+  {id:"freelunch",icon:"\uD83C\uDF55",title:"Free Lunch That Was Free"},
+  {id:"sensibleokr",icon:"\uD83C\uDFAF",title:"The OKR That Made Sense"},
+  {id:"competent",icon:"\uD83E\uDD1D",title:"The Competent Manager"},
+  {id:"cleanship",icon:"\uD83D\uDE80",title:"The Clean Ship"},
+  {id:"beyond800",icon:"\u2615",title:"Beyond 800mg"}
 ];
 
+// ═══════════════════════════════════════════════════════════════
+// ROOMS (7 rooms)
+// ═══════════════════════════════════════════════════════════════
 var ROOMS=[
-{name:"Engineering",icon:"\u2699",color:"#4CAF50",desc:"Assign tasks"},
-{name:"Coffee Shop",icon:"\u2615",color:"#6D4C41",desc:"Caffeine"},
-{name:"HR",icon:"\uD83D\uDCCB",color:"#2196F3",desc:"Recruit"},
-{name:"Exec Suite",icon:"\uD83D\uDC51",color:"#FFD700",desc:"Upgrades/PC"},
-{name:"Kitchen",icon:"\uD83C\uDF55",color:"#FF9800",desc:"Morale boost"},
-{name:"Server Room",icon:"\uD83D\uDDA5",color:"#9C27B0",desc:"Monitor"}
+  {name:"Engineering",icon:"\u2699",color:"#4CAF50",desc:"Assign tasks to engineers"},
+  {name:"Coffee Shop",icon:"\u2615",color:"#6D4C41",desc:"Caffeine + energy"},
+  {name:"HR",icon:"\uD83D\uDCCB",color:"#2196F3",desc:"Recruit engineers"},
+  {name:"Exec Suite",icon:"\uD83D\uDC51",color:"#FFD700",desc:"Upgrades & PC"},
+  {name:"Kitchen",icon:"\uD83C\uDF55",color:"#FF9800",desc:"Morale + snacks"},
+  {name:"Server Room",icon:"\uD83D\uDDA5",color:"#9C27B0",desc:"Monitor risk"},
+  {name:"Conf Room",icon:"\uD83C\uDFAD",color:"#F44336",desc:"DANGER: meeting trap"}
 ];
 
-
-// ═══ GAME STATE ═══
+// ═══════════════════════════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════════════════════════
 var day,maxDays=30,progress,polCap,rankIdx,frame=0,lastTick=0;
 var caffeine,peakCaffeine,allTimePeakCaffeine=0;
 var prodRisk,prodIncidents,aiClonePenalty,energy;
@@ -105,20 +328,19 @@ var notification=null,notifTimer=0;
 var shakeTimer=0,flashTimer=0,flashColor="#fff";
 var currentEvent=null,eventChoice=0;
 var phaseTimer=0;
-var eodResults=[],eodScroll=0;
+var eodResults=[],eodAnimIdx=0,eodAnimTimer=0,eodAnimating=false;
 var score=0,gamesPlayed=0,bestScore=0;
 var discoveries={},discoveryCount=0;
-var mythCooldown=0,techDebtBonus=0;
-var replyAllPeace=0,competentDays=0;
+var mythCooldown=0,techDebtBonus=0,peaceDays=0;
 var upgrades={};
 var upcomingEvents=[];
 var nukeUsed=false,microwaveUsed=false,emergencyUsed=false;
-var skiplvlReady=false,aiBreakReady=false;
+var skiplvlReady=false;
 var hrCooldown=0;
-var shopCursor=0,engCursor=0,taskCursor=0;
-var assignMode=false;
+var shopCursor=0,assignStep=0,assignEng=0,assignTask=0;
 var keys={};
 
+// Persistence
 function loadStats(){try{var r=localStorage.getItem("lb_stats");if(r){var s=JSON.parse(r);gamesPlayed=s.gp||0;bestScore=s.bs||0;allTimePeakCaffeine=s.apc||0;discoveries=s.disc||{};discoveryCount=Object.keys(discoveries).length;upgrades=s.upg||{}}}catch(e){}}
 function saveStats(){try{localStorage.setItem("lb_stats",JSON.stringify({gp:gamesPlayed,bs:bestScore,apc:allTimePeakCaffeine,disc:discoveries,upg:upgrades}))}catch(e){}}
 
@@ -127,17 +349,28 @@ function getRank(){return RANKS[rankIdx]}
 function showNotif(t,d){notification=t;notifTimer=d||3}
 function aliveEngs(){return engineers.filter(function(e){return e.alive})}
 function hasUpg(id){return !!upgrades[id]}
-function checkRankUp(){while(rankIdx<RANKS.length-1&&progress>=RANKS[rankIdx+1].thr){rankIdx++;playRankUp();playVoice("rankup");showNotif("RANK UP: "+RANKS[rankIdx].name+"!",4);shakeTimer=0.5;flashTimer=0.3;flashColor="#FFD700"}}
+
+function checkRankUp(){
+  while(rankIdx<RANKS.length-1&&progress>=RANKS[rankIdx+1].thr){
+    rankIdx++;playRankUp();playVoice("rankup");
+    showNotif("RANK UP: "+RANKS[rankIdx].name+"!",4);
+    shakeTimer=0.5;flashTimer=0.3;flashColor="#FFD700";
+  }
+}
 
 function genUpcoming(){
   upcomingEvents=[];
+  if(peaceDays>0){peaceDays--;showNotif("\uD83D\uDCE7 Reply-All peace ("+(peaceDays+1)+" day"+(peaceDays?"s":"")+" left). No events today.",3);return}
   var c=day<=5?0:day<=10?1:day<=20?1+(Math.random()<0.3?1:0):2;
   for(var i=0;i<c;i++)upcomingEvents.push(EVENTS[0|Math.random()*EVENTS.length]);
 }
 
-// ═══ CAFFEINE ═══
+// ═══════════════════════════════════════════════════════════════
+// CAFFEINE SYSTEM
+// ═══════════════════════════════════════════════════════════════
 var CTIERS=[{mx:100,nm:"Drowsy",cl:"#888",m:0.85},{mx:400,nm:"Optimal",cl:"#4CAF50",m:1},{mx:600,nm:"Buzzing",cl:"#FFEB3B",m:1.15},{mx:800,nm:"LB Mode",cl:"#FF9800",m:1.3},{mx:99999,nm:"Transcendence",cl:"#FFD700",m:1}];
 function getCaffTier(){for(var i=0;i<CTIERS.length;i++)if(caffeine<CTIERS[i].mx)return CTIERS[i];return CTIERS[CTIERS.length-1]}
+
 function addCaff(mg){
   var old=caffeine;caffeine+=mg;
   if(caffeine>peakCaffeine)peakCaffeine=caffeine;
@@ -150,27 +383,28 @@ function addCaff(mg){
   }
 }
 
-// ═══ INIT ═══
+// ═══════════════════════════════════════════════════════════════
+// INIT GAME
+// ═══════════════════════════════════════════════════════════════
 function initGame(){
   day=1;progress=0;polCap=10;rankIdx=0;caffeine=0;peakCaffeine=0;
   prodRisk=0;prodIncidents=0;aiClonePenalty=0;energy=100;
   currentRoom=0;notification=null;notifTimer=0;shakeTimer=0;flashTimer=0;
   currentEvent=null;eventChoice=0;phaseTimer=8;
-  eodResults=[];eodScroll=0;score=0;
-  nukeUsed=false;microwaveUsed=false;emergencyUsed=false;
-  skiplvlReady=hasUpg("skiplvl");aiBreakReady=hasUpg("ai_works");
-  techDebtBonus=0;replyAllPeace=0;competentDays=0;
-  hrCooldown=0;shopCursor=0;engCursor=0;taskCursor=0;assignMode=false;
+  eodResults=[];eodAnimIdx=0;eodAnimTimer=0;eodAnimating=false;
+  score=0;nukeUsed=false;microwaveUsed=false;emergencyUsed=false;
+  skiplvlReady=hasUpg("skiplvl");techDebtBonus=0;peaceDays=0;
+  hrCooldown=0;shopCursor=0;assignStep=0;assignEng=0;assignTask=0;
   engineers=[];for(var i=0;i<3;i++)engineers.push(genEng());
   upcomingEvents=[];bgmTimer=0;mythCooldown=3;
-  genUpcoming();
-  state=ST_STANDUP;playVoice("intro");
+  genUpcoming();state=ST_STANDUP;playVoice("intro");
 }
 
-
-// ═══ RESOLVE DAY ═══
+// ═══════════════════════════════════════════════════════════════
+// EOD RESOLUTION (The Slot Machine)
+// ═══════════════════════════════════════════════════════════════
 function resolveDay(){
-  eodResults=[];
+  eodResults=[];eodAnimIdx=0;eodAnimTimer=0;eodAnimating=true;
   var tb=getRank().bonus;
   if(hasUpg("soundproof"))tb*=1.1;
   tb*=getCaffTier().m;
@@ -181,7 +415,8 @@ function resolveDay(){
     var task=TASKS[eng.task];
     var roll=Math.random();
     var sf=eng.skill*0.12+eng.morale/250+eng.energy/300+(caffeine>200?0.05:0);
-    var r={eng:eng,task:task,roll:roll};
+    var r={eng:eng,task:task,roll:roll,type:"pending",text:"",efx:""};
+
     if(roll<0.05){
       r.type="crit_fail";r.text=eng.name+" had a disaster!";
       if(task.id==="feature"){progress=clamp(progress-3,0,100);r.efx="-3% progress"}
@@ -189,7 +424,6 @@ function resolveDay(){
       else if(task.id==="techdebt"){r.efx="Wasted day";eng.morale=clamp(eng.morale-5,0,100)}
       else if(task.id==="ai"){polCap=Math.max(0,polCap-3);r.efx="-3 PC"}
       else{r.efx="Office drama";eng.morale=clamp(eng.morale-8,0,100)}
-      playSlotFail();
     } else if(roll<sf*0.5){
       r.type="crit_success";r.text=eng.name+" BREAKTHROUGH!";
       if(task.id==="feature"){var g=8*tb;progress=clamp(progress+g,0,100);r.efx="+"+Math.round(g)+"% progress!"}
@@ -197,7 +431,6 @@ function resolveDay(){
       else if(task.id==="techdebt"){techDebtBonus+=3;r.efx="+3 days speed boost!"}
       else if(task.id==="ai"){polCap+=8;r.efx="+8 PC!"}
       else{polCap+=5;eng.morale=clamp(eng.morale+15,0,100);r.efx="+5 PC, +15 morale"}
-      playCritical();playVoice("breakthrough");flashTimer=0.3;flashColor="#FFD700";shakeTimer=0.3;
     } else if(roll<sf+0.2){
       r.type="success";r.text=eng.name+" succeeded.";
       if(task.id==="feature"){var g=4*tb;progress=clamp(progress+g,0,100);r.efx="+"+Math.round(g)+"% progress"}
@@ -205,13 +438,11 @@ function resolveDay(){
       else if(task.id==="techdebt"){techDebtBonus++;r.efx="+1 day speed"}
       else if(task.id==="ai"){polCap+=4;r.efx="+4 PC"}
       else{polCap+=2;eng.morale=clamp(eng.morale+5,0,100);r.efx="+2 PC, +5 morale"}
-      playSlotWin();
     } else {
       r.type="fail";r.text=eng.name+" struggled.";
       if(task.id==="feature")r.efx="No progress";
       else if(task.id==="bugs"){prodRisk=clamp(prodRisk+5,0,100);r.efx="+5% risk"}
       else r.efx="No effect";
-      playSlotFail();
     }
     eodResults.push(r);
     eng.energy=clamp(eng.energy-10,0,100);eng.morale=clamp(eng.morale-2,0,100);
@@ -220,27 +451,42 @@ function resolveDay(){
   // AI breakthrough upgrade
   if(hasUpg("ai_works")&&day%7===0){
     progress=clamp(progress+10,0,100);
-    eodResults.push({eng:{name:"AI System"},task:{name:"AI Boost",icon:"\u2728",color:"#FFD700"},type:"crit_success",text:"AI breakthrough! +10%",efx:"+10% (upgrade)"});
+    eodResults.push({eng:{name:"AI System",quirk:"actually works",skill:5,specialty:"AI/ML"},task:{id:"ai",name:"AI Boost",icon:"\u2728",color:"#FFD700"},type:"crit_success",text:"AI breakthrough! +10%",efx:"+10% (upgrade)",roll:0});
   }
-  // Exec bathroom
+  // Exec bathroom morale
   if(hasUpg("exec_bathroom"))aliveEngs().forEach(function(e){e.morale=clamp(e.morale+5,0,100)});
-  // Skip-level
+  // Skip-level auto-block
   if(skiplvlReady&&upcomingEvents.length>0&&Math.random()<0.3){
     var bl=upcomingEvents.shift();
-    eodResults.push({eng:{name:"Ally"},task:{name:"Auto-Block",icon:"\uD83E\uDD1D",color:"#2196F3"},type:"success",text:"Ally blocked: "+bl.title,efx:"Event prevented!"});
+    eodResults.push({eng:{name:"Ally",quirk:"skip-level connection",skill:1,specialty:"Politics"},task:{id:"politics",name:"Auto-Block",icon:"\uD83E\uDD1D",color:"#2196F3"},type:"success",text:"Ally blocked: "+bl.title,efx:"Event prevented!",roll:0});
     skiplvlReady=false;
   }
-  // Production incident
+  // Production incident check
   if(prodRisk>=100||(prodRisk>0&&Math.random()*100<prodRisk)){
     prodIncidents++;var loss=5+(0|Math.random()*5);progress=clamp(progress-loss,0,100);
     aliveEngs().forEach(function(e){e.morale=clamp(e.morale-5,0,100)});
-    eodResults.push({eng:{name:"Production"},task:{name:"INCIDENT",icon:"\uD83D\uDEA8",color:"#F44336"},type:"crit_fail",text:"PRODUCTION INCIDENT!",efx:"- "+loss+"%, -5 morale"});
-    playBad();playVoice("prod_incident");shakeTimer=0.5;flashTimer=0.3;flashColor="#F44336";prodRisk=clamp(prodRisk-40,0,100);
+    eodResults.push({eng:{name:"Production",quirk:"the real boss",skill:1,specialty:"Infra"},task:{id:"bugs",name:"INCIDENT",icon:"\uD83D\uDEA8",color:"#F44336"},type:"crit_fail",text:"PRODUCTION INCIDENT!",efx:"-"+loss+"%, -5 morale all",roll:0});
+    shakeTimer=0.5;flashTimer=0.3;flashColor="#F44336";prodRisk=clamp(prodRisk-40,0,100);
   }
+  // Board ally passive
   if(hasUpg("board_ally")&&progress<50)progress=clamp(progress+2,0,100);
+  // Zero incident bonus
+  if(prodIncidents===0&&day>1){
+    polCap+=1; // "Clean Ship" PC bonus
+  }
   checkRankUp();
   engineers.forEach(function(e){e.task=-1});
-  state=ST_EOD;eodScroll=0;
+  state=ST_EOD;
+}
+
+function advanceEodAnim(){
+  if(eodAnimIdx>=eodResults.length){eodAnimating=false;return}
+  var r=eodResults[eodAnimIdx];
+  if(r.type==="crit_success"){playCritical();playVoice("breakthrough");flashTimer=0.3;flashColor="#FFD700";shakeTimer=0.3}
+  else if(r.type==="crit_fail"){playSlotFail();playVoice("task_failure")}
+  else if(r.type==="success"){playSlotWin();playVoice("task_success")}
+  else{playSlotFail()}
+  eodAnimIdx++;
 }
 
 function startNextDay(){
@@ -248,24 +494,24 @@ function startNextDay(){
   energy=clamp(100-aiClonePenalty,0,100);
   caffeine=Math.max(0,caffeine-100);
   hrCooldown=Math.max(0,hrCooldown-1);
-  if(competentDays>0)competentDays--;
-  if(replyAllPeace>0)replyAllPeace--;
   if(hasUpg("skiplvl")&&day%7===1)skiplvlReady=true;
   aliveEngs().forEach(function(e){e.energy=clamp(e.energy+20,0,100);e.morale=clamp(e.morale+3,0,100)});
-  if(hasUpg("exec_bathroom"))aliveEngs().forEach(function(e){e.morale=clamp(e.morale+5,0,100)});
   mythCooldown--;if(mythCooldown<=0){tryMyth();mythCooldown=3}
   genUpcoming();state=ST_STANDUP;phaseTimer=8;
+  showNotif("Day "+day+" begins. "+upcomingEvents.length+" event(s) incoming.",3);
 }
 
 function checkEnd(){
   if(progress>=100){state=ST_RESULT;score=calcScore();if(score>bestScore)bestScore=score;gamesPlayed++;saveStats();playWin();playVoice("win");return true}
   if(aliveEngs().length===0){state=ST_RESULT;score=0;gamesPlayed++;saveStats();playLose();playVoice("lose");return true}
-  if(day>maxDays){state=ST_RESULT;score=Math.max(0,Math.round(progress*5));gamesPlayed++;saveStats();playLose();return true}
+  if(day>maxDays){state=ST_RESULT;score=Math.max(0,Math.round(progress*5));gamesPlayed++;saveStats();playLose();playVoice("lose");return true}
   return false;
 }
 function calcScore(){var s=(maxDays-day+1)*100+aliveEngs().length*150-prodIncidents*100+Math.round(peakCaffeine/5)+polCap*5+discoveryCount*200;if(prodIncidents===0)s+=500;if(rankIdx>=RANKS.length-1)s+=300;return Math.max(0,Math.round(s))}
 
-// ═══ EVENT HANDLING ═══
+// ═══════════════════════════════════════════════════════════════
+// EVENT HANDLING WITH CHOICES
+// ═══════════════════════════════════════════════════════════════
 function applyChoice(ev,ci){
   var ch=ev.choices[ci];
   if(ch.pc&&polCap<ch.pc){showNotif("Need "+ch.pc+" PC!",2);return false}
@@ -273,33 +519,42 @@ function applyChoice(ev,ci){
   if(ch.eD)energy=clamp(energy-ch.eD,0,100);
   if(ch.eG)energy=clamp(energy+ch.eG,0,100);
   var ae=aliveEngs();
-  if(ch.mD){var d=ch.mD;if(hasUpg("board_ally"))d=Math.ceil(d*0.75);ae.forEach(function(e){e.morale=clamp(e.morale-Math.ceil(d/ae.length),0,100)})}
-  if(ch.mG)ae.forEach(function(e){e.morale=clamp(e.morale+Math.ceil(ch.mG/ae.length),0,100)});
+  if(ch.mD){var d=ch.mD;if(hasUpg("board_ally"))d=Math.ceil(d*0.75);ae.forEach(function(e){e.morale=clamp(e.morale-Math.ceil(d/Math.max(1,ae.length)),0,100)})}
+  if(ch.mG)ae.forEach(function(e){e.morale=clamp(e.morale+Math.ceil(ch.mG/Math.max(1,ae.length)),0,100)});
   if(ch.pD)progress=clamp(progress-ch.pD,0,100);
   if(ch.pG)progress=clamp(progress+ch.pG,0,100);
+
+  // Special effects
   if(ch.sp==="lose_eng"){
     if(hasUpg("microwave_shield")&&!microwaveUsed){microwaveUsed=true;showNotif("\uD83D\uDEE1 Microwave Shield activated!",3)}
-    else if(hasUpg("emergency_fund")&&!emergencyUsed&&ae.length<=1){emergencyUsed=true;showNotif("\uD83D\uDCB0 Emergency Fund saved your last eng!",3)}
+    else if(hasUpg("emergency_fund")&&!emergencyUsed&&ae.length<=1){emergencyUsed=true;showNotif("\uD83D\uDCB0 Emergency Fund saved your last engineer!",3)}
     else{var t=ae[0|Math.random()*ae.length];if(t){t.alive=false;showNotif(t.name+" was lost!",3);playVoice("engineer_lost")}}
   }
   if(ch.sp==="fight_reorg"){
-    if(hasUpg("microwave_shield")&&!microwaveUsed||Math.random()<0.6){showNotif("Reorg blocked!",3);playGood();if(hasUpg("microwave_shield")&&!microwaveUsed)microwaveUsed=true}
-    else{var t=ae[0|Math.random()*ae.length];if(t){t.alive=false;showNotif("Failed! "+t.name+" lost!",3);playVoice("engineer_lost")}}
+    if((hasUpg("microwave_shield")&&!microwaveUsed)||Math.random()<0.6){
+      showNotif("Reorg blocked!",3);playGood();
+      if(hasUpg("microwave_shield")&&!microwaveUsed)microwaveUsed=true;
+    }else{var t=ae[0|Math.random()*ae.length];if(t){t.alive=false;showNotif("Failed! "+t.name+" lost!",3);playVoice("engineer_lost")}}
   }
   if(ch.sp==="sac_worst"){
-    var worst=ae.sort(function(a,b){return a.skill-b.skill})[0];
+    var worst=ae.slice().sort(function(a,b){return a.skill-b.skill})[0];
     if(worst){worst.alive=false;showNotif(worst.name+" sacrificed (skill "+worst.skill+").",3);playVoice("engineer_lost")}
   }
   if(ch.sp==="aiclone_on")aiClonePenalty+=5;
   if(ch.sp==="gain_ally")polCap+=10;
   if(ch.sp==="hack_win")polCap+=10;
   if(ch.sp==="rto_rebel"&&Math.random()<0.2){energy=clamp(energy-20,0,100);showNotif("Caught! -20 energy",3)}
+  if(ch.sp==="synergy_boost"){progress=clamp(progress+8,0,100);addCaff(200);showNotif("You feel synergized. +8 progress, +200mg caffeine.",3)}
+  if(ch.sp==="team_rally"){aliveEngs().forEach(function(e){e.energy=clamp(e.energy+10,0,100)})}
+  if(ch.sp==="rap_hype"){addCaff(100);aliveEngs().forEach(function(e){e.morale=clamp(e.morale+3,0,100)});showNotif("That was legendary! +100mg caffeine",3)}
+  if(ch.sp==="rap_join"){polCap+=5;showNotif("You dropped bars! +5 extra PC",3)}
   checkRankUp();return true;
 }
 
-// ═══ MYTHS ═══
+// ═══════════════════════════════════════════════════════════════
+// MYTHS / DISCOVERIES
+// ═══════════════════════════════════════════════════════════════
 function tryMyth(){
-  if(replyAllPeace>0)return;
   if(Math.random()>0.3)return;
   var unseen=MYTHS.filter(function(m){return!discoveries[m.id]});
   if(!unseen.length)return;
@@ -307,41 +562,71 @@ function tryMyth(){
   discoveries[myth.id]=true;discoveryCount=Object.keys(discoveries).length;saveStats();
   switch(myth.id){
     case"staffed":aliveEngs().forEach(function(e){e.morale=clamp(e.morale+15,0,100)});break;
-    case"replyall":replyAllPeace=2;break;
+    case"replyall":peaceDays=2;break;
     case"freelunch":energy=clamp(energy+30,0,100);aliveEngs().forEach(function(e){e.morale=clamp(e.morale+20,0,100)});break;
     case"sensibleokr":progress=clamp(progress+10,0,100);break;
-    case"competent":competentDays=3;break;
+    case"competent":aliveEngs().forEach(function(e){e.morale=clamp(e.morale+10,0,100)});break;
     case"cleanship":if(progress>=90&&prodIncidents===0)progress=100;break;
   }
   showNotif("\uD83D\uDCDC DISCOVERY: "+myth.icon+" "+myth.title+"! ("+discoveryCount+"/7)",5);playGood();checkRankUp();
 }
 
-// ═══ ROOM ACTIONS ═══
+// ═══════════════════════════════════════════════════════════════
+// ROOM ACTIONS
+// ═══════════════════════════════════════════════════════════════
+// AUTO-ASSIGN: smart task allocation
+function autoAssign(){
+  var ae=aliveEngs();
+  if(ae.length===0){showNotif("No engineers to assign!",2);return}
+  var unassigned=ae.filter(function(e){return e.task<0});
+  if(unassigned.length===0){showNotif("Everyone already assigned!",2);return}
+  // Priority: bugs if prodRisk>50, then feature, then balance
+  // Assign highest-skill to hardest task, specialties matter
+  unassigned.forEach(function(e){
+    var best=0,bestScore=-1;
+    TASKS.forEach(function(t,i){
+      var sc=e.skill;
+      // Specialty bonus
+      if(t.id==="feature"&&e.specialty==="Frontend")sc+=1;
+      if(t.id==="feature"&&e.specialty==="Backend")sc+=1;
+      if(t.id==="bugs"&&e.specialty==="QA")sc+=2;
+      if(t.id==="techdebt"&&e.specialty==="Infra")sc+=2;
+      if(t.id==="ai"&&e.specialty==="AI/ML")sc+=2;
+      if(t.id==="politics"&&e.skill>=4)sc+=1;
+      // Urgency bonus
+      if(t.id==="bugs"&&prodRisk>50)sc+=3;
+      if(t.id==="feature"&&progress<30)sc+=2;
+      // Morale penalty — low morale engineers do worse
+      sc*=Math.max(0.3,e.morale/100);
+      if(sc>bestScore){bestScore=sc;best=i}
+    });
+    e.task=best;
+  });
+  showNotif("\u2699 Auto-assigned "+unassigned.length+" engineer(s)!",3);playGood();
+}
+
 function doRoomAction(){
   if(energy<3){showNotif("No energy!",2);return}
-  var room=ROOMS[currentRoom];
   if(currentRoom===0){
     // Engineering: toggle assign mode
-    assignMode=!assignMode;
-    if(assignMode){engCursor=0;taskCursor=0;showNotif("Assign mode: select engineer",2)}
-    else showNotif("Assign mode off",2);
+    if(assignStep===0){assignStep=1;assignEng=0;showNotif("Select engineer (\u2191\u2193), then press Enter",3)}
     return;
   }
   if(currentRoom===1){
-    // Coffee
+    // Coffee Shop
     var mg=150+(hasUpg("coffee_machine")?20:0);
     addCaff(mg);energy=clamp(energy+10,0,100);
     showNotif("\u2615 +"+mg+"mg caffeine, +10 energy",2);playGood();return;
   }
   if(currentRoom===2){
-    // HR: recruit
+    // HR: recruit engineer
     if(hrCooldown>0){showNotif("HR cooldown: "+hrCooldown+" days",2);return}
     if(aliveEngs().length>=getRank().mx){showNotif("Team full! ("+getRank().mx+" max)",2);return}
-    var ne=genEng();engineers.push(ne);hrCooldown=2;
+    var ne=genEng();engineers.push(ne);hrCooldown=2;energy=clamp(energy-5,0,100);
     showNotif("\uD83D\uDCDD Hired "+ne.name+" ("+ne.skill+"\u2605 "+ne.specialty+")!",3);playVoice("engineer_hired");playGood();return;
   }
   if(currentRoom===3){
-    // Exec Suite: open shop or nuke
+    // Exec Suite: nuke or shop
     if(hasUpg("nuke")&&!nukeUsed){
       nukeUsed=true;energy=100;aliveEngs().forEach(function(e){e.morale=clamp(e.morale+20,0,100)});
       showNotif("\u2622 RESIGNATION THREAT! Full restore!",4);playAbility();shakeTimer=0.5;flashTimer=0.5;flashColor="#FFD700";return;
@@ -356,35 +641,50 @@ function doRoomAction(){
     showNotif("\uD83C\uDF55 Snacks! +"+mb+" team morale, +15 energy",2);playGood();return;
   }
   if(currentRoom===5){
-    // Server Room: check prod risk, small progress
+    // Server Room: check prod risk
     energy=clamp(energy-3,0,100);
-    if(Math.random()<0.3){prodRisk=clamp(prodRisk-5,0,100);showNotif("\uD83D\uDDA5 Quick hotfix! -5% incident risk",2);playGood()}
+    if(Math.random()<0.4){prodRisk=clamp(prodRisk-8,0,100);showNotif("\uD83D\uDDA5 Hotfix deployed! -8% risk",2);playGood()}
     else showNotif("\uD83D\uDDA5 Monitoring... all quiet.",1);
+    return;
+  }
+  if(currentRoom===6){
+    // Conference Room: DANGER
+    energy=clamp(energy-10,0,100);
+    if(Math.random()<0.5){
+      aliveEngs().forEach(function(e){e.morale=clamp(e.morale-5,0,100)});
+      showNotif("\uD83C\uDFAD Trapped in meeting! -10 energy, -5 team morale",3);playBad();
+    }else{
+      polCap+=3;showNotif("\uD83C\uDFAD Somehow got PC from meeting. +3 PC",2);playGood();
+    }
     return;
   }
 }
 
-
-// ═══ DRAWING: SPRITE ═══
+// ═══════════════════════════════════════════════════════════════
+// DRAWING: Glenn-Correct Lord Bluetooth Sprite
+// ═══════════════════════════════════════════════════════════════
 function drawLordBluetooth(x,y,s){
   s=s||2;ctx.save();
-  // Cape
+  // Cape (purple)
   ctx.fillStyle="#7B1FA2";ctx.fillRect(x-6*s,y-3*s,12*s,14*s);
   ctx.fillStyle="#4A148C";ctx.fillRect(x-8*s,y-1*s,3*s,10*s);ctx.fillRect(x+5*s,y-1*s,3*s,10*s);
   ctx.fillStyle="#6A1B9A";ctx.fillRect(x-3*s,y+11*s,6*s,3*s);
-  // Body
+  // Body (dark blazer)
   ctx.fillStyle="#1a1a1a";ctx.fillRect(x-5*s,y-2*s,10*s,12*s);
   ctx.fillStyle="#222";ctx.fillRect(x-2*s,y-1*s,4*s,4*s);
-  // Bluetooth symbol
-  ctx.fillStyle="#42A5F5";ctx.fillRect(x-1*s,y+2*s,2*s,4*s);ctx.fillRect(x+1*s,y+4*s,1*s,1*s);ctx.fillRect(x-2*s,y+2*s,1*s,1*s);ctx.fillRect(x+1*s,y+2*s,1*s,1*s);ctx.fillRect(x-2*s,y+4*s,1*s,1*s);
-  // Head
+  // Bluetooth symbol on chest
+  ctx.fillStyle="#42A5F5";ctx.fillRect(x-1*s,y+2*s,2*s,4*s);ctx.fillRect(x+1*s,y+4*s,1*s,1*s);
+  ctx.fillRect(x-2*s,y+2*s,1*s,1*s);ctx.fillRect(x+1*s,y+2*s,1*s,1*s);ctx.fillRect(x-2*s,y+4*s,1*s,1*s);
+  // Head (warm Asian skin #EDBA8A)
   ctx.fillStyle="#EDBA8A";ctx.fillRect(x-4*s,y-11*s,8*s,7*s);ctx.fillRect(x-5*s,y-10*s,10*s,5*s);
-  // Hair
+  // BLACK hair swept up
   ctx.fillStyle="#1a1a1a";ctx.fillRect(x-5*s,y-11*s,2*s,3*s);ctx.fillRect(x+3*s,y-11*s,2*s,3*s);
-  ctx.fillRect(x-4*s,y-13*s,8*s,3*s);ctx.fillRect(x-3*s,y-15*s,6*s,2*s);ctx.fillRect(x-2*s,y-16*s,4*s,2*s);ctx.fillRect(x-1*s,y-17*s,2*s,1*s);
+  ctx.fillRect(x-4*s,y-13*s,8*s,3*s);ctx.fillRect(x-3*s,y-15*s,6*s,2*s);
+  ctx.fillRect(x-2*s,y-16*s,4*s,2*s);ctx.fillRect(x-1*s,y-17*s,2*s,1*s);
   ctx.fillRect(x+2*s,y-14*s,3*s,2*s);
-  // Crown
-  ctx.fillStyle="#FFD700";ctx.fillRect(x-5*s,y-18*s,10*s,2*s);ctx.fillRect(x-5*s,y-20*s,2*s,2*s);ctx.fillRect(x-2*s,y-21*s,2*s,3*s);ctx.fillRect(x+1*s,y-20*s,2*s,2*s);
+  // Crown (gold)
+  ctx.fillStyle="#FFD700";ctx.fillRect(x-5*s,y-18*s,10*s,2*s);ctx.fillRect(x-5*s,y-20*s,2*s,2*s);
+  ctx.fillRect(x-2*s,y-21*s,2*s,3*s);ctx.fillRect(x+1*s,y-20*s,2*s,2*s);
   ctx.fillStyle="#2196F3";ctx.fillRect(x-4*s,y-18*s,1*s,1*s);ctx.fillRect(x+3*s,y-18*s,1*s,1*s);
   ctx.fillStyle="#F44336";ctx.fillRect(x-0.5*s,y-19*s,1*s,1*s);
   // Eyes
@@ -393,7 +693,8 @@ function drawLordBluetooth(x,y,s){
   // Eyebrows
   ctx.fillStyle="#222";ctx.fillRect(x-3*s,y-10.5*s,2.5*s,1*s);ctx.fillRect(x+0.5*s,y-10.5*s,2.5*s,1*s);
   // Smile
-  ctx.fillStyle="#D4836A";ctx.fillRect(x-2*s,y-6*s,4*s,1*s);ctx.fillRect(x-3*s,y-6.5*s,1*s,1*s);ctx.fillRect(x+2*s,y-6.5*s,1*s,1*s);
+  ctx.fillStyle="#D4836A";ctx.fillRect(x-2*s,y-6*s,4*s,1*s);
+  ctx.fillRect(x-3*s,y-6.5*s,1*s,1*s);ctx.fillRect(x+2*s,y-6.5*s,1*s,1*s);
   ctx.fillStyle="#fff";ctx.fillRect(x-1*s,y-6*s,2*s,0.8*s);
   // Ears
   ctx.fillStyle="#DDAA7A";ctx.fillRect(x-6*s,y-9*s,1.5*s,2*s);ctx.fillRect(x+4.5*s,y-9*s,1.5*s,2*s);
@@ -402,143 +703,309 @@ function drawLordBluetooth(x,y,s){
   ctx.restore();
 }
 
-function drawEng(x,y,eng,selected){
+// Draw tiny engineer sprite
+function drawEngSprite(x,y,eng,selected){
   var s=1.5;
-  // Body color by specialty
-  ctx.fillStyle=SP_C[eng.specialty]||"#888";
-  ctx.fillRect(x-2*s,y-6*s,4*s,8*s);
-  // Head
+  ctx.fillStyle=SP_C[eng.specialty]||"#888";ctx.fillRect(x-2*s,y-6*s,4*s,8*s);
   ctx.fillStyle="#EDBA8A";ctx.fillRect(x-2*s,y-10*s,4*s,4*s);
-  // Hair
   ctx.fillStyle="#1a1a1a";ctx.fillRect(x-2*s,y-12*s,4*s,2.5*s);
-  // Eyes
   ctx.fillStyle="#222";ctx.fillRect(x-1*s,y-8.5*s,1*s,1*s);ctx.fillRect(x+0.5*s,y-8.5*s,1*s,1*s);
   // Skill stars
   ctx.fillStyle="#FFD700";ctx.font="8px system-ui";ctx.textAlign="center";
   var stars="";for(var i=0;i<eng.skill;i++)stars+="\u2605";
   ctx.fillText(stars,x,y-13*s);
   // Task indicator
-  if(eng.task>=0){
-    ctx.fillStyle=TASKS[eng.task].color;ctx.fillRect(x-3*s,y+3*s,6*s,2*s);
-    ctx.fillStyle="#fff";ctx.font="6px system-ui";ctx.fillText(TASKS[eng.task].icon,x,y+5*s);
-  }
+  if(eng.task>=0){ctx.fillStyle=TASKS[eng.task].color;ctx.fillRect(x-3*s,y+3*s,6*s,2*s);ctx.fillStyle="#fff";ctx.font="6px system-ui";ctx.fillText(TASKS[eng.task].icon,x,y+5*s)}
   // Morale bar
   ctx.fillStyle="#333";ctx.fillRect(x-3*s,y+5.5*s,6*s,1.5*s);
   ctx.fillStyle=eng.morale>50?"#4CAF50":eng.morale>25?"#FF9800":"#F44336";
   ctx.fillRect(x-3*s,y+5.5*s,6*s*(eng.morale/100),1.5*s);
-  // Selection highlight
   if(selected){ctx.strokeStyle="#FFD700";ctx.lineWidth=1;ctx.strokeRect(x-4*s,y-14*s,8*s,22*s)}
 }
 
-// ═══ DRAW HUD ═══
+// ═══════════════════════════════════════════════════════════════
+// DRAWING: HUD
+// ═══════════════════════════════════════════════════════════════
 function drawHUD(){
   ctx.fillStyle="#111";ctx.fillRect(0,0,W,50);
   // Day
-  ctx.fillStyle="#888";ctx.font="10px system-ui";ctx.textAlign="left";ctx.fillText("DAY",8,12);
+  ctx.fillStyle="#888";ctx.font=fz(10);ctx.textAlign="left";ctx.fillText("DAY",8,12);
   ctx.fillStyle="#fff";ctx.font="bold 14px system-ui";ctx.fillText(day+"/"+maxDays,8,28);
-  // Progress bar
-  ctx.fillStyle="#888";ctx.font="10px system-ui";ctx.fillText("PRODUCT",80,12);
-  ctx.fillStyle="#333";ctx.fillRect(80,17,100,10);
-  ctx.fillStyle="#FFD700";ctx.fillRect(80,17,100*(progress/100),10);
-  ctx.fillStyle="#fff";ctx.font="9px system-ui";ctx.fillText(Math.round(progress)+"%",85,26);
-  // PC
-  ctx.fillStyle="#888";ctx.font="10px system-ui";ctx.fillText("PC",195,12);
+  // Phase indicator
+  var phaseLabel=state===ST_STANDUP?"STANDUP":state===ST_WORK?"WORK":state===ST_EOD?"EOD":"";
+  if(phaseLabel){ctx.fillStyle="#FF9800";ctx.font="bold "+fz(10);ctx.textAlign="left";ctx.fillText(phaseLabel+" ("+Math.ceil(Math.max(0,phaseTimer))+"s)",8,45)}
+  // Progress
+  ctx.fillStyle="#888";ctx.font=fz(10);ctx.textAlign="left";ctx.fillText("PRODUCT",80,12);
+  ctx.fillStyle="#333";ctx.fillRect(80,17,100,10);ctx.fillStyle="#FFD700";ctx.fillRect(80,17,100*(progress/100),10);
+  ctx.fillStyle="#fff";ctx.font=fz(9);ctx.fillText(Math.round(progress)+"%",85,26);
+  // Political Capital
+  ctx.fillStyle="#888";ctx.font=fz(10);ctx.fillText("PC",195,12);
   ctx.fillStyle="#2196F3";ctx.font="bold 12px system-ui";ctx.fillText(polCap,195,28);
   // Caffeine
-  ctx.fillStyle="#888";ctx.font="10px system-ui";ctx.fillText("CAFF",240,12);
+  ctx.fillStyle="#888";ctx.font=fz(10);ctx.fillText("CAFF",240,12);
   ctx.fillStyle="#333";ctx.fillRect(240,17,70,10);
   var ct=getCaffTier();ctx.fillStyle=ct.cl;ctx.fillRect(240,17,70*Math.min(caffeine/800,1),10);
-  ctx.fillStyle="#fff";ctx.font="9px system-ui";ctx.fillText(Math.round(caffeine)+"mg",245,26);
+  ctx.fillStyle="#fff";ctx.font=fz(9);ctx.fillText(Math.round(caffeine)+"mg",245,26);
   // Incident risk
-  ctx.fillStyle="#888";ctx.font="10px system-ui";ctx.fillText("RISK",325,12);
+  ctx.fillStyle="#888";ctx.font=fz(10);ctx.fillText("RISK",325,12);
   ctx.fillStyle="#333";ctx.fillRect(325,17,60,10);
   ctx.fillStyle=prodRisk>60?"#F44336":prodRisk>30?"#FF9800":"#4CAF50";
   ctx.fillRect(325,17,60*(prodRisk/100),10);
-  ctx.fillStyle="#fff";ctx.font="9px system-ui";ctx.fillText(Math.round(prodRisk)+"%",330,26);
+  ctx.fillStyle="#fff";ctx.font=fz(9);ctx.fillText(Math.round(prodRisk)+"%",330,26);
   // Team
-  ctx.fillStyle="#888";ctx.font="10px system-ui";ctx.textAlign="right";ctx.fillText("TEAM",W-10,12);
-  ctx.fillStyle="#fff";ctx.font="bold 12px system-ui";ctx.fillText(aliveEngs().length,W-10,28);
+  ctx.fillStyle="#888";ctx.font=fz(10);ctx.textAlign="right";ctx.fillText("TEAM",W-60,12);
+  ctx.fillStyle="#fff";ctx.font="bold 12px system-ui";ctx.fillText(aliveEngs().length,W-60,28);
   // Rank
-  ctx.fillStyle="#FFD700";ctx.font="bold 10px system-ui";ctx.textAlign="left";ctx.fillText(getRank().name,8,45);
+  ctx.fillStyle="#FFD700";ctx.font="bold "+fz(10);ctx.textAlign="left";ctx.fillText(getRank().name,195,45);
   // Energy
-  ctx.fillStyle="#888";ctx.font="10px system-ui";ctx.textAlign="right";ctx.fillText("NRG "+Math.round(energy),W-60,45);
-  // Day phase
-  var phaseLabel=state===ST_STANDUP?"STANDUP":state===ST_WORK?"WORK":state===ST_EOD?"EOD":"";
-  if(phaseLabel){ctx.fillStyle="#FF9800";ctx.font="bold 10px system-ui";ctx.textAlign="center";ctx.fillText(phaseLabel+" ("+Math.ceil(phaseTimer)+"s)",W/2,45)}
+  ctx.fillStyle="#888";ctx.font=fz(10);ctx.textAlign="right";ctx.fillText("NRG "+Math.round(energy),W-10,45);
 }
 
-// ═══ DRAW ROOMS ═══
+// ═══════════════════════════════════════════════════════════════
+// DRAWING: ROOM TABS + BACKGROUND
+// ═══════════════════════════════════════════════════════════════
 function drawRoomBG(){
-  var room=ROOMS[currentRoom];
   ctx.fillStyle="#1a1a2e";ctx.fillRect(0,50,W,H-50);
-  // Room tabs
   var tw=W/ROOMS.length;
   for(var i=0;i<ROOMS.length;i++){
     ctx.fillStyle=i===currentRoom?ROOMS[i].color:"#222";
-    ctx.fillRect(i*tw,50,tw,22);
+    ctx.fillRect(i*tw,50,tw,20);
     ctx.fillStyle=i===currentRoom?"#000":"#666";
-    ctx.font=(i===currentRoom?"bold ":"")+"10px system-ui";ctx.textAlign="center";
-    ctx.fillText(ROOMS[i].icon+" "+ROOMS[i].name,i*tw+tw/2,65);
+    ctx.font=(i===currentRoom?"bold ":"")+"9px system-ui";ctx.textAlign="center";
+    ctx.fillText(ROOMS[i].icon+ROOMS[i].name,i*tw+tw/2,64);
   }
-  ctx.fillStyle="#444";ctx.font="9px system-ui";ctx.textAlign="center";
-  ctx.fillText("\u2190\u2192 Room | \u2191 Action | \u2193 End Day | Enter Assign(Eng)",W/2,84);
+  ctx.fillStyle="#444";ctx.font=fz(9);ctx.textAlign="center";
+  if(isMobile)ctx.fillText(ROOMS[currentRoom].icon+" "+ROOMS[currentRoom].name+" — tap ACTION or ⚡Auto",W/2,80);
+  else ctx.fillText("\u2190\u2192 Room | \u2191 Action | \u2193 End Day | Enter Assign | Q Auto-Assign",W/2,80);
 }
 
+// ═══════════════════════════════════════════════════════════════
+// DRAWING: ENGINEERING ROOM (Engineer Cards)
+// ═══════════════════════════════════════════════════════════════
 function drawEngRoom(){
-  // Engineer cards
   var ae=aliveEngs();
-  var startY=95;
-  ctx.fillStyle="#fff";ctx.font="bold 11px system-ui";ctx.textAlign="left";
+  var startY=90;
+  ctx.fillStyle="#fff";ctx.font="bold "+fz(11);ctx.textAlign="left";
   ctx.fillText("YOUR TEAM ("+ae.length+"/"+getRank().mx+")",10,startY);
-  var cardH=50;
+  if(assignStep===1){
+    ctx.fillStyle="#FFD700";ctx.fillText("  \u2190 Select engineer \u2192, Enter to pick",170,startY);
+  }else if(assignStep===2){
+    ctx.fillStyle="#FF9800";ctx.fillText("  \u2190 Select task \u2192, Enter to assign",170,startY);
+  }
+  var cardH=48;
   for(var i=0;i<ae.length;i++){
-    var e=ae[i];var cy=startY+15+i*cardH;
-    // Card bg
-    ctx.fillStyle=assignMode&&engCursor===i?"#2a2a3e":"#1a1a2e";
-    ctx.fillRect(5,cy,W-10,cardH-4);
-    ctx.strokeStyle=assignMode&&engCursor===i?"#FFD700":"#333";ctx.lineWidth=1;ctx.strokeRect(5,cy,W-10,cardH-4);
-    // Name & quirk
-    ctx.fillStyle=SP_C[e.specialty]||"#fff";ctx.font="bold 11px system-ui";ctx.textAlign="left";
-    ctx.fillText(e.name+" ("+e.specialty+", "+e.skill+"\u2605)",12,cy+14);
-    ctx.fillStyle="#888";ctx.font="9px system-ui";
-    ctx.fillText(e.quirk,12,cy+26);
+    var e=ae[i],cy=startY+12+i*cardH;
+    var sel=(assignStep===1&&assignEng===i);
+    ctx.fillStyle=sel?"#2a2a3e":"#1a1a2e";ctx.fillRect(5,cy,W-10,cardH-3);
+    ctx.strokeStyle=sel?"#FFD700":"#333";ctx.lineWidth=1;ctx.strokeRect(5,cy,W-10,cardH-3);
+    // Sprite
+    drawEngSprite(28,cy+25,e,sel);
+    // Name & info
+    ctx.fillStyle=SP_C[e.specialty]||"#fff";ctx.font="bold "+fz(11);ctx.textAlign="left";
+    ctx.fillText(e.name+" ("+e.specialty+", "+e.skill+"\u2605)",45,cy+14);
+    ctx.fillStyle="#888";ctx.font=fz(9);ctx.fillText(e.quirk,45,cy+26);
     // Energy/morale bars
-    ctx.fillStyle="#333";ctx.fillRect(12,cy+30,60,6);ctx.fillStyle="#4CAF50";ctx.fillRect(12,cy+30,60*(e.energy/100),6);
-    ctx.fillStyle="#333";ctx.fillRect(80,cy+30,60,6);ctx.fillStyle="#2196F3";ctx.fillRect(80,cy+30,60*(e.morale/100),6);
-    ctx.fillStyle="#888";ctx.font="7px system-ui";ctx.fillText("nrg:"+Math.round(e.energy),12,cy+44);ctx.fillText("mor:"+Math.round(e.morale),80,cy+44);
-    // Task
+    ctx.fillStyle="#333";ctx.fillRect(45,cy+30,50,5);ctx.fillStyle="#4CAF50";ctx.fillRect(45,cy+30,50*(e.energy/100),5);
+    ctx.fillStyle="#333";ctx.fillRect(100,cy+30,50,5);ctx.fillStyle="#2196F3";ctx.fillRect(100,cy+30,50*(e.morale/100),5);
+    ctx.fillStyle="#888";ctx.font="7px system-ui";ctx.fillText("nrg:"+Math.round(e.energy),45,cy+42);ctx.fillText("mor:"+Math.round(e.morale),100,cy+42);
+    // Task assignment
     if(e.task>=0){
-      ctx.fillStyle=TASKS[e.task].color;ctx.fillRect(200,cy+4,W-215,20);
-      ctx.fillStyle="#fff";ctx.font="bold 11px system-ui";ctx.fillText(TASKS[e.task].icon+" "+TASKS[e.task].name,210,cy+18);
-    } else {
-      ctx.fillStyle="#333";ctx.fillRect(200,cy+4,W-215,20);
-      ctx.fillStyle="#666";ctx.font="10px system-ui";ctx.fillText("Unassigned - press Enter to assign",210,cy+18);
+      ctx.fillStyle=TASKS[e.task].color;ctx.fillRect(200,cy+4,W-215,18);
+      ctx.fillStyle="#fff";ctx.font="bold "+fz(10);ctx.fillText(TASKS[e.task].icon+" "+TASKS[e.task].name,210,cy+17);
+    }else{
+      ctx.fillStyle="#333";ctx.fillRect(200,cy+4,W-215,18);
+      ctx.fillStyle="#666";ctx.font=fz(10);ctx.fillText("Unassigned",210,cy+17);
     }
   }
   if(ae.length===0){ctx.fillStyle="#F44336";ctx.font="bold 14px system-ui";ctx.textAlign="center";ctx.fillText("No engineers left!",W/2,startY+60)}
+
+  // Task assignment selector
+  if(assignStep===2){
+    var ty=startY+12+ae.length*cardH+10;
+    ctx.fillStyle="#111";ctx.fillRect(5,ty,W-10,40);
+    ctx.fillStyle="#888";ctx.font=fz(10);ctx.textAlign="left";ctx.fillText("Assign "+ae[assignEng].name+" to:",10,ty+12);
+    for(var j=0;j<TASKS.length;j++){
+      var tx=10+j*115,tty=ty+18;
+      ctx.fillStyle=assignTask===j?TASKS[j].color:"#333";ctx.fillRect(tx,tty,110,18);
+      ctx.fillStyle=assignTask===j?"#000":"#888";ctx.font=fz(9);ctx.textAlign="center";
+      ctx.fillText(TASKS[j].icon+TASKS[j].name,tx+55,tty+13);
+    }
+  }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// DRAWING: OTHER ROOMS
+// ═══════════════════════════════════════════════════════════════
+function drawOtherRoom(){
+  ctx.fillStyle="#1a1a2e";ctx.fillRect(0,72,W,H-72);
+  var room=ROOMS[currentRoom];
+  // Room-specific art
+  if(currentRoom===1){
+    // Coffee Shop
+    ctx.fillStyle="#3E2723";ctx.fillRect(40,220,200,90);ctx.fillStyle="#5D4037";ctx.fillRect(45,225,190,80);
+    ctx.fillStyle="#424242";ctx.fillRect(60,200,60,50);ctx.fillStyle="#757575";ctx.fillRect(65,205,50,20);
+    ctx.fillStyle="rgba(255,255,255,0.3)";for(var i=0;i<3;i++){var sx=80+i*15,sy=190-Math.sin(frame*0.1+i)*5;ctx.fillRect(sx,sy,4,12)}
+    ctx.fillStyle="#fff";ctx.fillRect(160,250,12,15);ctx.fillRect(180,250,12,15);
+    ctx.fillStyle="#795548";ctx.fillRect(162,255,8,8);ctx.fillRect(182,255,8,8);
+    ctx.fillStyle="#6D4C41";ctx.font="bold 12px system-ui";ctx.textAlign="center";ctx.fillText("+150mg \u2615 per visit",300,300);
+    ctx.fillText("Press S for Emergency Espresso (+300mg)",300,320);
+    drawLordBluetooth(300,380+Math.sin(frame*0.08)*3,2);
+  }else if(currentRoom===2){
+    // HR
+    ctx.fillStyle="#37474F";for(var i=0;i<4;i++)ctx.fillRect(40+i*140,220,100,50);
+    ctx.fillStyle="#1565C0";ctx.fillRect(50,215,80,5);
+    ctx.fillStyle="#fff";ctx.font="12px system-ui";ctx.textAlign="center";
+    ctx.fillText("Cost: 5 energy, 2 day cooldown",W/2,300);
+    if(hrCooldown>0){ctx.fillStyle="#F44336";ctx.fillText("Cooldown: "+hrCooldown+" days",W/2,320)}
+    drawLordBluetooth(300,380+Math.sin(frame*0.08)*3,2);
+  }else if(currentRoom===3){
+    // Exec Suite
+    ctx.fillStyle="#4a1a1a";ctx.fillRect(100,230,400,60);ctx.fillStyle="#8B4513";ctx.fillRect(120,240,360,40);
+    ctx.fillStyle="#FFD700";ctx.fillRect(280,200,40,30);ctx.fillStyle="#D32F2F";ctx.fillRect(282,202,36,26);
+    ctx.fillStyle="#fff";ctx.font="12px system-ui";ctx.textAlign="center";
+    ctx.fillText("\u2191 to open Upgrade Shop (spend PC)",W/2,310);
+    drawLordBluetooth(300,380+Math.sin(frame*0.08)*3,2);
+  }else if(currentRoom===4){
+    // Kitchen
+    ctx.fillStyle="#5D4037";ctx.fillRect(20,220,200,80);ctx.fillStyle="#8D6E63";ctx.fillRect(25,240,60,50);ctx.fillRect(95,240,60,50);
+    ctx.fillStyle="#FFB74D";ctx.fillRect(400,260,80,20);ctx.fillStyle="#FF8A65";ctx.fillRect(405,263,70,14);
+    ctx.fillStyle="#FF9800";ctx.font="bold 12px system-ui";ctx.textAlign="center";ctx.fillText("\uD83C\uDF55 Snacks & morale boost!",W/2,320);
+    drawLordBluetooth(300,380+Math.sin(frame*0.08)*3,2);
+  }else if(currentRoom===5){
+    // Server Room
+    for(var i=0;i<5;i++){ctx.fillStyle="#1B5E20";ctx.fillRect(30+i*115,220,30,80);
+      for(var j=0;j<6;j++){ctx.fillStyle=(frame+j+i*3)%30<15?"#76FF03":"#33691E";ctx.fillRect(35+i*115,225+j*12,4,4);ctx.fillRect(48+i*115,225+j*12,4,4)}}
+    ctx.fillStyle="#fff";ctx.font="12px system-ui";ctx.textAlign="center";
+    ctx.fillText("Incident Risk: "+Math.round(prodRisk)+"%",W/2,330);
+    drawLordBluetooth(450,380+Math.sin(frame*0.08)*3,2);
+  }else if(currentRoom===6){
+    // Conference Room - TRAP
+    ctx.fillStyle="#3E2723";ctx.fillRect(80,220,440,100);ctx.fillStyle="#5D4037";ctx.fillRect(100,240,400,60);
+    for(var i=0;i<8;i++){ctx.fillStyle="#455A64";ctx.fillRect(110+i*50,210,20,15);ctx.fillRect(110+i*50,305,20,15)}
+    if(Math.sin(frame*0.1)>0){ctx.fillStyle="rgba(244,67,54,0.15)";ctx.fillRect(0,72,W,30)}
+    ctx.fillStyle="#F44336";ctx.font="bold 14px system-ui";ctx.textAlign="center";
+    ctx.fillText("\u26A0 DANGER: Meeting Trap Zone \u26A0",W/2,340);
+    drawLordBluetooth(300,400+Math.sin(frame*0.08)*3,2);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DRAWING: STANDUP SCREEN
+// ═══════════════════════════════════════════════════════════════
+function drawStandup(){
+  ctx.fillStyle="#0d0d0d";ctx.fillRect(0,50,W,H-50);
+  ctx.fillStyle="#FFD700";ctx.font="bold 20px system-ui";ctx.textAlign="center";ctx.fillText("MORNING STANDUP",W/2,85);
+  ctx.fillStyle="#888";ctx.font="12px system-ui";ctx.fillText("Day "+day+" | "+Math.ceil(Math.max(0,phaseTimer))+"s until work phase",W/2,105);
+
+  // Upcoming events warning
+  var ey=130;
+  if(upcomingEvents.length>0){
+    ctx.fillStyle="#F44336";ctx.font="bold 12px system-ui";ctx.fillText("\u26A0 INCOMING EVENTS:",W/2,ey);ey+=20;
+    for(var i=0;i<upcomingEvents.length;i++){
+      ctx.fillStyle="#FF9800";ctx.font=fz(11);ctx.fillText(upcomingEvents[i].title+" ("+upcomingEvents[i].cat+")",W/2,ey);ey+=18;
+    }
+  }else{
+    ctx.fillStyle="#4CAF50";ctx.font="12px system-ui";ctx.fillText("No events incoming! Quiet morning.",W/2,ey);ey+=20;
+  }
+
+  // Team status
+  ey+=10;ctx.fillStyle="#fff";ctx.font="bold 12px system-ui";ctx.fillText("TEAM STATUS",W/2,ey);ey+=20;
+  var ae=aliveEngs();
+  for(var i=0;i<ae.length&&i<5;i++){
+    var e=ae[i];
+    ctx.fillStyle=SP_C[e.specialty]||"#fff";ctx.font=fz(11);ctx.textAlign="left";
+    ctx.fillText(e.name+" ("+e.skill+"\u2605 "+e.specialty+") NRG:"+Math.round(e.energy)+" MOR:"+Math.round(e.morale),100,ey);ey+=16;
+  }
+  if(ae.length===0){ctx.fillStyle="#F44336";ctx.textAlign="center";ctx.fillText("No engineers!",W/2,ey)}
+
+  // Caffeine tier
+  ey+=15;var ct=getCaffTier();
+  ctx.fillStyle=ct.cl;ctx.font="bold 12px system-ui";ctx.textAlign="center";
+  ctx.fillText("Caffeine: "+Math.round(caffeine)+"mg ("+ct.nm+")",W/2,ey);
+
+  // Upgrades owned
+  ey+=25;ctx.fillStyle="#888";ctx.font=fz(10);
+  var upgList=[];for(var u in upgrades)if(upgrades[u]){var ud=UPGRADES.find(function(x){return x.id===u});if(ud)upgList.push(ud.icon)}
+  if(upgList.length)ctx.fillText("Upgrades: "+upgList.join(" "),W/2,ey);
+
+  drawLordBluetooth(W/2,480+Math.sin(frame*0.05)*3,2);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DRAWING: EOD RESOLUTION
+// ═══════════════════════════════════════════════════════════════
+function drawEOD(){
+  ctx.fillStyle="#0d0d0d";ctx.fillRect(0,50,W,H-50);
+  ctx.fillStyle="#FFD700";ctx.font="bold 18px system-ui";ctx.textAlign="center";ctx.fillText("END OF DAY "+day+" RESULTS",W/2,80);
+
+  var startY=100;
+  for(var i=0;i<eodResults.length&&i<8;i++){
+    var r=eodResults[i];
+    var revealed=i<eodAnimIdx;
+    var ry=startY+i*55;
+
+    if(!revealed){
+      // Still hidden - show spinning animation
+      ctx.fillStyle="#333";ctx.fillRect(20,ry,W-40,48);
+      ctx.strokeStyle="#555";ctx.strokeRect(20,ry,W-40,48);
+      ctx.fillStyle="#666";ctx.font="12px system-ui";ctx.textAlign="center";
+      var dots="";for(var d=0;d<(frame%4);d++)dots+=".";
+      ctx.fillText(r.eng.name+" working"+dots,W/2,ry+28);
+      continue;
+    }
+
+    // Revealed result
+    var bg=r.type==="crit_success"?"#1a3a1a":r.type==="crit_fail"?"#3a1a1a":r.type==="success"?"#1a2a1a":"#2a2a1a";
+    ctx.fillStyle=bg;ctx.fillRect(20,ry,W-40,48);
+    var border=r.type==="crit_success"?"#FFD700":r.type==="crit_fail"?"#F44336":r.type==="success"?"#4CAF50":"#FF9800";
+    ctx.strokeStyle=border;ctx.lineWidth=2;ctx.strokeRect(20,ry,W-40,48);
+
+    // Result text
+    ctx.fillStyle=border;ctx.font="bold "+fz(11);ctx.textAlign="left";
+    ctx.fillText(r.text,30,ry+16);
+    ctx.fillStyle="#ccc";ctx.font=fz(10);ctx.fillText(r.efx,30,ry+30);
+
+    // Task badge
+    ctx.fillStyle=r.task.color||"#888";ctx.fillRect(W-120,ry+5,80,16);
+    ctx.fillStyle="#000";ctx.font="bold 9px system-ui";ctx.textAlign="center";
+    ctx.fillText((r.task.icon||"")+" "+(r.task.name||""),W-80,ry+16);
+
+    // Stars for critical
+    if(r.type==="crit_success"){
+      ctx.fillStyle="#FFD700";ctx.font="14px system-ui";ctx.fillText("\u2728\u2728\u2728",W-80,ry+38);
+    }
+  }
+
+  // Continue prompt
+  if(!eodAnimating){
+    ctx.fillStyle="#888";ctx.font="12px system-ui";ctx.textAlign="center";
+    if(Math.sin(frame*0.08)>0)ctx.fillText("Press Enter/Space to continue",W/2,H-20);
+  }else{
+    ctx.fillStyle="#FFD700";ctx.font=fz(11);ctx.textAlign="center";
+    ctx.fillText("Resolving... ("+eodAnimIdx+"/"+eodResults.length+")",W/2,H-20);
+  }
+
+  // Progress bar at bottom
+  ctx.fillStyle="#333";ctx.fillRect(20,H-45,W-40,10);
+  ctx.fillStyle="#FFD700";ctx.fillRect(20,H-45,(W-40)*(progress/100),10);
+  ctx.fillStyle="#fff";ctx.font=fz(9);ctx.textAlign="center";
+  ctx.fillText("Progress: "+Math.round(progress)+"%",W/2,H-37);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DRAWING: NOTIFICATION
+// ═══════════════════════════════════════════════════════════════
 function drawNotification(){
   if(!notification||notifTimer<=0)return;
   var a=Math.min(1,notifTimer);
-  ctx.fillStyle="rgba(0,0,0,"+(0.8*a)+")";ctx.fillRect(20,86,W-40,24);
-  ctx.strokeStyle="rgba(255,215,0,"+a+")";ctx.lineWidth=1;ctx.strokeRect(20,86,W-40,24);
-  ctx.fillStyle="rgba(255,255,255,"+a+")";ctx.font="11px system-ui";ctx.textAlign="center";ctx.fillText(notification,W/2,102);
+  ctx.fillStyle="rgba(0,0,0,"+(0.8*a)+")";ctx.fillRect(20,86,W-40,22);
+  ctx.strokeStyle="rgba(255,215,0,"+a+")";ctx.lineWidth=1;ctx.strokeRect(20,86,W-40,22);
+  ctx.fillStyle="rgba(255,255,255,"+a+")";ctx.font=fz(11);ctx.textAlign="center";ctx.fillText(notification,W/2,101);
 }
 
-
-function wrapText(text,maxW){
-  ctx.font="14px system-ui";
-  var words=text.split(" "),lines=[],line="";
-  for(var i=0;i<words.length;i++){
-    var test=line+words[i]+" ";
-    if(ctx.measureText(test).width>maxW){lines.push(line.trim());line=words[i]+" ";}
-    else line=test;
-  }
-  if(line.trim())lines.push(line.trim());
-  return lines;
-}
-
+// ═══════════════════════════════════════════════════════════════
+// DRAWING: EVENT POPUP
+// ═══════════════════════════════════════════════════════════════
 function drawEventPopup(){
   if(!currentEvent)return;
   var ev=currentEvent;
@@ -547,26 +1014,40 @@ function drawEventPopup(){
   ctx.fillStyle="#1a1a2e";ctx.fillRect(x,y,w,h);
   var cc=ev.cat==="meeting"?"#FF9800":ev.cat==="theater"?"#9C27B0":ev.cat==="leadership"?"#F44336":ev.cat==="engineering"?"#2196F3":"#FF5722";
   ctx.fillStyle=cc;ctx.fillRect(x,y,w,6);
+  // Email icon
   ctx.fillStyle="#FFD700";ctx.fillRect(x+16,y+16,38,28);
   ctx.fillStyle="#1a1a2e";ctx.fillRect(x+20,y+20,30,20);
   ctx.beginPath();ctx.moveTo(x+16,y+16);ctx.lineTo(x+35,y+31);ctx.lineTo(x+54,y+16);ctx.strokeStyle="#FFD700";ctx.stroke();
-  ctx.fillStyle=cc;ctx.font="bold 20px system-ui";ctx.textAlign="left";ctx.fillText(ev.title,x+72,y+36);
-  ctx.fillStyle="#888";ctx.font="10px system-ui";ctx.fillText(ev.cat.toUpperCase(),x+72,y+52);
-  ctx.fillStyle="#ccc";ctx.font="13px system-ui";var lines=wrapText(ev.desc,w-40);for(var i=0;i<lines.length;i++)ctx.fillText(lines[i],x+20,y+82+i*18);
-  var ey=y+150;
-  if(ev.choices&&ev.choices[0]){
-    ctx.fillStyle="#bbb";ctx.font="12px system-ui";ctx.fillText("Pick an outcome:",x+20,ey-18);
+  // Title
+  ctx.fillStyle=cc;ctx.font="bold 18px system-ui";ctx.textAlign="left";ctx.fillText(ev.title,x+72,y+36);
+  ctx.fillStyle="#888";ctx.font=fz(10);ctx.fillText(ev.cat.toUpperCase(),x+72,y+52);
+  // Description
+  ctx.fillStyle="#ccc";ctx.font="13px system-ui";
+  var lines=wrapText(ev.desc,w-40);for(var i=0;i<lines.length;i++)ctx.fillText(lines[i],x+20,y+78+i*18);
+  // Choices
+  if(ev.choices&&ev.choices.length){
+    ctx.fillStyle="#bbb";ctx.font="12px system-ui";ctx.fillText("Choose your response:",x+20,y+135);
     for(var j=0;j<ev.choices.length&&j<3;j++){
-      var ch=ev.choices[j],bx=x+20+j*160,by=y+260;
+      var ch=ev.choices[j],bx=x+20+j*160,by=y+160;
       ctx.fillStyle=eventChoice===j?cc:"#333";ctx.fillRect(bx,by,150,42);
       ctx.fillStyle="#fff";ctx.font="bold 12px system-ui";ctx.textAlign="center";ctx.fillText(ch.name,bx+75,by+25);
+      if(ch.pc){ctx.fillStyle="#888";ctx.font=fz(9);ctx.fillText(ch.pc+" PC",bx+75,by+38)}
       if(eventChoice===j){ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.strokeRect(bx,by,150,42)}
     }
   }
-  ctx.fillStyle="#666";ctx.font="11px system-ui";ctx.textAlign="center";
-  ctx.fillText("← → choose | Enter/Space confirm",W/2,y+h-20);
+  ctx.fillStyle="#666";ctx.font=fz(11);ctx.textAlign="center";
+  ctx.fillText("\u2190 \u2192 choose | Enter/Space confirm",W/2,y+h-20);
 }
 
+function wrapText(text,maxW){
+  ctx.font="13px system-ui";var words=text.split(" "),lines=[],line="";
+  for(var i=0;i<words.length;i++){var test=line+words[i]+" ";if(ctx.measureText(test).width>maxW){lines.push(line.trim());line=words[i]+" "}else line=test}
+  if(line.trim())lines.push(line.trim());return lines;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DRAWING: TITLE, RESULT, SHOP
+// ═══════════════════════════════════════════════════════════════
 function drawTitle(){
   ctx.fillStyle="#0d0d0d";ctx.fillRect(0,0,W,H);
   ctx.strokeStyle="rgba(123,31,162,0.12)";ctx.lineWidth=1;
@@ -575,11 +1056,13 @@ function drawTitle(){
   ctx.fillStyle="#FFD700";ctx.font="bold 38px system-ui";ctx.textAlign="center";ctx.fillText("LORD BLUETOOTH",W/2,120);
   ctx.fillStyle="#7B1FA2";ctx.font="bold 16px system-ui";ctx.fillText("& MEGACORP ORG MANAGEMENT",W/2,145);
   drawLordBluetooth(W/2,220+Math.sin(frame*0.05)*5,4);
-  ctx.fillStyle="#888";ctx.font="14px system-ui";ctx.fillText("Manage a team. Fight reorgs. Ship the product.",W/2,315);
-  ctx.fillText("30 days. 3 phases. No mercy.",W/2,335);
-  ctx.fillStyle="#555";ctx.font="12px system-ui";ctx.fillText("←→ rooms  |  ↑ action  |  ↓ end day  |  Enter assign",W/2,455);
-  ctx.fillText("M mute  |  S espresso in Coffee Shop",W/2,475);
-  if(bestScore>0){ctx.fillStyle="#FFD700";ctx.fillText("Best Score: "+bestScore+"  |  Games: "+gamesPlayed,W/2,390)}
+  ctx.fillStyle="#888";ctx.font="14px system-ui";
+  ctx.fillText("Manage engineers. Fight reorgs. Ship the product.",W/2,310);
+  ctx.fillText("30 days. 3 phases. No mercy.",W/2,330);
+  ctx.fillStyle="#555";ctx.font="12px system-ui";
+  ctx.fillText("\u2190\u2192 rooms | \u2191 action | \u2193 end day | Enter assign tasks",W/2,450);
+  ctx.fillText("M mute | S espresso in Coffee Shop",W/2,470);
+  if(bestScore>0){ctx.fillStyle="#FFD700";ctx.fillText("Best Score: "+bestScore+" | Games: "+gamesPlayed,W/2,390)}
   if(allTimePeakCaffeine>0){ctx.fillStyle="#FF9800";ctx.fillText("Peak Caffeine: "+allTimePeakCaffeine+"mg",W/2,410)}
   var myths=0;for(var k in discoveries)myths++;
   if(myths>0){ctx.fillStyle="#888";ctx.fillText("Myths: "+myths+"/7",W/2,430)}
@@ -593,142 +1076,917 @@ function drawResult(){
   ctx.fillStyle=won?"#FFD700":"#F44336";ctx.font="bold 34px system-ui";ctx.fillText(won?"PRODUCT SHIPPED!":"GAME OVER",W/2,92);
   drawLordBluetooth(W/2,165,4);
   ctx.fillStyle="#fff";ctx.font="14px system-ui";
-  var reason=won?"Day "+day+" | Score: "+score:(aliveEngs().length===0?"Your team got obliterated by the org.":"Only "+Math.round(progress)+"% shipped.");
+  var reason=won?"Day "+day+" | Score: "+score:(aliveEngs().length===0?"Your team got obliterated by the org.":"Only "+Math.round(progress)+"% shipped. Time ran out.");
   ctx.fillText(reason,W/2,250);
   ctx.fillText("Rank: "+getRank().name,W/2,275);
-  ctx.fillText("Engineers left: "+aliveEngs().length,W/2,298);
-  ctx.fillText("Production incidents: "+prodIncidents,W/2,321);
-  ctx.fillText("Peak caffeine: "+peakCaffeine+"mg",W/2,344);
-  ctx.fillText("Political Capital: "+polCap,W/2,367);
-  ctx.fillStyle="#888";ctx.font="12px system-ui";ctx.fillText("Myths discovered: "+discoveryCount+"/7",W/2,402);
-  if(bestScore>0){ctx.fillStyle="#FFD700";ctx.fillText("Best Score: "+bestScore,W/2,430)}
-  if(Math.sin(frame*0.08)>0){ctx.fillStyle="#666";ctx.font="16px system-ui";ctx.fillText("Press any key to continue",W/2,515)}
+  ctx.fillText("Engineers left: "+aliveEngs().length+" | Incidents: "+prodIncidents,W/2,298);
+  ctx.fillText("Peak caffeine: "+peakCaffeine+"mg | PC remaining: "+polCap,W/2,321);
+  ctx.fillStyle="#888";ctx.font="12px system-ui";ctx.fillText("Myths discovered: "+discoveryCount+"/7",W/2,356);
+  if(prodIncidents===0&&won){ctx.fillStyle="#FFD700";ctx.font="bold 13px system-ui";ctx.fillText("\uD83C\uDF1F FLAWLESS SHIP \u2014 Zero Production Incidents!",W/2,378)}
+  if(bestScore>0){ctx.fillStyle="#FFD700";ctx.font="12px system-ui";ctx.fillText("Best Score: "+bestScore,W/2,405)}
+  if(Math.sin(frame*0.08)>0){ctx.fillStyle="#666";ctx.font="16px system-ui";ctx.fillText("Press any key to continue",W/2,500)}
 }
 
 function drawShop(){
-  ctx.fillStyle="rgba(0,0,0,0.86)";ctx.fillRect(0,0,W,H);
-  ctx.fillStyle="#FFD700";ctx.font="bold 22px system-ui";ctx.textAlign="center";ctx.fillText("EXECUTIVE SHOP",W/2,42);
-  ctx.fillStyle="#888";ctx.font="11px system-ui";ctx.fillText("Spend Political Capital on permanent upgrades",W/2,60);
-  var startY=90;
+  ctx.fillStyle="rgba(0,0,0,0.92)";ctx.fillRect(0,0,W,H);
+  ctx.fillStyle="#FFD700";ctx.font="bold 22px system-ui";ctx.textAlign="center";ctx.fillText("EXECUTIVE SHOP",W/2,40);
+  ctx.fillStyle="#888";ctx.font=fz(11);ctx.fillText("Political Capital: "+polCap+" PC",W/2,58);
+  var startY=78;
   for(var i=0;i<UPGRADES.length;i++){
-    var u=UPGRADES[i],owned=!!upgrades[u.id],y=startY+i*42;
-    ctx.fillStyle=shopCursor===i?"#2a2a3e":"#1a1a2e";ctx.fillRect(20,y,560,36);
-    ctx.strokeStyle=shopCursor===i?"#FFD700":"#333";ctx.strokeRect(20,y,560,36);
-    ctx.fillStyle=owned?"#4CAF50":(polCap>=u.cost?"#fff":"#666");ctx.font="bold 12px system-ui";ctx.textAlign="left";ctx.fillText(u.icon+" "+u.name+"  ("+u.cost+" PC)",30,y+14);
-    ctx.fillStyle="#888";ctx.font="10px system-ui";ctx.fillText(u.desc,30,y+28);
-    ctx.textAlign="right";ctx.fillStyle=owned?"#4CAF50":(polCap>=u.cost?"#FFD700":"#666");ctx.fillText(owned?"OWNED":"BUY",565,y+22);
+    var u=UPGRADES[i],owned=!!upgrades[u.id],y=startY+i*48;
+    ctx.fillStyle=shopCursor===i?"#2a2a3e":"#1a1a2e";ctx.fillRect(20,y,560,42);
+    ctx.strokeStyle=shopCursor===i?"#FFD700":"#333";ctx.strokeRect(20,y,560,42);
+    ctx.fillStyle=owned?"#4CAF50":(polCap>=u.cost?"#fff":"#666");ctx.font="bold 12px system-ui";ctx.textAlign="left";
+    ctx.fillText(u.icon+" "+u.name+"  ("+u.cost+" PC)",30,y+16);
+    ctx.fillStyle="#888";ctx.font=fz(10);ctx.fillText(u.desc,30,y+32);
+    ctx.textAlign="right";ctx.fillStyle=owned?"#4CAF50":(polCap>=u.cost?"#FFD700":"#666");ctx.fillText(owned?"OWNED":"BUY",565,y+24);
   }
-  ctx.fillStyle="#666";ctx.textAlign="center";ctx.font="11px system-ui";ctx.fillText("↑↓ select | Enter buy | Esc back",W/2,560);
+  ctx.fillStyle="#666";ctx.textAlign="center";ctx.font=fz(11);ctx.fillText("\u2191\u2193 select | Enter buy | Esc back",W/2,575);
 }
 
+// ═══════════════════════════════════════════════════════════════
+// UPDATE LOOP
+// ═══════════════════════════════════════════════════════════════
 function update(dt){
   frame++;updateMic();
+  if(isMobile&&frame%15===0)updateMobileUI();
   if(notification&&notifTimer>0)notifTimer-=dt;
   if(shakeTimer>0)shakeTimer-=dt;
   if(flashTimer>0)flashTimer-=dt;
-  if(state===ST_TITLE){
-    if(frame%8===0)playBGM();
-    return;
-  }
-  if(state===ST_STANDUP||state===ST_WORK){
+
+  if(state===ST_TITLE){if(frame%8===0)playBGM();return}
+
+  if(state===ST_STANDUP){
     if(frame%8===0)playBGM();
     phaseTimer-=dt;
-    if(state===ST_WORK){
-      if(keys.ArrowDown){phaseTimer-=dt*0.25}
-    }
-    if(phaseTimer<=0){
-      if(state===ST_STANDUP){state=ST_WORK;phaseTimer=34;showNotif("Work phase: assign tasks and manage the org",2)}
-      else {endDay();phaseTimer=8}
-    }
-    if(state===ST_WORK&&Math.random()<0.02+micSmooth*0.08&&upcomingEvents.length&&!currentEvent){
+    if(phaseTimer<=0){state=ST_WORK;phaseTimer=34;showNotif("Work phase: assign tasks & manage the org!",2)}
+    return;
+  }
+
+  if(state===ST_WORK){
+    if(frame%8===0)playBGM();
+    phaseTimer-=dt;
+    if(phaseTimer<=0){resolveDay();return}
+    // Random event spawn
+    if(Math.random()<0.02+micSmooth*0.08&&upcomingEvents.length&&!currentEvent){
       currentEvent=upcomingEvents.shift();eventChoice=0;state=ST_EVENT;playBad();playVoice(currentEvent.voice||"")
     }
-    if(state===ST_WORK&&aliveEngs().length&&prodRisk<100){
-      // passive morale drift / caffeine abuse
-      if(caffeine>=600&&Math.random()<0.05){aliveEngs().forEach(function(e){e.morale=clamp(e.morale-1,0,100)});}
-    }
-    if(state===ST_WORK&&keys.ArrowDown&&phaseTimer>0){
-      // end day early if holding down? no-op; keep to old familiarity
+    // Caffeine jitters at high levels
+    if(caffeine>=600&&Math.random()<0.03){
+      aliveEngs().forEach(function(e){e.morale=clamp(e.morale-1,0,100)});
     }
     return;
   }
-  if(state===ST_EVENT){
-    if(currentEvent&&phaseTimer<=0)phaseTimer=8;
-    if(keys.ArrowLeft||keys.ArrowRight){/* handled in input */}
-    return;
-  }
+
+  if(state===ST_EVENT){return}
+
   if(state===ST_EOD){
-    phaseTimer-=dt;
-    if(phaseTimer<=0){startNextDay();phaseTimer=8}
+    if(eodAnimating){
+      eodAnimTimer-=dt;
+      if(eodAnimTimer<=0&&eodAnimIdx<eodResults.length){
+        advanceEodAnim();eodAnimTimer=0.8;
+      }
+      if(eodAnimIdx>=eodResults.length)eodAnimating=false;
+    }
     return;
   }
+
   if(state===ST_RESULT||state===ST_SHOP)return;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// RENDER LOOP
+// ═══════════════════════════════════════════════════════════════
 function render(){
   ctx.save();
   if(shakeTimer>0)ctx.translate((Math.random()-0.5)*8*shakeTimer,(Math.random()-0.5)*8*shakeTimer);
-  if(state===ST_TITLE)drawTitle();
-  else if(state===ST_SHOP){drawShop();}
-  else if(state===ST_RESULT)drawResult();
-  else {
-    drawHUD();
-    drawRoomBG();
-    if(currentRoom===0)drawEngRoom();
-    else {
-      // room art
-      ctx.fillStyle="#1a1a2e";ctx.fillRect(0,72,W,H-72);
-      if(currentRoom===1){ctx.fillStyle="#3E2723";ctx.fillRect(40,220,200,90);ctx.fillStyle="#424242";ctx.fillRect(60,200,60,50)}
-      if(currentRoom===2){ctx.fillStyle="#37474F";ctx.fillRect(40,220,120,50);ctx.fillStyle="#1565C0";ctx.fillRect(50,215,80,5)}
-      if(currentRoom===3){ctx.fillStyle="#3E2723";ctx.fillRect(80,220,440,100);ctx.fillStyle="#5D4037";ctx.fillRect(100,240,400,60)}
-      if(currentRoom===4){ctx.fillStyle="#5D4037";ctx.fillRect(20,220,200,80);ctx.fillStyle="#8D6E63";ctx.fillRect(25,240,60,50)}
-      if(currentRoom===5){for(var k=0;k<5;k++){ctx.fillStyle="#1B5E20";ctx.fillRect(30+k*115,220,30,80)}}
-      drawPlayer();
-    }
+
+  if(state===ST_TITLE){drawTitle()}
+  else if(state===ST_SHOP){drawShop()}
+  else if(state===ST_RESULT){drawResult()}
+  else if(state===ST_STANDUP){drawHUD();drawStandup();drawNotification()}
+  else if(state===ST_EOD){drawHUD();drawEOD();drawNotification()}
+  else{
+    // ST_WORK or ST_EVENT
+    drawHUD();drawRoomBG();
+    if(currentRoom===0)drawEngRoom();else drawOtherRoom();
     drawNotification();
     if(state===ST_EVENT)drawEventPopup();
   }
+
   if(flashTimer>0){ctx.fillStyle=flashColor;ctx.globalAlpha=flashTimer*0.3;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1}
   ctx.restore();
 }
 
-// ═══ INPUT ═══
-document.addEventListener("keydown",function(e){keys[e.key]=true;initAudio();initMic();
+// ═══════════════════════════════════════════════════════════════
+// INPUT
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener("keydown",function(e){
+  keys[e.key]=true;initAudio();initMic();
+
   if(state===ST_TITLE){initGame();e.preventDefault();return}
   if(state===ST_RESULT){if(e.key==="Enter"||e.key===" "){state=ST_TITLE}e.preventDefault();return}
+
+  // SHOP
   if(state===ST_SHOP){
     if(e.key==="ArrowUp"){shopCursor=Math.max(0,shopCursor-1);playStep()}
     if(e.key==="ArrowDown"){shopCursor=Math.min(UPGRADES.length-1,shopCursor+1);playStep()}
-    if(e.key==="Enter"||e.key===" "){var u=UPGRADES[shopCursor];if(!upgrades[u.id]&&polCap>=u.cost){polCap-=u.cost;upgrades[u.id]=true;showNotif("Bought "+u.name,3);playVoice("upgrade_buy");playAbility();saveStats()}else showNotif(upgrades[u.id]?"Already owned":"Need more PC",2)}
-    if(e.key==="Escape"){state=ST_STANDUP}
-    e.preventDefault();return
+    if(e.key==="Enter"||e.key===" "){
+      var u=UPGRADES[shopCursor];
+      if(!upgrades[u.id]&&polCap>=u.cost){polCap-=u.cost;upgrades[u.id]=true;showNotif("Bought "+u.name+"!",3);playVoice("upgrade_buy");playAbility();saveStats()}
+      else showNotif(upgrades[u.id]?"Already owned":"Need more PC",2);
+    }
+    if(e.key==="Escape"){state=ST_WORK}
+    e.preventDefault();return;
   }
+
+  // EVENT
   if(state===ST_EVENT){
     if(e.key==="ArrowLeft"){eventChoice=Math.max(0,eventChoice-1);playStep()}
     if(e.key==="ArrowRight"){eventChoice=Math.min(currentEvent.choices.length-1,eventChoice+1);playStep()}
     if(e.key==="Enter"||e.key===" "){
-      applyChoice(currentEvent,eventChoice);
-      currentEvent=null;state=ST_WORK;phaseTimer=Math.max(phaseTimer,1)
+      if(applyChoice(currentEvent,eventChoice)){currentEvent=null;state=ST_WORK}
     }
-    e.preventDefault();return
+    e.preventDefault();return;
   }
-  if(e.key==="ArrowLeft"){currentRoom=Math.max(0,currentRoom-1);playStep();e.preventDefault()}
-  if(e.key==="ArrowRight"){currentRoom=Math.min(ROOMS.length-1,currentRoom+1);playStep();e.preventDefault()}
-  if(e.key==="ArrowUp"){doRoomAction();e.preventDefault()}
-  if(e.key==="ArrowDown"){phaseTimer=0;e.preventDefault()}
-  if(e.key==="Enter"||e.key==="a"){if(currentRoom===0){assignMode=!assignMode;showNotif(assignMode?"Assign mode on":"Assign mode off",2)}else doRoomAction();e.preventDefault()}
-  if(e.key==="m"||e.key==="M")bgmMuted=!bgmMuted;
-  if(e.key==="s"||e.key==="S"){if(currentRoom===1&&!emergencyUsed){addCaff(300);emergencyUsed=true;showNotif("\u2615\u26A1 Emergency Espresso!",3);playAbility()}}
+
+  // EOD - advance animation or continue
+  if(state===ST_EOD){
+    if((e.key==="Enter"||e.key===" ")&&!eodAnimating){
+      startNextDay();
+    }
+    e.preventDefault();return;
+  }
+
+  // STANDUP - skip to work
+  if(state===ST_STANDUP){
+    if(e.key==="Enter"||e.key===" "){phaseTimer=0}
+    if(e.key==="ArrowDown"){phaseTimer=0}
+    e.preventDefault();return;
+  }
+
+  // WORK PHASE
+  // Assign mode navigation
+  if(assignStep===1&&currentRoom===0){
+    var ae=aliveEngs();
+    if(e.key==="ArrowUp"){assignEng=Math.max(0,assignEng-1);playStep();e.preventDefault();return}
+    if(e.key==="ArrowDown"){assignEng=Math.min(ae.length-1,assignEng+1);playStep();e.preventDefault();return}
+    if(e.key==="Enter"||e.key===" "){
+      if(ae.length>0){assignStep=2;assignTask=0;playStep()}
+      e.preventDefault();return;
+    }
+    if(e.key==="Escape"){assignStep=0;e.preventDefault();return}
+    // Allow room switching too
+    if(e.key==="ArrowLeft"&&currentRoom>0){currentRoom--;assignStep=0;playStep();e.preventDefault();return}
+    if(e.key==="ArrowRight"&&currentRoom<ROOMS.length-1){currentRoom++;assignStep=0;playStep();e.preventDefault();return}
+    e.preventDefault();return;
+  }
+  if(assignStep===2&&currentRoom===0){
+    if(e.key==="ArrowLeft"){assignTask=Math.max(0,assignTask-1);playStep();e.preventDefault();return}
+    if(e.key==="ArrowRight"){assignTask=Math.min(TASKS.length-1,assignTask+1);playStep();e.preventDefault();return}
+    if(e.key==="Enter"||e.key===" "){
+      var ae2=aliveEngs();
+      if(assignEng<ae2.length){ae2[assignEng].task=assignTask;showNotif(ae2[assignEng].name+" \u2192 "+TASKS[assignTask].name,2);playGood()}
+      assignStep=0;e.preventDefault();return;
+    }
+    if(e.key==="Escape"){assignStep=1;e.preventDefault();return}
+    e.preventDefault();return;
+  }
+
+  // Normal room navigation
+  if(e.key==="ArrowLeft"&&currentRoom>0){currentRoom--;playStep();e.preventDefault();return}
+  if(e.key==="ArrowRight"&&currentRoom<ROOMS.length-1){currentRoom++;playStep();e.preventDefault();return}
+  if(e.key==="ArrowUp"){doRoomAction();e.preventDefault();return}
+  if(e.key==="ArrowDown"){phaseTimer=0;e.preventDefault();return}
+  if(e.key==="Enter"||e.key==="a"){
+    if(currentRoom===0){assignStep=assignStep===0?1:0;assignEng=0;showNotif(assignStep?"Select engineer":"Assign mode off",2)}
+    else doRoomAction();
+    e.preventDefault();return;
+  }
+  if(e.key==="q"||e.key==="Q"){
+    if(state===ST_WORK){autoAssign()}
+    e.preventDefault();return;
+  }
+  if(e.key==="m"||e.key==="M"){bgmMuted=!bgmMuted}
+  if(e.key==="s"||e.key==="S"){
+    if(currentRoom===1){addCaff(300);showNotif("\u2615\u26A1 Emergency Espresso! +300mg!",3);playAbility();shakeTimer=0.3}
+  }
+  e.preventDefault();
 });
 
-// Touch basics
+// Touch controls
 var touchX=0,touchY=0,lastTap=0;
-cv.addEventListener("touchstart",function(e){initAudio();initMic();var t=e.touches[0];touchX=t.clientX;touchY=t.clientY;var now=Date.now();if(now-lastTap<300&&currentRoom===1&&!emergencyUsed){addCaff(300);emergencyUsed=true;showNotif("\u2615\u26A1 Emergency Espresso!",3);playAbility()}lastTap=now;e.preventDefault()},{passive:false});
-cv.addEventListener("touchend",function(e){if(state===ST_TITLE){initGame();return}if(state===ST_RESULT){state=ST_TITLE;return}if(state===ST_EVENT){applyChoice(currentEvent,eventChoice);currentEvent=null;state=ST_WORK;return}var t=e.changedTouches[0],dx=t.clientX-touchX,dy=t.clientY-touchY;if(Math.abs(dx)>Math.abs(dy)){if(dx<0)currentRoom=Math.max(0,currentRoom-1);else currentRoom=Math.min(ROOMS.length-1,currentRoom+1)}else{if(dy<0)doRoomAction();else phaseTimer=0}e.preventDefault()},{passive:false});
+cv.addEventListener("touchstart",function(e){
+  initAudio();initMic();
+  if(state===ST_TITLE){initGame();return}
+  if(state===ST_RESULT){state=ST_TITLE;return}
+  if(state===ST_EOD&&!eodAnimating){startNextDay();return}
+  if(state===ST_STANDUP){phaseTimer=0;return}
+  var t=e.touches[0];touchX=t.clientX;touchY=t.clientY;
+  var now=Date.now();
+  if(state===ST_WORK&&currentRoom===1&&(now-lastTap)<300){addCaff(300);showNotif("\u2615\u26A1 Emergency Espresso! +300mg!",3);playAbility();shakeTimer=0.3}
+  lastTap=now;e.preventDefault();
+},{passive:false});
 
-// Main loop
+cv.addEventListener("touchend",function(e){
+  if(state===ST_SHOP){
+    var t=e.changedTouches[0],dx=t.clientX-touchX,dy=t.clientY-touchY;
+    if(Math.abs(dy)>30&&dy>0){state=ST_WORK;return;} // swipe down closes shop
+    if(Math.abs(dy)>30&&dy<0){var u=UPGRADES[shopCursor];if(!upgrades[u.id]&&polCap>=u.cost){polCap-=u.cost;upgrades[u.id]=true;showNotif("Bought "+u.name+"!",3);playVoice("upgrade_buy");playAbility();saveStats()}else showNotif(upgrades[u.id]?"Already owned":"Need more PC",2);return;}
+    if(Math.abs(dx)>Math.abs(dy)){
+      if(dx<-30)shopCursor=Math.max(0,shopCursor-1);
+      else if(dx>30)shopCursor=Math.min(UPGRADES.length-1,shopCursor+1);
+    }
+    e.preventDefault();return;
+  }
+  if(state===ST_EVENT){
+    applyChoice(currentEvent,eventChoice);currentEvent=null;state=ST_WORK;return;
+  }
+  var t=e.changedTouches[0],dx=t.clientX-touchX,dy=t.clientY-touchY;
+  // Tap (no significant swipe) = room action
+  if(Math.abs(dx)<15 && Math.abs(dy)<15){doRoomAction();e.preventDefault();return;}
+  if(Math.abs(dx)>Math.abs(dy)){
+    if(dx<-30&&currentRoom>0)currentRoom--;
+    else if(dx>30&&currentRoom<ROOMS.length-1)currentRoom++;
+  }else{
+    if(dy<-40)doRoomAction(); // swipe up = action
+    // swipe down does nothing (removed day skip)
+  }
+  e.preventDefault();
+},{passive:false});
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN LOOP
+// ═══════════════════════════════════════════════════════════════
 loadStats();lastTick=Date.now();
-function loop(){var now=Date.now(),dt=(now-lastTick)/1000;lastTick=now;dt=Math.min(dt,0.1);update(dt);render();requestAnimationFrame(loop)}
+function loop(){var now=Date.now(),dt=(now-lastTick)/1000;lastTick=now;dt=Math.min(dt,0.1);update(dt);if(typeof cyoaTick==="function")cyoaTick(dt);render();requestAnimationFrame(loop)}
 requestAnimationFrame(loop);cv.focus();
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CYOA NARRATIVE LAYER — Lord Bluetooth: Choose Your Own Adventure
+// ═══════════════════════════════════════════════════════════════════════════════
+
+var storyMode=false, cyoaState='title', currentCh=null, chChoiceIdx=0;
+var plotFlags={}, cyoaRole="Acting Director of Connectivity";
+var storyChapterIdx=0, roomsVisited={}, cyoaVoiceMuted=false;
+var cyoaOverlay=document.getElementById('cyoa-overlay');
+var cyoaElems={
+  chapter:document.getElementById('cyoa-chapter'),
+  role:document.getElementById('cyoa-role'),
+  art:document.getElementById('cyoa-art'),
+  body:document.getElementById('cyoa-body'),
+  quip:document.getElementById('cyoa-quip'),
+  choices:document.getElementById('cyoa-choices'),
+  hint:document.getElementById('cyoa-hint'),
+  muteBtn:document.getElementById('cyoa-mute-btn')
+};
+
+// ── Web Speech API ──
+function cyoaSpeak(text){
+  if(cyoaVoiceMuted||!('speechSynthesis' in window))return;
+  try{
+    window.speechSynthesis.cancel();
+    var u=new SpeechSynthesisUtterance(text);
+    u.rate=1.05;u.pitch=0.9;u.volume=0.9;
+    var voices=window.speechSynthesis.getVoices();
+    if(voices.length){
+      var v=voices.find(function(v){return/en[-_]GB|en[-_]US/i.test(v.lang)&&/male|daniel|google uk english male|google us english/i.test(v.name)})
+        ||voices.find(function(v){return/^en/i.test(v.lang)})
+        ||voices[0];
+      if(v)u.voice=v;
+    }
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+// Load voices async
+if('speechSynthesis' in window){
+  window.speechSynthesis.onvoiceschanged=function(){};
+  window.speechSynthesis.getVoices();
+}
+
+// ── QUIP DATABASE (24 quips) ──
+var QUIPS={
+  title:["Welcome back to the org chart. I've been expecting you. The coffee hasn't."],
+  ch1_open:[
+    "Acting Director. The word 'acting' is doing more heavy lifting than the rest of my LinkedIn.",
+    "My Bluetooth is on. My patience is off. Welcome to the department."
+  ],
+  ch1_choose:["Strategic alignment is just a fancy way of saying 'I agree with me.'"],
+  ch2_open:[
+    "WiFi Aware: a beautiful protocol that no consumer will ever understand and every executive will claim credit for.",
+    "Ah, the pilot results. Numbers so raw they still have the stickers on them."
+  ],
+  ch2_choose:["I asked for a budget. I got a Slack emoji reaction. Modern management."],
+  ch3_open:[
+    "Every reorg is a chance to become irreplaceable. Or unemployed.",
+    "They're merging us with Marketing. MARKETING. I may need to issue a strongly-worded RFC."
+  ],
+  ch3_choose:["Some say I'm demanding. I prefer 'stakeholder-aligned.'"],
+  ch4_open:[
+    "The WiFi Aware outage. Production is down. My blood pressure is up. Same meeting.",
+    "Engineering morale: 12%. WiFi Aware adoption: 0%. Slack threads: 14,000."
+  ],
+  ch4_choose:["If promotion were a protocol, I'd have already negotiated the handshake."],
+  ch5_open:[
+    "Pivoting. I love the word. It means 'we were wrong' but in a PowerPoint font.",
+    "Career crossroads. In corporate-speak that means 'someone else decides but we pretend you have agency.'"
+  ],
+  ch5_choose:["I don't always do org charts, but when I do, I prefer the ones that put me at the top."],
+  ch6_open:[
+    "The board doesn't read. They skim. So I'll put the WiFi Aware chart on a slide titled 'Profit.'",
+    "Board presentation. The only slide that matters is the one with the number that goes up."
+  ],
+  ch6_choose:["Let's agree to disagree, then I'll bring it up again in a different deck."],
+  epilogue_cco:["Chief Connectivity Officer. I've made it. The Bluetooth crown is no longer ironic."],
+  epilogue_vp:["VP of Wireless Strategy. I can feel the org chart bending toward me."],
+  epilogue_director:["Director of Connectivity. Steady hand. Stable ship. Boring slides."],
+  epilogue_special:["Special Projects. Unkillable. Unpromotable. Unbothered."],
+  epilogue_quiet:["Quiet Quitter. No forwarding address. Maximum personal bandwidth."],
+  day_start:["Another day, another standup that could have been a Slack message."],
+  promote:["Finally, a budget line item that funds the procurement of courage."],
+  game_over:["Per my last breath, I mean email."],
+  room_first:["They say 'culture eats strategy for breakfast.' My strategy is to make sure breakfast is catered."]
+};
+function getQuip(key){
+  var arr=QUIPS[key];
+  if(!arr)return"";
+  return arr[Math.floor(Math.random()*arr.length)];
+}
+
+// ── IMAGE PLACEHOLDERS ──
+var ART={
+  title:"[IMG: Lord Bluetooth (Glenn) on a throne made of server racks, wearing a Bluetooth-branded blazer and a crooked crown, holding a WiFi Aware spec doc like a scepter. Background: an open-plan office in chaos. Style: corporate satire, slightly cubist — NEEDS KIT]",
+  ch1:"[IMG: Glenn standing in a corner office with a 'CONNECTIVITY DIVISION' placard on the door. The office is half-packed — previous director's stuff in boxes. He's holding a coffee and a WiFi Aware pilot readout. Eyes glowing faintly blue. Style: corporate satire, slightly cubist — NEEDS KIT]",
+  ch2:"[IMG: Glenn at a conference table staring at a laptop showing WiFi Aware pilot metrics. Charts going up. One engineer facepalming in background. Glenn's expression: cautious optimism mixed with distrust. Style: corporate satire, slightly cubist — NEEDS KIT]",
+  ch3:"[IMG: Glenn in a reorg town hall. The slide behind him reads 'STRATEGIC REALIGNMENT' in Comic Sans. Marketing people in colorful hoodies surround bewildered engineers. Glenn is gripping the table. Style: corporate satire, slightly cubist — NEEDS KIT]",
+  ch4:"[IMG: Glenn in the server room at 2am, bathed in red alert lighting, furiously typing on a laptop. WiFi Aware dashboards showing red. One engineer asleep under a desk. The Bluetooth crown is askew. Style: corporate satire, slightly cubist — NEEDS KIT]",
+  ch5:"[IMG: Glenn at a career crossroads, literally standing at a fork in an office hallway. Three signs: UPWARD (golden escalator), SIDEWAYS (moving walkway), OUT (a fire escape). He's weighing options with a coffee in each hand. Style: corporate satire, slightly cubist — NEEDS KIT]",
+  ch6:"[IMG: Glenn at a boardroom podium, presenting to silhouetted board members. The slide behind him shows WiFi Aware network topology but he's drawn a crown on it. The board members look like they're either impressed or ordering lunch. Style: corporate satire, slightly cubist — NEEDS KIT]",
+  epilogue_cco:"[IMG: Glenn as Chief Connectivity Officer, standing on a rooftop overlooking a city where every building has a glowing Bluetooth symbol. WiFi Aware signals visible as golden threads connecting everything. His crown is now official issue. Style: corporate satire, slightly cubist — NEEDS KIT]",
+  epilogue_vp:"[IMG: Glenn as VP of Wireless Strategy, in a slightly nicer office with a view. Still has the Bluetooth blazer. A whiteboard behind him reads 'WIRELESS STRATEGY v2.0: IT'S ALL AWARE NOW.' Style: corporate satire, slightly cubist — NEEDS KIT]",
+  epilogue_director:"[IMG: Glenn as Director of Connectivity, at his desk, finally organized. Family photo. Bluetooth mouse. WiFi Aware certification framed on the wall. Content but not complacent. Style: corporate satire, slightly cubist — NEEDS KIT]",
+  epilogue_special:"[IMG: Glenn in a windowless 'Special Projects' office surrounded by whiteboards covered in conspiracy-string diagrams connecting WiFi Aware, Bluetooth 6.0, and 'THE ORG CHART.' He looks unhinged but happy. Style: corporate satire, slightly cubist — NEEDS KIT]",
+  epilogue_quiet:"[IMG: Glenn on a beach, sunglasses on, Bluetooth crown in a cooler next to him. Phone is off. A seagull wears a tiny WiFi Aware lanyard. Absolute peace. Style: corporate satire, slightly cubist — NEEDS KIT]"
+};
+
+// ── CHAPTER DATA (7 chapters, 22 total choices) ──
+var CHAPTERS=[
+  { // Chapter 1 — Day 1
+    id:"ch1",unlockDay:1,
+    title:"Chapter 1 — Acting Director of Connectivity",
+    body:"You are Glenn. Lord Bluetooth, if you're feeling dramatic — and you always are.\n\nYou've just been 'promoted' to Acting Director of Connectivity. Your predecessor is now 'Special Projects,' which is corporate for 'escorted out with a cardboard box.' The WiFi Aware pilot is live. The exec team wants a recommendation in 30 days. Your team is three engineers who haven't been briefed. The coffee machine is broken.\n\nPick your opening move, Acting Director.",
+    art:"ch1",quipKey:"ch1_open",role:"Acting Director of Connectivity",
+    choices:[
+      {id:"embrace",label:"Embrace the chaos",desc:"Walk the floor. Buy donuts. Send a motivational Slack with too many emojis. Lean in so hard you fall over.",
+        effects:{polCap:5},flag:"embrace_chaos"},
+      {id:"boundaries",label:"Set firm boundaries",desc:"Block all meetings. Demand a budget. Schedule 'focus time.' Be the adult in a room full of adult-children.",
+        effects:{polCap:3,prodRisk:-10},flag:"set_boundaries"},
+      {id:"scope",label:"Ask the CTO for clear scope",desc:"Draft a polite email asking what 'success' looks like. Brace for a reply that uses 'synergy' four times.",
+        effects:{polCap:8,energy:-10},flag:"ask_scope"}
+    ]
+  },
+  { // Chapter 2 — Day 5
+    id:"ch2",unlockDay:5,
+    title:"Chapter 2 — The Pilot Results Are In",
+    body:"Day 5. The WiFi Aware pilot data is on your desk. Neighbor Awareness Networking actually… works? Devices discovered each other. Latency is acceptable. The spec isn't even that bad — it's just that nobody outside this room will ever understand what 'NAN publish/subscribe' means.\n\nThe VP of Product wants your recommendation by EOD. The CFO wants to know why you need more access points. Your lead engineer has already named their WiFi Aware demo 'The Glenn Protocol.'\n\nWhat's the call, Director?",
+    art:"ch2",quipKey:"ch2_open",role:"Acting Director of Connectivity",
+    choices:[
+      {id:"greenlight",label:"Greenlight org-wide WiFi Aware",desc:"Full rollout. High impact, high risk. You believe in the protocol. Or you believe in your ability to spin it if it fails.",
+        effects:{progress:15,polCap:-5},flag:"wifi_greenlit",
+        failChance:0.15,failEffects:{prodRisk:20}},
+      {id:"shelve",label:"Shelve it — more pilot needed",desc:"Safe play. Request another 90 days of pilot. Nobody gets fired for requesting more data. Nobody gets promoted either.",
+        effects:{polCap:3,morale:-5},flag:"wifi_shelved"},
+      {id:"leak",label:"Leak the results to a competitor",desc:"Chaos option. A friendly journalist owes you a favor. If the competitor adopts first, your company will HAVE to follow. Diabolical? Sure. Strategic? Also sure.",
+        effects:{polCap:15,progress:-5},flag:"wifi_leaked",
+        failChance:0.3,failEffects:{polCap:-20,morale:-15}}
+    ]
+  },
+  { // Chapter 3 — Day 10
+    id:"ch3",unlockDay:10,
+    title:"Chapter 3 — The Reorg Announcement",
+    body:"Day 10. An all-hands email lands at 4:59 PM on a Friday: 'Organizational Realignment — Connectivity Division to merge with Brand Experience.' You are now sharing an org chart with the people who once rebranded the company font to 'approachable.'\n\nYour engineers are updating their LinkedIn. Your WiFi Aware timeline just got a new dependency: Marketing's content calendar.\n\nHow do you handle this reorg, Glenn?",
+    art:"ch3",quipKey:"ch3_open",role:"Acting Director of Connectivity",
+    choices:[
+      {id:"negotiate",label:"Negotiate from strength",desc:"March into the CTO's office with your pilot data. Argue that WiFi Aware needs autonomy, not a brand refresh.",
+        effects:{polCap:-10,progress:5},flag:"reorg_negotiated",
+        gate:{polCap:15},gateMsg:"Need 15 Political Capital"},
+      {id:"accept",label:"Accept quietly — pick your battles",desc:"Nod. Smile. Keep your head down. Use the merger to get closer to the marketing budget.",
+        effects:{polCap:5,morale:-10},flag:"reorg_accepted"},
+      {id:"sabotage",label:"Sabotage the merger from within",desc:"Volunteer for the integration committee. Then make every meeting 3 hours long. They'll beg to un-merge.",
+        effects:{polCap:10,morale:-5},flag:"reorg_sabotaged",
+        failChance:0.25,failEffects:{morale:-20,energy:-15}}
+    ]
+  },
+  { // Chapter 4 — Day 18
+    id:"ch4",unlockDay:18,
+    title:"Chapter 4 — The WiFi Aware Outage",
+    body:"Day 18. 2:14 AM. Your phone explodes with alerts. WiFi Aware is DOWN. Not the pilot — the PRODUCTION deployment that someone in ops quietly enabled last week because 'the pilot looked fine.'\n\n15,000 devices are failing to discover each other. The incident commander is a contractor who started yesterday. Your lead engineer is at a hackathon in another time zone.\n\nThe CTO is awake. The CEO is awake. You are awake. Everyone is awake.\n\nWhat do you do, Glenn?",
+    art:"ch4",quipKey:"ch4_open",role:"Acting Director of Connectivity",
+    choices:[
+      {id:"take_fall",label:"Take the fall — protect the team",desc:"Step up. Write the post-mortem. Take the blame. It'll cost you, but your engineers will walk through walls for you.",
+        effects:{progress:-10,morale:15,polCap:5},flag:"took_fall"},
+      {id:"blame_vendor",label:"Blame the WiFi Alliance vendor",desc:"The spec was ambiguous. The SDK had a memory leak. It's technically true. Technically.",
+        effects:{morale:-5,polCap:10,prodRisk:10},flag:"blamed_vendor"},
+      {id:"save_day",label:"Save the day yourself",desc:"You wrote the spec. You know the code. RDP into prod and fix it. But you'd need serious skill and a lot of caffeine...",
+        effects:{progress:20,polCap:15,morale:10},flag:"saved_day",
+        gate:{engSkill:4,caffeine:300},gateMsg:"Need an engineer with 4+ skill AND 300mg+ caffeine",
+        failChance:0.35,failEffects:{progress:-15,energy:-30}}
+    ]
+  },
+  { // Chapter 5 — Day 25
+    id:"ch5",unlockDay:25,
+    title:"Chapter 5 — Promotion or Purgatory",
+    body:"Day 25. Your 30-day window is closing. The CTO's assistant schedules a 'career development conversation.' In corporate, this means one of three things: promotion, lateral move, or the world's politest termination.\n\nYour WiFi Aware decision has rippled through the org. Your reorg response has been noted. Your incident management is legend (or infamous). The question isn't whether you've done enough — it's which version of 'enough' they remember.\n\nTime to choose your path, Glenn.",
+    art:"ch5",quipKey:"ch5_open",role:"Acting Director of Connectivity",
+    choices:[
+      {id:"path_up",label:"Push for VP of Wireless Strategy",desc:"Make the case. You shipped WiFi Aware (or didn't, but you have data). You survived the reorg. You want the title.",
+        effects:{polCap:-10,progress:10},flag:"path_vp",
+        gate:{minFlags:2},gateMsg:"Need at least 2 plot achievements"},
+      {id:"path_sideways",label:"Transfer to Special Projects",desc:"The unkillable role. No KPIs. No direct reports. No accountability. Just vibes and whiteboards.",
+        effects:{polCap:5,morale:10},flag:"path_special"},
+      {id:"path_out",label:"Ghost the org chart — Quiet Quit",desc:"Stop responding to emails. Update your Slack status to '🧘'. Discover inner peace. Or at least discover lunch.",
+        effects:{morale:20,polCap:-10},flag:"path_quiet"}
+    ]
+  },
+  { // Chapter 6 — Day 30
+    id:"ch6",unlockDay:30,
+    title:"Chapter 6 — The Board Presentation",
+    body:"Day 30. The boardroom. Real mahogany. Real anxiety. You have 12 slides and 8 minutes to justify your existence as more than a person who wears Bluetooth-branded clothing to quarterly reviews.\n\nThe board has read the summary (they haven't). The CEO is making eye contact that says 'don't embarrass me.' The CFO is already doing math on their phone.\n\nWiFi Aware is your legacy — or your cautionary tale. One way or another, this presentation ends the chapter.\n\nFinal boss time, Glenn.",
+    art:"ch6",quipKey:"ch6_open",role:"Acting Director of Connectivity",
+    choices:[
+      {id:"defend",label:"Defend the WiFi Aware rollout",desc:"You've committed. Now sell it. Show the metrics. Show the vision. Show the future where every device is aware of every other device and the org chart is flat.",
+        effects:{progress:15,polCap:10},flag:"board_defended",
+        gate:{flag:"wifi_greenlit"},gateMsg:"Only available if you greenlit WiFi Aware"},
+      {id:"pivot",label:"Pivot to Bluetooth Mesh",desc:"WiFi Aware is the past. Bluetooth Mesh is the future. You're not abandoning ship — you're 'evolving the strategy.' Same energy, new acronym.",
+        effects:{progress:5,polCap:5},flag:"board_pivoted"},
+      {id:"resign",label:"Thank them and walk away",desc:"'It's been an honor.' You don't owe them a slide deck. You owe yourself a vacation. The door is right there.",
+        effects:{morale:20},flag:"board_resigned"}
+    ]
+  },
+  { // Chapter 7 — Epilogue (auto-triggers)
+    id:"epilogue",unlockDay:99,
+    title:"Epilogue",
+    body:"",
+    art:"",quipKey:"epilogue_cco",role:"",
+    choices:[]
+  }
+];
+
+// ── ENDING DETERMINATION ──
+function computeEnding(){
+  if(plotFlags.board_resigned||plotFlags.path_quiet) return{type:"quiet",title:"The Quiet Quitter",art:"epilogue_quiet",
+    body:"Glenn walked out of that boardroom and never looked back. His LinkedIn now reads 'Independent Consultant,' which is code for 'sleeping in.' The WiFi Aware spec gathers dust. The coffee machine is still broken.\n\nBut on a beach somewhere, a seagull wears a tiny lanyard, and Glenn smiles.",
+    quipKey:"epilogue_quiet",role:"Quiet Quitter — Maximum Personal Bandwidth"};
+
+  if(plotFlags.path_special) return{type:"special",title:"Special Projects",art:"epilogue_special",
+    body:"Glenn disappeared into the Special Projects team — a black hole in the org chart where KPIs go to die and whiteboards go to live. Nobody knows what he does. Nobody asks. His WiFi Aware findings became a 47-page internal memo that nobody read but everyone CC'd.\n\nHe is unkillable. He is unbothered. He is still wearing the Bluetooth blazer.",
+    quipKey:"epilogue_special",role:"Special Projects — Unkillable"};
+
+  var score=0;
+  if(plotFlags.wifi_greenlit)score+=3;
+  if(plotFlags.saved_day)score+=3;
+  if(plotFlags.board_defended)score+=2;
+  if(plotFlags.reorg_negotiated)score+=2;
+  if(plotFlags.embrace_chaos)score+=1;
+  if(plotFlags.path_vp)score+=2;
+
+  if(score>=9) return{type:"cco",title:"Chief Connectivity Officer",art:"epilogue_cco",
+    body:"Glenn ascended. Chief Connectivity Officer — a title he invented and then willed into existence through sheer force of WiFi Aware advocacy. The rollout succeeded. The board was impressed. The engineers still talk about 'The Glenn Protocol.'\n\nHe got the corner office. He got the budget. He got the Bluetooth crown fitted for real.",
+    quipKey:"epilogue_cco",role:"Chief Connectivity Officer — The Crown Is Real"};
+
+  if(score>=6) return{type:"vp",title:"VP of Wireless Strategy",art:"epilogue_vp",
+    body:"VP of Wireless Strategy. Not bad for an Acting Director who started with a broken coffee machine and three confused engineers. WiFi Aware shipped — imperfectly, but it shipped. The org chart bent in Glenn's direction.\n\nHe can feel the next reorg coming. But this time, he'll be ready.",
+    quipKey:"epilogue_vp",role:"VP of Wireless Strategy — The Org Chart Bends"};
+
+  return{type:"director",title:"Director of Connectivity",art:"epilogue_director",
+    body:"Director of Connectivity. The 'Acting' was dropped, which is the nicest thing this company has ever done for Glenn. WiFi Aware didn't change the world, but it changed the meeting count, and honestly, that's enough.\n\nSteady ship. Stable hands. Boring slides. Glenn has never been happier.",
+    quipKey:"epilogue_director",role:"Director of Connectivity — Steady Hand"};
+}
+
+// ── FLAG COUNT HELPER ──
+function countPlotFlags(){
+  var c=0;for(var k in plotFlags)if(plotFlags[k])c++;return c;
+}
+
+// ── APPLY CHOICE EFFECTS ──
+function applyChEffect(ch){
+  if(!ch.effects)return;
+  var e=ch.effects;
+  if(e.polCap)polCap=Math.max(0,polCap+(e.polCap||0));
+  if(e.progress)progress=clamp(progress+(e.progress||0),0,100);
+  if(e.morale){
+    var ae=aliveEngs();
+    var m=e.morale;
+    ae.forEach(function(eng){eng.morale=clamp(eng.morale+Math.ceil(m/Math.max(1,ae.length)),0,100)});
+  }
+  if(e.energy)energy=clamp(energy+(e.energy||0),0,100);
+  if(e.prodRisk)prodRisk=clamp(prodRisk+(e.prodRisk||0),0,100);
+  if(ch.flag)plotFlags[ch.flag]=true;
+  // Failure chance
+  if(ch.failChance&&Math.random()<ch.failChance&&ch.failEffects){
+    var fe=ch.failEffects;
+    if(fe.polCap)polCap=Math.max(0,polCap+fe.polCap);
+    if(fe.progress)progress=clamp(progress+fe.progress,0,100);
+    if(fe.morale){
+      var ae2=aliveEngs();
+      ae2.forEach(function(eng){eng.morale=clamp(eng.morale+Math.ceil(fe.morale/Math.max(1,ae2.length)),0,100)});
+    }
+    if(fe.energy)energy=clamp(energy+fe.energy,0,100);
+    if(fe.prodRisk)prodRisk=clamp(prodRisk+fe.prodRisk,0,100);
+    showNotif("Things did not go as planned...",3);
+    shakeTimer=0.4;
+  }
+}
+
+// ── CHECK CHOICE GATE ──
+function checkGate(ch){
+  if(!ch.gate)return true;
+  var g=ch.gate;
+  if(g.polCap&&polCap<g.polCap)return false;
+  if(g.engSkill){
+    var hasSk=false;aliveEngs().forEach(function(e){if(e.skill>=g.engSkill)hasSk=true});
+    if(!hasSk)return false;
+  }
+  if(g.caffeine&&caffeine<g.caffeine)return false;
+  if(g.flag&&!plotFlags[g.flag])return false;
+  if(g.minFlags&&countPlotFlags()<g.minFlags)return false;
+  return true;
+}
+
+// ── UPDATE ROLE TITLE ──
+function updateCyoaRole(){
+  var roles=[
+    {flag:"path_quiet",title:"Quiet Quitter — Maximum Personal Bandwidth"},
+    {flag:"path_special",title:"Special Projects — Unkillable"},
+    {flag:"board_resigned",title:"Former Director — Freed"},
+    {flag:"saved_day",title:"Director of Connectivity — The One Who Fixed It"},
+    {flag:"wifi_greenlit",title:"Director of Connectivity — WiFi Aware Advocate"},
+    {flag:null,title:"Acting Director of Connectivity"}
+  ];
+  for(var i=0;i<roles.length;i++){
+    if(roles[i].flag===null||plotFlags[roles[i].flag]){cyoaRole=roles[i].title;break}
+  }
+}
+
+// ── SHOW CHAPTER ──
+function showChapter(ch){
+  currentCh=ch;
+  chChoiceIdx=0;
+  cyoaState='chapter';
+  state=ST_CHAPTER;
+  var isEpilogue=ch.id==='epilogue';
+  if(isEpilogue){
+    var ending=computeEnding();
+    cyoaElems.chapter.textContent="Epilogue — "+ending.title;
+    cyoaElems.role.textContent=ending.role;
+    cyoaElems.art.textContent=ART[ending.art]||"";
+    cyoaElems.art.style.display=ART[ending.art]?"block":"none";
+    cyoaElems.body.textContent=ending.body;
+    cyoaElems.quip.textContent='"'+getQuip(ending.quipKey)+'"';
+    cyoaSpeak(getQuip(ending.quipKey));
+    cyoaElems.choices.innerHTML='';
+    // Add a "Return to Title" button
+    var btn=document.createElement('div');
+    btn.className='cyoa-choice active';
+    btn.innerHTML='<div class="cyoa-choice-label"><span class="cyoa-num">↵</span> Return to Title</div><div class="cyoa-choice-desc">Your story is told. For now.</div>';
+    btn.onclick=function(){closeChapter();state=ST_RESULT};
+    cyoaElems.choices.appendChild(btn);
+    cyoaElems.hint.textContent='Press Enter to return';
+  } else {
+    cyoaElems.chapter.textContent=ch.title;
+    updateCyoaRole();
+    cyoaElems.role.textContent=cyoaRole;
+    cyoaElems.art.textContent=ART[ch.art]||"";
+    cyoaElems.art.style.display=ART[ch.art]?"block":"none";
+    cyoaElems.body.textContent=ch.body;
+    var quip=getQuip(ch.quipKey);
+    cyoaElems.quip.textContent=quip?'"'+quip+'"':'';
+    cyoaSpeak(quip);
+    // Build choice buttons
+    cyoaElems.choices.innerHTML='';
+    var validIdx=0;
+    for(var i=0;i<ch.choices.length;i++){
+      (function(ci){
+        var c=ch.choices[ci];
+        var gated=!checkGate(c);
+        var btn=document.createElement('div');
+        btn.className='cyoa-choice'+(gated?' disabled':'')+(ci===0&&!gated?' active':'');
+        btn.setAttribute('data-idx',ci);
+        var labelHtml='<div class="cyoa-choice-label"><span class="cyoa-num">'+(ci+1)+'</span> '+c.label+'</div>';
+        labelHtml+='<div class="cyoa-choice-desc">'+c.desc+'</div>';
+        if(gated)labelHtml+='<div class="cyoa-choice-gate">🔒 '+c.gateMsg+'</div>';
+        btn.innerHTML=labelHtml;
+        if(!gated){
+          btn.onclick=function(){selectChoice(ci)};
+          if(validIdx===0)chChoiceIdx=ci;
+          validIdx++;
+        }
+        cyoaElems.choices.appendChild(btn);
+      })(i);
+    }
+    // Fix chChoiceIdx to first valid choice
+    for(var j=0;j<ch.choices.length;j++){
+      if(checkGate(ch.choices[j])){chChoiceIdx=j;break}
+    }
+    highlightChoice(chChoiceIdx);
+    cyoaElems.hint.textContent=isMobile?'Tap a choice':'↑↓ choose · Enter confirm';
+  }
+  cyoaOverlay.setAttribute('aria-hidden','false');
+  cyoaOverlay.className='visible';
+}
+
+function highlightChoice(idx){
+  var btns=cyoaElems.choices.querySelectorAll('.cyoa-choice');
+  for(var i=0;i<btns.length;i++){
+    btns[i].classList.toggle('active',i===idx&&!btns[i].classList.contains('disabled'));
+  }
+}
+
+function selectChoice(idx){
+  if(!currentCh||!currentCh.choices[idx])return;
+  var c=currentCh.choices[idx];
+  if(!checkGate(c))return;
+  // Quip for choosing
+  var q=getQuip(currentCh.id.replace('ch','ch')+'_choose');
+  if(q)cyoaSpeak(q);
+  // Apply effects
+  applyChEffect(c);
+  // Update role
+  updateCyoaRole();
+  // Advance chapter index
+  storyChapterIdx++;
+  // Close overlay with fade
+  closeChapter();
+  // Show notification
+  showNotif(c.label+" — done.",3);
+}
+
+function closeChapter(){
+  cyoaOverlay.className='fading';
+  setTimeout(function(){
+    cyoaOverlay.className='';
+    cyoaOverlay.setAttribute('aria-hidden','true');
+    currentCh=null;
+    // Return to correct sim state
+    if(state===ST_CHAPTER){
+      // Determine what state to return to
+      if(day===1&&storyChapterIdx<=1){state=ST_STANDUP;phaseTimer=8}
+      else{state=ST_STANDUP;phaseTimer=8}
+    }
+  },300);
+}
+
+// ── ROOM FIRST-VISIT IMAGE PLACEHOLDERS ──
+var ROOM_ART={
+  0:"[IMG: The Engineering floor — monitors everywhere, three engineers coding furiously, one standing desk converted into a standing nap station. A whiteboard reads 'WIFI AWARE: DO NOT ERASE.' Style: corporate satire, slightly cubist — NEEDS KIT]",
+  1:"[IMG: The Coffee Shop — artisanal setup with too many pour-over devices. Barista wearing a 'Hug Your Router' t-shirt. Glenn in the background, triple-shot espresso in hand. Style: corporate satire, slightly cubist — NEEDS KIT]",
+  2:"[IMG: HR Department — bright pastel walls, motivational posters ('Synergy Is Not A Buzzword'), a single HR rep looking overwhelmed by a stack of résumés. Style: corporate satire, slightly cubist — NEEDS KIT]",
+  3:"[IMG: Executive Suite — dark wood, leather chairs, a framed photo of the CEO shaking hands with someone famous. The upgrade shop is literally a vending machine labeled 'EXEC PERKS.' Style: corporate satire, slightly cubist — NEEDS KIT]",
+  4:"[IMG: The Kitchen — half-eaten birthday cake from a reorg survivor's party. Microwave with a sign: 'DO NOT MICROWAVE FISH (THIS MEANS YOU, DAVE).' Snack drawer raided. Style: corporate satire, slightly cubist — NEEDS KIT]",
+  5:"[IMG: Server Room — rows of blinking servers, a single engineer sitting cross-legged between racks, meditating. Temperature: 58°F. Wifi Aware dashboards on every screen. Style: corporate satire, slightly cubist — NEEDS KIT]",
+  6:"[IMG: Conference Room — THE DANGER ZONE. A projector showing slide 47 of 89. No windows. One clock that runs 7 minutes fast. The table has a mysterious stain nobody talks about. Style: corporate satire, slightly cubist — NEEDS KIT]"
+};
+
+// ── CYOA TICK — runs every frame ──
+function cyoaTick(dt){
+  if(!storyMode)return;
+  if(state===ST_CHAPTER)return; // already in a chapter
+
+  // Check if a chapter should trigger
+  if(storyChapterIdx<CHAPTERS.length){
+    var nextCh=CHAPTERS[storyChapterIdx];
+    if(nextCh.id==='epilogue'){
+      // Epilogue triggers at game end
+      if(state===ST_RESULT){
+        storyChapterIdx++;
+        // Determine ending before showing
+        showChapter(nextCh);
+      }
+      return;
+    }
+    if(nextCh.unlockDay===day&&(state===ST_STANDUP)){
+      showChapter(nextCh);
+      return;
+    }
+  }
+
+  // First room visit notifications
+  if(state===ST_WORK&&!roomsVisited[currentRoom]){
+    roomsVisited[currentRoom]=true;
+    var art=ROOM_ART[currentRoom];
+    if(art){
+      showNotif(art.substring(0,80)+"...",8);
+    }
+  }
+
+  // Voice quips on state transitions
+  if(!cyoaVoiceMuted){
+    // Day start quip
+    if(state===ST_STANDUP&&phaseTimer>7.5){
+      // Only quip once per standup
+      if(!window._cyoaQuippedDay||window._cyoaQuippedDay!==day){
+        window._cyoaQuippedDay=day;
+        if(Math.random()<0.3)cyoaSpeak(getQuip('day_start'));
+      }
+    }
+  }
+}
+
+// ── MUTE TOGGLE (sync with existing) ──
+var origMuteHandler=null;
+cyoaElems.muteBtn.addEventListener('click',function(){
+  cyoaVoiceMuted=!cyoaVoiceMuted;
+  cyoaElems.muteBtn.textContent=cyoaVoiceMuted?'🔇 Muted':'🔊 Voice';
+  cyoaElems.muteBtn.className='cyoa-mute'+(cyoaVoiceMuted?' muted':'');
+  if(cyoaVoiceMuted&&'speechSynthesis' in window)window.speechSynthesis.cancel();
+});
+
+// ── KEYBOARD HANDLER FOR CHAPTER OVERLAY ──
+document.addEventListener('keydown',function(e){
+  if(state!==ST_CHAPTER)return;
+  if(!currentCh)return;
+  e.preventDefault();e.stopPropagation();
+
+  // Epilogue — any key returns
+  if(currentCh.id==='epilogue'){
+    if(e.key==='Enter'||e.key===' '){closeChapter();state=ST_RESULT}
+    return;
+  }
+
+  var choices=currentCh.choices;
+  if(e.key==='ArrowUp'||e.key==='ArrowLeft'){
+    // Move to previous valid choice
+    for(var i=chChoiceIdx-1;i>=0;i--){
+      if(checkGate(choices[i])){chChoiceIdx=i;break}
+    }
+    highlightChoice(chChoiceIdx);
+    playStep();
+  }
+  if(e.key==='ArrowDown'||e.key==='ArrowRight'){
+    for(var i=chChoiceIdx+1;i<choices.length;i++){
+      if(checkGate(choices[i])){chChoiceIdx=i;break}
+    }
+    highlightChoice(chChoiceIdx);
+    playStep();
+  }
+  if(e.key==='Enter'||e.key===' '){
+    selectChoice(chChoiceIdx);
+  }
+  if(e.key==='1'&&choices.length>0&&checkGate(choices[0])){selectChoice(0)}
+  if(e.key==='2'&&choices.length>1&&checkGate(choices[1])){selectChoice(1)}
+  if(e.key==='3'&&choices.length>2&&checkGate(choices[2])){selectChoice(2)}
+  if(e.key==='m'||e.key==='M'){
+    cyoaVoiceMuted=!cyoaVoiceMuted;
+    cyoaElems.muteBtn.textContent=cyoaVoiceMuted?'🔇 Muted':'🔊 Voice';
+    cyoaElems.muteBtn.className='cyoa-mute'+(cyoaVoiceMuted?' muted':'');
+    if(cyoaVoiceMuted&&'speechSynthesis' in window)window.speechSynthesis.cancel();
+  }
+},{capture:true});
+
+// ── OVERRIDE initGame to support story mode ──
+var _origInitGame=initGame;
+initGame=function(){
+  _origInitGame();
+  if(storyMode){
+    // Reset CYOA state
+    plotFlags={};storyChapterIdx=0;roomsVisited={};
+    cyoaRole="Acting Director of Connectivity";
+    window._cyoaQuippedDay=0;
+    // Chapter 1 will trigger via cyoaTick on day 1 standup
+  }
+};
+
+// ── OVERRIDE keydown to intercept title screen for story mode ──
+// We add a pre-filter: if on title and storyMode not yet chosen, show mode selection
+var titleModeChosen=false;
+var origTitleKeyHandler=true;
+
+// Patch: intercept title screen to offer mode choice
+// We do this by modifying the flow: first keypress shows CYOA mode choice instead of starting game
+(function(){
+  var origAddEv = null; // can't easily undo, so we use a flag approach
+  // Instead, we patch drawTitle to show mode choice, and handle it in a new keydown listener
+})();
+
+// ── STORY MODE TITLE SCREEN OVERLAY ──
+// Show a mode selection overlay on the canvas title screen
+var _origDrawTitle=drawTitle;
+drawTitle=function(){
+  if(!titleModeChosen){
+    // Draw enhanced title with mode buttons
+    _origDrawTitle();
+    // Overwrite the "Press any key" with mode selection
+    ctx.fillStyle="#0d0d0d";ctx.fillRect(0,500,W,100);
+    // Story mode button
+    ctx.fillStyle="#FFD700";ctx.font="bold 16px system-ui";ctx.textAlign="center";
+    ctx.fillText("▸ Press ENTER for STORY MODE (CYOA)",W/2,525);
+    ctx.fillStyle="#888";ctx.font="13px system-ui";
+    ctx.fillText("Press SPACE for FREE PLAY (classic sim)",W/2,550);
+    ctx.fillStyle="#555";ctx.font="11px system-ui";
+    ctx.fillText("WiFi Aware • 7 Chapters • Voiced • Your Choices Matter",W/2,575);
+    return;
+  }
+  _origDrawTitle();
+};
+
+// Override title key handling
+document.addEventListener('keydown',function(e){
+  if(state!==ST_TITLE)return;
+  if(titleModeChosen)return; // already handled
+  e.preventDefault();e.stopPropagation();
+  if(e.key==='Enter'||e.key==='1'){
+    titleModeChosen=true;storyMode=true;
+    initGame();
+  }else if(e.key===' '||e.key==='2'){
+    titleModeChosen=true;storyMode=false;
+    initGame();
+  }
+},{capture:true});
+
+// Override mobile action button for title
+var origMbAction=document.getElementById('mb-action');
+if(origMbAction){
+  // We add a tap handler that detects title state
+  (function(){
+    var origParent=origMbAction.parentNode;
+    // The existing mBtn handler already handles title→initGame
+    // We just need to set storyMode before initGame runs
+    // Patch: override initGame call in mobile buttons
+  })();
+}
+
+// Better: just patch the mobile action button for title state
+// The existing handler calls initGame() directly for ST_TITLE
+// We add a pre-check
+(function(){
+  var mbAct=document.getElementById('mb-action');
+  if(!mbAct)return;
+  // Add our own handler that fires before the existing one
+  mbAct.addEventListener('touchstart',function(e){
+    if(state===ST_TITLE&&!titleModeChosen){
+      e.preventDefault();e.stopPropagation();
+      titleModeChosen=true;storyMode=true; // default to story on mobile
+      initGame();
+    }
+  },{capture:true,passive:false});
+  mbAct.addEventListener('mousedown',function(e){
+    if(state===ST_TITLE&&!titleModeChosen){
+      e.preventDefault();e.stopPropagation();
+      titleModeChosen=true;storyMode=true;
+      initGame();
+    }
+  },{capture:true});
+})();
+
+// ── TOUCH HANDLER FOR CHAPTER CHOICES ──
+cyoaOverlay.addEventListener('touchstart',function(e){
+  if(state!==ST_CHAPTER)return;
+  // Let the choice buttons handle it via onclick
+},{passive:true});
+
+// ── Hook promotion quip ──
+var _origCheckRankUp=checkRankUp;
+checkRankUp=function(){
+  var prevRank=rankIdx;
+  _origCheckRankUp();
+  if(rankIdx>prevRank&&storyMode){
+    cyoaSpeak(getQuip('promote'));
+  }
+};
+
+// ── Hook game over quip ──
+var _origCheckEnd=checkEnd;
+checkEnd=function(){
+  var result=_origCheckEnd();
+  if(result&&storyMode){
+    cyoaSpeak(getQuip('game_over'));
+    // Trigger epilogue chapter if story mode
+    if(storyChapterIdx<CHAPTERS.length&&CHAPTERS[storyChapterIdx].id==='epilogue'){
+      setTimeout(function(){
+        storyChapterIdx++;
+        showChapter(CHAPTERS[storyChapterIdx-1]);
+      },1500);
+    }
+  }
+  return result;
+};
+
+// ── Reset title mode on game end ──
+var _origStateSetter=null;
+// Watch for state returning to ST_TITLE to reset titleModeChosen
+(function(){
+  var interval=setInterval(function(){
+    if(state===ST_TITLE&&titleModeChosen){
+      titleModeChosen=false;storyMode=false;
+      // Reset cyoa overlay
+      cyoaOverlay.className='';
+      cyoaOverlay.setAttribute('aria-hidden','true');
+    }
+  },500);
+})();
+
+// ── Console log ──
+console.log('[CYOA] Lord Bluetooth: Choose Your Own Adventure layer loaded. 7 chapters, 22 choices, 24 quips, 18 image placeholders.');
+
 
 })();
