@@ -141,6 +141,13 @@ function updateHeartbeat(now) {
       bpm = 120 + late * 80;
       freq = 550 + late * 250;
     }
+    /* Exertion-responsive heartbeat: breathing intensity modulates BPM */
+    if (smartRest && micInited && micBaseline > 0.001) {
+      var exRatio = micLevel / micBaseline;
+      var exMod = exRatio < 1.8 ? 0.85 : exRatio < 3.0 ? 1.0 : exRatio < 5.0 ? 1.15 : 1.3;
+      bpm = bpm * exMod;
+      freq = freq * (0.9 + exMod * 0.1);
+    }
     gain = 0.08 + progress * 0.06;
   } else {
     bpm = 50;
@@ -168,6 +175,23 @@ var restExtended = false;
 var restExtendStart = 0;
 var recoveryCalm = 0;
 var recoveryReady = false;
+
+/* ─── Work-Phase Exertion Monitoring ─── */
+var exertionZone = '--';
+var lowExertionTime = 0;
+var nudgePlayed = false;
+var roundExertion = [];
+var workExertionSum = 0;
+var workExertionSamples = 0;
+
+function classifyExertion() {
+  if (!micInited || micBaseline < 0.001) return '--';
+  var ratio = micLevel / micBaseline;
+  if (ratio < 1.8) return 'EASY';
+  if (ratio < 3.0) return 'MODERATE';
+  if (ratio < 5.0) return 'HARD';
+  return 'MAX';
+}
 
 function initMic() {
   if (micInited) return;
@@ -214,6 +238,22 @@ function playRecoveryChime() {
     osc.start(t + i * 0.15);
     osc.stop(t + i * 0.15 + 0.55);
   }
+}
+
+/* ─── Exertion Nudge (gentle ascending sine through bone conduction) ─── */
+function playExertionNudge() {
+  ensureAudio();
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var osc = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(330, t);
+  osc.frequency.linearRampToValueAtTime(440, t + 0.2);
+  g.gain.setValueAtTime(0.08, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.start(t); osc.stop(t + 0.4);
 }
 
 /* ─── Presets ─── */
@@ -476,7 +516,7 @@ function drawMenu() {
   if (smartRest) {
     ctx.fillStyle = "#4488ff";
     ctx.font = "12px sans-serif";
-    ctx.fillText("🎤 Smart Rest ON — mic detects breathing recovery", W/2, H - 40);
+    ctx.fillText("🎤 Mic ON — exertion during work, recovery during rest", W/2, H - 40);
   }
   ctx.fillStyle = "#555";
   ctx.font = "13px sans-serif";
@@ -754,6 +794,27 @@ function drawRunning(now) {
     ctx.fillText(restExtended ? (recoveryReady ? "✓ RECOVERED" : "🎤 RECOVERING...") : "🎤 Smart Rest", W/2, barY + 20);
   }
 
+  /* Work-phase exertion indicator */
+  if (smartRest && micInited && isWork && countdown321 === 0) {
+    var exBarW = 160, exBarH = 6;
+    var exBarX = (W - exBarW) / 2, exBarY = cy + 90;
+    ctx.fillStyle = "#1a1a1a";
+    ctx.beginPath();
+    ctx.roundRect(exBarX, exBarY, exBarW, exBarH, 3);
+    ctx.fill();
+    var exLvl = Math.min(1, micLevel / Math.max(0.01, micBaseline * 5));
+    var exColors = {'EASY': '#66bb6a', 'MODERATE': '#ffca28', 'HARD': '#ff7043', 'MAX': '#ff1744', '--': '#555'};
+    var exCol = exColors[exertionZone] || '#555';
+    ctx.fillStyle = exCol;
+    ctx.beginPath();
+    ctx.roundRect(exBarX, exBarY, Math.max(2, exBarW * exLvl), exBarH, 3);
+    ctx.fill();
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillStyle = exCol;
+    ctx.fillText("🎤 " + (exertionZone === '--' ? "CALIBRATING" : exertionZone), W/2, exBarY + 20);
+  }
+
   if (isWork && currentRound <= p.rounds) {
     ctx.fillStyle = "#4488ff";
     ctx.font = "14px sans-serif";
@@ -775,13 +836,17 @@ function drawRunning(now) {
 
   ctx.fillStyle = "#555";
   ctx.font = "13px sans-serif";
-  ctx.fillText("Enter Pause · ↑ Pulse " + (heartbeatOn ? "ON" : "OFF") + " · ↓ Rest " + (smartRest ? "🎤" : "OFF") + " · Esc Quit", W/2, H - 25);
+  ctx.fillText("Enter Pause · ↑ Pulse " + (heartbeatOn ? "ON" : "OFF") + " · ↓ Mic " + (smartRest ? "🎤" : "OFF") + " · Esc Quit", W/2, H - 25);
 
   if (heartbeatOn && state === STATE_RUNNING && countdown321 === 0) {
     var p2 = getPreset();
     var pd2 = isWork ? p2.work : p2.rest;
     var prog2 = 1 - (timeLeft / 1000 / pd2);
     var bpm2 = isWork ? (prog2 < 0.7 ? 72 + prog2 / 0.7 * 48 : 120 + (prog2 - 0.7) / 0.3 * 80) : 50;
+    if (isWork && smartRest && micInited && micBaseline > 0.001) {
+      var exR = micLevel / micBaseline;
+      bpm2 *= exR < 1.8 ? 0.85 : exR < 3.0 ? 1.0 : exR < 5.0 ? 1.15 : 1.3;
+    }
     var beatPhase = ((now - lastHeartbeatTime) / (60000 / bpm2));
     var dotAlpha = Math.max(0, 1 - beatPhase * 2.5);
     ctx.globalAlpha = dotAlpha * 0.6;
@@ -830,6 +895,18 @@ function drawComplete() {
   ctx.font = "16px sans-serif";
   ctx.fillText("total workout time", W/2, 360);
 
+  /* Exertion summary (if mic was active during work) */
+  if (roundExertion.length > 0) {
+    var avgEx = 0;
+    for (var re = 0; re < roundExertion.length; re++) avgEx += roundExertion[re];
+    avgEx /= roundExertion.length;
+    var exLabel = avgEx < 1.8 ? 'EASY' : avgEx < 3.0 ? 'MODERATE' : avgEx < 5.0 ? 'HARD' : 'MAX';
+    var exColors = {'EASY': '#66bb6a', 'MODERATE': '#ffca28', 'HARD': '#ff7043', 'MAX': '#ff1744'};
+    ctx.fillStyle = exColors[exLabel] || '#888';
+    ctx.font = "bold 18px sans-serif";
+    ctx.fillText("🎤 Avg Exertion: " + exLabel, W/2, 395);
+  }
+
   /* Lifetime stats */
   var unlockCount = countUnlocked();
   ctx.fillStyle = "#555";
@@ -863,6 +940,12 @@ function startWorkout() {
   restExtended = false;
   recoveryCalm = 0;
   recoveryReady = false;
+  exertionZone = '--';
+  lowExertionTime = 0;
+  nudgePlayed = false;
+  roundExertion = [];
+  workExertionSum = 0;
+  workExertionSamples = 0;
   ensureAudio();
   if (smartRest) initMic();
 }
@@ -938,6 +1021,8 @@ function updateTimer(now) {
       restExtended = false;
       recoveryCalm = 0;
       recoveryReady = false;
+      lowExertionTime = 0;
+      nudgePlayed = false;
     }
     updateHeartbeat(now);
     return;
@@ -955,6 +1040,24 @@ function updateTimer(now) {
     }
   }
 
+  /* Work-phase exertion monitoring: mic detects breathing intensity */
+  if (smartRest && micInited && isWork && countdown321 === 0) {
+    sampleMic();
+    exertionZone = classifyExertion();
+    workExertionSum += micLevel / Math.max(0.001, micBaseline);
+    workExertionSamples++;
+    if (exertionZone === 'EASY') {
+      lowExertionTime += dt / 1000;
+      if (lowExertionTime >= 3 && !nudgePlayed) {
+        playExertionNudge();
+        nudgePlayed = true;
+      }
+    } else {
+      lowExertionTime = 0;
+      nudgePlayed = false;
+    }
+  }
+
   timeLeft -= dt;
 
   var secsLeft = Math.ceil(timeLeft / 1000);
@@ -967,9 +1070,14 @@ function updateTimer(now) {
     var p = getPreset();
     if (isWork) {
       if (currentRound >= p.rounds) {
+        /* Save final round exertion before completing */
+        if (workExertionSamples > 0) roundExertion.push(workExertionSum / workExertionSamples);
         completeWorkout();
         return;
       }
+      /* Save round exertion data */
+      if (workExertionSamples > 0) roundExertion.push(workExertionSum / workExertionSamples);
+      workExertionSum = 0; workExertionSamples = 0;
       isWork = false;
       timeLeft = p.rest * 1000;
       beepRest();
@@ -997,6 +1105,8 @@ function updateTimer(now) {
       restExtended = false;
       recoveryCalm = 0;
       recoveryReady = false;
+      lowExertionTime = 0;
+      nudgePlayed = false;
     }
   }
 
