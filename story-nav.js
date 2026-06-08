@@ -4,12 +4,15 @@
 
   // Article order (newest first) — matches homepage grid order
   const articles = [
+    "data-center-grid-destabilization-ercot-voltage-test.html",
     "anthropic-80-percent-code-software-engineering-labor-math.html",
     "shield-ai-v-bat-170x-crash-rate-12-billion-valuation.html",
     "nasa-moon-base-clps-delivery-gap.html",
     "quantinuum-ipo-410x-revenue-quantum-computing.html",
     "pcsk9-embryo-base-editing-mosaicism-gap.html",
     "anthropic-965b-valuation-revenue-curve-ipo-pipeline.html",
+    "apple-gemini-dependency-inversion-three-platforms-one-brain.html",
+    "laziness-motivation-brake-circuit.html",
     "microsoft-mai-data-provenance-contradiction-openai-breakup.html",
     "fusion-biggest-week-physics-validated-billions-raised.html",
     "daraxonrasib-ras-undruggable-pancreatic-cancer-standing-ovation.html",
