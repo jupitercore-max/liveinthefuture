@@ -4,6 +4,8 @@
 
   // Article order (newest first) — matches homepage grid order
   const articles = [
+    "spacex-cloud-google-anthropic-26b-compute-deals.html",
+    "weekly-ai-roundup-june-8-2026.html",
     "data-center-grid-destabilization-ercot-voltage-test.html",
     "anthropic-80-percent-code-software-engineering-labor-math.html",
     "shield-ai-v-bat-170x-crash-rate-12-billion-valuation.html",
