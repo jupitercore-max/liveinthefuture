@@ -4,6 +4,7 @@
 
   // Article order (newest first) — matches homepage grid order
   const articles = [
+    "ai-designed-coronavirus-vaccine-first-human-trial.html",
     "china-humanoid-robot-digital-id-28000-registered.html",
     "spacex-cloud-google-anthropic-26b-compute-deals.html",
     "weekly-ai-roundup-june-8-2026.html",
