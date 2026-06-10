@@ -4,6 +4,7 @@
 
   // Article order (newest first) — matches homepage grid order
   const articles = [
+    "antares-mark0-first-advanced-reactor-criticality-40-years.html",
     "tesla-fsd-netherlands-safety-data.html",
     "energy-drink-productivity-analysis.html",
     "ai-designed-coronavirus-vaccine-first-human-trial.html",
