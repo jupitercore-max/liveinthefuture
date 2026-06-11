@@ -68,6 +68,14 @@ var streakBestCombo = 0;
 var STATE_STREAK_OVER = 7;
 var STATE_ACHIEVEMENTS = 8;
 
+// No-Go cognitive inhibition mode
+var noGoEnabled = false;
+var isNoGo = false;
+var noGoTimeout = null;
+var noGoHoldTime = 2000; // ms to hold for successful inhibition
+// times[] encoding for no-go rounds: -1 = passive hold, -N (N>1) = active hold (N=ms), -998 = no-go fail
+try { noGoEnabled = localStorage.getItem('litf_reaction_nogo') === 'true'; } catch(e) {}
+
 // Achievements
 var ACHIEVEMENTS = [
   { id: 'lightning', icon: '⚡', name: 'Lightning', desc: 'Sub-150ms reaction' },
@@ -324,12 +332,84 @@ function playWrong() {
   osc.stop(audioCtx.currentTime + 0.4);
 }
 
+function playNoGoCue() {
+  if (!audioCtx) return;
+  // Dissonant two-tone buzz — immediately sounds "wrong" vs clean directional tones
+  var osc1 = audioCtx.createOscillator();
+  var osc2 = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc1.type = 'sawtooth';
+  osc2.type = 'sawtooth';
+  osc1.frequency.value = 300;
+  osc2.frequency.value = 307; // 7Hz beating frequency — sounds menacing
+  gain.gain.value = 0.25;
+  osc1.connect(gain);
+  osc2.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc1.start();
+  osc2.start();
+  gain.gain.setTargetAtTime(0, audioCtx.currentTime + 0.25, 0.08);
+  osc1.stop(audioCtx.currentTime + 0.5);
+  osc2.stop(audioCtx.currentTime + 0.5);
+  // Mic interference on no-go cues too
+  if (mode !== 2 && micActive && ambientLevel > 0.005) {
+    var nBuf = audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate * 0.35), audioCtx.sampleRate);
+    var nData = nBuf.getChannelData(0);
+    for (var j = 0; j < nData.length; j++) nData[j] = Math.random() * 2 - 1;
+    var nSrc = audioCtx.createBufferSource();
+    nSrc.buffer = nBuf;
+    var nFilt = audioCtx.createBiquadFilter();
+    nFilt.type = 'bandpass';
+    nFilt.frequency.value = 350;
+    nFilt.Q.value = 0.4;
+    var nGain = audioCtx.createGain();
+    var intLevel = Math.min(0.18, ambientLevel * 3);
+    nGain.gain.setValueAtTime(intLevel, audioCtx.currentTime);
+    nGain.gain.setTargetAtTime(0, audioCtx.currentTime + 0.2, 0.06);
+    nSrc.connect(nFilt);
+    nFilt.connect(nGain);
+    nGain.connect(audioCtx.destination);
+    nSrc.start();
+    nSrc.stop(audioCtx.currentTime + 0.35);
+  }
+}
+
+function handleNoGoSuccess(active) {
+  if (state !== STATE_READY || !isNoGo) return;
+  clearTimeout(noGoTimeout);
+  noGoTimeout = null;
+  var elapsed = active ? Math.round(performance.now() - cueTime) : 0;
+  
+  if (gameMode === 1) {
+    streakRound++;
+    streakCombo++;
+    if (streakCombo > streakBestCombo) streakBestCombo = streakCombo;
+    var speedBonus = active ? Math.max(0, Math.round((800 - elapsed) / 2)) : 0;
+    var comboMult = 1 + (streakCombo - 1) * 0.2;
+    var roundScore = Math.round((50 + speedBonus) * comboMult);
+    streakScore += roundScore;
+    times.push(active ? -elapsed : -1); // negative = no-go success
+    playCorrect();
+  } else {
+    times.push(active ? -elapsed : -1);
+    roundNum++;
+    playCorrect();
+  }
+  
+  state = STATE_RESULT;
+  setTimeout(function() {
+    nextRound();
+  }, gameMode === 1 ? 800 : 1200);
+}
+
 function startSession() {
   initAudio();
   if (mode !== 2) setupMic(); // Mic interference in all audio-using modes (A+V and Audio Only)
   if (mode === 3) setupOrientation(); // Head movement mode needs deviceorientation
   roundNum = 0;
   times = [];
+  isNoGo = false;
+  if (noGoTimeout) { clearTimeout(noGoTimeout); noGoTimeout = null; }
   if (gameMode === 1) {
     streakLives = 3;
     streakCombo = 0;
@@ -359,12 +439,26 @@ function nextRound() {
     varDelay = 2500;
   }
   var delay = baseDelay + Math.random() * varDelay;
+  // Determine if this is a no-go round
+  isNoGo = noGoEnabled && Math.random() < (gameMode === 1 ? Math.min(0.4, 0.2 + streakRound * 0.01) : 0.3);
   waitTimeout = setTimeout(function() {
-    targetDir = Math.floor(Math.random() * 4);
-    cueTime = performance.now();
-    state = STATE_READY;
-    if (mode === 3) captureOriRef(); // Capture head reference position for tilt detection
-    if (mode !== 2) playCue(targetDir);
+    if (isNoGo) {
+      targetDir = -1; // No target direction for no-go
+      cueTime = performance.now();
+      state = STATE_READY;
+      if (mode === 3) captureOriRef();
+      if (mode !== 2) playNoGoCue();
+      // Auto-pass after hold period
+      noGoTimeout = setTimeout(function() {
+        handleNoGoSuccess(false); // passive hold
+      }, noGoHoldTime);
+    } else {
+      targetDir = Math.floor(Math.random() * 4);
+      cueTime = performance.now();
+      state = STATE_READY;
+      if (mode === 3) captureOriRef(); // Capture head reference position for tilt detection
+      if (mode !== 2) playCue(targetDir);
+    }
   }, delay);
 }
 
@@ -391,6 +485,35 @@ function handleResponse(dir) {
     return;
   }
   if (state !== STATE_READY) return;
+  
+  // No-go round: pressing any direction is a fail (should have inhibited)
+  if (isNoGo) {
+    clearTimeout(noGoTimeout);
+    noGoTimeout = null;
+    playWrong();
+    if (gameMode === 1) {
+      streakRound++;
+      streakLives--;
+      streakCombo = 0;
+      times.push(-998); // negative 998 = no-go fail
+      if (streakLives <= 0) {
+        state = STATE_STREAK_OVER;
+        if (streakRound > records.streakBest) records.streakBest = streakRound;
+        if (streakScore > records.streakBestScore) records.streakBestScore = streakScore;
+        records.sessions = (records.sessions || 0) + 1;
+        saveRecords();
+        return;
+      }
+      state = STATE_RESULT;
+      setTimeout(function() { nextRound(); }, 800);
+    } else {
+      times.push(-998);
+      roundNum++;
+      state = STATE_RESULT;
+      setTimeout(function() { nextRound(); }, 1200);
+    }
+    return;
+  }
   
   var elapsed = performance.now() - cueTime;
   
@@ -450,17 +573,18 @@ function handleResponse(dir) {
 
 function showSummary() {
   state = STATE_SUMMARY;
-  var valid = times.filter(function(t) { return t < 999; });
+  var valid = times.filter(function(t) { return t > 0 && t < 999; });
   var avg = valid.length > 0 ? Math.round(valid.reduce(function(a,b){return a+b;},0) / valid.length) : 999;
   var best = valid.length > 0 ? Math.min.apply(null, valid) : 999;
-  var misses = times.filter(function(t) { return t >= 999; }).length;
+  var misses = times.filter(function(t) { return t === 999; }).length;
+  var noGoFailed = times.filter(function(t) { return t === -998; }).length;
   
   records.sessions = (records.sessions || 0) + 1;
   if (records.best === null || best < records.best) records.best = best;
   if (records.avgBest === null || avg < records.avgBest) records.avgBest = avg;
   
-  // Check perfect 10
-  if (misses === 0 && times.length === 10 && gameMode === 0) unlockAchievement('perfect10');
+  // Check perfect 10 (only if no no-go — pure go-round perfection)
+  if (misses === 0 && noGoFailed === 0 && times.length === 10 && gameMode === 0) unlockAchievement('perfect10');
   // Check ears only
   var grade = avg < 200 ? 'S' : avg < 250 ? 'A' : avg < 300 ? 'B' : avg < 350 ? 'C' : 'D';
   if (mode === 1 && (grade === 'S' || grade === 'A') && gameMode === 0) unlockAchievement('ears_only');
@@ -504,7 +628,7 @@ function drawMenu() {
   }
   
   // Menu items
-  var items = ['▶ START', '🎮 Mode: ' + modeNames[mode], '⚔ ' + gameModeNames[gameMode], '🏅 Achievements'];
+  var items = ['▶ START', '🎮 Mode: ' + modeNames[mode], '⚔ ' + gameModeNames[gameMode], '🧠 No-Go: ' + (noGoEnabled ? 'ON' : 'OFF'), '🏅 Achievements'];
   for (var i = 0; i < items.length; i++) {
     var y = 250 + i * 60;
     var selected = menuIdx === i;
@@ -529,6 +653,13 @@ function drawMenu() {
     ctx.fillStyle = '#666';
     ctx.font = '13px system-ui';
     ctx.fillText('Best: Round ' + records.streakBest + ' · Score: ' + records.streakBestScore, W/2, 250 + 2 * 60 + 28);
+  }
+  
+  // No-Go description when selected
+  if (menuIdx === 3) {
+    ctx.fillStyle = '#666';
+    ctx.font = '13px system-ui';
+    ctx.fillText(noGoEnabled ? 'Random rounds: hear buzz → DON\'T press' : '←→ to toggle impulse control challenge', W/2, 250 + 3 * 60 + 28);
   }
   
   // Records at bottom
@@ -633,25 +764,50 @@ function drawReady() {
   
   // Show direction visually (if not audio-only mode)
   if (mode !== 1) {
-    // Big arrow
-    ctx.fillStyle = dirColors[targetDir];
-    ctx.font = 'bold 120px system-ui';
-    ctx.fillText(dirNames[targetDir], W/2, H/2 + 40);
+    if (isNoGo) {
+      // No-Go round: red stop indicator
+      ctx.fillStyle = '#ff5252';
+      ctx.font = 'bold 100px system-ui';
+      ctx.fillText('✋', W/2, H/2 + 30);
+      ctx.font = 'bold 20px system-ui';
+      ctx.fillText('HOLD', W/2, H/2 + 70);
+      // Hold timer bar
+      var holdProg = Math.min(1, elapsed / noGoHoldTime);
+      var barW = 200;
+      var barX = (W - barW) / 2;
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(barX, H/2 + 85, barW, 6);
+      ctx.fillStyle = holdProg < 0.7 ? '#ff5252' : '#66bb6a';
+      ctx.fillRect(barX, H/2 + 85, barW * holdProg, 6);
+    } else {
+      // Big arrow
+      ctx.fillStyle = dirColors[targetDir];
+      ctx.font = 'bold 120px system-ui';
+      ctx.fillText(dirNames[targetDir], W/2, H/2 + 40);
+    }
     
-    // Flash ring
-    var flash = Math.max(0, 1 - elapsed / 500);
-    if (flash > 0) {
-      ctx.beginPath();
-      ctx.arc(W/2, H/2, 100 + flash * 50, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(' + (targetDir === 0 ? '79,195,247' : targetDir === 1 ? '255,112,67' : targetDir === 2 ? '171,71,188' : '102,187,106') + ',' + (flash * 0.5) + ')';
-      ctx.lineWidth = 3;
-      ctx.stroke();
+    // Flash ring (go rounds only)
+    if (!isNoGo) {
+      var flash = Math.max(0, 1 - elapsed / 500);
+      if (flash > 0) {
+        ctx.beginPath();
+        ctx.arc(W/2, H/2, 100 + flash * 50, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(' + (targetDir === 0 ? '79,195,247' : targetDir === 1 ? '255,112,67' : targetDir === 2 ? '171,71,188' : '102,187,106') + ',' + (flash * 0.5) + ')';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
     }
   } else {
-    // Audio only — just show "LISTEN"
-    ctx.fillStyle = '#4fc3f7';
-    ctx.font = 'bold 36px system-ui';
-    ctx.fillText('🔊 LISTEN', W/2, H/2);
+    // Audio only
+    if (isNoGo) {
+      ctx.fillStyle = '#ff5252';
+      ctx.font = 'bold 36px system-ui';
+      ctx.fillText('🔇 HOLD', W/2, H/2);
+    } else {
+      ctx.fillStyle = '#4fc3f7';
+      ctx.font = 'bold 36px system-ui';
+      ctx.fillText('🔊 LISTEN', W/2, H/2);
+    }
   }
   
   // Head movement mode — tilt crosshair showing current head position
@@ -704,7 +860,9 @@ function drawResult() {
   ctx.fillRect(0, 0, W, H);
   
   var lastTime = times[times.length - 1];
-  var correct = lastTime < 999;
+  var correct = lastTime > 0 && lastTime < 999;
+  var noGoSuccess = lastTime < 0 && lastTime !== -998;
+  var noGoFail = lastTime === -998;
   
   // Round counter
   ctx.fillStyle = '#555';
@@ -731,6 +889,19 @@ function drawResult() {
     var rating = lastTime < 150 ? '⚡ INCREDIBLE' : lastTime < 200 ? '🔥 EXCELLENT' : lastTime < 250 ? '✨ GREAT' : lastTime < 300 ? '👍 GOOD' : lastTime < 400 ? '😐 OK' : '🐢 SLOW';
     ctx.font = '24px system-ui';
     ctx.fillText(rating, W/2, H/2 + 60);
+  } else if (noGoSuccess) {
+    ctx.fillStyle = '#66bb6a';
+    ctx.font = 'bold 48px system-ui';
+    ctx.fillText('✓ HELD', W/2, H/2);
+    ctx.font = '20px system-ui';
+    ctx.fillText('Good impulse control', W/2, H/2 + 45);
+  } else if (noGoFail) {
+    ctx.fillStyle = '#ff5252';
+    ctx.font = 'bold 36px system-ui';
+    ctx.fillText('✗ NO-GO FAIL', W/2, H/2);
+    ctx.font = '18px system-ui';
+    ctx.fillStyle = '#888';
+    ctx.fillText('Should have held — don\'t press on buzz', W/2, H/2 + 40);
   } else {
     ctx.fillStyle = '#ff5252';
     ctx.font = 'bold 36px system-ui';
@@ -741,7 +912,7 @@ function drawResult() {
   }
   
   // Running stats
-  var valid = times.filter(function(t) { return t < 999; });
+  var valid = times.filter(function(t) { return t > 0 && t < 999; });
   if (valid.length > 0) {
     var avg = Math.round(valid.reduce(function(a,b){return a+b;},0) / valid.length);
     ctx.fillStyle = '#555';
@@ -784,11 +955,13 @@ function drawSummary() {
   ctx.fillStyle = '#0d0d0d';
   ctx.fillRect(0, 0, W, H);
   
-  var valid = times.filter(function(t) { return t < 999; });
+  var valid = times.filter(function(t) { return t > 0 && t < 999; });
   var avg = valid.length > 0 ? Math.round(valid.reduce(function(a,b){return a+b;},0) / valid.length) : 0;
   var best = valid.length > 0 ? Math.min.apply(null, valid) : 0;
   var worst = valid.length > 0 ? Math.max.apply(null, valid) : 0;
-  var misses = times.filter(function(t) { return t >= 999; }).length;
+  var misses = times.filter(function(t) { return t === 999; }).length;
+  var noGoHeld = times.filter(function(t) { return t < 0 && t !== -998; }).length;
+  var noGoFailed = times.filter(function(t) { return t === -998; }).length;
   
   ctx.textAlign = 'center';
   
@@ -817,6 +990,14 @@ function drawSummary() {
     ctx.fillText('Misses: ' + misses, W/2, statY + 105);
   }
   
+  // No-Go stats
+  var noGoStatY = statY + (misses > 0 ? 140 : 105);
+  if (noGoHeld > 0 || noGoFailed > 0) {
+    ctx.fillStyle = '#ab47bc';
+    ctx.font = '18px system-ui';
+    ctx.fillText('No-Go: ' + noGoHeld + '/' + (noGoHeld + noGoFailed) + ' held', W/2, noGoStatY);
+  }
+  
   // Per-round bars
   var barY = 360;
   var barW = 400;
@@ -828,8 +1009,29 @@ function drawSummary() {
     var t = times[i];
     var x = (W - barW) / 2;
     var y = barY + i * (barH + 4);
-    var w = t < 999 ? Math.min(barW, (t / maxTime) * barW) : barW;
-    var c = t >= 999 ? '#ff5252' : t < 200 ? '#66bb6a' : t < 300 ? '#4fc3f7' : t < 400 ? '#ffa726' : '#ff7043';
+    var isNoGoRound = t < 0;
+    var absT = Math.abs(t);
+    var w, c, label;
+    
+    if (t === -998) {
+      // No-go fail
+      w = barW;
+      c = '#ff5252';
+      label = 'NO-GO ✗';
+    } else if (isNoGoRound) {
+      // No-go success (held)
+      w = barW * 0.3;
+      c = '#ab47bc';
+      label = 'HELD ✓';
+    } else if (t >= 999) {
+      w = barW;
+      c = '#ff5252';
+      label = 'MISS';
+    } else {
+      w = Math.min(barW, (t / maxTime) * barW);
+      c = t < 200 ? '#66bb6a' : t < 300 ? '#4fc3f7' : t < 400 ? '#ffa726' : '#ff7043';
+      label = t + 'ms';
+    }
     
     ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(x, y, barW, barH);
@@ -840,7 +1042,7 @@ function drawSummary() {
     ctx.textAlign = 'left';
     ctx.fillText((i+1) + '.', x - 22, y + 12);
     ctx.textAlign = 'right';
-    ctx.fillText(t < 999 ? t + 'ms' : 'MISS', x + barW + 45, y + 12);
+    ctx.fillText(label, x + barW + 55, y + 12);
   }
   
   ctx.textAlign = 'center';
@@ -1059,17 +1261,25 @@ document.addEventListener('keydown', function(e) {
   initAudio();
   
   if (state === STATE_MENU) {
-    if (e.key === 'ArrowUp') menuIdx = (menuIdx + 3) % 4;
-    else if (e.key === 'ArrowDown') menuIdx = (menuIdx + 1) % 4;
+    if (e.key === 'ArrowUp') menuIdx = (menuIdx + 4) % 5;
+    else if (e.key === 'ArrowDown') menuIdx = (menuIdx + 1) % 5;
     else if (e.key === 'ArrowLeft' && menuIdx === 1) mode = (mode + 3) % 4;
     else if (e.key === 'ArrowRight' && menuIdx === 1) mode = (mode + 1) % 4;
     else if (e.key === 'ArrowLeft' && menuIdx === 2) gameMode = (gameMode + 1) % 2;
     else if (e.key === 'ArrowRight' && menuIdx === 2) gameMode = (gameMode + 1) % 2;
+    else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && menuIdx === 3) {
+      noGoEnabled = !noGoEnabled;
+      try { localStorage.setItem('litf_reaction_nogo', noGoEnabled ? 'true' : 'false'); } catch(e2) {}
+    }
     else if (e.key === 'Enter') {
       if (menuIdx === 0) startSession();
       else if (menuIdx === 1) mode = (mode + 1) % 4;
       else if (menuIdx === 2) gameMode = (gameMode + 1) % 2;
-      else if (menuIdx === 3) state = STATE_ACHIEVEMENTS;
+      else if (menuIdx === 3) {
+        noGoEnabled = !noGoEnabled;
+        try { localStorage.setItem('litf_reaction_nogo', noGoEnabled ? 'true' : 'false'); } catch(e2) {}
+      }
+      else if (menuIdx === 4) state = STATE_ACHIEVEMENTS;
     }
     return;
   }
