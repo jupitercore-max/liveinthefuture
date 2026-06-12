@@ -155,7 +155,25 @@ Late filing penalties (verified 2026 against irs.gov/charities-non-profits/exemp
 - **Form 990-N (e-Postcard)**: **No late-filing penalty** — the original kit's "$10/day, max $2,500" was incorrect. There is no monetary penalty for a late 990-N, but the 3-consecutive-year failure rule still applies.
 - 3 consecutive years of failure to file (any of 990, 990-EZ, 990-N, 990-PF) = automatic revocation of tax-exempt status on the due date of the third missed year.
 
-#### 2a.vii. The Real Precedent Set (Updated)
+#### 2a.vii. Auto-Revocation, Reinstatement, and State-Level Filings (New)
+
+**Auto-revocation (Pension Protection Act of 2006, IRC 6056 / 6033(j)):** An organization that fails to file the required Form 990-series return or e-Postcard for **3 consecutive tax years** automatically loses its tax-exempt status on the filing due date of the third missed year. The IRS publishes the auto-revocation list monthly. Donations made after the revocation date are not deductible until reinstatement.
+
+**Reinstatement (Rev. Proc. 2014-11):**
+- **Within 15 months** of the revocation date or the date the IRS posted the revocation (whichever is later): file the missed annual returns *and* submit a new exemption application (Form 1023 or 1023-EZ) with the user fee, with "Retroactive Reinstatement" written at the top. The IRS will treat the organization as tax-exempt during the gap.
+- **More than 15 months** after revocation: same filing plus a written reasonable-cause statement and a compliance checklist. Significantly more friction; the IRS may require a private letter ruling.
+- Some organizations may be eligible for a **streamlined retroactive reinstatement** under Rev. Proc. 2014-11 if gross receipts stayed small and they have a clean compliance history.
+- Reinstatement is *not* automatic; the IRS may deny the request, in which case the only path back is a fresh application (and the org will have to start re-building compliance).
+
+**State-level filings (separate from federal 501(c)(3)):**
+- Most states require a state-level nonprofit corporation filing (articles of incorporation, annual reports, registered agent).
+- **Charitable solicitation registration** with the state Attorney General or equivalent is required in ~40 states *before* soliciting donations. This is a separate filing from Form 1023. Several states (including California, New York, Florida) explicitly exempt religious organizations incorporated as religious corporations from charitable solicitation registration, but the exemption criteria are state-specific and often require a separate written exemption request. Verify with the relevant state AG.
+- Some states (e.g., CA) require the church to file Form CT-1 (Annual Registration of Nonprofit Corporations) and a renewal of the religious-corporation status.
+- Failure to register for charitable solicitation can result in state-level fines, injunctive relief, and reputational harm even if the federal 501(c)(3) is in good standing.
+
+**State tax exemption:** Most states piggyback on the federal 501(c)(3) determination for state income-tax exemption, but some states (e.g., CA Rev. Tax Code 23701d; NY Tax Law § 1116(a)(4)) require a separate state application. Check the relevant state's franchise / income tax guidance for exempt organizations.
+
+#### 2a.viii. The Real Precedent Set (Updated)
 
 - **Satanic Temple (TST)** — 501(c)(3) recognized by IRS determination letter in **April 2019**. Non-theistic, anti-theist, with real chapters, real activism, real religious practice. The recognition was an **administrative determination**, not a court ruling; there is no "*Satanic Temple v. IRS*" appellate case. Strongest operational precedent for a non-deity-based religious 501(c)(3).
 - **Church of Scientology** — 501(c)(3) recognized in **1993** (effective 1991), upheld by the Ninth Circuit in *Church of Scientology of California v. Commissioner*, 823 F.2d 1310 (9th Cir. 1987), and by the Supreme Court in *Church of Scientology of California v. IRS*, 484 U.S. 9 (1987) (per curiam). The litigation concerned *whether IRS had to disclose the granting letter* under FOIA, not the underlying exemption. Strongest precedent for a controversial-but-sincere religious 501(c)(3).
