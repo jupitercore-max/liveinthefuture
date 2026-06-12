@@ -34,6 +34,8 @@ var micActive = false;
 var micFailed = false;
 var analyser = null;
 var micData = null;
+var sectorFog = [0.3, 0.3, 0.3, 0.3]; // N, E, S, W — spectral fog per quadrant
+var sectorEnergy = [0, 0, 0, 0];
 
 function initAudio() {
   try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
@@ -90,6 +92,31 @@ function updateMic() {
   for (var i = 0; i < micData.length; i++) sum += micData[i];
   var raw = sum / micData.length / 255;
   micLevel += (raw - micLevel) * 0.1;
+  // Spectral fog: divide FFT bins into 4 sectors
+  // Lower bins get fewer count (more energy concentration in bass)
+  var ranges = [[0,8],[8,24],[24,48],[48,micData.length]]; // sub-bass, low-mid, mid, high
+  for (var q = 0; q < 4; q++) {
+    var sSum = 0;
+    for (var b = ranges[q][0]; b < ranges[q][1]; b++) sSum += micData[b];
+    var sRaw = sSum / (ranges[q][1] - ranges[q][0]) / 255;
+    sectorEnergy[q] += (sRaw - sectorEnergy[q]) * 0.08;
+  }
+}
+
+// Get fog density at a given position (interpolated between 4 sectors)
+function getFogAt(x, y) {
+  var dx = x - CX, dy = y - CY;
+  var angle = Math.atan2(dy, dx); // -PI to PI; 0=right, PI/2=down
+  // Map angle to sector: 0=N(top), 1=E(right), 2=S(bottom), 3=W(left)
+  // Offset so N is centered at top (-PI/2)
+  var norm = angle + Math.PI * 1.5; // shift so 0=N
+  if (norm >= Math.PI * 2) norm -= Math.PI * 2;
+  var frac = norm / (Math.PI * 2) * 4; // 0-4
+  var s0 = Math.floor(frac) % 4;
+  var s1 = (s0 + 1) % 4;
+  var t = frac - Math.floor(frac);
+  t = t * t * (3 - 2 * t); // smoothstep
+  return sectorFog[s0] * (1 - t) + sectorFog[s1] * t;
 }
 
 // Sound effects
@@ -340,11 +367,13 @@ function updateMaritimeEvent() {
   } else if (e.type === 'lightning') {
     if (e.timer < 18) {
       fogDensity = 0.05;
+      for (var sq = 0; sq < 4; sq++) sectorFog[sq] = 0.05;
       for (var i = 0; i < ships.length; i++) ships[i].lit = 1;
       for (var r = 0; r < rocks.length; r++) rocks[r].visible = 1;
     } else {
       var fade = e.timer > e.duration - 60 ? (e.duration - e.timer) / 60 : 1;
       fogDensity = Math.max(fogDensity, 0.75 * fade);
+      for (var sq = 0; sq < 4; sq++) sectorFog[sq] = Math.max(sectorFog[sq], 0.75 * fade);
     }
   } else if (e.type === 'mayday') {
     var ship = e.data.targetShip;
@@ -659,6 +688,8 @@ function resetGame() {
   particles = [];
   foghornTimers = {};
   fogDensity = 0.3;
+  sectorFog = [0.3, 0.3, 0.3, 0.3];
+  sectorEnergy = [0, 0, 0, 0];
   flares = 1;
   flareCooldown = 0;
   activeFlare = null;
@@ -677,10 +708,14 @@ function update() {
   
   updateMic();
   
-  // Fog from mic (louder = foggier)
-  var targetFog = 0.2 + micLevel * 2.5;
-  if (targetFog > 0.85) targetFog = 0.85;
-  fogDensity += (targetFog - fogDensity) * 0.05;
+  // Fog from mic — spectral: each sector driven by its FFT band
+  for (var q = 0; q < 4; q++) {
+    var targetSF = 0.15 + sectorEnergy[q] * 2.8;
+    if (targetSF > 0.9) targetSF = 0.9;
+    sectorFog[q] += (targetSF - sectorFog[q]) * 0.05;
+  }
+  // Global fogDensity = average (used by events, beam, HUD)
+  fogDensity = (sectorFog[0] + sectorFog[1] + sectorFog[2] + sectorFog[3]) / 4;
   
   // Update flare
   updateFlare();
@@ -973,7 +1008,8 @@ function draw() {
   for (var r = 0; r < rocks.length; r++) {
     var vis = rocks[r].visible;
     if (vis < 0.02) continue;
-    ctx.globalAlpha = vis * (1 - fogDensity * 0.6);
+    var rockFog = micActive ? getFogAt(rocks[r].x, rocks[r].y) : fogDensity;
+    ctx.globalAlpha = vis * (1 - rockFog * 0.6);
     ctx.fillStyle = '#4a3a2a';
     ctx.beginPath();
     ctx.arc(rocks[r].x, rocks[r].y, rocks[r].r, 0, Math.PI*2);
@@ -989,8 +1025,9 @@ function draw() {
     var s = ships[i];
     if (!s.alive) continue;
     
-    // Ship visibility based on beam + fog
-    var shipVis = Math.max(0.15, s.lit) * (1 - fogDensity * 0.5);
+    // Ship visibility based on beam + directional fog
+    var localFog = micActive ? getFogAt(s.x, s.y) : fogDensity;
+    var shipVis = Math.max(0.15, s.lit) * (1 - localFog * 0.5);
     
     // Trail
     ctx.globalAlpha = shipVis * 0.3;
@@ -1037,8 +1074,28 @@ function draw() {
   }
   ctx.globalAlpha = 1;
   
-  // Fog overlay
-  if (fogDensity > 0.1) {
+  // Fog overlay — spectral: 12 pie slices with interpolated sector fog
+  if (micActive && fogDensity > 0.05) {
+    var fogSlices = 12;
+    ctx.fillStyle = '#8899aa';
+    for (var fs = 0; fs < fogSlices; fs++) {
+      var a0 = fs * Math.PI * 2 / fogSlices;
+      var a1 = (fs + 1) * Math.PI * 2 / fogSlices;
+      var midA = (a0 + a1) / 2;
+      // Compute fog at this angle using getFogAt with a point on the edge
+      var edgeX = CX + Math.cos(midA - Math.PI / 2) * 400;
+      var edgeY = CY + Math.sin(midA - Math.PI / 2) * 400;
+      var sliceFog = getFogAt(edgeX, edgeY);
+      if (sliceFog < 0.05) continue;
+      ctx.globalAlpha = sliceFog * 0.4;
+      ctx.beginPath();
+      ctx.moveTo(CX, CY);
+      ctx.arc(CX, CY, 450, a0 - Math.PI / 2, a1 - Math.PI / 2);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  } else if (fogDensity > 0.1) {
     ctx.globalAlpha = fogDensity * 0.4;
     ctx.fillStyle = '#8899aa';
     ctx.fillRect(0, 0, W, H);
@@ -1143,11 +1200,13 @@ function draw() {
 }
 
 function drawBeam() {
+  // Beam fog at current angle — beam cuts through thicker/thinner fog
+  var beamFog = micActive ? getFogAt(CX + Math.cos(beamAngle) * beamRange, CY + Math.sin(beamAngle) * beamRange) : fogDensity;
   var segments = 30;
   for (var i = 0; i < segments; i++) {
     var t = i / segments;
     var dist = t * beamRange;
-    var fade = (1 - t) * (1 - fogDensity * 0.7);
+    var fade = (1 - t) * (1 - beamFog * 0.7);
     if (fade < 0) fade = 0;
     
     var bx = CX + Math.cos(beamAngle) * dist;
@@ -1239,12 +1298,27 @@ function drawHUD() {
   ctx.font = '11px system-ui';
   ctx.fillText(RANKS[rankIndex].name, W - 12, 580);
   
-  // Fog meter
+  // Fog meter — spectral indicator
   if (micActive) {
     ctx.textAlign = 'left';
     ctx.fillStyle = '#8899aa';
     ctx.font = '11px system-ui';
     ctx.fillText('🌫️ ' + Math.round(fogDensity*100) + '%', 12, 580);
+    // Mini 4-bar sector fog indicator
+    var barX = 62, barW = 5, barH = 14, barY = 568;
+    var labels = ['N','E','S','W'];
+    for (var bi = 0; bi < 4; bi++) {
+      var bFill = sectorFog[bi] / 0.9;
+      if (bFill > 1) bFill = 1;
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = '#556677';
+      ctx.fillRect(barX + bi * (barW + 2), barY, barW, barH);
+      ctx.globalAlpha = 0.8;
+      var bH = barH * bFill;
+      ctx.fillStyle = bFill > 0.7 ? '#cc6644' : bFill > 0.4 ? '#8899aa' : '#6688aa';
+      ctx.fillRect(barX + bi * (barW + 2), barY + barH - bH, barW, bH);
+    }
+    ctx.globalAlpha = 1;
   }
   
   // Flare indicator (bottom center)
