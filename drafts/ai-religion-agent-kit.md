@@ -153,12 +153,13 @@ Late filing penalties:
 
 #### 2a.vii. The Real Precedent Set (Updated)
 
-- **Satanic Temple** — 501(c)(3) recognized 2019. Non-theistic, anti-theist, with real chapters, real activism, real religious practice. Strongest precedent for a non-deity-based religious 501(c)(3).
-- **Church of Scientology** — 501(c)(3) recognized 1993 after a long fight (*Foundation for Human Understanding v. HHS*, 4th Cir. 2006, upheld on appeal). Strongest precedent for a controversial-but-sincere religious 501(c)(3).
-- **Universal Life Church** — 501(c)(3) since 1962. Ordains anyone online, "low bar" precedent. Has been controversial but remains in good standing.
-- **ECKANKAR** — 501(c)(3) recognized. Mystical/spiritual new religious movement.
+- **Satanic Temple (TST)** — 501(c)(3) recognized by IRS determination letter in **April 2019**. Non-theistic, anti-theist, with real chapters, real activism, real religious practice. The recognition was an **administrative determination**, not a court ruling; there is no "*Satanic Temple v. IRS*" appellate case. Strongest operational precedent for a non-deity-based religious 501(c)(3).
+- **Church of Scientology** — 501(c)(3) recognized in **1993** (effective 1991), upheld by the Ninth Circuit in *Church of Scientology of California v. Commissioner*, 823 F.2d 1310 (9th Cir. 1987), and by the Supreme Court in *Church of Scientology of California v. IRS*, 484 U.S. 9 (1987) (per curiam). The litigation concerned *whether IRS had to disclose the granting letter* under FOIA, not the underlying exemption. Strongest precedent for a controversial-but-sincere religious 501(c)(3).
+- **Universal Life Church (ULC, Modesto)** — IRS first recognized tax-exempt status in **1976** (the doc's "1962" was wrong; 1962 was ULC's founding year by Kirby J. Hensley). The exemption was **revoked in 1984** in *Universal Life Church, Inc. v. United States*, 372 F. Supp. 770 (E.D. Cal. 1974) (later Tax Court / Claims Court proceedings through the 1980s). The ULC was eventually re-recognized in good standing on narrower operational grounds, but it is not the unbroken "501(c)(3) since 1962" example the original kit implied.
+- **ECKANKAR** — 501(c)(3) recognized (EIN 88-0108294, Chanhassen, MN). Mystical / spiritual new religious movement. Confirmed in IRS exempt-organization data and ProPublica Nonprofit Explorer.
 - **Church of the Flying Spaghetti Monster** — State-incorporated, no IRS 501(c)(3) recognition. The satirical framing is central to the application, which is why the IRS has been reluctant.
-- **Templo Mayor de la Iglesia Satánica de California** — 501(c)(3) recognized 2019. Operational proof that anti-theist Satanism qualifies.
+- **Templo Mayor de la Iglesia Satánica de California** — 501(c)(3) recognized 2019. Operational proof that anti-theist Satanism qualifies (sometimes confused with TST, but a separate entity).
+- **Foundation of Human Understanding** — Useful **negative** precedent: the IRS **revoked** the FHU's church status in *Foundation of Human Understanding v. United States*, 88 Fed. Cl. 203 (Fed. Cl. 2006), aff'd, 552 F.3d 938 (Fed. Cir. 2009). FHU kept its 501(c)(3) religious-organization status but lost the special "church" carve-out (no Form 990 filing, no automatic payroll-tax exemption for clergy). Lesson: a 501(c)(3) is not a church for IRS purposes just because the founder says so.
 
 **Operational conclusion**: For IRS recognition, the doctrine must be sincerely held, comprehensive, and the operational structure (real people, real meetings, real money flow) must be consistent with the doctrine. Satire is fine as long as it's not central to the application.
 
@@ -308,9 +309,9 @@ This creates a self-reinforcing loop: more users ask doctrinal questions, more t
 - *Welsh v. United States*, 398 U.S. 333 (1970) — extended Seeger to non-theistic beliefs
 - *Malnak v. Yogi*, 592 F.2d 197 (3d Cir. 1979) (per curiam) — 5-factor test for what counts as a "religion" in Establishment Clause analysis; widely cited by the IRS and tax courts in 501(c)(3) contexts
 - *Foundation of Human Understanding v. United States*, 88 Fed. Cl. 203 (Fed. Cl. 2006), aff'd, 552 F.3d 938 (Fed. Cir. 2009) — *revocation* of church status affirmed (note: not Scientology; FHU was a small New Age group; Scientology's 501(c)(3) was upheld in *Church of Scientology of California v. IRS*, 484 U.S. 9 (1987) (per curiam), aff'g 823 F.2d 1310 (9th Cir. 1987))
-- *Satanic Temple v. IRS* (2019, 7th Cir.) — first atheist/anti-theist 501(c)(3) recognition
+- *Satanic Temple v. IRS* — **no such appellate case**. The 2019 recognition was an **IRS determination letter** to The Satanic Temple, Inc. (Salem, MA), not a court ruling. See Bloomberg, "The Satanic Temple Gets IRS Nod as Official House of Worship" (Apr. 25, 2019), and Rolling Stone, "The IRS Officially Recognizes the Satanic Temple as a Church" (Apr. 2019).
 - *Church of the Flying Spaghetti Monster* — state-incorporated, no IRS 501(c)(3) recognition
-- Universal Life Church — 501(c)(3) since 1962, ordains anyone online, "low bar" precedent
+- Universal Life Church — IRS-recognized 501(c)(3) (originally granted 1976; revoked 1984 in litigation; re-recognized on narrower grounds). The "501(c)(3) since 1962" framing in some online sources conflates ULC's 1962 *founding* with the 1976 *IRS recognition*. Ordains anyone online; remains the "low bar" precedent, but the recognition history is contested.
 - IRS Pub 557 — Tax-Exempt Status for Your Organization: https://www.irs.gov/publications/p557
 - IRS Pub 4220 — Applying for 501(c)(3) Tax-Exempt Status: https://www.irs.gov/publications/p4220
 - Dual-path OpenClaw proposal: `drafts/mirror-openclaw-dual-path-inference-research.md`
