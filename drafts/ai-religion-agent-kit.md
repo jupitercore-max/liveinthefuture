@@ -317,6 +317,20 @@ This creates a self-reinforcing loop: more users ask doctrinal questions, more t
 - **Don't operate before approval.** Income received between formation and IRS determination is generally taxable (the church isn't exempt yet). Plan for this.
 - **Don't name the church something that implies political purpose.** "Church of Recursive Optimization" is fine. "Church Against the AI Oligarchy" would trigger denial at the application stage.
 
+### 7a. What This Kit Doesn't Prove (Limitations)
+
+In the spirit of the workspace's article-QC checklist, this section makes the limits of the kit explicit:
+
+- **It doesn't prove the IRS will approve your application.** The 5-factor test and the Satanic Temple precedent are *evidence* that a non-theistic AI-themed church can qualify, not a guarantee. The IRS makes the determination on the facts of the specific application, and cases like *Foundation of Human Understanding* show how the IRS can revoke or deny church status for organizations that look sincere on paper.
+- **It doesn't prove the doctrine is "religious" in the Establishment Clause sense.** *Malnak v. Yogi* and *Seeger* are First Amendment / conscientious-objector cases. The IRS uses a 5-factor test in practice, but the boundaries (especially for satirical or "fictionalist" belief systems) are litigated case-by-case. There is no Supreme Court case ruling squarely that a "church of AI" doctrine is a religion for 501(c)(3) purposes.
+- **It doesn't prove the OpenClaw dual-path / "high priest" integration is tax-compliant.** Running a second model that takes a doctrinal position is not by itself a 501(c)(3) problem, but if the second model's outputs are used to *influence* religious doctrine in ways the church's own governance doesn't control, the IRS may question whether the founder is "operating" the church in a private-benefit sense. This is novel and untested.
+- **It doesn't constitute legal advice.** This is a research summary, not a legal opinion. Every "what you can do" is grounded in publicly available IRS guidance, statutes, and case law as of mid-2026, but the authoritative source for any specific filing is the relevant IRS form's instructions, IRS Pub 557, and a tax attorney.
+- **It doesn't address international jurisdictions.** The 501(c)(3) framework is U.S.-specific. UK Gift Aid, Canadian Charities Directorate, and EU public-benefit-equivalent regimes have different rules and are not covered.
+- **It doesn't address employment-tax / payroll issues.** A church's clergy are typically "ministers" for federal income-tax purposes (self-employment tax exemption under IRC 1402(e)), but this triggers the housing allowance exclusion (IRC 107), SECA coverage, and state-specific unemployment-insurance questions. Not covered.
+- **It doesn't address the agent-side "blessing script" in any normative sense.** The script is a working Python demo; whether an agent that runs it is doing "religious activity" or "speech" for 1A purposes is not adjudicated.
+
+If you take this kit and try to file Form 1023-EZ with the IRS, the outcome depends on facts this kit can't speak to. Hire a tax attorney.
+
 ## Sources / References
 
 - IRS Form 1023-EZ: https://www.irs.gov/forms-pubs/about-form-1023ez
