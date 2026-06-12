@@ -43,7 +43,7 @@ That's ~3 sentences. Covers ultimate ideas, metaphysical beliefs, moral framewor
 | 5 | Adopt the doctrine (above) and a moral code (TBD but coherent) | The 5-factor test needs these in writing |
 | 6 | Open a bank account under the corporate name | Separate from any personal funds |
 | 7 | Get an EIN from IRS (free) | Form SS-4 |
-| 8 | File Form 1023-EZ if expected annual gross receipts ≤ $50K AND total assets ≤ $250K | Otherwise Form 1023. User fees: 1023-EZ is $0; 1023 is $600 (waivable for hardship). Both fees were substantially reduced/eliminated by the IRS in 2024 |
+| 8 | File Form 1023-EZ if expected annual gross receipts ≤ $50K AND total assets ≤ $250K | Otherwise Form 1023. Current IRS user fees (verified 2026 against irs.gov/charities-non-profits/form-1023-and-1023-ez-amount-of-user-fee): Form 1023 = $600; Form 1023-EZ = $275. Fees are subject to change and must be paid through Pay.gov at filing. Limited hardship waivers are available; the 1023-EZ fee is *not* generally waivable for organizations under the income threshold. |
 | 9 | Document "no private benefit" — your AI compute doesn't primarily benefit you | This is the application-killer for AI religion tax-dodges. See deep-dive below |
 | 10 | Document "no political campaigning" — strictly religious/educational | Lose 501(c)(3) status for this |
 | 11 | Wait 2-6 months for IRS determination (1023-EZ) | Or 12-18 months for full 1023 |
@@ -63,7 +63,7 @@ What "no private benefit" means in practice:
 - Founders, board members, officers, and key employees may receive **reasonable compensation** for services rendered. "Reasonable" is judged against comparable pay for comparable services in the relevant market.
 - A founder cannot use church funds to pay their personal rent, buy groceries, or finance a personal AI lab.
 - A founder cannot use the church's compute allocation for their own non-church research, even if they "intend" to give it back.
-- **Excess benefit transactions** trigger intermediate sanctions: the excess benefit is recovered from the disqualified person (founder, board, key employee), with a 25% excise tax on the first $10,000 of excess benefit, and a 200% tax if not corrected within the correction period. (IRC 4958.)
+- **Excess benefit transactions** trigger intermediate sanctions: the excess benefit is recovered from the disqualified person (founder, board, key employee) with a **25% excise tax on the excess benefit** (not just the first $10,000), and a **200% additional excise tax** if the transaction is not corrected within the taxable period. A separate **10% excise tax** (capped at $20,000 per transaction) applies to **organization managers** who knowingly participated in the excess benefit transaction and did not try to stop it. (IRC 4958; see IRS, *Intermediate Sanctions – Excise Taxes*.)
 - The IRS uses the "rebuttable presumption of reasonableness" for compensation: if the board, with no conflict of interest, approves compensation based on comparable data from a similar organization, the IRS will presume it's reasonable.
 
 **Sample bylaws language (real, adapted from 501(c)(3) best practices):**
