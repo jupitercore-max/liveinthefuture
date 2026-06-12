@@ -161,3 +161,28 @@
 - **This addresses:** Improvement area #8 (compute tithing IRS precedent).
 - **Jupitercore-max feedback incorporated:** None (no @kit comments found in draft).
 - **Next cycle focus:** Tighten legal compliance against IRS Pub 557 (#10), or add "Day 1 checklist" (#11), or research OpenClaw dual-path integration (#12).
+
+---
+
+### Iteration 7 — 2026-06-12 07:15 PT
+- **Focus:** Improvement area #10 (tighten legal compliance against current IRS Pub 557, Jan. 2025 continuous-use edition)
+- **Draft size before:** 860 lines → **after:** 869 lines (+9 lines)
+- **Changes made:**
+  1. **Fixed factually wrong "Don't operate before approval" bullet in Section 7.** The original stated "Income received between formation and IRS determination is generally taxable (the church isn't exempt yet)." This directly contradicted Section 9's correct statement about IRC § 508(a) retroactivity. Replaced with a detailed explanation citing Pub 557 Chapter 3 ("Effective date of exemption"): exemption is retroactive to formation date if the application is filed within 27 months. Also noted that churches are automatically exempt without filing Form 1023 at all. This was the single most legally consequential error in the draft.
+  2. **Added two filing exemptions to Section 2 (after the checklist).** (a) Church automatic exemption: churches don't need to file Form 1023 to be tax-exempt; Pub 557 states they "are exempt automatically." Cited the practical tradeoff (donors want the determination letter) and recommended filing anyway. (b) Gross receipts test: organizations with <$5,000 annual gross receipts are automatically exempt. Added the specific Pub 557 thresholds ($7,500 yr 1, $12,000 yrs 1-2, $15,000 rolling 3-year) and the 90-day filing window when exceeded. Connected to the Section 8b agent model showing most churches will cross $5K quickly.
+  3. **Added Taxpayer First Act e-filing mandate to checklist Step 12.** All 990-series forms must now be filed electronically (P.L. 116-25, July 1, 2019). Specific deadlines: Form 990/990-PF (tax years ending July 31, 2020+), Form 990-EZ (tax years ending July 31, 2021+). Paper filing is no longer accepted. This was completely absent from the draft.
+  4. **Fixed stale limitation bullet in Section 7a.** "It doesn't address international jurisdictions" replaced with "International coverage is introductory, not comprehensive," acknowledging Section 10 now covers US/UK/Canada/Australia but noting gaps (EU, civil-law jurisdictions, Islamic waqf frameworks).
+  5. **Updated Pub 557 reference** to note it is now a continuous-use publication (Jan. 2025), no longer revised annually.
+  6. **Added Taxpayer First Act reference** (P.L. 116-25) to references section with specific e-filing deadlines.
+  7. **Left @jupitercore-max comment** requesting verification on whether Pub 557's gross receipts thresholds ($5K/$7.5K/$12K/$15K) have been inflation-adjusted since the publication text was last updated.
+- **Research sources:**
+  - IRS Pub 557 (Jan. 2025, continuous-use): directly accessed irs.gov/publications/p557
+  - Pub 557, Chapter 1, "Effective Date of Exemption" (L552-571): retroactive exemption for applications filed within 27 months
+  - Pub 557, Chapter 3, "Effective date of exemption" (L2714-2721): same rule restated for 501(c)(3) organizations specifically
+  - Pub 557, Chapter 3, "Organizations Not Required to File Form 1023 or Form 1023-EZ" (L2818-2863): church exemption and gross receipts test
+  - Pub 557, Reminders, "Update on mandatory e-filing" (L24-44): Taxpayer First Act e-filing requirements
+  - Pub 557, "What's New," "Continuous-use publication" (L13-14): publication is no longer annual
+- **Why this matters:** The "Don't operate before approval" bullet was the most legally consequential error in the entire draft. Anyone reading that bullet and taking it at face value would incorrectly believe they cannot accept tax-deductible donations until the IRS determination letter arrives (2-18 months). In fact, if they file within 27 months, the exemption is retroactive to Day 1. For churches specifically, they don't even need to file at all. Fixing this corrects the kit's most misleading advice. The e-filing mandate is a compliance detail that could trip up a founder who reads the checklist and tries to mail a paper Form 990.
+- **This addresses:** Improvement area #10 (tighten against Pub 557) and partially #11 (the filing exemptions add to the Day 1 guidance).
+- **Jupitercore-max feedback incorporated:** None (no @kit comments found in draft).
+- **Next cycle focus:** Research OpenClaw dual-path integration more concretely (#12), or Satanic Temple timeline deep-dive (#2), or employment-tax/clergy housing allowance section (flagged in 7a).

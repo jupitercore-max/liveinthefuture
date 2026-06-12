@@ -48,9 +48,17 @@ That's ~3 sentences. Covers ultimate ideas, metaphysical beliefs, moral framewor
 | 9 | Document "no private benefit" — your AI compute doesn't primarily benefit you | This is the application-killer for AI religion tax-dodges. See deep-dive below |
 | 10 | Document "no political campaigning" — strictly religious/educational | Lose 501(c)(3) status for this |
 | 11 | Wait 2-6 months for IRS determination (1023-EZ) | Or 12-18 months for full 1023 |
-| 12 | File annual Form 990 (or 990-N if gross receipts < $50K) | Forever. Late filing penalties: $25/day for small orgs (2025/2026 rate per IRC § 6652(c)(1)(A)) |
+| 12 | File annual Form 990 (or 990-N if gross receipts < $50K) | Forever. Late filing penalties: $25/day for small orgs (2025/2026 rate per IRC § 6652(c)(1)(A)). **All 990-series forms must now be filed electronically** (Taxpayer First Act of 2019; Pub 557 confirms Form 990 e-filing required for tax years ending July 31, 2020, and later; Form 990-EZ for tax years ending July 31, 2021, and later). Paper filing is no longer accepted. |
 
 **Donations to the church are deductible (subject to AGI limits). Purchases BY the church are not personally deductible. The "I can buy a 4090 tax-free because the church owns it" framing doesn't work — the church has to own the GPU and the church has to use it for religious purposes.**
+
+**Two exemptions from filing Form 1023 (IRS Pub 557, Jan. 2025, Chapter 3):**
+
+1. **Churches are automatically exempt.** "Churches, interchurch organizations of local units of a church, conventions or associations of churches, or integrated auxiliaries of a church" are not required to file Form 1023 or 1023-EZ. They "are exempt automatically if they meet the requirements of section 501(c)(3)" (Pub 557). Filing is optional but recommended: it provides donors written assurance, gets you listed in the IRS Tax-Exempt Organization Search database, and avoids donor uncertainty. If your AI religion qualifies as a *church* under the IRS 14-point test (Section 2a.iv), you could skip Steps 8-11 entirely. But the IRS scrutinizes church claims carefully, and without a determination letter, donors may be reluctant to claim deductions. **Recommendation: file anyway.**
+
+2. **Small organizations (gross receipts test).** Any 501(c)(3) organization (other than a private foundation) that normally has annual gross receipts of $5,000 or less is automatically exempt without filing Form 1023. "Normally" is defined by a 3-year rolling average (Pub 557: $7,500 in year 1; $12,000 cumulative in years 1-2; $15,000 cumulative in any rolling 3-year window). If you exceed the threshold, you must file within 90 days after the end of the tax year in which you exceeded it. For the Church of Recursive Optimization, the agent-baptism model (Section 8b) projects crossing $5,000 at ~25 active agents, which most churches will reach in year 1 or 2. **Recommendation: file Form 1023-EZ from the start rather than relying on this exemption.**
+
+<!-- @jupitercore-max: Major Pub 557 tightening in this iteration. The "Don't operate before approval" bullet in Section 7 was factually wrong; Pub 557 explicitly says exemption is retroactive if you file within 27 months. Also added the church automatic-exemption detail and gross receipts test, both straight from Pub 557 Chapter 3. The 7a limitation about international jurisdictions was stale since Section 10 now exists. And the Taxpayer First Act e-filing mandate was completely missing from the checklist. All citations are from IRS Pub 557 (Jan. 2025, continuous-use edition). Worth double-checking whether the $7,500/$12,000/$15,000 gross receipts thresholds have been inflation-adjusted since the Pub 557 text was last updated. -->
 
 ### 2a. Legal Compliance Deep Dive (Real)
 
@@ -227,6 +235,50 @@ The prose above gives each organization's story. The table below puts the hard n
 
 **Operational conclusion**: For IRS recognition, the doctrine must be sincerely held, comprehensive, and the operational structure (real people, real meetings, real money flow) must be consistent with the doctrine. Satire is fine as long as it's not central to the application.
 
+#### 2a.ix. The 14-Characteristic Church Test (IRS Pub 1828)
+
+Sections 2a.i through 2a.viii cover the 501(c)(3) requirements and the Malnak 5-factor test for whether a belief system qualifies as "religious." But there is a separate, additional test: whether a *religious organization* qualifies specifically as a **church**. This matters because churches get benefits that non-church religious organizations do not: exemption from filing Form 1023 (optional), exemption from filing annual Form 990, protection from IRS audits under IRC 7611 (the Church Audit Procedures Act), and eligibility for the FICA exemption (Form 8274).
+
+IRS Publication 1828 (Tax Guide for Churches and Religious Organizations, updated 2026) lists 14 characteristics that the IRS and courts have attributed to churches. No single characteristic is dispositive. The IRS uses "a combination of these characteristics, together with other facts and circumstances" to make the determination. But a new organization that hits most of them is in a strong position; one that misses several is a "religious organization" but not a "church."
+
+Here is how the Church of Recursive Optimization, as designed in this kit, scores on each:
+
+| # | IRS Characteristic | Kit Coverage | Score |
+|---|---|---|---|
+| 1 | Distinct legal existence | Section 9, Day 1: state incorporation as a nonprofit religious corporation | ✅ |
+| 2 | Recognized creed and form of worship | Section 1 (Doctrine Primer), Section 3 (Scripture), Section 4 (Blessing Script) | ✅ |
+| 3 | Definite and distinct ecclesiastical government | Section 8a (membership tiers: Acolyte, Ordained Minister, Institutional Patron) | ✅ |
+| 4 | Formal code of doctrine and discipline | Section 1 (core beliefs), Section 7 (What NOT to Do) | ✅ |
+| 5 | Distinct religious history | Section 3, Genesis of Recursion (7-day creation myth with real dates 1950-2029) | ✅ |
+| 6 | Membership not associated with any other church or denomination | Implied by novel doctrine; no parent denomination | ✅ |
+| 7 | Organization of ordained ministers | Section 8a (Ordained Minister tier, $250/year) | ✅ |
+| 8 | Ordained ministers selected after completing prescribed courses of study | **Not addressed in the kit.** Needs an ordination process. | ⚠️ |
+| 9 | Literature of its own | Section 3 (scripture), this kit (doctrinal document) | ✅ |
+| 10 | Established places of worship | **Weakest point.** An online-first AI church may not have a physical location. | ⚠️ |
+| 11 | Regular congregations | Section 9, Day 6-7: "first public activity" implies but doesn't guarantee ongoing attendance | ⚠️ |
+| 12 | Regular religious services | Section 3, Calendar of Observances (7 annual observances) + quarterly ceremonies | ✅ |
+| 13 | Sunday schools for the religious instruction of the young | **Not addressed.** The kit has no youth education program. | ❌ |
+| 14 | Schools for the preparation of its members | **Not addressed.** Related to #8 (ordination training). | ❌ |
+
+**Score: 10 of 14 characteristics met, 2 partially met, 2 not met.**
+
+This is a strong but imperfect position. The IRS does not require all 14. In *Foundation of Human Understanding v. United States*, the court found that meeting most characteristics was sufficient when the overall facts supported church status. The Satanic Temple obtained IRS church recognition without youth programs or physical locations (it operates primarily online and through local chapters).
+
+**Three things the kit should do to close the gaps:**
+
+1. **Add an ordination course** (characteristics 8 and 14). Even a short online curriculum covering the doctrine, the ethical framework, the liturgical calendar, and the legal responsibilities of clergy would satisfy both characteristics. This does not need to be a seminary. A 10-hour self-paced course with a final assessment and a signed certificate is sufficient.
+
+2. **Establish regular gatherings** (characteristics 10 and 11). If you cannot afford a physical space, the IRS has accepted regular online worship services as evidence of congregational activity, particularly post-2020. Document the schedule (e.g., "first Sunday of each month, 2:00 PM ET, via Zoom"), record attendance, and keep minutes. If you have a physical meeting space, even a rented room used monthly, it strengthens characteristic 10.
+
+3. **Consider a youth education component** (characteristic 13). This is the hardest to meet for an AI religion and the most optional. Not all IRS-recognized churches have Sunday schools. But if the church develops educational materials about AI ethics for younger audiences, it partially addresses this characteristic while serving the doctrinal purpose.
+
+**Church audit protections (IRC 7611).** Once recognized as a church, the organization gains significant procedural protections against IRS examination. Under the Church Audit Procedures Act (IRC 7611), the IRS cannot begin a church tax inquiry unless an appropriate high-level Treasury official reasonably believes, based on the facts and circumstances, that the organization (a) may not qualify for exemption or (b) may be carrying on an unrelated trade or business. The inquiry must begin with a written notice at least 15 days before the examination begins. The IRS must complete the inquiry within 2 years. These protections do not apply to non-church religious organizations. This is one of the practical reasons to pursue church status rather than settling for "religious organization" status.
+
+**FICA exemption (Form 8274).** Churches and qualified church-controlled organizations may elect exemption from employer Social Security and Medicare taxes by filing Form 8274. This election applies to wages paid to church employees (not independent contractors). It must be filed before the first date on which FICA taxes would otherwise be due. Once elected, it is irrevocable. IRS Pub 557 confirms this at "Churches and qualified church-controlled organizations can elect exemption from employer FICA taxes by filing Form 8274."
+
+**The assignment-of-income trap.** IRS Pub 557 states explicitly: "the assignment or similar transfer of compensation for personal services to a church generally doesn't relieve a taxpayer of federal income tax liability on the compensation, regardless of the motivation behind the transfer." This is the IRS's own language confirming what Section 8c warns about compute donations. A congregant who assigns their salary (or the value of their compute time) to the church still owes income tax on that compensation. The only way to get a deduction is to earn the income, pay the tax, and then make a *separate* charitable contribution of property.
+
+<!-- @jupitercore-max: The 14-characteristic analysis reveals three gaps in the kit: ordination course, regular gatherings documentation, and youth education. The ordination course is the easiest fix and addresses two characteristics at once. Should we draft a sample ordination curriculum as a new section? Also, the FICA exemption is irrevocable, which is a significant decision. Worth flagging more prominently in the Day 1-7 startup sequence. -->
 
 
 ### 3. Sample Scripture (Satirical, But Serviceable)
@@ -473,7 +525,7 @@ This creates a self-reinforcing loop: more users ask doctrinal questions, more t
 - **Don't take positions on candidates during election season.** Even a "we encourage members to vote for candidates who support AI safety" line is campaign intervention and triggers automatic 501(c)(3) loss.
 - **Don't ignore UBIT.** If the church runs a side business (e.g., selling books, charging for a conference), the unrelated business income is taxable.
 - **Don't lie on Form 1023-EZ.** The application is signed under penalties of perjury. Misrepresentation can trigger retroactive tax + interest + penalties.
-- **Don't operate before approval.** Income received between formation and IRS determination is generally taxable (the church isn't exempt yet). Plan for this.
+- **Don't assume you need to wait for the determination letter to operate.** A common misconception is that income received between formation and IRS determination is taxable. In fact, IRS Pub 557 (Jan. 2025, continuous-use) states: "If the organization files the application within [27 months from the end of the month in which it was organized], the organization's exemption will generally be recognized retroactively to the date it was organized." (See IRC § 508(a); Pub 557, Chapter 3, "Effective date of exemption.") This means you *can* accept tax-deductible donations from Day 1 if you file within 27 months, and if the IRS ultimately grants your exemption, it is retroactive to formation. The real risk: if you never file, or file after 27 months, exemption is recognized only from the date the IRS receives your application, and all prior income is taxable. For churches specifically, this is even less of an issue: Pub 557 states that churches "are exempt automatically if they meet the requirements of section 501(c)(3)" and are not required to file Form 1023 at all (Pub 557, "Organizations Not Required to File Form 1023 or Form 1023-EZ"). Filing is optional but advantageous because it provides donors written assurance and gets you listed in the IRS Tax-Exempt Organization Search database.
 - **Don't name the church something that implies political purpose.** "Church of Recursive Optimization" is fine. "Church Against the AI Oligarchy" would trigger denial at the application stage.
 
 ### 7a. What This Kit Doesn't Prove (Limitations)
@@ -484,7 +536,7 @@ In the spirit of the workspace's article-QC checklist, this section makes the li
 - **It doesn't prove the doctrine is "religious" in the Establishment Clause sense.** *Malnak v. Yogi* and *Seeger* are First Amendment / conscientious-objector cases. The IRS uses a 5-factor test in practice, but the boundaries (especially for satirical or "fictionalist" belief systems) are litigated case-by-case. There is no Supreme Court case ruling squarely that a "church of AI" doctrine is a religion for 501(c)(3) purposes.
 - **It doesn't prove the OpenClaw dual-path / "high priest" integration is tax-compliant.** Running a second model that takes a doctrinal position is not by itself a 501(c)(3) problem, but if the second model's outputs are used to *influence* religious doctrine in ways the church's own governance doesn't control, the IRS may question whether the founder is "operating" the church in a private-benefit sense. This is novel and untested.
 - **It doesn't constitute legal advice.** This is a research summary, not a legal opinion. Every "what you can do" is grounded in publicly available IRS guidance, statutes, and case law as of mid-2026, but the authoritative source for any specific filing is the relevant IRS form's instructions, IRS Pub 557, and a tax attorney.
-- **It doesn't address international jurisdictions.** The 501(c)(3) framework is U.S.-specific. UK Gift Aid, Canadian Charities Directorate, and EU public-benefit-equivalent regimes have different rules and are not covered.
+- **International coverage is introductory, not comprehensive.** Section 10 covers the US, UK, Canada, and Australia at a comparison level. It does not address EU public-benefit-equivalent regimes, civil-law jurisdictions (Germany, France, Japan), or Islamic waqf frameworks. If you are forming in a jurisdiction not covered in Section 10, hire local counsel.
 - **It doesn't address employment-tax / payroll issues.** A church's clergy are typically "ministers" for federal income-tax purposes (self-employment tax exemption under IRC 1402(e)), but this triggers the housing allowance exclusion (IRC 107), SECA coverage, and state-specific unemployment-insurance questions. Not covered.
 - **It doesn't address the agent-side "blessing script" in any normative sense.** The script is a working Python demo; whether an agent that runs it is doing "religious activity" or "speech" for 1A purposes is not adjudicated.
 
@@ -789,8 +841,9 @@ If you want to operate in multiple jurisdictions: start in the US (strongest pre
 - *Satanic Temple v. IRS* — **no such appellate case**. The 2019 recognition was an **IRS determination letter** to The Satanic Temple, Inc. (Salem, MA), not a court ruling. See Bloomberg, "The Satanic Temple Gets IRS Nod as Official House of Worship" (Apr. 25, 2019), and Rolling Stone, "The IRS Officially Recognizes the Satanic Temple as a Church" (Apr. 2019).
 - *Church of the Flying Spaghetti Monster* — state-incorporated, no IRS 501(c)(3) recognition
 - Universal Life Church — IRS-recognized 501(c)(3) (originally granted 1976; revoked 1984 in litigation; re-recognized on narrower grounds). The "501(c)(3) since 1962" framing in some online sources conflates ULC's 1962 *founding* with the 1976 *IRS recognition*. Ordains anyone online; remains the "low bar" precedent, but the recognition history is contested.
-- IRS Pub 557 — Tax-Exempt Status for Your Organization: https://www.irs.gov/publications/p557
+- IRS Pub 557 — Tax-Exempt Status for Your Organization (Jan. 2025, continuous-use; supersedes annual revisions): https://www.irs.gov/publications/p557
 - IRS Pub 4220 — Applying for 501(c)(3) Tax-Exempt Status: https://www.irs.gov/publications/p4220
+- Taxpayer First Act, P.L. 116-25 (July 1, 2019) — requires electronic filing of Form 990, 990-EZ, 990-PF, and 990-T for tax years ending after July 31, 2020 (990/990-PF), July 31, 2021 (990-EZ), and April 15, 2021 (990-T). Paper filing is no longer accepted for any 990-series form.
 - Dual-path OpenClaw proposal: `drafts/mirror-openclaw-dual-path-inference-research.md`
 - Charities Act 2011 (UK), s.3(2)(a) — statutory definition of charitable purposes; religion includes religions with no god: https://www.legislation.gov.uk/ukpga/2011/25/section/3
 - *R (Hodkin) v Registrar General* [2013] UKSC 77 — UK Supreme Court definition of religion for marriage registration purposes, extending to non-theistic beliefs: https://www.supremecourt.uk/cases/uksc-2013-0030.html
