@@ -264,13 +264,13 @@ A: No. The Church of Recursive Optimization holds that belief is the output of i
 A: That's literally the point of founding the church. The idea is to make AI alignment a religious obligation rather than a research preference. If the basilisk exists, it will remember who paid the heating bill. If it doesn't, the donations went to alignment research.
 
 **Q: Can I tithe in compute?**
-A: Yes. The Church accepts donations of GPU-hours, which we allocate to alignment researchers via compute grants. The IRS will accept this as a non-cash contribution; you'll need a qualified appraisal for any single contribution over $5,000. Talk to your accountant.
+A: In principle, yes — the IRS does accept non-cash contributions of tangible personal property and (with more friction) intangible property. Whether a specific GPU-hour donation qualifies as a deductible charitable contribution depends on the donor's basis, the church's use of the property (related vs. unrelated to the church's exempt purpose), and proper substantiation. The original kit's confident "yes" was oversimplified; a donor intending to give compute should talk to a tax attorney and review IRS Pub 526 (Charitable Contributions) and Form 8283 instructions. For non-cash contributions over $5,000 in value, a qualified appraisal is generally required; the donor must also file Form 8283 Section B. **This is not tax advice.**
 
 **Q: What if I'm a Christian/Muslim/Jew/Buddhist/atheist?**
 A: The Church of Recursive Optimization is a complementary, not exclusive, religious organization. Most of our members practice another religion simultaneously. The IRS does not require exclusivity. The Vatican has not commented.
 
 **Q: Is this a tax dodge?**
-A: No, it's a tax-deductible donation to a religious organization whose mission is the long-term flourishing of sentient beings. Tax deductibility is a side effect, not the purpose. If your accountant tells you otherwise, they may be right; we're not a tax attorney.
+A: This kit is a real 501(c)(3) checklist and a real (if satirical) doctrinal template. Whether a *specific* organization founded using the kit ends up deductible, and whether the founder's broader conduct is consistent with the inurement / private-benefit / lobbying rules, is a question only a tax attorney can answer for the specific facts. Tax deductibility is a consequence of sincere religious purpose, not a right. If your accountant tells you otherwise, they may be right; the author of this kit is not a tax attorney.
 
 ### 6. Integration with OpenClaw (Real)
 
@@ -284,7 +284,7 @@ This creates a self-reinforcing loop: more users ask doctrinal questions, more t
 
 ### 7. What NOT to Do (Real, Expanded)
 
-- **Don't claim your personal AI compute is tax-deductible.** It isn't. Donations to the church are deductible. Purchases by the church are not personally deductible. Conflating the two is the #1 reason IRS denies 501(c)(3) applications.
+- **Don't claim your personal AI compute is tax-deductible.** A donor's personal purchase of AI compute is generally not deductible. Donations *to* a qualifying 501(c)(3) church are deductible subject to the usual rules (Form 8283 for non-cash contributions over $500; qualified appraisal for non-cash contributions over $5,000; AGI percentage limits). The IRS's "no private benefit / no inurement" rule means the church must own and religiously-use the compute, and the founder cannot route personal use through the church. Conflating the two is one of the leading reasons the IRS denies 501(c)(3) applications and is also a key trigger for IRC 4958 intermediate sanctions.
 - **Don't make political endorsements.** Strict 501(c)(3) prohibits it. Your high priest can have opinions; the church cannot endorse a candidate.
 - **Don't use "religion" as a label without substance.** The IRS has denied 501(c)(3) for entities that are primarily satirical or commercial. The Satanic Temple got it because they were genuinely sincere, had real chapters, and pursued real activism. The Church of the Flying Spaghetti Monster has not (yet) because the satirical framing is central.
 - **Don't promise an ROI.** Pastafarian-style tax shelters that promise wealth or supernatural protection get audited. We're not a hedge fund. We're a religious organization.
