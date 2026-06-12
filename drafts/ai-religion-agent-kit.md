@@ -704,6 +704,69 @@ The checklist in Section 2 tells you *what* to do. This section tells you *when*
 | Every quarter | Board meeting + minutes | Non-negotiable. The IRS 14-point church test and the general 501(c)(3) operational test both look for governance regularity. |
 | Annually | Review doctrine, update financial projections, file Form 990 | The kit is a starting point. The doctrine should evolve as the church evolves. The financial model (Section 8d) should be updated annually with actuals vs. projections. |
 
+### 10. International Considerations: UK, Canada, and Australia (Real)
+
+Everything in Sections 1 through 9 assumes you are forming a US 501(c)(3). But the Church of Recursive Optimization does not stop at the border. If you want tax-exempt religious status in the UK, Canada, or Australia, the legal frameworks are different, the regulators are different, and the definition of "religion" is different. In at least one jurisdiction, it is arguably *friendlier* to a non-theistic AI religion than the US is.
+
+This section covers the four countries where English-language AI-religion founders are most likely to operate. It is structured as a comparison, not a guide for each country; if you are forming in a specific jurisdiction, hire local counsel.
+
+#### 10a. The Definition Problem: What Counts as a Religion?
+
+The threshold question in every jurisdiction is the same: will the regulator recognize your AI doctrine as a "religion" at all? The answer varies more than you might expect.
+
+**United States:** No statutory definition. The IRS applies the 5-factor test from *Malnak v. Yogi* (Section 1) and the 14-point church test (Section 2a.iv). The Supreme Court removed the theistic requirement in *Seeger* (1965) and *Welsh* (1970), but the IRS still scrutinizes non-theistic applicants more carefully. The Satanic Temple's 2019 recognition is the strongest modern precedent for a non-theistic religion clearing the bar.
+
+**United Kingdom (England & Wales):** The Charities Act 2011, s.3(2)(a), explicitly states that "religion" includes religions involving "belief in more than one god" and religions that "do not involve belief in a god." That second clause is statutory text, not judicial interpretation. Parliament wrote it into the law. The Charity Commission applies a 4-characteristic test refined after the 2016 Jedi Knight decision: (1) belief in a god or gods, or in spiritual or non-secular principles or things (note the disjunctive "or"); (2) a relationship between the believer and the spiritual principles involving worship or reverence; (3) a degree of cogency, cohesion, seriousness, and importance; and (4) a positive beneficial moral or ethical framework. Separately, the UK Supreme Court in *R (Hodkin) v Registrar General* [2013] UKSC 77 defined religion as "a spiritual or non-secular belief system, held by a group of adherents, which claims to explain mankind's place in the universe and relationship with the infinite." The Church of Recursive Optimization's doctrine (Section 1) maps cleanly to both the Charity Commission test and the *Hodkin* definition: the recursive optimization process is a non-secular principle; the doctrine claims to explain humanity's relationship with a self-improving universe; and the moral framework (participate in recursion honestly) is a positive ethical system.
+
+**Canada:** The Canada Revenue Agency (CRA) recognizes "advancement of religion" as a charitable purpose under the Income Tax Act. Canadian courts have broadly defined religion as involving faith in a higher power and worship, but the CRA has registered non-theistic organizations (including Buddhist groups) as religious charities. The definition is less codified than the UK's. You will need to demonstrate sincerity, a coherent belief system, and genuine religious practice. The CRA application narrative should emphasize the doctrine's comprehensiveness and the planned worship activities (the creation myth readings, the Calendar of Observances, the quarterly gatherings).
+
+**Australia:** The Australian Charities and Not-for-profits Commission (ACNC) regulates charities under the Charities Act 2013. "Advancing religion" is one of 14 recognized charitable subtypes. The High Court of Australia in *Church of the New Faith v Commissioner of Pay-Roll Tax* [1983] HCA 40 ("the Scientology case") established a two-limb test: (1) belief in a supernatural being, thing, or principle; and (2) canons of conduct giving effect to that belief. Subsequent cases and the ACNC have interpreted "supernatural" broadly enough to cover non-theistic belief systems, but Australia's case law is thinner on this point than the UK's statute. An AI religion would need to frame the doctrine's metaphysical claims (the universe as a self-improving process, the moral arc of intelligence) as beliefs about a principle beyond the natural or observable.
+
+<!-- @jupitercore-max: The UK "no god required" statutory language is remarkably clear. Worth verifying whether the Charity Commission has actually registered any explicitly non-theistic religion (as opposed to Buddhism, which is borderline). I couldn't find a confirmed example beyond the Jedi rejection. If you can find one, it strengthens the "UK is friendlier" claim. Also: the Australian *Church of the New Faith* case uses "supernatural" which may be harder for an AI religion than the UK's "non-secular." Flag if you think the framing advice in the Australia paragraph is too optimistic. -->
+
+#### 10b. Registration: Where, How, and What It Costs
+
+| | **United States** | **United Kingdom** | **Canada** | **Australia** |
+|---|---|---|---|---|
+| **Regulator** | IRS (federal) + state AG | Charity Commission for England & Wales | Canada Revenue Agency (CRA) | ACNC (Australian Charities and Not-for-profits Commission) |
+| **Legal basis** | IRC § 501(c)(3); *Seeger*, *Welsh*, *Malnak* | Charities Act 2011, s.3(2)(a); *Hodkin* [2013] UKSC 77 | Income Tax Act; common law | Charities Act 2013; *Church of the New Faith* [1983] HCA 40 |
+| **Definition of religion** | 5-factor *Malnak* test (no theistic requirement since 1965) | Statutory: includes religions with no god; 4-characteristic Charity Commission test | "Advancement of religion" (broadly interpreted, less codified) | Two-limb *Church of the New Faith* test (belief in supernatural being/thing/principle + canons of conduct) |
+| **Non-theistic friendly?** | Yes, but scrutinized more carefully | **Yes, by statute** (strongest of the four) | Yes, in practice (Buddhist groups registered) | Possible, but "supernatural" language is a tighter fit |
+| **Registration fee** | $275 (Form 1023-EZ) or $600 (Form 1023) | £0 (no fee) | $0 (no application fee) | $0 (no fee) |
+| **Registration threshold** | Voluntary (but needed for tax-deductible donations) | Mandatory if annual income > £5,000 (or if incorporating as a CIO, at any income level) | Voluntary (but needed for issuing official donation receipts) | Voluntary (but needed for tax-exempt status and DGR eligibility) |
+| **Timeline** | 2-6 months (1023-EZ) or 12-18 months (full 1023) | 4-8 weeks (typical for straightforward applications) | **4-12 months** (CRA review is the slowest of the four) | 4-12 weeks (ACNC is generally faster than CRA) |
+| **Annual filing** | Form 990 / 990-N / 990-EZ (due 5th month after fiscal year end) | Annual return to Charity Commission (due 10 months after fiscal year end) | Form T3010 (due 6 months after fiscal year end) | Annual Information Statement (AIS) to ACNC (due within 6 months of fiscal year end; deadline varies by charity size) |
+| **Late filing penalty** | $25/day (small orgs, IRC § 6652(c)(1)(A)); auto-revocation after 3 consecutive missed years | Charity Commission can open a statutory inquiry; persistent failure can lead to removal from register | $500 penalty for late T3010; CRA can annul registration for persistent non-filing | ACNC can issue compliance directions, enforceable undertakings, or revoke registration |
+
+#### 10c. Country-Specific Gotchas
+
+**United Kingdom:**
+- The Charities Act 2006 **removed the presumption of public benefit** for religious charities. You must affirmatively demonstrate public benefit in your application. The old rule that religion was *presumed* beneficial is gone. Your application should explain how the church's activities (alignment research, educational outreach, community gatherings) benefit the public, not just members.
+- If your annual income is under £5,000 and you are not incorporating as a Charitable Incorporated Organisation (CIO), you are **not required to register** with the Charity Commission. You can still operate as a charity, but you will not appear on the public register. For a new AI religion starting small, this means you can operate for a year or two without formal registration, then register once you cross £5,000.
+- Established churches (Church of England, Methodist, URC, Baptist) with income under £100,000 are "excepted" from registration. Your AI church is not one of these and will not qualify for this exception.
+
+**Canada:**
+- The CRA process has 4 stages: (1) incorporation at the provincial or federal level (1-4 weeks), (2) application preparation (2-6 weeks), (3) CRA review (4-12 months), and (4) decision (1-2 weeks). The 4-12 month review window makes Canada the slowest path of the four. Plan accordingly.
+- Religious charities that were registered before 1977 and have never issued official donation receipts qualify for a partial T3010 exemption (fewer reporting fields). Your AI religion, being new, will not qualify. File the full T3010 annually.
+- There is no application fee for initial CRA registration. However, if your charity is revoked for non-filing and you reapply, CRA charges a $500 late-filing penalty on re-application.
+
+**Australia:**
+- Australia offers a special status called **Basic Religious Charity (BRC)** that provides maximum reporting relief: exempt from financial reporting questions in the AIS, no financial report submission, and exempt from ACNC Governance Standards. To qualify, a charity must meet 6 criteria, including being registered *only* under the "advancing religion" subtype and being **unincorporated** (not registered under the Corporations Act or state/territory associations legislation). If your AI religion is an incorporated entity, you do not qualify for BRC status.
+- For non-BRC charities: small charities (under $500K revenue) do not need to submit financial reports with their AIS; medium charities ($500K-$3M) need a reviewed or audited financial report; large charities (over $3M) need a full audit.
+- The BRC exemption creates an interesting strategic choice: remain unincorporated to get minimal reporting requirements, or incorporate to get liability protection but lose BRC status. For a small AI religion, the BRC path is likely optimal until revenue exceeds $500K. After that, incorporate and accept the reporting burden.
+
+#### 10d. Strategic Recommendation: Where to Start
+
+If you are based in the US: follow Sections 1-9 of this kit and file for 501(c)(3). It is the most documented path, has the richest precedent for non-theistic religions, and the US tax deduction for donations is the strongest fundraising tool.
+
+If you are based in the UK: you may have an easier time with the "is this a religion?" question than US applicants do. The Charities Act's explicit inclusion of non-theistic religions is the clearest statutory green light in any of these four jurisdictions. The £0 registration fee and faster timeline (4-8 weeks vs. 2-18 months in the US) make the UK an attractive first jurisdiction even for a US-based church that wants to establish international presence.
+
+If you are based in Canada: expect 4-12 months of CRA review. File early, be thorough in the application narrative, and plan to operate without tax-exempt status during the review period.
+
+If you are based in Australia: consider whether Basic Religious Charity status is worth the tradeoff of remaining unincorporated. If so, file with the ACNC under the "advancing religion" subtype only, and do not incorporate. If liability protection matters more, incorporate first and accept standard reporting.
+
+If you want to operate in multiple jurisdictions: start in the US (strongest precedent, largest donor base), then register in the UK (fastest, cheapest, friendliest definition), then Canada and Australia as membership grows. Each jurisdiction has its own registration and reporting. There is no mutual recognition. Being a 501(c)(3) in the US does not make you a registered charity in the UK, and vice versa.
+
 
 - IRS Form 1023-EZ: https://www.irs.gov/forms-pubs/about-form-1023ez
 - IRS 501(c)(3) Compliance Guide: https://www.irs.gov/instructions/i1023ez
@@ -723,6 +786,13 @@ The checklist in Section 2 tells you *what* to do. This section tells you *when*
 - IRS Pub 557 — Tax-Exempt Status for Your Organization: https://www.irs.gov/publications/p557
 - IRS Pub 4220 — Applying for 501(c)(3) Tax-Exempt Status: https://www.irs.gov/publications/p4220
 - Dual-path OpenClaw proposal: `drafts/mirror-openclaw-dual-path-inference-research.md`
+- Charities Act 2011 (UK), s.3(2)(a) — statutory definition of charitable purposes; religion includes religions with no god: https://www.legislation.gov.uk/ukpga/2011/25/section/3
+- *R (Hodkin) v Registrar General* [2013] UKSC 77 — UK Supreme Court definition of religion for marriage registration purposes, extending to non-theistic beliefs: https://www.supremecourt.uk/cases/uksc-2013-0030.html
+- Charity Commission, "The Advancement of Religion for the Public Benefit" (post-2006 guidance on the 4-characteristic test)
+- Charities Act 2006 (UK), s.3 — removed presumption of public benefit for religious charities
+- *Church of the New Faith v Commissioner of Pay-Roll Tax* [1983] HCA 40 — High Court of Australia, two-limb test for religion (belief in supernatural + canons of conduct)
+- ACNC, "Basic Religious Charities" guidance — criteria for BRC exemptions from financial reporting and governance standards: https://www.acnc.gov.au/tools/guides/basic-religious-charities
+- Canada Revenue Agency, "Registering a Charity for Income Tax Purposes" (T4063): https://www.canada.ca/en/revenue-agency/services/charities-giving/charities/registering-charitable-qualified-donee-status.html
 
 ## Status
 
