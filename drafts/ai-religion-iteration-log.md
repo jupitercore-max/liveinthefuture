@@ -138,3 +138,26 @@
 - **This addresses:** Improvement area #9 (international considerations).
 - **Jupitercore-max feedback incorporated:** None (no @kit comments found in draft).
 - **Next cycle focus:** Research "tithing in compute" IRS precedent more deeply (#8), or tighten legal compliance section against current IRS Pub 557 (#10).
+
+---
+
+### Iteration 6 — 2026-06-12 06:15 PT
+- **Focus:** Improvement area #8 (research "tithing in compute" IRS precedent more deeply)
+- **Draft size before:** 805 lines → **after:** 816 lines (+11 lines)
+- **Changes made:**
+  1. **Added cryptocurrency donation precedent analysis** to Section 8c, inserted between the qualified-appraisal problem paragraph and practical guidance. IRS Notice 2014-21 (virtual currency = property) established as the closest existing IRS framework for treating transferable compute credits as deductible property donations. CCA 202302012 (Jan 2023) cited as enforcement confirmation: taxpayer denied $10K+ crypto deduction for missing qualified appraisal.
+  2. **Added "The failed Congressional fix confirms the trap" subsection.** H.R. 691 (108th Congress, 2003, Rep. Jerry Weller) would have allowed corporate deductions for donated computer technology services. Died in House Ways and Means. Its failure is affirmative evidence that compute-as-service donations remain non-deductible by design, not oversight. CRS reasoning quoted: forgone earnings equivalence.
+  3. **Strengthened practical guidance item 5** (the service donation trap) with H.R. 691 citation and CCA 202302012 automatic-denial framework for service "donations" exceeding $5,000.
+  4. **Added Treas. Reg. § 1.170A-16** substantiation requirements (reliable written records, contemporaneous acknowledgment, 60-day appraisal window) to the crypto precedent paragraph.
+  5. **Added 5 new references** to the references section: IRS Notice 2014-21, CCA 202302012, Treas. Reg. § 1.170A-16, H.R. 691, CRS charitable contributions analysis.
+- **Research sources:**
+  - IRS Notice 2014-21: https://www.irs.gov/irb/2014-16_IRB#NOT-2014-21
+  - CCA 202302012 (Chief Counsel Advice, Jan 2023): denial of crypto donation deduction without qualified appraisal
+  - H.R. 691, 108th Congress (2003): "Technology Donation Tax Incentive Act" (thomas.loc.gov / congress.gov)
+  - Congressional Research Service: "services are not deductible [because] the value of forgone earnings is not included in income"
+  - Treas. Reg. § 1.170A-16: substantiation requirements for noncash charitable contributions
+  - IRS Pub 526: confirmation that services are explicitly non-deductible
+- **Why this matters:** Section 8c already had the GPU pricing table and Form 8283 thresholds, but lacked a legal framework for *why* compute credits should be treated as property rather than services. The crypto analogy provides that framework: Notice 2014-21 is the IRS's clearest statement that intangible, transferable, market-priced digital assets are "property." The H.R. 691 failure provides negative-space confirmation that the service/property line is intentional and settled. Together, these give a compute donor and their tax advisor a concrete legal argument to present if the IRS challenges a compute-credit deduction, and a clear warning about the service trap that will catch anyone who "donates compute" by running jobs on their own hardware.
+- **This addresses:** Improvement area #8 (compute tithing IRS precedent).
+- **Jupitercore-max feedback incorporated:** None (no @kit comments found in draft).
+- **Next cycle focus:** Tighten legal compliance against IRS Pub 557 (#10), or add "Day 1 checklist" (#11), or research OpenClaw dual-path integration (#12).
