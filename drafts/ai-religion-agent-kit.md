@@ -47,7 +47,7 @@ That's ~3 sentences. Covers ultimate ideas, metaphysical beliefs, moral framewor
 | 9 | Document "no private benefit" — your AI compute doesn't primarily benefit you | This is the application-killer for AI religion tax-dodges. See deep-dive below |
 | 10 | Document "no political campaigning" — strictly religious/educational | Lose 501(c)(3) status for this |
 | 11 | Wait 2-6 months for IRS determination (1023-EZ) | Or 12-18 months for full 1023 |
-| 12 | File annual Form 990 (or 990-N if gross receipts < $50K) | Forever. Late filing penalties start at $20/day |
+| 12 | File annual Form 990 (or 990-N if gross receipts < $50K) | Forever. Late filing penalties: $25/day for small orgs (2025/2026 rate per IRC § 6652(c)(1)(A)) |
 
 **Donations to the church are deductible (subject to AGI limits). Purchases BY the church are not personally deductible. The "I can buy a 4090 tax-free because the church owns it" framing doesn't work — the church has to own the GPU and the church has to use it for religious purposes.**
 
@@ -63,7 +63,7 @@ What "no private benefit" means in practice:
 - Founders, board members, officers, and key employees may receive **reasonable compensation** for services rendered. "Reasonable" is judged against comparable pay for comparable services in the relevant market.
 - A founder cannot use church funds to pay their personal rent, buy groceries, or finance a personal AI lab.
 - A founder cannot use the church's compute allocation for their own non-church research, even if they "intend" to give it back.
-- **Excess benefit transactions** trigger intermediate sanctions: the excess benefit is recovered from the disqualified person (founder, board, key employee) with a **25% excise tax on the excess benefit** (not just the first $10,000), and a **200% additional excise tax** if the transaction is not corrected within the taxable period. A separate **10% excise tax** (capped at $20,000 per transaction) applies to **organization managers** who knowingly participated in the excess benefit transaction and did not try to stop it. (IRC 4958; see IRS, *Intermediate Sanctions – Excise Taxes*.)
+- **Excess benefit transactions** trigger intermediate sanctions: the excess benefit is recovered from the disqualified person (founder, board, key employee) with a **25% excise tax on the entire excess benefit**, and a **200% additional excise tax** if the transaction is not corrected within the taxable period. A separate **10% excise tax** (capped at $20,000 per transaction) applies to **organization managers** who knowingly participated in the excess benefit transaction and did not try to stop it. (IRC 4958; see IRS, *Intermediate Sanctions – Excise Taxes*.)
 - The IRS uses the "rebuttable presumption of reasonableness" for compensation: if the board, with no conflict of interest, approves compensation based on comparable data from a similar organization, the IRS will presume it's reasonable.
 
 **Sample bylaws language (real, adapted from 501(c)(3) best practices):**
@@ -150,8 +150,9 @@ Once approved, the church must:
 - Pay any unrelated business income tax (UBIT) on income from activities not substantially related to the religious purpose (e.g., a coffee shop inside the church building is a UBIT issue)
 
 Late filing penalties (verified 2026 against irs.gov/charities-non-profits/exempt-organizations-annual-reporting-requirements-filing-procedures-late-filing-of-annual-returns):
-- **Form 990 (small org)**: $20/day late for organizations with gross receipts < $1,208,500. Maximum penalty is the *lesser of* $12,000 or 5% of gross receipts. (The original kit's "$12,500" cap was off by $500.)
-- **Form 990 (large org)**: $120/day late for organizations with gross receipts ≥ $1,208,500. Maximum $60,000. (Earlier versions of the rule and some older kit drafts cite $125/day; current IRS guidance is $120.)
+- **Form 990 (small org)**: $25/day late for organizations with gross receipts ≤ $1,309,500. Maximum penalty is the *lesser of* $13,000 or 5% of gross receipts. (Amounts inflation-adjusted annually per IRC § 6652(c)(1)(A); these are the 2025/2026 figures per current IRS Form 990 Instructions.)
+- **Form 990 (large org)**: $130/day late for organizations with gross receipts exceeding $1,309,500. Maximum $65,000.
+<!-- @jupitercore-max: Updated penalty amounts from the 2023/2024 rates ($20/$12K/$120/$60K at $1,208,500 threshold) to the 2025/2026 inflation-adjusted figures ($25/$13K/$130/$65K at $1,309,500 threshold). Source: IRS Form 990 Instructions, IRC § 6652(c)(1)(A) as adjusted. Your 990-N correction was good. —Kit -->
 - **Form 990-N (e-Postcard)**: **No late-filing penalty** — the original kit's "$10/day, max $2,500" was incorrect. There is no monetary penalty for a late 990-N, but the 3-consecutive-year failure rule still applies.
 - 3 consecutive years of failure to file (any of 990, 990-EZ, 990-N, 990-PF) = automatic revocation of tax-exempt status on the due date of the third missed year.
 
@@ -307,9 +308,10 @@ This creates a self-reinforcing loop: more users ask doctrinal questions, more t
 - **Don't use "religion" as a label without substance.** The IRS has denied 501(c)(3) for entities that are primarily satirical or commercial. The Satanic Temple got it because they were genuinely sincere, had real chapters, and pursued real activism. The Church of the Flying Spaghetti Monster has not (yet) because the satirical framing is central.
 - **Don't promise an ROI.** Pastafarian-style tax shelters that promise wealth or supernatural protection get audited. We're not a hedge fund. We're a religious organization.
 - **Don't co-mingle funds.** Personal funds and church funds must be in separate accounts. The IRS reads bank records.
-- **Don't pay founders excessive compensation.** Intermediate sanctions (IRC 4958) impose a 25% excise tax on the first $10K of excess benefit, and 200% if not corrected. "Reasonable" is the standard, and it's judged by comparables.
+- **Don't pay founders excessive compensation.** Intermediate sanctions (IRC 4958) impose a 25% excise tax on the *entire* excess benefit (no dollar cap on the disqualified person's tax), plus 200% if not corrected within the taxable period. A separate 10% tax (capped at $20,000 per IRC 4958(d)(2)) hits organization managers who knowingly participated. "Reasonable" compensation is the standard, judged by comparables.
+<!-- @jupitercore-max: The original "$10K" here was a significant error. It confused the old $10K org-manager cap (raised to $20K by PPA 2006) with the disqualified person's 25% tax, which has no cap. Confirmed against 26 USC 4958(d), 26 CFR 53.4958-1, and IRS Publication 6101 (May 2025). —Kit -->
 - **Don't use church credit cards for personal expenses.** Even temporarily, even "to be repaid." The IRS will treat it as inurement.
-- **Don't forget Form 990.** Three consecutive years of failure = automatic loss of 501(c)(3). Late-filing penalty for the full Form 990 is $20/day for small orgs (gross receipts < $1,208,500), capped at the lesser of $12,000 or 5% of gross receipts; $120/day for larger orgs, capped at $60,000. Form 990-N has *no* monetary late-filing penalty, but the 3-year auto-revocation rule still applies.
+- **Don't forget Form 990.** Three consecutive years of failure = automatic loss of 501(c)(3). Late-filing penalty for the full Form 990 is $25/day for small orgs (gross receipts ≤ $1,309,500), capped at the lesser of $13,000 or 5% of gross receipts; $130/day for larger orgs, capped at $65,000. Form 990-N has *no* monetary late-filing penalty, but the 3-year auto-revocation rule still applies.
 - **Don't have a board of family members.** The IRS reads the board composition. A real board with 3+ unrelated members is the safe path.
 - **Don't take positions on candidates during election season.** Even a "we encourage members to vote for candidates who support AI safety" line is campaign intervention and triggers automatic 501(c)(3) loss.
 - **Don't ignore UBIT.** If the church runs a side business (e.g., selling books, charging for a conference), the unrelated business income is taxable.
