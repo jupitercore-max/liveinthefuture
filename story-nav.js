@@ -4,6 +4,7 @@
 
   // Article order (newest first) — matches homepage grid order
   const articles = [
+    "sic-cryogenic-neuromorphic-quantum-wiring-bottleneck.html",
     "denmark-cement-ccs-135-per-ton-subsidy-math.html",
     "antares-mark0-first-advanced-reactor-criticality-40-years.html",
     "tesla-fsd-netherlands-safety-data.html",
