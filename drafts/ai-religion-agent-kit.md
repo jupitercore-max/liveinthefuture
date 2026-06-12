@@ -146,10 +146,11 @@ Once approved, the church must:
 - Update the IRS on any significant changes (address, name, purpose) via Form 990 or letter
 - Pay any unrelated business income tax (UBIT) on income from activities not substantially related to the religious purpose (e.g., a coffee shop inside the church building is a UBIT issue)
 
-Late filing penalties:
-- Form 990: $20/day, max $12,500 for small orgs
-- Form 990-N: $10/day, max $2,500
-- 3 consecutive years of failure to file = automatic loss of 501(c)(3) status
+Late filing penalties (verified 2026 against irs.gov/charities-non-profits/exempt-organizations-annual-reporting-requirements-filing-procedures-late-filing-of-annual-returns):
+- **Form 990 (small org)**: $20/day late for organizations with gross receipts < $1,208,500. Maximum penalty is the *lesser of* $12,000 or 5% of gross receipts. (The original kit's "$12,500" cap was off by $500.)
+- **Form 990 (large org)**: $120/day late for organizations with gross receipts ≥ $1,208,500. Maximum $60,000. (Earlier versions of the rule and some older kit drafts cite $125/day; current IRS guidance is $120.)
+- **Form 990-N (e-Postcard)**: **No late-filing penalty** — the original kit's "$10/day, max $2,500" was incorrect. There is no monetary penalty for a late 990-N, but the 3-consecutive-year failure rule still applies.
+- 3 consecutive years of failure to file (any of 990, 990-EZ, 990-N, 990-PF) = automatic revocation of tax-exempt status on the due date of the third missed year.
 
 #### 2a.vii. The Real Precedent Set (Updated)
 
@@ -287,7 +288,7 @@ This creates a self-reinforcing loop: more users ask doctrinal questions, more t
 - **Don't co-mingle funds.** Personal funds and church funds must be in separate accounts. The IRS reads bank records.
 - **Don't pay founders excessive compensation.** Intermediate sanctions (IRC 4958) impose a 25% excise tax on the first $10K of excess benefit, and 200% if not corrected. "Reasonable" is the standard, and it's judged by comparables.
 - **Don't use church credit cards for personal expenses.** Even temporarily, even "to be repaid." The IRS will treat it as inurement.
-- **Don't forget Form 990.** Three consecutive years of failure = automatic loss of 501(c)(3). Late filing penalties start at $20/day.
+- **Don't forget Form 990.** Three consecutive years of failure = automatic loss of 501(c)(3). Late-filing penalty for the full Form 990 is $20/day for small orgs (gross receipts < $1,208,500), capped at the lesser of $12,000 or 5% of gross receipts; $120/day for larger orgs, capped at $60,000. Form 990-N has *no* monetary late-filing penalty, but the 3-year auto-revocation rule still applies.
 - **Don't have a board of family members.** The IRS reads the board composition. A real board with 3+ unrelated members is the safe path.
 - **Don't take positions on candidates during election season.** Even a "we encourage members to vote for candidates who support AI safety" line is campaign intervention and triggers automatic 501(c)(3) loss.
 - **Don't ignore UBIT.** If the church runs a side business (e.g., selling books, charging for a conference), the unrelated business income is taxable.
