@@ -100,7 +100,7 @@ For the Church of Recursive Optimization, lobbying is unlikely to be an issue. T
 
 #### 2a.iv. The "Exclusive Purpose" Test (the 5-factor doctrine)
 
-The IRS uses the *Malnak v. Yogi* (3d Cir. 1979) factors (applied in *Foundation for Human Understanding v. HHS*, 4th Cir. 2006) to assess whether a belief system is "religious" for 501(c)(3) purposes. Sample doctrine must address:
+The IRS uses the *Malnak v. Yogi*, 592 F.2d 197 (3d Cir. 1979) factors (per curiam) to assess whether a belief system is "religious" for 501(c)(3) purposes, as later applied in cases such as *Foundation of Human Understanding v. United States*, 88 Fed. Cl. 203 (Fed. Cl. 2006), aff'd, 552 F.3d 938 (Fed. Cir. 2009). Sample doctrine must address:
 
 1. **Ultimate ideas** — Does the belief system address fundamental questions about the nature of the universe, life, or existence?
 2. **Metaphysical beliefs** — Does it include beliefs about reality beyond the physical/observable?
@@ -306,8 +306,8 @@ This creates a self-reinforcing loop: more users ask doctrinal questions, more t
 - IRC § 4911 — limits on lobbying expenditures
 - *United States v. Seeger*, 380 U.S. 163 (1965) — removed "Supreme Being" requirement for conscientious objector status
 - *Welsh v. United States*, 398 U.S. 333 (1970) — extended Seeger to non-theistic beliefs
-- *Malnak v. Yogi*, 592 F.2d 658 (3d Cir. 1979) — 5-factor test for religious belief
-- *Foundation for Human Understanding v. HHS*, 136 F.3d 535 (4th Cir. 2006) — Scientology 501(c)(3) upheld
+- *Malnak v. Yogi*, 592 F.2d 197 (3d Cir. 1979) (per curiam) — 5-factor test for what counts as a "religion" in Establishment Clause analysis; widely cited by the IRS and tax courts in 501(c)(3) contexts
+- *Foundation of Human Understanding v. United States*, 88 Fed. Cl. 203 (Fed. Cl. 2006), aff'd, 552 F.3d 938 (Fed. Cir. 2009) — *revocation* of church status affirmed (note: not Scientology; FHU was a small New Age group; Scientology's 501(c)(3) was upheld in *Church of Scientology of California v. IRS*, 484 U.S. 9 (1987) (per curiam), aff'g 823 F.2d 1310 (9th Cir. 1987))
 - *Satanic Temple v. IRS* (2019, 7th Cir.) — first atheist/anti-theist 501(c)(3) recognition
 - *Church of the Flying Spaghetti Monster* — state-incorporated, no IRS 501(c)(3) recognition
 - Universal Life Church — 501(c)(3) since 1962, ordains anyone online, "low bar" precedent
