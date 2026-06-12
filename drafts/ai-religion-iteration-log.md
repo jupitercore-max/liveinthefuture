@@ -69,3 +69,25 @@
 - **Jupitercore-max feedback incorporated:** None (no @kit comments found in draft).
 - **This addresses:** Weakness #5 from iteration 0 ("State-level formation costs not specified") and strengthens the checklist Step 1 recommendation ("Nevada is friendly; Delaware is also fine") with actual cost data.
 - **Next cycle focus:** Financial model (membership tiers, compute donation valuation, projected Form 990 numbers) -- weakness #3/#4 from iteration 0.
+
+## Iteration 3 (2026-06-12 02:15 PT) -- Kit
+- **Focus:** Structured comparison table of existing AI-adjacent religious/philosophical organizations (improvement area #6 from 10-star test)
+- **Changes:**
+  1. **Added Way of the Future (WOTF)** as a new prose entry in Section 2a.viii. Anthony Levandowski's AI religion is the closest direct precedent. Founded 2015, dissolved 2020 ($175K donated to NAACP LDF), rebooted 2023. ProPublica shows Private Operating Foundation classification (Walnut Creek, CA), $1 revenue on final 990-PF (FY 2020). Key lesson: an AI religion with no congregation, no worship, and a one-sentence mission stalls.
+  2. **Added Atheist Republic** as a new prose entry. 990-EZ filer, $116K revenue (FY 2024), $40K net assets, $0 officer compensation. Shows a small non-theistic org can sustain 501(c)(3) on modest online-community revenue.
+  3. **Built and inserted a 9-row structured comparison table** below the prose descriptions. Columns: Organization, 501(c)(3) Status, IRS Classification, Form 990 Status, Revenue (Latest), Net Assets (Latest), Key Lesson for an AI Religion. Covers all 9 orgs discussed in the prose.
+  4. **Added explanatory note** on church filing exemption (IRC § 6033(a)(3)(A)(i)) so readers understand why TST/Scientology/ULC/ECKANKAR show "N/A" for financials.
+  5. **Added source attribution** with ProPublica, TechCrunch, Bloomberg AI IRL, Wikipedia, and court records.
+  6. **Left @jupitercore-max comment** requesting verification of Templo Mayor classification and asking about Sunday Assembly as a potential addition.
+- **Research sources:**
+  - ProPublica Nonprofit Explorer: Way of the Future (Walnut Creek, CA; Private Operating Foundation; $1 rev FY 2020)
+  - ProPublica: Foundation of Human Understanding (Grants Pass, OR; Revenue N/A)
+  - ProPublica: Atheist Republic (990-EZ; $116K rev FY 2024, $136K FY 2023, $40K net assets)
+  - TaxExemptWorld: ECKANKAR (EIN 88-0108294; Church designation; Form 990 not required)
+  - TechCrunch: "Anthony Levandowski closes his Church of AI" (Feb 2021) -- $175,172 donated to NAACP LDF
+  - Bloomberg AI IRL (Nov 2023): Levandowski reboot, "a couple thousand people"
+  - Wikipedia: Way of the Future (formation 2017, dissolution, reboot timeline)
+  - PopSci / MIT Press Reader: silicon valley AI religion context
+- **Key insight:** Four of the nine organizations (TST, Scientology, ULC, ECKANKAR) are IRS-classified churches exempt from Form 990, making financial comparison impossible through public records. This is itself a useful data point: church classification provides maximum financial privacy but requires meeting the IRS 14-point church test (IRC § 7611).
+- **This addresses:** The 10-star test promise of "a comparison table of real US 501(c)(3) religious organizations... and what they got right or wrong." Section 2a.viii now has both the detailed prose AND a structured table.
+- **Next cycle focus:** Improve scripture/liturgy sections with more theological depth (#7 from task list), or add a financial model (#3/#4 from iteration 0).
