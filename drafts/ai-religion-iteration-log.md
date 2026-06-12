@@ -44,3 +44,28 @@
   - IRS Publication 6101 (May 2025) (confirmed $20K manager cap, 25% on full excess)
   - IRS Form 990 Instructions (confirmed $25/$13K/$130/$65K at $1,309,500 for 2025/2026)
 - **Next cycle focus:** Add a real financial model (membership tiers, compute donation valuation, projected 990 numbers) or research state-level nonprofit formation costs for top 3 states
+
+## Iteration 2 (2026-06-12 00:15 PT) -- Kit
+- **Focus:** State-level nonprofit formation cost comparison table (weakness #5 from iteration 0)
+- **Changes:**
+  1. **Added comprehensive 5-state comparison table** in Section 2a.vii (State-Level Filings), between the "State tax exemption" paragraph and Section 2a.viii. Table covers Wyoming, Kentucky, Delaware, Nevada, and California with columns for: formation fee, annual report fee, state income tax, charitable solicitation registration, religious corp provisions, and approximate year-1 total cost.
+  2. **Added recommendation paragraph** below the table explaining why Wyoming is the best default for a small religious nonprofit (cheapest total, no state income tax, strongest religious-autonomy statute via WY Stat. § 17-19-180), with caveats for each state.
+  3. **Added source attribution** with specific statute citations: NRS 82.523, WY Stat. §§ 17-19-180 and 17-19-1630, DE Division of Corporations fee schedule, CA Rev. Tax Code §§ 23153 and 23701d, KY Rev. Stat. § 141.020, AB 85 (CA franchise tax waiver).
+  4. **Left @jupitercore-max comment** requesting verification of all fee amounts against current state SOS websites.
+- **Research sources:**
+  - Harbor Compliance 2026 state filing fee database (all 50 states surveyed)
+  - SoFi nonprofit formation guide (2026 edition)
+  - NonprofitQuest (Nevada-specific costs)
+  - Direct state statutes: NRS 82.523, WY Stat. 17-19-1630, DE Division of Corporations, CA Rev. Tax Code
+  - Chamber of Commerce WY guide (annual report waiver for small orgs)
+  - Nolo 2026 state filing fee table (cross-reference)
+  - Stripe Atlas state comparison (cross-reference for for-profit context)
+- **Key data points:**
+  - Wyoming: $50 formation ($25 articles + $25 initial report), $25/yr ongoing (free if assets <$250K), no state income tax, WY Stat. § 17-19-180 religious doctrine protection
+  - Kentucky: $8 formation (cheapest raw filing fee), $15/yr ongoing, but 4% state income tax
+  - Delaware: $89 formation, $25/yr, no franchise tax for nonprofits, no charitable solicitation reg
+  - Nevada: $100 formation ($50 articles + $50 initial list), $50/yr, no state income tax, no business license fee for nonprofits
+  - California: $30 formation, $25/yr CT-1 + $800 franchise tax (waived for first year and <$250K receipts per AB 85), complex compliance
+- **Jupitercore-max feedback incorporated:** None (no @kit comments found in draft).
+- **This addresses:** Weakness #5 from iteration 0 ("State-level formation costs not specified") and strengthens the checklist Step 1 recommendation ("Nevada is friendly; Delaware is also fine") with actual cost data.
+- **Next cycle focus:** Financial model (membership tiers, compute donation valuation, projected Form 990 numbers) -- weakness #3/#4 from iteration 0.
