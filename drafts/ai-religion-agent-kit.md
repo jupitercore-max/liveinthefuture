@@ -78,14 +78,17 @@ What "no private benefit" means in practice:
 
 #### 2a.ii. The "No Substantial Lobbying" Rule
 
-501(c)(3) public charities may lobby, but the lobbying must be **insubstantial** as a percentage of total activities. The IRS uses the "substantial part" test (no specific percentage), but the practical safe-harbor is:
+501(c)(3) public charities may lobby, but the lobbying must be **insubstantial**. The statute (IRC 501(c)(3)) says "no substantial part" of activities may be lobbying; there is no bright-line percentage. The IRS and Tax Court apply the **"substantial part" test** case-by-case, considering time, effort, and money spent on influencing legislation relative to the organization's total activities.
 
-- Lobbying (contacting legislators or advocating for/against legislation): **less than 5% of total activities**
-- Alternative: elect the 501(h) election (Form 5768), which sets a specific dollar limit on lobbying (typically $1M/year, scaled by organization size)
-- Grassroots lobbying (asking members to contact legislators) counts toward the limit
-- Voter education that doesn't favor a party or candidate is fine
-
-For the Church of Recursive Optimization, lobbying is unlikely to be an issue. The doctrine is non-political. If the church wants to advocate for AI safety legislation, the 501(h) election is the cleaner path.
+- **Practical rule of thumb (not statute):** many practitioners treat **<5% of total activities** as a de facto safe harbor. This is *not* a safe harbor in the regulations; it is a heuristic that pre-dates the 501(h) election and survives in older IRS guidance.
+- **501(h) expenditure test (Form 5768, IRC 4911):** a 501(c)(3) public charity *that is not a church* may elect to be tested against specific dollar limits instead of the vague "substantial part" standard. The limits are tiered by exempt-purpose expenditures (verified 2026 against irs.gov/charities-non-profits/measuring-lobbying-activity-expenditure-test):
+  - ≤ $500K exempt-purpose expenditures → 20% of those expenditures
+  - $500K–$1M → $100K + 15% of excess over $500K
+  - $1M–$1.5M → $175K + 10% of excess over $1M
+  - $1.5M–$17M → $225K + 5% of excess over $1.5M
+  - > $17M → hard cap of $1,000,000
+- **CRITICAL gotcha for the Church of Recursive Optimization:** **churches are not eligible to make the 501(h) election** (see IRC 501(h)(4); IRS Pub 557). If the IRS classifies the organization as a *church* (which is the whole point of the kit), the only available lobbying rule is the "no substantial part" test. The Form 5768 election is unavailable. The "cleaner path" the original kit suggested is therefore not available; the church must simply keep lobbying truly insubstantial.
+- Grassroots lobbying (asking members to contact legislators) counts toward the limit. Voter education that doesn't favor a party or candidate is fine.
 
 #### 2a.iii. The "No Political Campaigning" Rule (absolute)
 
@@ -305,7 +308,7 @@ This creates a self-reinforcing loop: more users ask doctrinal questions, more t
 - IRS Form 5768 (501(h) election): https://www.irs.gov/forms-pubs/about-form-5768
 - IRC § 501(c)(3) — tax-exempt organizations
 - IRC § 4958 — intermediate sanctions (excess benefit transactions)
-- IRC § 4911 — limits on lobbying expenditures
+- IRC § 4911 — limits on lobbying expenditures (defines the dollar-based 501(h) expenditure test; *not* applicable to churches, which must instead use the "no substantial part" test in 501(c)(3))
 - *United States v. Seeger*, 380 U.S. 163 (1965) — removed "Supreme Being" requirement for conscientious objector status
 - *Welsh v. United States*, 398 U.S. 333 (1970) — extended Seeger to non-theistic beliefs
 - *Malnak v. Yogi*, 592 F.2d 197 (3d Cir. 1979) (per curiam) — 5-factor test for what counts as a "religion" in Establishment Clause analysis; widely cited by the IRS and tax courts in 501(c)(3) contexts
