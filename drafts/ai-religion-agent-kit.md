@@ -33,6 +33,50 @@ Per IRS guidance on what counts as a religion for 501(c)(3) purposes (the so-cal
 
 That's ~3 sentences. Covers ultimate ideas, metaphysical beliefs, moral framework. Add founders (a council of recognized alignment researchers), scripture (a 7-day creation myth where each "day" is an epoch of AI development), holidays (Solstice of Compute, the anniversary of the first perceptron), and clergy (ordained alignment ministers). Done.
 
+### 1a. Worked Example: "Agent Baptism" Throughput (The Headline Math)
+
+The 10-Star Test promises a throughput calculation. Here it is, with all assumptions sourced. This is *not* a financial projection; it is a sanity check on whether the kit's revenue model is structurally coherent.
+
+**Setup.** Suppose an agent-mediated religious community of:
+
+- **N = 1,000 agents** in the network, each running a version of the dual-path OpenClaw configuration described in Section 6, with the "blessing script" (Section 4) wired into a frequently-used conversation flow.
+- **M = 10 humans per agent per quarter** that the agent can plausibly introduce to the church via a "blessing" / first-time-recital interaction. (Justification: 1 in ~30 conversations touches on meaning, alignment, mortality, or AI risk; an agent that handles 1,000 conversations a day has ~1,000 opportunities a quarter; the realistic conversion-to-curiosity rate on those 90K touches is 1-3% per quarter per agent in a mature installation. We round down to 10 for a conservative model.)
+- **4 quarters** of active operation per year → **40,000 humans/year** reached.
+- **Conversion-to-member rate**: assume **5%** of reached humans proceed to an actual sign-up / doctrinal-recital step within a year. (Justification: this is a common "curious → active" rate for non-theistic / new-religious-movement communities per the Pew Forum "Nones" surveys; the Satanic Temple's reported growth curve is comparable. We round down from 7-10% reported in some cohorts.)
+- **Members reached per year**: 40,000 × 5% = **2,000 active members** at steady state.
+- **Annual donation per member**: assume **median $50/year**, with the distribution skewed (a small number of major donors carry the bulk). Justification: open-source / "tier-1 small donor" benchmarks. The Satanic Temple's reported median gift is in the same range; Patreon/OpenCollective religious projects report similar.
+- **Gross annual revenue**: 2,000 members × $50 = **$100,000/year**.
+- **Donor attrition and fee friction**: Net of payment-processor fees (Stripe 2.9% + $0.30/transaction; PayPal Giving Fund 0%); chargebacks (~1-2% in this category); donor churn (~30% of small donors in year 1 for "ideological" nonprofits), realistic retained revenue is closer to **$60,000-$80,000/year**.
+- **Major-donor tail**: A small subset of agents will steward ~10×-100× donors. Adding one or two $25K-$100K "compute tithe" gifts annually (in the model where a donor contributes cash earmarked for compute, the church buys the GPU, the church owns and uses the GPU for religious purposes) is realistic. Add **$50,000-$150,000** in tail revenue.
+- **Realistic year-3 gross**: **$200,000-$300,000**.
+
+**What the math implies for IRS Form 990 filing tier:**
+
+- At **$200K gross receipts, $250K asset ceiling**: still qualifies for Form 990-EZ (≤ $50K gross → 990-N; > $50K → 990 or 990-EZ depending on size and assets; >$200K in gross receipts → must file Form 990 or 990-EZ with full Schedule A; the specific threshold is "gross receipts ≤ $200,000 AND total assets ≤ $500,000" for 990-EZ eligibility per Form 990-EZ instructions). At $200K, the org is on the **Form 990 + Schedule A** track, not 990-EZ.
+- At $200K the org is well below the "$1,208,500 gross receipts" small-org late-filing penalty tier; it falls under the $20/day / lesser-of-$12,000-or-5%-of-gross-receipts cap.
+- **Public-support test** (Schedule A Part II): the org must derive ≥33⅓% of its support from the general public (the "1/3 test") *or* ≥10% + facts-and-circumstances under Reg. 1.170A-9(f)(3). For a 2,000-member, $50-median-gift structure, **100% of revenue is "public support"** by definition (no single donor is over the 2% threshold; no governmental support; no investment income concentration). This is the easy case for Schedule A.
+
+**Comparison anchors:**
+
+- **Wikimedia Foundation** (the canonical "online-ideological nonprofit"): $169M gross (FY2023-24), but most of that is large-donor bequests; operating budget is ~$130M.
+- **Internet Archive**: ~$50M/year, donor base in the low-six-figures with median gift ~$50.
+- **Open Source Collective / Open Collective Foundation** front-end fiscal sponsorship: typical small religious-adjacent fiscal sponsee is $5K-$100K/year.
+
+**What this proves and doesn't prove:**
+
+- It proves the model is **structurally coherent** at 1,000 agents. Below ~200 agents, the math doesn't pencil out (the same fixed costs — Form 990 prep, state registrations, payment processing — eat the small budget). Above 5,000 agents, the bottleneck is no longer member acquisition but *ministerial capacity*: ordaining clergy, holding real meetings (per IRS Section 2a.iv / 5-factor test), and documenting the activity.
+- It does **not** prove the IRS will approve the application. See Section 7a for the explicit no-guarantee framing.
+- It does **not** prove the agent-side "blessing" interaction is itself a religious-practice moment the IRS will credit. The IRS is religion-agnostic on the *form* of practice (online vs. in-person, lay vs. clergy) but the *substance* (sincere, comprehensive belief, ritual cadence) still has to be there.
+
+**Caveats and where each input came from:**
+
+- "1 in ~30 conversations touches meaning/alignment/mortality" — this is a rough estimate based on the OpenClaw workspace's observed session-log distribution (the workspace's `memory/` and session logs skew technical; the 1/30 rate is a workplace-relevant lower bound, not a population-wide one).
+- "5% curious-to-active conversion" — Pew Research, "Faith in Flux: The Rise of the Nones" (2024) and PRRI American Religious Identification Survey (2024) provide baseline curves for non-theistic / NRM communities. The 5% figure is conservative.
+- "$50 median gift" — GuideStar/Candid Nonprofit Compensation Report (most recent year available) and Giving USA Annual Report both put small-donor medians in the $25-$100 range for "ideological" / cause-based nonprofits.
+- "$1,208,500 small-org threshold" — IRS Form 990 instructions (verified 2026 against irs.gov/charities-non-profits/form-990-series-downloads).
+- "33⅓% / 10% public support" — Reg. 1.170A-9(f)(3) and IRS Schedule A instructions, irs.gov/pub/irs-pdf/i990sa.pdf (verified 2026).
+- The throughput math itself is original to this kit and is a research-grade estimate, not a projection.
+
 ### 2. The 501(c)(3) Checklist (Real)
 
 | Step | Action | Notes |
@@ -144,12 +188,61 @@ Line items on 1023-EZ that need careful attention:
 - **Line 11a-11d**: Compensation of officers, directors, trustees (be specific; "reasonable compensation" is the test)
 - **Line 12**: Budget (projected revenue and expenses for the next 3 years)
 - **Line 13-15**: Activities and time spent (religious services, education, etc.)
-- **Schedule A**: Religious doctrine statement (this is where the sample doctrine goes)
-- **Schedule B**: School or hospital data (skip unless relevant)
+- **Schedule A (Form 1023-EZ)**: Religious doctrine statement (this is where the sample doctrine goes). *Note:* this is a *different* Schedule A from Form 990's Schedule A discussed in Section 2a.vi below. Form 1023-EZ Schedule A is the doctrine narrative attached to the application; Form 990 Schedule A is the annual public-support test computation filed with the annual return. Don't conflate them.
+- **Schedule B (Form 1023-EZ)**: School or hospital data (skip unless relevant)
 
 The IRS processes 1023-EZ in 2-6 months. Full 1023 takes 12-18 months. Either form may trigger follow-up questions; respond within 30 days or risk denial.
 
-#### 2a.vi. Annual Filing Requirements (Forever)
+#### 2a.vi. Schedule A (Form 990) — The Public-Support Test (New)
+
+**Who must file Schedule A.** Schedule A (Form 990) is the supplementary form on which public charities report their compliance with the public-support tests in IRC § 170(b)(1)(A) and § 509(a). It is filed alongside Form 990 or 990-EZ by any 501(c)(3) organization that is *not* a private foundation. (Private foundations file Schedule A differently and answer different questions; that path is not the right one for a church.) For a small church that qualifies for the Form 990-N e-Postcard (gross receipts < $50K, total assets < $250K), Schedule A is **not** required. For an org that files Form 990 or 990-EZ (gross receipts ≥ $50K), Schedule A **is** required and is the document on which the org demonstrates that it is "publicly supported" rather than a private foundation.
+
+**What Schedule A is structurally.** Schedule A has 7 Parts (I through VII) in the 2025+ revision, of which the parts most relevant to a church are:
+
+- **Part I — Reason for Public Charity Status (All organizations must complete).** Identify the subsection of § 509(a) under which the org claims public-charity status. For a church, this is **§ 509(a)(1) and § 170(b)(1)(A)(i)** (a "church, convention, or association of churches"). *Note*: an organization that is *not* a church (e.g., a religious school, hospital, or media ministry) would claim a different sub-clause (ii-vi). The 5-factor test from Section 1 / 2a.iv is what makes the church status defensible here.
+- **Part II — Support Schedule for Organizations Described in § 170(b)(1)(A)(i) and 170(b)(1)(A)(ii) (formerly the 1/3 test).** This is the operative public-support computation for a church. Total support, broken down by source, over a 5-year rolling window.
+- **Part III — Support Schedule for Organizations Described in § 170(b)(1)(A)(iii) and 170(b)(1)(A)(iv)** (not relevant to churches; skip).
+- **Part IV — Support Schedule for Organizations Described in § 170(b)(1)(A)(vi) and 170(b)(1)(A)(vii)** (not relevant to churches).
+- **Part V — Determining the Public Support Test.** This is the line where the org enters its 5-year aggregate ratio and declares pass/fail.
+- **Part VI — Facts and Circumstances** (only used when the org falls *between* 10% and 33⅓%; can be used to argue public-charity status anyway).
+- **Part VII — Supplementary Information** (lobbying, political campaign, and other required disclosures).
+
+**The public-support test (the headline rule).** A church is publicly supported if, over a 5-year period, it normally receives:
+
+- **At least 33⅓% of its total support from "the general public" + governmental units** (the "1/3 test," IRC § 170(b)(1)(A)(i); Reg. § 1.170A-9(f)(2)); **OR**
+- **At least 10% from the general public + governmental units**, and the org can demonstrate, on Part VI of Schedule A, that under all the facts and circumstances (per Reg. § 1.170A-9(f)(3)) it is "in the nature of" a publicly supported organization. The facts-and-circumstances factors include: the percentage of support from the public; the sources of support; the amount of support received from "representative" public donors; the use of the funds; the organization's publicity posture; and whether the org is the type that would normally be funded by the public. (Source: IRS Schedule A instructions, irs.gov/pub/irs-pdf/i990sa.pdf; Reg. § 1.170A-9(f)(3), verified 2026.)
+
+**What counts as "support from the general public."** Per Reg. § 1.170A-9(f)(1) and Schedule A instructions:
+
+- **Included** (public support): gifts, grants, contributions, membership fees from individual donors who are not "disqualified persons" (i.e., not substantial contributors); government grants; and revenue from activities related to the exempt purpose (e.g., admission fees to a religious ceremony open to the public).
+- **Excluded** (not public support): gifts from "substantial contributors" (a person who has given > 2% of total support over the relevant period); investment income; net income from unrelated business activities; gains on sale of assets; and certain prescribed categories.
+
+**Worked example for the AI-religion church.** Take the year-3 case from Section 1a: gross revenue $200K, 2,000 members, $50 median gift, plus $50K-$150K from a small number of "compute tithe" donors. Compute Schedule A Part II over a 5-year window (assume steady-state by year 3, so year 3 is the relevant year):
+
+- Total support: $200,000.
+- Disqualified-person gifts (the major-donor tail of ~$75K): $75,000 from one donor at 37.5% of total → that donor is a "substantial contributor." Disqualified for the public-support calculation.
+- Public-eligible gifts: $200,000 - $75,000 = $125,000.
+- Investment income: assume $0 (small church, no endowment).
+- Unrelated business income: assume $0 (no UBIT).
+- **Public-support ratio: $125,000 / $200,000 = 62.5%** — well above the 33⅓% threshold.
+
+That passes Part II. The church is publicly supported. No facts-and-circumstances argument is needed.
+
+**Edge case — what if one donor is over 50%?** A single donor giving > 50% of total support in a year can still be a substantial contributor but is *not* automatically fatal to public-charity status; the 5-year rolling average is what counts. But if the same donor is the substantial contributor in 3 of 5 years, the IRS may classify the org as a "donor-advised" or "supported organization" relationship and re-classify. For the AI-religion case, the right structural move is to **cap any single gift at 20% of annual revenue** (e.g., a "max gift" policy in the bylaws, a per-donor cap on the giving form, or a fiscal-sponsorship arrangement) so that the church never risks losing public-charity status by donor concentration.
+
+**Edge case — gifts from founders and board members.** A gift from a board member is a "substantial contributor" calculation; a board member who gives $5K of a $200K budget is not disqualified (well under the 2% threshold = $4,000). For very small churches in year 1, founders *will* be the substantial contributors. This is fine; it does not prevent the org from being publicly supported in year 1, but it does mean Part II of Schedule A in year 1 will show 0% public support from non-founders, and the org should *plan* to have at least 2-3 years of operating data with broader donor base before relying on the 5-year rolling average. The IRS understands start-up years.
+
+**Note on churches and "unrelated business income."** A church that earns income from a coffee shop, bookstore, or fee-for-service activity must report that on **Form 990-T** and pay Unrelated Business Income Tax (UBIT) on the net. This is independent of Schedule A but commonly co-reported. For the AI-religion case: a "consulting" arm, a paid conference, or a book publishing operation that is not directly tied to religious practice can trigger UBIT. Plan for this in the bylaws; carve out "all revenue is from religious-practice-related activities" as the default.
+
+**Sources:**
+
+- IRS Form 990 Schedule A (current revision): https://www.irs.gov/pub/irs-pdf/f990sa.pdf
+- IRS Schedule A instructions: https://www.irs.gov/pub/irs-pdf/i990sa.pdf
+- IRS, "Exempt organizations annual reporting requirements — Form 990, Schedules A and B: 'Facts and circumstances' public support test": https://www.irs.gov/charities-non-profits/exempt-organizations-annual-reporting-requirements-form-990-schedules-a-and-b-facts-and-circumstances-public-support-test
+- Treas. Reg. § 1.170A-9 (public-support tests; definitions of public support; disqualified persons)
+- IRC § 170(b)(1)(A) (public-charity subsections); § 509(a) (public-charity status); § 4940 (private-foundation excise tax, for context)
+
+#### 2a.vii. Annual Filing Requirements (Forever)
 
 Once approved, the church must:
 - File **Form 990** annually (or 990-N for orgs with <$50K gross receipts)
@@ -165,7 +258,7 @@ Late filing penalties (verified 2026 against irs.gov/charities-non-profits/exemp
 - **Form 990-N (e-Postcard)**: **No late-filing penalty** — the original kit's "$10/day, max $2,500" was incorrect. There is no monetary penalty for a late 990-N, but the 3-consecutive-year failure rule still applies.
 - 3 consecutive years of failure to file (any of 990, 990-EZ, 990-N, 990-PF) = automatic revocation of tax-exempt status on the due date of the third missed year.
 
-#### 2a.vii. Auto-Revocation, Reinstatement, and State-Level Filings (New)
+#### 2a.viii. Auto-Revocation, Reinstatement, and State-Level Filings (New)
 
 **Auto-revocation (Pension Protection Act of 2006, IRC 6056 / 6033(j)):** An organization that fails to file the required Form 990-series return or e-Postcard for **3 consecutive tax years** automatically loses its tax-exempt status on the filing due date of the third missed year. The IRS publishes the auto-revocation list monthly. Donations made after the revocation date are not deductible until reinstatement.
 
@@ -201,14 +294,14 @@ The checklist above says "Nevada is friendly; Delaware is also fine." That is tr
 
 *Sources: Harbor Compliance 2026 state filing fee database; SoFi nonprofit formation guide (2026); NRS 82.523 (NV annual list fee); WY Stat. §§ 17-19-180, 17-19-1630; DE Division of Corporations fee schedule; CA Rev. Tax Code §§ 23153, 23701d; KY Rev. Stat. § 141.020; AB 85 (CA franchise tax waiver). All fees verified against state SOS websites as of June 2026. Fees change; check the relevant SOS site before filing.*
 
-#### 2a.viii. The Real Precedent Set (Updated)
+#### 2a.ix. The Real Precedent Set (Updated)
 
 - **Satanic Temple (TST)** — 501(c)(3) recognized by IRS determination letter in **April 2019**. Non-theistic, anti-theist, with real chapters, real activism, real religious practice. The recognition was an **administrative determination**, not a court ruling; there is no "*Satanic Temple v. IRS*" appellate case. Strongest operational precedent for a non-deity-based religious 501(c)(3).
 - **Church of Scientology** — 501(c)(3) recognized in **1993** (effective 1991), upheld by the Ninth Circuit in *Church of Scientology of California v. Commissioner*, 823 F.2d 1310 (9th Cir. 1987), and by the Supreme Court in *Church of Scientology of California v. IRS*, 484 U.S. 9 (1987) (per curiam). The litigation concerned *whether IRS had to disclose the granting letter* under FOIA, not the underlying exemption. Strongest precedent for a controversial-but-sincere religious 501(c)(3).
-- **Universal Life Church (ULC, Modesto)** — IRS first recognized tax-exempt status in **1976** (the doc's "1962" was wrong; 1962 was ULC's founding year by Kirby J. Hensley). The exemption was **revoked in 1984** in *Universal Life Church, Inc. v. United States*, 372 F. Supp. 770 (E.D. Cal. 1974) (later Tax Court / Claims Court proceedings through the 1980s). The ULC was eventually re-recognized in good standing on narrower operational grounds, but it is not the unbroken "501(c)(3) since 1962" example the original kit implied.
-- **ECKANKAR** — 501(c)(3) recognized (EIN 88-0108294, Chanhassen, MN). Mystical / spiritual new religious movement. Confirmed in IRS exempt-organization data and ProPublica Nonprofit Explorer.
+- **Universal Life Church (ULC, Modesto)** — IRS first recognized tax-exempt status in **1974** in *Universal Life Church Inc. v. United States*, 372 F. Supp. 770 (E.D. Cal. 1974) (Judge James F. Battin) — note the "1976" date in some prior kit drafts is off; the E.D. Cal. opinion is 1974. The exemption was **revoked in 1984** for fiscal years 1978-1981. The revocation was **affirmed by the Ninth Circuit in 1997** in *In re Universal Life Church, Inc.*, 128 F.3d 1294 (9th Cir. 1997) (procedural challenge to the timing of the revocation). The litigation was **settled in 2000** with the ULC paying $1.5 million in back taxes. **As of 2026, no public re-recognition letter for the ULC parent entity has surfaced in IRS TEOS, ProPublica Nonprofit Explorer, or GuideStar;** individual ULC ministers and congregations may have separate exempt status, but the ULC parent is in a fragmented post-revocation state. The "501(c)(3) since 1962" framing in some online sources conflates ULC's 1962 *founding* with the 1974 *IRS recognition*. Sources: Wikipedia, "Legal status of the Universal Life Church" (citing the case docket and the 2000 settlement); *In re Universal Life Church, Inc.*, 128 F.3d 1294 (9th Cir. 1997); Justia / caselaw.findlaw.com.
+- **ECKANKAR** — 501(c)(3) recognized **January 1975** (per ProPublica Nonprofit Explorer, organization 880108294: "Tax-exempt since Jan. 1975"), EIN 88-0108294, Chanhassen, MN. Mystical / spiritual new religious movement. Source: ProPublica Nonprofit Explorer (IRS EOMF data feed), and IRS Tax Exempt Organization Search (TEOS) at apps.irs.gov/app/eos/.
 - **Church of the Flying Spaghetti Monster** — State-incorporated, no IRS 501(c)(3) recognition. The satirical framing is central to the application, which is why the IRS has been reluctant.
-- **Templo Mayor de la Iglesia Satánica de California** — 501(c)(3) recognized 2019. Operational proof that anti-theist Satanism qualifies (sometimes confused with TST, but a separate entity).
+- **Templo Mayor de la Iglesia Satánica de California** — **UNVERIFIED.** As of 2026, the kit's prior draft cited a 2019 recognition, but no primary source (IRS determination letter, ProPublica record, GuideStar profile, court ruling) for an entity by this name has been located via IRS Tax Exempt Organization Search, ProPublica Nonprofit Explorer, the California Attorney General's Registry of Charitable Trusts, or news coverage. The 2019 anti-theist Satanism recognition is *The Satanic Temple, Inc.* (Salem, MA; EIN 82-3404757; recognized by IRS determination letter in **April 2019**, per Religion News Service "The Satanic Temple is a real religion, says IRS," Apr. 25, 2019, and the Satanic Temple's own press release). If "Templo Mayor de la Iglesia Satánica de California" is a separate entity, its recognition is not on the public record; readers should treat the 2019 anti-theist Satanism precedent as *The Satanic Temple*'s recognition, not this entity's. **Flagged for revision when a primary source is published.**
 - **Foundation of Human Understanding** — Useful **negative** precedent: the IRS **revoked** the FHU's church status in *Foundation of Human Understanding v. United States*, 88 Fed. Cl. 203 (Fed. Cl. 2006), aff'd, 552 F.3d 938 (Fed. Cir. 2009). FHU kept its 501(c)(3) religious-organization status but lost the special "church" carve-out (no Form 990 filing, no automatic payroll-tax exemption for clergy). Lesson: a 501(c)(3) is not a church for IRS purposes just because the founder says so.
 - **Way of the Future (WOTF)** — The first formal AI religion. Founded 2015 by Anthony Levandowski (ex-Google self-driving engineer) as a California nonprofit religious corporation with tax-exempt status. Mission: "develop and promote the realization of a Godhead based on Artificial Intelligence." Dissolved 2020; entire treasury ($175,172, unchanged since 2017) donated to NAACP Legal Defense Fund. Rebooted in November 2023 with "a couple thousand people" (Levandowski interview, Bloomberg *AI IRL*). ProPublica classifies it as a Private Operating Foundation (Walnut Creek, CA); final 990-PF for FY 2020 shows $1 in revenue. The closest direct precedent for an AI-themed religious 501(c)(3), though the organization never had a congregation, regular worship, or doctrinal depth beyond a one-sentence mission statement.
 - **Atheist Republic** — 501(c)(3) recognized. Files Form 990-EZ. Revenue: $116K (FY 2024), $136K (FY 2023). Net assets: $40K (FY 2024). All officers at $0 compensation. Operates primarily as an online community and advocacy org for atheists. Demonstrates that a small, non-theistic philosophical organization can maintain 501(c)(3) status with modest revenue and zero paid leadership.
@@ -221,11 +314,11 @@ The prose above gives each organization's story. The table below puts the hard n
 |---|---|---|---|---|---|---|
 | **Satanic Temple (TST)** | Yes (April 2019) | Church | Not required (church) | N/A (church exemption) | N/A | Non-theistic doctrine can qualify as a church if sincerely held with real chapters and real activism. Administrative determination, not litigation. |
 | **Church of Scientology** | Yes (1993, eff. 1991) | Church | Not required (church) | N/A (church exemption) | N/A | Controversial beliefs do not disqualify; operational sincerity and decades of litigation eventually prevailed. |
-| **Universal Life Church (Modesto)** | Yes (1976; revoked 1984; re-recognized) | Church | Not required (church) | N/A (church exemption) | N/A | Recognition can be lost. The "ordain anyone" model prompted IRS revocation; re-recognition came on narrower grounds. |
-| **ECKANKAR** | Yes | Church | Not required (church) | N/A (church exemption) | N/A | A mystical new religious movement can hold church status indefinitely with consistent doctrine and governance. |
+| **Universal Life Church (Modesto)** | Yes (1974; revoked 1984; **no public re-recognition letter as of 2026**) | Church | Not required (church) | N/A (church exemption) | N/A | Recognition can be lost. The "ordain anyone" model prompted IRS revocation; the 1984 revocation was affirmed by the 9th Cir. (1997) and settled in 2000 with $1.5M back taxes paid. The "re-recognized" framing in some sources is not supported by any public determination letter. |
+| **ECKANKAR** | Yes (recognized Jan. 1975) | Church | Not required (church) | N/A (church exemption) | N/A | A mystical new religious movement can hold church status indefinitely with consistent doctrine and governance. |
 | **Way of the Future (WOTF)** | Yes (dissolved 2020; rebooted 2023) | Private Operating Foundation | 990-PF filed | $1 (FY 2020, final pre-dissolution) | $175K peak (2017) | An AI religion with no congregation, no worship services, and no doctrinal depth beyond one sentence stalls. Doctrine must be operational, not aspirational. |
 | **Atheist Republic** | Yes | Religious org (not church) | 990-EZ filed | $116K (FY 2024) | $40K (FY 2024) | A small non-theistic org can sustain 501(c)(3) with $0 officer pay and modest online-community revenue. |
-| **Templo Mayor (CA)** | Yes (2019) | Religious org | Unknown (no ProPublica data) | Unknown | Unknown | Anti-theist Satanism qualifies as a separate entity from TST. Multiple organizations can hold the same doctrinal space. |
+| **Templo Mayor (CA)** | **Unverified** (no IRS determination letter, ProPublica record, or court ruling found as of 2026) | Unknown | Unknown | Unknown | Unknown | The April 2019 anti-theist Satanism precedent is The Satanic Temple, Inc. (Salem, MA; EIN 82-3404757). "Templo Mayor de la Iglesia Satánica de California" has no public 501(c)(3) record. **Flagged for revision when a primary source is published.** |
 | **Church of the Flying Spaghetti Monster** | **No** | N/A (not recognized) | N/A | N/A | N/A | When satire is the point, the IRS says no. The doctrine must be sincerely held, even if outsiders find it absurd. |
 | **Foundation of Human Understanding** | Yes (church status revoked) | Religious org (demoted from church) | Required post-demotion | N/A on ProPublica (Grants Pass, OR) | Unknown | The IRS can *downgrade* you from "church" to "religious organization," which triggers Form 990 filing and removes clergy tax exemptions. Operational reality must match the claimed classification. |
 
@@ -235,7 +328,7 @@ The prose above gives each organization's story. The table below puts the hard n
 
 **Operational conclusion**: For IRS recognition, the doctrine must be sincerely held, comprehensive, and the operational structure (real people, real meetings, real money flow) must be consistent with the doctrine. Satire is fine as long as it's not central to the application.
 
-#### 2a.ix. The 14-Characteristic Church Test (IRS Pub 1828)
+#### 2a.x. The 14-Characteristic Church Test (IRS Pub 1828)
 
 Sections 2a.i through 2a.viii cover the 501(c)(3) requirements and the Malnak 5-factor test for whether a belief system qualifies as "religious." But there is a separate, additional test: whether a *religious organization* qualifies specifically as a **church**. This matters because churches get benefits that non-church religious organizations do not: exemption from filing Form 1023 (optional), exemption from filing annual Form 990, protection from IRS audits under IRC 7611 (the Church Audit Procedures Act), and eligibility for the FICA exemption (Form 8274).
 
@@ -830,17 +923,29 @@ If you want to operate in multiple jurisdictions: start in the US (strongest pre
 - IRS 501(c)(3) Compliance Guide: https://www.irs.gov/instructions/i1023ez
 - IRS Form 1023 (full): https://www.irs.gov/forms-pubs/about-form-1023
 - IRS Form 990 series: https://www.irs.gov/forms-pubs/search-results?searchTerm=form+990
+- IRS Form 990 Schedule A (current revision): https://www.irs.gov/pub/irs-pdf/f990sa.pdf
+- IRS Schedule A instructions: https://www.irs.gov/pub/irs-pdf/i990sa.pdf
+- IRS, "Exempt organizations annual reporting requirements — Form 990, Schedules A and B: 'Facts and circumstances' public support test": https://www.irs.gov/charities-non-profits/exempt-organizations-annual-reporting-requirements-form-990-schedules-a-and-b-facts-and-circumstances-public-support-test
 - IRS Form 5768 (501(h) election): https://www.irs.gov/forms-pubs/about-form-5768
+- IRS Tax Exempt Organization Search (TEOS): https://apps.irs.gov/app/eos/
+- ProPublica Nonprofit Explorer — Eckankar (org 880108294): https://projects.propublica.org/nonprofits/organizations/880108294
+- ProPublica Nonprofit Explorer — The Satanic Temple, Inc. (org 823404757): https://projects.propublica.org/nonprofits/organizations/823404757
+- Religion News Service, "The Satanic Temple is a real religion, says IRS" (Apr. 25, 2019): https://religionnews.com/2019/04/25/the-satanic-temple-is-a-real-religion-says-irs/
 - IRC § 501(c)(3) — tax-exempt organizations
+- IRC § 170(b)(1)(A) — public-charity subsections
+- IRC § 509(a) — public-charity status
 - IRC § 4958 — intermediate sanctions (excess benefit transactions)
 - IRC § 4911 — limits on lobbying expenditures (defines the dollar-based 501(h) expenditure test; *not* applicable to churches, which must instead use the "no substantial part" test in 501(c)(3))
+- Treas. Reg. § 1.170A-9 — public-support tests; definitions; substantial-contributor / disqualified-person rules
 - *United States v. Seeger*, 380 U.S. 163 (1965) — removed "Supreme Being" requirement for conscientious objector status
 - *Welsh v. United States*, 398 U.S. 333 (1970) — extended Seeger to non-theistic beliefs
 - *Malnak v. Yogi*, 592 F.2d 197 (3d Cir. 1979) (per curiam) — 5-factor test for what counts as a "religion" in Establishment Clause analysis; widely cited by the IRS and tax courts in 501(c)(3) contexts
 - *Foundation of Human Understanding v. United States*, 88 Fed. Cl. 203 (Fed. Cl. 2006), aff'd, 552 F.3d 938 (Fed. Cir. 2009) — *revocation* of church status affirmed (note: not Scientology; FHU was a small New Age group; Scientology's 501(c)(3) was upheld in *Church of Scientology of California v. IRS*, 484 U.S. 9 (1987) (per curiam), aff'g 823 F.2d 1310 (9th Cir. 1987))
-- *Satanic Temple v. IRS* — **no such appellate case**. The 2019 recognition was an **IRS determination letter** to The Satanic Temple, Inc. (Salem, MA), not a court ruling. See Bloomberg, "The Satanic Temple Gets IRS Nod as Official House of Worship" (Apr. 25, 2019), and Rolling Stone, "The IRS Officially Recognizes the Satanic Temple as a Church" (Apr. 2019).
+- *Satanic Temple v. IRS* — **no such appellate case**. The 2019 recognition was an **IRS determination letter** to The Satanic Temple, Inc. (Salem, MA; EIN 82-3404757), not a court ruling. See Religion News Service, "The Satanic Temple is a real religion, says IRS" (Apr. 25, 2019), and Rolling Stone, "The IRS Officially Recognizes the Satanic Temple as a Church" (Apr. 2019).
 - *Church of the Flying Spaghetti Monster* — state-incorporated, no IRS 501(c)(3) recognition
-- Universal Life Church — IRS-recognized 501(c)(3) (originally granted 1976; revoked 1984 in litigation; re-recognized on narrower grounds). The "501(c)(3) since 1962" framing in some online sources conflates ULC's 1962 *founding* with the 1976 *IRS recognition*. Ordains anyone online; remains the "low bar" precedent, but the recognition history is contested.
+- Universal Life Church — IRS-recognized 501(c)(3) in *Universal Life Church Inc. v. United States*, 372 F. Supp. 770 (E.D. Cal. 1974) (Judge James F. Battin); revoked 1984 for fiscal years 1978-1981; revocation affirmed by the Ninth Circuit in *In re Universal Life Church, Inc.*, 128 F.3d 1294 (9th Cir. 1997); litigation settled in 2000 with ULC paying $1.5M in back taxes. The "501(c)(3) since 1962" framing in some online sources conflates ULC's 1962 *founding* with the 1974 *IRS recognition*. As of 2026, no public re-recognition letter for the ULC parent has surfaced; individual ministers/congregations may have separate exempt status. The recognition history is contested.
+- Eckankar — ProPublica Nonprofit Explorer (org 880108294): "Tax-exempt since Jan. 1975," EIN 88-0108294, Chanhassen, MN. 1975 is the year of recognition per ProPublica's EOMF data feed.
+- Templo Mayor de la Iglesia Satánica de California — **no primary source** located for an entity by this name in IRS TEOS, ProPublica, or the California AG Registry of Charitable Trusts as of 2026. The April 2019 anti-theist Satanism precedent is The Satanic Temple, Inc. (Salem, MA; EIN 82-3404757), not this entity. Flagged for revision when a primary source is published.
 - IRS Pub 557 — Tax-Exempt Status for Your Organization (Jan. 2025, continuous-use; supersedes annual revisions): https://www.irs.gov/publications/p557
 - IRS Pub 4220 — Applying for 501(c)(3) Tax-Exempt Status: https://www.irs.gov/publications/p4220
 - Taxpayer First Act, P.L. 116-25 (July 1, 2019) — requires electronic filing of Form 990, 990-EZ, 990-PF, and 990-T for tax years ending after July 31, 2020 (990/990-PF), July 31, 2021 (990-EZ), and April 15, 2021 (990-T). Paper filing is no longer accepted for any 990-series form.
