@@ -85,6 +85,7 @@
     "cowos-packaging-monopoly-crack.html",
     "pjm-data-center-electricity-bill-shock.html",
     "ai-ip-clean-room-rewrite.html",
+    "ai-religion-agent-kit.html",
     "weekly-ai-roundup-may-17-2026.html",
     "ukraine-25000-robots-ground-war-procurement-gap.html",
     "byd-gods-eye-data-war-autonomous-driving.html",
