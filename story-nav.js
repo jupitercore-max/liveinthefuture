@@ -4,6 +4,7 @@
 
   // Article order (newest first) — matches homepage grid order
   const articles = [
+    "manikomycin-first-e-site-ribosome-antibiotic.html",
     "light-quantum-friction-nanotubes-water-excitons.html",
     "crispr-cas12a2-chromatin-shredding-cancer-p53.html",
     "sic-cryogenic-neuromorphic-quantum-wiring-bottleneck.html",
