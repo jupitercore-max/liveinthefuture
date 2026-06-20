@@ -1577,16 +1577,17 @@ function findRandomRoad() {
 
 function spawnTrafficCar() {
   const road = findRandomRoad();
-  if (!road) return false;
+  if (!road) { console.log('traffic: no roads found'); return false; }
   const d = randomRoadDir(road.x, road.y);
   // Don't spawn on a dead-end road
-  if (d.x === 0 && d.y === 0) return false;
+  if (d.x === 0 && d.y === 0) { console.log('traffic: dead end at', road.x, road.y); return false; }
   state.trafficCars.push({
     x: road.x * TILE + TILE / 2, y: road.y * TILE + TILE / 2,
     vx: d.x * 0.6, vy: d.y * 0.6,
     color: CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
     age: 0,
   });
+  console.log('traffic: spawned car at', road.x, road.y, 'total:', state.trafficCars.length);
   return true;
 }
 
@@ -1786,10 +1787,9 @@ function render() {
       ctx.fillStyle = grad;
       ctx.fillRect(-4, -glowR, 18, glowR * 2);
     }
-    // Car body — visible rectangle
+    // Car body — big and visible
     ctx.fillStyle = car.color || '#ef4444';
-    ctx.globalAlpha = 0.85;
-    ctx.fillRect(-4, -2.5, 8, 5);
+    ctx.fillRect(-5, -3, 10, 6);
     // Windshield
     ctx.fillStyle = 'rgba(150,200,255,0.7)';
     ctx.fillRect(2, -1.5, 2, 3);
