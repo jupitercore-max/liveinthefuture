@@ -1502,8 +1502,8 @@ function safeTile(x, y) {
 }
 
 function updateTraffic() {
-  // Target: always at least 3 cars if roads exist, scale with population up to 10
-  const target = Math.min(10, Math.max(3, Math.floor(state.population / 30)));
+  // Target: always at least 5 cars if roads exist, scale with population
+  const target = Math.min(10, Math.max(5, Math.floor(state.population / 30)));
   // Remove expired cars first
   for (let i = state.trafficCars.length - 1; i >= 0; i--) {
     const c = state.trafficCars[i];
@@ -1514,7 +1514,7 @@ function updateTraffic() {
     }
   }
   // Stagger spawning: only spawn 1 car per tick max, and only every few ticks
-  if (state.trafficCars.length < target && state.tick % 15 === 0) {
+  if (state.trafficCars.length < target && state.tick % 5 === 0) {
     spawnTrafficCar();
   }
   while (state.trafficCars.length > target) state.trafficCars.pop();
@@ -4657,6 +4657,8 @@ try {
   buildTabs();
   buildToolbar();
   updateHUD();
+  // Pre-spawn some traffic cars so roads aren't empty on first load
+  setTimeout(function() { for (var i = 0; i < 5; i++) spawnTrafficCar(); }, 2000);
   requestAnimationFrame(gameLoop);
 } catch(err) {
   console.error('Boot error:', err);
