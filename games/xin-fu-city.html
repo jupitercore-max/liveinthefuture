@@ -313,6 +313,7 @@ const T = {
   GARAGE: 13, GUMMY_FACTORY: 14, HORN_TOWER: 15,
   PEPPER_FARM: 16, SIGN: 17,
   PLAYGROUND: 18,
+  EMMY_ELECTRONICS: 19,
 };
 
 const TD = {
@@ -333,6 +334,7 @@ const TD = {
   [T.PEPPER_FARM]:     { name:'Pepper Farm',     color:'#16a34a', cost:80, income:10, desc:'Grows spicy peppers. Low cost, modest income.' },
   [T.SIGN]:            { name:'Road Sign',       color:'#fbbf24', cost:10, desc:'Points the way to distant landmarks.' },
   [T.PLAYGROUND]:      { name:'Playground',       color:'#22c55e', cost:800, happy:5, desc:'Swings, slides, and fun for kids! Boosts nearby happiness.' },
+  [T.EMMY_ELECTRONICS]: { name:'Emmy\'s Electronics', color:'#06b6d4', cost:2000, income:45, jobs:15, happy:2, desc:'Emmy\'s gadget shop. Sells the latest tech and gizmos!' },
 };
 
 // ─── Categories & Tools ────────────────────────────────────────────
@@ -359,6 +361,7 @@ const TOOLS = [
   { id:'horn',      icon:'📢', name:'Horn Tower',  tile:T.HORN_TOWER,    cost:1800, cat:'special' },
   { id:'sign',      icon:'🪧', name:'Road Sign',   tile:T.SIGN,          cost:10,   cat:'special' },
   { id:'playground', icon:'🛝', name:'Playground',  tile:T.PLAYGROUND,    cost:800,  cat:'special' },
+  { id:'electronics', icon:'🔌', name:'Electronics', tile:T.EMMY_ELECTRONICS, cost:2000, cat:'special' },
   { id:'inspect',   icon:'🔍', name:'Inspect',     cost:0,               cat:'tools' },
   { id:'bulldoze',  icon:'💥', name:'Bulldoze',    cost:0,               cat:'tools' },
   { id:'drive',     icon:'🚗', name:'Drive',       cost:0,               cat:'tools' },
@@ -1158,6 +1161,7 @@ function updatePollution() {
       else if (tile.type === T.GUMMY_FACTORY) pAmount = 5;
       else if (tile.type === T.POWER_PLANT) pAmount = 4;
       else if (tile.type === T.GARAGE) pAmount = 1;
+      else if (tile.type === T.EMMY_ELECTRONICS) pAmount = 1;
       if (pAmount > 0) {
         for (let dy = -POLLUTION_RADIUS; dy <= POLLUTION_RADIUS; dy++) {
           for (let dx = -POLLUTION_RADIUS; dx <= POLLUTION_RADIUS; dx++) {
@@ -1310,6 +1314,7 @@ function simTick() {
           case T.BLUETOOTH_TOWER: specialBuildings++; break;
           case T.HORN_TOWER:      specialBuildings++; break;
           case T.PLAYGROUND:     specialBuildings++; break;
+          case T.EMMY_ELECTRONICS:  income += 45; specialBuildings++; break;
         }
       }
     }
@@ -1759,6 +1764,7 @@ function drawTileIso(tx, ty, brightness) {
     case T.HORN_TOWER: drawSpecialIso(T.HORN_TOWER, px, py, hw, hh, tile.level, b); break;
     case T.POWER_PLANT: drawSpecialIso(T.POWER_PLANT, px, py, hw, hh, tile.level, b); break;
     case T.PLAYGROUND: drawSpecialIso(T.PLAYGROUND, px, py, hw, hh, tile.level, b); break;
+    case T.EMMY_ELECTRONICS: drawSpecialIso(T.EMMY_ELECTRONICS, px, py, hw, hh, tile.level, b); break;
     case T.POWER_LINE: drawPowerLineIso(px, py, hw, hh, b); break;
     case T.SIGN: drawSignIso(px, py, hw, hh, tile, b); break;
   }
@@ -2894,6 +2900,39 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
         ctx.fillStyle = pggrad;
         ctx.fillRect(px - hw, py - hh - 16, ISO_TILE_W, ISO_TILE_H + 16);
       }
+      break;
+    }
+
+    case T.EMMY_ELECTRONICS: {
+      var h = 24;
+      var bw = hw * 0.72, bh = hh * 0.72;
+
+      // Building body — teal/cyan
+      drawIsoBox(px, py, bw, bh, h,
+        adjustBrightness('#06b6d4', b),
+        adjustBrightness('#0e7490', b * 0.55),
+        adjustBrightness('#0891b2', b * 0.85));
+
+      // Awning/sign on top — striped teal and white
+      ctx.fillStyle = adjustBrightness('#22d3ee', b);
+      ctx.fillRect(px - bw * 0.5, py - h - 3, bw, 3);
+      ctx.fillStyle = adjustBrightness('#e8e8e8', b);
+      ctx.fillRect(px - bw * 0.3, py - h - 3, 3, 3);
+      ctx.fillRect(px + bw * 0.1, py - h - 3, 3, 3);
+
+      // Glowing screen/window on front
+      var nightData = getDayNightOverlay();
+      var isNight = nightData && nightData.night > 0.45;
+      ctx.fillStyle = isNight ? 'rgba(100,220,255,0.7)' : 'rgba(80,180,220,0.4)';
+      ctx.fillRect(px - bw * 0.25, py - h * 0.6, bw * 0.5, h * 0.4);
+
+      // ⚡ symbol on screen
+      ctx.fillStyle = adjustBrightness('#fbbf24', b);
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('⚡', px, py - h * 0.4);
+
       break;
     }
   }
@@ -4177,6 +4216,18 @@ function checkMilestones() {
         if (state.grid[y][x].type === T.PLAYGROUND) {
           state.milestones.playground = true;
           toast('🛝 Playground built — kids are thrilled!');
+          sndGrow();
+          haptic(15);
+          break;
+        }
+  }
+  // Emmy's Electronics milestone
+  if (!state.milestones.electronics) {
+    for (let y = 0; y < GRID; y++)
+      for (let x = 0; x < GRID; x++)
+        if (state.grid[y][x].type === T.EMMY_ELECTRONICS) {
+          state.milestones.electronics = true;
+          toast('🔌 Emmy\'s Electronics is open for business!');
           sndGrow();
           haptic(15);
           break;
