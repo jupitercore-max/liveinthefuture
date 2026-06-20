@@ -1528,22 +1528,35 @@ function updateTraffic() {
     }
     car.x += car.vx; car.y += car.vy;
     const tx = Math.floor(car.x / TILE), ty = Math.floor(car.y / TILE);
-    // Comprehensive bounds + NaN check before any grid access
+    // Check if car is still on a road tile
     if (!Number.isFinite(tx) || !Number.isFinite(ty) || tx < 0 || tx >= GRID || ty < 0 || ty >= GRID || state.grid[ty][tx].type !== T.ROAD) {
-      // Car went off road — try to find nearest road, or despawn if none
+      // Car went off road — snap to nearest road or despawn
       const road = findNearestRoad(Math.max(0, Math.min(GRID - 1, tx || 0)), Math.max(0, Math.min(GRID - 1, ty || 0)));
-      if (road) { car.x = road.x * TILE + TILE / 2; car.y = road.y * TILE + TILE / 2; }
-      else { car.age = 999; continue; } // mark for despawn
-      const d = randomRoadDir(Math.max(0, Math.min(GRID - 1, Math.floor(car.x / TILE))), Math.max(0, Math.min(GRID - 1, Math.floor(car.y / TILE))));
-      // Dead end — despawn
-      if (d.x === 0 && d.y === 0) { car.age = 999; continue; }
-      car.vx = d.x * 2.0; car.vy = d.y * 2.0;
-    }
-    // At intersections, randomly pick a new direction
-    if (Math.random() < 0.03 && Number.isFinite(tx) && Number.isFinite(ty) && tx >= 0 && tx < GRID && ty >= 0 && ty < GRID) {
-      const d = randomRoadDir(tx, ty);
-      if (d.x === 0 && d.y === 0) { car.age = 999; continue; } // dead end
-      car.vx = d.x * 2.0; car.vy = d.y * 2.0;
+      if (road) {
+        car.x = road.x * TILE + TILE / 2; car.y = road.y * TILE + TILE / 2;
+        const d = randomRoadDir(road.x, road.y);
+        if (d.x === 0 && d.y === 0) { car.age = 999; continue; }
+        car.vx = d.x * 2.0; car.vy = d.y * 2.0;
+      } else { car.age = 999; continue; }
+    } else {
+      // Snap car to center of current tile path when crossing tile boundary
+      var cx2 = tx * TILE + TILE / 2;
+      var cy2 = ty * TILE + TILE / 2;
+      // If car is near tile center, pick a direction toward next road
+      var distFromCenter = Math.hypot(car.x - cx2, car.y - cy2);
+      if (distFromCenter < 2.0) {
+        // At center — continue in same direction or turn
+        var aheadX = tx + (car.vx > 0 ? 1 : car.vx < 0 ? -1 : 0);
+        var aheadY = ty + (car.vy > 0 ? 1 : car.vy < 0 ? -1 : 0);
+        var canContinue = aheadX >= 0 && aheadX < GRID && aheadY >= 0 && aheadY < GRID && state.grid[aheadY][aheadX].type === T.ROAD;
+        if (!canContinue || Math.random() < 0.15) {
+          // Pick new direction
+          const d = randomRoadDir(tx, ty);
+          if (d.x === 0 && d.y === 0) { car.age = 999; continue; }
+          car.vx = d.x * 2.0; car.vy = d.y * 2.0;
+          car.x = cx2; car.y = cy2;
+        }
+      }
     }
   }
 }
