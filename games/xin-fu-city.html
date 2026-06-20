@@ -312,6 +312,7 @@ const T = {
   BLUETOOTH_TOWER: 10, THRONE_ROOM: 11, GRILL: 12,
   GARAGE: 13, GUMMY_FACTORY: 14, HORN_TOWER: 15,
   PEPPER_FARM: 16, SIGN: 17,
+  PLAYGROUND: 18,
 };
 
 const TD = {
@@ -331,6 +332,7 @@ const TD = {
   [T.HORN_TOWER]:      { name:'AI Horn Speaker Tower', color:'#06b6d4', cost:1800, happy:4, desc:'Broadcasts AI-generated announcements. Citizens enjoy it.' },
   [T.PEPPER_FARM]:     { name:'Pepper Farm',     color:'#16a34a', cost:80, income:10, desc:'Grows spicy peppers. Low cost, modest income.' },
   [T.SIGN]:            { name:'Road Sign',       color:'#fbbf24', cost:10, desc:'Points the way to distant landmarks.' },
+  [T.PLAYGROUND]:      { name:'Playground',       color:'#22c55e', cost:800, happy:5, desc:'Swings, slides, and fun for kids! Boosts nearby happiness.' },
 };
 
 // ─── Categories & Tools ────────────────────────────────────────────
@@ -356,6 +358,7 @@ const TOOLS = [
   { id:'gummy',     icon:'🐻', name:'Gummy Factory',tile:T.GUMMY_FACTORY,cost:2500, cat:'special' },
   { id:'horn',      icon:'📢', name:'Horn Tower',  tile:T.HORN_TOWER,    cost:1800, cat:'special' },
   { id:'sign',      icon:'🪧', name:'Road Sign',   tile:T.SIGN,          cost:10,   cat:'special' },
+  { id:'playground', icon:'🛝', name:'Playground',  tile:T.PLAYGROUND,    cost:800,  cat:'special' },
   { id:'inspect',   icon:'🔍', name:'Inspect',     cost:0,               cat:'tools' },
   { id:'bulldoze',  icon:'💥', name:'Bulldoze',    cost:0,               cat:'tools' },
   { id:'drive',     icon:'🚗', name:'Drive',       cost:0,               cat:'tools' },
@@ -1306,6 +1309,7 @@ function simTick() {
           case T.THRONE_ROOM:     specialBuildings++; break;
           case T.BLUETOOTH_TOWER: specialBuildings++; break;
           case T.HORN_TOWER:      specialBuildings++; break;
+          case T.PLAYGROUND:     specialBuildings++; break;
         }
       }
     }
@@ -1758,6 +1762,7 @@ function drawTileIso(tx, ty, brightness) {
     case T.GUMMY_FACTORY: drawSpecialIso(T.GUMMY_FACTORY, px, py, hw, hh, tile.level, b); break;
     case T.HORN_TOWER: drawSpecialIso(T.HORN_TOWER, px, py, hw, hh, tile.level, b); break;
     case T.POWER_PLANT: drawSpecialIso(T.POWER_PLANT, px, py, hw, hh, tile.level, b); break;
+    case T.PLAYGROUND: drawSpecialIso(T.PLAYGROUND, px, py, hw, hh, tile.level, b); break;
     case T.POWER_LINE: drawPowerLineIso(px, py, hw, hh, b); break;
     case T.SIGN: drawSignIso(px, py, hw, hh, tile, b); break;
   }
@@ -2799,10 +2804,57 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
       }
       break;
     }
+
+    case T.PLAYGROUND: {
+      // Sandbox
+      ctx.fillStyle = adjustBrightness('#e8c878', b);
+      ctx.beginPath();
+      ctx.ellipse(px, py + 2, hw * 0.5, hh * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = adjustBrightness('#c4a868', b);
+      ctx.fillRect(px - hw * 0.3, py, hw * 0.6, 2);
+      
+      // Swing set (A-frame posts + crossbar)
+      ctx.fillStyle = adjustBrightness('#8b4513', b);
+      ctx.fillRect(px - 8, py - 14, 2, 12);  // left post
+      ctx.fillRect(px + 6, py - 14, 2, 12);  // right post
+      ctx.fillRect(px - 9, py - 15, 17, 2);  // crossbar
+      // Chains
+      ctx.strokeStyle = adjustBrightness('#aaa', b);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(px - 4, py - 13); ctx.lineTo(px - 4, py - 4);
+      ctx.moveTo(px + 2, py - 13); ctx.lineTo(px + 2, py - 4);
+      ctx.stroke();
+      // Swing seat
+      ctx.fillStyle = adjustBrightness('#5a3a1a', b);
+      ctx.fillRect(px - 5, py - 4, 8, 2);
+      
+      // Slide (right side)
+      ctx.fillStyle = adjustBrightness('#dc2626', b);
+      ctx.fillRect(px + 4, py - 10, 2, 10);  // ladder
+      ctx.fillRect(px + 4, py - 10, 8, 2);   // top
+      // slide surface (diagonal)
+      ctx.strokeStyle = adjustBrightness('#3b82f6', b);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(px + 5, py - 8);
+      ctx.lineTo(px + 10, py - 1);
+      ctx.stroke();
+      
+      if (isNight) {
+        var pggrad = ctx.createRadialGradient(px, py - 6, 0, px, py - 6, hw);
+        pggrad.addColorStop(0, 'rgba(255,200,100,0.08)');
+        pggrad.addColorStop(1, 'rgba(255,200,100,0)');
+        ctx.fillStyle = pggrad;
+        ctx.fillRect(px - hw, py - hh - 16, ISO_TILE_W, ISO_TILE_H + 16);
+      }
+      break;
+    }
   }
 }
 
-// ─── Fire Overlay ──────────────────────────────────────────────────
+// ─── Fire Overlay ─────────────────────────────────────────────────
 function drawFireOverlayIso(tx, ty) {
   var iso = tileToIso(tx, ty);
   var px = iso.x, py = iso.y;
@@ -4043,6 +4095,18 @@ function checkMilestones() {
         if (state.grid[y][x].type === T.POWER_PLANT) {
           state.milestones.power = true;
           toast('⚡ First power plant operational!');
+          sndGrow();
+          haptic(15);
+          break;
+        }
+  }
+  // Playground milestone
+  if (!state.milestones.playground) {
+    for (let y = 0; y < GRID; y++)
+      for (let x = 0; x < GRID; x++)
+        if (state.grid[y][x].type === T.PLAYGROUND) {
+          state.milestones.playground = true;
+          toast('🛝 Playground built — kids are thrilled!');
           sndGrow();
           haptic(15);
           break;
