@@ -2682,28 +2682,71 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
     }
 
     case T.GUMMY_FACTORY: {
-      var h = 26;
-      // Pink building
-      drawIsoBox(px, py, hw * 0.72, hh * 0.72, h,
-        adjustBrightness('#ec4899', b),
-        adjustBrightness('#9d174d', b * 0.55),
-        adjustBrightness('#be185d', b * 0.85));
-      // Rotating gears on right wall
-      ctx.save();
-      var fwl = Math.hypot(hw * 0.72, hh * 0.72);
-      ctx.transform(-hw * 0.72 / fwl, hh * 0.72 / fwl, 0, -1, px + hw * 0.72, py);
-      var gearT = state.tick * 0.3;
-      // Gears
-      ctx.strokeStyle = adjustBrightness('#f9a8d4', b); ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(fwl * 0.3, h * 0.4, 4, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(fwl * 0.65, h * 0.4, 4, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = adjustBrightness('#f472b6', b);
-      for (var ga = 0; ga < 8; ga++) {
-        var ang = gearT + ga * Math.PI / 4;
-        ctx.fillRect(fwl * 0.3 + Math.cos(ang) * 4 - 1, h * 0.4 + Math.sin(ang) * 4 - 1, 2, 2);
-        ctx.fillRect(fwl * 0.65 + Math.cos(ang + 0.5) * 4 - 1, h * 0.4 + Math.sin(ang + 0.5) * 4 - 1, 2, 2);
+      var h = 28;
+      var bw = hw * 0.75, bh = hh * 0.75;
+
+      // Smokestack on left side (small pipe with smoke)
+      ctx.fillStyle = adjustBrightness('#6b7280', b);
+      ctx.fillRect(px - bw - 2, py - h - 6, 3, 8);  // pipe
+      // Smoke cloud
+      ctx.fillStyle = 'rgba(80,80,90,0.6)';
+      for (var si = 0; si < 5; si++) {
+        var sx = px - bw - 2 + Math.sin(state.tick * 0.1 + si) * 2 - si;
+        var sy = py - h - 8 - si * 3;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 2.5 - si * 0.3, 0, Math.PI * 2);
+        ctx.fill();
       }
+
+      // Main factory body — pink/purple box
+      drawIsoBox(px, py, bw, bh, h,
+        adjustBrightness('#d68fb8', b),         // top — lighter pink-purple
+        adjustBrightness('#8b3a6b', b * 0.55),  // left — dark magenta
+        adjustBrightness('#a84d7e', b * 0.85)); // right — medium pink-purple
+
+      // Gummy bear logo on the front of the building
+      ctx.save();
+      var bearX = px + bw * 0.3;
+      var bearY = py - h * 0.5;
+      var bearR = 5;
+
+      // Light pink gummy bear
+      ctx.fillStyle = adjustBrightness('#f9c1d8', b);
+      // Body
+      ctx.beginPath();
+      ctx.arc(bearX, bearY + 2, bearR, 0, Math.PI * 2);
+      ctx.fill();
+      // Head
+      ctx.beginPath();
+      ctx.arc(bearX, bearY - 4, bearR * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      // Ears
+      ctx.beginPath();
+      ctx.arc(bearX - 3, bearY - 8, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(bearX + 3, bearY - 8, 2, 0, Math.PI * 2);
+      ctx.fill();
+      // Arms
+      ctx.beginPath();
+      ctx.arc(bearX - 5, bearY + 1, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(bearX + 5, bearY + 1, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      // Legs
+      ctx.beginPath();
+      ctx.arc(bearX - 2.5, bearY + 6, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(bearX + 2.5, bearY + 6, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      // Eyes
+      ctx.fillStyle = adjustBrightness('#5a1a3a', b);
+      ctx.fillRect(bearX - 2, bearY - 5, 1, 1);
+      ctx.fillRect(bearX + 1, bearY - 5, 1, 1);
       ctx.restore();
+
       break;
     }
 
