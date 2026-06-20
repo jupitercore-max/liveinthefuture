@@ -1826,15 +1826,41 @@ function drawGrassIso(px, py, tx, ty, hw, hh, b) {
     // Tree coverage
     drawTreeIso(px, py, getTreeVariant(tx, ty), b);
   } else if (hash === 3) {
-    // Flower patch
-    ctx.fillStyle = adjustBrightness('#f0d040', b);
-    ctx.fillRect(px - 6, py - 2, 2, 2);
-    ctx.fillStyle = adjustBrightness('#ffffff', b * 0.95);
-    ctx.fillRect(px + 4, py + 4, 2, 2);
-    ctx.fillStyle = adjustBrightness('#e04060', b);
-    ctx.fillRect(px + 2, py - 6, 2, 2);
-    ctx.fillStyle = adjustBrightness('#c080ff', b);
-    ctx.fillRect(px - 8 + (ty % 6), py + 6 + (tx % 4), 2, 2);
+    // Flower patch — real flowers with petals and centers
+    var flowerColors = [
+      { petal: '#f0d040', center: '#8a6a00' }, // yellow w/ dark center
+      { petal: '#e04060', center: '#6a1020' }, // red w/ dark center
+      { petal: '#c080ff', center: '#5a3090' }, // purple w/ dark center
+      { petal: '#ffffff', center: '#f0d040' }  // white w/ yellow center
+    ];
+    // Draw 3-4 small flowers scattered on the tile
+    var flowerSpots = [
+      { x: px - 6, y: py - 2, ci: 0 },
+      { x: px + 4, y: py + 4, ci: 3 },
+      { x: px + 2, y: py - 6, ci: 1 },
+      { x: px - 4 + (ty % 4), y: py + 6 + (tx % 3), ci: 2 }
+    ];
+    for (var fi = 0; fi < flowerSpots.length; fi++) {
+      var fx = flowerSpots[fi].x;
+      var fy = flowerSpots[fi].y;
+      var fc = flowerColors[flowerSpots[fi].ci];
+      var petalR = 1.8;
+      var ctrR = 1.2;
+      // Petals — 5 small circles arranged radially around center
+      ctx.fillStyle = adjustBrightness(fc.petal, b);
+      for (var pa = 0; pa < 5; pa++) {
+        var pang = (pa / 5) * Math.PI * 2 + (fi * 0.7);
+        var pr = 2.2;
+        ctx.beginPath();
+        ctx.arc(fx + Math.cos(pang) * pr, fy + Math.sin(pang) * pr, petalR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Center dot
+      ctx.fillStyle = adjustBrightness(fc.center, b);
+      ctx.beginPath();
+      ctx.arc(fx, fy, ctrR, 0, Math.PI * 2);
+      ctx.fill();
+    }
   } else if (hash === 4) {
     // Dirt patch
     ctx.fillStyle = adjustBrightness('#7a6a4a', b * 0.95);
