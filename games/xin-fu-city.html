@@ -2685,28 +2685,31 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
       var h = 32;
       var bw = hw * 0.78, bh = hh * 0.78;
 
-      // Smokestack — small rectangular pipe on upper-left, clearly visible
-      ctx.fillStyle = adjustBrightness('#7c2d6f', b);
-      ctx.fillRect(px - bw + 2, py - h - 8, 4, 10);
-      // Dark charcoal smoke — messy puffs
-      ctx.fillStyle = 'rgba(50,50,55,0.7)';
-      var smokeBaseX = px - bw + 4;
-      var smokeBaseY = py - h - 8;
-      for (var si = 0; si < 6; si++) {
-        var sx = smokeBaseX + Math.sin(state.tick * 0.08 + si * 0.8) * 3 - si * 0.8;
-        var sy = smokeBaseY - si * 4;
-        var sr = 3 - si * 0.3;
-        if (sr < 1) sr = 1;
-        ctx.beginPath();
-        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
       // Main factory body — VIVID fuchsia/magenta
       drawIsoBox(px, py, bw, bh, h,
         adjustBrightness('#d633ac', b),          // top — vivid fuchsia
         adjustBrightness('#8b1a6a', b * 0.6),    // left — deep magenta
         adjustBrightness('#b82a89', b * 0.85));  // right — medium fuchsia
+
+      // Smokestack — drawn AFTER box so it's visible on top, sticking out the top-left
+      ctx.fillStyle = adjustBrightness('#5a1a4a', b);
+      ctx.fillRect(px - bw * 0.5, py - h - 12, 5, 14);
+      // Smokestack rim
+      ctx.fillStyle = adjustBrightness('#3a0a30', b);
+      ctx.fillRect(px - bw * 0.5 - 1, py - h - 13, 7, 3);
+      // Dark charcoal smoke puffs
+      ctx.fillStyle = 'rgba(60,60,70,0.75)';
+      var smokeBaseX = px - bw * 0.5 + 2;
+      var smokeBaseY = py - h - 13;
+      for (var si = 0; si < 7; si++) {
+        var sx = smokeBaseX + Math.sin(state.tick * 0.08 + si * 0.8) * 3 - si * 0.5;
+        var sy = smokeBaseY - si * 4;
+        var sr = 4 - si * 0.4;
+        if (sr < 1.2) sr = 1.2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // CLASSIC gummy bear candy silhouette — one continuous path
       ctx.save();
