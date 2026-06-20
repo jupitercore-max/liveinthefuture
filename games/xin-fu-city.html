@@ -17,6 +17,10 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 #view3d.show{display:block}
 #view3d canvas{display:block}
 
+/* ═══ DEBUG OVERLAY ═══ */
+#debugOverlay{position:fixed;top:calc(env(safe-area-inset-top,0) + 52px);left:4px;right:60px;background:rgba(0,0,0,0.85);border:1px solid #f00;border-radius:6px;padding:4px 8px;font-size:10px;color:#f00;font-family:monospace;z-index:50;display:none;max-height:120px;overflow-y:auto;pointer-events:none;white-space:pre-wrap;word-break:break-all}
+#debugOverlay.show{display:block}
+
 /* ═══ TOP HUD ═══ */
 #hud{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;gap:6px;padding:4px 8px;padding-top:calc(env(safe-area-inset-top,0) + 4px);background:linear-gradient(180deg,#12121e 0%,rgba(10,10,18,0.92) 100%);border-bottom:1px solid #2a2a3a;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;min-height:48px}
 #hud::-webkit-scrollbar{display:none}
@@ -195,6 +199,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 <div id="view3d"></div>
 <canvas id="minimap"></canvas>
 <div class="presence-badge" id="presenceBadge"><span class="online-dot"></span><span id="presenceText">just you</span></div>
+<div id="debugOverlay"></div>
 <div id="infoBar"></div>
 <div id="budgetPanel"></div>
 <div id="toast"></div>
@@ -660,16 +665,31 @@ function worldToTile(wx, wy) { return { x: Math.floor(wx / TILE), y: Math.floor(
 // iOS Safari / iMessage WKWebView need explicit touch events.
 // setPointerCapture is NEVER called — it breaks iOS touch.
 // ═══════════════════════════════════════════════════════════════════
-const TAP_THRESHOLD = 10;  // 10px — safer for fingers
+const TAP_THRESHOLD = 5;   // 5px — iOS fingers jitter less than you'd think
+const DEBUG = new URLSearchParams(location.search).has('debug');
+
+// --- Debug log helper ---
+const _debugLines = [];
+function dlog(...args) {
+  if (!DEBUG) return;
+  const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+  _debugLines.push(msg);
+  if (_debugLines.length > 8) _debugLines.shift();
+  console.log('[XINFU]', msg);
+  const el = document.getElementById('debugOverlay');
+  if (el) { el.classList.add('show'); el.textContent = _debugLines.join('\n'); }
+}
 
 // --- Shared state for both touch and pointer paths ---
 let _handleTapGuard = 0;  // timestamp of last handleTap call; prevents double-fire
 
-function _tryHandleTap(sx, sy) {
+function _tryHandleTap(sx, sy, source) {
   const now = Date.now();
-  if (now - _handleTapGuard < 200) return;  // debounced
+  if (now - _handleTapGuard < 150) { dlog('TAP debounced by guard'); return; }
   _handleTapGuard = now;
-  const t = worldToTile(screenToWorld(sx, sy));
+  const w = screenToWorld(sx, sy);
+  const t = worldToTile(w.x, w.y);
+  dlog('TAP', source || '?', 'screen=(', sx, sy, ') world=(', w.x.toFixed(0), w.y.toFixed(0), ') tile=(', t.x, t.y, ') tool=', activeTool);
   handleTap(t.x, t.y);
 }
 
@@ -682,6 +702,7 @@ let pinchStartDist = 0;
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
   unlockAudio();
+  dlog('touchstart: touches=', e.touches.length, 'target=', e.target.id || e.target.tagName);
 
   if (e.touches.length === 1) {
     const t = e.touches[0];
@@ -707,6 +728,7 @@ canvas.addEventListener('touchmove', e => {
     const dy = t.clientY - touchStart.y;
     if (Math.hypot(dx, dy) > TAP_THRESHOLD) {
       touchStart.moved = true;
+      dlog('touchmove: DRAG detected, dist=', Math.hypot(dx,dy).toFixed(1));
       // Pan camera
       camX = touchStart.camX + dx;
       camY = touchStart.camY + dy;
@@ -734,10 +756,23 @@ canvas.addEventListener('touchmove', e => {
 canvas.addEventListener('touchend', e => {
   e.preventDefault();
 
+  // Fallback: if touchStart is null but we have a changedTouch, treat as tap anyway
+  // (iOS WKWebView sometimes drops touchstart under gesture confusion)
+  if (!touchStart && e.changedTouches.length === 1) {
+    const t = e.changedTouches[0];
+    dlog('touchend: no touchStart, using fallback');
+    _tryHandleTap(t.clientX, t.clientY, 'touchend-fallback');
+    return;
+  }
+
   if (touchStart && !touchStart.moved && e.changedTouches.length === 1) {
     // IT'S A TAP — place building
     const t = e.changedTouches[0];
-    _tryHandleTap(t.clientX, t.clientY);
+    dlog('touchend: TAP detected');
+    _tryHandleTap(t.clientX, t.clientY, 'touchend');
+  } else {
+    dlog('touchend: not a tap — touchStart=', !!touchStart, 'moved=', touchStart?.moved, 'changedTouches=', e.changedTouches.length);
+  }
   }
 
   // Reset touch state. If fingers remain, rebuild start from remaining touch.
@@ -875,13 +910,11 @@ function dismissAllOverlays() {
 }
 
 function handleTap(tx, ty) {
-  if (tx < 0 || tx >= GRID || ty < 0 || ty >= GRID) return;
+  if (tx < 0 || tx >= GRID || ty < 0 || ty >= GRID) { dlog('handleTap: OUT OF BOUNDS', tx, ty); return; }
 
-  // Debounce is handled by _tryHandleTap (200ms guard) for 2D mode.
-  // 3D mode calls handleTap directly via pickTile — no debounce needed there
-  // since 3D touch has its own touchstart/touchend with moved-flag check.
   // Visual tap feedback on the tile
   addTileEffect(tx, ty, '#ffffff', 200);
+  dlog('handleTap: tile=(', tx, ty, ') type=', state.grid[ty][tx].type, 'tool=', activeTool, 'money=', state.money);
 
   if (activeTool === 'inspect') { showInfo(tx, ty); sndClick(); return; }
   if (activeTool === 'drive') return;
@@ -916,15 +949,18 @@ function handleTap(tx, ty) {
 // BUILDING LOGIC — with full feedback
 // ═══════════════════════════════════════════════════════════════════
 function doBuild(tx, ty) {
-  if (tx < 0 || tx >= GRID || ty < 0 || ty >= GRID) return;
+  if (tx < 0 || tx >= GRID || ty < 0 || ty >= GRID) { dlog('doBuild: OOB'); return; }
   const tool = TOOLS.find(t => t.id === activeTool);
-  if (!tool || !tool.tile) return;
+  if (!tool || !tool.tile) { dlog('doBuild: no tool/tile for', activeTool); return; }
   const tile = state.grid[ty][tx];
   const data = TD[tool.tile];
-  if (!data) return;
+  if (!data) { dlog('doBuild: no TD data'); return; }
+
+  dlog('doBuild: tile.type=', tile.type, 'need grass/road. money=', state.money, 'cost=', data.cost);
 
   // Error checks with RED flash + error sound
   if (tile.type === T.WATER) {
+    dlog('doBuild: REJECTED water');
     addTileEffect(tx, ty, '#ef4444', 500, 0.8);
     toast('Cannot build on water!', true);
     sndError();
@@ -932,6 +968,7 @@ function doBuild(tx, ty) {
     return;
   }
   if (tile.type !== T.GRASS && tile.type !== T.ROAD) {
+    dlog('doBuild: REJECTED occupied, type=', tile.type);
     addTileEffect(tx, ty, '#ef4444', 500, 0.8);
     toast('Tile occupied!', true);
     sndError();
@@ -939,12 +976,15 @@ function doBuild(tx, ty) {
     return;
   }
   if (state.money < data.cost) {
+    dlog('doBuild: REJECTED broke');
     addTileEffect(tx, ty, '#ef4444', 500, 0.8);
     toast('Not enough funds!', true);
     sndError();
     haptic(30);
     return;
   }
+
+  dlog('doBuild: SUCCESS placing', tool.tile, 'at', tx, ty);
 
   // SUCCESS — place building with full feedback
   state.money -= data.cost;
