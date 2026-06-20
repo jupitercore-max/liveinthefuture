@@ -317,6 +317,7 @@ const T = {
   ELSIE_RESTAURANT: 20,
   FIRE_DEPT: 21,
   JAM_STORE: 22,
+  GRAPE_FARM: 23,
 };
 
 const TD = {
@@ -335,6 +336,7 @@ const TD = {
   [T.GUMMY_FACTORY]:   { name:'Smart Gummy Factory', color:'#ec4899', cost:2500, income:60, jobs:30, pollute:true, desc:'Manufactures AI-powered gummy bears. Profitable but pollutes.' },
   [T.HORN_TOWER]:      { name:'AI Horn Speaker Tower', color:'#06b6d4', cost:1800, happy:4, desc:'Broadcasts AI-generated announcements. Citizens enjoy it.' },
   [T.PEPPER_FARM]:     { name:'Pepper Farm',     color:'#16a34a', cost:80, income:10, desc:'Grows spicy peppers. Low cost, modest income.' },
+  [T.GRAPE_FARM]:      { name:'Grape Farm',      color:'#7c2d6f', cost:120, income:15, desc:'Grows wine grapes. A taste of wine country!' },
   [T.SIGN]:            { name:'Road Sign',       color:'#fbbf24', cost:10, desc:'Points the way to distant landmarks.' },
   [T.PLAYGROUND]:      { name:'Playground',       color:'#22c55e', cost:800, happy:5, desc:'Swings, slides, and fun for kids! Boosts nearby happiness.' },
   [T.EMMY_ELECTRONICS]: { name:'Emmy\'s Electronics', color:'#06b6d4', cost:2000, income:45, jobs:15, happy:2, desc:'Emmy\'s gadget shop. Sells the latest tech and gizmos!' },
@@ -356,6 +358,7 @@ const TOOLS = [
   { id:'com',       icon:'🏪', name:'Commercial',  tile:T.COM,           cost:150,  cat:'zones' },
   { id:'ind',       icon:'🏭', name:'Industrial',  tile:T.IND,           cost:200,  cat:'zones' },
   { id:'pepper',    icon:'🌶️', name:'Pepper Farm', tile:T.PEPPER_FARM,  cost:80,   cat:'zones' },
+  { id:'grape',     icon:'🍇', name:'Grape Farm',  tile:T.GRAPE_FARM,   cost:120,  cat:'zones' },
   { id:'road',      icon:'🛣️', name:'Road',        tile:T.ROAD,          cost:50,   cat:'build' },
   { id:'power',     icon:'⚡', name:'Power Plant', tile:T.POWER_PLANT,   cost:4000, cat:'build' },
   { id:'pline',     icon:'🔌', name:'Power Line',  tile:T.POWER_LINE,    cost:30,   cat:'build' },
@@ -1190,6 +1193,7 @@ function updatePollution() {
       else if (tile.type === T.ELSIE_RESTAURANT) pAmount = 1;
       // Fire Department is clean — pAmount stays 0
       else if (tile.type === T.JAM_STORE) pAmount = 0;
+      else if (tile.type === T.GRAPE_FARM) pAmount = 0;
       if (pAmount > 0) {
         for (let dy = -POLLUTION_RADIUS; dy <= POLLUTION_RADIUS; dy++) {
           for (let dx = -POLLUTION_RADIUS; dx <= POLLUTION_RADIUS; dx++) {
@@ -1336,6 +1340,19 @@ function simTick() {
             break;
 
           case T.PEPPER_FARM: if (road) income += 10 * tile.level; break;
+          case T.GRAPE_FARM:
+            if (road) {
+              income += 15 * tile.level;
+              if (tile.level < 3 && Math.random() < 0.2) {
+                tile.level++;
+                markTileDirty(x, y);
+                addTileEffect(x, y, '#7c2d6f', 600);
+                addParticles(x * TILE + TILE / 2, y * TILE + TILE / 2, 8, '#7c2d6f');
+                addFloater(x * TILE + TILE / 2, y * TILE - 4, 'Level ' + tile.level + '! 🍇', '#9b3a8b');
+                sndGrow();
+              }
+            }
+            break;
           case T.POWER_PLANT:
             hasPowerPlant = true;
             // Disaster: power outage recovery
@@ -1859,6 +1876,7 @@ function drawTileIso(tx, ty, brightness) {
     case T.COM: drawBuildingIso(px, py, hw, hh, tile.level, '#4a9eff', '#1e4a8a', b, 'com', tx, ty); break;
     case T.IND: drawBuildingIso(px, py, hw, hh, tile.level, '#f0b840', '#9a6a18', b, 'ind', tx, ty); break;
     case T.PEPPER_FARM: drawPepperFarmIso(px, py, hw, hh, b, tx, ty); break;
+    case T.GRAPE_FARM: drawGrapeFarmIso(px, py, hw, hh, b, tx, ty); break;
     case T.BLUETOOTH_TOWER: drawSpecialIso(T.BLUETOOTH_TOWER, px, py, hw, hh, tile.level, b); break;
     case T.THRONE_ROOM: drawSpecialIso(T.THRONE_ROOM, px, py, hw, hh, tile.level, b); break;
     case T.GRILL: drawSpecialIso(T.GRILL, px, py, hw, hh, tile.level, b); break;
@@ -2602,6 +2620,51 @@ function drawPepperFarmIso(px, py, hw, hh, b, tx, ty) {
   ctx.restore();
 }
 
+// ─── Grape Farm ────────────────────────────────────────────────────
+function drawGrapeFarmIso(px, py, hw, hh, b, tx, ty) {
+  ctx.save();
+  isoDiamondPath(px, py, hw, hh);
+  ctx.clip();
+
+  // Field rows — dark green stripes
+  ctx.fillStyle = adjustBrightness('#2d5a2d', b);
+  for (var i = -hh + 3; i < hh; i += 5) {
+    var halfW = (1 - Math.abs(i) / hh) * hw;
+    ctx.fillRect(px - halfW, py + i, halfW * 2, 2);
+  }
+
+  // Trellis posts (small brown lines)
+  ctx.fillStyle = adjustBrightness('#6b4226', b);
+  for (var r = 0; r < 3; r++) {
+    var ry = -hh + 6 + r * (hh * 0.45);
+    var rhalfW = (1 - Math.abs(ry) / hh) * hw;
+    ctx.fillRect(px - rhalfW * 0.4, py + ry - 3, 1, 4);
+    ctx.fillRect(px + rhalfW * 0.4, py + ry - 3, 1, 4);
+  }
+
+  // Grape clusters along rows
+  for (var r = 0; r < 3; r++) {
+    var ry = -hh + 5 + r * (hh * 0.45);
+    var rhalfW = (1 - Math.abs(ry) / hh) * hw;
+    // Left cluster
+    ctx.fillStyle = adjustBrightness('#7c2d6f', b);
+    ctx.beginPath(); ctx.arc(px - rhalfW * 0.4, py + ry, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px - rhalfW * 0.4 - 1.5, py + ry + 1.5, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px - rhalfW * 0.4 + 1.5, py + ry + 1.5, 1.5, 0, Math.PI * 2); ctx.fill();
+    // Right cluster
+    ctx.beginPath(); ctx.arc(px + rhalfW * 0.3, py + ry + 1, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px + rhalfW * 0.3 - 1.5, py + ry + 2.5, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px + rhalfW * 0.3 + 1.5, py + ry + 2.5, 1.5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Green leaves near clusters
+  ctx.fillStyle = adjustBrightness('#3a7a3a', b);
+  ctx.fillRect(px - 4, py - 3, 2, 2);
+  ctx.fillRect(px + 3, py + 4, 2, 2);
+
+  ctx.restore();
+}
+
 // ─── Power Line ────────────────────────────────────────────────────
 function drawPowerLineIso(px, py, hw, hh, b) {
   // Pole
@@ -3277,6 +3340,7 @@ function showInfo(tx, ty) {
   if (data.jobs) html += `<div class="info-row"><span>💼 Jobs</span><span class="val">${data.jobs}</span></div>`;
   if (tile.type === T.POWER_PLANT) html += `<div class="info-row"><span>⚡ Output</span><span class="val">5,000 MW</span></div>`;
   if (tile.type === T.PEPPER_FARM) html += `<div class="info-row"><span>🌶️ Peppers</span><span class="val">${tile.level * 40}</span></div>`;
+  if (tile.type === T.GRAPE_FARM) html += `<div class="info-row"><span>🍇 Grapes</span><span class="val">${tile.level * 30}</span></div>`;
 
   // "This building provides:" summary
   let provides = [];
@@ -4568,6 +4632,19 @@ function checkMilestones() {
         if (state.grid[y][x].type === T.JAM_STORE) {
           state.milestones.jamstore = true;
           toast('🎵 Jeremy\'s Jam is open — let the music play!');
+          sndGrow();
+          haptic(15);
+          break;
+        }
+  }
+
+  // Grape Farm milestone
+  if (!state.milestones.grapefarm) {
+    for (let y = 0; y < GRID; y++)
+      for (let x = 0; x < GRID; x++)
+        if (state.grid[y][x].type === T.GRAPE_FARM) {
+          state.milestones.grapefarm = true;
+          toast('🍇 Grape Farm planted — wine country vibes!');
           sndGrow();
           haptic(15);
           break;
