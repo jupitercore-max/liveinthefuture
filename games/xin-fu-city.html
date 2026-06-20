@@ -653,6 +653,7 @@ function initGrid() {
   signPositions.forEach(s => {
     if (s.x < GRID && s.y < GRID && state.grid[s.y][s.x].type === T.GRASS)
       state.grid[s.y][s.x] = { type: T.SIGN, level: 1, data: { signIdx: s.idx } };
+      markTileDirty(s.x, s.y);
   });
 }
 
@@ -1046,6 +1047,7 @@ function doBuild(tx, ty) {
   state.money -= data.cost;
   state.grid[ty][tx] = mkTile(tool.tile, 1);
   if (tool.tile === T.SIGN) state.grid[ty][tx].data = { signIdx: Math.floor(Math.random() * SIGNS.length) };
+  markTileDirty(tx, ty);
 
   // Visual + audio feedback
   addTileEffect(tx, ty, '#4ade80', 400);
@@ -1067,6 +1069,7 @@ function doBulldoze(tx, ty) {
   const refund = data ? Math.floor(data.cost * 0.25) : 0;
   state.money += refund;
   state.grid[ty][tx] = mkTile(T.GRASS, 0);
+  markTileDirty(tx, ty);
 
   // Feedback
   addTileEffect(tx, ty, '#9a9a9a', 400);
@@ -1237,6 +1240,7 @@ function simTick() {
                 growChance *= 0.25;
                 if (Math.random() < growChance) {
                   tile.level++;
+                  markTileDirty(x, y);
                   addTileEffect(x, y, '#22c55e', 600);
                   addParticles(x * TILE + TILE / 2, y * TILE + TILE / 2, 10, '#22c55e');
                   addFloater(x * TILE + TILE / 2, y * TILE - 4, 'Level ' + tile.level + '! 🎉', '#4ade80');
@@ -1259,6 +1263,7 @@ function simTick() {
                 if (tile.level >= 3) growChance *= 0.35; // skyscrapers are rare
                 if (Math.random() < growChance) {
                   tile.level++;
+                  markTileDirty(x, y);
                   addTileEffect(x, y, '#22c55e', 600);
                   addParticles(x * TILE + TILE / 2, y * TILE + TILE / 2, 8, '#e8a838');
                   sndGrow();
@@ -1277,6 +1282,7 @@ function simTick() {
                 if (tile.data.fireTicks >= 5) {
                   if (tile.level > 1) {
                     tile.level--;
+                    markTileDirty(x, y);
                     addFloater(x * TILE + TILE / 2, y * TILE - 4, '🔥 -1 Level!', '#ef4444');
                   }
                   tile.data.onFire = false;
@@ -1289,6 +1295,7 @@ function simTick() {
                 if (tile.level >= 3) growChance *= 0.4;
                 if (Math.random() < growChance) {
                   tile.level++;
+                  markTileDirty(x, y);
                   addTileEffect(x, y, '#22c55e', 600);
                   addParticles(x * TILE + TILE / 2, y * TILE + TILE / 2, 8, '#e8a838');
                   sndGrow();
@@ -3144,12 +3151,14 @@ function saveBldName(tx, ty) {
   } else {
     delete state.grid[ty][tx].data.name;
   }
+  markTileDirty(tx, ty);
   saveLocal();
   showInfo(tx, ty);
 }
 
 function clearBldName(tx, ty) {
   delete state.grid[ty][tx].data.name;
+  markTileDirty(tx, ty);
   saveLocal();
   showInfo(tx, ty);
 }
@@ -3632,10 +3641,46 @@ function loadLocal() {
   return false;
 }
 
+// Track locally dirty tiles that need syncing
+let dirtyTiles = {};
+let lastFullSync = 0;
+
+function markTileDirty(x, y) {
+  dirtyTiles[x + ',' + y] = true;
+}
+
 async function saveCity() {
   saveLocal();
   if (!firebaseReady || !cityRef) return;
-  try { await cityRef.set(serializeCity()); } catch(e) {}
+  try {
+    // Write only changed tiles
+    const updates = {};
+    let now = Date.now();
+    for (const key in dirtyTiles) {
+      const parts = key.split(',');
+      const tx = parseInt(parts[0]), ty = parseInt(parts[1]);
+      const t = state.grid[ty][tx];
+      updates['tiles/' + key] = {
+        type: t.type,
+        level: t.level,
+        signIdx: t.data.signIdx != null ? t.data.signIdx : -1,
+        name: t.data.name || null,
+        updated: now
+      };
+    }
+    // Also sync money/happiness/tax less frequently (every 5 seconds)
+    if (now - lastFullSync > 5000) {
+      updates['money'] = Math.floor(state.money);
+      updates['happiness'] = Math.round(state.happiness);
+      updates['taxRate'] = state.taxRate;
+      updates['metaUpdated'] = now;
+      lastFullSync = now;
+    }
+    if (Object.keys(updates).length > 0) {
+      await cityRef.update(updates);
+    }
+    dirtyTiles = {};
+  } catch(e) {}
 }
 
 function saveCarPos() {
@@ -3694,7 +3739,31 @@ async function initFirebase() {
         // Load initial data immediately
         const initialData = snap.val();
         if (initialData) {
-          deserializeCity(initialData);
+          if (initialData.tiles && typeof initialData.tiles === 'string') {
+            // Old format (string tiles) — backward compat
+            deserializeCity(initialData);
+          } else if (initialData.tiles && typeof initialData.tiles === 'object') {
+            // New format (tile-keyed object) — merge each tile
+            for (const key in initialData.tiles) {
+              const parts = key.split(',');
+              const tx = parseInt(parts[0]), ty = parseInt(parts[1]);
+              if (tx >= 0 && tx < GRID && ty >= 0 && ty < GRID) {
+                const rt = initialData.tiles[key];
+                state.grid[ty][tx] = {
+                  type: rt.type,
+                  level: rt.level,
+                  data: {}
+                };
+                if (rt.signIdx >= 0) state.grid[ty][tx].data.signIdx = rt.signIdx;
+                if (rt.name) state.grid[ty][tx].data.name = rt.name;
+              }
+            }
+            if (typeof initialData.money === 'number') state.money = initialData.money;
+            if (typeof initialData.happiness === 'number') state.happiness = initialData.happiness;
+            if (typeof initialData.taxRate === 'number') state.taxRate = initialData.taxRate;
+          } else {
+            deserializeCity(initialData);
+          }
           updateHUD();
           dlog('Firebase: loaded saved city from DB');
         } else {
@@ -3707,14 +3776,39 @@ async function initFirebase() {
             try {
               const d = s.val();
               if (!d) return;
-              // Skip remote updates that are older than our last local edit
-              // (prevents buildings flickering away then back)
-              const remoteTime = d.updated || 0;
+              const remoteTime = d.updated || d.metaUpdated || 0;
               if (lastLocalEdit && remoteTime < lastLocalEdit) {
-                dlog('Firebase: skipping stale remote update', { remote: remoteTime, local: lastLocalEdit });
                 return;
               }
-              deserializeCity(d);
+              // MERGE: only update individual tiles from remote, don't replace all
+              if (d.tiles) {
+                for (const key in d.tiles) {
+                  const parts = key.split(',');
+                  const tx = parseInt(parts[0]), ty = parseInt(parts[1]);
+                  if (tx >= 0 && tx < GRID && ty >= 0 && ty < GRID) {
+                    const rt = d.tiles[key];
+                    // Only update if remote tile is newer than what we have locally
+                    const localTile = state.grid[ty][tx];
+                    // Skip tiles we just edited (avoid reverting our own changes)
+                    if (dirtyTiles[key]) continue;
+                    localTile.type = rt.type;
+                    localTile.level = rt.level;
+                    localTile.data = {};
+                    if (rt.signIdx >= 0) localTile.data.signIdx = rt.signIdx;
+                    if (rt.name) localTile.data.name = rt.name;
+                  }
+                }
+              }
+              // Merge meta (money, happiness, tax) — take remote if newer
+              if (typeof d.money === 'number') state.money = d.money;
+              if (typeof d.happiness === 'number') state.happiness = d.happiness;
+              if (typeof d.taxRate === 'number') {
+                state.taxRate = d.taxRate;
+                var ts = document.getElementById('taxSlider');
+                var tv = document.getElementById('taxVal');
+                if (ts) ts.value = state.taxRate;
+                if (tv) tv.textContent = state.taxRate + '%';
+              }
               updateHUD();
             } catch(e) {}
           },
