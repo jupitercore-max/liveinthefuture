@@ -2014,14 +2014,14 @@ function drawRoadIso(px, py, tx, ty, hw, hh, b) {
   var e = isRoadAt(tx + 1, ty);
   var w = isRoadAt(tx - 1, ty);
 
-  // Redraw base as darker asphalt
+  // Full-tile asphalt base — fills entire diamond like SC3k
   isoDiamondPath(px, py, hw, hh);
   ctx.fillStyle = adjustBrightness('#3a3a3e', b);
   ctx.fill();
 
-  // Sidewalk borders on non-connected edges
-  ctx.fillStyle = adjustBrightness('#9a9a9e', b);
-  var sw = 3.5;
+  // Thin sidewalk borders ONLY on non-connected edges (dead ends / borders)
+  var sw = 1.5;
+  ctx.fillStyle = adjustBrightness('#8a8a8e', b);
 
   // TOP-RIGHT edge (no north road) — from top to right corner
   if (!n) {
@@ -2064,16 +2064,19 @@ function drawRoadIso(px, py, tx, ty, hw, hh, b) {
     ctx.fill();
   }
 
-  // Inner asphalt — uniform smaller diamond (iso-proportional)
-  var inset = sw + 1;
+  // Inner asphalt — nearly full tile, only inset by thin sidewalk
+  var inset = sw;
   isoDiamondPath(px, py, hw - inset, hh - inset * 0.5);
   ctx.fillStyle = adjustBrightness('#2a2a2e', b);
   ctx.fill();
 
-  // Asphalt texture noise
-  ctx.fillStyle = 'rgba(50,50,55,0.4)';
-  var noiseHash = (tx * 7 + ty * 13) % 5;
-  ctx.fillRect(px - 2 + noiseHash, py - 1 + noiseHash, 2, 2);
+  // Subtle asphalt texture — scattered dark specks, no tile-edge pattern
+  ctx.fillStyle = 'rgba(40,40,45,0.3)';
+  for (var ni = 0; ni < 4; ni++) {
+    var nx = px + ((tx * 7 + ni * 23 + ty * 11) % 100 - 50) / 50 * hw * 0.7;
+    var ny = py + ((ty * 13 + ni * 29 + tx * 17) % 100 - 50) / 50 * hh * 0.7;
+    ctx.fillRect(nx, ny, 1, 1);
+  }
 
   // Lane markings — dashed yellow center line
   ctx.fillStyle = adjustBrightness('#e8c840', b * 0.9);
@@ -2083,21 +2086,20 @@ function drawRoadIso(px, py, tx, ty, hw, hh, b) {
     // E-W road direction goes from TOP-LEFT edge mid to BOTTOM-RIGHT edge mid
     // Start: (px - hw/2, py - hh/2) if w, else center
     // End: (px + hw/2, py + hh/2) if e, else center
-    var ewStartX = w ? px - hw * 0.4 : px - 2;
-    var ewStartY = w ? py - hh * 0.4 : py;
-    var ewEndX = e ? px + hw * 0.4 : px + 2;
-    var ewEndY = e ? py + hh * 0.4 : py;
+    var ewStartX = w ? px - hw * 0.45 : px;
+    var ewStartY = w ? py - hh * 0.45 : py;
+    var ewEndX = e ? px + hw * 0.45 : px;
+    var ewEndY = e ? py + hh * 0.45 : py;
     var ewDx = ewEndX - ewStartX, ewDy = ewEndY - ewStartY;
     var ewLen = Math.hypot(ewDx, ewDy);
     var ewUx = ewDx / ewLen, ewUy = ewDy / ewLen;
-    for (var i = 3; i < ewLen - 3; i += 5) {
+    for (var i = 0; i < ewLen; i += 4) {
       var dashX = ewStartX + ewUx * i;
       var dashY = ewStartY + ewUy * i;
-      // Draw small rotated rect
       ctx.save();
       ctx.translate(dashX, dashY);
       ctx.rotate(Math.atan2(ewUy, ewUx));
-      ctx.fillRect(-1.5, -0.75, 3, 1.5);
+      ctx.fillRect(-1, -0.5, 2, 1);
       ctx.restore();
     }
   }
@@ -2105,36 +2107,28 @@ function drawRoadIso(px, py, tx, ty, hw, hh, b) {
   // N-S markings (if north or south connection)
   if (n || s) {
     // N-S road direction goes from TOP-RIGHT edge mid to BOTTOM-LEFT edge mid
-    var nsStartX = n ? px + hw * 0.4 : px + 2;
-    var nsStartY = n ? py - hh * 0.4 : py;
-    var nsEndX = s ? px - hw * 0.4 : px - 2;
-    var nsEndY = s ? py + hh * 0.4 : py;
+    var nsStartX = n ? px + hw * 0.45 : px;
+    var nsStartY = n ? py - hh * 0.45 : py;
+    var nsEndX = s ? px - hw * 0.45 : px;
+    var nsEndY = s ? py + hh * 0.45 : py;
     var nsDx = nsEndX - nsStartX, nsDy = nsEndY - nsStartY;
     var nsLen = Math.hypot(nsDx, nsDy);
     var nsUx = nsDx / nsLen, nsUy = nsDy / nsLen;
-    for (var i2 = 3; i2 < nsLen - 3; i2 += 5) {
+    for (var i2 = 0; i2 < nsLen; i2 += 4) {
       var dashX2 = nsStartX + nsUx * i2;
       var dashY2 = nsStartY + nsUy * i2;
       ctx.save();
       ctx.translate(dashX2, dashY2);
       ctx.rotate(Math.atan2(nsUy, nsUx));
-      ctx.fillRect(-1.5, -0.75, 3, 1.5);
+      ctx.fillRect(-1, -0.5, 2, 1);
       ctx.restore();
     }
   }
 
-  // Intersection
+  // Intersection — clean filled square
   if ((n || s) && (e || w)) {
     ctx.fillStyle = adjustBrightness('#1a1a1e', b);
-    ctx.beginPath();
-    ctx.arc(px, py, 4, 0, Math.PI * 2);
-    ctx.fill();
-    // Crosswalk
-    ctx.fillStyle = 'rgba(200,200,200,0.25)';
-    for (var ci = 0; ci < 3; ci++) {
-      ctx.fillRect(px - 3 + ci * 2, py - 4, 1, 2);
-      ctx.fillRect(px - 3 + ci * 2, py + 2, 1, 2);
-    }
+    ctx.fillRect(px - 3, py - 2, 6, 4);
   }
 
   // Night streetlight pools
