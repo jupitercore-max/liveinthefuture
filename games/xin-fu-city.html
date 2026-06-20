@@ -126,7 +126,8 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 
 /* ═══ TUTORIAL OVERLAY ═══ */
 #tutorialOverlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px;pointer-events:none}
-#tutorialOverlay.show{display:flex;pointer-events:auto}
+#tutorialOverlay.show{display:flex;pointer-events:none}
+#tutorialOverlay.show .tutorial-card{pointer-events:auto}
 .tutorial-card{background:rgba(18,18,30,0.98);border:1px solid #3a3a5a;border-radius:16px;padding:24px 20px;max-width:340px;width:100%;text-align:center;animation:tutPop .3s ease}
 @keyframes tutPop{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
 .tut-emoji{font-size:48px;margin-bottom:12px}
@@ -141,7 +142,8 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 
 /* ═══ HELP OVERLAY ═══ */
 #helpOverlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px;pointer-events:none}
-#helpOverlay.show{display:flex;pointer-events:auto}
+#helpOverlay.show{display:flex;pointer-events:none}
+#helpOverlay.show .help-card{pointer-events:auto}
 .help-card{background:rgba(18,18,30,0.98);border:1px solid #3a3a5a;border-radius:16px;padding:20px;max-width:360px;width:100%}
 .help-title{font-size:18px;font-weight:700;color:#fbbf24;margin-bottom:12px;text-align:center}
 .help-step{display:flex;gap:10px;align-items:flex-start;margin:10px 0;font-size:13px;color:#ccc;line-height:1.4}
@@ -750,8 +752,24 @@ canvas.addEventListener('wheel', e => {
 // ═══════════════════════════════════════════════════════════════════
 // TAP HANDLER — core interaction
 // ═══════════════════════════════════════════════════════════════════
+// ─── Frustration detection: auto-dismiss overlays on repeated taps ───
+// Tracks taps that didn't result in a building being placed
+let unproductiveTaps = [];  // timestamps of taps where nothing was built
+let buildHappened = false;  // reset per tap-session
+
+function dismissAllOverlays() {
+  document.getElementById('tutorialOverlay').classList.remove('show');
+  document.getElementById('helpOverlay').classList.remove('show');
+  document.getElementById('infoBar').classList.remove('show');
+}
+
 function handleTap(tx, ty) {
   if (tx < 0 || tx >= GRID || ty < 0 || ty >= GRID) return;
+
+  // Debounce: prevent multi-fire from pointerup + touchend + click on mobile
+  const now = Date.now();
+  if (handleTap._lastCall && now - handleTap._lastCall < 150) return;
+  handleTap._lastCall = now;
 
   // Visual tap feedback on the tile
   addTileEffect(tx, ty, '#ffffff', 200);
@@ -759,7 +777,30 @@ function handleTap(tx, ty) {
   if (activeTool === 'inspect') { showInfo(tx, ty); sndClick(); return; }
   if (activeTool === 'drive') return;
   if (activeTool === 'bulldoze') { doBulldoze(tx, ty); return; }
+
+  // Track taps for frustration detection (before build attempt)
+  const beforeMoney = state.money;
   doBuild(tx, ty);
+  const afterMoney = state.money;
+
+  // If money decreased, a building was placed — reset frustration
+  if (afterMoney < beforeMoney) {
+    unproductiveTaps = [];
+  } else {
+    // No build happened — track this tap
+    const now = Date.now();
+    unproductiveTaps.push(now);
+    unproductiveTaps = unproductiveTaps.filter(t => now - t < 5000);
+
+    // 3 unproductive taps in 5 seconds → help the user
+    if (unproductiveTaps.length >= 3) {
+      dismissAllOverlays();
+      toast('Tap a zone below, then tap the map!');
+      sndTutorial();
+      unproductiveTaps = [];  // reset after firing
+      haptic(20);
+    }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1637,19 +1678,33 @@ function showTutorialStep(step) {
   sndClick();
 }
 
-document.getElementById('tutBtn').addEventListener('pointerdown', e => {
-  e.preventDefault();
+function tutNext() {
   const dots = document.querySelectorAll('.tut-dot');
   let current = 0;
   for (let i = 0; i < dots.length; i++) { if (dots[i].classList.contains('active')) current = i; }
   showTutorialStep(current + 1);
-});
+}
+const tutNextBtn = document.getElementById('tutBtn');
+tutNextBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); tutNext(); });
+tutNextBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); tutNext(); });
+tutNextBtn.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); tutNext(); });
 
-document.getElementById('tutSkip').addEventListener('pointerdown', e => {
-  e.preventDefault();
+// Bulletproof overlay dismissal — works on all mobile browsers
+function dismissTutorial() {
   document.getElementById('tutorialOverlay').classList.remove('show');
   try { localStorage.setItem('xinfu_tutorial_done', '1'); } catch(e) {}
   sndClick();
+  haptic(10);
+}
+
+const tutSkipBtn = document.getElementById('tutSkip');
+tutSkipBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); dismissTutorial(); });
+tutSkipBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); dismissTutorial(); });
+tutSkipBtn.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); dismissTutorial(); });
+
+// Also dismiss when clicking the overlay backdrop (outside the card)
+document.getElementById('tutorialOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) dismissTutorial();
 });
 
 // Help overlay
@@ -1658,10 +1713,17 @@ document.getElementById('helpBtn').addEventListener('pointerdown', e => {
   document.getElementById('helpOverlay').classList.add('show');
   sndClick(); haptic(8);
 });
-document.getElementById('helpClose').addEventListener('pointerdown', e => {
-  e.preventDefault();
+function dismissHelp() {
   document.getElementById('helpOverlay').classList.remove('show');
   sndClick();
+}
+const helpCloseBtn = document.getElementById('helpClose');
+helpCloseBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); dismissHelp(); });
+helpCloseBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); dismissHelp(); });
+helpCloseBtn.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); dismissHelp(); });
+// Click backdrop to close help too
+document.getElementById('helpOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) dismissHelp();
 });
 
 // Mute button
