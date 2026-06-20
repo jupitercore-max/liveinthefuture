@@ -117,6 +117,7 @@ var bidConfirmTimer = 0;
 
 // Challenge rounds
 var challengeType = null; // null, "reverse", "ghost", "speed"
+var challengeIsNew = false;
 var ghostIndex = -1;
 var challengeAnnounceTimer = 0;
 var CHALLENGE_TYPES = ["reverse", "ghost", "speed", "mirror", "pinpoint"];
@@ -137,10 +138,12 @@ var discoveredChallenges = {};
 try { discoveredChallenges = JSON.parse(localStorage.getItem("litf_audiomem_challenges") || "{}"); } catch(e) {}
 
 function trackChallengeDiscovery(type) {
-  if (!discoveredChallenges[type]) {
+  var isNew = !discoveredChallenges[type];
+  if (isNew) {
     discoveredChallenges[type] = true;
     try { localStorage.setItem("litf_audiomem_challenges", JSON.stringify(discoveredChallenges)); } catch(e) {}
   }
+  return isNew;
 }
 
 function getChallengeDiscoveryCount() {
@@ -348,7 +351,13 @@ function setupChallenge() {
     var pool = ["reverse", "ghost", "speed"];
     if (round >= 6) pool.push("mirror");
     if (round >= 9) pool.push("pinpoint");
-    challengeType = pool[Math.floor(Math.random() * pool.length)];
+    // Discovery-prioritized: 3× weight for unseen challenges
+    var weighted = [];
+    for (var pi = 0; pi < pool.length; pi++) {
+      var w = discoveredChallenges[pool[pi]] ? 1 : 3;
+      for (var wi = 0; wi < w; wi++) weighted.push(pool[pi]);
+    }
+    challengeType = weighted[Math.floor(Math.random() * weighted.length)];
     if (challengeType === "ghost" && sequence.length >= 2) {
       ghostIndex = Math.floor(Math.random() * sequence.length);
     } else if (challengeType === "ghost") {
@@ -357,10 +366,11 @@ function setupChallenge() {
     } else {
       ghostIndex = -1;
     }
-    trackChallengeDiscovery(challengeType);
+    challengeIsNew = trackChallengeDiscovery(challengeType);
     playChallengeChime();
   } else {
     challengeType = null;
+    challengeIsNew = false;
     ghostIndex = -1;
   }
 }
@@ -866,7 +876,9 @@ function drawHUD() {
     ctx.fillStyle = ci.color;
     ctx.font = "bold 13px system-ui";
     ctx.globalAlpha = 0.8;
-    ctx.fillText(ci.name + " — 2×", CX, 60);
+    var label = ci.name + " — 2×";
+    if (challengeIsNew) label = "✨ " + label;
+    ctx.fillText(label, CX, 60);
     ctx.globalAlpha = 1;
   }
 
@@ -1000,6 +1012,14 @@ function drawGameOver() {
     ctx.font = "14px system-ui";
     var hint = challengeType === "reverse" ? " (reversed)" : "";
     ctx.fillText("It was " + t.label + " (" + correctDir + ")" + hint, CX, CY + 100);
+  }
+
+  // Challenge discovery count on game over
+  var goDiscCount = getChallengeDiscoveryCount();
+  if (goDiscCount > 0) {
+    ctx.fillStyle = "#664400";
+    ctx.font = "12px system-ui";
+    ctx.fillText("🔮 " + goDiscCount + "/5 challenges", CX, CY + 130);
   }
 
   ctx.fillStyle = "#81c784";
