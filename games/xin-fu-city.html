@@ -1292,16 +1292,18 @@ function simTick() {
 
           case T.IND:
             indCount++;
+            // Fire Department suppression — check regardless of power/road
+            if (tile.data && tile.data.onFire) {
+              if (hasFireDeptWithin(x, y, 5)) {
+                tile.data.onFire = false;
+                tile.data.fireTicks = 0;
+                addTileEffect(x, y, '#3b82f6', 800);
+                addFloater(x * TILE + TILE / 2, y * TILE - 4, '🚒!', '#3b82f6');
+              }
+            }
             if (powered && road) {
               // Disaster: fire damage
               if (tile.data && tile.data.onFire) {
-                // Fire Department suppression — extinguish immediately if within 5 tiles
-                if (hasFireDeptWithin(x, y, 5)) {
-                  tile.data.onFire = false;
-                  tile.data.fireTicks = 0;
-                  addTileEffect(x, y, '#3b82f6', 800);
-                  addFloater(x * TILE + TILE / 2, y * TILE - 4, '🚒 Extinguished!', '#3b82f6');
-                } else {
                 tile.data.fireTicks = (tile.data.fireTicks || 0) + 1;
                 if (tile.data.fireTicks >= 5) {
                   if (tile.level > 1) {
@@ -1313,7 +1315,6 @@ function simTick() {
                   tile.data.fireTicks = 0;
                   addTileEffect(x, y, '#666', 600);
                 }
-                } // end else (no fire dept nearby)
               }
               if (tile.level < 5) {
                 var growChance = 0.15 * (state.rci.i / 100);
