@@ -2,13 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Xin Fú City Builder — 新福特別行政區</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#e8e8e8;touch-action:none}
-#gameCanvas{display:block;cursor:crosshair;image-rendering:pixelated}
-#hud{position:fixed;top:0;left:0;right:0;height:52px;background:linear-gradient(180deg,#111 0%,#0a0a0a 100%);border-bottom:1px solid #2a2a2a;display:flex;align-items:center;justify-content:space-around;padding:0 8px;z-index:10;font-size:12px;gap:4px}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#e8e8e8;touch-action:none;overscroll-behavior:none;position:fixed;inset:0}
+#gameCanvas{display:block;cursor:crosshair;image-rendering:pixelated;touch-action:none}
+
+/* ─── HUD ─── */
+#hud{position:fixed;top:0;left:0;right:0;height:52px;background:linear-gradient(180deg,#111 0%,rgba(10,10,10,0.95) 100%);border-bottom:1px solid #2a2a2a;display:flex;align-items:center;justify-content:space-around;padding:0 8px;z-index:10;font-size:12px;gap:4px;padding-top:env(safe-area-inset-top,0)}
 .stat{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0}
 .stat-label{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#666}
 .stat-val{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
@@ -16,27 +21,78 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 .stat-val.pop{color:#60a5fa}
 .stat-val.happy{color:#fbbf24}
 .stat-val.happy.low{color:#ef4444}
-#toolbar{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(0deg,#111 0%,#0a0a0a 100%);border-top:1px solid #2a2a2a;padding:6px 4px;z-index:10;display:flex;gap:3px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+
+/* ─── Toolbar ─── */
+#toolbar{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(0deg,#111 0%,rgba(10,10,10,0.98) 100%);border-top:1px solid #2a2a2a;padding:6px 4px;z-index:10;display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:env(safe-area-inset-bottom,0);scroll-snap-type:x proximity}
 #toolbar::-webkit-scrollbar{display:none}
-.tool{flex-shrink:0;width:54px;height:50px;border:1px solid #333;border-radius:8px;background:#1a1a1a;color:#ccc;font-size:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;transition:all .12s;user-select:none}
-.tool:active{transform:scale(.93)}
-.tool.active{border-color:#4a9eff;background:rgba(74,158,255,.12);color:#fff}
-.tool-icon{font-size:18px;line-height:1}
+.tool{flex-shrink:0;width:60px;height:56px;border:1px solid #333;border-radius:10px;background:#1a1a1a;color:#ccc;font-size:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;transition:transform .1s,background .15s,border-color .15s;user-select:none;-webkit-user-select:none;scroll-snap-align:start}
+.tool:active{transform:scale(.92);background:#222}
+.tool.active{border-color:#4a9eff;background:rgba(74,158,255,.15);color:#fff;box-shadow:0 0 8px rgba(74,158,255,.2)}
+.tool-icon{font-size:20px;line-height:1}
+.tool-name{font-size:7px;text-align:center;line-height:1.1;max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tool-cost{font-size:7px;color:#666}
 .tool.active .tool-cost{color:#4a9eff}
-#infoBar{position:fixed;bottom:62px;left:8px;right:8px;background:rgba(10,10,10,.92);border:1px solid #2a2a2a;border-radius:8px;padding:6px 10px;font-size:11px;z-index:9;display:none;max-width:320px}
+
+/* ─── Scroll indicators ─── */
+#toolbarWrap{position:fixed;bottom:0;left:0;right:0;z-index:10}
+.scroll-fade{position:absolute;top:0;bottom:0;width:24px;pointer-events:none;z-index:1;display:flex;align-items:center;justify-content:center}
+.scroll-fade.left{left:0;background:linear-gradient(90deg,rgba(10,10,10,0.9),transparent)}
+.scroll-fade.right{right:0;background:linear-gradient(270deg,rgba(10,10,10,0.9),transparent)}
+.scroll-fade.hidden{display:none}
+.scroll-fade .arrow{font-size:12px;color:#555;opacity:.7}
+
+/* ─── Info Bar ─── */
+#infoBar{position:fixed;bottom:80px;left:8px;right:8px;background:rgba(10,10,10,.94);border:1px solid #2a2a2a;border-radius:10px;padding:8px 12px;font-size:12px;z-index:9;display:none;max-width:360px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 #infoBar.show{display:block}
 #infoBar .info-title{font-weight:700;color:#fbbf24;margin-bottom:2px}
-#toast{position:fixed;top:56px;left:50%;transform:translateX(-50%);background:rgba(10,10,10,.95);border:1px solid #444;border-radius:8px;padding:6px 16px;font-size:12px;z-index:20;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:90vw}
+
+/* ─── Toast ─── */
+#toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:rgba(10,10,10,.96);border:1px solid #444;border-radius:10px;padding:8px 18px;font-size:13px;z-index:20;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:90vw;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 #toast.show{opacity:1}
-#minimap{position:fixed;top:56px;right:6px;width:80px;height:80px;border:1px solid #333;border-radius:4px;z-index:8;opacity:.85;cursor:pointer}
-.presence-badge{position:fixed;top:52px;left:6px;font-size:9px;color:#888;background:rgba(10,10,10,.85);padding:2px 6px;border-radius:4px;z-index:8}
+
+/* ─── Minimap ─── */
+#minimap{position:fixed;top:60px;right:6px;width:80px;height:80px;border:1px solid #333;border-radius:6px;z-index:8;opacity:.88;cursor:pointer;touch-action:none}
+
+/* ─── Presence ─── */
+.presence-badge{position:fixed;top:54px;left:6px;font-size:9px;color:#888;background:rgba(10,10,10,.85);padding:3px 8px;border-radius:6px;z-index:8}
 .online-dot{display:inline-block;width:5px;height:5px;background:#22c55e;border-radius:50%;margin-right:3px}
+
+/* ─── Mode Toggle (Pan vs Build) ─── */
+#modeToggle{position:fixed;top:60px;right:94px;z-index:9;width:40px;height:40px;border-radius:50%;border:2px solid #333;background:rgba(26,26,26,.95);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;transition:all .15s;user-select:none;-webkit-user-select:none;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#modeToggle:active{transform:scale(.9)}
+#modeToggle.pan-mode{border-color:#fbbf24;background:rgba(251,191,36,.15)}
+
+/* ─── Zoom buttons ─── */
+#zoomControls{position:fixed;top:110px;right:10px;z-index:8;display:flex;flex-direction:column;gap:4px}
+.zoom-btn{width:36px;height:36px;border-radius:8px;border:1px solid #333;background:rgba(26,26,26,.92);color:#ccc;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s;user-select:none;-webkit-user-select:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.zoom-btn:active{transform:scale(.88)}
+
+/* ─── Car / Driving ─── */
+#dpad{position:fixed;bottom:80px;left:12px;z-index:9;display:none;user-select:none;-webkit-user-select:none;touch-action:none}
+#dpad.show{display:block}
+.dpad-row{display:flex;gap:4px;justify-content:center}
+.dpad-btn{width:48px;height:48px;border-radius:12px;border:2px solid #2a4a2a;background:rgba(20,40,20,.9);color:#6bdc6b;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .08s,background .1s;user-select:none;-webkit-user-select:none;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.dpad-btn:active,.dpad-btn.pressed{transform:scale(.88);background:rgba(40,80,40,.95);border-color:#4a9e4a}
+.dpad-spacer{width:48px;height:48px}
+
+#carControls{position:fixed;bottom:80px;right:12px;z-index:9;display:none;flex-direction:column;gap:6px}
+#carControls.show{display:flex}
+.car-btn{padding:8px 14px;border-radius:10px;border:1px solid #444;background:rgba(26,26,26,.92);color:#ccc;font-size:11px;font-weight:600;text-align:center;cursor:pointer;user-select:none;-webkit-user-select:none;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:transform .1s}
+.car-btn:active{transform:scale(.92)}
+.car-btn.spawn{border-color:#22c55e;color:#22c55e}
+.car-btn.exit{border-color:#ef4444;color:#ef4444}
+
 @media(max-width:600px){
   .stat-val{font-size:14px}
   .stat-label{font-size:8px}
-  .tool{width:46px;height:44px}
-  .tool-icon{font-size:16px}
+  .tool{width:54px;height:52px}
+  .tool-icon{font-size:18px}
+  #hud{height:48px;padding-top:env(safe-area-inset-top,0)}
+}
+@media(max-height:500px) and (orientation:landscape){
+  #toolbar{padding:3px 4px}
+  .tool{width:48px;height:42px}
+  #hud{height:40px}
 }
 </style>
 </head>
@@ -54,7 +110,37 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 <div id="infoBar"></div>
 <div id="toast"></div>
 
-<div id="toolbar"></div>
+<!-- Mode toggle: Build vs Pan -->
+<div id="modeToggle" class="pan-mode" title="Toggle pan/build mode">🖐️</div>
+
+<!-- Zoom buttons -->
+<div id="zoomControls">
+  <div class="zoom-btn" id="zoomIn">+</div>
+  <div class="zoom-btn" id="zoomOut">−</div>
+</div>
+
+<!-- D-Pad for driving (mobile) -->
+<div id="dpad">
+  <div class="dpad-row"><div class="dpad-btn" data-dir="up">▲</div></div>
+  <div class="dpad-row">
+    <div class="dpad-btn" data-dir="left">◀</div>
+    <div class="dpad-btn" data-dir="down">▼</div>
+    <div class="dpad-btn" data-dir="right">▶</div>
+  </div>
+</div>
+
+<!-- Car spawn/exit controls -->
+<div id="carControls">
+  <div class="car-btn spawn" id="spawnCarBtn">🚗 Drive!</div>
+  <div class="car-btn exit" id="exitCarBtn" style="display:none">🚪 Exit Car</div>
+</div>
+
+<!-- Toolbar with scroll indicators -->
+<div id="toolbarWrap">
+  <div class="scroll-fade left hidden" id="scrollLeft"><span class="arrow">‹</span></div>
+  <div class="scroll-fade right" id="scrollRight"><span class="arrow">›</span></div>
+  <div id="toolbar"></div>
+</div>
 
 <script src="../firebase-shared.js"></script>
 <script>
@@ -63,7 +149,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 // A SimCity-style city builder for the Xin Fú SAR
 // ═══════════════════════════════════════════════════════════════════
 
-const TILE = 20;            // pixel size of each tile
+const TILE = 20;
 const GRID_W = 40, GRID_H = 40;
 const WORLD_W = GRID_W * TILE, WORLD_H = GRID_H * TILE;
 
@@ -71,13 +157,8 @@ const WORLD_W = GRID_W * TILE, WORLD_H = GRID_H * TILE;
 const T = {
   GRASS: 0, WATER: 1, ROAD: 2,
   RES: 3, COM: 4, IND: 5, AGRI: 6,
-  BLUETOOTH_TOWER: 10,   // landmark
-  THRONE_ROOM: 11,       // civic
-  GRILL: 12,             // commercial special
-  GARAGE: 13,            // industrial special
-  GUMMY_FACTORY: 14,     // industrial special
-  HORN_TOWER: 15,        // utility
-  SIGN: 16,              // decorative sign
+  BLUETOOTH_TOWER: 10, THRONE_ROOM: 11, GRILL: 12,
+  GARAGE: 13, GUMMY_FACTORY: 14, HORN_TOWER: 15, SIGN: 16,
 };
 
 const TILE_DATA = {
@@ -105,14 +186,15 @@ const TOOLS = [
   { id:'com', icon:'🏪', name:'Commercial', tile:T.COM, cost:150 },
   { id:'ind', icon:'🏭', name:'Industrial', tile:T.IND, cost:200 },
   { id:'agri', icon:'🌶️', name:'Pepper Farm', tile:T.AGRI, cost:80 },
-  { id:'bluetooth', icon:'📡', name:'Bluetooth Tower', tile:T.BLUETOOTH_TOWER, cost:5000 },
-  { id:'throne', icon:'👑', name:'Throne Room', tile:T.THRONE_ROOM, cost:3000 },
-  { id:'grill', icon:'🔥', name:'Grill Station', tile:T.GRILL, cost:1200 },
-  { id:'garage', icon:'🔧', name:'Glenn\'s Garage', tile:T.GARAGE, cost:1500 },
-  { id:'gummy', icon:'🐻', name:'Gummy Factory', tile:T.GUMMY_FACTORY, cost:2500 },
-  { id:'horn', icon:'📢', name:'Horn Speaker', tile:T.HORN_TOWER, cost:1800 },
-  { id:'sign', icon:' signs', name:'Road Sign', tile:T.SIGN, cost:10 },
+  { id:'bluetooth', icon:'📡', name:'BT Tower', tile:T.BLUETOOTH_TOWER, cost:5000 },
+  { id:'throne', icon:'👑', name:'Throne', tile:T.THRONE_ROOM, cost:3000 },
+  { id:'grill', icon:'🔥', name:'Grill', tile:T.GRILL, cost:1200 },
+  { id:'garage', icon:'🔧', name:'Garage', tile:T.GARAGE, cost:1500 },
+  { id:'gummy', icon:'🐻', name:'Gummy', tile:T.GUMMY_FACTORY, cost:2500 },
+  { id:'horn', icon:'📢', name:'Horn', tile:T.HORN_TOWER, cost:1800 },
+  { id:'sign', icon:'🪧', name:'Sign', tile:T.SIGN, cost:10 },
   { id:'bulldoze', icon:'💥', name:'Bulldoze', cost:0 },
+  { id:'drive', icon:'🚗', name:'Drive', cost:0 },
 ];
 
 // ─── Road Signs ────────────────────────────────────────────────────
@@ -132,17 +214,30 @@ const minimap = document.getElementById('minimap');
 const mctx = minimap.getContext('2d');
 minimap.width = 80; minimap.height = 80;
 
-let camX = 0, camY = 0;  // camera offset in world pixels
+let camX = 0, camY = 0;
 let zoom = 1;
 let dragStart = null;
 let isDragging = false;
 
+// ─── Responsive Canvas (handles mobile browser chrome) ─────────────
+const HUD_H = 52;
+const TOOLBAR_H = 68;
+
 function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  const w = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  canvas.width = w;
+  canvas.height = h;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
 }
 resizeCanvas();
+
 window.addEventListener('resize', resizeCanvas);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', resizeCanvas);
+  window.visualViewport.addEventListener('scroll', resizeCanvas);
+}
 
 // ─── Game State ────────────────────────────────────────────────────
 let state = {
@@ -157,7 +252,46 @@ let state = {
 };
 
 let activeTool = 'inspect';
-let touchPos = null;
+
+// ─── Interaction Mode ──────────────────────────────────────────────
+// 'build' = tap to place, drag to build continuously
+// 'pan'   = tap does nothing, drag to pan camera
+let interactionMode = 'pan'; // start in pan mode (safer for mobile)
+
+const modeToggle = document.getElementById('modeToggle');
+modeToggle.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (interactionMode === 'pan') {
+    interactionMode = 'build';
+    modeToggle.textContent = '🏗️';
+    modeToggle.classList.remove('pan-mode');
+  } else {
+    interactionMode = 'pan';
+    modeToggle.textContent = '🖐️';
+    modeToggle.classList.add('pan-mode');
+  }
+  haptic(8);
+});
+
+// ─── Zoom buttons ──────────────────────────────────────────────────
+document.getElementById('zoomIn').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  zoom = Math.min(3, zoom * 1.2);
+  clampCamera();
+  haptic(8);
+});
+document.getElementById('zoomOut').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  zoom = Math.max(0.5, zoom / 1.2);
+  clampCamera();
+  haptic(8);
+});
+
+// ─── Haptic feedback ───────────────────────────────────────────────
+function haptic(ms) {
+  if (navigator.vibrate) navigator.vibrate(ms);
+}
 
 // ─── Init Grid ─────────────────────────────────────────────────────
 function initGrid() {
@@ -166,47 +300,34 @@ function initGrid() {
     const row = [];
     for (let x = 0; x < GRID_W; x++) {
       let tile = T.GRASS;
-      // Water features
       if ((x < 4 && y < 4) || (x > 35 && y > 35)) tile = T.WATER;
       if (x >= 8 && x <= 10 && y >= 30 && y <= 33) tile = T.WATER;
-      // Random trees on grass (visual variety via random shade)
       row.push({ type: tile, level: 0, data: {} });
     }
     state.grid.push(row);
   }
 
-  // Pre-place landmarks
-  // Bluetooth Tower — center
   state.grid[20][20] = { type: T.BLUETOOTH_TOWER, level: 1, data: {} };
-  // Lord Bluetooth's Throne Room — near center
   state.grid[18][22] = { type: T.THRONE_ROOM, level: 1, data: {} };
-  // Napoleon Flex Flame Grill — commercial
   state.grid[22][18] = { type: T.GRILL, level: 1, data: {} };
-  // GLENN'S GARAGE — industrial
   state.grid[26][28] = { type: T.GARAGE, level: 1, data: {} };
-  // Smart Gummy Factory — industrial
   state.grid[28][26] = { type: T.GUMMY_FACTORY, level: 1, data: {} };
-  // AI Horn Speaker Tower — utility
   state.grid[15][25] = { type: T.HORN_TOWER, level: 1, data: {} };
-  // Pepper farms
   state.grid[24][14] = { type: T.AGRI, level: 1, data: {} };
   state.grid[25][14] = { type: T.AGRI, level: 1, data: {} };
   state.grid[24][15] = { type: T.AGRI, level: 1, data: {} };
   state.grid[25][15] = { type: T.AGRI, level: 1, data: {} };
 
-  // Pre-place some roads
   for (let x = 16; x <= 30; x++) state.grid[20][x] = { type: T.ROAD, level: 1, data: {} };
   for (let y = 15; y <= 28; y++) state.grid[y][20] = { type: T.ROAD, level: 1, data: {} };
   for (let y = 18; y <= 22; y++) state.grid[y][22] = { type: T.ROAD, level: 1, data: {} };
   for (let x = 22; x <= 28; x++) state.grid[26][x] = { type: T.ROAD, level: 1, data: {} };
   for (let x = 14; x <= 20; x++) state.grid[24][x] = { type: T.ROAD, level: 1, data: {} };
 
-  // Pre-place some residential and commercial
   for (let y of [18,19]) for (let x of [17,18,19]) state.grid[y][x] = { type: T.RES, level: 1, data:{} };
   for (let y of [21,22]) for (let x of [21,22,23]) state.grid[y][x] = { type: T.COM, level: 1, data:{} };
   for (let y of [27,28]) for (let x of [27,29]) state.grid[y][x] = { type: T.IND, level: 1, data:{} };
 
-  // Place decorative road signs
   const signPositions = [
     { x: 12, y: 20, signIdx: 0 },
     { x: 31, y: 20, signIdx: 1 },
@@ -221,10 +342,14 @@ function initGrid() {
 }
 
 // ─── Camera Controls ───────────────────────────────────────────────
+function getCanvasOffsetY() {
+  return HUD_H;
+}
+
 function screenToWorld(sx, sy) {
   return {
     x: (sx - camX) / zoom,
-    y: (sy - camY - 52) / zoom,  // account for HUD
+    y: (sy - camY - getCanvasOffsetY()) / zoom,
   };
 }
 
@@ -237,103 +362,170 @@ function worldToTile(wx, wy) {
 
 function centerCamera() {
   camX = (canvas.width - WORLD_W * zoom) / 2;
-  camY = (canvas.height - 52 - 60 - WORLD_H * zoom) / 2 + 52;
-  // Clamp
+  camY = (canvas.height - getCanvasOffsetY() - TOOLBAR_H - WORLD_H * zoom) / 2;
   clampCamera();
 }
 
 function clampCamera() {
   const maxX = 0;
   const minX = canvas.width - WORLD_W * zoom;
-  const maxY = 52;
-  const minY = canvas.height - 60 - WORLD_H * zoom;
+  const maxY = getCanvasOffsetY();
+  const minY = canvas.height - TOOLBAR_H - WORLD_H * zoom;
   camX = Math.max(Math.min(camX, maxX), minX);
-  camY = Math.max(Math.min(camY, maxY), Math.min(minY, 52));
+  camY = Math.max(Math.min(camY, maxY), Math.min(minY, getCanvasOffsetY()));
 }
 
-// Touch/mouse handling
+// ─── Touch/Mouse — Unified Pointer Events ──────────────────────────
 let pointers = new Map();
 let lastPinchDist = 0;
+let pinchCenter = null;
+const DRAG_THRESHOLD = 8; // pixels — must move this far before pan starts
+const TAP_THRESHOLD = 6;   // max movement to count as a tap
+
+const MOVE_THRESHOLD_PAN = 8;
 
 canvas.addEventListener('pointerdown', e => {
+  e.preventDefault();
   canvas.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY });
 
   if (pointers.size === 1) {
-    const tx = worldToTile(screenToWorld(e.clientX, e.clientY));
-    if (activeTool === 'inspect') {
-      showTileInfo(tx.x, tx.y);
-    } else {
-      handleBuild(tx.x, tx.y);
-    }
-    dragStart = { x: e.clientX, y: e.clientY, camX, camY, placed: false };
+    // Track for tap vs drag determination
+    dragStart = {
+      x: e.clientX, y: e.clientY,
+      camX, camY,
+      moved: false,
+      pointerId: e.pointerId,
+    };
   } else if (pointers.size === 2) {
     const pts = [...pointers.values()];
     lastPinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    pinchCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+    // Cancel any pending tap
+    if (dragStart) dragStart.moved = true;
   }
 });
 
 canvas.addEventListener('pointermove', e => {
   if (pointers.has(e.pointerId)) {
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    pointers.set(e.pointerId, { ...pointers.get(e.pointerId), x: e.clientX, y: e.clientY });
   }
 
+  // ── Pinch zoom (two fingers) ──
   if (pointers.size === 2) {
-    // Pinch zoom
     const pts = [...pointers.values()];
     const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    const newCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
     if (lastPinchDist > 0) {
       const scale = dist / lastPinchDist;
+      const oldZoom = zoom;
       zoom = Math.max(0.5, Math.min(3, zoom * scale));
+      // Zoom toward pinch center
+      const wx = (newCenter.x - camX) / oldZoom;
+      const wy = (newCenter.y - camY - getCanvasOffsetY()) / oldZoom;
+      camX = newCenter.x - wx * zoom;
+      camY = newCenter.y - wy * zoom - getCanvasOffsetY();
       clampCamera();
     }
     lastPinchDist = dist;
+    pinchCenter = newCenter;
+    if (dragStart) dragStart.moved = true;
     return;
   }
 
+  // ── Single pointer ──
   if (dragStart && pointers.size === 1) {
     const dx = e.clientX - dragStart.x;
     const dy = e.clientY - dragStart.y;
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+    const dist = Math.hypot(dx, dy);
+
+    if (dist > DRAG_THRESHOLD) {
+      dragStart.moved = true;
       isDragging = true;
+
+      // Pan camera (works in both modes — in build mode, pan only if moved significantly)
       camX = dragStart.camX + dx;
       camY = dragStart.camY + dy;
       clampCamera();
-    }
-    // Continuous building for roads/zones
-    if (!isDragging && activeTool !== 'inspect' && activeTool !== 'bulldoze') {
-      const tool = TOOLS.find(t => t.id === activeTool);
-      if (tool && !tool.special) {
-        const tx = worldToTile(screenToWorld(e.clientX, e.clientY));
-        handleBuild(tx.x, tx.y);
+
+      // Continuous building in build mode for non-special tools
+      if (interactionMode === 'build' && activeTool !== 'inspect' && activeTool !== 'bulldoze' && activeTool !== 'drive') {
+        const tool = TOOLS.find(t => t.id === activeTool);
+        if (tool && !tool.special) {
+          const tx = worldToTile(screenToWorld(e.clientX, e.clientY));
+          handleBuild(tx.x, tx.y);
+        }
       }
-    }
-    if (activeTool === 'bulldoze' && Math.abs(dx) > 3) {
-      const tx = worldToTile(screenToWorld(e.clientX, e.clientY));
-      handleBulldoze(tx.x, tx.y);
+      // Continuous bulldoze
+      if (activeTool === 'bulldoze') {
+        const tx = worldToTile(screenToWorld(e.clientX, e.clientY));
+        handleBulldoze(tx.x, tx.y);
+      }
     }
   }
 });
 
 canvas.addEventListener('pointerup', e => {
+  const wasSinglePointer = pointers.size === 1;
+  const ptrInfo = pointers.get(e.pointerId);
   pointers.delete(e.pointerId);
-  if (pointers.size < 2) lastPinchDist = 0;
+
+  if (pointers.size < 2) {
+    lastPinchDist = 0;
+    pinchCenter = null;
+  }
+
+  // ── Tap detection: if this was a single pointer that didn't move much ──
+  if (wasSinglePointer && dragStart && !dragStart.moved) {
+    const totalMove = ptrInfo ? Math.hypot(e.clientX - ptrInfo.startX, e.clientY - ptrInfo.startY) : 0;
+    if (totalMove < TAP_THRESHOLD) {
+      // It's a tap!
+      const tx = worldToTile(screenToWorld(e.clientX, e.clientY));
+
+      if (activeTool === 'drive') {
+        // Ignore taps on canvas while in drive mode
+      } else if (interactionMode === 'build') {
+        if (activeTool === 'inspect') {
+          showTileInfo(tx.x, tx.y);
+        } else {
+          handleBuild(tx.x, tx.y);
+          haptic(10);
+        }
+      } else {
+        // Pan mode — tapping dismisses info bar
+        document.getElementById('infoBar').classList.remove('show');
+      }
+    }
+  }
+
   if (pointers.size === 0) {
     dragStart = null;
     setTimeout(() => { isDragging = false; }, 50);
   }
 });
 
+canvas.addEventListener('pointercancel', e => {
+  pointers.delete(e.pointerId);
+  if (pointers.size === 0) {
+    dragStart = null;
+    isDragging = false;
+  }
+  if (pointers.size < 2) lastPinchDist = 0;
+});
+
+// Prevent context menu on long press
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+// Wheel zoom (desktop)
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
   const delta = e.deltaY > 0 ? 0.9 : 1.1;
   const newZoom = Math.max(0.5, Math.min(3, zoom * delta));
-  // Zoom toward cursor
   const wx = (e.clientX - camX) / zoom;
-  const wy = (e.clientY - camY - 52) / zoom;
+  const wy = (e.clientY - camY - getCanvasOffsetY()) / zoom;
   zoom = newZoom;
   camX = e.clientX - wx * zoom;
-  camY = e.clientY - wy * zoom - 52;
+  camY = e.clientY - wy * zoom - getCanvasOffsetY();
   clampCamera();
 }, { passive: false });
 
@@ -352,27 +544,18 @@ function handleBuild(tx, ty) {
   const data = TILE_DATA[tool.tile];
   if (!data) return;
 
-  // Can't build on water or existing special buildings
   if (tile.type === T.WATER) { toast('Cannot build on water!'); return; }
   if (tile.type !== T.GRASS && tile.type !== T.ROAD) {
-    // Allow overwriting roads with zones
-    if (tile.type !== T.ROAD) { toast('Tile occupied! Bulldoze first.'); return; }
+    toast('Tile occupied! Bulldoze first.'); return;
   }
-
-  // Special buildings can only go on grass
   if (data.special && tile.type !== T.GRASS) { toast('Clear the tile first!'); return; }
-
   if (state.money < data.cost) { toast('Not enough funds!'); return; }
-
-  // Don't rebuild same tile
   if (tile.type === tool.tile) return;
 
   state.money -= data.cost;
   state.grid[ty][tx] = { type: tool.tile, level: 1, data: {} };
   state.buildCount[tool.tile] = (state.buildCount[tool.tile] || 0) + 1;
   updateHUD();
-
-  // Save to Firebase
   scheduleSave();
 }
 
@@ -381,7 +564,6 @@ function handleBulldoze(tx, ty) {
   const tile = state.grid[ty][tx];
   if (tile.type === T.GRASS || tile.type === T.WATER) return;
 
-  // Refund 25% of cost
   const data = TILE_DATA[tile.type];
   const refund = data ? Math.floor(data.cost * 0.25) : 0;
   state.money += refund;
@@ -418,25 +600,10 @@ function showTileInfo(tx, ty) {
 }
 
 // ─── Economy ───────────────────────────────────────────────────────
-function getResPop(tile) {
-  if (tile.type !== T.RES) return 0;
-  return tile.level * 12;
-}
-
-function getComIncome(tile) {
-  if (tile.type !== T.COM) return 0;
-  return tile.level * 8;
-}
-
-function getIndIncome(tile) {
-  if (tile.type !== T.IND) return 0;
-  return tile.level * 12;
-}
-
-function getAgriIncome(tile) {
-  if (tile.type !== T.AGRI) return 0;
-  return tile.level * 5;
-}
+function getResPop(tile) { return tile.type !== T.RES ? 0 : tile.level * 12; }
+function getComIncome(tile) { return tile.type !== T.COM ? 0 : tile.level * 8; }
+function getIndIncome(tile) { return tile.type !== T.IND ? 0 : tile.level * 12; }
+function getAgriIncome(tile) { return tile.type !== T.AGRI ? 0 : tile.level * 5; }
 
 function hasRoadAdjacent(tx, ty) {
   for (let dy = -1; dy <= 1; dy++) {
@@ -461,14 +628,10 @@ function economyTick() {
     for (let x = 0; x < GRID_W; x++) {
       const tile = state.grid[y][x];
       const hasRoad = hasRoadAdjacent(x, y);
-
       switch (tile.type) {
         case T.RES:
           if (hasRoad) {
-            // Level up over time
-            if (tile.level < 3 && state.tick % 10 === 0 && Math.random() < 0.3) {
-              tile.level++;
-            }
+            if (tile.level < 3 && state.tick % 10 === 0 && Math.random() < 0.3) tile.level++;
             pop += getResPop(tile);
             resCount++;
           }
@@ -488,59 +651,31 @@ function economyTick() {
           }
           break;
         case T.AGRI:
-          if (hasRoad) {
-            income += getAgriIncome(tile);
-          }
+          if (hasRoad) income += getAgriIncome(tile);
           break;
-        case T.GRILL:
-          // Napoleon Flex Flame Grill boosts nearby commercial
-          income += 25;
-          break;
-        case T.GARAGE:
-          income += 30;
-          break;
-        case T.GUMMY_FACTORY:
-          income += 50;
-          happinessDelta -= 1; // gummy factories smell
-          break;
-        case T.THRONE_ROOM:
-          happinessDelta += 3;
-          break;
-        case T.BLUETOOTH_TOWER:
-          happinessDelta += 5;
-          break;
-        case T.HORN_TOWER:
-          happinessDelta += 2;
-          break;
+        case T.GRILL: income += 25; break;
+        case T.GARAGE: income += 30; break;
+        case T.GUMMY_FACTORY: income += 50; happinessDelta -= 1; break;
+        case T.THRONE_ROOM: happinessDelta += 3; break;
+        case T.BLUETOOTH_TOWER: happinessDelta += 5; break;
+        case T.HORN_TOWER: happinessDelta += 2; break;
       }
     }
   }
 
-  // Special building area effects
   const towerPos = findTile(T.BLUETOOTH_TOWER);
-  if (towerPos) {
-    happinessDelta += 2;
-  }
+  if (towerPos) happinessDelta += 2;
 
-  // Calculate happiness
-  if (indCount > resCount && resCount > 0) {
+  if (indCount > resCount && resCount > 0)
     happinessDelta -= Math.min(10, Math.floor((indCount - resCount) * 0.5));
-  }
-  if (resCount > 0 && comCount === 0) {
-    happinessDelta -= 2; // no shops = sad
-  }
+  if (resCount > 0 && comCount === 0) happinessDelta -= 2;
 
-  // Road coverage bonus
   const roadCount = countTiles(T.ROAD);
   if (roadCount > 10) happinessDelta += 1;
 
   state.happiness = Math.max(0, Math.min(100, state.happiness + happinessDelta * 0.5));
-
-  // Tax revenue from population
   const taxes = Math.floor(pop * (state.happiness / 100) * 0.5);
   income += taxes;
-
-  // Maintenance
   const maintenance = Math.floor((resCount + comCount + indCount) * 2 + roadCount * 0.5);
 
   state.income = income;
@@ -573,12 +708,7 @@ function updateHUD() {
   const happyEl = document.getElementById('happyVal');
   happyEl.textContent = Math.round(state.happiness) + '%';
   happyEl.className = 'stat-val happy' + (state.happiness < 40 ? ' low' : '');
-
-  if (state.money < 0) {
-    document.getElementById('moneyVal').style.color = '#ef4444';
-  } else {
-    document.getElementById('moneyVal').style.color = '#4ade80';
-  }
+  document.getElementById('moneyVal').style.color = state.money < 0 ? '#ef4444' : '#4ade80';
 }
 
 // ─── Toast ─────────────────────────────────────────────────────────
@@ -588,7 +718,7 @@ function toast(msg) {
   el.textContent = msg;
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
 }
 
 // ─── Toolbar ───────────────────────────────────────────────────────
@@ -598,14 +728,352 @@ function buildToolbar() {
   TOOLS.forEach(tool => {
     const btn = document.createElement('div');
     btn.className = 'tool' + (activeTool === tool.id ? ' active' : '');
-    btn.innerHTML = `<div class="tool-icon">${tool.icon}</div><div>${tool.name}</div><div class="tool-cost">$${tool.cost}</div>`;
+    btn.innerHTML = `<div class="tool-icon">${tool.icon}</div><div class="tool-name">${tool.name}</div><div class="tool-cost">${tool.cost > 0 ? '$' + tool.cost : ''}</div>`;
     btn.addEventListener('pointerdown', e => {
       e.preventDefault();
+      e.stopPropagation();
       activeTool = tool.id;
       buildToolbar();
       document.getElementById('infoBar').classList.remove('show');
+      haptic(8);
+
+      // Auto-switch to build mode if selecting a building tool
+      if (tool.id !== 'inspect' && tool.id !== 'drive') {
+        if (interactionMode !== 'build') {
+          interactionMode = 'build';
+          modeToggle.textContent = '🏗️';
+          modeToggle.classList.remove('pan-mode');
+        }
+      }
+
+      // Drive mode
+      if (tool.id === 'drive') {
+        if (!myCar) {
+          spawnMyCar();
+        }
+        showCarControls();
+      } else {
+        hideCarControls();
+      }
     });
     tb.appendChild(btn);
+  });
+
+  // Update scroll indicators
+  setTimeout(updateScrollIndicators, 50);
+}
+
+// ─── Toolbar scroll indicators ─────────────────────────────────────
+const toolbarEl = document.getElementById('toolbar');
+function updateScrollIndicators() {
+  const leftFade = document.getElementById('scrollLeft');
+  const rightFade = document.getElementById('scrollRight');
+  const maxScroll = toolbarEl.scrollWidth - toolbarEl.clientWidth;
+  leftFade.classList.toggle('hidden', toolbarEl.scrollLeft <= 2);
+  rightFade.classList.toggle('hidden', toolbarEl.scrollLeft >= maxScroll - 2);
+}
+toolbarEl.addEventListener('scroll', updateScrollIndicators);
+
+// ═══════════════════════════════════════════════════════════════════
+// 🚗 CAR / DRIVING SYSTEM
+// ═══════════════════════════════════════════════════════════════════
+
+const CAR_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#fbbf24', '#a855f7', '#06b6d4', '#ec4899', '#f97316'];
+let myCar = null;
+let cars = {};          // { visitorId: { x, y, dir, color, name } }
+let carRef = null;
+let driving = false;
+const CAR_SIZE = 10;
+
+function getMyId() {
+  if (typeof FirebaseShared !== 'undefined' && FirebaseShared.visitorId) return FirebaseShared.visitorId;
+  return 'local_' + ( sessionStorage.getItem('carId') || (() => {
+    const id = 'anon_' + Math.random().toString(36).slice(2,8);
+    sessionStorage.setItem('carId', id);
+    return id;
+  })());
+}
+
+function getMyName() {
+  if (typeof FirebaseShared !== 'undefined' && FirebaseShared.getVisitorName) return FirebaseShared.getVisitorName();
+  return 'Driver';
+}
+
+function spawnMyCar() {
+  const id = getMyId();
+  // Spawn near center of city on a road tile
+  let spawnX = 20 * TILE + TILE/2;
+  let spawnY = 20 * TILE + TILE/2;
+  // Find nearest road
+  let bestDist = Infinity;
+  for (let y = 0; y < GRID_H; y++) {
+    for (let x = 0; x < GRID_W; x++) {
+      if (state.grid[y][x].type === T.ROAD) {
+        const d = (x - 20) ** 2 + (y - 20) ** 2;
+        if (d < bestDist) {
+          bestDist = d;
+          spawnX = x * TILE + TILE/2;
+          spawnY = y * TILE + TILE/2;
+        }
+      }
+    }
+  }
+
+  const colorIdx = Math.abs(hashCode(id)) % CAR_COLORS.length;
+  myCar = {
+    x: spawnX,
+    y: spawnY,
+    dir: 0,  // radians
+    speed: 0,
+    color: CAR_COLORS[colorIdx],
+    name: getMyName(),
+  };
+  driving = true;
+
+  // Center camera on car
+  centerCameraOnCar();
+
+  toast('🚗 Car spawned! Use D-pad or arrow keys to drive.');
+  haptic(20);
+
+  // Save car to Firebase
+  saveCar();
+}
+
+function exitCar() {
+  driving = false;
+  if (myCar) {
+    // Remove from Firebase
+    if (carRef && myCar) {
+      carRef.child(getMyId()).remove();
+    }
+    delete cars[getMyId()];
+    myCar = null;
+  }
+  hideCarControls();
+  toast('🚪 Exited car');
+}
+
+function centerCameraOnCar() {
+  if (!myCar) return;
+  camX = canvas.width / 2 - myCar.x * zoom;
+  camY = (canvas.height - TOOLBAR_H) / 2 + getCanvasOffsetY() - myCar.y * zoom;
+  // Don't clamp when driving — let camera follow car freely
+}
+
+function hashCode(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h) + s.charCodeAt(i);
+    h |= 0;
+  }
+  return h;
+}
+
+// ─── Car controls ──────────────────────────────────────────────────
+const keys = { up: false, down: false, left: false, right: false };
+
+window.addEventListener('keydown', e => {
+  if (driving && myCar) {
+    if (e.key === 'ArrowUp' || e.key === 'w') { keys.up = true; e.preventDefault(); }
+    else if (e.key === 'ArrowDown' || e.key === 's') { keys.down = true; e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'a') { keys.left = true; e.preventDefault(); }
+    else if (e.key === 'ArrowRight' || e.key === 'd') { keys.right = true; e.preventDefault(); }
+    return;
+  }
+
+  // Non-driving keyboard
+  const panSpeed = 30;
+  if (e.key === 'ArrowLeft') { camX += panSpeed; clampCamera(); }
+  else if (e.key === 'ArrowRight') { camX -= panSpeed; clampCamera(); }
+  else if (e.key === 'ArrowUp') { camY += panSpeed; clampCamera(); }
+  else if (e.key === 'ArrowDown') { camY -= panSpeed; clampCamera(); }
+  else if (e.key === '=' || e.key === '+') { zoom = Math.min(3, zoom * 1.15); clampCamera(); }
+  else if (e.key === '-') { zoom = Math.max(0.5, zoom / 1.15); clampCamera(); }
+});
+
+window.addEventListener('keyup', e => {
+  if (e.key === 'ArrowUp' || e.key === 'w') keys.up = false;
+  else if (e.key === 'ArrowDown' || e.key === 's') keys.down = false;
+  else if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+  else if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+});
+
+// ─── D-Pad (mobile) ────────────────────────────────────────────────
+document.querySelectorAll('.dpad-btn').forEach(btn => {
+  const dir = btn.dataset.dir;
+  const start = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    keys[dir] = true;
+    btn.classList.add('pressed');
+    haptic(5);
+  };
+  const end = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    keys[dir] = false;
+    btn.classList.remove('pressed');
+  };
+  btn.addEventListener('pointerdown', start);
+  btn.addEventListener('pointerup', end);
+  btn.addEventListener('pointercancel', end);
+  btn.addEventListener('pointerleave', end);
+});
+
+// ─── Spawn / Exit car buttons ──────────────────────────────────────
+document.getElementById('spawnCarBtn').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (!myCar) {
+    spawnMyCar();
+  }
+  showCarControls();
+});
+
+document.getElementById('exitCarBtn').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  e.stopPropagation();
+  exitCar();
+});
+
+function showCarControls() {
+  document.getElementById('dpad').classList.add('show');
+  document.getElementById('carControls').classList.add('show');
+  document.getElementById('spawnCarBtn').style.display = 'none';
+  document.getElementById('exitCarBtn').style.display = 'block';
+}
+
+function hideCarControls() {
+  document.getElementById('dpad').classList.remove('show');
+  document.getElementById('carControls').classList.remove('show');
+  document.getElementById('spawnCarBtn').style.display = 'block';
+  document.getElementById('exitCarBtn').style.display = 'none';
+}
+
+// ─── Car physics ───────────────────────────────────────────────────
+function updateCar(dt) {
+  if (!myCar || !driving) return;
+
+  const ACCEL = 0.08;
+  const MAX_SPEED = 2.5;
+  const TURN_SPEED = 0.06;
+
+  // Acceleration
+  if (keys.up) {
+    myCar.speed = Math.min(myCar.speed + ACCEL, MAX_SPEED);
+  } else if (keys.down) {
+    myCar.speed = Math.max(myCar.speed - ACCEL, -MAX_SPEED * 0.5);
+  } else {
+    // Friction
+    myCar.speed *= 0.95;
+    if (Math.abs(myCar.speed) < 0.01) myCar.speed = 0;
+  }
+
+  // Steering (only when moving)
+  if (Math.abs(myCar.speed) > 0.05) {
+    const turnFactor = myCar.speed > 0 ? 1 : -1;
+    if (keys.left) myCar.dir -= TURN_SPEED * turnFactor;
+    if (keys.right) myCar.dir += TURN_SPEED * turnFactor;
+  }
+
+  // Move
+  const newX = myCar.x + Math.cos(myCar.dir) * myCar.speed;
+  const newY = myCar.y + Math.sin(myCar.dir) * myCar.speed;
+
+  // Boundary check
+  if (newX >= 0 && newX <= WORLD_W && newY >= 0 && newY <= WORLD_H) {
+    myCar.x = newX;
+    myCar.y = newY;
+  } else {
+    myCar.speed = 0;
+  }
+
+  // Camera follows car
+  centerCameraOnCar();
+
+  // Throttle Firebase save
+  carSaveAccumulator += dt;
+  if (carSaveAccumulator > 150) {
+    carSaveAccumulator = 0;
+    saveCar();
+  }
+}
+
+let carSaveAccumulator = 0;
+
+// ─── Render car ────────────────────────────────────────────────────
+function renderCars() {
+  const allCars = { ...cars };
+  if (myCar) allCars[getMyId()] = myCar;
+
+  for (const [id, car] of Object.entries(allCars)) {
+    ctx.save();
+    ctx.translate(car.x, car.y);
+    ctx.rotate(car.dir);
+
+    // Car body
+    const isMine = id === getMyId();
+    ctx.fillStyle = car.color || '#ef4444';
+    ctx.fillRect(-CAR_SIZE/2, -CAR_SIZE/2, CAR_SIZE, CAR_SIZE);
+
+    // Windshield
+    ctx.fillStyle = 'rgba(150,200,255,0.7)';
+    ctx.fillRect(CAR_SIZE/2 - 4, -CAR_SIZE/2 + 1, 2, CAR_SIZE - 2);
+
+    // Outline for my car
+    if (isMine) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(-CAR_SIZE/2 - 1, -CAR_SIZE/2 - 1, CAR_SIZE + 2, CAR_SIZE + 2);
+    }
+
+    ctx.restore();
+
+    // Name tag (not rotated)
+    if (car.name) {
+      ctx.fillStyle = isMine ? '#fff' : '#aaa';
+      ctx.font = '6px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(car.name, car.x, car.y - CAR_SIZE/2 - 3);
+    }
+  }
+}
+
+// ─── Save/load car to Firebase ─────────────────────────────────────
+function saveCar() {
+  if (!carRef || !myCar) return;
+  try {
+    carRef.child(getMyId()).set({
+      x: Math.round(myCar.x * 10) / 10,
+      y: Math.round(myCar.y * 10) / 10,
+      dir: Math.round(myCar.dir * 100) / 100,
+      color: myCar.color,
+      name: myCar.name,
+      updated: Date.now(),
+    });
+  } catch (e) {
+    console.warn('Car save failed:', e);
+  }
+}
+
+function listenForCars() {
+  if (!carRef) return;
+  carRef.on('value', snap => {
+    const data = snap.val();
+    if (!data) { cars = {}; return; }
+    // Prune stale cars (>30s)
+    const now = Date.now();
+    const newCars = {};
+    for (const [id, car] of Object.entries(data)) {
+      if (id === getMyId()) continue;
+      if (now - (car.updated || 0) > 30000) {
+        carRef.child(id).remove();
+        continue;
+      }
+      newCars[id] = car;
+    }
+    cars = newCars;
   });
 }
 
@@ -615,14 +1083,13 @@ function render() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   ctx.save();
-  ctx.translate(camX, camY + 52);
+  ctx.translate(camX, camY + getCanvasOffsetY());
   ctx.scale(zoom, zoom);
 
-  // Visible tile range
   const startX = Math.max(0, Math.floor(-camX / zoom / TILE));
   const endX = Math.min(GRID_W, Math.ceil((canvas.width - camX) / zoom / TILE));
-  const startY = Math.max(0, Math.floor(-(camY + 52) / zoom / TILE));
-  const endY = Math.min(GRID_H, Math.ceil((canvas.height - camY - 52 - 60) / zoom / TILE));
+  const startY = Math.max(0, Math.floor(-(camY + getCanvasOffsetY()) / zoom / TILE));
+  const endY = Math.min(GRID_H, Math.ceil((canvas.height - camY - getCanvasOffsetY() - TOOLBAR_H) / zoom / TILE));
 
   for (let y = startY; y < endY; y++) {
     for (let x = startX; x < endX; x++) {
@@ -630,7 +1097,7 @@ function render() {
     }
   }
 
-  // Draw grid lines (subtle)
+  // Grid lines at high zoom
   if (zoom > 1) {
     ctx.strokeStyle = 'rgba(255,255,255,0.03)';
     ctx.lineWidth = 0.5;
@@ -648,9 +1115,11 @@ function render() {
     }
   }
 
+  // Render all cars
+  renderCars();
+
   ctx.restore();
 
-  // Minimap
   renderMinimap();
 }
 
@@ -659,47 +1128,36 @@ function drawTile(tx, ty) {
   const data = TILE_DATA[tile.type] || TILE_DATA[T.GRASS];
   const px = tx * TILE, py = ty * TILE;
 
-  // Base color
   ctx.fillStyle = data.color;
   ctx.fillRect(px, py, TILE, TILE);
 
-  // Texture/details per tile type
   switch (tile.type) {
     case T.GRASS:
-      // Subtle variation
       if ((tx + ty) % 3 === 0) {
         ctx.fillStyle = '#275027';
         ctx.fillRect(px + 2, py + 2, 3, 3);
       }
       break;
     case T.WATER:
-      // Animated shimmer
       const sh = Math.sin(state.tick * 0.05 + tx * 0.5 + ty * 0.3) * 0.5 + 0.5;
       ctx.fillStyle = `rgba(100,150,200,${sh * 0.15})`;
       ctx.fillRect(px, py, TILE, TILE);
       break;
     case T.ROAD:
-      // Road with center line
       ctx.fillStyle = '#333';
       ctx.fillRect(px, py, TILE, TILE);
       ctx.fillStyle = '#555';
       ctx.fillRect(px + TILE/2 - 1, py, 2, TILE);
       ctx.fillRect(px, py + TILE/2 - 1, TILE, 2);
       break;
-    case T.RES:
-      drawBuilding(px, py, tile.level, '#3b82f6', '#1e40af');
-      break;
-    case T.COM:
-      drawBuilding(px, py, tile.level, '#f59e0b', '#92400e');
-      break;
+    case T.RES: drawBuilding(px, py, tile.level, '#3b82f6', '#1e40af'); break;
+    case T.COM: drawBuilding(px, py, tile.level, '#f59e0b', '#92400e'); break;
     case T.IND:
       drawBuilding(px, py, tile.level, '#a16207', '#713f12');
-      // Smokestack
       ctx.fillStyle = '#444';
       ctx.fillRect(px + TILE - 5, py + 2, 3, 4);
       break;
     case T.AGRI:
-      // Pepper plants
       ctx.fillStyle = '#15803d';
       ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2);
       ctx.fillStyle = '#dc2626';
@@ -708,12 +1166,10 @@ function drawTile(tx, ty) {
       }
       break;
     case T.BLUETOOTH_TOWER:
-      // Tall tower with BT symbol
       ctx.fillStyle = '#1a1a2e';
       ctx.fillRect(px, py, TILE, TILE);
       ctx.fillStyle = '#8b5cf6';
       ctx.fillRect(px + TILE/2 - 1, py + 2, 3, TILE - 4);
-      // Signal arcs
       ctx.strokeStyle = '#8b5cf6';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -722,25 +1178,19 @@ function drawTile(tx, ty) {
       ctx.beginPath();
       ctx.arc(px + TILE/2 + 1, py + 4, 7, -Math.PI/3, Math.PI/3);
       ctx.stroke();
-      // 💙 symbol
-      ctx.font = '7px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('📡', px + TILE/2, py + TILE - 3);
       break;
     case T.THRONE_ROOM:
-      // Gold/purple throne room
       ctx.fillStyle = '#1a1a2e';
       ctx.fillRect(px, py, TILE, TILE);
       ctx.fillStyle = '#c9a84c';
       ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
-      ctx.fillStyle = '#1a1a2e';
+      ctx.fillStyle = '#1a1a1a';
       ctx.font = `${TILE - 6}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('👑', px + TILE/2, py + TILE/2);
       break;
     case T.GRILL:
-      // Red/orange grill
       ctx.fillStyle = '#1a0a0a';
       ctx.fillRect(px, py, TILE, TILE);
       ctx.fillStyle = '#ef4444';
@@ -758,7 +1208,6 @@ function drawTile(tx, ty) {
       ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2);
       ctx.fillStyle = '#0a0a0a';
       ctx.fillRect(px + 4, py + 6, TILE - 8, TILE - 10);
-      // Text
       ctx.fillStyle = '#fbbf24';
       ctx.font = '5px monospace';
       ctx.textAlign = 'center';
@@ -784,18 +1233,12 @@ function drawTile(tx, ty) {
       ctx.lineTo(px + 3, py + TILE - 3);
       ctx.closePath();
       ctx.fill();
-      ctx.fillStyle = '#0a0a0a';
-      ctx.font = `${TILE - 12}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillText('📢', px + TILE/2, py + TILE/2 + 2);
       break;
     case T.SIGN:
-      // Road sign post
       ctx.fillStyle = '#2d5a2d';
       ctx.fillRect(px, py, TILE, TILE);
       ctx.fillStyle = '#888';
       ctx.fillRect(px + TILE/2 - 1, py + 4, 2, TILE - 4);
-      // Sign board
       ctx.fillStyle = '#fbbf24';
       ctx.fillRect(px + 1, py + 2, TILE - 2, 5);
       ctx.fillStyle = '#000';
@@ -809,7 +1252,6 @@ function drawTile(tx, ty) {
       break;
   }
 
-  // Highlight if no road access for zones
   if ((tile.type === T.RES || tile.type === T.COM || tile.type === T.IND || tile.type === T.AGRI) && !hasRoadAdjacent(tx, ty)) {
     ctx.fillStyle = 'rgba(239,68,68,0.15)';
     ctx.fillRect(px, py, TILE, TILE);
@@ -822,7 +1264,6 @@ function drawBuilding(px, py, level, color, darkColor) {
   ctx.fillRect(px + 2, py + TILE - h - 2, TILE - 4, h);
   ctx.fillStyle = color;
   ctx.fillRect(px + 2, py + TILE - h - 2, TILE - 4, Math.min(h, 3));
-  // Windows
   ctx.fillStyle = 'rgba(255,255,200,0.6)';
   for (let i = 0; i < level; i++) {
     ctx.fillRect(px + 4, py + TILE - 4 - i * 4, 2, 2);
@@ -845,23 +1286,40 @@ function renderMinimap() {
       }
     }
   }
+
+  // Cars on minimap
+  const allCars = { ...cars };
+  if (myCar) allCars[getMyId()] = myCar;
+  for (const car of Object.values(allCars)) {
+    mctx.fillStyle = car.color || '#fff';
+    const cx = (car.x / TILE) * mw;
+    const cy = (car.y / TILE) * mh;
+    mctx.fillRect(cx - 1, cy - 1, 3, 3);
+  }
+
   // Viewport indicator
   const vx = -camX / zoom / TILE * mw;
-  const vy = -(camY + 52) / zoom / TILE * mh;
+  const vy = -(camY + getCanvasOffsetY()) / zoom / TILE * mh;
   const vw = canvas.width / zoom / TILE * mw;
-  const vh = (canvas.height - 112) / zoom / TILE * mh;
+  const vh = (canvas.height - getCanvasOffsetY() - TOOLBAR_H) / zoom / TILE * mh;
   mctx.strokeStyle = 'rgba(255,255,255,0.5)';
   mctx.lineWidth = 1;
   mctx.strokeRect(vx, vy, vw, vh);
 }
 
 minimap.addEventListener('pointerdown', e => {
+  e.preventDefault();
   const rect = minimap.getBoundingClientRect();
   const mx = (e.clientX - rect.left) / rect.width;
   const my = (e.clientY - rect.top) / rect.height;
-  camX = canvas.width / 2 - mx * WORLD_W * zoom;
-  camY = (canvas.height - 60) / 2 + 52 - my * WORLD_H * zoom;
-  clampCamera();
+  if (myCar && driving) {
+    // Navigate car toward minimap target
+    myCar.dir = Math.atan2(my * WORLD_H - myCar.y, mx * WORLD_W - myCar.x);
+  } else {
+    camX = canvas.width / 2 - mx * WORLD_W * zoom;
+    camY = (canvas.height - TOOLBAR_H) / 2 + getCanvasOffsetY() - my * WORLD_H * zoom;
+    clampCamera();
+  }
 });
 
 // ─── Firebase Sync ─────────────────────────────────────────────────
@@ -875,7 +1333,6 @@ function scheduleSave() {
 }
 
 function serializeCity() {
-  // Compact grid serialization: flatten to type IDs + levels
   const tiles = [];
   for (let y = 0; y < GRID_H; y++) {
     for (let x = 0; x < GRID_W; x++) {
@@ -898,17 +1355,13 @@ function deserializeCity(data) {
   if (!data || !data.tiles) return false;
   const parts = data.tiles.split(',').map(Number);
   if (parts.length !== GRID_W * GRID_H * 3) return false;
-
   for (let y = 0; y < GRID_H; y++) {
     for (let x = 0; x < GRID_W; x++) {
       const idx = (y * GRID_W + x) * 3;
-      const type = parts[idx];
-      const level = parts[idx + 1];
-      const signIdx = parts[idx + 2];
       state.grid[y][x] = {
-        type: type,
-        level: level,
-        data: signIdx >= 0 ? { signIdx } : {},
+        type: parts[idx],
+        level: parts[idx + 1],
+        data: parts[idx + 2] >= 0 ? { signIdx: parts[idx + 2] } : {},
       };
     }
   }
@@ -921,11 +1374,7 @@ function deserializeCity(data) {
 
 async function saveCity() {
   if (!firebaseReady || !cityRef) return;
-  try {
-    await cityRef.set(serializeCity());
-  } catch (e) {
-    console.warn('Save failed:', e);
-  }
+  try { await cityRef.set(serializeCity()); } catch (e) { console.warn('Save failed:', e); }
 }
 
 function loadFromLocalStorage() {
@@ -933,19 +1382,14 @@ function loadFromLocalStorage() {
     const saved = localStorage.getItem('xinfu_city');
     if (saved) {
       const data = JSON.parse(saved);
-      if (deserializeCity(data)) {
-        toast('City loaded from local storage');
-        return true;
-      }
+      if (deserializeCity(data)) { toast('City loaded from local storage'); return true; }
     }
   } catch (e) {}
   return false;
 }
 
 function saveToLocalStorage() {
-  try {
-    localStorage.setItem('xinfu_city', JSON.stringify(serializeCity()));
-  } catch (e) {}
+  try { localStorage.setItem('xinfu_city', JSON.stringify(serializeCity())); } catch (e) {}
 }
 
 // ─── Init Firebase ─────────────────────────────────────────────────
@@ -958,34 +1402,25 @@ async function initFirebase() {
 
   try {
     await FirebaseShared.init('xinfu-city', { presenceId: 'presenceBadge' });
-
-    // Show presence badge
     const badge = document.getElementById('presenceBadge');
-    const text = document.getElementById('presenceText');
     badge.style.display = 'block';
 
-    // Connect to Firebase Database for city state
     if (typeof firebase !== 'undefined' && firebase.database) {
       const db = firebase.database();
       cityRef = db.ref('xinfu-city/state');
+      carRef = db.ref('xinfu-city/cars');
 
-      // Listen for changes
       cityRef.on('value', snap => {
         const data = snap.val();
         if (data) {
-          if (deserializeCity(data)) {
-            toast('City synced from cloud');
-            updateHUD();
-          }
+          if (deserializeCity(data)) { toast('City synced from cloud'); updateHUD(); }
         }
       });
 
-      // Initial save if empty
-      cityRef.once('value', snap => {
-        if (!snap.val()) {
-          saveCity();
-        }
-      });
+      cityRef.once('value', snap => { if (!snap.val()) saveCity(); });
+
+      // Listen for other players' cars
+      listenForCars();
 
       firebaseReady = true;
       toast('Connected to Xin Fú Cloud!');
@@ -999,45 +1434,38 @@ async function initFirebase() {
 
 // ─── Main Loop ─────────────────────────────────────────────────────
 let lastEconomyTick = 0;
+let lastFrame = 0;
 
-function gameLoop() {
+function gameLoop(timestamp) {
   const now = Date.now();
+  const dt = lastFrame ? timestamp - lastFrame : 16;
+  lastFrame = timestamp;
 
   // Economy tick every 3 seconds
   if (now - lastEconomyTick > 3000) {
     economyTick();
     lastEconomyTick = now;
-    // Periodic local save
     saveToLocalStorage();
   }
+
+  // Update car physics
+  updateCar(dt);
 
   render();
   requestAnimationFrame(gameLoop);
 }
-
-// ─── Keyboard ─────────────────────────────────────────────────────
-window.addEventListener('keydown', e => {
-  const panSpeed = 30;
-  if (e.key === 'ArrowLeft') { camX += panSpeed; clampCamera(); }
-  else if (e.key === 'ArrowRight') { camX -= panSpeed; clampCamera(); }
-  else if (e.key === 'ArrowUp') { camY += panSpeed; clampCamera(); }
-  else if (e.key === 'ArrowDown') { camY -= panSpeed; clampCamera(); }
-  else if (e.key === '=' || e.key === '+') { zoom = Math.min(3, zoom * 1.15); clampCamera(); }
-  else if (e.key === '-') { zoom = Math.max(0.5, zoom / 1.15); clampCamera(); }
-});
 
 // ─── Boot ─────────────────────────────────────────────────────────
 initGrid();
 centerCamera();
 buildToolbar();
 updateHUD();
-gameLoop();
+requestAnimationFrame(gameLoop);
 
-// Start Firebase after a brief delay (let page settle)
+// Start Firebase after a brief delay
 setTimeout(initFirebase, 500);
 
-// Welcome toast
-setTimeout(() => toast('👑 Welcome to Xin Fú SAR! Build your city.'), 800);
+setTimeout(() => toast('👑 Welcome to Xin Fú SAR! Tap 🖐️ to switch build/pan mode.'), 800);
 </script>
 </body>
 </html>
