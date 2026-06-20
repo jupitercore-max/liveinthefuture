@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Xin Fú City — 新福特別行政區</title>
@@ -20,6 +20,9 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 /* ═══ DEBUG OVERLAY ═══ */
 #debugOverlay{position:fixed;top:calc(env(safe-area-inset-top,0) + 52px);left:4px;right:60px;background:rgba(0,0,0,0.85);border:1px solid #f00;border-radius:6px;padding:4px 8px;font-size:10px;color:#f00;font-family:monospace;z-index:50;display:none;max-height:120px;overflow-y:auto;pointer-events:none;white-space:pre-wrap;word-break:break-all}
 #debugOverlay.show{display:block}
+
+/* Override firebase-shared name badge position to top-right */
+.firebase-name-badge{position:fixed !important;top:calc(env(safe-area-inset-top,0) + 4px) !important;right:100px !important;bottom:auto !important;left:auto !important;z-index:11 !important;max-width:100px !important;overflow:hidden !important;text-overflow:ellipsis !important;white-space:nowrap !important}
 
 /* ═══ TOP HUD ═══ */
 #hud{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;gap:6px;padding:4px 8px;padding-top:calc(env(safe-area-inset-top,0) + 4px);background:linear-gradient(180deg,#12121e 0%,rgba(10,10,18,0.92) 100%);border-bottom:1px solid #2a2a3a;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;min-height:48px}
@@ -283,6 +286,14 @@ const TILE = 32;
 const GRID = 30;
 const WORLD = GRID * TILE;
 // Isometric rendering constants
+// Prevent iOS Safari pinch-zoom and gesture events
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('gesturechange', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
+
+// ════════════════════════════════════════════════════════════════════
+// ISO RENDERING CONFIG
+// ════════════════════════════════════════════════════════════════════
 const ISO_TILE_W = 64;
 const ISO_TILE_H = 32;
 const ISO_HW = ISO_TILE_W / 2;
@@ -665,18 +676,22 @@ function centerCamera() {
   clampCamera();
 }
 function clampCamera() {
-  var margin = 150;
+  var margin = 200;
   var isoHalfW = GRID * ISO_HW;
   var isoFullH = GRID * ISO_TILE_H;
-  var worldScreenW = 2 * isoHalfW * zoom;
-  var worldScreenH = isoFullH * zoom;
-  // Allow panning but keep world roughly visible
-  var minCamX = -margin + isoHalfW * zoom;
-  var maxCamX = canvas.width + margin - isoHalfW * zoom;
+  var worldScreenW = 2 * isoHalfW;
+  var worldScreenH = isoFullH;
+  // Allow generous panning in all directions
+  var minCamX = canvas.width / 2 - worldScreenW * zoom * 0.5 - margin;
+  var maxCamX = canvas.width / 2 + worldScreenW * zoom * 0.5 - worldScreenW * zoom + margin;
+  // Simplify: just allow free panning within a large bounds
+  minCamX = -worldScreenW * zoom * 0.3 - margin;
+  maxCamX = worldScreenW * zoom * 0.3 + margin;
   var minCamY = HUD_H - margin;
-  var maxCamY = canvas.height - TOOLBAR_H + margin - worldScreenH;
-  if (minCamX > maxCamX) { minCamX = maxCamX = canvas.width / 2; }
-  if (minCamY > maxCamY) { minCamY = maxCamY = (HUD_H + canvas.height - TOOLBAR_H) / 2; }
+  var maxCamY = canvas.height - TOOLBAR_H + margin - worldScreenH * zoom * 0.3;
+  // Don't collapse — allow wide range
+  if (maxCamX < minCamX) maxCamX = minCamX + 100;
+  if (maxCamY < minCamY) maxCamY = minCamY + 100;
   camX = Math.max(minCamX, Math.min(camX, maxCamX));
   camY = Math.max(minCamY, Math.min(camY, maxCamY));
 }
