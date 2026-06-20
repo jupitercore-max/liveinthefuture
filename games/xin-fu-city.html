@@ -1503,7 +1503,7 @@ function safeTile(x, y) {
 
 function updateTraffic() {
   // Target: always at least 5 cars if roads exist, scale with population
-  const target = Math.min(10, Math.max(5, Math.floor(state.population / 30)));
+  const target = Math.min(20, Math.max(8, Math.floor(state.population / 20)));
   // Remove expired cars first
   for (let i = state.trafficCars.length - 1; i >= 0; i--) {
     const c = state.trafficCars[i];
@@ -1514,7 +1514,7 @@ function updateTraffic() {
     }
   }
   // Stagger spawning: only spawn 1 car per tick max, and only every few ticks
-  if (state.trafficCars.length < target && state.tick % 5 === 0) {
+  if (state.trafficCars.length < target && state.tick % 3 === 0) {
     spawnTrafficCar();
   }
   while (state.trafficCars.length > target) state.trafficCars.pop();
@@ -1537,13 +1537,13 @@ function updateTraffic() {
       const d = randomRoadDir(Math.max(0, Math.min(GRID - 1, Math.floor(car.x / TILE))), Math.max(0, Math.min(GRID - 1, Math.floor(car.y / TILE))));
       // Dead end — despawn
       if (d.x === 0 && d.y === 0) { car.age = 999; continue; }
-      car.vx = d.x * 0.6; car.vy = d.y * 0.6;
+      car.vx = d.x * 2.0; car.vy = d.y * 2.0;
     }
     // At intersections, randomly pick a new direction
     if (Math.random() < 0.03 && Number.isFinite(tx) && Number.isFinite(ty) && tx >= 0 && tx < GRID && ty >= 0 && ty < GRID) {
       const d = randomRoadDir(tx, ty);
       if (d.x === 0 && d.y === 0) { car.age = 999; continue; } // dead end
-      car.vx = d.x * 0.6; car.vy = d.y * 0.6;
+      car.vx = d.x * 2.0; car.vy = d.y * 2.0;
     }
   }
 }
@@ -1583,7 +1583,7 @@ function spawnTrafficCar() {
   if (d.x === 0 && d.y === 0) { console.log('traffic: dead end at', road.x, road.y); return false; }
   state.trafficCars.push({
     x: road.x * TILE + TILE / 2, y: road.y * TILE + TILE / 2,
-    vx: d.x * 0.6, vy: d.y * 0.6,
+    vx: d.x * 2.0, vy: d.y * 2.0,
     color: CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
     age: 0,
   });
@@ -4658,7 +4658,7 @@ try {
   buildToolbar();
   updateHUD();
   // Pre-spawn some traffic cars so roads aren't empty on first load
-  setTimeout(function() { for (var i = 0; i < 5; i++) spawnTrafficCar(); }, 2000);
+  setTimeout(function() { for (var i = 0; i < 8; i++) spawnTrafficCar(); }, 1500);
   requestAnimationFrame(gameLoop);
 } catch(err) {
   console.error('Boot error:', err);
