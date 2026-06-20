@@ -682,17 +682,21 @@ function clampCamera() {
   var isoFullH = GRID * ISO_TILE_H;
   var worldScreenW = 2 * isoHalfW;
   var worldScreenH = isoFullH;
-  // Allow generous panning in all directions
-  var minCamX = canvas.width / 2 - worldScreenW * zoom * 0.5 - margin;
-  var maxCamX = canvas.width / 2 + worldScreenW * zoom * 0.5 - worldScreenW * zoom + margin;
-  // Simplify: just allow free panning within a large bounds
-  minCamX = -worldScreenW * zoom * 0.3 - margin;
-  maxCamX = worldScreenW * zoom * 0.3 + margin;
-  var minCamY = HUD_H - margin;
-  var maxCamY = canvas.height - TOOLBAR_H + margin - worldScreenH * zoom * 0.3;
-  // Don't collapse — allow wide range
-  if (maxCamX < minCamX) maxCamX = minCamX + 100;
-  if (maxCamY < minCamY) maxCamY = minCamY + 100;
+  // World dimensions in actual screen pixels at current zoom
+  var worldW = worldScreenW * zoom;
+  var worldH = worldScreenH * zoom;
+  // Visible viewport (between HUD and toolbar)
+  var viewH = canvas.height - HUD_H - TOOLBAR_H;
+  var viewW = canvas.width;
+  // X panning: symmetric range allowing full traverse of the world
+  var minCamX = -(worldW - viewW) / 2 - margin;
+  var maxCamX = (worldW - viewW) / 2 + margin;
+  // Y panning: allow seeing from top to bottom of world
+  var minCamY = HUD_H - (worldH - viewH) / 2 - margin;
+  var maxCamY = HUD_H + (worldH - viewH) / 2 + margin;
+  // Ensure non-collapsed range
+  if (maxCamX < minCamX) { var midX = (minCamX + maxCamX) / 2; minCamX = midX - 50; maxCamX = midX + 50; }
+  if (maxCamY < minCamY) { var midY = (minCamY + maxCamY) / 2; minCamY = midY - 50; maxCamY = midY + 50; }
   camX = Math.max(minCamX, Math.min(camX, maxCamX));
   camY = Math.max(minCamY, Math.min(camY, maxCamY));
 }
