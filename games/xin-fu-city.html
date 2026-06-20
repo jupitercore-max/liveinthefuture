@@ -22,7 +22,8 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 #debugOverlay.show{display:block}
 
 /* Override firebase-shared name badge position to top-right */
-.firebase-name-badge{position:fixed !important;top:calc(env(safe-area-inset-top,0) + 4px) !important;right:100px !important;bottom:auto !important;left:auto !important;z-index:11 !important;max-width:100px !important;overflow:hidden !important;text-overflow:ellipsis !important;white-space:nowrap !important}
+.firebase-name-badge{position:fixed !important;top:calc(env(safe-area-inset-top,0) + 4px) !important;right:100px !important;bottom:auto !important;left:auto !important;z-index:11 !important;max-width:100px !important;overflow:hidden !important;text-overflow:ellipsis !important;white-space:nowrap !important;font-size:9px !important;padding:3px 8px !important;opacity:0.7 !important}
+.firebase-name-badge:hover{opacity:1 !important}
 
 /* ═══ TOP HUD ═══ */
 #hud{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;gap:6px;padding:4px 8px;padding-top:calc(env(safe-area-inset-top,0) + 4px);background:linear-gradient(180deg,#12121e 0%,rgba(10,10,18,0.92) 100%);border-bottom:1px solid #2a2a3a;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;min-height:48px}
@@ -3361,6 +3362,13 @@ async function initFirebase() {
   try {
     await FirebaseShared.init('xinfu-city', { presenceId: 'presenceBadge' });
     document.getElementById('presenceBadge').style.display = 'block';
+    // Force-move the firebase name badge to top-right (it gets injected by firebase-shared with bottom-left positioning)
+    setTimeout(() => {
+      const badge = document.querySelector('.firebase-name-badge');
+      if (badge) {
+        badge.style.cssText += ';position:fixed !important;top:calc(env(safe-area-inset-top,0) + 4px) !important;right:100px !important;bottom:auto !important;left:auto !important;z-index:11 !important;max-width:100px !important;font-size:9px !important;padding:3px 8px !important';
+      }
+    }, 100);
     if (typeof firebase !== 'undefined' && firebase.database) {
       const db = firebase.database();
       cityRef = db.ref('xinfu-city-v3/state');
