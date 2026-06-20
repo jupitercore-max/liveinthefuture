@@ -5,168 +5,149 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Xin Fú City Builder — 新福特別行政區</title>
+<title>Xin Fú City — 新福特別行政區</title>
 <style>
+/* ═══ RESET & BASE ═══ */
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
-html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#e8e8e8;touch-action:none;overscroll-behavior:none;position:fixed;inset:0}
-#gameCanvas{display:block;cursor:crosshair;image-rendering:pixelated;touch-action:none}
+html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a12;color:#e8e8e8;touch-action:none;overscroll-behavior:none;position:fixed;inset:0;user-select:none;-webkit-user-select:none}
+
+/* ═══ CANVASES ═══ */
+#gameCanvas{display:block;position:fixed;inset:0;touch-action:none;z-index:1}
 #view3d{position:fixed;inset:0;display:none;z-index:1}
 #view3d.show{display:block}
 #view3d canvas{display:block}
 
-/* ─── HUD ─── */
-#hud{position:fixed;top:0;left:0;right:0;background:linear-gradient(180deg,#111 0%,rgba(10,10,10,0.95) 100%);border-bottom:1px solid #2a2a2a;display:flex;align-items:center;justify-content:space-around;padding:0 8px;z-index:10;font-size:12px;gap:4px;padding-top:env(safe-area-inset-top,0);flex-wrap:wrap;min-height:52px}
-.stat{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0}
-.stat-label{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#666}
-.stat-val{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+/* ═══ TOP HUD ═══ */
+#hud{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;gap:6px;padding:4px 8px;padding-top:calc(env(safe-area-inset-top,0) + 4px);background:linear-gradient(180deg,#12121e 0%,rgba(10,10,18,0.92) 100%);border-bottom:1px solid #2a2a3a;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;min-height:48px}
+#hud::-webkit-scrollbar{display:none}
+.stat{display:flex;flex-direction:column;align-items:center;flex-shrink:0;min-width:0}
+.stat-label{font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:#666;white-space:nowrap}
+.stat-val{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
 .stat-val.money{color:#4ade80}
 .stat-val.pop{color:#60a5fa}
 .stat-val.happy{color:#fbbf24}
 .stat-val.happy.low{color:#ef4444}
 
-/* ─── RCI Meter ─── */
-#rciMeter{display:flex;gap:3px;align-items:flex-end;height:28px;padding:2px 4px;background:rgba(0,0,0,0.3);border-radius:6px}
+/* ═══ RCI METER ═══ */
+#rciMeter{display:flex;gap:2px;align-items:flex-end;height:28px;padding:2px 3px;background:rgba(0,0,0,0.4);border-radius:5px;flex-shrink:0}
 .rci-bar{display:flex;flex-direction:column;align-items:center;gap:1px}
-.rci-bar-fill{width:8px;border-radius:2px 2px 0 0;transition:height .3s;min-height:2px}
+.rci-bar-fill{width:7px;border-radius:2px 2px 0 0;min-height:2px;transition:height .3s}
 .rci-bar-label{font-size:7px;font-weight:700}
 .rci-r .rci-bar-fill{background:#3b82f6}
 .rci-c .rci-bar-fill{background:#f59e0b}
-.rci-i .rci-bar-fill{background:#a16207}
+.rci-i .rci-bar-fill{background:#ea580c}
 .rci-r .rci-bar-label{color:#3b82f6}
 .rci-c .rci-bar-label{color:#f59e0b}
-.rci-i .rci-bar-label{color:#a16207}
+.rci-i .rci-bar-label{color:#ea580c}
 
-/* ─── View Toggle (2D/3D) ─── */
-#viewToggle{position:fixed;top:6px;right:6px;z-index:11;width:44px;height:36px;border-radius:8px;border:1px solid #333;background:rgba(26,26,26,.95);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;cursor:pointer;transition:all .15s;user-select:none;-webkit-user-select:none;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);line-height:1.1;text-align:center}
+/* ═══ TAX SLIDER ═══ */
+#taxWrap{display:flex;flex-direction:column;align-items:center;gap:0;flex-shrink:0}
+#taxSlider{width:50px;height:14px;-webkit-appearance:none;appearance:none;background:#333;border-radius:7px;outline:none}
+#taxSlider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fbbf24;cursor:pointer}
+#taxSlider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fbbf24;cursor:pointer;border:none}
+
+/* ═══ VIEW TOGGLE ═══ */
+#viewToggle{position:fixed;top:calc(env(safe-area-inset-top,0) + 4px);right:4px;z-index:11;width:44px;height:36px;border-radius:8px;border:1px solid #333;background:rgba(18,18,30,0.95);color:#aaa;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;text-align:center;line-height:1.1;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:all .15s}
 #viewToggle:active{transform:scale(.92)}
-#viewToggle.active3d{border-color:#4a9eff;background:rgba(74,158,255,.15);color:#4a9eff}
+#viewToggle.active3d{border-color:#4a9eff;color:#4a9eff;background:rgba(74,158,255,0.12)}
 
-/* ─── Tax Slider ─── */
-#taxControl{display:flex;flex-direction:column;align-items:center;gap:1px}
-#taxSlider{width:60px;height:4px;-webkit-appearance:none;appearance:none;background:#333;border-radius:2px;outline:none}
-#taxSlider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#fbbf24;cursor:pointer}
-#taxSlider::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:#fbbf24;cursor:pointer;border:none}
+/* ═══ ZOOM CONTROLS ═══ */
+#zoomControls{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);right:4px;z-index:8;display:flex;flex-direction:column;gap:4px}
+.zoom-btn{width:40px;height:40px;border-radius:8px;border:1px solid #333;background:rgba(18,18,30,0.92);color:#ccc;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.zoom-btn:active{transform:scale(.88)}
 
-/* ─── Toolbar Categories ─── */
-#toolbarWrap{position:fixed;bottom:0;left:0;right:0;z-index:10;background:linear-gradient(0deg,#0c0c0c 0%,rgba(10,10,10,0.98) 100%);border-top:1px solid #2a2a2a;padding-bottom:env(safe-area-inset-bottom,0)}
-#categoryTabs{display:flex;gap:2px;padding:4px 4px 0;overflow-x:auto;scrollbar-width:none}
+/* ═══ BOTTOM TOOLBAR ═══ */
+#toolbarWrap{position:fixed;bottom:0;left:0;right:0;z-index:10;background:linear-gradient(0deg,#0c0c14 0%,rgba(10,10,18,0.98) 100%);border-top:1px solid #2a2a3a;padding-bottom:env(safe-area-inset-bottom,0)}
+#categoryTabs{display:flex;gap:1px;padding:4px 4px 0;overflow-x:auto;scrollbar-width:none}
 #categoryTabs::-webkit-scrollbar{display:none}
-.cat-tab{flex-shrink:0;padding:4px 10px;border-radius:6px 6px 0 0;font-size:10px;font-weight:600;color:#666;cursor:pointer;transition:all .15s;border-bottom:2px solid transparent;user-select:none;-webkit-user-select:none;white-space:nowrap}
+.cat-tab{flex-shrink:0;padding:6px 12px;border-radius:6px 6px 0 0;font-size:11px;font-weight:600;color:#666;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
 .cat-tab.active{color:#4a9eff;border-bottom-color:#4a9eff}
 .cat-tab:active{transform:scale(.95)}
 #toolbar{padding:4px 4px 6px;display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-snap-type:x proximity}
 #toolbar::-webkit-scrollbar{display:none}
-.tool{flex-shrink:0;width:60px;height:56px;border:1px solid #333;border-radius:10px;background:#1a1a1a;color:#ccc;font-size:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;transition:transform .1s,background .15s,border-color .15s;user-select:none;-webkit-user-select:none;scroll-snap-align:start}
-.tool:active{transform:scale(.92);background:#222}
-.tool.active{border-color:#4a9eff;background:rgba(74,158,255,.15);color:#fff;box-shadow:0 0 8px rgba(74,158,255,.2)}
-.tool-icon{font-size:20px;line-height:1}
-.tool-name{font-size:7px;text-align:center;line-height:1.1;max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tool-cost{font-size:7px;color:#666}
+.tool{flex-shrink:0;width:64px;height:58px;border:1px solid #333;border-radius:10px;background:#181828;color:#ccc;font-size:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;transition:transform .1s,background .15s,border-color .15s;scroll-snap-align:start;min-width:48px;min-height:48px}
+.tool:active{transform:scale(.92);background:#222238}
+.tool.active{border-color:#4a9eff;background:rgba(74,158,255,0.15);color:#fff;box-shadow:0 0 8px rgba(74,158,255,0.2)}
+.tool-icon{font-size:22px;line-height:1}
+.tool-name{font-size:7px;text-align:center;line-height:1.1;max-width:58px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tool-cost{font-size:7px;color:#555}
 .tool.active .tool-cost{color:#4a9eff}
 .tool-demand{font-size:6px;color:#22c55e;font-weight:700}
-.tool.demand-high{border-color:#22c55e;box-shadow:0 0 4px rgba(34,197,94,.3)}
 
-/* ─── Scroll indicators ─── */
-.scroll-fade{position:absolute;top:0;bottom:0;width:24px;pointer-events:none;z-index:1;display:flex;align-items:center;justify-content:center}
-.scroll-fade.left{left:0;background:linear-gradient(90deg,rgba(10,10,10,0.9),transparent)}
-.scroll-fade.right{right:0;background:linear-gradient(270deg,rgba(10,10,10,0.9),transparent)}
-.scroll-fade.hidden{display:none}
-.scroll-fade .arrow{font-size:12px;color:#555;opacity:.7}
-
-/* ─── Info Bar ─── */
-#infoBar{position:fixed;bottom:120px;left:8px;right:8px;background:rgba(10,10,10,.94);border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;font-size:12px;z-index:9;display:none;max-width:380px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+/* ═══ INFO POPUP ═══ */
+#infoBar{position:fixed;bottom:130px;left:8px;right:8px;background:rgba(12,12,20,0.96);border:1px solid #2a2a3a;border-radius:10px;padding:10px 14px;font-size:12px;z-index:9;display:none;max-width:400px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 #infoBar.show{display:block}
-#infoBar .info-title{font-weight:700;color:#fbbf24;margin-bottom:4px;font-size:14px}
-#infoBar .info-row{display:flex;justify-content:space-between;margin:2px 0;color:#aaa}
-#infoBar .info-row .val{color:#e8e8e8;font-weight:600}
-#infoBar .info-close{position:absolute;top:4px;right:8px;color:#666;font-size:16px;cursor:pointer}
+.info-title{font-weight:700;color:#fbbf24;margin-bottom:4px;font-size:14px}
+.info-row{display:flex;justify-content:space-between;margin:2px 0;color:#999}
+.info-row .val{color:#e8e8e8;font-weight:600}
+.info-close{position:absolute;top:4px;right:8px;color:#555;font-size:18px;cursor:pointer;padding:4px}
 
-/* ─── Budget Panel ─── */
-#budgetPanel{position:fixed;top:52px;left:8px;background:rgba(10,10,10,.96);border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;font-size:11px;z-index:9;display:none;min-width:200px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-#budgetPanel.show{display:block}
-#budgetPanel .bp-title{font-weight:700;color:#4ade80;margin-bottom:4px;font-size:12px}
-#budgetPanel .bp-row{display:flex;justify-content:space-between;margin:2px 0;color:#aaa}
-#budgetPanel .bp-row .val{font-weight:600}
-#budgetPanel .bp-row .val.pos{color:#4ade80}
-#budgetPanel .bp-row .val.neg{color:#ef4444}
-
-/* ─── Toast ─── */
-#toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:rgba(10,10,10,.96);border:1px solid #444;border-radius:10px;padding:8px 18px;font-size:13px;z-index:20;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:90vw;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+/* ═══ TOAST ═══ */
+#toast{position:fixed;top:56px;left:50%;transform:translateX(-50%);background:rgba(12,12,20,0.96);border:1px solid #444;border-radius:10px;padding:8px 18px;font-size:13px;z-index:20;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:90vw;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 #toast.show{opacity:1}
 
-/* ─── Minimap ─── */
-#minimap{position:fixed;top:56px;right:56px;width:80px;height:80px;border:1px solid #333;border-radius:6px;z-index:8;opacity:.88;cursor:pointer;touch-action:none}
+/* ═══ MINIMAP ═══ */
+#minimap{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);right:52px;width:72px;height:72px;border:1px solid #333;border-radius:6px;z-index:8;opacity:.85;touch-action:none}
 
-/* ─── Presence ─── */
-.presence-badge{position:fixed;top:54px;left:6px;font-size:9px;color:#888;background:rgba(10,10,10,.85);padding:3px 8px;border-radius:6px;z-index:8}
+/* ═══ PRESENCE ═══ */
+.presence-badge{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);left:4px;font-size:9px;color:#888;background:rgba(12,12,20,0.85);padding:3px 8px;border-radius:6px;z-index:8;display:none}
 .online-dot{display:inline-block;width:5px;height:5px;background:#22c55e;border-radius:50%;margin-right:3px}
 
-/* ─── Mode Toggle (Pan vs Build) ─── */
-#modeToggle{position:fixed;top:56px;right:144px;z-index:9;width:36px;height:36px;border-radius:50%;border:2px solid #333;background:rgba(26,26,26,.95);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:all .15s;user-select:none;-webkit-user-select:none;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-#modeToggle:active{transform:scale(.9)}
-#modeToggle.pan-mode{border-color:#fbbf24;background:rgba(251,191,36,.15)}
-
-/* ─── Zoom buttons ─── */
-#zoomControls{position:fixed;top:100px;right:10px;z-index:8;display:flex;flex-direction:column;gap:4px}
-.zoom-btn{width:36px;height:36px;border-radius:8px;border:1px solid #333;background:rgba(26,26,26,.92);color:#ccc;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s;user-select:none;-webkit-user-select:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
-.zoom-btn:active{transform:scale(.88)}
-
-/* ─── Budget / Sound buttons ─── */
-#extraControls{position:fixed;top:100px;left:6px;z-index:8;display:flex;flex-direction:column;gap:4px}
-.extra-btn{width:36px;height:36px;border-radius:8px;border:1px solid #333;background:rgba(26,26,26,.92);color:#ccc;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s;user-select:none;-webkit-user-select:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
-.extra-btn:active{transform:scale(.88)}
-.extra-btn.active{border-color:#4a9eff;color:#4a9eff}
-
-/* ─── Car / Driving ─── */
-#dpad{position:fixed;bottom:130px;left:12px;z-index:9;display:none;user-select:none;-webkit-user-select:none;touch-action:none}
+/* ═══ DRIVING CONTROLS ═══ */
+#dpad{position:fixed;bottom:140px;left:8px;z-index:9;display:none;touch-action:none}
 #dpad.show{display:block}
 .dpad-row{display:flex;gap:4px;justify-content:center}
-.dpad-btn{width:48px;height:48px;border-radius:12px;border:2px solid #2a4a2a;background:rgba(20,40,20,.9);color:#6bdc6b;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .08s,background .1s;user-select:none;-webkit-user-select:none;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-.dpad-btn:active,.dpad-btn.pressed{transform:scale(.88);background:rgba(40,80,40,.95);border-color:#4a9e4a}
+.dpad-btn{width:48px;height:48px;border-radius:12px;border:2px solid #2a4a2a;background:rgba(20,40,20,0.9);color:#6bdc6b;font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .08s,background .1s;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.dpad-btn:active,.dpad-btn.pressed{transform:scale(.88);background:rgba(40,80,40,0.95);border-color:#4a9e4a}
 .dpad-spacer{width:48px;height:48px}
-
-#carControls{position:fixed;bottom:130px;right:12px;z-index:9;display:none;flex-direction:column;gap:6px}
+#carControls{position:fixed;bottom:140px;right:8px;z-index:9;display:none;flex-direction:column;gap:6px}
 #carControls.show{display:flex}
-.car-btn{padding:8px 14px;border-radius:10px;border:1px solid #444;background:rgba(26,26,26,.92);color:#ccc;font-size:11px;font-weight:600;text-align:center;cursor:pointer;user-select:none;-webkit-user-select:none;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:transform .1s}
+.car-btn{padding:8px 14px;border-radius:10px;border:1px solid #444;background:rgba(18,18,30,0.92);color:#ccc;font-size:11px;font-weight:600;text-align:center;cursor:pointer;transition:transform .1s;min-height:48px;display:flex;align-items:center;justify-content:center}
 .car-btn:active{transform:scale(.92)}
 .car-btn.spawn{border-color:#22c55e;color:#22c55e}
 .car-btn.exit{border-color:#ef4444;color:#ef4444}
 
-/* ─── Notification Badge ─── */
-#notifBadge{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:#ef4444;color:#fff;font-size:9px;display:none;align-items:center;justify-content:center;font-weight:700}
-#notifBadge.show{display:flex}
+/* ═══ BUDGET BTN ═══ */
+#extraControls{position:fixed;top:calc(env(safe-area-inset-top,0) + 96px);left:4px;z-index:8;display:flex;flex-direction:column;gap:4px}
+.extra-btn{width:40px;height:40px;border-radius:8px;border:1px solid #333;background:rgba(18,18,30,0.92);color:#ccc;font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.extra-btn:active{transform:scale(.88)}
+
+/* ═══ BUDGET PANEL ═══ */
+#budgetPanel{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);left:4px;background:rgba(12,12,20,0.96);border:1px solid #2a2a3a;border-radius:10px;padding:10px 14px;font-size:11px;z-index:9;display:none;min-width:200px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#budgetPanel.show{display:block}
+.bp-title{font-weight:700;color:#4ade80;margin-bottom:4px;font-size:12px}
+.bp-row{display:flex;justify-content:space-between;margin:2px 0;color:#999}
+.bp-row .val{font-weight:600}
+.bp-row .val.pos{color:#4ade80}
+.bp-row .val.neg{color:#ef4444}
 
 @media(max-width:600px){
-  .stat-val{font-size:14px}
-  .stat-label{font-size:8px}
-  .tool{width:54px;height:52px}
-  .tool-icon{font-size:18px}
-  #hud{min-height:48px;padding-top:env(safe-area-inset-top,0)}
-  #minimap{width:64px;height:64px;top:52px;right:52px}
-  #modeToggle{top:52px;right:124px;width:32px;height:32px;font-size:14px}
-  #viewToggle{top:4px;right:4px;width:40px;height:32px;font-size:9px}
+  .stat-val{font-size:13px}
+  .stat-label{font-size:7px}
+  .tool{width:56px;height:54px}
+  .tool-icon{font-size:20px}
+  #minimap{width:60px;height:60px}
 }
 @media(max-height:500px) and (orientation:landscape){
-  #toolbar{padding:3px 4px}
-  .tool{width:48px;height:42px}
+  .tool{width:50px;height:44px}
   #hud{min-height:40px}
 }
 </style>
 </head>
 <body>
 
+<!-- ═══ TOP HUD ═══ -->
 <div id="hud">
   <div class="stat"><span class="stat-label">💰 Treasury</span><span class="stat-val money" id="moneyVal">$50,000</span></div>
-  <div class="stat"><span class="stat-label">👥 Citizens</span><span class="stat-val pop" id="popVal">0</span></div>
+  <div class="stat"><span class="stat-label">👥 Pop</span><span class="stat-val pop" id="popVal">0</span></div>
   <div class="stat"><span class="stat-label">😊 Happy</span><span class="stat-val happy" id="happyVal">75%</span></div>
   <div id="rciMeter" title="RCI Demand">
     <div class="rci-bar rci-r"><div class="rci-bar-fill" id="rciR" style="height:14px"></div><div class="rci-bar-label">R</div></div>
     <div class="rci-bar rci-c"><div class="rci-bar-fill" id="rciC" style="height:14px"></div><div class="rci-bar-label">C</div></div>
     <div class="rci-bar rci-i"><div class="rci-bar-fill" id="rciI" style="height:14px"></div><div class="rci-bar-label">I</div></div>
   </div>
-  <div id="taxControl">
-    <span class="stat-label">🏛️ Tax <span id="taxVal">5%</span></span>
+  <div id="taxWrap">
+    <span class="stat-label">Tax <span id="taxVal">5%</span></span>
     <input type="range" id="taxSlider" min="0" max="20" value="5" step="1">
   </div>
 </div>
@@ -174,18 +155,15 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 <canvas id="gameCanvas"></canvas>
 <div id="view3d"></div>
 <canvas id="minimap"></canvas>
-<div class="presence-badge" id="presenceBadge" style="display:none"><span class="online-dot"></span><span id="presenceText">just you</span></div>
+<div class="presence-badge" id="presenceBadge"><span class="online-dot"></span><span id="presenceText">just you</span></div>
 <div id="infoBar"></div>
 <div id="budgetPanel"></div>
 <div id="toast"></div>
 
-<!-- View toggle 2D/3D -->
+<!-- View toggle -->
 <div id="viewToggle">2D<br>3D</div>
 
-<!-- Mode toggle: Build vs Pan -->
-<div id="modeToggle" class="pan-mode" title="Toggle pan/build mode">🖐️</div>
-
-<!-- Zoom buttons -->
+<!-- Zoom -->
 <div id="zoomControls">
   <div class="zoom-btn" id="zoomIn">+</div>
   <div class="zoom-btn" id="zoomOut">−</div>
@@ -194,10 +172,9 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 <!-- Extra controls -->
 <div id="extraControls">
   <div class="extra-btn" id="budgetBtn" title="Budget">💰</div>
-  <div class="extra-btn" id="soundBtn" title="Sound">🔊</div>
 </div>
 
-<!-- D-Pad for driving (mobile) -->
+<!-- D-Pad -->
 <div id="dpad">
   <div class="dpad-row"><div class="dpad-btn" data-dir="up">▲</div></div>
   <div class="dpad-row">
@@ -207,139 +184,109 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
   </div>
 </div>
 
-<!-- Car spawn/exit controls -->
+<!-- Car controls -->
 <div id="carControls">
   <div class="car-btn spawn" id="spawnCarBtn">🚗 Drive!</div>
-  <div class="car-btn exit" id="exitCarBtn" style="display:none">🚪 Exit Car</div>
+  <div class="car-btn exit" id="exitCarBtn" style="display:none">🚪 Exit</div>
 </div>
 
-<!-- Toolbar with categories -->
+<!-- Toolbar -->
 <div id="toolbarWrap">
-  <div class="scroll-fade left hidden" id="scrollLeft"><span class="arrow">‹</span></div>
-  <div class="scroll-fade right" id="scrollRight"><span class="arrow">›</span></div>
   <div id="categoryTabs"></div>
   <div id="toolbar"></div>
 </div>
 
+<!-- Firebase + Three.js -->
 <script src="../firebase-shared.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 <script>
+'use strict';
+
 // ═══════════════════════════════════════════════════════════════════
-// XIN FÚ CITY BUILDER — 新福特別行政區
-// Enhanced SimCity-style city builder with 3D, RCI, power, & more
+// XIN FÚ CITY v3 — Clean Rebuild
+// 新福特別行政區 — SimCity-style builder
 // ═══════════════════════════════════════════════════════════════════
 
-const TILE = 20;
-const GRID_W = 40, GRID_H = 40;
-const WORLD_W = GRID_W * TILE, WORLD_H = GRID_H * TILE;
+// ─── Config ────────────────────────────────────────────────────────
+const TILE = 32;
+const GRID = 30;
+const WORLD = GRID * TILE;
+const TICK_MS = 2000;
+const POWER_RADIUS = 6;
+const ROAD_RADIUS = 2;
+const POLLUTION_RADIUS = 2;
 
 // ─── Tile Types ────────────────────────────────────────────────────
 const T = {
   GRASS: 0, WATER: 1, ROAD: 2,
-  RES: 3, COM: 4, IND: 5, AGRI: 6,
+  RES: 3, COM: 4, IND: 5,
+  POWER_PLANT: 6, POWER_LINE: 7,
   BLUETOOTH_TOWER: 10, THRONE_ROOM: 11, GRILL: 12,
-  GARAGE: 13, GUMMY_FACTORY: 14, HORN_TOWER: 15, SIGN: 16,
-  POWER_PLANT: 17, POWER_LINE: 18, PARK: 19,
+  GARAGE: 13, GUMMY_FACTORY: 14, HORN_TOWER: 15,
+  PEPPER_FARM: 16, SIGN: 17,
 };
 
-const TILE_DATA = {
-  [T.GRASS]:    { name:'Grass', color:'#2d5a2d', cost:0 },
-  [T.WATER]:    { name:'Water', color:'#1a3a5c', cost:0 },
-  [T.ROAD]:     { name:'Road', color:'#444', cost:50 },
-  [T.RES]:      { name:'Residential', color:'#3b82f6', cost:100 },
-  [T.COM]:      { name:'Commercial', color:'#f59e0b', cost:150 },
-  [T.IND]:      { name:'Industrial', color:'#a16207', cost:200 },
-  [T.AGRI]:     { name:'Pepper Farm', color:'#16a34a', cost:80 },
-  [T.BLUETOOTH_TOWER]: { name:'Bluetooth Tower', color:'#8b5cf6', cost:5000, special:true, landmark:true },
-  [T.THRONE_ROOM]:     { name:"Lord Bluetooth's Throne", color:'#c9a84c', cost:3000, special:true, landmark:true },
-  [T.GRILL]:           { name:'Napoleon Flex Flame Grill', color:'#ef4444', cost:1200, special:true, landmark:true },
-  [T.GARAGE]:          { name:"GLENN'S GARAGE", color:'#64748b', cost:1500, special:true, landmark:true },
-  [T.GUMMY_FACTORY]:   { name:'Smart Gummy Factory', color:'#ec4899', cost:2500, special:true, landmark:true },
-  [T.HORN_TOWER]:      { name:'AI Horn Speaker Tower', color:'#06b6d4', cost:1800, special:true, landmark:true },
-  [T.SIGN]:            { name:'Directional Sign', color:'#fbbf24', cost:10, special:true },
-  [T.POWER_PLANT]:     { name:'Power Plant', color:'#f59e0b', cost:4000, special:true, power:5000 },
-  [T.POWER_LINE]:      { name:'Power Line', color:'#6b7280', cost:30 },
-  [T.PARK]:            { name:'Park', color:'#22c55e', cost:200, special:true },
+const TD = {
+  [T.GRASS]:           { name:'Grass',           color:'#2d5a2d', cost:0 },
+  [T.WATER]:           { name:'Water',           color:'#1a3a5c', cost:0 },
+  [T.ROAD]:            { name:'Road',            color:'#3a3a3a', cost:50 },
+  [T.RES]:             { name:'Residential',     color:'#3b82f6', cost:100 },
+  [T.COM]:             { name:'Commercial',      color:'#f59e0b', cost:150 },
+  [T.IND]:             { name:'Industrial',      color:'#ea580c', cost:200 },
+  [T.POWER_PLANT]:     { name:'Power Plant',     color:'#f59e0b', cost:4000, power:true },
+  [T.POWER_LINE]:      { name:'Power Line',      color:'#6b7280', cost:30 },
+  [T.BLUETOOTH_TOWER]: { name:'Bluetooth Tower', color:'#8b5cf6', cost:5000, happy:8 },
+  [T.THRONE_ROOM]:     { name:"Lord Bluetooth's Throne", color:'#d4af37', cost:3000, happy:6 },
+  [T.GRILL]:           { name:'Napoleon Flex Flame Grill', color:'#ef4444', cost:1200, income:30 },
+  [T.GARAGE]:          { name:"Glenn's Garage",  color:'#64748b', cost:1500, income:35, jobs:20 },
+  [T.GUMMY_FACTORY]:   { name:'Smart Gummy Factory', color:'#ec4899', cost:2500, income:60, jobs:30, pollute:true },
+  [T.HORN_TOWER]:      { name:'AI Horn Speaker Tower', color:'#06b6d4', cost:1800, happy:4 },
+  [T.PEPPER_FARM]:     { name:'Pepper Farm',     color:'#16a34a', cost:80, income:10 },
+  [T.SIGN]:            { name:'Road Sign',       color:'#fbbf24', cost:10 },
 };
 
-// ─── Tool Categories ───────────────────────────────────────────────
-const CATEGORIES = [
+// ─── Categories & Tools ────────────────────────────────────────────
+const CATS = [
   { id:'zones', icon:'🏘️', name:'Zones' },
-  { id:'roads', icon:'🛣️', name:'Infra' },
-  { id:'landmarks', icon:'🏛️', name:'Special' },
+  { id:'build', icon:'🛠️', name:'Build' },
+  { id:'special', icon:'⭐', name:'Special' },
   { id:'tools', icon:'🔧', name:'Tools' },
 ];
 
 const TOOLS = [
-  // Zones
-  { id:'inspect', icon:'🔍', name:'Inspect', cost:0, cat:'tools' },
-  { id:'road', icon:'🛣️', name:'Road', tile:T.ROAD, cost:50, cat:'roads' },
-  { id:'res', icon:'🏠', name:'Residential', tile:T.RES, cost:100, cat:'zones', rci:'r' },
-  { id:'com', icon:'🏪', name:'Commercial', tile:T.COM, cost:150, cat:'zones', rci:'c' },
-  { id:'ind', icon:'🏭', name:'Industrial', tile:T.IND, cost:200, cat:'zones', rci:'i' },
-  { id:'agri', icon:'🌶️', name:'Pepper Farm', tile:T.AGRI, cost:80, cat:'zones' },
-  // Infrastructure
-  { id:'power_line', icon:'🔌', name:'Power Line', tile:T.POWER_LINE, cost:30, cat:'roads' },
-  { id:'power_plant', icon:'⚡', name:'Power Plant', tile:T.POWER_PLANT, cost:4000, cat:'roads' },
-  { id:'park', icon:'🌳', name:'Park', tile:T.PARK, cost:200, cat:'roads' },
-  // Landmarks
-  { id:'bluetooth', icon:'📡', name:'BT Tower', tile:T.BLUETOOTH_TOWER, cost:5000, cat:'landmarks' },
-  { id:'throne', icon:'👑', name:'Throne', tile:T.THRONE_ROOM, cost:3000, cat:'landmarks' },
-  { id:'grill', icon:'🔥', name:'Grill', tile:T.GRILL, cost:1200, cat:'landmarks' },
-  { id:'garage', icon:'🔧', name:'Garage', tile:T.GARAGE, cost:1500, cat:'landmarks' },
-  { id:'gummy', icon:'🐻', name:'Gummy', tile:T.GUMMY_FACTORY, cost:2500, cat:'landmarks' },
-  { id:'horn', icon:'📢', name:'Horn', tile:T.HORN_TOWER, cost:1800, cat:'landmarks' },
-  { id:'sign', icon:'🪧', name:'Sign', tile:T.SIGN, cost:10, cat:'landmarks' },
-  // Tools
-  { id:'bulldoze', icon:'💥', name:'Bulldoze', cost:0, cat:'tools' },
-  { id:'drive', icon:'🚗', name:'Drive', cost:0, cat:'tools' },
+  { id:'res',       icon:'🏠', name:'Residential', tile:T.RES,           cost:100,  cat:'zones' },
+  { id:'com',       icon:'🏪', name:'Commercial',  tile:T.COM,           cost:150,  cat:'zones' },
+  { id:'ind',       icon:'🏭', name:'Industrial',  tile:T.IND,           cost:200,  cat:'zones' },
+  { id:'pepper',    icon:'🌶️', name:'Pepper Farm', tile:T.PEPPER_FARM,  cost:80,   cat:'zones' },
+  { id:'road',      icon:'🛣️', name:'Road',        tile:T.ROAD,          cost:50,   cat:'build' },
+  { id:'power',     icon:'⚡', name:'Power Plant', tile:T.POWER_PLANT,   cost:4000, cat:'build' },
+  { id:'pline',     icon:'🔌', name:'Power Line',  tile:T.POWER_LINE,    cost:30,   cat:'build' },
+  { id:'bt_tower',  icon:'📡', name:'BT Tower',    tile:T.BLUETOOTH_TOWER,cost:5000,cat:'special' },
+  { id:'throne',    icon:'👑', name:'Throne Room', tile:T.THRONE_ROOM,   cost:3000, cat:'special' },
+  { id:'grill',     icon:'🔥', name:'Grill',       tile:T.GRILL,         cost:1200, cat:'special' },
+  { id:'garage',    icon:'🔧', name:"Glenn's Garage",tile:T.GARAGE,     cost:1500, cat:'special' },
+  { id:'gummy',     icon:'🐻', name:'Gummy Factory',tile:T.GUMMY_FACTORY,cost:2500, cat:'special' },
+  { id:'horn',      icon:'📢', name:'Horn Tower',  tile:T.HORN_TOWER,    cost:1800, cat:'special' },
+  { id:'sign',      icon:'🪧', name:'Road Sign',   tile:T.SIGN,          cost:10,   cat:'special' },
+  { id:'inspect',   icon:'🔍', name:'Inspect',     cost:0,               cat:'tools' },
+  { id:'bulldoze',  icon:'💥', name:'Bulldoze',    cost:0,               cat:'tools' },
+  { id:'drive',     icon:'🚗', name:'Drive',       cost:0,               cat:'tools' },
 ];
 
 // ─── Road Signs ────────────────────────────────────────────────────
-const ROAD_SIGNS = [
-  { text:'Livermore — 45 mi ←', dir:'left' },
-  { text:'Las Vegas — 540 mi →', dir:'right', sub:"Lord Bluetooth's Territory" },
-  { text:'Menlo Park — 1215 Chrysler Dr →', dir:'right', sub:"Glenn's Garage HQ" },
-  { text:'Tokyo — 5,128 mi →', dir:'right' },
-  { text:'Copenhagen — 5,431 mi →', dir:'right' },
-  { text:'Xin Fú Downtown — ↑', dir:'up' },
+const SIGNS = [
+  { text:'← Livermore 45 mi' },
+  { text:'→ Las Vegas 540 mi', sub:"Lord Bluetooth's Territory" },
+  { text:"→ 1215 Chrysler Dr, Menlo Park", sub:"Glenn's Garage HQ" },
+  { text:'→ Tokyo 5,128 mi' },
+  { text:'→ Copenhagen 5,431 mi' },
+  { text:'↑ Xin Fú Downtown' },
 ];
 
-// ─── Canvas Setup ──────────────────────────────────────────────────
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const minimap = document.getElementById('minimap');
-const mctx = minimap.getContext('2d');
-minimap.width = 80; minimap.height = 80;
-
-let camX = 0, camY = 0;
-let zoom = 1;
-let dragStart = null;
-let isDragging = false;
-let currentCategory = 'zones';
-
-// ─── Responsive Canvas ─────────────────────────────────────────────
-const HUD_H = 52;
-const TOOLBAR_H = 90;
-
-function resizeCanvas() {
-  const w = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  canvas.width = w;
-  canvas.height = h;
-  canvas.style.width = w + 'px';
-  canvas.style.height = h + 'px';
-  try { if (View3D.initialized) View3D.onResize(); } catch(e) {}
-}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', resizeCanvas);
-  window.visualViewport.addEventListener('scroll', resizeCanvas);
-}
-
-// ─── Game State ────────────────────────────────────────────────────
-let state = {
+// ═══════════════════════════════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════════════════════════════
+const state = {
   grid: [],
   money: 50000,
   population: 0,
@@ -347,138 +294,29 @@ let state = {
   income: 0,
   expenses: 0,
   tick: 0,
-  buildCount: {},
   taxRate: 5,
-  rciDemand: { r: 50, c: 50, i: 50 },
-  powered: true,
+  rci: { r: 50, c: 50, i: 50 },
   pollution: [],
+  poweredTiles: new Set(),
   trafficCars: [],
 };
 
-let activeTool = 'inspect';
-
-// ─── Interaction Mode ──────────────────────────────────────────────
-let interactionMode = 'pan';
-const modeToggle = document.getElementById('modeToggle');
-modeToggle.addEventListener('pointerdown', e => {
-  e.preventDefault(); e.stopPropagation();
-  if (interactionMode === 'pan') {
-    interactionMode = 'build';
-    modeToggle.textContent = '🏗️';
-    modeToggle.classList.remove('pan-mode');
-  } else {
-    interactionMode = 'pan';
-    modeToggle.textContent = '🖐️';
-    modeToggle.classList.add('pan-mode');
-  }
-  haptic(8);
-});
-
-// ─── View Toggle (2D/3D) ───────────────────────────────────────────
+let activeTool = 'res';
+let currentCat = 'zones';
 let view3DMode = false;
-const viewToggle = document.getElementById('viewToggle');
-viewToggle.addEventListener('pointerdown', e => {
-  e.preventDefault(); e.stopPropagation();
-  view3DMode = !view3DMode;
-  if (view3DMode) {
-    viewToggle.classList.add('active3d');
-    viewToggle.innerHTML = '3D<br>ON';
-    canvas.style.display = 'none';
-    document.getElementById('view3d').classList.add('show');
-    if (!View3D.initialized) View3D.init();
-    View3D.buildAll();
-    View3D.onResize();
-    toast('🌐 3D mode! Drag to rotate, pinch to zoom.');
-  } else {
-    viewToggle.classList.remove('active3d');
-    viewToggle.innerHTML = '2D<br>3D';
-    canvas.style.display = 'block';
-    document.getElementById('view3d').classList.remove('show');
-  }
-  haptic(10);
-});
-
-// ─── Zoom buttons ──────────────────────────────────────────────────
-document.getElementById('zoomIn').addEventListener('pointerdown', e => {
-  e.preventDefault();
-  if (view3DMode) { View3D.zoom(0.85); return; }
-  zoom = Math.min(3, zoom * 1.2); clampCamera(); haptic(8);
-});
-document.getElementById('zoomOut').addEventListener('pointerdown', e => {
-  e.preventDefault();
-  if (view3DMode) { View3D.zoom(1.15); return; }
-  zoom = Math.max(0.5, zoom / 1.2); clampCamera(); haptic(8);
-});
-
-// ─── Budget panel toggle ───────────────────────────────────────────
-document.getElementById('budgetBtn').addEventListener('pointerdown', e => {
-  e.preventDefault(); e.stopPropagation();
-  document.getElementById('budgetPanel').classList.toggle('show');
-  haptic(8);
-});
-
-// ─── Sound toggle ──────────────────────────────────────────────────
-let soundEnabled = true;
-const soundBtn = document.getElementById('soundBtn');
-soundBtn.classList.add('active');
-soundBtn.addEventListener('pointerdown', e => {
-  e.preventDefault(); e.stopPropagation();
-  soundEnabled = !soundEnabled;
-  soundBtn.classList.toggle('active', soundEnabled);
-  soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
-  haptic(8);
-});
-
-// ─── Tax slider ────────────────────────────────────────────────────
-const taxSlider = document.getElementById('taxSlider');
-taxSlider.addEventListener('input', e => {
-  state.taxRate = parseInt(e.target.value);
-  document.getElementById('taxVal').textContent = state.taxRate + '%';
-  scheduleSave();
-});
-
-// ─── Sound System ──────────────────────────────────────────────────
-let audioCtx = null;
-function getAudioCtx() {
-  if (!audioCtx) {
-    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
-  }
-  return audioCtx;
-}
-function playSound(freq, duration, type) {
-  if (!soundEnabled) return;
-  const ac = getAudioCtx();
-  if (!ac) return;
-  if (ac.state === 'suspended') ac.resume();
-  const osc = ac.createOscillator();
-  const gain = ac.createGain();
-  osc.connect(gain);
-  gain.connect(ac.destination);
-  osc.type = type || 'sine';
-  osc.frequency.value = freq;
-  gain.gain.setValueAtTime(0.08, ac.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + (duration || 0.1));
-  osc.start(ac.currentTime);
-  osc.stop(ac.currentTime + (duration || 0.1));
-}
-function sndPlace() { playSound(440, 0.08, 'square'); setTimeout(() => playSound(660, 0.06, 'square'), 40); }
-function sndBulldoze() { playSound(150, 0.15, 'sawtooth'); }
-function sndError() { playSound(200, 0.12, 'square'); }
-function sndTick() { playSound(800, 0.03, 'sine'); }
-
-// ─── Haptic feedback ───────────────────────────────────────────────
-function haptic(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
 
 // ─── Init Grid ─────────────────────────────────────────────────────
 function initGrid() {
   state.grid = [];
   state.pollution = [];
-  for (let y = 0; y < GRID_H; y++) {
+  for (let y = 0; y < GRID; y++) {
     const row = [], pRow = [];
-    for (let x = 0; x < GRID_W; x++) {
+    for (let x = 0; x < GRID; x++) {
       let tile = T.GRASS;
-      if ((x < 4 && y < 4) || (x > 35 && y > 35)) tile = T.WATER;
-      if (x >= 8 && x <= 10 && y >= 30 && y <= 33) tile = T.WATER;
+      // Water features
+      if (x < 3 && y < 3) tile = T.WATER;
+      if (x > GRID - 4 && y > GRID - 4) tile = T.WATER;
+      if (x >= 6 && x <= 8 && y >= 22 && y <= 25) tile = T.WATER;
       row.push({ type: tile, level: 0, data: {} });
       pRow.push(0);
     }
@@ -486,354 +324,352 @@ function initGrid() {
     state.pollution.push(pRow);
   }
 
-  // Pre-place landmarks
-  state.grid[20][20] = { type: T.BLUETOOTH_TOWER, level: 1, data: {} };
-  state.grid[18][22] = { type: T.THRONE_ROOM, level: 1, data: {} };
-  state.grid[22][18] = { type: T.GRILL, level: 1, data: {} };
-  state.grid[26][28] = { type: T.GARAGE, level: 1, data: {} };
-  state.grid[28][26] = { type: T.GUMMY_FACTORY, level: 1, data: {} };
-  state.grid[15][25] = { type: T.HORN_TOWER, level: 1, data: {} };
-  state.grid[24][14] = { type: T.AGRI, level: 1, data: {} };
-  state.grid[25][14] = { type: T.AGRI, level: 1, data: {} };
-  state.grid[24][15] = { type: T.AGRI, level: 1, data: {} };
-  state.grid[25][15] = { type: T.AGRI, level: 1, data: {} };
+  // Pre-place landmarks at city center area
+  const cx = 15, cy = 15;
+  state.grid[cy][cx] = mkTile(T.BLUETOOTH_TOWER, 1);
+  state.grid[cy - 2][cx + 2] = mkTile(T.THRONE_ROOM, 1);
+  state.grid[cy + 2][cx - 2] = mkTile(T.GRILL, 1);
+  state.grid[cy + 5][cx + 5] = mkTile(T.GARAGE, 1);
+  state.grid[cy + 5][cx + 3] = mkTile(T.GUMMY_FACTORY, 1);
+  state.grid[cy - 4][cx + 4] = mkTile(T.HORN_TOWER, 1);
 
-  // Roads
-  for (let x = 16; x <= 30; x++) state.grid[20][x] = { type: T.ROAD, level: 1, data: {} };
-  for (let y = 15; y <= 28; y++) state.grid[y][20] = { type: T.ROAD, level: 1, data: {} };
-  for (let y = 18; y <= 22; y++) state.grid[y][22] = { type: T.ROAD, level: 1, data: {} };
-  for (let x = 22; x <= 28; x++) state.grid[26][x] = { type: T.ROAD, level: 1, data: {} };
-  for (let x = 14; x <= 20; x++) state.grid[24][x] = { type: T.ROAD, level: 1, data: {} };
+  // Pepper farm cluster
+  for (let dy = 0; dy < 2; dy++)
+    for (let dx = 0; dx < 2; dx++) {
+      state.grid[cy + 6 + dy][cx - 6 + dx] = mkTile(T.PEPPER_FARM, 1);
+    }
 
-  // Zones
-  for (let y of [18,19]) for (let x of [17,18,19]) state.grid[y][x] = { type: T.RES, level: 1, data:{} };
-  for (let y of [21,22]) for (let x of [21,22,23]) state.grid[y][x] = { type: T.COM, level: 1, data:{} };
-  for (let y of [27,28]) for (let x of [27,29]) state.grid[y][x] = { type: T.IND, level: 1, data:{} };
+  // Roads — main cross
+  for (let x = cx - 6; x <= cx + 6; x++) state.grid[cy][x] = mkTile(T.ROAD, 1);
+  for (let y = cy - 5; y <= cy + 7; y++) state.grid[y][cx] = mkTile(T.ROAD, 1);
+  for (let y = cy - 1; y <= cy + 3; y++) state.grid[y][cx + 2] = mkTile(T.ROAD, 1);
+  for (let x = cx + 2; x <= cx + 6; x++) state.grid[cy + 5][x] = mkTile(T.ROAD, 1);
+  for (let x = cx - 6; x <= cx; x++) state.grid[cy + 6][x] = mkTile(T.ROAD, 1);
+
+  // Starter zones
+  for (let dy = 0; dy < 2; dy++)
+    for (let dx = 0; dx < 3; dx++)
+      state.grid[cy - 2 + dy][cx - 5 + dx] = mkTile(T.RES, 1);
+  for (let dy = 0; dy < 2; dy++)
+    for (let dx = 0; dx < 2; dx++)
+      state.grid[cy + 1 + dy][cx + 3 + dx] = mkTile(T.COM, 1);
+  for (let dy = 0; dy < 2; dy++)
+    for (let dx = 0; dx < 2; dx++)
+      state.grid[cy + 7 + dy][cx + 4 + dx] = mkTile(T.IND, 1);
 
   // Power plant
-  state.grid[14][14] = { type: T.POWER_PLANT, level: 1, data: {} };
-  // Power lines connecting plant to city
-  for (let x = 15; x <= 19; x++) {
-    if (state.grid[14][x].type === T.GRASS) state.grid[14][x] = { type: T.POWER_LINE, level: 1, data: {} };
-  }
+  state.grid[cy - 6][cx - 6] = mkTile(T.POWER_PLANT, 1);
 
-  // Park
-  state.grid[16][16] = { type: T.PARK, level: 1, data: {} };
-
-  // Signs
+  // Road signs at edges
   const signPositions = [
-    { x: 12, y: 20, signIdx: 0 },
-    { x: 31, y: 20, signIdx: 1 },
-    { x: 20, y: 12, signIdx: 2 },
-    { x: 33, y: 15, signIdx: 3 },
-    { x: 6, y: 10, signIdx: 4 },
-    { x: 20, y: 16, signIdx: 5 },
+    { x: 1, y: cy, idx: 0 },
+    { x: GRID - 2, y: cy, idx: 1 },
+    { x: cx + 8, y: 1, idx: 2 },
+    { x: GRID - 2, y: 3, idx: 3 },
+    { x: 1, y: 3, idx: 4 },
+    { x: cx, y: cy - 7, idx: 5 },
   ];
   signPositions.forEach(s => {
-    state.grid[s.y][s.x] = { type: T.SIGN, level: 1, data: { signIdx: s.signIdx } };
+    if (s.x < GRID && s.y < GRID && state.grid[s.y][s.x].type === T.GRASS)
+      state.grid[s.y][s.x] = { type: T.SIGN, level: 1, data: { signIdx: s.idx } };
   });
 }
 
-// ─── Camera Controls ───────────────────────────────────────────────
-function getCanvasOffsetY() { return HUD_H; }
+function mkTile(type, level) { return { type, level: level || 0, data: {} }; }
+
+// ═══════════════════════════════════════════════════════════════════
+// CANVAS SETUP
+// ═══════════════════════════════════════════════════════════════════
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const minimap = document.getElementById('minimap');
+const mctx = minimap.getContext('2d');
+minimap.width = 72; minimap.height = 72;
+
+let camX = 0, camY = 0, zoom = 1;
+const HUD_H = 48;
+const TOOLBAR_H = 96;
+
+function resizeCanvas() {
+  const w = window.innerWidth, h = window.innerHeight;
+  canvas.width = w; canvas.height = h;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  try { if (V3.initialized) V3.onResize(); } catch(e) {}
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', resizeCanvas);
+}
+
+function centerCamera() {
+  camX = (canvas.width - WORLD * zoom) / 2;
+  camY = HUD_H + (canvas.height - HUD_H - TOOLBAR_H - WORLD * zoom) / 2;
+  clampCamera();
+}
+
+function clampCamera() {
+  const margin = 100;
+  camX = Math.max(Math.min(camX, margin), canvas.width - WORLD * zoom - margin);
+  camY = Math.max(HUD_H - margin, Math.min(camY, canvas.height - TOOLBAR_H - WORLD * zoom + margin));
+}
 
 function screenToWorld(sx, sy) {
-  return { x: (sx - camX) / zoom, y: (sy - camY - getCanvasOffsetY()) / zoom };
+  return { x: (sx - camX) / zoom, y: (sy - camY) / zoom };
 }
 function worldToTile(wx, wy) {
   return { x: Math.floor(wx / TILE), y: Math.floor(wy / TILE) };
 }
-function centerCamera() {
-  camX = (canvas.width - WORLD_W * zoom) / 2;
-  camY = (canvas.height - getCanvasOffsetY() - TOOLBAR_H - WORLD_H * zoom) / 2;
-  clampCamera();
-}
-function clampCamera() {
-  camX = Math.max(Math.min(camX, 0), canvas.width - WORLD_W * zoom);
-  camY = Math.max(Math.min(camY, getCanvasOffsetY()), Math.min(canvas.height - TOOLBAR_H - WORLD_H * zoom, getCanvasOffsetY()));
-}
 
-// ─── Touch/Mouse — Unified Pointer Events ──────────────────────────
-let pointers = new Map();
+// ═══════════════════════════════════════════════════════════════════
+// POINTER CONTROLS (tap vs drag)
+// ═══════════════════════════════════════════════════════════════════
+const pointers = new Map();
+let dragInfo = null;
 let lastPinchDist = 0;
-let pinchCenter = null;
-const DRAG_THRESHOLD = 8;
-const TAP_THRESHOLD = 6;
+const TAP_THRESHOLD = 8;
 
 canvas.addEventListener('pointerdown', e => {
   e.preventDefault();
   canvas.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY });
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
   if (pointers.size === 1) {
-    dragStart = { x: e.clientX, y: e.clientY, camX, camY, moved: false, pointerId: e.pointerId };
+    dragInfo = { x: e.clientX, y: e.clientY, camX, camY, moved: false };
   } else if (pointers.size === 2) {
     const pts = [...pointers.values()];
     lastPinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-    pinchCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
-    if (dragStart) dragStart.moved = true;
+    if (dragInfo) dragInfo.moved = true;
   }
 });
 
 canvas.addEventListener('pointermove', e => {
-  if (pointers.has(e.pointerId)) {
-    pointers.set(e.pointerId, { ...pointers.get(e.pointerId), x: e.clientX, y: e.clientY });
-  }
+  if (pointers.has(e.pointerId))
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: pointers.get(e.pointerId).sx, sy: pointers.get(e.pointerId).sy });
+
+  // Pinch zoom
   if (pointers.size === 2) {
     const pts = [...pointers.values()];
     const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-    const newCenter = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
     if (lastPinchDist > 0) {
       const scale = dist / lastPinchDist;
-      const oldZoom = zoom;
-      zoom = Math.max(0.5, Math.min(3, zoom * scale));
-      const wx = (newCenter.x - camX) / oldZoom;
-      const wy = (newCenter.y - camY - getCanvasOffsetY()) / oldZoom;
-      camX = newCenter.x - wx * zoom;
-      camY = newCenter.y - wy * zoom - getCanvasOffsetY();
+      zoom = Math.max(0.4, Math.min(3, zoom * scale));
       clampCamera();
     }
     lastPinchDist = dist;
-    pinchCenter = newCenter;
-    if (dragStart) dragStart.moved = true;
+    if (dragInfo) dragInfo.moved = true;
     return;
   }
-  if (dragStart && pointers.size === 1) {
-    const dx = e.clientX - dragStart.x;
-    const dy = e.clientY - dragStart.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist > DRAG_THRESHOLD) {
-      dragStart.moved = true;
-      isDragging = true;
-      camX = dragStart.camX + dx;
-      camY = dragStart.camY + dy;
+
+  // Single pointer drag
+  if (dragInfo && pointers.size === 1) {
+    const dx = e.clientX - dragInfo.x;
+    const dy = e.clientY - dragInfo.y;
+    if (Math.hypot(dx, dy) > TAP_THRESHOLD) {
+      dragInfo.moved = true;
+      camX = dragInfo.camX + dx;
+      camY = dragInfo.camY + dy;
       clampCamera();
-      if (interactionMode === 'build' && activeTool !== 'inspect' && activeTool !== 'bulldoze' && activeTool !== 'drive') {
-        const tool = TOOLS.find(t => t.id === activeTool);
-        if (tool && !TILE_DATA[tool.tile]?.special) {
-          const tx = worldToTile(screenToWorld(e.clientX, e.clientY));
-          handleBuild(tx.x, tx.y);
-        }
-      }
-      if (activeTool === 'bulldoze') {
-        const tx = worldToTile(screenToWorld(e.clientX, e.clientY));
-        handleBulldoze(tx.x, tx.y);
+      // Drag-build for zones and roads
+      if (activeTool !== 'inspect' && activeTool !== 'drive') {
+        const t = worldToTile(screenToWorld(e.clientX, e.clientY));
+        if (activeTool === 'bulldoze') doBulldoze(t.x, t.y);
+        else doBuild(t.x, t.y);
       }
     }
   }
 });
 
 canvas.addEventListener('pointerup', e => {
-  const wasSinglePointer = pointers.size === 1;
-  const ptrInfo = pointers.get(e.pointerId);
+  const info = pointers.get(e.pointerId);
   pointers.delete(e.pointerId);
-  if (pointers.size < 2) { lastPinchDist = 0; pinchCenter = null; }
-  if (wasSinglePointer && dragStart && !dragStart.moved) {
-    const totalMove = ptrInfo ? Math.hypot(e.clientX - ptrInfo.startX, e.clientY - ptrInfo.startY) : 0;
-    if (totalMove < TAP_THRESHOLD) {
-      const tx = worldToTile(screenToWorld(e.clientX, e.clientY));
-      if (activeTool === 'drive') {} 
-      else if (interactionMode === 'build') {
-        if (activeTool === 'inspect') showTileInfo(tx.x, tx.y);
-        else { handleBuild(tx.x, tx.y); haptic(10); }
-      } else {
-        document.getElementById('infoBar').classList.remove('show');
-      }
+  if (pointers.size < 2) lastPinchDist = 0;
+  // Tap detection
+  if (info && dragInfo && !dragInfo.moved && pointers.size === 0) {
+    const move = Math.hypot(e.clientX - info.sx, e.clientY - info.sy);
+    if (move < TAP_THRESHOLD) {
+      const t = worldToTile(screenToWorld(e.clientX, e.clientY));
+      handleTap(t.x, t.y);
     }
   }
-  if (pointers.size === 0) { dragStart = null; setTimeout(() => { isDragging = false; }, 50); }
+  if (pointers.size === 0) dragInfo = null;
 });
 
-canvas.addEventListener('pointercancel', e => {
-  pointers.delete(e.pointerId);
-  if (pointers.size === 0) { dragStart = null; isDragging = false; }
-  if (pointers.size < 2) lastPinchDist = 0;
+canvas.addEventListener('pointercancel', () => {
+  pointers.clear(); dragInfo = null; lastPinchDist = 0;
 });
+
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
-  const delta = e.deltaY > 0 ? 0.9 : 1.1;
-  const newZoom = Math.max(0.5, Math.min(3, zoom * delta));
-  const wx = (e.clientX - camX) / zoom;
-  const wy = (e.clientY - camY - getCanvasOffsetY()) / zoom;
-  zoom = newZoom;
-  camX = e.clientX - wx * zoom;
-  camY = e.clientY - wy * zoom - getCanvasOffsetY();
+  const factor = e.deltaY > 0 ? 0.9 : 1.1;
+  zoom = Math.max(0.4, Math.min(3, zoom * factor));
   clampCamera();
 }, { passive: false });
 
-// ─── Building Logic ────────────────────────────────────────────────
-function handleBuild(tx, ty) {
-  if (tx < 0 || tx >= GRID_W || ty < 0 || ty >= GRID_H) return;
-  const tile = state.grid[ty][tx];
+function handleTap(tx, ty) {
+  if (tx < 0 || tx >= GRID || ty < 0 || ty >= GRID) return;
+  if (activeTool === 'inspect') { showInfo(tx, ty); return; }
+  if (activeTool === 'drive') return;
+  if (activeTool === 'bulldoze') { doBulldoze(tx, ty); return; }
+  doBuild(tx, ty);
+  haptic(10);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BUILDING LOGIC
+// ═══════════════════════════════════════════════════════════════════
+function doBuild(tx, ty) {
+  if (tx < 0 || tx >= GRID || ty < 0 || ty >= GRID) return;
   const tool = TOOLS.find(t => t.id === activeTool);
-  if (!tool) return;
-  if (activeTool === 'bulldoze') { handleBulldoze(tx, ty); return; }
-  const data = TILE_DATA[tool.tile];
+  if (!tool || !tool.tile) return;
+  const tile = state.grid[ty][tx];
+  const data = TD[tool.tile];
   if (!data) return;
-  if (tile.type === T.WATER) { toast('Cannot build on water!'); sndError(); return; }
-  if (tile.type !== T.GRASS && tile.type !== T.ROAD) { toast('Tile occupied! Bulldoze first.'); sndError(); return; }
-  if (data.special && tile.type !== T.GRASS) { toast('Clear the tile first!'); sndError(); return; }
-  if (state.money < data.cost) { toast('Not enough funds!'); sndError(); return; }
-  if (tile.type === tool.tile) return;
+  if (tile.type === T.WATER) { toast('Cannot build on water!'); return; }
+  if (tile.type !== T.GRASS && tile.type !== T.ROAD) { toast('Tile occupied! Bulldoze first.'); return; }
+  if (state.money < data.cost) { toast('Not enough funds!'); return; }
 
   state.money -= data.cost;
-  state.grid[ty][tx] = { type: tool.tile, level: 1, data: {} };
-  state.buildCount[tool.tile] = (state.buildCount[tool.tile] || 0) + 1;
+  state.grid[ty][tx] = mkTile(tool.tile, 1);
+  if (tool.tile === T.SIGN) state.grid[ty][tx].data = { signIdx: Math.floor(Math.random() * SIGNS.length) };
   sndPlace();
   updateHUD();
-  if (view3DMode) View3D.updateTile(tx, ty);
+  if (view3DMode) V3.updateTile(tx, ty);
   scheduleSave();
 }
 
-function handleBulldoze(tx, ty) {
-  if (tx < 0 || tx >= GRID_W || ty < 0 || ty >= GRID_H) return;
+function doBulldoze(tx, ty) {
+  if (tx < 0 || tx >= GRID || ty < 0 || ty >= GRID) return;
   const tile = state.grid[ty][tx];
   if (tile.type === T.GRASS || tile.type === T.WATER) return;
-  const data = TILE_DATA[tile.type];
+  const data = TD[tile.type];
   const refund = data ? Math.floor(data.cost * 0.25) : 0;
   state.money += refund;
-  state.grid[ty][tx] = { type: T.GRASS, level: 0, data: {} };
+  state.grid[ty][tx] = mkTile(T.GRASS, 0);
   sndBulldoze();
   updateHUD();
-  if (view3DMode) View3D.updateTile(tx, ty);
+  if (view3DMode) V3.updateTile(tx, ty);
   scheduleSave();
 }
 
-// ─── Tile Info (enhanced) ─────────────────────────────────────────
-function showTileInfo(tx, ty) {
-  const infoBar = document.getElementById('infoBar');
-  if (tx < 0 || tx >= GRID_W || ty < 0 || ty >= GRID_H) { infoBar.classList.remove('show'); return; }
-  const tile = state.grid[ty][tx];
-  const data = TILE_DATA[tile.type];
-  if (!data) { infoBar.classList.remove('show'); return; }
-
-  let html = `<span class="info-close" onclick="document.getElementById('infoBar').classList.remove('show')">×</span>`;
-  html += `<div class="info-title">${data.name}</div>`;
-  html += `<div class="info-row"><span>📍 Location</span><span class="val">(${tx}, ${ty})</span></div>`;
-
-  if (tile.type === T.SIGN && tile.data.signIdx != null) {
-    const sign = ROAD_SIGNS[tile.data.signIdx];
-    if (sign) html += `<div style="color:#fbbf24;margin-top:4px;font-size:11px">${sign.text}</div>`;
-  }
-  if (tile.type === T.RES) {
-    html += `<div class="info-row"><span>👥 Residents</span><span class="val">${getResPop(tile)}</span></div>`;
-    html += `<div class="info-row"><span>📊 Level</span><span class="val">${tile.level}/3</span></div>`;
-    html += `<div class="info-row"><span>⚡ Power</span><span class="val">${hasPower(tx,ty)?'✅ On':'❌ Off'}</span></div>`;
-    html += `<div class="info-row"><span>🛣️ Road Access</span><span class="val">${hasRoadAdjacent(tx,ty)?'✅':'❌'}</span></div>`;
-  }
-  if (tile.type === T.COM) {
-    html += `<div class="info-row"><span>💰 Income</span><span class="val">$${getComIncome(tile)}/cycle</span></div>`;
-    html += `<div class="info-row"><span>👥 Jobs</span><span class="val">${tile.level * 8}</span></div>`;
-    html += `<div class="info-row"><span>⚡ Power</span><span class="val">${hasPower(tx,ty)?'✅':'❌'}</span></div>`;
-  }
-  if (tile.type === T.IND) {
-    html += `<div class="info-row"><span>💰 Income</span><span class="val">$${getIndIncome(tile)}/cycle</span></div>`;
-    html += `<div class="info-row"><span>👥 Jobs</span><span class="val">${tile.level * 12}</span></div>`;
-    html += `<div class="info-row"><span>☁️ Pollution</span><span class="val">${getPollution(tx,ty)}</span></div>`;
-    html += `<div class="info-row"><span>⚡ Power</span><span class="val">${hasPower(tx,ty)?'✅':'❌'}</span></div>`;
-  }
-  if (tile.type === T.AGRI) {
-    html += `<div class="info-row"><span>💰 Income</span><span class="val">$${getAgriIncome(tile)}/cycle</span></div>`;
-    html += `<div class="info-row"><span>🌶️ Peppers</span><span class="val">${tile.level * 50}</span></div>`;
-  }
-  if (tile.type === T.POWER_PLANT) html += `<div class="info-row"><span>⚡ Output</span><span class="val">5,000 MW</span></div>`;
-  if (tile.type === T.PARK) html += `<div class="info-row"><span>😊 Happiness</span><span class="val">+2</span></div>`;
-
-  infoBar.innerHTML = html;
-  infoBar.classList.add('show');
-}
-
-// ─── Economy & Simulation ─────────────────────────────────────────
-function getResPop(tile) { return tile.type !== T.RES ? 0 : tile.level * 12; }
-function getComIncome(tile) { return tile.type !== T.COM ? 0 : tile.level * 8; }
-function getIndIncome(tile) { return tile.type !== T.IND ? 0 : tile.level * 12; }
-function getAgriIncome(tile) { return tile.type !== T.AGRI ? 0 : tile.level * 5; }
-function getPollution(tx, ty) { return state.pollution[ty] ? Math.round(state.pollution[ty][tx] || 0) : 0; }
-
-function hasRoadAdjacent(tx, ty) {
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      if (dx === 0 && dy === 0) continue;
+// ═══════════════════════════════════════════════════════════════════
+// SIMULATION HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function hasRoadAdjacent(tx, ty, radius = 1) {
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
       const nx = tx + dx, ny = ty + dy;
-      if (nx < 0 || nx >= GRID_W || ny < 0 || ny >= GRID_H) continue;
+      if (nx < 0 || nx >= GRID || ny < 0 || ny >= GRID) continue;
       if (state.grid[ny][nx].type === T.ROAD) return true;
     }
   }
   return false;
 }
 
-// ─── Power System ──────────────────────────────────────────────────
-function hasPower(tx, ty) {
-  // Check if within range of power plant or connected via power lines
-  const range = 6;
-  // Direct power plant proximity
-  for (let dy = -range; dy <= range; dy++) {
-    for (let dx = -range; dx <= range; dx++) {
-      const nx = tx + dx, ny = ty + dy;
-      if (nx < 0 || nx >= GRID_W || ny < 0 || ny >= GRID_H) continue;
-      if (state.grid[ny][nx].type === T.POWER_PLANT) return true;
-      if (state.grid[ny][nx].type === T.POWER_LINE) {
-        // Check if power line is connected to plant within larger range
-        if (distToPowerPlant(nx, ny) < 15) return true;
-      }
-    }
-  }
-  return false;
+function hasRoadWithin(tx, ty, radius) {
+  return hasRoadAdjacent(tx, ty, radius);
 }
 
-function distToPowerPlant(tx, ty) {
-  let minDist = Infinity;
-  for (let y = 0; y < GRID_H; y++) {
-    for (let x = 0; x < GRID_W; x++) {
-      if (state.grid[y][x].type === T.POWER_PLANT) {
-        const d = Math.abs(x - tx) + Math.abs(y - ty);
-        if (d < minDist) minDist = d;
-      }
-    }
-  }
-  return minDist;
-}
-
-// ─── Pollution System ──────────────────────────────────────────────
-function updatePollution() {
-  for (let y = 0; y < GRID_H; y++) {
-    for (let x = 0; x < GRID_W; x++) {
-      state.pollution[y][x] = 0;
-    }
-  }
-  for (let y = 0; y < GRID_H; y++) {
-    for (let x = 0; x < GRID_W; x++) {
-      const tile = state.grid[y][x];
-      if (tile.type === T.IND) {
-        const pollution = 3 + tile.level * 2;
-        for (let dy = -3; dy <= 3; dy++) {
-          for (let dx = -3; dx <= 3; dx++) {
+function computePoweredTiles() {
+  state.poweredTiles.clear();
+  // Find all power plants
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      const t = state.grid[y][x].type;
+      if (t === T.POWER_PLANT) {
+        // Power everything within POWER_RADIUS
+        for (let dy = -POWER_RADIUS; dy <= POWER_RADIUS; dy++) {
+          for (let dx = -POWER_RADIUS; dx <= POWER_RADIUS; dx++) {
             const nx = x + dx, ny = y + dy;
-            if (nx < 0 || nx >= GRID_W || ny < 0 || ny >= GRID_H) continue;
-            const dist = Math.hypot(dx, dy);
-            if (dist <= 3) {
-              state.pollution[ny][nx] += pollution * (1 - dist / 3.5);
+            if (nx < 0 || nx >= GRID || ny < 0 || ny >= GRID) continue;
+            if (Math.hypot(dx, dy) <= POWER_RADIUS) {
+              state.poweredTiles.add(ny * GRID + nx);
             }
           }
         }
       }
-      if (tile.type === T.POWER_PLANT) {
-        for (let dy = -2; dy <= 2; dy++) {
-          for (let dx = -2; dx <= 2; dx++) {
+      // Power lines extend power — check if near a powered tile
+      if (t === T.POWER_LINE) {
+        // Will be handled in second pass
+      }
+    }
+  }
+  // Second pass: power lines connect to powered road/tiles
+  let changed = true;
+  let iterations = 0;
+  while (changed && iterations < 5) {
+    changed = false;
+    iterations++;
+    for (let y = 0; y < GRID; y++) {
+      for (let x = 0; x < GRID; x++) {
+        if (state.poweredTiles.has(y * GRID + x)) continue;
+        const t = state.grid[y][x].type;
+        if (t === T.POWER_LINE || t === T.ROAD) {
+          // Check if adjacent tile is powered
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              const nx = x + dx, ny = y + dy;
+              if (state.poweredTiles.has(ny * GRID + nx)) {
+                state.poweredTiles.add(y * GRID + x);
+                changed = true;
+                break;
+              }
+            }
+            if (state.poweredTiles.has(y * GRID + x)) break;
+          }
+        }
+      }
+    }
+  }
+  // Power adjacent tiles of powered roads
+  const extra = new Set();
+  for (const idx of state.poweredTiles) {
+    const x = idx % GRID, y = Math.floor(idx / GRID);
+    if (state.grid[y][x].type === T.ROAD) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID) {
+            extra.add(ny * GRID + nx);
+          }
+        }
+      }
+    }
+  }
+  for (const idx of extra) state.poweredTiles.add(idx);
+}
+
+function isPowered(tx, ty) {
+  return state.poweredTiles.has(ty * GRID + tx);
+}
+
+function getPollution(tx, ty) {
+  return state.pollution[ty] ? Math.round(state.pollution[ty][tx] || 0) : 0;
+}
+
+function updatePollution() {
+  for (let y = 0; y < GRID; y++)
+    for (let x = 0; x < GRID; x++)
+      state.pollution[y][x] = 0;
+
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      const tile = state.grid[y][x];
+      let pAmount = 0;
+      if (tile.type === T.IND) pAmount = 3 + tile.level * 2;
+      else if (tile.type === T.GUMMY_FACTORY) pAmount = 5;
+      else if (tile.type === T.POWER_PLANT) pAmount = 4;
+      else if (tile.type === T.GARAGE) pAmount = 1;
+      if (pAmount > 0) {
+        for (let dy = -POLLUTION_RADIUS; dy <= POLLUTION_RADIUS; dy++) {
+          for (let dx = -POLLUTION_RADIUS; dx <= POLLUTION_RADIUS; dx++) {
             const nx = x + dx, ny = y + dy;
-            if (nx < 0 || nx >= GRID_W || ny < 0 || ny >= GRID_H) continue;
+            if (nx < 0 || nx >= GRID || ny < 0 || ny >= GRID) continue;
             const dist = Math.hypot(dx, dy);
-            if (dist <= 2) state.pollution[ny][nx] += 5 * (1 - dist / 2.5);
-          }
-        }
-      }
-      if (tile.type === T.PARK) {
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            const nx = x + dx, ny = y + dy;
-            if (nx < 0 || nx >= GRID_W || ny < 0 || ny >= GRID_H) continue;
-            state.pollution[ny][nx] = Math.max(0, state.pollution[ny][nx] - 2);
+            if (dist <= POLLUTION_RADIUS) {
+              state.pollution[ny][nx] += pAmount * (1 - dist / (POLLUTION_RADIUS + 0.5));
+            }
           }
         }
       }
@@ -841,262 +677,546 @@ function updatePollution() {
   }
 }
 
-// ─── RCI Demand ────────────────────────────────────────────────────
-function updateRCIDemand() {
-  let resCount = 0, comCount = 0, indCount = 0;
-  let resCap = 0, comJobs = 0, indJobs = 0;
-  for (let y = 0; y < GRID_H; y++) {
-    for (let x = 0; x < GRID_W; x++) {
-      const t = state.grid[y][x];
-      if (t.type === T.RES) { resCount++; resCap += getResPop(t); }
-      else if (t.type === T.COM) { comCount++; comJobs += t.level * 8; }
-      else if (t.type === T.IND) { indCount++; indJobs += t.level * 12; }
+function resPop(tile) { return tile.type === T.RES ? tile.level * 10 : 0; }
+function comJobs(tile) { return tile.type === T.COM ? tile.level * 8 : 0; }
+function indJobs(tile) { return tile.type === T.IND ? tile.level * 12 : 0; }
+
+function countPopNearby(tx, ty, radius) {
+  let pop = 0;
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const nx = tx + dx, ny = ty + dy;
+      if (nx < 0 || nx >= GRID || ny < 0 || ny >= GRID) continue;
+      pop += resPop(state.grid[ny][nx]);
     }
   }
-  const totalJobs = comJobs + indJobs;
-  const taxFactor = 1 - state.taxRate / 30;
-  // Demand goes up when there are jobs but no residents, and vice versa
-  let rDemand = 50 + (totalJobs - resCap) * 0.5 - state.taxRate * 2;
-  let cDemand = 50 + (resCap - comJobs) * 0.3 + state.happiness * 0.3 - state.taxRate * 1.5;
-  let iDemand = 50 + (resCap - indJobs) * 0.2 + comCount * 2 - state.taxRate;
-  rDemand *= taxFactor;
-  cDemand *= taxFactor;
-  iDemand *= taxFactor;
-  state.rciDemand.r = Math.max(0, Math.min(100, rDemand));
-  state.rciDemand.c = Math.max(0, Math.min(100, cDemand));
-  state.rciDemand.i = Math.max(0, Math.min(100, iDemand));
+  return pop;
 }
 
-// ─── Traffic System ────────────────────────────────────────────────
-function updateTraffic() {
-  // Spawn ambient cars based on activity
-  const targetCars = Math.min(8, Math.floor(state.population / 30));
-  while (state.trafficCars.length < targetCars) {
-    spawnTrafficCar();
-  }
-  // Remove excess
-  while (state.trafficCars.length > targetCars) {
-    state.trafficCars.pop();
-  }
-  // Move traffic cars
-  for (const car of state.trafficCars) {
-    car.x += car.vx;
-    car.y += car.vy;
-    // Check if still on road
-    const tx = Math.floor(car.x / TILE);
-    const ty = Math.floor(car.y / TILE);
-    if (tx < 0 || tx >= GRID_W || ty < 0 || ty >= GRID_H || state.grid[ty][tx].type !== T.ROAD) {
-      // Pick a new direction
-      const roadDir = getRandomRoadDir(tx, ty);
-      car.vx = roadDir.x * 0.5;
-      car.vy = roadDir.y * 0.5;
-      // Snap back to a road
-      const roadTile = findNearestRoad(tx, ty);
-      if (roadTile) { car.x = roadTile.x * TILE + TILE/2; car.y = roadTile.y * TILE + TILE/2; }
-    }
-    // Random chance to turn
-    if (Math.random() < 0.02) {
-      const roadDir = getRandomRoadDir(Math.floor(car.x/TILE), Math.floor(car.y/TILE));
-      car.vx = roadDir.x * 0.5;
-      car.vy = roadDir.y * 0.5;
-    }
-  }
-}
-
-function spawnTrafficCar() {
-  const roadTile = findNearestRoad(Math.floor(GRID_W/2), Math.floor(GRID_H/2));
-  if (!roadTile) return;
-  const dir = getRandomRoadDir(roadTile.x, roadTile.y);
-  const colors = ['#ef4444','#3b82f6','#22c55e','#fbbf24','#a855f7','#06b6d4','#ec4899','#f97316'];
-  state.trafficCars.push({
-    x: roadTile.x * TILE + TILE/2,
-    y: roadTile.y * TILE + TILE/2,
-    vx: dir.x * 0.5,
-    vy: dir.y * 0.5,
-    color: colors[Math.floor(Math.random() * colors.length)],
-  });
-}
-
-function getRandomRoadDir(tx, ty) {
-  const dirs = [];
-  const check = [[0,-1],[0,1],[-1,0],[1,0]];
-  for (const [dx,dy] of check) {
-    const nx=tx+dx, ny=ty+dy;
-    if (nx>=0&&nx<GRID_W&&ny>=0&&ny<GRID_H && state.grid[ny][nx].type===T.ROAD) dirs.push({x:dx,y:dy});
-  }
-  if (dirs.length === 0) return {x:0,y:0};
-  return dirs[Math.floor(Math.random()*dirs.length)];
-}
-
-function findNearestRoad(tx, ty) {
-  tx = Math.max(0, Math.min(GRID_W-1, tx));
-  ty = Math.max(0, Math.min(GRID_H-1, ty));
-  for (let r = 0; r < 10; r++) {
-    for (let dy = -r; dy <= r; dy++) {
-      for (let dx = -r; dx <= r; dx++) {
-        const nx = tx+dx, ny = ty+dy;
-        if (nx>=0&&nx<GRID_W&&ny>=0&&ny<GRID_H && state.grid[ny][nx].type === T.ROAD) return {x:nx,y:ny};
-      }
-    }
-  }
-  return null;
-}
-
-// ─── Economy Tick (enhanced) ──────────────────────────────────────
-function economyTick() {
+// ═══════════════════════════════════════════════════════════════════
+// SIMULATION TICK (every 2 seconds)
+// ═══════════════════════════════════════════════════════════════════
+function simTick() {
   state.tick++;
-  let income = 0, pop = 0;
-  let indCount=0, resCount=0, comCount=0, roadCount=0;
-  let happinessDelta = 0;
-
+  computePoweredTiles();
   updatePollution();
 
-  for (let y = 0; y < GRID_H; y++) {
-    for (let x = 0; x < GRID_W; x++) {
+  let pop = 0, income = 0;
+  let resCount = 0, comCount = 0, indCount = 0, roadCount = 0;
+  let happyDelta = 0;
+
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
       const tile = state.grid[y][x];
-      const road = hasRoadAdjacent(x, y);
-      const powered = hasPower(x, y);
+      const powered = isPowered(x, y);
+      const road = hasRoadWithin(x, y, ROAD_RADIUS);
+      const poll = getPollution(x, y);
+
       switch (tile.type) {
         case T.RES:
-          if (road && powered) {
-            const growChance = 0.3 * (1 - state.taxRate / 25) * (state.rciDemand.r / 100);
-            if (tile.level < 3 && state.tick % 10 === 0 && Math.random() < growChance) tile.level++;
-            pop += getResPop(tile);
-            resCount++;
-            // Pollution effect
-            const poll = getPollution(x, y);
-            if (poll > 5) happinessDelta -= 0.5;
-          } else if (road && !powered) {
-            happinessDelta -= 0.3;
+          resCount++;
+          if (powered && road) {
+            // Growth check
+            if (tile.level < 3 && poll < 6) {
+              const growChance = 0.25 * (1 - state.taxRate / 25) * (state.rci.r / 100);
+              if (Math.random() < growChance) tile.level++;
+            }
+            pop += resPop(tile);
+            if (poll > 4) happyDelta -= 0.4;
+          } else {
+            if (!powered) happyDelta -= 0.2;
+            if (!road) happyDelta -= 0.1;
           }
           break;
+
         case T.COM:
-          if (road && powered) {
-            income += getComIncome(tile);
-            comCount++;
-            const growChance = 0.25 * (state.rciDemand.c / 100);
-            if (tile.level < 3 && state.tick % 8 === 0 && Math.random() < growChance) tile.level++;
+          comCount++;
+          if (powered && road) {
+            const nearbyPop = countPopNearby(x, y, 3);
+            if (tile.level < 3 && nearbyPop > tile.level * 15) {
+              const growChance = 0.2 * (state.rci.c / 100);
+              if (Math.random() < growChance) tile.level++;
+            }
+            income += tile.level * 8;
           }
           break;
+
         case T.IND:
-          if (road && powered) {
-            income += getIndIncome(tile);
-            indCount++;
-            const growChance = 0.2 * (state.rciDemand.i / 100);
-            if (tile.level < 3 && state.tick % 12 === 0 && Math.random() < growChance) tile.level++;
+          indCount++;
+          if (powered && road) {
+            if (tile.level < 3) {
+              const growChance = 0.15 * (state.rci.i / 100);
+              if (Math.random() < growChance) tile.level++;
+            }
+            income += tile.level * 12;
           }
           break;
-        case T.AGRI:
-          if (road) income += getAgriIncome(tile);
+
+        case T.PEPPER_FARM:
+          if (road) income += 10 * tile.level;
           break;
-        case T.GRILL: income += 25; break;
-        case T.GARAGE: income += 30; break;
-        case T.GUMMY_FACTORY: income += 50; happinessDelta -= 1; break;
-        case T.THRONE_ROOM: happinessDelta += 3; break;
-        case T.BLUETOOTH_TOWER: happinessDelta += 5; break;
-        case T.HORN_TOWER: happinessDelta += 2; break;
-        case T.PARK: happinessDelta += 0.5; break;
+
         case T.ROAD: roadCount++; break;
+
+        // Specials
+        case T.GRILL:         income += 30; break;
+        case T.GARAGE:         income += 35; break;
+        case T.GUMMY_FACTORY:  income += 60; happyDelta -= 0.5; break;
+        case T.THRONE_ROOM:    happyDelta += 2; break;
+        case T.BLUETOOTH_TOWER: happyDelta += 3; break;
+        case T.HORN_TOWER:     happyDelta += 1.5; break;
       }
     }
   }
 
-  // Tax calculation
-  const taxMultiplier = state.taxRate / 5;
-  const taxes = Math.floor(pop * (state.happiness / 100) * taxMultiplier * 0.5);
+  // Tax revenue
+  const taxes = Math.floor(pop * (state.happiness / 100) * (state.taxRate / 5) * 0.5);
   income += taxes;
 
   // Maintenance
-  const maintenance = Math.floor((resCount + comCount + indCount) * 2 + roadCount * 0.5 + (state.buildCount[T.POWER_PLANT] || 0) * 50);
+  const maint = Math.floor(roadCount * 0.5 + (resCount + comCount + indCount) * 1.5);
 
   // RCI demand update
-  if (state.tick % 3 === 0) updateRCIDemand();
+  const totalJobs = comCount * 8 + indCount * 12;
+  state.rci.r = clamp(50 + (totalJobs - pop) * 0.4 - state.taxRate * 2, 0, 100);
+  state.rci.c = clamp(50 + (pop - comCount * 8) * 0.3 + state.happiness * 0.2 - state.taxRate * 1.5, 0, 100);
+  state.rci.i = clamp(50 + pop * 0.1 - state.taxRate * 0.5, 0, 100);
+
+  // Happiness
+  if (state.taxRate > 12) happyDelta -= (state.taxRate - 12) * 0.5;
+  if (indCount > resCount && resCount > 0) happyDelta -= Math.min(5, (indCount - resCount) * 0.3);
+  state.happiness = clamp(state.happiness + happyDelta * 0.5, 0, 100);
+
+  state.population = pop;
+  state.income = income;
+  state.expenses = maint;
+  state.money += income - maint;
 
   // Traffic
   updateTraffic();
 
-  // Happiness
-  const towerPos = findTile(T.BLUETOOTH_TOWER);
-  if (towerPos) happinessDelta += 2;
-  if (indCount > resCount && resCount > 0) happinessDelta -= Math.min(10, Math.floor((indCount - resCount) * 0.5));
-  if (resCount > 0 && comCount === 0) happinessDelta -= 2;
-  if (roadCount > 10) happinessDelta += 1;
-  // Tax effect on happiness
-  if (state.taxRate > 10) happinessDelta -= (state.taxRate - 10) * 0.3;
-
-  state.happiness = Math.max(0, Math.min(100, state.happiness + happinessDelta * 0.5));
-  state.income = income;
-  state.expenses = maintenance;
-  state.population = pop;
-  state.money += income - maintenance;
-
   updateHUD();
-  updateBudgetPanel();
-  if (state.tick % 5 === 0) sndTick();
+  if (state.tick % 5 === 0) saveLocal();
 }
 
-function findTile(type) {
-  for (let y = 0; y < GRID_H; y++)
-    for (let x = 0; x < GRID_W; x++)
-      if (state.grid[y][x].type === type) return { x, y };
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// ═══════════════════════════════════════════════════════════════════
+// TRAFFIC
+// ═══════════════════════════════════════════════════════════════════
+function updateTraffic() {
+  const target = Math.min(6, Math.floor(state.population / 40));
+  while (state.trafficCars.length < target) spawnTrafficCar();
+  while (state.trafficCars.length > target) state.trafficCars.pop();
+
+  for (const car of state.trafficCars) {
+    car.x += car.vx;
+    car.y += car.vy;
+    const tx = Math.floor(car.x / TILE), ty = Math.floor(car.y / TILE);
+    if (tx < 0 || tx >= GRID || ty < 0 || ty >= GRID || state.grid[ty][tx].type !== T.ROAD) {
+      const road = findNearestRoad(Math.floor(car.x / TILE), Math.floor(car.y / TILE));
+      if (road) { car.x = road.x * TILE + TILE / 2; car.y = road.y * TILE + TILE / 2; }
+      const d = randomRoadDir(Math.floor(car.x / TILE), Math.floor(car.y / TILE));
+      car.vx = d.x * 0.6; car.vy = d.y * 0.6;
+    }
+    if (Math.random() < 0.03) {
+      const d = randomRoadDir(tx, ty);
+      car.vx = d.x * 0.6; car.vy = d.y * 0.6;
+    }
+  }
+}
+
+const CAR_COLORS = ['#ef4444','#3b82f6','#22c55e','#fbbf24','#a855f7','#06b6d4'];
+const TRAFFIC_CAR_SIZE = 8;
+
+function spawnTrafficCar() {
+  const road = findNearestRoad(Math.floor(GRID / 2), Math.floor(GRID / 2));
+  if (!road) return;
+  const d = randomRoadDir(road.x, road.y);
+  state.trafficCars.push({
+    x: road.x * TILE + TILE / 2,
+    y: road.y * TILE + TILE / 2,
+    vx: d.x * 0.6, vy: d.y * 0.6,
+    color: CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
+  });
+}
+
+function randomRoadDir(tx, ty) {
+  const dirs = [];
+  for (const [dx, dy] of [[0,-1],[0,1],[-1,0],[1,0]]) {
+    const nx = tx + dx, ny = ty + dy;
+    if (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID && state.grid[ny][nx].type === T.ROAD)
+      dirs.push({ x: dx, y: dy });
+  }
+  return dirs.length ? dirs[Math.floor(Math.random() * dirs.length)] : { x: 0, y: 0 };
+}
+
+function findNearestRoad(tx, ty) {
+  tx = clamp(tx, 0, GRID - 1); ty = clamp(ty, 0, GRID - 1);
+  for (let r = 0; r < 8; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const nx = tx + dx, ny = ty + dy;
+        if (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID && state.grid[ny][nx].type === T.ROAD)
+          return { x: nx, y: ny };
+      }
+    }
+  }
   return null;
 }
-function countTiles(type) {
-  let c = 0;
-  for (let y = 0; y < GRID_H; y++) for (let x = 0; x < GRID_W; x++) if (state.grid[y][x].type === type) c++;
-  return c;
+
+// ═══════════════════════════════════════════════════════════════════
+// 2D RENDERING
+// ═══════════════════════════════════════════════════════════════════
+function render() {
+  ctx.fillStyle = '#0a0a12';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  ctx.translate(camX, camY);
+  ctx.scale(zoom, zoom);
+
+  // Visible tile range
+  const sx = Math.max(0, Math.floor(-camX / zoom / TILE));
+  const ex = Math.min(GRID, Math.ceil((canvas.width - camX) / zoom / TILE));
+  const sy = Math.max(0, Math.floor(-camY / zoom / TILE));
+  const ey = Math.min(GRID, Math.ceil((canvas.height - camY) / zoom / TILE));
+
+  for (let y = sy; y < ey; y++)
+    for (let x = sx; x < ex; x++)
+      drawTile2D(x, y);
+
+  // Grid lines when zoomed in
+  if (zoom > 1.2) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 0.5;
+    for (let x = sx; x <= ex; x++) { ctx.beginPath(); ctx.moveTo(x * TILE, sy * TILE); ctx.lineTo(x * TILE, ey * TILE); ctx.stroke(); }
+    for (let y = sy; y <= ey; y++) { ctx.beginPath(); ctx.moveTo(sx * TILE, y * TILE); ctx.lineTo(ex * TILE, y * TILE); ctx.stroke(); }
+  }
+
+  // Traffic cars
+  for (const car of state.trafficCars) {
+    ctx.fillStyle = car.color;
+    ctx.globalAlpha = 0.6;
+    ctx.fillRect(car.x - TRAFFIC_CAR_SIZE / 2, car.y - TRAFFIC_CAR_SIZE / 2, TRAFFIC_CAR_SIZE, TRAFFIC_CAR_SIZE);
+    ctx.globalAlpha = 1;
+  }
+
+  // Player cars
+  renderCars2D();
+
+  ctx.restore();
+  renderMinimap();
 }
 
-// ─── HUD ───────────────────────────────────────────────────────────
+function drawTile2D(tx, ty) {
+  const tile = state.grid[ty][tx];
+  const data = TD[tile.type] || TD[T.GRASS];
+  const px = tx * TILE, py = ty * TILE;
+  const ts = TILE;
+
+  // Base color
+  ctx.fillStyle = data.color;
+  ctx.fillRect(px, py, ts, ts);
+
+  switch (tile.type) {
+    case T.GRASS:
+      if ((tx + ty) % 3 === 0) { ctx.fillStyle = '#275027'; ctx.fillRect(px + 4, py + 4, 4, 4); }
+      break;
+
+    case T.WATER: {
+      const sh = Math.sin(state.tick * 0.08 + tx * 0.5 + ty * 0.3) * 0.5 + 0.5;
+      ctx.fillStyle = `rgba(100,160,220,${sh * 0.12})`;
+      ctx.fillRect(px, py, ts, ts);
+      break;
+    }
+
+    case T.ROAD:
+      ctx.fillStyle = '#2a2a2a'; ctx.fillRect(px, py, ts, ts);
+      ctx.fillStyle = '#555';
+      ctx.fillRect(px + ts / 2 - 1, py, 2, ts);
+      ctx.fillRect(px, py + ts / 2 - 1, ts, 2);
+      break;
+
+    case T.RES:
+      drawBuilding2D(px, py, tile.level, '#3b82f6', '#1e40af');
+      break;
+
+    case T.COM:
+      drawBuilding2D(px, py, tile.level, '#f59e0b', '#92400e');
+      break;
+
+    case T.IND:
+      drawBuilding2D(px, py, tile.level, '#ea580c', '#7c2d12');
+      ctx.fillStyle = '#444';
+      ctx.fillRect(px + ts - 7, py + 3, 4, 5);
+      break;
+    case T.PEPPER_FARM:
+      ctx.fillStyle = '#15803d'; ctx.fillRect(px + 1, py + 1, ts - 2, ts - 2);
+      ctx.fillStyle = '#dc2626';
+      for (let i = 0; i < 4; i++)
+        ctx.fillRect(px + 4 + (i % 2) * 12, py + 6 + Math.floor(i / 2) * 12, 3, 3);
+      break;
+
+    case T.BLUETOOTH_TOWER:
+      ctx.fillStyle = '#1a1a2e'; ctx.fillRect(px, py, ts, ts);
+      ctx.fillStyle = '#8b5cf6';
+      ctx.fillRect(px + ts / 2 - 2, py + 3, 4, ts - 6);
+      ctx.strokeStyle = '#8b5cf6'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(px + ts / 2, py + 6, 5, -Math.PI / 3, Math.PI / 3); ctx.stroke();
+      ctx.beginPath(); ctx.arc(px + ts / 2, py + 6, 9, -Math.PI / 3, Math.PI / 3); ctx.stroke();
+      break;
+
+    case T.THRONE_ROOM:
+      ctx.fillStyle = '#1a1a2e'; ctx.fillRect(px, py, ts, ts);
+      ctx.fillStyle = '#d4af37'; ctx.fillRect(px + 3, py + 3, ts - 6, ts - 6);
+      ctx.font = `${ts - 10}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('👑', px + ts / 2, py + ts / 2);
+      break;
+
+    case T.GRILL:
+      ctx.fillStyle = '#1a0a0a'; ctx.fillRect(px, py, ts, ts);
+      ctx.fillStyle = '#ef4444'; ctx.fillRect(px + 3, py + 3, ts - 6, ts - 6);
+      ctx.font = `${ts - 10}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🔥', px + ts / 2, py + ts / 2);
+      break;
+
+    case T.GARAGE:
+      ctx.fillStyle = '#1a1a1a'; ctx.fillRect(px, py, ts, ts);
+      ctx.fillStyle = '#64748b'; ctx.fillRect(px + 2, py + 2, ts - 4, ts - 4);
+      ctx.fillStyle = '#0a0a0a'; ctx.fillRect(px + 5, py + 8, ts - 10, ts - 12);
+      ctx.fillStyle = '#fbbf24'; ctx.font = '5px monospace'; ctx.textAlign = 'center';
+      ctx.fillText('GARAGE', px + ts / 2, py + ts - 4);
+      break;
+
+    case T.GUMMY_FACTORY:
+      ctx.fillStyle = '#1a1a1a'; ctx.fillRect(px, py, ts, ts);
+      ctx.fillStyle = '#ec4899'; ctx.fillRect(px + 3, py + 3, ts - 6, ts - 6);
+      ctx.font = `${ts - 12}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🐻', px + ts / 2, py + ts / 2);
+      break;
+
+    case T.HORN_TOWER:
+      ctx.fillStyle = '#0a1a1a'; ctx.fillRect(px, py, ts, ts);
+      ctx.fillStyle = '#06b6d4';
+      ctx.beginPath();
+      ctx.moveTo(px + ts / 2, py + 3);
+      ctx.lineTo(px + ts - 4, py + ts - 4);
+      ctx.lineTo(px + 4, py + ts - 4);
+      ctx.closePath(); ctx.fill();
+      break;
+
+    case T.POWER_PLANT:
+      ctx.fillStyle = '#1a1a0a'; ctx.fillRect(px, py, ts, ts);
+      ctx.fillStyle = '#f59e0b'; ctx.fillRect(px + 3, py + 6, ts - 6, ts - 8);
+      ctx.fillStyle = '#ef4444'; ctx.fillRect(px + ts / 2 - 3, py + 3, 6, 4);
+      ctx.font = '8px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('⚡', px + ts / 2, py + ts / 2 + 3);
+      break;
+
+    case T.POWER_LINE:
+      ctx.fillStyle = '#2d5a2d'; ctx.fillRect(px, py, ts, ts);
+      ctx.fillStyle = '#6b7280'; ctx.fillRect(px + ts / 2 - 1, py, 2, ts);
+      ctx.fillStyle = '#9ca3af';
+      ctx.fillRect(px + ts / 2 - 4, py + 4, 8, 2);
+      ctx.fillRect(px + ts / 2 - 4, py + ts - 6, 8, 2);
+      break;
+
+    case T.SIGN:
+      ctx.fillStyle = '#2d5a2d'; ctx.fillRect(px, py, ts, ts);
+      ctx.fillStyle = '#888'; ctx.fillRect(px + ts / 2 - 1, py + 6, 2, ts - 6);
+      ctx.fillStyle = '#fbbf24'; ctx.fillRect(px + 2, py + 3, ts - 4, 7);
+      ctx.fillStyle = '#000'; ctx.font = '5px monospace'; ctx.textAlign = 'center';
+      const sign = SIGNS[tile.data.signIdx || 0];
+      if (sign) {
+        const arrow = sign.text[0];
+        ctx.fillText(arrow, px + ts / 2, py + 8);
+      }
+      break;
+  }
+
+  // Status overlays
+  if ([T.RES, T.COM, T.IND].includes(tile.type)) {
+    if (!hasRoadWithin(tx, ty, ROAD_RADIUS)) {
+      ctx.fillStyle = 'rgba(239,68,68,0.12)';
+      ctx.fillRect(px, py, ts, ts);
+      ctx.font = '8px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText('🚫', px + ts / 2, py + 1);
+    }
+    if (!isPowered(tx, ty)) {
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.fillRect(px, py, ts, ts);
+      ctx.fillStyle = 'rgba(255,200,0,0.6)';
+      ctx.font = '7px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText('⚡', px + ts - 6, py + 2);
+    }
+  }
+}
+
+function drawBuilding2D(px, py, level, color, darkColor) {
+  const h = 5 + level * 5;
+  ctx.fillStyle = darkColor;
+  ctx.fillRect(px + 3, py + TILE - h - 3, TILE - 6, h);
+  ctx.fillStyle = color;
+  ctx.fillRect(px + 3, py + TILE - h - 3, TILE - 6, Math.min(h, 4));
+  // Windows
+  ctx.fillStyle = 'rgba(255,255,200,0.6)';
+  for (let i = 0; i < level; i++) {
+    ctx.fillRect(px + 6, py + TILE - 5 - i * 5, 3, 2);
+    ctx.fillRect(px + TILE - 9, py + TILE - 5 - i * 5, 3, 2);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MINIMAP
+// ═══════════════════════════════════════════════════════════════════
+function renderMinimap() {
+  const mw = minimap.width / GRID, mh = minimap.height / GRID;
+  mctx.fillStyle = '#0a0a12';
+  mctx.fillRect(0, 0, minimap.width, minimap.height);
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      const t = state.grid[y][x];
+      if (t.type !== T.GRASS) {
+        mctx.fillStyle = (TD[t.type] || TD[T.GRASS]).color;
+        mctx.fillRect(x * mw, y * mh, mw + 0.5, mh + 0.5);
+      }
+    }
+  }
+  // Viewport rect
+  const vx = -camX / zoom / TILE * mw;
+  const vy = -camY / zoom / TILE * mh;
+  const vw = canvas.width / zoom / TILE * mw;
+  const vh = canvas.height / zoom / TILE * mh;
+  mctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  mctx.lineWidth = 1;
+  mctx.strokeRect(vx, vy, vw, vh);
+}
+
+minimap.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  const rect = minimap.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) / rect.width;
+  const my = (e.clientY - rect.top) / rect.height;
+  camX = canvas.width / 2 - mx * WORLD * zoom;
+  camY = canvas.height / 2 - my * WORLD * zoom;
+  clampCamera();
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// HUD UPDATE
+// ═══════════════════════════════════════════════════════════════════
 function updateHUD() {
   document.getElementById('moneyVal').textContent = '$' + Math.floor(state.money).toLocaleString();
+  document.getElementById('moneyVal').style.color = state.money < 0 ? '#ef4444' : '#4ade80';
   document.getElementById('popVal').textContent = state.population.toLocaleString();
   const happyEl = document.getElementById('happyVal');
   happyEl.textContent = Math.round(state.happiness) + '%';
   happyEl.className = 'stat-val happy' + (state.happiness < 40 ? ' low' : '');
-  document.getElementById('moneyVal').style.color = state.money < 0 ? '#ef4444' : '#4ade80';
-  // RCI bars
-  document.getElementById('rciR').style.height = Math.max(2, state.rciDemand.r / 100 * 24) + 'px';
-  document.getElementById('rciC').style.height = Math.max(2, state.rciDemand.c / 100 * 24) + 'px';
-  document.getElementById('rciI').style.height = Math.max(2, state.rciDemand.i / 100 * 24) + 'px';
-  // Update demand indicators on tools
-  updateToolDemand();
+  document.getElementById('rciR').style.height = Math.max(2, state.rci.r / 100 * 22) + 'px';
+  document.getElementById('rciC').style.height = Math.max(2, state.rci.c / 100 * 22) + 'px';
+  document.getElementById('rciI').style.height = Math.max(2, state.rci.i / 100 * 22) + 'px';
+  updateBudgetPanel();
 }
 
-function updateToolDemand() {
-  document.querySelectorAll('.tool').forEach(el => {
-    const toolId = el.dataset.tool;
-    const tool = TOOLS.find(t => t.id === toolId);
-    if (!tool || !tool.rci) return;
-    const demand = state.rciDemand[tool.rci];
-    el.classList.toggle('demand-high', demand > 65);
-    let badge = el.querySelector('.tool-demand');
-    if (demand > 65) {
-      if (!badge) { badge = document.createElement('div'); badge.className = 'tool-demand'; el.appendChild(badge); }
-      badge.textContent = '▲';
-    } else if (badge) badge.remove();
-  });
+// ═══════════════════════════════════════════════════════════════════
+// INFO POPUP
+// ═══════════════════════════════════════════════════════════════════
+function showInfo(tx, ty) {
+  const bar = document.getElementById('infoBar');
+  if (tx < 0 || tx >= GRID || ty < 0 || ty >= GRID) { bar.classList.remove('show'); return; }
+  const tile = state.grid[ty][tx];
+  const data = TD[tile.type];
+  if (!data) { bar.classList.remove('show'); return; }
+
+  let html = `<span class="info-close" onclick="document.getElementById('infoBar').classList.remove('show')">×</span>`;
+  html += `<div class="info-title">${data.name}</div>`;
+  html += `<div class="info-row"><span>📍 Location</span><span class="val">(${tx}, ${ty})</span></div>`;
+
+  if (tile.type === T.SIGN && tile.data.signIdx != null) {
+    const sign = SIGNS[tile.data.signIdx];
+    if (sign) html += `<div style="color:#fbbf24;margin-top:4px;font-size:11px">${sign.text}${sign.sub ? ' — ' + sign.sub : ''}</div>`;
+  }
+  if ([T.RES, T.COM, T.IND].includes(tile.type)) {
+    html += `<div class="info-row"><span>📊 Level</span><span class="val">${tile.level}/3</span></div>`;
+    html += `<div class="info-row"><span>⚡ Power</span><span class="val">${isPowered(tx, ty) ? '✅ On' : '❌ Off'}</span></div>`;
+    html += `<div class="info-row"><span>🛣️ Road</span><span class="val">${hasRoadWithin(tx, ty, ROAD_RADIUS) ? '✅' : '❌'}</span></div>`;
+    html += `<div class="info-row"><span>☁️ Pollution</span><span class="val">${getPollution(tx, ty)}</span></div>`;
+  }
+  if (tile.type === T.RES) html += `<div class="info-row"><span>👥 Residents</span><span class="val">${resPop(tile)}</span></div>`;
+  if (tile.type === T.COM) html += `<div class="info-row"><span>💼 Jobs</span><span class="val">${comJobs(tile)}</span></div>`;
+  if (tile.type === T.IND) html += `<div class="info-row"><span>💼 Jobs</span><span class="val">${indJobs(tile)}</span></div>`;
+  if (data.income) html += `<div class="info-row"><span>💰 Income</span><span class="val">+$${data.income}/tick</span></div>`;
+  if (data.happy) html += `<div class="info-row"><span>😊 Happiness</span><span class="val">+${data.happy}</span></div>`;
+  if (data.jobs) html += `<div class="info-row"><span>💼 Jobs</span><span class="val">${data.jobs}</span></div>`;
+  if (tile.type === T.POWER_PLANT) html += `<div class="info-row"><span>⚡ Output</span><span class="val">5,000 MW</span></div>`;
+  if (tile.type === T.PEPPER_FARM) html += `<div class="info-row"><span>🌶️ Peppers</span><span class="val">${tile.level * 40}</span></div>`;
+
+  bar.innerHTML = html;
+  bar.classList.add('show');
 }
 
-// ─── Budget Panel ──────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// BUDGET PANEL
+// ═══════════════════════════════════════════════════════════════════
 function updateBudgetPanel() {
   const bp = document.getElementById('budgetPanel');
   if (!bp.classList.contains('show')) return;
   const net = state.income - state.expenses;
   bp.innerHTML = `
-    <div class="bp-title">📊 Budget Report</div>
+    <div class="bp-title">📊 Budget</div>
     <div class="bp-row"><span>💰 Income</span><span class="val pos">+$${state.income.toLocaleString()}</span></div>
     <div class="bp-row"><span>🔧 Maintenance</span><span class="val neg">−$${state.expenses.toLocaleString()}</span></div>
-    <div class="bp-row"><span>📈 Net/Cycle</span><span class="val ${net>=0?'pos':'neg'}">${net>=0?'+':'−'}$${Math.abs(net).toLocaleString()}</span></div>
+    <div class="bp-row"><span>📈 Net/Tick</span><span class="val ${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : '−'}$${Math.abs(net).toLocaleString()}</span></div>
     <hr style="border-color:#222;margin:4px 0">
     <div class="bp-row"><span>👥 Population</span><span class="val">${state.population.toLocaleString()}</span></div>
     <div class="bp-row"><span>🏛️ Tax Rate</span><span class="val">${state.taxRate}%</span></div>
-    <div class="bp-row"><span>⚡ Power</span><span class="val">${(state.buildCount[T.POWER_PLANT]||0)>0?'✅':'❌ None'}</span></div>
-    <div class="bp-row"><span>🛣️ Roads</span><span class="val">${countTiles(T.ROAD)}</span></div>
   `;
 }
 
-// ─── Toast ─────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// TOOLBAR
+// ═══════════════════════════════════════════════════════════════════
+function buildTabs() {
+  const ct = document.getElementById('categoryTabs');
+  ct.innerHTML = '';
+  CATS.forEach(cat => {
+    const el = document.createElement('div');
+    el.className = 'cat-tab' + (currentCat === cat.id ? ' active' : '');
+    el.textContent = cat.icon + ' ' + cat.name;
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation();
+      currentCat = cat.id;
+      buildTabs(); buildToolbar();
+      haptic(8);
+    });
+    ct.appendChild(el);
+  });
+}
+
+function buildToolbar() {
+  const tb = document.getElementById('toolbar');
+  tb.innerHTML = '';
+  TOOLS.filter(t => t.cat === currentCat).forEach(tool => {
+    const el = document.createElement('div');
+    el.className = 'tool' + (activeTool === tool.id ? ' active' : '');
+    el.innerHTML = `<div class="tool-icon">${tool.icon}</div><div class="tool-name">${tool.name}</div><div class="tool-cost">${tool.cost > 0 ? '$' + tool.cost : ''}</div>`;
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation();
+      activeTool = tool.id;
+      buildToolbar();
+      document.getElementById('infoBar').classList.remove('show');
+      haptic(8);
+      if (tool.id === 'drive') { if (!myCar) spawnMyCar(); showCarUI(); }
+      else hideCarUI();
+    });
+    tb.appendChild(el);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════════
 let toastTimer;
 function toast(msg) {
   const el = document.getElementById('toast');
@@ -1106,81 +1226,116 @@ function toast(msg) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
 }
 
-// ─── Category Tabs & Toolbar ───────────────────────────────────────
-function buildCategoryTabs() {
-  const ct = document.getElementById('categoryTabs');
-  ct.innerHTML = '';
-  CATEGORIES.forEach(cat => {
-    const tab = document.createElement('div');
-    tab.className = 'cat-tab' + (currentCategory === cat.id ? ' active' : '');
-    tab.textContent = cat.icon + ' ' + cat.name;
-    tab.addEventListener('pointerdown', e => {
-      e.preventDefault(); e.stopPropagation();
-      currentCategory = cat.id;
-      buildCategoryTabs();
-      buildToolbar();
-      haptic(8);
-    });
-    ct.appendChild(tab);
-  });
+// ═══════════════════════════════════════════════════════════════════
+// SOUND & HAPTIC
+// ═══════════════════════════════════════════════════════════════════
+let audioCtx = null;
+function getAC() { if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} } return audioCtx; }
+function beep(freq, dur, type) {
+  const ac = getAC(); if (!ac) return;
+  if (ac.state === 'suspended') ac.resume();
+  const osc = ac.createOscillator(), g = ac.createGain();
+  osc.connect(g); g.connect(ac.destination);
+  osc.type = type || 'sine'; osc.frequency.value = freq;
+  g.gain.setValueAtTime(0.06, ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + (dur || 0.1));
+  osc.start(); osc.stop(ac.currentTime + (dur || 0.1));
 }
-
-function buildToolbar() {
-  const tb = document.getElementById('toolbar');
-  tb.innerHTML = '';
-  TOOLS.filter(t => t.cat === currentCategory).forEach(tool => {
-    const btn = document.createElement('div');
-    btn.className = 'tool' + (activeTool === tool.id ? ' active' : '');
-    btn.dataset.tool = tool.id;
-    btn.innerHTML = `<div class="tool-icon">${tool.icon}</div><div class="tool-name">${tool.name}</div><div class="tool-cost">${tool.cost > 0 ? '$' + tool.cost : ''}</div>`;
-    btn.addEventListener('pointerdown', e => {
-      e.preventDefault(); e.stopPropagation();
-      activeTool = tool.id;
-      buildToolbar();
-      document.getElementById('infoBar').classList.remove('show');
-      haptic(8);
-      if (tool.id !== 'inspect' && tool.id !== 'drive') {
-        if (interactionMode !== 'build') {
-          interactionMode = 'build';
-          modeToggle.textContent = '🏗️';
-          modeToggle.classList.remove('pan-mode');
-        }
-      }
-      if (tool.id === 'drive') {
-        if (!myCar) spawnMyCar();
-        showCarControls();
-      } else { hideCarControls(); }
-    });
-    tb.appendChild(btn);
-  });
-  setTimeout(updateScrollIndicators, 50);
-}
-
-const toolbarEl = document.getElementById('toolbar');
-function updateScrollIndicators() {
-  const leftFade = document.getElementById('scrollLeft');
-  const rightFade = document.getElementById('scrollRight');
-  const maxScroll = toolbarEl.scrollWidth - toolbarEl.clientWidth;
-  leftFade.classList.toggle('hidden', toolbarEl.scrollLeft <= 2);
-  rightFade.classList.toggle('hidden', toolbarEl.scrollLeft >= maxScroll - 2);
-}
-toolbarEl.addEventListener('scroll', updateScrollIndicators);
+function sndPlace() { beep(440, 0.08, 'square'); setTimeout(() => beep(660, 0.06, 'square'), 40); }
+function sndBulldoze() { beep(150, 0.12, 'sawtooth'); }
+function haptic(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
 
 // ═══════════════════════════════════════════════════════════════════
-// 🚗 CAR / DRIVING SYSTEM
+// KEYBOARD
 // ═══════════════════════════════════════════════════════════════════
+const keys = { up: false, down: false, left: false, right: false };
+window.addEventListener('keydown', e => {
+  if (driving && myCar) {
+    if (e.key === 'ArrowUp' || e.key === 'w') { keys.up = true; e.preventDefault(); }
+    else if (e.key === 'ArrowDown' || e.key === 's') { keys.down = true; e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'a') { keys.left = true; e.preventDefault(); }
+    else if (e.key === 'ArrowRight' || e.key === 'd') { keys.right = true; e.preventDefault(); }
+    return;
+  }
+  const ps = 40;
+  if (e.key === 'ArrowLeft') { camX += ps; clampCamera(); }
+  else if (e.key === 'ArrowRight') { camX -= ps; clampCamera(); }
+  else if (e.key === 'ArrowUp') { camY += ps; clampCamera(); }
+  else if (e.key === 'ArrowDown') { camY -= ps; clampCamera(); }
+  else if (e.key === '=' || e.key === '+') { zoom = Math.min(3, zoom * 1.15); clampCamera(); }
+  else if (e.key === '-') { zoom = Math.max(0.4, zoom / 1.15); clampCamera(); }
+});
+window.addEventListener('keyup', e => {
+  if (e.key === 'ArrowUp' || e.key === 'w') keys.up = false;
+  else if (e.key === 'ArrowDown' || e.key === 's') keys.down = false;
+  else if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+  else if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+});
 
-const CAR_COLORS = ['#ef4444','#3b82f6','#22c55e','#fbbf24','#a855f7','#06b6d4','#ec4899','#f97316'];
+// ═══════════════════════════════════════════════════════════════════
+// UI BUTTONS
+// ═══════════════════════════════════════════════════════════════════
+document.getElementById('zoomIn').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (view3DMode) { V3.zoom(0.85); return; }
+  zoom = Math.min(3, zoom * 1.2); clampCamera(); haptic(8);
+});
+document.getElementById('zoomOut').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (view3DMode) { V3.zoom(1.15); return; }
+  zoom = Math.max(0.4, zoom / 1.2); clampCamera(); haptic(8);
+});
+document.getElementById('budgetBtn').addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('budgetPanel').classList.toggle('show');
+  haptic(8);
+});
+document.getElementById('taxSlider').addEventListener('input', e => {
+  state.taxRate = parseInt(e.target.value);
+  document.getElementById('taxVal').textContent = state.taxRate + '%';
+  scheduleSave();
+});
+document.getElementById('viewToggle').addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation();
+  toggleView();
+});
+
+function toggleView() {
+  view3DMode = !view3DMode;
+  const btn = document.getElementById('viewToggle');
+  if (view3DMode) {
+    btn.classList.add('active3d');
+    btn.innerHTML = '3D<br>ON';
+    canvas.style.display = 'none';
+    document.getElementById('view3d').classList.add('show');
+    try {
+      if (!V3.initialized) V3.init();
+      V3.buildAll();
+      V3.onResize();
+    } catch(err) { console.warn('3D init error:', err); toast('3D failed, staying 2D'); toggleView(); return; }
+    toast('🌐 3D mode! Drag to rotate, pinch to zoom.');
+  } else {
+    btn.classList.remove('active3d');
+    btn.innerHTML = '2D<br>3D';
+    canvas.style.display = 'block';
+    document.getElementById('view3d').classList.remove('show');
+  }
+  haptic(10);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DRIVING SYSTEM
+// ═══════════════════════════════════════════════════════════════════
 let myCar = null;
 let cars = {};
-let carRef = null;
 let driving = false;
+let carRef = null;
 const CAR_SIZE = 10;
 
 function getMyId() {
   if (typeof FirebaseShared !== 'undefined' && FirebaseShared.visitorId) return FirebaseShared.visitorId;
   return 'local_' + (sessionStorage.getItem('carId') || (() => {
-    const id = 'anon_' + Math.random().toString(36).slice(2,8);
+    const id = 'anon_' + Math.random().toString(36).slice(2, 8);
     sessionStorage.setItem('carId', id);
     return id;
   })());
@@ -1192,70 +1347,38 @@ function getMyName() {
 
 function spawnMyCar() {
   const id = getMyId();
-  let spawnX = 20 * TILE + TILE/2, spawnY = 20 * TILE + TILE/2;
-  let bestDist = Infinity;
-  for (let y = 0; y < GRID_H; y++) {
-    for (let x = 0; x < GRID_W; x++) {
-      if (state.grid[y][x].type === T.ROAD) {
-        const d = (x - 20) ** 2 + (y - 20) ** 2;
-        if (d < bestDist) { bestDist = d; spawnX = x * TILE + TILE/2; spawnY = y * TILE + TILE/2; }
-      }
-    }
-  }
-  const colorIdx = Math.abs(hashCode(id)) % CAR_COLORS.length;
-  myCar = { x: spawnX, y: spawnY, dir: 0, speed: 0, color: CAR_COLORS[colorIdx], name: getMyName() };
+  let sx = GRID / 2 * TILE, sy = GRID / 2 * TILE;
+  const road = findNearestRoad(Math.floor(sx / TILE), Math.floor(sy / TILE));
+  if (road) { sx = road.x * TILE + TILE / 2; sy = road.y * TILE + TILE / 2; }
+  myCar = { x: sx, y: sy, dir: 0, speed: 0, color: CAR_COLORS[Math.abs(hashCode(id)) % CAR_COLORS.length], name: getMyName() };
   driving = true;
-  centerCameraOnCar();
-  toast('🚗 Car spawned! Use D-pad or arrow keys to drive.');
+  toast('🚗 Car spawned! Use D-pad or arrow keys.');
   haptic(20);
-  saveCar();
+  saveCarPos();
 }
 
 function exitCar() {
   driving = false;
-  if (carRef && myCar) { carRef.child(getMyId()).remove(); }
+  if (carRef && myCar) try { carRef.child(getMyId()).remove(); } catch(e) {}
   delete cars[getMyId()];
   myCar = null;
-  hideCarControls();
+  hideCarUI();
   toast('🚪 Exited car');
 }
 
-function centerCameraOnCar() {
+function hashCode(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; } return h; }
+
+function centerCamOnCar() {
   if (!myCar) return;
   camX = canvas.width / 2 - myCar.x * zoom;
-  camY = (canvas.height - TOOLBAR_H) / 2 + getCanvasOffsetY() - myCar.y * zoom;
+  camY = (canvas.height + HUD_H - TOOLBAR_H) / 2 - myCar.y * zoom;
 }
 
-function hashCode(s) { let h=0; for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;} return h; }
-
-const keys = { up:false, down:false, left:false, right:false };
-window.addEventListener('keydown', e => {
-  if (driving && myCar) {
-    if (e.key==='ArrowUp'||e.key==='w') {keys.up=true;e.preventDefault();}
-    else if (e.key==='ArrowDown'||e.key==='s') {keys.down=true;e.preventDefault();}
-    else if (e.key==='ArrowLeft'||e.key==='a') {keys.left=true;e.preventDefault();}
-    else if (e.key==='ArrowRight'||e.key==='d') {keys.right=true;e.preventDefault();}
-    return;
-  }
-  const ps = 30;
-  if (e.key==='ArrowLeft') {camX+=ps;clampCamera();}
-  else if (e.key==='ArrowRight') {camX-=ps;clampCamera();}
-  else if (e.key==='ArrowUp') {camY+=ps;clampCamera();}
-  else if (e.key==='ArrowDown') {camY-=ps;clampCamera();}
-  else if (e.key==='='||e.key==='+') {zoom=Math.min(3,zoom*1.15);clampCamera();}
-  else if (e.key==='-') {zoom=Math.max(0.5,zoom/1.15);clampCamera();}
-});
-window.addEventListener('keyup', e => {
-  if (e.key==='ArrowUp'||e.key==='w') keys.up=false;
-  else if (e.key==='ArrowDown'||e.key==='s') keys.down=false;
-  else if (e.key==='ArrowLeft'||e.key==='a') keys.left=false;
-  else if (e.key==='ArrowRight'||e.key==='d') keys.right=false;
-});
-
+// D-pad
 document.querySelectorAll('.dpad-btn').forEach(btn => {
   const dir = btn.dataset.dir;
-  const start = e => { e.preventDefault(); e.stopPropagation(); keys[dir]=true; btn.classList.add('pressed'); haptic(5); };
-  const end = e => { e.preventDefault(); e.stopPropagation(); keys[dir]=false; btn.classList.remove('pressed'); };
+  const start = e => { e.preventDefault(); e.stopPropagation(); keys[dir] = true; btn.classList.add('pressed'); haptic(5); };
+  const end = e => { e.preventDefault(); e.stopPropagation(); keys[dir] = false; btn.classList.remove('pressed'); };
   btn.addEventListener('pointerdown', start);
   btn.addEventListener('pointerup', end);
   btn.addEventListener('pointercancel', end);
@@ -1263,352 +1386,228 @@ document.querySelectorAll('.dpad-btn').forEach(btn => {
 });
 
 document.getElementById('spawnCarBtn').addEventListener('pointerdown', e => {
-  e.preventDefault(); e.stopPropagation(); if (!myCar) spawnMyCar(); showCarControls();
+  e.preventDefault(); e.stopPropagation();
+  if (!myCar) spawnMyCar();
+  showCarUI();
 });
 document.getElementById('exitCarBtn').addEventListener('pointerdown', e => {
-  e.preventDefault(); e.stopPropagation(); exitCar();
+  e.preventDefault(); e.stopPropagation();
+  exitCar();
 });
 
-function showCarControls() {
+function showCarUI() {
   document.getElementById('dpad').classList.add('show');
   document.getElementById('carControls').classList.add('show');
   document.getElementById('spawnCarBtn').style.display = 'none';
-  document.getElementById('exitCarBtn').style.display = 'block';
+  document.getElementById('exitCarBtn').style.display = 'flex';
 }
-function hideCarControls() {
+function hideCarUI() {
   document.getElementById('dpad').classList.remove('show');
   document.getElementById('carControls').classList.remove('show');
-  document.getElementById('spawnCarBtn').style.display = 'block';
+  document.getElementById('spawnCarBtn').style.display = 'flex';
   document.getElementById('exitCarBtn').style.display = 'none';
 }
 
-let carSaveAccumulator = 0;
+let carSaveAcc = 0;
 function updateCar(dt) {
   if (!myCar || !driving) return;
-  const ACCEL=0.08, MAX_SPEED=2.5, TURN=0.06;
-  if (keys.up) myCar.speed=Math.min(myCar.speed+ACCEL,MAX_SPEED);
-  else if (keys.down) myCar.speed=Math.max(myCar.speed-ACCEL,-MAX_SPEED*0.5);
-  else { myCar.speed*=0.95; if(Math.abs(myCar.speed)<0.01)myCar.speed=0; }
-  if (Math.abs(myCar.speed)>0.05) {
-    const tf = myCar.speed>0?1:-1;
-    if (keys.left) myCar.dir -= TURN*tf;
-    if (keys.right) myCar.dir += TURN*tf;
+  const ACCEL = 0.1, MAX_SPD = 3, TURN = 0.07;
+  if (keys.up) myCar.speed = Math.min(myCar.speed + ACCEL, MAX_SPD);
+  else if (keys.down) myCar.speed = Math.max(myCar.speed - ACCEL, -MAX_SPD * 0.5);
+  else { myCar.speed *= 0.94; if (Math.abs(myCar.speed) < 0.01) myCar.speed = 0; }
+
+  if (Math.abs(myCar.speed) > 0.05) {
+    const tf = myCar.speed > 0 ? 1 : -1;
+    if (keys.left) myCar.dir -= TURN * tf;
+    if (keys.right) myCar.dir += TURN * tf;
   }
-  const nx = myCar.x + Math.cos(myCar.dir)*myCar.speed;
-  const ny = myCar.y + Math.sin(myCar.dir)*myCar.speed;
-  if (nx>=0&&nx<=WORLD_W&&ny>=0&&ny<=WORLD_H) { myCar.x=nx; myCar.y=ny; }
-  else myCar.speed=0;
-  if (view3DMode) {
-    View3D.updateMyCar();
-  } else {
-    centerCameraOnCar();
-  }
-  carSaveAccumulator += dt;
-  if (carSaveAccumulator > 150) { carSaveAccumulator=0; saveCar(); }
+
+  const nx = myCar.x + Math.cos(myCar.dir) * myCar.speed;
+  const ny = myCar.y + Math.sin(myCar.dir) * myCar.speed;
+  if (nx >= 0 && nx <= WORLD && ny >= 0 && ny <= WORLD) { myCar.x = nx; myCar.y = ny; }
+  else myCar.speed = 0;
+
+  if (view3DMode) V3.updateMyCar3D();
+  else centerCamOnCar();
+
+  carSaveAcc += dt;
+  if (carSaveAcc > 150) { carSaveAcc = 0; saveCarPos(); }
 }
 
-// ─── Render cars (2D) ──────────────────────────────────────────────
-function renderCars() {
-  const allCars = { ...cars };
-  if (myCar) allCars[getMyId()] = myCar;
-  for (const [id, car] of Object.entries(allCars)) {
+function renderCars2D() {
+  const all = { ...cars };
+  if (myCar) all[getMyId()] = myCar;
+  for (const [id, car] of Object.entries(all)) {
+    const mine = id === getMyId();
     ctx.save();
     ctx.translate(car.x, car.y);
     ctx.rotate(car.dir);
-    const isMine = id === getMyId();
     ctx.fillStyle = car.color || '#ef4444';
-    ctx.fillRect(-CAR_SIZE/2, -CAR_SIZE/2, CAR_SIZE, CAR_SIZE);
+    ctx.fillRect(-CAR_SIZE / 2, -CAR_SIZE / 2, CAR_SIZE, CAR_SIZE);
     ctx.fillStyle = 'rgba(150,200,255,0.7)';
-    ctx.fillRect(CAR_SIZE/2-4, -CAR_SIZE/2+1, 2, CAR_SIZE-2);
-    if (isMine) { ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.strokeRect(-CAR_SIZE/2-1,-CAR_SIZE/2-1,CAR_SIZE+2,CAR_SIZE+2); }
+    ctx.fillRect(CAR_SIZE / 2 - 4, -CAR_SIZE / 2 + 1, 2, CAR_SIZE - 2);
+    if (mine) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.strokeRect(-CAR_SIZE / 2 - 1, -CAR_SIZE / 2 - 1, CAR_SIZE + 2, CAR_SIZE + 2); }
     ctx.restore();
     if (car.name) {
-      ctx.fillStyle = isMine ? '#fff' : '#aaa';
-      ctx.font = '6px sans-serif'; ctx.textAlign='center';
-      ctx.fillText(car.name, car.x, car.y - CAR_SIZE/2 - 3);
+      ctx.fillStyle = mine ? '#fff' : '#aaa';
+      ctx.font = '7px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(car.name, car.x, car.y - CAR_SIZE / 2 - 3);
     }
   }
 }
 
-// ─── Render traffic cars (2D) ──────────────────────────────────────
-function renderTrafficCars() {
-  for (const car of state.trafficCars) {
-    ctx.save();
-    ctx.translate(car.x, car.y);
-    ctx.fillStyle = car.color;
-    ctx.globalAlpha = 0.6;
-    ctx.fillRect(-CAR_SIZE/2, -CAR_SIZE/2, CAR_SIZE, CAR_SIZE);
-    ctx.globalAlpha = 1;
-    ctx.restore();
-  }
+// ═══════════════════════════════════════════════════════════════════
+// FIREBASE SYNC
+// ═══════════════════════════════════════════════════════════════════
+let firebaseReady = false;
+let cityRef = null;
+let saveTimer = null;
+
+function scheduleSave() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveCity, 2000);
 }
 
-// ─── Firebase car sync ─────────────────────────────────────────────
-function saveCar() {
+function serializeCity() {
+  const tiles = [];
+  for (let y = 0; y < GRID; y++)
+    for (let x = 0; x < GRID; x++) {
+      const t = state.grid[y][x];
+      tiles.push(t.type, t.level, t.data.signIdx != null ? t.data.signIdx : -1);
+    }
+  return {
+    tiles: tiles.join(','),
+    money: Math.floor(state.money),
+    happiness: Math.round(state.happiness),
+    taxRate: state.taxRate,
+    tick: state.tick,
+    updated: Date.now(),
+  };
+}
+
+function deserializeCity(data) {
+  if (!data || !data.tiles) return false;
+  const parts = data.tiles.split(',').map(Number);
+  if (parts.length !== GRID * GRID * 3) return false;
+  for (let y = 0; y < GRID; y++)
+    for (let x = 0; x < GRID; x++) {
+      const idx = (y * GRID + x) * 3;
+      state.grid[y][x] = {
+        type: parts[idx],
+        level: parts[idx + 1],
+        data: parts[idx + 2] >= 0 ? { signIdx: parts[idx + 2] } : {},
+      };
+    }
+  if (typeof data.money === 'number') state.money = data.money;
+  if (typeof data.happiness === 'number') state.happiness = data.happiness;
+  if (typeof data.taxRate === 'number') {
+    state.taxRate = data.taxRate;
+    document.getElementById('taxSlider').value = state.taxRate;
+    document.getElementById('taxVal').textContent = state.taxRate + '%';
+  }
+  state.tick = data.tick || 0;
+  updateHUD();
+  if (view3DMode) V3.buildAll();
+  return true;
+}
+
+function saveLocal() {
+  try { localStorage.setItem('xinfu_city_v3', JSON.stringify(serializeCity())); } catch(e) {}
+}
+
+function loadLocal() {
+  try {
+    const s = localStorage.getItem('xinfu_city_v3');
+    if (s) { if (deserializeCity(JSON.parse(s))) { toast('City loaded from device'); return true; } }
+  } catch(e) {}
+  return false;
+}
+
+async function saveCity() {
+  saveLocal();
+  if (!firebaseReady || !cityRef) return;
+  try { await cityRef.set(serializeCity()); } catch(e) {}
+}
+
+function saveCarPos() {
   if (!carRef || !myCar) return;
   try {
     carRef.child(getMyId()).set({
-      x: Math.round(myCar.x*10)/10, y: Math.round(myCar.y*10)/10,
-      dir: Math.round(myCar.dir*100)/100, color: myCar.color, name: myCar.name,
+      x: Math.round(myCar.x * 10) / 10,
+      y: Math.round(myCar.y * 10) / 10,
+      dir: Math.round(myCar.dir * 100) / 100,
+      color: myCar.color, name: myCar.name,
       updated: Date.now(),
     });
   } catch(e) {}
 }
-function listenForCars() {
+
+function listenCars() {
   if (!carRef) return;
   carRef.on('value', snap => {
-    const data = snap.val();
-    if (!data) { cars = {}; return; }
+    const data = snap.val(); if (!data) { cars = {}; return; }
     const now = Date.now();
     const nc = {};
     for (const [id, car] of Object.entries(data)) {
       if (id === getMyId()) continue;
-      if (now - (car.updated||0) > 30000) { carRef.child(id).remove(); continue; }
+      if (now - (car.updated || 0) > 30000) { carRef.child(id).remove(); continue; }
       nc[id] = car;
     }
     cars = nc;
   });
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// 🎨 2D RENDERING
-// ═══════════════════════════════════════════════════════════════════
-
-function render() {
-  ctx.fillStyle = '#0a0a0a';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.save();
-  ctx.translate(camX, camY + getCanvasOffsetY());
-  ctx.scale(zoom, zoom);
-
-  const sx = Math.max(0, Math.floor(-camX / zoom / TILE));
-  const ex = Math.min(GRID_W, Math.ceil((canvas.width - camX) / zoom / TILE));
-  const sy = Math.max(0, Math.floor(-(camY + getCanvasOffsetY()) / zoom / TILE));
-  const ey = Math.min(GRID_H, Math.ceil((canvas.height - camY - getCanvasOffsetY() - TOOLBAR_H) / zoom / TILE));
-
-  for (let y = sy; y < ey; y++)
-    for (let x = sx; x < ex; x++)
-      drawTile(x, y);
-
-  if (zoom > 1) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-    ctx.lineWidth = 0.5;
-    for (let x = sx; x <= ex; x++) { ctx.beginPath(); ctx.moveTo(x*TILE, sy*TILE); ctx.lineTo(x*TILE, ey*TILE); ctx.stroke(); }
-    for (let y = sy; y <= ey; y++) { ctx.beginPath(); ctx.moveTo(sx*TILE, y*TILE); ctx.lineTo(ex*TILE, y*TILE); ctx.stroke(); }
+async function initFirebase() {
+  if (typeof FirebaseShared === 'undefined') {
+    toast('Offline mode — local storage');
+    loadLocal();
+    return;
   }
-
-  renderTrafficCars();
-  renderCars();
-  ctx.restore();
-  renderMinimap();
-}
-
-function drawTile(tx, ty) {
-  const tile = state.grid[ty][tx];
-  const data = TILE_DATA[tile.type] || TILE_DATA[T.GRASS];
-  const px = tx * TILE, py = ty * TILE;
-  ctx.fillStyle = data.color;
-  ctx.fillRect(px, py, TILE, TILE);
-
-  switch (tile.type) {
-    case T.GRASS:
-      if ((tx+ty)%3===0) { ctx.fillStyle='#275027'; ctx.fillRect(px+2,py+2,3,3); }
-      break;
-    case T.WATER:
-      const sh = Math.sin(state.tick*0.05+tx*0.5+ty*0.3)*0.5+0.5;
-      ctx.fillStyle=`rgba(100,150,200,${sh*0.15})`;
-      ctx.fillRect(px,py,TILE,TILE);
-      break;
-    case T.ROAD:
-      ctx.fillStyle='#333'; ctx.fillRect(px,py,TILE,TILE);
-      ctx.fillStyle='#555'; ctx.fillRect(px+TILE/2-1,py,2,TILE); ctx.fillRect(px,py+TILE/2-1,TILE,2);
-      break;
-    case T.RES: drawBuilding(px,py,tile.level,'#3b82f6','#1e40af'); break;
-    case T.COM: drawBuilding(px,py,tile.level,'#f59e0b','#92400e'); break;
-    case T.IND:
-      drawBuilding(px,py,tile.level,'#a16207','#713f12');
-      ctx.fillStyle='#444'; ctx.fillRect(px+TILE-5,py+2,3,4);
-      break;
-    case T.AGRI:
-      ctx.fillStyle='#15803d'; ctx.fillRect(px+1,py+1,TILE-2,TILE-2);
-      ctx.fillStyle='#dc2626';
-      for(let i=0;i<3;i++) ctx.fillRect(px+3+i*5,py+5+(i%2)*6,2,2);
-      break;
-    case T.BLUETOOTH_TOWER:
-      ctx.fillStyle='#1a1a2e'; ctx.fillRect(px,py,TILE,TILE);
-      ctx.fillStyle='#8b5cf6'; ctx.fillRect(px+TILE/2-1,py+2,3,TILE-4);
-      ctx.strokeStyle='#8b5cf6'; ctx.lineWidth=1;
-      ctx.beginPath(); ctx.arc(px+TILE/2+1,py+4,4,-Math.PI/3,Math.PI/3); ctx.stroke();
-      ctx.beginPath(); ctx.arc(px+TILE/2+1,py+4,7,-Math.PI/3,Math.PI/3); ctx.stroke();
-      break;
-    case T.THRONE_ROOM:
-      ctx.fillStyle='#1a1a2e'; ctx.fillRect(px,py,TILE,TILE);
-      ctx.fillStyle='#c9a84c'; ctx.fillRect(px+2,py+2,TILE-4,TILE-4);
-      ctx.font=`${TILE-6}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText('👑',px+TILE/2,py+TILE/2);
-      break;
-    case T.GRILL:
-      ctx.fillStyle='#1a0a0a'; ctx.fillRect(px,py,TILE,TILE);
-      ctx.fillStyle='#ef4444'; ctx.fillRect(px+2,py+2,TILE-4,TILE-4);
-      ctx.font=`${TILE-6}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText('🔥',px+TILE/2,py+TILE/2);
-      break;
-    case T.GARAGE:
-      ctx.fillStyle='#1a1a1a'; ctx.fillRect(px,py,TILE,TILE);
-      ctx.fillStyle='#64748b'; ctx.fillRect(px+1,py+1,TILE-2,TILE-2);
-      ctx.fillStyle='#0a0a0a'; ctx.fillRect(px+4,py+6,TILE-8,TILE-10);
-      ctx.fillStyle='#fbbf24'; ctx.font='5px monospace'; ctx.textAlign='center';
-      ctx.fillText('GARAGE',px+TILE/2,py+TILE-3);
-      break;
-    case T.GUMMY_FACTORY:
-      ctx.fillStyle='#1a1a1a'; ctx.fillRect(px,py,TILE,TILE);
-      ctx.fillStyle='#ec4899'; ctx.fillRect(px+2,py+2,TILE-4,TILE-4);
-      ctx.font=`${TILE-8}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText('🐻',px+TILE/2,py+TILE/2);
-      break;
-    case T.HORN_TOWER:
-      ctx.fillStyle='#0a1a1a'; ctx.fillRect(px,py,TILE,TILE);
-      ctx.fillStyle='#06b6d4';
-      ctx.beginPath(); ctx.moveTo(px+TILE/2,py+2); ctx.lineTo(px+TILE-3,py+TILE-3); ctx.lineTo(px+3,py+TILE-3); ctx.closePath(); ctx.fill();
-      break;
-    case T.SIGN:
-      ctx.fillStyle='#2d5a2d'; ctx.fillRect(px,py,TILE,TILE);
-      ctx.fillStyle='#888'; ctx.fillRect(px+TILE/2-1,py+4,2,TILE-4);
-      ctx.fillStyle='#fbbf24'; ctx.fillRect(px+1,py+2,TILE-2,5);
-      ctx.fillStyle='#000'; ctx.font='4px monospace'; ctx.textAlign='center';
-      const sign = ROAD_SIGNS[tile.data.signIdx||0];
-      if (sign) { const arrow=sign.dir==='left'?'◀':sign.dir==='right'?'▶':'▲'; ctx.fillText(arrow,px+TILE/2,py+6); }
-      break;
-    case T.POWER_PLANT:
-      ctx.fillStyle='#1a1a0a'; ctx.fillRect(px,py,TILE,TILE);
-      ctx.fillStyle='#f59e0b'; ctx.fillRect(px+2,py+4,TILE-4,TILE-6);
-      ctx.fillStyle='#ef4444'; ctx.fillRect(px+TILE/2-2,py+2,4,3);
-      ctx.font='6px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText('⚡',px+TILE/2,py+TILE/2+2);
-      break;
-    case T.POWER_LINE:
-      ctx.fillStyle='#2d5a2d'; ctx.fillRect(px,py,TILE,TILE);
-      ctx.fillStyle='#6b7280'; ctx.fillRect(px+TILE/2-1,py,2,TILE);
-      ctx.fillStyle='#9ca3af'; ctx.fillRect(px+TILE/2-3,py+2,6,2);
-      ctx.fillRect(px+TILE/2-3,py+TILE-4,6,2);
-      break;
-    case T.PARK:
-      ctx.fillStyle='#16a34a'; ctx.fillRect(px,py,TILE,TILE);
-      ctx.fillStyle='#22c55e'; ctx.fillRect(px+2,py+2,TILE-4,TILE-4);
-      ctx.fillStyle='#15803d';
-      ctx.beginPath(); ctx.arc(px+TILE/2,py+TILE/2,3,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle='#166534';
-      ctx.beginPath(); ctx.arc(px+5,py+5,2,0,Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(px+TILE-5,py+TILE-5,2,0,Math.PI*2); ctx.fill();
-      break;
-  }
-
-  // Overlays for missing requirements
-  const needsRoad = [T.RES,T.COM,T.IND,T.AGRI].includes(tile.type);
-  const needsPower = [T.RES,T.COM,T.IND].includes(tile.type);
-  if (needsRoad && !hasRoadAdjacent(tx,ty)) {
-    ctx.fillStyle='rgba(239,68,68,0.15)'; ctx.fillRect(px,py,TILE,TILE);
-    ctx.fillStyle='rgba(239,68,68,0.5)'; ctx.font='8px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('🚫',px+TILE/2,py+2);
-  }
-  if (needsPower && !hasPower(tx,ty)) {
-    ctx.fillStyle='rgba(33,33,33,0.2)'; ctx.fillRect(px,py,TILE,TILE);
-    ctx.fillStyle='rgba(255,200,0,0.5)'; ctx.font='6px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('⚡',px+TILE-4,py+4);
-  }
-}
-
-function drawBuilding(px, py, level, color, darkColor) {
-  const h = 4 + level * 4;
-  ctx.fillStyle = darkColor;
-  ctx.fillRect(px+2, py+TILE-h-2, TILE-4, h);
-  ctx.fillStyle = color;
-  ctx.fillRect(px+2, py+TILE-h-2, TILE-4, Math.min(h,3));
-  ctx.fillStyle = 'rgba(255,255,200,0.6)';
-  for (let i = 0; i < level; i++) {
-    ctx.fillRect(px+4, py+TILE-4-i*4, 2, 2);
-    ctx.fillRect(px+TILE-6, py+TILE-4-i*4, 2, 2);
-  }
-}
-
-// ─── Minimap ───────────────────────────────────────────────────────
-function renderMinimap() {
-  const mw = minimap.width / GRID_W, mh = minimap.height / GRID_H;
-  mctx.fillStyle = '#0a0a0a';
-  mctx.fillRect(0, 0, minimap.width, minimap.height);
-  for (let y = 0; y < GRID_H; y++) {
-    for (let x = 0; x < GRID_W; x++) {
-      const data = TILE_DATA[state.grid[y][x].type];
-      if (data && state.grid[y][x].type !== T.GRASS) {
-        mctx.fillStyle = data.color;
-        mctx.fillRect(x*mw, y*mh, mw+0.5, mh+0.5);
-      }
+  try {
+    await FirebaseShared.init('xinfu-city', { presenceId: 'presenceBadge' });
+    document.getElementById('presenceBadge').style.display = 'block';
+    if (typeof firebase !== 'undefined' && firebase.database) {
+      const db = firebase.database();
+      cityRef = db.ref('xinfu-city-v3/state');
+      carRef = db.ref('xinfu-city-v3/cars');
+      cityRef.on('value', snap => {
+        const data = snap.val();
+        if (data && deserializeCity(data)) { toast('City synced!'); updateHUD(); }
+      });
+      cityRef.once('value', snap => { if (!snap.val()) saveCity(); });
+      listenCars();
+      firebaseReady = true;
+      toast('Connected to Xin Fú Cloud!');
+    } else {
+      loadLocal();
     }
+  } catch(e) {
+    toast('Offline mode — local storage');
+    loadLocal();
   }
-  const allCars = { ...cars };
-  if (myCar) allCars[getMyId()] = myCar;
-  for (const car of Object.values(allCars)) {
-    mctx.fillStyle = car.color || '#fff';
-    mctx.fillRect((car.x/TILE)*mw - 1, (car.y/TILE)*mh - 1, 3, 3);
-  }
-  const vx = -camX/zoom/TILE*mw;
-  const vy = -(camY+getCanvasOffsetY())/zoom/TILE*mh;
-  const vw = canvas.width/zoom/TILE*mw;
-  const vh = (canvas.height-getCanvasOffsetY()-TOOLBAR_H)/zoom/TILE*mh;
-  mctx.strokeStyle = 'rgba(255,255,255,0.5)';
-  mctx.lineWidth = 1;
-  mctx.strokeRect(vx, vy, vw, vh);
 }
 
-minimap.addEventListener('pointerdown', e => {
-  e.preventDefault();
-  const rect = minimap.getBoundingClientRect();
-  const mx = (e.clientX - rect.left) / rect.width;
-  const my = (e.clientY - rect.top) / rect.height;
-  if (myCar && driving) {
-    myCar.dir = Math.atan2(my*WORLD_H - myCar.y, mx*WORLD_W - myCar.x);
-  } else {
-    camX = canvas.width/2 - mx*WORLD_W*zoom;
-    camY = (canvas.height-TOOLBAR_H)/2 + getCanvasOffsetY() - my*WORLD_H*zoom;
-    clampCamera();
-  }
-});
-
 // ═══════════════════════════════════════════════════════════════════
-// 🌐 3D VIEW SYSTEM (Three.js)
+// 3D VIEW (Three.js)
 // ═══════════════════════════════════════════════════════════════════
-
-const View3D = {
+const V3 = {
   initialized: false,
-  scene: null,
-  camera: null,
-  renderer: null,
-  container: null,
+  scene: null, camera: null, renderer: null, container: null,
   tileMeshes: [],
   carMeshes: {},
   myCarMesh: null,
   trafficMeshes: [],
-  cameraAngle: Math.PI / 4,
-  cameraPitch: 0.5,
-  cameraDist: 35,
-  cameraTarget: { x: GRID_W/2, y: 0, z: GRID_H/2 },
-  raycaster: null,
-  mouse: null,
-  drag3D: null,
-  smokeParticles: [],
-  clock: 0,
-
-  // ── Shared geometry/materials (performance) ──
-  geo: {},
-  mat: {},
+  camAngle: Math.PI / 4,
+  camPitch: 0.55,
+  camDist: 30,
+  camTarget: { x: GRID / 2, y: 0, z: GRID / 2 },
+  raycaster: null, mouse: null, pickPlane: null,
+  glowObjs: [], smokeParts: [], clock: 0,
+  geo: {}, sun: null,
 
   init() {
     if (this.initialized) return;
-    if (typeof THREE === 'undefined') {
-      toast('3D library failed to load');
-      return;
-    }
+    if (typeof THREE === 'undefined') throw new Error('THREE not loaded');
     this.container = document.getElementById('view3d');
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -1618,112 +1617,102 @@ const View3D = {
     this.container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x080810);
-    this.scene.fog = new THREE.Fog(0x080810, 30, 90);
+    this.scene.background = new THREE.Color(0x0a0a14);
+    this.scene.fog = new THREE.Fog(0x0a0a14, 25, 80);
 
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 300);
-    this.updateCamera();
+    this.updateCam();
 
     // Lighting
-    const ambient = new THREE.AmbientLight(0x404060, 0.7);
-    this.scene.add(ambient);
-    const hemi = new THREE.HemisphereLight(0x88aaff, 0x223322, 0.5);
-    this.scene.add(hemi);
-    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+    this.scene.add(new THREE.AmbientLight(0x404060, 0.6));
+    this.scene.add(new THREE.HemisphereLight(0x88aaff, 0x223322, 0.4));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.85);
     dir.position.set(20, 35, 15);
     dir.castShadow = true;
-    dir.shadow.mapSize.width = 2048;
-    dir.shadow.mapSize.height = 2048;
-    dir.shadow.camera.left = -25;
-    dir.shadow.camera.right = 25;
-    dir.shadow.camera.top = 25;
-    dir.shadow.camera.bottom = -25;
-    dir.shadow.camera.near = 0.5;
-    dir.shadow.camera.far = 100;
+    dir.shadow.mapSize.width = 1024;
+    dir.shadow.mapSize.height = 1024;
+    dir.shadow.camera.left = -20; dir.shadow.camera.right = 20;
+    dir.shadow.camera.top = 20; dir.shadow.camera.bottom = -20;
     this.scene.add(dir);
     this.sun = dir;
 
-    // Ground plane
-    const gGeo = new THREE.PlaneGeometry(GRID_W + 4, GRID_H + 4);
-    const gMat = new THREE.MeshStandardMaterial({ color: 0x1a3010 });
-    const ground = new THREE.Mesh(gGeo, gMat);
+    // Ground
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(GRID + 4, GRID + 4),
+      new THREE.MeshStandardMaterial({ color: 0x1a3010 })
+    );
     ground.rotation.x = -Math.PI / 2;
-    ground.position.set(GRID_W/2 - 0.5, -0.02, GRID_H/2 - 0.5);
+    ground.position.set(GRID / 2 - 0.5, -0.02, GRID / 2 - 0.5);
     ground.receiveShadow = true;
     this.scene.add(ground);
-    this.ground = ground;
 
-    // Init shared resources
-    this.geo.box = (w,h,d) => new THREE.BoxGeometry(w,h,d);
-    this.geo.plane = (w,d) => new THREE.PlaneGeometry(w,d);
-    this.geo.cyl = (r1,r2,h) => new THREE.CylinderGeometry(r1,r2,h,8);
-    this.geo.cone = (r,h,s) => new THREE.ConeGeometry(r,h,s||4);
+    // Shared geo helpers
+    this.geo.box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+    this.geo.plane = (w, d) => new THREE.PlaneGeometry(w, d);
+    this.geo.cyl = (r1, r2, h, s) => new THREE.CylinderGeometry(r1, r2, h, s || 8);
+    this.geo.cone = (r, h, s) => new THREE.ConeGeometry(r, h, s || 4);
+    this.geo.sphere = (r, s1, s2) => new THREE.SphereGeometry(r, s1 || 8, s2 || 8);
 
-    // Init tile mesh array
-    for (let y = 0; y < GRID_H; y++) {
+    // Tile mesh grid
+    for (let y = 0; y < GRID; y++) {
       this.tileMeshes[y] = [];
-      for (let x = 0; x < GRID_W; x++) this.tileMeshes[y][x] = null;
+      for (let x = 0; x < GRID; x++) this.tileMeshes[y][x] = null;
     }
 
-    // Raycaster for tile picking
+    // Picking
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
     this.pickPlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(GRID_W, GRID_H),
+      new THREE.PlaneGeometry(GRID, GRID),
       new THREE.MeshBasicMaterial({ visible: false })
     );
     this.pickPlane.rotation.x = -Math.PI / 2;
-    this.pickPlane.position.set(GRID_W/2 - 0.5, 0, GRID_H/2 - 0.5);
+    this.pickPlane.position.set(GRID / 2 - 0.5, 0, GRID / 2 - 0.5);
     this.scene.add(this.pickPlane);
 
-    this.setupControls3D();
+    this.setup3DControls();
     this.initialized = true;
   },
 
-  setupControls3D() {
+  setup3DControls() {
     const dom = this.renderer.domElement;
     let ptrs = new Map();
     let lastPinch = 0;
-    let dragMoved = false;
+    let drag3D = null;
 
     dom.addEventListener('pointerdown', e => {
       e.preventDefault();
       dom.setPointerCapture(e.pointerId);
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
-      if (ptrs.size === 1) {
-        this.drag3D = { x: e.clientX, y: e.clientY, moved: false };
-        dragMoved = false;
-      } else if (ptrs.size === 2) {
+      if (ptrs.size === 1) drag3D = { x: e.clientX, y: e.clientY, moved: false };
+      else if (ptrs.size === 2) {
         const pts = [...ptrs.values()];
         lastPinch = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
       }
     });
 
     dom.addEventListener('pointermove', e => {
-      if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (ptrs.has(e.pointerId))
+        ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: ptrs.get(e.pointerId).sx, sy: ptrs.get(e.pointerId).sy });
       if (ptrs.size === 2) {
         const pts = [...ptrs.values()];
         const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
         if (lastPinch > 0) {
-          const scale = d / lastPinch;
-          this.cameraDist = Math.max(10, Math.min(70, this.cameraDist / scale));
-          this.updateCamera();
+          this.camDist = Math.max(8, Math.min(60, this.camDist / (d / lastPinch)));
+          this.updateCam();
         }
         lastPinch = d;
-        dragMoved = true;
+        if (drag3D) drag3D.moved = true;
         return;
       }
-      if (this.drag3D && ptrs.size === 1) {
-        const dx = e.clientX - this.drag3D.x;
-        const dy = e.clientY - this.drag3D.y;
+      if (drag3D && ptrs.size === 1) {
+        const dx = e.clientX - drag3D.x, dy = e.clientY - drag3D.y;
         if (Math.hypot(dx, dy) > 5) {
-          this.drag3D.moved = true;
-          dragMoved = true;
-          this.cameraAngle -= dx * 0.008;
-          this.cameraPitch = Math.max(0.15, Math.min(1.2, this.cameraPitch - dy * 0.005));
-          this.updateCamera();
-          this.drag3D.x = e.clientX;
-          this.drag3D.y = e.clientY;
+          drag3D.moved = true;
+          this.camAngle -= dx * 0.008;
+          this.camPitch = Math.max(0.15, Math.min(1.2, this.camPitch - dy * 0.005));
+          this.updateCam();
+          drag3D.x = e.clientX; drag3D.y = e.clientY;
         }
       }
     });
@@ -1732,22 +1721,19 @@ const View3D = {
       const info = ptrs.get(e.pointerId);
       ptrs.delete(e.pointerId);
       if (ptrs.size < 2) lastPinch = 0;
-      if (info && ptrs.size === 0 && !dragMoved) {
-        // Tap → pick tile
+      if (info && ptrs.size === 0 && !drag3D?.moved) {
         const move = Math.hypot(e.clientX - info.sx, e.clientY - info.sy);
-        if (move < 6) this.pickTile(e.clientX, e.clientY);
+        if (move < 8) this.pickTile(e.clientX, e.clientY);
       }
-      if (ptrs.size === 0) this.drag3D = null;
+      if (ptrs.size === 0) drag3D = null;
     });
 
-    dom.addEventListener('pointercancel', () => { ptrs.clear(); this.drag3D = null; });
-
+    dom.addEventListener('pointercancel', () => { ptrs.clear(); drag3D = null; lastPinch = 0; });
     dom.addEventListener('wheel', e => {
       e.preventDefault();
-      this.cameraDist = Math.max(10, Math.min(70, this.cameraDist + e.deltaY * 0.03));
-      this.updateCamera();
+      this.camDist = Math.max(8, Math.min(60, this.camDist + e.deltaY * 0.03));
+      this.updateCam();
     }, { passive: false });
-
     dom.addEventListener('contextmenu', e => e.preventDefault());
   },
 
@@ -1760,763 +1746,361 @@ const View3D = {
     const hits = this.raycaster.intersectObject(this.pickPlane);
     if (hits.length > 0) {
       const p = hits[0].point;
-      const tx = Math.floor(p.x + 0.5);
-      const ty = Math.floor(p.z + 0.5);
-      if (tx >= 0 && tx < GRID_W && ty >= 0 && ty < GRID_H) {
-        if (activeTool === 'inspect') {
-          showTileInfo(tx, ty);
-        } else if (activeTool === 'bulldoze') {
-          handleBulldoze(tx, ty);
-        } else if (activeTool !== 'drive') {
-          handleBuild(tx, ty);
-        }
+      const tx = Math.floor(p.x + 0.5), ty = Math.floor(p.z + 0.5);
+      if (tx >= 0 && tx < GRID && ty >= 0 && ty < GRID) {
+        handleTap(tx, ty);
         haptic(10);
       }
     }
   },
 
-  updateCamera() {
-    const cx = this.cameraTarget.x;
-    const cz = this.cameraTarget.z;
-    this.camera.position.x = cx + Math.cos(this.cameraAngle) * this.cameraDist * Math.cos(this.cameraPitch);
-    this.camera.position.z = cz + Math.sin(this.cameraAngle) * this.cameraDist * Math.cos(this.cameraPitch);
-    this.camera.position.y = this.cameraDist * Math.sin(this.cameraPitch);
+  updateCam() {
+    const cx = this.camTarget.x, cz = this.camTarget.z;
+    this.camera.position.x = cx + Math.cos(this.camAngle) * this.camDist * Math.cos(this.camPitch);
+    this.camera.position.z = cz + Math.sin(this.camAngle) * this.camDist * Math.cos(this.camPitch);
+    this.camera.position.y = this.camDist * Math.sin(this.camPitch);
     this.camera.lookAt(cx, 0, cz);
   },
 
-  zoom(factor) {
-    this.cameraDist = Math.max(10, Math.min(70, this.cameraDist * factor));
-    this.updateCamera();
-  },
+  zoom(f) { this.camDist = Math.max(8, Math.min(60, this.camDist * f)); this.updateCam(); },
 
   buildAll() {
-    // Clear existing
-    for (let y = 0; y < GRID_H; y++) {
-      for (let x = 0; x < GRID_W; x++) {
+    for (let y = 0; y < GRID; y++)
+      for (let x = 0; x < GRID; x++) {
         if (this.tileMeshes[y][x]) {
           this.scene.remove(this.tileMeshes[y][x]);
-          this.disposeGroup(this.tileMeshes[y][x]);
+          this.disposeObj(this.tileMeshes[y][x]);
           this.tileMeshes[y][x] = null;
         }
-      }
-    }
-    for (let y = 0; y < GRID_H; y++) {
-      for (let x = 0; x < GRID_W; x++) {
         this.updateTile(x, y);
       }
-    }
-    this.centerOnCity();
-  },
-
-  centerOnCity() {
-    this.cameraTarget = { x: GRID_W/2 - 0.5, y: 0, z: GRID_H/2 - 0.5 };
-    this.cameraDist = 35;
-    this.cameraAngle = Math.PI / 4;
-    this.cameraPitch = 0.5;
-    this.updateCamera();
+    this.camTarget = { x: GRID / 2 - 0.5, y: 0, z: GRID / 2 - 0.5 };
+    this.camDist = 30;
+    this.camAngle = Math.PI / 4;
+    this.camPitch = 0.55;
+    this.updateCam();
   },
 
   updateTile(x, y) {
     if (!this.initialized) return;
     if (this.tileMeshes[y][x]) {
       this.scene.remove(this.tileMeshes[y][x]);
-      this.disposeGroup(this.tileMeshes[y][x]);
+      this.disposeObj(this.tileMeshes[y][x]);
     }
-    const tile = state.grid[y][x];
-    const mesh = this.createTileMesh(x, y, tile);
-    if (mesh) {
-      this.scene.add(mesh);
-      this.tileMeshes[y][x] = mesh;
-    } else {
-      this.tileMeshes[y][x] = null;
-    }
+    const mesh = this.makeTile3D(x, y, state.grid[y][x]);
+    if (mesh) { this.scene.add(mesh); this.tileMeshes[y][x] = mesh; }
+    else this.tileMeshes[y][x] = null;
   },
 
-  disposeGroup(g) {
-    g.traverse(obj => {
-      if (obj.geometry) obj.geometry.dispose();
-      if (obj.material) {
-        if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
-        else obj.material.dispose();
-      }
+  disposeObj(g) {
+    g.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) { Array.isArray(o.material) ? o.material.forEach(m => m.dispose()) : o.material.dispose(); }
     });
   },
 
-  createTileMesh(gx, gy, tile) {
-    const px = gx;
-    const pz = gy;
-    const group = new THREE.Group();
-    group.position.set(px, 0, pz);
+  makeTile3D(gx, gy, tile) {
+    const g = new THREE.Group();
+    g.position.set(gx, 0, gy);
+    const d = TD[tile.type];
 
     switch (tile.type) {
       case T.GRASS:
-        // No mesh needed, ground plane shows through
-        // Add subtle grass color variation
         if ((gx + gy) % 3 === 0) {
-          const g = new THREE.Mesh(this.geo.box(0.15, 0.05, 0.15), new THREE.MeshStandardMaterial({ color: 0x3a6a3a }));
-          g.position.set(0, 0.03, 0);
-          group.add(g);
+          const tuft = new THREE.Mesh(this.geo.box(0.15, 0.05, 0.15), new THREE.MeshStandardMaterial({ color: 0x3a6a3a }));
+          tuft.position.set(0, 0.03, 0); g.add(tuft);
         }
         break;
 
       case T.WATER: {
-        const m = new THREE.Mesh(
-          this.geo.box(0.98, 0.08, 0.98),
-          new THREE.MeshStandardMaterial({ color: 0x1a3a5c, transparent: true, opacity: 0.85 })
-        );
-        m.position.y = 0.04;
-        m.receiveShadow = true;
-        group.add(m);
+        const m = new THREE.Mesh(this.geo.box(0.98, 0.08, 0.98), new THREE.MeshStandardMaterial({ color: 0x1a3a5c, transparent: true, opacity: 0.85 }));
+        m.position.y = 0.04; m.receiveShadow = true; g.add(m);
         break;
       }
 
       case T.ROAD: {
-        const m = new THREE.Mesh(
-          this.geo.plane(0.96, 0.96),
-          new THREE.MeshStandardMaterial({ color: 0x333333 })
-        );
-        m.rotation.x = -Math.PI / 2;
-        m.position.y = 0.02;
-        m.receiveShadow = true;
-        group.add(m);
-        // Lane marking
-        const mark = new THREE.Mesh(
-          this.geo.plane(0.06, 0.06),
-          new THREE.MeshBasicMaterial({ color: 0x666666 })
-        );
-        mark.rotation.x = -Math.PI / 2;
-        mark.position.y = 0.025;
-        group.add(mark);
+        const m = new THREE.Mesh(this.geo.plane(0.96, 0.96), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+        m.rotation.x = -Math.PI / 2; m.position.y = 0.02; m.receiveShadow = true; g.add(m);
         break;
       }
 
       case T.RES: {
         const h = 0.35 + tile.level * 0.25;
-        const body = new THREE.Mesh(
-          this.geo.box(0.65, h, 0.65),
-          new THREE.MeshStandardMaterial({ color: 0x3b82f6 })
-        );
-        body.position.y = h / 2;
-        body.castShadow = true;
-        body.receiveShadow = true;
-        group.add(body);
-        // Roof (pyramid)
-        const roof = new THREE.Mesh(
-          this.geo.cone(0.5, 0.22, 4),
-          new THREE.MeshStandardMaterial({ color: 0x1e40af })
-        );
-        roof.position.y = h + 0.11;
-        roof.rotation.y = Math.PI / 4;
-        roof.castShadow = true;
-        group.add(roof);
+        const body = new THREE.Mesh(this.geo.box(0.65, h, 0.65), new THREE.MeshStandardMaterial({ color: 0x3b82f6 }));
+        body.position.y = h / 2; body.castShadow = true; g.add(body);
+        const roof = new THREE.Mesh(this.geo.cone(0.5, 0.22, 4), new THREE.MeshStandardMaterial({ color: 0x1e40af }));
+        roof.position.y = h + 0.11; roof.rotation.y = Math.PI / 4; g.add(roof);
         break;
       }
 
       case T.COM: {
         const h = 0.5 + tile.level * 0.3;
-        const body = new THREE.Mesh(
-          this.geo.box(0.72, h, 0.72),
-          new THREE.MeshStandardMaterial({ color: 0xf59e0b })
-        );
-        body.position.y = h / 2;
-        body.castShadow = true;
-        body.receiveShadow = true;
-        group.add(body);
-        // Awning stripe
-        const awning = new THREE.Mesh(
-          this.geo.box(0.75, 0.06, 0.1),
-          new THREE.MeshStandardMaterial({ color: 0xef4444 })
-        );
-        awning.position.set(0, h * 0.4, 0.38);
-        group.add(awning);
+        const body = new THREE.Mesh(this.geo.box(0.72, h, 0.72), new THREE.MeshStandardMaterial({ color: 0xf59e0b }));
+        body.position.y = h / 2; body.castShadow = true; g.add(body);
         break;
       }
 
       case T.IND: {
         const h = 0.4 + tile.level * 0.2;
-        const body = new THREE.Mesh(
-          this.geo.box(0.8, h, 0.8),
-          new THREE.MeshStandardMaterial({ color: 0xa16207 })
-        );
-        body.position.y = h / 2;
-        body.castShadow = true;
-        body.receiveShadow = true;
-        group.add(body);
-        // Chimneys
+        const body = new THREE.Mesh(this.geo.box(0.8, h, 0.8), new THREE.MeshStandardMaterial({ color: 0xea580c }));
+        body.position.y = h / 2; body.castShadow = true; g.add(body);
         for (let i = 0; i < 2; i++) {
-          const ch = new THREE.Mesh(
-            this.geo.cyl(0.06, 0.08, 0.25),
-            new THREE.MeshStandardMaterial({ color: 0x555555 })
-          );
-          ch.position.set(-0.2 + i * 0.4, h + 0.12, -0.2 + i * 0.4);
-          ch.castShadow = true;
-          group.add(ch);
+          const ch = new THREE.Mesh(this.geo.cyl(0.06, 0.08, 0.25), new THREE.MeshStandardMaterial({ color: 0x555 }));
+          ch.position.set(-0.2 + i * 0.4, h + 0.12, -0.2 + i * 0.4); g.add(ch);
         }
         break;
       }
 
-      case T.AGRI: {
-        const base = new THREE.Mesh(
-          this.geo.plane(0.95, 0.95),
-          new THREE.MeshStandardMaterial({ color: 0x15803d })
-        );
-        base.rotation.x = -Math.PI / 2;
-        base.position.y = 0.02;
-        base.receiveShadow = true;
-        group.add(base);
-        // Pepper rows
-        for (let i = 0; i < 3; i++) {
-          for (let j = 0; j < 3; j++) {
-            const p = new THREE.Mesh(
-              this.geo.box(0.08, 0.08, 0.08),
-              new THREE.MeshStandardMaterial({ color: 0xdc2626 })
-            );
-            p.position.set(-0.3 + i * 0.3, 0.08, -0.3 + j * 0.3);
-            group.add(p);
-          }
+      case T.PEPPER_FARM: {
+        const base = new THREE.Mesh(this.geo.plane(0.95, 0.95), new THREE.MeshStandardMaterial({ color: 0x15803d }));
+        base.rotation.x = -Math.PI / 2; base.position.y = 0.02; g.add(base);
+        for (let i = 0; i < 4; i++) {
+          const p = new THREE.Mesh(this.geo.box(0.1, 0.1, 0.1), new THREE.MeshStandardMaterial({ color: 0xdc2626 }));
+          p.position.set(-0.25 + (i % 2) * 0.5, 0.08, -0.25 + Math.floor(i / 2) * 0.5);
+          g.add(p);
         }
         break;
       }
 
       case T.BLUETOOTH_TOWER: {
-        // Tall glowing spire
-        const base = new THREE.Mesh(
-          this.geo.box(0.8, 0.2, 0.8),
-          new THREE.MeshStandardMaterial({ color: 0x1a1a2e })
-        );
-        base.position.y = 0.1;
-        group.add(base);
-        const spire = new THREE.Mesh(
-          this.geo.cyl(0.08, 0.25, 3.0, 8),
-          new THREE.MeshStandardMaterial({ color: 0x8b5cf6, emissive: 0x4a2a8a, emissiveIntensity: 0.5 })
-        );
-        spire.position.y = 1.7;
-        spire.castShadow = true;
-        group.add(spire);
-        // Glowing top
-        const top = new THREE.Mesh(
-          this.geo.sphere(0.15, 8, 8),
-          new THREE.MeshBasicMaterial({ color: 0x8b5cf6 })
-        );
-        top.position.y = 3.3;
-        group.add(top);
-        this.registerGlow(top);
+        const base = new THREE.Mesh(this.geo.box(0.8, 0.2, 0.8), new THREE.MeshStandardMaterial({ color: 0x1a1a2e }));
+        base.position.y = 0.1; g.add(base);
+        const spire = new THREE.Mesh(this.geo.cyl(0.08, 0.25, 3.0, 8), new THREE.MeshStandardMaterial({ color: 0x8b5cf6, emissive: 0x4a2a8a, emissiveIntensity: 0.5 }));
+        spire.position.y = 1.7; spire.castShadow = true; g.add(spire);
+        const top = new THREE.Mesh(this.geo.sphere(0.15), new THREE.MeshBasicMaterial({ color: 0x8b5cf6 }));
+        top.position.y = 3.3; g.add(top);
+        this.glowObjs.push(top);
         break;
       }
 
       case T.THRONE_ROOM: {
-        const body = new THREE.Mesh(
-          this.geo.box(0.85, 0.8, 0.85),
-          new THREE.MeshStandardMaterial({ color: 0xc9a84c, emissive: 0x4a3a10, emissiveIntensity: 0.2 })
-        );
-        body.position.y = 0.4;
-        body.castShadow = true;
-        group.add(body);
-        // Crown spikes
+        const body = new THREE.Mesh(this.geo.box(0.85, 0.8, 0.85), new THREE.MeshStandardMaterial({ color: 0xd4af37, emissive: 0x4a3a10, emissiveIntensity: 0.2 }));
+        body.position.y = 0.4; body.castShadow = true; g.add(body);
         for (let i = 0; i < 4; i++) {
-          const spike = new THREE.Mesh(
-            this.geo.cone(0.06, 0.2, 4),
-            new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0x886500, emissiveIntensity: 0.3 })
-          );
-          const angle = (i / 4) * Math.PI * 2;
-          spike.position.set(Math.cos(angle) * 0.3, 0.9, Math.sin(angle) * 0.3);
-          spike.castShadow = true;
-          group.add(spike);
+          const spike = new THREE.Mesh(this.geo.cone(0.06, 0.2), new THREE.MeshStandardMaterial({ color: 0xfbbf24 }));
+          const a = (i / 4) * Math.PI * 2;
+          spike.position.set(Math.cos(a) * 0.3, 0.9, Math.sin(a) * 0.3);
+          g.add(spike);
         }
         break;
       }
 
       case T.GRILL: {
-        const body = new THREE.Mesh(
-          this.geo.box(0.75, 0.55, 0.75),
-          new THREE.MeshStandardMaterial({ color: 0xef4444 })
-        );
-        body.position.y = 0.28;
-        body.castShadow = true;
-        group.add(body);
-        // Chimney with smoke
-        const ch = new THREE.Mesh(
-          this.geo.cyl(0.08, 0.1, 0.2),
-          new THREE.MeshStandardMaterial({ color: 0x333333 })
-        );
-        ch.position.set(0.2, 0.7, 0);
-        group.add(ch);
-        // Smoke particle
+        const body = new THREE.Mesh(this.geo.box(0.75, 0.55, 0.75), new THREE.MeshStandardMaterial({ color: 0xef4444 }));
+        body.position.y = 0.28; body.castShadow = true; g.add(body);
+        const ch = new THREE.Mesh(this.geo.cyl(0.08, 0.1, 0.2), new THREE.MeshStandardMaterial({ color: 0x333 }));
+        ch.position.set(0.2, 0.7, 0); g.add(ch);
         for (let i = 0; i < 3; i++) {
-          const s = new THREE.Mesh(
-            this.geo.sphere(0.06 + i*0.02, 6, 6),
-            new THREE.MeshBasicMaterial({ color: 0x666666, transparent: true, opacity: 0.4 - i*0.1 })
-          );
+          const s = new THREE.Mesh(this.geo.sphere(0.06 + i * 0.02), new THREE.MeshBasicMaterial({ color: 0x666, transparent: true, opacity: 0.4 - i * 0.1 }));
           s.position.set(0.2, 0.85 + i * 0.15, 0);
-          s.userData.smoke = { base_y: 0.85 + i * 0.15, t: i * 0.5 };
-          group.add(s);
-          this.smokeParticles.push(s);
+          s.userData.smoke = { baseY: 0.85 + i * 0.15, t: i * 0.5 };
+          g.add(s); this.smokeParts.push(s);
         }
         break;
       }
 
       case T.GARAGE: {
-        const body = new THREE.Mesh(
-          this.geo.box(0.85, 0.6, 0.85),
-          new THREE.MeshStandardMaterial({ color: 0x64748b })
-        );
-        body.position.y = 0.3;
-        body.castShadow = true;
-        group.add(body);
-        // Roll-up door
-        const door = new THREE.Mesh(
-          this.geo.box(0.7, 0.4, 0.05),
-          new THREE.MeshStandardMaterial({ color: 0x1a1a1a })
-        );
-        door.position.set(0, 0.25, 0.43);
-        group.add(door);
+        const body = new THREE.Mesh(this.geo.box(0.85, 0.6, 0.85), new THREE.MeshStandardMaterial({ color: 0x64748b }));
+        body.position.y = 0.3; body.castShadow = true; g.add(body);
+        const door = new THREE.Mesh(this.geo.box(0.7, 0.4, 0.05), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
+        door.position.set(0, 0.25, 0.43); g.add(door);
         break;
       }
 
       case T.GUMMY_FACTORY: {
-        const body = new THREE.Mesh(
-          this.geo.box(0.85, 0.9, 0.85),
-          new THREE.MeshStandardMaterial({ color: 0xec4899 })
-        );
-        body.position.y = 0.45;
-        body.castShadow = true;
-        group.add(body);
-        // Colorful gummies on top
-        const gummyColors = [0xef4444, 0x22c55e, 0x3b82f6, 0xfbbf24];
+        const body = new THREE.Mesh(this.geo.box(0.85, 0.9, 0.85), new THREE.MeshStandardMaterial({ color: 0xec4899 }));
+        body.position.y = 0.45; body.castShadow = true; g.add(body);
+        const gc = [0xef4444, 0x22c55e, 0x3b82f6, 0xfbbf24];
         for (let i = 0; i < 4; i++) {
-          const g = new THREE.Mesh(
-            this.geo.sphere(0.08, 6, 6),
-            new THREE.MeshStandardMaterial({ color: gummyColors[i], emissive: gummyColors[i], emissiveIntensity: 0.2 })
-          );
-          g.position.set(-0.25 + (i%2)*0.5, 1.0, -0.25 + Math.floor(i/2)*0.5);
-          group.add(g);
+          const gu = new THREE.Mesh(this.geo.sphere(0.08), new THREE.MeshStandardMaterial({ color: gc[i], emissive: gc[i], emissiveIntensity: 0.2 }));
+          gu.position.set(-0.25 + (i % 2) * 0.5, 1.0, -0.25 + Math.floor(i / 2) * 0.5);
+          g.add(gu);
         }
         break;
       }
 
       case T.HORN_TOWER: {
-        const base = new THREE.Mesh(
-          this.geo.box(0.5, 0.15, 0.5),
-          new THREE.MeshStandardMaterial({ color: 0x0a1a1a })
-        );
-        base.position.y = 0.08;
-        group.add(base);
-        // Triangular horn
-        const horn = new THREE.Mesh(
-          this.geo.cone(0.3, 1.8, 3),
-          new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0x034a52, emissiveIntensity: 0.3 })
-        );
-        horn.position.y = 1.05;
-        horn.castShadow = true;
-        group.add(horn);
-        break;
-      }
-
-      case T.SIGN: {
-        const post = new THREE.Mesh(
-          this.geo.box(0.04, 0.4, 0.04),
-          new THREE.MeshStandardMaterial({ color: 0x888888 })
-        );
-        post.position.y = 0.2;
-        group.add(post);
-        const board = new THREE.Mesh(
-          this.geo.box(0.5, 0.15, 0.03),
-          new THREE.MeshStandardMaterial({ color: 0xfbbf24 })
-        );
-        board.position.y = 0.38;
-        group.add(board);
+        const base = new THREE.Mesh(this.geo.box(0.5, 0.15, 0.5), new THREE.MeshStandardMaterial({ color: 0x0a1a1a }));
+        base.position.y = 0.08; g.add(base);
+        const horn = new THREE.Mesh(this.geo.cone(0.3, 1.8, 3), new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0x034a52, emissiveIntensity: 0.3 }));
+        horn.position.y = 1.05; horn.castShadow = true; g.add(horn);
         break;
       }
 
       case T.POWER_PLANT: {
-        const body = new THREE.Mesh(
-          this.geo.box(0.8, 0.5, 0.8),
-          new THREE.MeshStandardMaterial({ color: 0xf59e0b })
-        );
-        body.position.y = 0.25;
-        body.castShadow = true;
-        group.add(body);
-        // Cooling tower
-        const tower = new THREE.Mesh(
-          this.geo.cyl(0.2, 0.3, 0.4, 8),
-          new THREE.MeshStandardMaterial({ color: 0x9a9a9a })
-        );
-        tower.position.set(0, 0.7, 0);
-        tower.castShadow = true;
-        group.add(tower);
-        // Glow
-        const glow = new THREE.Mesh(
-          this.geo.box(0.3, 0.05, 0.3),
-          new THREE.MeshBasicMaterial({ color: 0xff0000 })
-        );
-        glow.position.set(0, 0.52, 0);
-        group.add(glow);
-        this.registerGlow(glow);
+        const body = new THREE.Mesh(this.geo.box(0.8, 0.5, 0.8), new THREE.MeshStandardMaterial({ color: 0xf59e0b }));
+        body.position.y = 0.25; body.castShadow = true; g.add(body);
+        const tower = new THREE.Mesh(this.geo.cyl(0.2, 0.3, 0.4), new THREE.MeshStandardMaterial({ color: 0x9a9a9a }));
+        tower.position.set(0, 0.7, 0); g.add(tower);
+        const glow = new THREE.Mesh(this.geo.box(0.3, 0.05, 0.3), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+        glow.position.set(0, 0.52, 0); g.add(glow);
+        this.glowObjs.push(glow);
         break;
       }
 
       case T.POWER_LINE: {
-        const post = new THREE.Mesh(
-          this.geo.box(0.05, 0.5, 0.05),
-          new THREE.MeshStandardMaterial({ color: 0x6b7280 })
-        );
-        post.position.y = 0.25;
-        post.castShadow = true;
-        group.add(post);
-        // Crossbar
-        const bar = new THREE.Mesh(
-          this.geo.box(0.4, 0.03, 0.03),
-          new THREE.MeshStandardMaterial({ color: 0x9ca3af })
-        );
-        bar.position.y = 0.45;
-        group.add(bar);
+        const post = new THREE.Mesh(this.geo.box(0.05, 0.5, 0.05), new THREE.MeshStandardMaterial({ color: 0x6b7280 }));
+        post.position.y = 0.25; g.add(post);
+        const bar = new THREE.Mesh(this.geo.box(0.4, 0.03, 0.03), new THREE.MeshStandardMaterial({ color: 0x9ca3af }));
+        bar.position.y = 0.45; g.add(bar);
         break;
       }
 
-      case T.PARK: {
-        const base = new THREE.Mesh(
-          this.geo.plane(0.95, 0.95),
-          new THREE.MeshStandardMaterial({ color: 0x22c55e })
-        );
-        base.rotation.x = -Math.PI / 2;
-        base.position.y = 0.03;
-        base.receiveShadow = true;
-        group.add(base);
-        // Trees
-        for (let i = 0; i < 2; i++) {
-          const trunk = new THREE.Mesh(
-            this.geo.cyl(0.03, 0.04, 0.12, 6),
-            new THREE.MeshStandardMaterial({ color: 0x4a2810 })
-          );
-          trunk.position.set(-0.2 + i * 0.4, 0.1, -0.1 + i * 0.2);
-          group.add(trunk);
-          const leaves = new THREE.Mesh(
-            this.geo.cone(0.12, 0.25, 6),
-            new THREE.MeshStandardMaterial({ color: 0x166534 })
-          );
-          leaves.position.set(-0.2 + i * 0.4, 0.28, -0.1 + i * 0.2);
-          leaves.castShadow = true;
-          group.add(leaves);
-        }
+      case T.SIGN: {
+        const post = new THREE.Mesh(this.geo.box(0.04, 0.4, 0.04), new THREE.MeshStandardMaterial({ color: 0x888 }));
+        post.position.y = 0.2; g.add(post);
+        const board = new THREE.Mesh(this.geo.box(0.5, 0.15, 0.03), new THREE.MeshStandardMaterial({ color: 0xfbbf24 }));
+        board.position.y = 0.38; g.add(board);
         break;
       }
     }
 
-    return group.children.length > 0 ? group : null;
-  },
-
-  registerGlow(mesh) {
-    if (!this.glowObjects) this.glowObjects = [];
-    this.glowObjects.push(mesh);
-  },
-
-  geo: {
-    box: (w,h,d) => new THREE.BoxGeometry(w,h,d),
-    plane: (w,d) => new THREE.PlaneGeometry(w,d),
-    cyl: (r1,r2,h,s=8) => new THREE.CylinderGeometry(r1,r2,h,s),
-    cone: (r,h,s=4) => new THREE.ConeGeometry(r,h,s),
-    sphere: (r,s1=8,s2=8) => new THREE.SphereGeometry(r,s1,s2),
+    return g.children.length ? g : null;
   },
 
   render3D(dt) {
     if (!this.initialized) return;
     this.clock += dt * 0.001;
 
-    // Animate glow objects
-    if (this.glowObjects) {
-      for (const obj of this.glowObjects) {
-        if (obj.material) {
-          const baseIntensity = obj.material.emissiveIntensity || 0;
-          obj.material.opacity = 0.7 + Math.sin(this.clock * 3) * 0.3;
-          if (!obj.material.emissive) {
-            obj.material.transparent = true;
-          }
-        }
+    // Glow animations
+    for (const obj of this.glowObjs) {
+      if (obj.material) {
+        obj.material.transparent = true;
+        obj.material.opacity = 0.6 + Math.sin(this.clock * 3) * 0.3;
       }
     }
 
-    // Animate smoke particles
-    for (const s of this.smokeParticles) {
+    // Smoke
+    for (const s of this.smokeParts) {
       if (s.userData.smoke) {
         s.userData.smoke.t += dt * 0.001;
-        s.position.y = s.userData.smoke.base_y + Math.sin(s.userData.smoke.t) * 0.15;
-        s.position.x += Math.sin(s.userData.smoke.t * 0.7) * 0.001;
+        s.position.y = s.userData.smoke.baseY + Math.sin(s.userData.smoke.t) * 0.15;
       }
     }
 
-    // Sun rotation for subtle shadow movement
-    if (this.sun) {
-      this.sun.position.x = 20 + Math.sin(this.clock * 0.05) * 5;
-    }
+    if (this.sun) this.sun.position.x = 20 + Math.sin(this.clock * 0.05) * 5;
 
-    // Update cars
-    this.updateCars3D();
-
+    this.renderCars3D();
     this.renderer.render(this.scene, this.camera);
   },
 
-  updateCars3D() {
+  renderCars3D() {
     // My car
     if (myCar && driving) {
       if (!this.myCarMesh) {
-        this.myCarMesh = this.createCarMesh(myCar.color, true);
+        this.myCarMesh = this.makeCar3D(myCar.color, true);
         this.scene.add(this.myCarMesh);
       }
       this.myCarMesh.position.set(myCar.x, 0.15, myCar.y);
-      this.myCarMesh.rotation.y = -myCar.dir + Math.PI/2;
-      // Camera follows
-      this.cameraTarget.x = myCar.x;
-      this.cameraTarget.z = myCar.y;
-      this.cameraDist = 12;
-      this.updateCamera();
+      this.myCarMesh.rotation.y = -myCar.dir + Math.PI / 2;
+      this.camTarget.x = myCar.x; this.camTarget.z = myCar.y;
+      this.camDist = 10; this.updateCam();
     } else if (this.myCarMesh) {
       this.scene.remove(this.myCarMesh);
-      this.disposeGroup(this.myCarMesh);
+      this.disposeObj(this.myCarMesh);
       this.myCarMesh = null;
     }
 
     // Visitor cars
-    const allCars = { ...cars };
-    for (const [id, car] of Object.entries(allCars)) {
+    const all = { ...cars };
+    for (const [id, car] of Object.entries(all)) {
       if (!this.carMeshes[id]) {
-        const mesh = this.createCarMesh(car.color, false);
-        this.scene.add(mesh);
-        this.carMeshes[id] = mesh;
+        const m = this.makeCar3D(car.color, false);
+        this.scene.add(m); this.carMeshes[id] = m;
       }
       this.carMeshes[id].position.set(car.x, 0.15, car.y);
-      this.carMeshes[id].rotation.y = -car.dir + Math.PI/2;
+      this.carMeshes[id].rotation.y = -car.dir + Math.PI / 2;
     }
-    // Remove stale car meshes
-    for (const [id, mesh] of Object.entries(this.carMeshes)) {
-      if (!allCars[id]) {
-        this.scene.remove(mesh);
-        this.disposeGroup(mesh);
-        delete this.carMeshes[id];
-      }
+    for (const [id, m] of Object.entries(this.carMeshes)) {
+      if (!all[id]) { this.scene.remove(m); this.disposeObj(m); delete this.carMeshes[id]; }
     }
 
-    // Traffic cars
+    // Traffic
     while (this.trafficMeshes.length < state.trafficCars.length) {
-      const m = this.createCarMesh('#888888', false);
-      m.userData.trafficIdx = this.trafficMeshes.length;
-      this.scene.add(m);
-      this.trafficMeshes.push(m);
+      const m = this.makeCar3D('#888', false);
+      this.scene.add(m); this.trafficMeshes.push(m);
     }
     while (this.trafficMeshes.length > state.trafficCars.length) {
-      const m = this.trafficMeshes.pop();
-      this.scene.remove(m);
-      this.disposeGroup(m);
+      const m = this.trafficMeshes.pop(); this.scene.remove(m); this.disposeObj(m);
     }
     for (let i = 0; i < state.trafficCars.length; i++) {
-      const tc = state.trafficCars[i];
-      const m = this.trafficMeshes[i];
+      const tc = state.trafficCars[i], m = this.trafficMeshes[i];
       m.position.set(tc.x, 0.12, tc.y);
-      if (Math.abs(tc.vx) + Math.abs(tc.vy) > 0.01) {
-        m.rotation.y = -Math.atan2(tc.vy, tc.vx) + Math.PI/2;
-      }
+      if (Math.abs(tc.vx) + Math.abs(tc.vy) > 0.01)
+        m.rotation.y = -Math.atan2(tc.vy, tc.vx) + Math.PI / 2;
     }
   },
 
-  createCarMesh(color, isMine) {
-    const group = new THREE.Group();
-    const body = new THREE.Mesh(
-      new THREE.BoxGeometry(0.35, 0.15, 0.2),
-      new THREE.MeshStandardMaterial({ color: color })
-    );
-    body.position.y = 0.08;
-    body.castShadow = true;
-    group.add(body);
-    // Cabin
-    const cabin = new THREE.Mesh(
-      new THREE.BoxGeometry(0.18, 0.1, 0.18),
-      new THREE.MeshStandardMaterial({ color: 0x111133, transparent: true, opacity: 0.7 })
-    );
-    cabin.position.set(-0.02, 0.17, 0);
-    group.add(cabin);
-    // Headlights
-    const hl = new THREE.Mesh(
-      new THREE.BoxGeometry(0.02, 0.04, 0.04),
-      new THREE.MeshBasicMaterial({ color: 0xffffaa })
-    );
-    hl.position.set(0.18, 0.08, 0.07);
-    group.add(hl);
-    const hl2 = hl.clone();
-    hl2.position.z = -0.07;
-    group.add(hl2);
-    if (isMine) {
-      // White outline for my car
-      const outline = new THREE.Mesh(
-        new THREE.BoxGeometry(0.42, 0.02, 0.27),
-        new THREE.MeshBasicMaterial({ color: 0xffffff })
-      );
-      outline.position.y = 0.01;
-      group.add(outline);
+  updateMyCar3D() {
+    // Called from updateCar when in 3D mode — camera follow handled in render3D
+  },
+
+  makeCar3D(color, mine) {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.15, 0.2), new THREE.MeshStandardMaterial({ color }));
+    body.position.y = 0.08; body.castShadow = true; g.add(body);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.1, 0.18), new THREE.MeshStandardMaterial({ color: 0x111133, transparent: true, opacity: 0.7 }));
+    cabin.position.set(-0.02, 0.17, 0); g.add(cabin);
+    for (const z of [0.07, -0.07]) {
+      const hl = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.04, 0.04), new THREE.MeshBasicMaterial({ color: 0xffffaa }));
+      hl.position.set(0.18, 0.08, z); g.add(hl);
     }
-    return group;
+    if (mine) {
+      const outline = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.02, 0.27), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      outline.position.y = 0.01; g.add(outline);
+    }
+    return g;
   },
 
   onResize() {
     if (!this.initialized) return;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    this.camera.aspect = w / h;
+    this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(w, h);
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
   },
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// FIREBASE SYNC
+// GAME LOOP
 // ═══════════════════════════════════════════════════════════════════
-
-let firebaseReady = false;
-let saveTimer = null;
-let cityRef = null;
-
-function scheduleSave() {
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveCity, 2000);
-}
-
-function serializeCity() {
-  const tiles = [];
-  for (let y = 0; y < GRID_H; y++) {
-    for (let x = 0; x < GRID_W; x++) {
-      const t = state.grid[y][x];
-      tiles.push(t.type, t.level, t.data.signIdx != null ? t.data.signIdx : -1);
-    }
-  }
-  return {
-    tiles: tiles.join(','),
-    money: Math.floor(state.money),
-    pop: state.population,
-    happiness: Math.round(state.happiness),
-    tick: state.tick,
-    taxRate: state.taxRate,
-    updated: Date.now(),
-    builder: typeof FirebaseShared !== 'undefined' ? FirebaseShared.getVisitorName() : 'Unknown',
-  };
-}
-
-function deserializeCity(data) {
-  if (!data || !data.tiles) return false;
-  const parts = data.tiles.split(',').map(Number);
-  if (parts.length !== GRID_W * GRID_H * 3) return false;
-  for (let y = 0; y < GRID_H; y++) {
-    for (let x = 0; x < GRID_W; x++) {
-      const idx = (y * GRID_W + x) * 3;
-      state.grid[y][x] = {
-        type: parts[idx],
-        level: parts[idx + 1],
-        data: parts[idx + 2] >= 0 ? { signIdx: parts[idx + 2] } : {},
-      };
-    }
-  }
-  if (typeof data.money === 'number') state.money = data.money;
-  if (typeof data.happiness === 'number') state.happiness = data.happiness;
-  if (typeof data.taxRate === 'number') {
-    state.taxRate = data.taxRate;
-    taxSlider.value = state.taxRate;
-    document.getElementById('taxVal').textContent = state.taxRate + '%';
-  }
-  state.tick = data.tick || 0;
-  updateHUD();
-  if (view3DMode) View3D.buildAll();
-  return true;
-}
-
-async function saveCity() {
-  if (!firebaseReady || !cityRef) return;
-  try { await cityRef.set(serializeCity()); } catch (e) {}
-}
-
-function loadFromLocalStorage() {
-  try {
-    const saved = localStorage.getItem('xinfu_city');
-    if (saved) {
-      const data = JSON.parse(saved);
-      if (deserializeCity(data)) { toast('City loaded from local storage'); return true; }
-    }
-  } catch (e) {}
-  return false;
-}
-
-function saveToLocalStorage() {
-  try { localStorage.setItem('xinfu_city', JSON.stringify(serializeCity())); } catch (e) {}
-}
-
-async function initFirebase() {
-  if (typeof FirebaseShared === 'undefined') {
-    toast('Firebase not available — using local storage');
-    loadFromLocalStorage();
-    return;
-  }
-  try {
-    await FirebaseShared.init('xinfu-city', { presenceId: 'presenceBadge' });
-    document.getElementById('presenceBadge').style.display = 'block';
-    if (typeof firebase !== 'undefined' && firebase.database) {
-      const db = firebase.database();
-      cityRef = db.ref('xinfu-city/state');
-      carRef = db.ref('xinfu-city/cars');
-      cityRef.on('value', snap => {
-        const data = snap.val();
-        if (data) {
-          if (deserializeCity(data)) { toast('City synced from cloud'); updateHUD(); }
-        }
-      });
-      cityRef.once('value', snap => { if (!snap.val()) saveCity(); });
-      listenForCars();
-      firebaseReady = true;
-      toast('Connected to Xin Fú Cloud!');
-    }
-  } catch (e) {
-    toast('Using local storage (Firebase unavailable)');
-    loadFromLocalStorage();
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// MAIN LOOP
-// ═══════════════════════════════════════════════════════════════════
-
-let lastEconomyTick = 0;
+let lastTick = 0;
 let lastFrame = 0;
 
-function gameLoop(timestamp) {
+function gameLoop(ts) {
   const now = Date.now();
-  const dt = lastFrame ? timestamp - lastFrame : 16;
-  lastFrame = timestamp;
+  const dt = lastFrame ? ts - lastFrame : 16;
+  lastFrame = ts;
 
-  if (now - lastEconomyTick > 3000) {
-    economyTick();
-    lastEconomyTick = now;
-    saveToLocalStorage();
+  if (now - lastTick > TICK_MS) {
+    simTick();
+    lastTick = now;
   }
 
   updateCar(dt);
 
-  if (view3DMode) {
-    View3D.render3D(dt);
-  } else {
-    render();
-  }
+  if (view3DMode) V3.render3D(dt);
+  else render();
 
   requestAnimationFrame(gameLoop);
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// BOOT
+// BOOT — trace: init grid → center camera → build UI → start loop
 // ═══════════════════════════════════════════════════════════════════
+try {
+  initGrid();
+  centerCamera();
+  buildTabs();
+  buildToolbar();
+  updateHUD();
+  requestAnimationFrame(gameLoop);
+} catch(err) {
+  console.error('Boot error:', err);
+}
 
-initGrid();
-centerCamera();
-buildCategoryTabs();
-buildToolbar();
-updateHUD();
-requestAnimationFrame(gameLoop);
-
+// Firebase init after brief delay
 setTimeout(initFirebase, 500);
-setTimeout(() => toast('👑 Welcome to Xin Fú SAR! Toggle 2D/3D view in top right.'), 800);
+setTimeout(() => toast('👑 Welcome to Xin Fú SAR!'), 800);
 </script>
 </body>
 </html>
