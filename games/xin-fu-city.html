@@ -63,7 +63,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 .cat-tab{flex-shrink:0;padding:6px 12px;border-radius:6px 6px 0 0;font-size:11px;font-weight:600;color:#666;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
 .cat-tab.active{color:#4a9eff;border-bottom-color:#4a9eff}
 .cat-tab:active{transform:scale(.95)}
-#toolbar{padding:4px 4px 6px;display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-snap-type:x proximity}
+#toolbar{padding:4px 4px 6px;display:flex;flex-wrap:wrap;gap:4px;overflow-x:auto;overflow-y:auto;max-height:126px;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-snap-type:x proximity}
 #toolbar::-webkit-scrollbar{display:none}
 .tool{flex-shrink:0;width:64px;height:58px;border:1px solid #333;border-radius:10px;background:#181828;color:#ccc;font-size:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;transition:transform .1s,background .15s,border-color .15s;scroll-snap-align:start;min-width:48px;min-height:48px}
 .tool:active{transform:scale(.92);background:#222238}
@@ -87,6 +87,9 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 #toast{position:fixed;top:56px;left:50%;transform:translateX(-50%);background:rgba(12,12,20,0.96);border:1px solid #444;border-radius:10px;padding:8px 18px;font-size:13px;z-index:20;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:90vw;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 #toast.show{opacity:1}
 #toast.error{border-color:#ef4444;background:rgba(40,12,12,0.96);color:#fca5a5}
+
+/* ═══ NEWS TICKER ═══ */
+#newsTicker{position:fixed;bottom:calc(env(safe-area-inset-bottom,0) + 100px);left:0;right:0;z-index:6;background:rgba(8,8,14,0.88);padding:2px 10px;font-size:9px;color:#6a7a8a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;text-align:center;border-top:1px solid rgba(42,42,58,0.5)}
 
 /* ═══ MINIMAP ═══ */
 #minimap{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);right:52px;width:72px;height:72px;border:1px solid #333;border-radius:6px;z-index:8;opacity:.85;touch-action:none}
@@ -168,7 +171,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 
 <!-- ═══ TOP HUD ═══ -->
 <div id="hud">
-  <div class="stat"><span class="stat-label">💰 Treasury</span><span class="stat-val money" id="moneyVal">$50,000</span></div>
+  <div class="stat"><span class="stat-label">💰 Treasury</span><span class="stat-val money" id="moneyVal">$20,000</span></div>
   <div class="stat"><span class="stat-label">👥 Pop</span><span class="stat-val pop" id="popVal">0</span></div>
   <div class="stat"><span class="stat-label">😊 Happy</span><span class="stat-val happy" id="happyVal">75%</span></div>
   <div id="rciMeter" title="RCI Demand">
@@ -189,6 +192,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 <div id="infoBar"></div>
 <div id="budgetPanel"></div>
 <div id="toast"></div>
+<div id="newsTicker">📍 Xin Fú City — Building the future!</div>
 
 <!-- View toggle -->
 <div id="viewToggle">2D<br>3D</div>
@@ -259,7 +263,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 'use strict';
 
 // ═══════════════════════════════════════════════════════════════════
-// XIN FÚ CITY v5 — SC3K visual upgrades, inspect panel fix
+// XIN FÚ CITY v6 — gameplay balance, Firebase fix, SC3K visuals
 // 新福特別行政區 — SimCity 3000-style builder
 // ═══════════════════════════════════════════════════════════════════
 
@@ -344,7 +348,7 @@ const SIGNS = [
 // ═══════════════════════════════════════════════════════════════════
 const state = {
   grid: [],
-  money: 50000,
+  money: 20000,
   population: 0,
   happiness: 75,
   income: 0,
@@ -352,6 +356,7 @@ const state = {
   tick: 0,
   taxRate: 5,
   rci: { r: 50, c: 50, i: 50 },
+  milestones: {},
   pollution: [],
   poweredTiles: new Set(),
   trafficCars: [],
@@ -454,8 +459,8 @@ function addFloater(wx, wy, text, color) {
   floaters.push({ x: wx, y: wy, text, color: color || '#4ade80', life: 1000, maxLife: 1000, vy: -0.4 });
 }
 
-function addTileEffect(tx, ty, color, life) {
-  tileEffects.push({ tx, ty, color, life: life || 400, maxLife: life || 400 });
+function addTileEffect(tx, ty, color, life, intensity) {
+  tileEffects.push({ tx, ty, color, life: life || 400, maxLife: life || 400, intensity: intensity || 0.5 });
 }
 
 function addParticles(wx, wy, count, color) {
@@ -506,7 +511,7 @@ function renderEffects() {
     const px = e.tx * TILE, py = e.ty * TILE;
     const alpha = e.life / e.maxLife;
     ctx.save();
-    ctx.globalAlpha = alpha * 0.5;
+    ctx.globalAlpha = alpha * (e.intensity || 0.5);
     ctx.fillStyle = e.color;
     ctx.fillRect(px, py, TILE, TILE);
     ctx.restore();
@@ -920,21 +925,21 @@ function doBuild(tx, ty) {
 
   // Error checks with RED flash + error sound
   if (tile.type === T.WATER) {
-    addTileEffect(tx, ty, '#ef4444', 400);
+    addTileEffect(tx, ty, '#ef4444', 500, 0.8);
     toast('Cannot build on water!', true);
     sndError();
     haptic(20);
     return;
   }
   if (tile.type !== T.GRASS && tile.type !== T.ROAD) {
-    addTileEffect(tx, ty, '#ef4444', 400);
-    toast('Tile occupied! Bulldoze first.', true);
+    addTileEffect(tx, ty, '#ef4444', 500, 0.8);
+    toast('Tile occupied!', true);
     sndError();
     haptic(20);
     return;
   }
   if (state.money < data.cost) {
-    addTileEffect(tx, ty, '#ef4444', 400);
+    addTileEffect(tx, ty, '#ef4444', 500, 0.8);
     toast('Not enough funds!', true);
     sndError();
     haptic(30);
@@ -1105,6 +1110,7 @@ function simTick() {
   let pop = 0, income = 0;
   let resCount = 0, comCount = 0, indCount = 0, roadCount = 0;
   let happyDelta = 0;
+  let hasPowerPlant = false;
 
   for (let y = 0; y < GRID; y++) {
     for (let x = 0; x < GRID; x++) {
@@ -1131,10 +1137,12 @@ function simTick() {
               }
             }
             pop += resPop(tile);
-            if (poll > 4) happyDelta -= 0.4;
+            // Pollution near residential — scales with severity
+            if (poll > 2) happyDelta -= 0.3 + poll * 0.15;
           } else {
-            if (!powered) happyDelta -= 0.2;
-            if (!road) happyDelta -= 0.1;
+            // No power = massive happiness hit
+            if (!powered) happyDelta -= 1.5;
+            if (!road) happyDelta -= 0.4;
           }
           break;
 
@@ -1172,6 +1180,7 @@ function simTick() {
           break;
 
         case T.PEPPER_FARM: if (road) income += 10 * tile.level; break;
+        case T.POWER_PLANT: hasPowerPlant = true; break;
         case T.ROAD: roadCount++; break;
         case T.GRILL:         income += 30; break;
         case T.GARAGE:        income += 35; break;
@@ -1194,10 +1203,21 @@ function simTick() {
   state.rci.c = clamp(50 + (pop - comCount * 8) * 0.3 + state.happiness * 0.2 - state.taxRate * 1.5, 0, 100);
   state.rci.i = clamp(50 + pop * 0.1 - state.taxRate * 0.5, 0, 100);
 
-  // Happiness
-  if (state.taxRate > 12) happyDelta -= (state.taxRate - 12) * 0.5;
+  // ─── Happiness: SC3K-style multi-factor calculation ─────────
+  // Tax unhappiness — starts hitting hard above 8%
+  if (state.taxRate > 8) happyDelta -= (state.taxRate - 8) * 0.5;
+  // Industrial imbalance
   if (indCount > resCount && resCount > 0) happyDelta -= Math.min(5, (indCount - resCount) * 0.3);
-  state.happiness = clamp(state.happiness + happyDelta * 0.5, 0, 100);
+  // Overcrowding — too many residents, not enough jobs
+  const jobCount = comCount * 8 + indCount * 12;
+  if (pop > 20 && jobCount < pop * 0.5) {
+    happyDelta -= Math.min(8, (pop * 0.5 - jobCount) * 0.05);
+  }
+  // City-wide no power penalty
+  if (resCount > 0 && !hasPowerPlant) happyDelta -= 3;
+  // Natural decay toward equilibrium (prevents easy 100%)
+  if (state.happiness > 80) happyDelta -= (state.happiness - 80) * 0.03;
+  state.happiness = clamp(state.happiness + happyDelta * 0.4, 0, 100);
 
   state.population = pop;
   state.income = income;
@@ -1219,6 +1239,7 @@ function simTick() {
 
   updateTraffic();
   updateHUD();
+  checkMilestones();
   if (state.tick % 5 === 0) saveLocal();
 }
 
@@ -1733,91 +1754,121 @@ function adjustBrightness(hex, factor) {
   return `rgb(${nr},${ng},${nb})`;
 }
 
-// ─── SC3K Building Rendering with depth, shadows, and wealth tiers ─
+// ─── SC3K Building Rendering with dramatic shadows and density tiers ─
 function drawBuilding2D(px, py, level, color, darkColor, brightness, zoneType) {
   const b = brightness || 1;
   const nightData = getDayNightOverlay();
   const isNight = nightData && nightData.night > 0.45;
   
-  // Height per level — taller = more impressive
-  const heights = [0, 6, 12, 20];
-  const h = heights[level] || 6;
+  // Height per level — VERY visible difference (SC3K-style)
+  const heights = [0, 8, 18, 30];
+  const h = heights[level] || 8;
   
-  // Shadow offset grows with building height (simulating sun angle)
-  const shadowOffset = Math.max(2, h * 0.25);
-  const shadowOpacity = Math.min(0.35, 0.15 + level * 0.08);
+  // ─── Building shadow (ground-cast, grows with height) ────────
+  const shadowOffX = Math.max(2, h * 0.22);
+  const shadowOffY = Math.max(2, h * 0.15);
+  const shadowOp = Math.min(0.42, 0.14 + level * 0.1);
+  // Ground shadow ellipse
+  ctx.fillStyle = `rgba(0,0,0,${shadowOp})`;
+  ctx.beginPath();
+  ctx.ellipse(px + TILE/2 + shadowOffX, py + TILE - 2 + shadowOffY, TILE * 0.42, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Wall cast shadow
+  ctx.fillStyle = `rgba(0,0,0,${shadowOp * 0.6})`;
+  ctx.fillRect(px + shadowOffX, py + TILE - h - 3 + shadowOffY, TILE - 6, h + 3);
   
-  // Draw drop shadow (offset to the right and down)
-  ctx.fillStyle = `rgba(0,0,0,${shadowOpacity})`;
-  ctx.fillRect(px + shadowOffset, py + TILE - h - 3 + shadowOffset, TILE - 4, h + 3);
-  
-  // Building wall (darker — gives depth)
+  // ─── Building body ────────────────────────────────────────────
+  // Main wall (darker base color — 3D depth)
   ctx.fillStyle = adjustBrightness(darkColor, b);
   ctx.fillRect(px + 3, py + TILE - h - 3, TILE - 6, h);
   
-  // Building roof/top (lighter shade)
+  // Top/roof strip (lighter shade)
   ctx.fillStyle = adjustBrightness(color, b);
-  ctx.fillRect(px + 3, py + TILE - h - 3, TILE - 6, Math.min(h, 5));
+  ctx.fillRect(px + 3, py + TILE - h - 3, TILE - 6, Math.min(h, 4));
   
-  // Right side wall (even darker — fake 3D extrusion)
-  ctx.fillStyle = adjustBrightness(darkColor, b * 0.7);
+  // Right side wall (darkest — fake 3D extrusion)
+  ctx.fillStyle = adjustBrightness(darkColor, b * 0.6);
   ctx.fillRect(px + TILE - 6, py + TILE - h - 1, 3, h - 2);
   
-  // Wealth-tier details based on level
+  // ─── Level-specific details — clear density progression ───────
   if (level === 1) {
-    // Level 1: Simple building, few windows
+    // Level 1: Small house — simple, few windows, modest
     ctx.fillStyle = isNight ? 'rgba(255,230,100,0.7)' : 'rgba(200,220,255,0.4)';
-    ctx.fillRect(px + 6, py + TILE - 6, 3, 2);
-    ctx.fillRect(px + TILE - 10, py + TILE - 6, 3, 2);
-  } else if (level === 2) {
-    // Level 2: Mid-rise, more windows, some detail
-    ctx.fillStyle = isNight ? 'rgba(255,230,100,0.8)' : 'rgba(200,220,255,0.5)';
-    for (let i = 0; i < 2; i++) {
-      ctx.fillRect(px + 6, py + TILE - 6 - i * 5, 3, 2);
-      ctx.fillRect(px + TILE - 10, py + TILE - 6 - i * 5, 3, 2);
-    }
-    // Roof detail line
-    ctx.fillStyle = adjustBrightness(color, b * 1.2);
+    ctx.fillRect(px + 6, py + TILE - 7, 3, 2);
+    ctx.fillRect(px + TILE - 10, py + TILE - 7, 3, 2);
+    // Pitched roof detail
+    ctx.fillStyle = adjustBrightness(darkColor, b * 0.8);
     ctx.fillRect(px + 4, py + TILE - h - 4, TILE - 8, 1);
     // Door
-    ctx.fillStyle = adjustBrightness('#333', b);
-    ctx.fillRect(px + TILE / 2 - 1, py + TILE - 5, 3, 4);
-  } else if (level >= 3) {
-    // Level 3: Skyscraper, many lit windows, ornate
-    ctx.fillStyle = isNight ? 'rgba(255,230,100,0.85)' : 'rgba(200,220,255,0.55)';
-    for (let i = 0; i < 4; i++) {
-      ctx.fillRect(px + 6, py + TILE - 6 - i * 5, 3, 2);
+    ctx.fillStyle = adjustBrightness('#444', b);
+    ctx.fillRect(px + TILE/2 - 1, py + TILE - 5, 3, 3);
+  } else if (level === 2) {
+    // Level 2: Mid-rise — clearly bigger, multiple window rows
+    ctx.fillStyle = isNight ? 'rgba(255,230,100,0.8)' : 'rgba(200,220,255,0.5)';
+    for (let i = 0; i < 3; i++) {
+      ctx.fillRect(px + 5, py + TILE - 6 - i * 5, 3, 2);
       ctx.fillRect(px + 11, py + TILE - 6 - i * 5, 3, 2);
-      ctx.fillRect(px + TILE - 14, py + TILE - 6 - i * 5, 3, 2);
+      ctx.fillRect(px + TILE - 13, py + TILE - 6 - i * 5, 3, 2);
+    }
+    // Horizontal floor dividers
+    ctx.fillStyle = adjustBrightness(color, b * 0.7);
+    for (let i = 0; i < 3; i++)
+      ctx.fillRect(px + 3, py + TILE - 4 - i * 5, TILE - 6, 1);
+    // Roof ledge
+    ctx.fillStyle = adjustBrightness(color, b * 1.15);
+    ctx.fillRect(px + 3, py + TILE - h - 4, TILE - 6, 2);
+    // Door
+    ctx.fillStyle = adjustBrightness('#333', b);
+    ctx.fillRect(px + TILE/2 - 2, py + TILE - 6, 4, 4);
+    // AC unit on roof
+    ctx.fillStyle = adjustBrightness('#555', b);
+    ctx.fillRect(px + 5, py + TILE - h - 6, 3, 2);
+  } else if (level >= 3) {
+    // Level 3: Skyscraper — tallest, ornate, many windows
+    const winColor = isNight ? 'rgba(255,230,100,0.9)' : 'rgba(200,220,255,0.6)';
+    ctx.fillStyle = winColor;
+    for (let i = 0; i < 5; i++) {
+      ctx.fillRect(px + 5, py + TILE - 6 - i * 5, 3, 2);
+      ctx.fillRect(px + 10, py + TILE - 6 - i * 5, 3, 2);
+      ctx.fillRect(px + TILE - 15, py + TILE - 6 - i * 5, 3, 2);
       ctx.fillRect(px + TILE - 10, py + TILE - 6 - i * 5, 3, 2);
     }
-    // Antenna/spire on top
-    ctx.fillStyle = adjustBrightness('#666', b);
-    ctx.fillRect(px + TILE / 2 - 1, py + TILE - h - 6, 1, 4);
+    // Unlit windows for variety
+    const seed = (px * 7 + py * 13) % 7;
+    ctx.fillStyle = 'rgba(70,70,90,0.5)';
+    ctx.fillRect(px + 10, py + TILE - 6 - seed, 3, 2);
+    ctx.fillRect(px + 5, py + TILE - 16, 3, 2);
+    
+    // Vertical art-deco lines
+    ctx.fillStyle = adjustBrightness(color, b * 0.5);
+    ctx.fillRect(px + 4, py + TILE - h, 1, h);
+    ctx.fillRect(px + TILE - 5, py + TILE - h, 1, h);
+    
+    // Antenna/spire with red beacon
+    ctx.fillStyle = adjustBrightness('#777', b);
+    ctx.fillRect(px + TILE/2 - 1, py + TILE - h - 8, 1, 6);
     ctx.fillStyle = '#ef4444';
-    ctx.fillRect(px + TILE / 2 - 1, py + TILE - h - 7, 2, 2);
+    ctx.fillRect(px + TILE/2 - 1, py + TILE - h - 9, 2, 2);
+    
     // Roof ledge
-    ctx.fillStyle = adjustBrightness(color, b * 0.85);
-    ctx.fillRect(px + 3, py + TILE - h - 4, TILE - 6, 1);
+    ctx.fillStyle = adjustBrightness(color, b * 0.8);
+    ctx.fillRect(px + 2, py + TILE - h - 4, TILE - 4, 2);
+    
     // Entrance canopy
-    ctx.fillStyle = adjustBrightness(darkColor, b * 1.3);
-    ctx.fillRect(px + TILE / 2 - 3, py + TILE - 6, 7, 2);
-    // Some random unlit windows for variety
-    const seed = (px * 7 + py * 13) % 5;
-    if (seed < 2) {
-      ctx.fillStyle = 'rgba(80,80,100,0.5)';
-      ctx.fillRect(px + 11, py + TILE - 11, 3, 2);
-    }
+    ctx.fillStyle = adjustBrightness(darkColor, b * 1.2);
+    ctx.fillRect(px + TILE/2 - 4, py + TILE - 6, 8, 2);
+    ctx.fillStyle = adjustBrightness('#222', b);
+    ctx.fillRect(px + TILE/2 - 2, py + TILE - 6, 4, 4);
   }
   
-  // Night glow from windows (ambient light)
+  // ─── Night window glow (ambient light halo) ──────────────────
   if (isNight && level >= 1) {
-    const glowAlpha = 0.08 * level;
-    const grad = ctx.createRadialGradient(px + TILE / 2, py + TILE - h, 0, px + TILE / 2, py + TILE - h, TILE);
+    const glowAlpha = 0.06 + level * 0.04;
+    const grad = ctx.createRadialGradient(px + TILE/2, py + TILE - h/2, 0, px + TILE/2, py + TILE - h/2, TILE * 0.8);
     grad.addColorStop(0, `rgba(255,200,80,${glowAlpha})`);
     grad.addColorStop(1, 'rgba(255,200,80,0)');
     ctx.fillStyle = grad;
-    ctx.fillRect(px - 4, py - 4, TILE + 8, TILE + 8);
+    ctx.fillRect(px - 6, py - 6, TILE + 12, TILE + 12);
   }
 }
 
@@ -2399,17 +2450,22 @@ function saveCarPos() {
 
 function listenCars() {
   if (!carRef) return;
-  carRef.on('value', snap => {
-    const data = snap.val(); if (!data) { cars = {}; return; }
-    const now = Date.now();
-    const nc = {};
-    for (const [id, car] of Object.entries(data)) {
-      if (id === getMyId()) continue;
-      if (now - (car.updated || 0) > 30000) { carRef.child(id).remove(); continue; }
-      nc[id] = car;
-    }
-    cars = nc;
-  });
+  carRef.on('value',
+    snap => {
+      try {
+        const data = snap.val(); if (!data) { cars = {}; return; }
+        const now = Date.now();
+        const nc = {};
+        for (const [id, car] of Object.entries(data)) {
+          if (id === getMyId()) continue;
+          if (now - (car.updated || 0) > 30000) { try { carRef.child(id).remove(); } catch(e) {} continue; }
+          nc[id] = car;
+        }
+        cars = nc;
+      } catch(e) {}
+    },
+    err => { /* permission denied — suppress silently */ }
+  );
 }
 
 async function initFirebase() {
@@ -2424,17 +2480,28 @@ async function initFirebase() {
       const db = firebase.database();
       cityRef = db.ref('xinfu-city-v3/state');
       carRef = db.ref('xinfu-city-v3/cars');
-      cityRef.on('value', snap => {
-        const data = snap.val();
-        if (data && deserializeCity(data)) { updateHUD(); }
-      });
-      cityRef.once('value', snap => { if (!snap.val()) saveCity(); });
-      listenCars();
-      firebaseReady = true;
+      // Test read — if permission denied, fall back silently to localStorage
+      try {
+        const snap = await cityRef.once('value');
+        // Set up listeners with error suppression
+        cityRef.on('value',
+          s => { try { const d = s.val(); if (d && deserializeCity(d)) updateHUD(); } catch(e) {} },
+          err => { console.warn('Firebase sync unavailable — using localStorage'); firebaseReady = false; cityRef = null; carRef = null; }
+        );
+        if (!snap.val()) saveCity();
+        listenCars();
+        firebaseReady = true;
+      } catch(permErr) {
+        console.warn('Firebase permission denied — using localStorage');
+        cityRef = null;
+        carRef = null;
+        loadLocal();
+      }
     } else {
       loadLocal();
     }
   } catch(e) {
+    console.warn('Firebase unavailable — using localStorage');
     loadLocal();
   }
 }
@@ -2920,6 +2987,90 @@ const V3 = {
 };
 
 // ═══════════════════════════════════════════════════════════════════
+// MILESTONE TRACKER — progression goals for the player
+// ═══════════════════════════════════════════════════════════════════
+const MILESTONE_DEFS = [
+  { id: 'pop100',   type: 'pop',   threshold: 100,   msg: '🎉 Population reached 100!' },
+  { id: 'pop500',   type: 'pop',   threshold: 500,   msg: '🏙️ Population reached 500 — a real town!' },
+  { id: 'pop1000',  type: 'pop',   threshold: 1000,  msg: '🌆 Population reached 1,000 — city status!' },
+  { id: 'pop5000',  type: 'pop',   threshold: 5000,  msg: '🌃 Population reached 5,000 — megacity!' },
+  { id: 'money100k', type: 'money', threshold: 100000, msg: '💰 Treasury hit $100K — flush!' },
+];
+
+function checkMilestones() {
+  for (const m of MILESTONE_DEFS) {
+    if (state.milestones[m.id]) continue;
+    const val = m.type === 'pop' ? state.population : state.money;
+    if (val >= m.threshold) {
+      state.milestones[m.id] = true;
+      toast(m.msg);
+      sndGrow();
+      haptic(20);
+      addParticles(canvas.width / 2, canvas.height / 2, 12, '#fbbf24');
+    }
+  }
+  // Power plant milestone (checked separately)
+  if (!state.milestones.power) {
+    for (let y = 0; y < GRID; y++)
+      for (let x = 0; x < GRID; x++)
+        if (state.grid[y][x].type === T.POWER_PLANT) {
+          state.milestones.power = true;
+          toast('⚡ First power plant operational!');
+          sndGrow();
+          haptic(15);
+          break;
+        }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NEWS TICKER — SC3K-style periodic messages
+// ═══════════════════════════════════════════════════════════════════
+const NEWS_MESSAGES = [
+  '📍 Xin Fú City — 新福特別行政区!',
+  'Lord Bluetooth oversees all city developments.',
+  "Glenn's Garage reports record quarterly earnings.",
+  'Smart Gummy demand at all-time high!',
+  'Napoleon Flex Flame Grill serving up innovation!',
+  'AI Horn Tower broadcasts around the clock.',
+  'Pepper Farm yields are up this season!',
+  'Remember: zones need roads AND power to grow!',
+  'Check the RCI meter for development demand.',
+  'High pollution? Space industrial zones apart.',
+  'Lower tax rates attract more residents!',
+  'The future is now in Xin Fú City!',
+  'New businesses flocking to Xin Fú downtown!',
+  'City planners recommend mixed-use zoning.',
+];
+
+let newsIdx = 0;
+function getAvgPollution() {
+  let total = 0, count = 0;
+  for (let y = 0; y < GRID; y++)
+    for (let x = 0; x < GRID; x++) {
+      total += state.pollution[y][x] || 0;
+      count++;
+    }
+  return count ? total / count : 0;
+}
+
+function updateNewsTicker() {
+  const ticker = document.getElementById('newsTicker');
+  if (!ticker) return;
+  // Build dynamic message list based on city state
+  const msgs = [...NEWS_MESSAGES];
+  if (state.happiness < 35) msgs.unshift('⚠️ Citizens are very unhappy! Improve services!');
+  else if (state.happiness < 55) msgs.unshift('😐 Citizens are restless — more amenities needed.');
+  if (state.population >= 500) msgs.unshift(`📈 Population booming at ${state.population.toLocaleString()}!`);
+  if (state.money < 3000) msgs.unshift('⚠️ Treasury running low — watch your budget!');
+  const avgPoll = getAvgPollution();
+  if (avgPoll > 3) msgs.unshift('☁️ Pollution levels high — consider greener zoning.');
+  if (state.taxRate > 12) msgs.unshift('💸 High taxes are slowing growth!');
+  ticker.textContent = msgs[newsIdx % msgs.length];
+  newsIdx++;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // GAME LOOP
 // ═══════════════════════════════════════════════════════════════════
 let lastTick = 0;
@@ -2961,6 +3112,7 @@ try {
 // Tutorial + Firebase init after slight delay
 setTimeout(() => { checkTutorial(); }, 600);
 setTimeout(initFirebase, 500);
+setInterval(updateNewsTicker, 8000);
 </script>
 </body>
 </html>
