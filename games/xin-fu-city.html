@@ -154,6 +154,11 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 .help-close{width:100%;margin-top:14px;padding:10px;border-radius:10px;border:none;background:#333;color:#ccc;font-size:14px;font-weight:600;cursor:pointer}
 .help-close:active{transform:scale(.97)}
 
+.tool.compact{width:52px;min-width:48px;height:54px;gap:0;padding:2px 1px}
+.tool.compact .tool-icon{font-size:18px}
+.tool.compact .tool-name{font-size:6px;max-width:48px;-webkit-line-clamp:2;white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;line-height:1.05}
+.tool.compact .tool-cost{font-size:6px}
+
 @media(max-width:600px){
   .stat-val{font-size:13px}
   .stat-label{font-size:7px}
@@ -264,7 +269,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 'use strict';
 
 // ═══════════════════════════════════════════════════════════════════
-// XIN FÚ CITY v7 — TypeError fix, happiness balance, toolbar, 2D visuals, disasters
+// XIN FÚ CITY v8 — actually fix happiness, toolbar, 2D building shapes, disasters
 // 新福特別行政區 — SimCity 3000-style builder
 // ═══════════════════════════════════════════════════════════════════
 
@@ -1144,7 +1149,7 @@ function simTick() {
                 }
               }
               pop += resPop(tile);
-              if (poll > 50) resNearPollution++;
+              if (poll >= 4) resNearPollution += poll;
             } else {
               if (!powered) resUnpoweredCount++;
             }
@@ -1231,38 +1236,38 @@ function simTick() {
   state.rci.c = clamp(50 + (pop - comCount * 8) * 0.3 + state.happiness * 0.2 - state.taxRate * 1.5, 0, 100);
   state.rci.i = clamp(50 + pop * 0.1 - state.taxRate * 0.5, 0, 100);
 
-  // ─── Happiness: balanced multi-factor calculation ────────────
+  // ─── Happiness: starts at 50, only goes UP for good conditions ──
   happinessFactors = [];
-  let happy = 50; // Base
-  happinessFactors.push({ label: 'Base', val: '+50', positive: true });
+  let happy = 50; // Base — neutral
+  happinessFactors.push({ label: 'Base', val: '50', positive: true });
 
-  // +5 per special building with diminishing returns
-  if (specialBuildings > 0) {
-    let specialHappy = 0;
-    for (let i = 0; i < specialBuildings; i++)
-      specialHappy += 5 * Math.pow(0.75, i);
-    specialHappy = Math.min(20, specialHappy);
-    happy += specialHappy;
-    happinessFactors.push({ label: '★ Specials (' + specialBuildings + ')', val: '+' + Math.round(specialHappy), positive: true });
+  // ── PENALTIES (subtract first) ──────────────────────────────
+
+  // -25 if NO residential zones at all (ghost town — nobody lives there)
+  if (resCount === 0) {
+    happy -= 25;
+    happinessFactors.push({ label: '🏚️ Ghost town (no homes)', val: '-25', positive: false });
   }
 
-  // -15 if any residential tile has no power
-  if (resUnpoweredCount > 0 && resCount > 0) {
-    happy -= 15;
-    happinessFactors.push({ label: '⚡ ' + resUnpoweredCount + ' unpowered', val: '-15', positive: false });
+  // -15 if residential tiles have no power
+  if (resUnpoweredCount > 0) {
+    const penalty = Math.min(25, resUnpoweredCount * 5);
+    happy -= penalty;
+    happinessFactors.push({ label: '⚡ ' + resUnpoweredCount + ' unpowered', val: '-' + penalty, positive: false });
   }
 
-  // -10 if pollution > 50 near residential
+  // -2 per pollution point near residential (scaled, up to -20)
   if (resNearPollution > 0) {
-    happy -= 10;
-    happinessFactors.push({ label: '☁️ Heavy pollution', val: '-10', positive: false });
+    const pollPenalty = Math.min(20, Math.round(resNearPollution * 2));
+    happy -= pollPenalty;
+    happinessFactors.push({ label: '☁️ Pollution near homes', val: '-' + pollPenalty, positive: false });
   }
 
   // -1 per 1% tax above 5%
   if (state.taxRate > 5) {
-    const taxPenalty = state.taxRate - 5;
+    const taxPenalty = (state.taxRate - 5) * 2;
     happy -= taxPenalty;
-    happinessFactors.push({ label: '💸 Tax (' + state.taxRate + '%)', val: '-' + taxPenalty, positive: false });
+    happinessFactors.push({ label: '💸 High tax (' + state.taxRate + '%)', val: '-' + taxPenalty, positive: false });
   }
 
   // -20 if unemployment > 30%
@@ -1275,16 +1280,51 @@ function simTick() {
     }
   }
 
-  // Cap at 95 unless truly perfect
+  // ── BONUSES (only add if city is functioning) ───────────────
+
+  // +up to 15 for thriving population (scaled by pop)
+  if (pop > 0 && resCount > 0) {
+    const popBonus = Math.min(15, Math.round(pop / 10));
+    happy += popBonus;
+    happinessFactors.push({ label: '👥 Population (' + pop + ')', val: '+' + popBonus, positive: true });
+  }
+
+  // +specials using their data.happy values with diminishing returns
+  if (specialBuildings > 0) {
+    let specialHappy = 0;
+    let collected = [];
+    for (let y = 0; y < GRID; y++) {
+      for (let x = 0; x < GRID; x++) {
+        const tile = state.grid[y][x];
+        const td = TD[tile.type];
+        if (td && td.happy) collected.push(td.happy);
+      }
+    }
+    // Diminishing returns: each successive bonus is worth 75%
+    collected.sort((a, b) => b - a); // largest first
+    let dimMult = 1;
+    for (const h of collected) {
+      specialHappy += h * dimMult;
+      dimMult *= 0.75;
+    }
+    specialHappy = Math.min(15, Math.round(specialHappy));
+    if (specialHappy > 0) {
+      happy += specialHappy;
+      happinessFactors.push({ label: '★ Specials (' + specialBuildings + ')', val: '+' + specialHappy, positive: true });
+    }
+  }
+
+  // +5 if city has good balance (powered, low pollution, has pop)
   const hasPenalties = happinessFactors.some(f => !f.positive);
-  if (!hasPenalties) {
-    happinessFactors.push({ label: '✨ Perfect city', val: '+5', positive: true });
+  if (!hasPenalties && pop > 0) {
+    happinessFactors.push({ label: '✨ Well-balanced city', val: '+5', positive: true });
     happy += 5;
   }
+
   happy = clamp(happy, 0, 100);
 
-  // Smooth transition
-  state.happiness = Math.round(state.happiness * 0.7 + happy * 0.3);
+  // Faster smoothing for responsiveness (0.5/0.5)
+  state.happiness = Math.round(state.happiness * 0.5 + happy * 0.5);
   happinessFactors.push({ label: '😊 Total', val: state.happiness + '%', positive: state.happiness >= 50 });
 
   state.population = pop;
@@ -1546,42 +1586,23 @@ function drawTile2D(tx, ty, brightness) {
       break;
 
     case T.THRONE_ROOM:
-      ctx.fillStyle = '#1a1a2e'; ctx.fillRect(px, py, ts, ts);
-      ctx.fillStyle = '#d4af37'; ctx.fillRect(px + 3, py + 3, ts - 6, ts - 6);
-      ctx.font = `${ts - 10}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('👑', px + ts / 2, py + ts / 2);
+      drawSpecialShape2D(T.THRONE_ROOM, px, py, tile.level, b);
       break;
 
     case T.GRILL:
-      ctx.fillStyle = '#1a0a0a'; ctx.fillRect(px, py, ts, ts);
-      ctx.fillStyle = '#ef4444'; ctx.fillRect(px + 3, py + 3, ts - 6, ts - 6);
-      ctx.font = `${ts - 10}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('🔥', px + ts / 2, py + ts / 2);
+      drawSpecialShape2D(T.GRILL, px, py, tile.level, b);
       break;
 
     case T.GARAGE:
-      ctx.fillStyle = '#1a1a1a'; ctx.fillRect(px, py, ts, ts);
-      ctx.fillStyle = '#64748b'; ctx.fillRect(px + 2, py + 2, ts - 4, ts - 4);
-      ctx.fillStyle = '#0a0a0a'; ctx.fillRect(px + 5, py + 8, ts - 10, ts - 12);
-      ctx.fillStyle = '#fbbf24'; ctx.font = '5px monospace'; ctx.textAlign = 'center';
-      ctx.fillText('GARAGE', px + ts / 2, py + ts - 4);
+      drawSpecialShape2D(T.GARAGE, px, py, tile.level, b);
       break;
 
     case T.GUMMY_FACTORY:
-      ctx.fillStyle = '#1a1a1a'; ctx.fillRect(px, py, ts, ts);
-      ctx.fillStyle = '#ec4899'; ctx.fillRect(px + 3, py + 3, ts - 6, ts - 6);
-      ctx.font = `${ts - 12}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('🐻', px + ts / 2, py + ts / 2);
+      drawSpecialShape2D(T.GUMMY_FACTORY, px, py, tile.level, b);
       break;
 
     case T.HORN_TOWER:
-      ctx.fillStyle = '#0a1a1a'; ctx.fillRect(px, py, ts, ts);
-      ctx.fillStyle = '#06b6d4';
-      ctx.beginPath();
-      ctx.moveTo(px + ts / 2, py + 3);
-      ctx.lineTo(px + ts - 4, py + ts - 4);
-      ctx.lineTo(px + 4, py + ts - 4);
-      ctx.closePath(); ctx.fill();
+      drawSpecialShape2D(T.HORN_TOWER, px, py, tile.level, b);
       break;
 
     case T.POWER_PLANT:
@@ -1871,126 +1892,178 @@ function drawBuilding2D(px, py, level, color, darkColor, brightness, zoneType) {
   switch (zoneType) {
     // ─── RESIDENTIAL: house with triangle roof ────────────────
     case 'res': {
-      const bw = ts - 10, bh = Math.max(6, 6 + level * 4);
-      const bx = px + 5, by = py + ts - bh - 2;
+      const bw = ts - 8, bh = Math.max(10, 8 + level * 5);
+      const bx = px + 4, by = py + ts - bh - 3;
 
       // Wall
       ctx.fillStyle = adjustBrightness(darkColor, b);
       ctx.fillRect(bx, by, bw, bh);
       // Right side shading
       ctx.fillStyle = adjustBrightness(darkColor, b * 0.55);
-      ctx.fillRect(bx + bw - 3, by, 3, bh);
-      // Roof (triangle)
+      ctx.fillRect(bx + bw - 4, by, 4, bh);
+      // Left side highlight
+      ctx.fillStyle = adjustBrightness(color, b * 1.15);
+      ctx.fillRect(bx, by, 3, bh);
+      // Roof (triangle) — BIG and obvious
+      const roofH = 6 + level * 3;
       ctx.fillStyle = adjustBrightness(color, b);
       ctx.beginPath();
-      ctx.moveTo(bx - 1, by);
-      ctx.lineTo(bx + bw / 2, by - 4 - level * 2);
-      ctx.lineTo(bx + bw + 1, by);
+      ctx.moveTo(bx - 2, by + 1);
+      ctx.lineTo(bx + bw / 2, by - roofH);
+      ctx.lineTo(bx + bw + 2, by + 1);
       ctx.closePath();
       ctx.fill();
-      // Roof shadow
-      ctx.fillStyle = adjustBrightness(darkColor, b * 0.7);
+      // Roof shadow ridge
+      ctx.fillStyle = adjustBrightness(darkColor, b * 0.6);
       ctx.beginPath();
-      ctx.moveTo(bx + bw / 2, by - 4 - level * 2);
-      ctx.lineTo(bx + bw + 1, by);
-      ctx.lineTo(bx + bw / 2 + 2, by);
+      ctx.moveTo(bx + bw / 2, by - roofH);
+      ctx.lineTo(bx + bw + 2, by + 1);
+      ctx.lineTo(bx + bw / 2 + 3, by + 1);
       ctx.closePath();
       ctx.fill();
+      // Roof outline
+      ctx.strokeStyle = adjustBrightness(darkColor, b * 0.4);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(bx - 2, by + 1);
+      ctx.lineTo(bx + bw / 2, by - roofH);
+      ctx.lineTo(bx + bw + 2, by + 1);
+      ctx.stroke();
 
       // Windows
       ctx.fillStyle = winColor;
-      if (level >= 1) { ctx.fillRect(bx + 2, by + 2, 3, 2); ctx.fillRect(bx + bw - 5, by + 2, 3, 2); }
-      if (level >= 2) { ctx.fillRect(bx + 2, by + 6, 3, 2); ctx.fillRect(bx + bw - 5, by + 6, 3, 2); }
+      if (level >= 1) { ctx.fillRect(bx + 3, by + 3, 4, 3); ctx.fillRect(bx + bw - 7, by + 3, 4, 3); }
+      if (level >= 2) { ctx.fillRect(bx + 3, by + 8, 4, 3); ctx.fillRect(bx + bw - 7, by + 8, 4, 3); }
       if (level >= 3) {
-        // Extra floor + chimney
-        ctx.fillRect(bx + Math.floor(bw/2) - 1, by + 5, 3, 2);
-        ctx.fillStyle = '#555';
-        ctx.fillRect(bx + bw - 6, by - 3, 2, 3);
+        ctx.fillRect(bx + Math.floor(bw/2) - 2, by + 6, 4, 3);
+        // Chimney for level 3
+        ctx.fillStyle = adjustBrightness('#8B4513', b);
+        ctx.fillRect(bx + bw - 8, by - roofH + 1, 4, 5);
+        ctx.fillStyle = '#333';
+        ctx.fillRect(bx + bw - 8, by - roofH + 1, 4, 2);
       }
       // Door
       ctx.fillStyle = adjustBrightness('#444', b);
-      ctx.fillRect(px + ts/2 - 1, py + ts - 4, 3, 3);
+      ctx.fillRect(px + ts/2 - 2, py + ts - 5, 4, 4);
+      ctx.fillStyle = adjustBrightness('#666', b);
+      ctx.fillRect(px + ts/2 - 2, py + ts - 5, 4, 1);
       break;
     }
 
     // ─── COMMERCIAL: wider rectangle (shopfront) ───────────────
     case 'com': {
-      const bw = ts - 6, bh = Math.max(8, 6 + level * 6);
-      const bx = px + 3, by = py + ts - bh - 2;
+      const bw = ts - 4, bh = Math.max(12, 8 + level * 7);
+      const bx = px + 2, by = py + ts - bh - 3;
 
       // Wall
       ctx.fillStyle = adjustBrightness(darkColor, b);
       ctx.fillRect(bx, by, bw, bh);
       // Right side shading
       ctx.fillStyle = adjustBrightness(darkColor, b * 0.55);
-      ctx.fillRect(bx + bw - 3, by, 3, bh);
-      // Flat roof slab
-      ctx.fillStyle = adjustBrightness(color, b);
-      ctx.fillRect(bx - 1, by - 2, bw + 2, 3);
-
-      // Awning (striped shopfront)
+      ctx.fillRect(bx + bw - 4, by, 4, bh);
+      // Left highlight
       ctx.fillStyle = adjustBrightness(color, b * 1.1);
-      ctx.fillRect(bx, by + bh - 5, bw, 2);
-      ctx.fillStyle = adjustBrightness(darkColor, b * 0.8);
-      for (let i = 0; i < bw; i += 4) ctx.fillRect(bx + i, by + bh - 5, 2, 2);
+      ctx.fillRect(bx, by, 3, bh);
+      // Flat roof slab — wider than walls
+      ctx.fillStyle = adjustBrightness(color, b);
+      ctx.fillRect(bx - 2, by - 3, bw + 4, 4);
+      ctx.fillStyle = adjustBrightness(darkColor, b * 0.7);
+      ctx.fillRect(bx - 2, by - 1, bw + 4, 2);
 
-      // Windows
+      // Awning (striped shopfront) — red/white stripes
+      const awningY = by + bh - 6;
+      ctx.fillStyle = adjustBrightness('#ef4444', b);
+      ctx.fillRect(bx, awningY, bw, 3);
+      ctx.fillStyle = '#fff';
+      for (let i = 0; i < bw; i += 6) ctx.fillRect(bx + i + 3, awningY, 3, 3);
+
+      // Windows — grid pattern
       ctx.fillStyle = winColor;
-      for (let row = 0; row < level; row++) {
-        ctx.fillRect(bx + 2, by + 2 + row * 5, 3, 2);
-        ctx.fillRect(bx + Math.floor(bw/2), by + 2 + row * 5, 3, 2);
-        ctx.fillRect(bx + bw - 5, by + 2 + row * 5, 3, 2);
+      for (let row = 0; row < level + 1; row++) {
+        ctx.fillRect(bx + 3, by + 3 + row * 5, 4, 3);
+        ctx.fillRect(bx + Math.floor(bw/2) - 1, by + 3 + row * 5, 4, 3);
+        ctx.fillRect(bx + bw - 7, by + 3 + row * 5, 4, 3);
       }
 
       if (level >= 3) {
         // Sign on top
         ctx.fillStyle = '#fbbf24';
-        ctx.fillRect(bx + bw/2 - 3, by - 6, 6, 3);
+        ctx.fillRect(bx + bw/2 - 4, by - 8, 8, 4);
+        ctx.fillStyle = '#000';
+        ctx.font = '4px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('SHOP', bx + bw/2, by - 6);
       }
       // Door
       ctx.fillStyle = adjustBrightness('#333', b);
-      ctx.fillRect(px + ts/2 - 2, py + ts - 5, 4, 4);
+      ctx.fillRect(px + ts/2 - 3, py + ts - 6, 6, 5);
+      ctx.fillStyle = adjustBrightness('#888', b);
+      ctx.fillRect(px + ts/2 - 3, py + ts - 6, 6, 1);
       break;
     }
 
-    // ─── INDUSTRIAL: rectangle with chimney ────────────────────
+    // ─── INDUSTRIAL: rectangle with big chimney + smoke ───────
     case 'ind': {
-      const bw = ts - 8, bh = Math.max(8, 6 + level * 5);
-      const bx = px + 4, by = py + ts - bh - 2;
+      const bw = ts - 6, bh = Math.max(10, 8 + level * 5);
+      const bx = px + 3, by = py + ts - bh - 3;
 
       // Wall
       ctx.fillStyle = adjustBrightness(darkColor, b);
       ctx.fillRect(bx, by, bw, bh);
       // Right side shading
       ctx.fillStyle = adjustBrightness(darkColor, b * 0.5);
-      ctx.fillRect(bx + bw - 3, by, 3, bh);
+      ctx.fillRect(bx + bw - 4, by, 4, bh);
+      // Left highlight
+      ctx.fillStyle = adjustBrightness(color, b * 0.9);
+      ctx.fillRect(bx, by, 3, bh);
       // Flat roof
-      ctx.fillStyle = adjustBrightness(color, b * 0.85);
-      ctx.fillRect(bx, by, bw, 2);
+      ctx.fillStyle = adjustBrightness(color, b * 0.75);
+      ctx.fillRect(bx - 1, by - 2, bw + 2, 3);
+      ctx.strokeStyle = adjustBrightness(darkColor, b * 0.4);
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx - 1, by - 2, bw + 2, 3);
 
-      // Chimney (always present on industrial)
-      ctx.fillStyle = adjustBrightness('#555', b);
-      ctx.fillRect(bx + bw - 6, by - 5, 4, 6);
-      ctx.fillStyle = '#333';
-      ctx.fillRect(bx + bw - 6, by - 5, 4, 2);
-      // Smoke from chimney
-      ctx.fillStyle = `rgba(150,150,150,${0.3 + level * 0.1})`;
-      const smokeOff = (state.tick % 6) * 0.5;
-      ctx.beginPath();
-      ctx.arc(bx + bw - 4, by - 7 - smokeOff, 2 + level, 0, Math.PI * 2);
-      ctx.fill();
+      // BIG chimney (always present on industrial)
+      const chimX = bx + bw - 8;
+      const chimH = 8 + level * 2;
+      ctx.fillStyle = adjustBrightness('#6b6b6b', b);
+      ctx.fillRect(chimX, by - chimH, 5, chimH);
+      // Chimney cap
+      ctx.fillStyle = '#444';
+      ctx.fillRect(chimX - 1, by - chimH, 7, 3);
+      // Chimney shadow stripe
+      ctx.fillStyle = adjustBrightness('#4a4a4a', b);
+      ctx.fillRect(chimX + 3, by - chimH, 2, chimH);
+
+      // Smoke from chimney — animated puffs
+      const smokeT = (state.tick % 10) * 0.6;
+      for (let s = 0; s < 3; s++) {
+        const sx = chimX + 2.5 + Math.sin(state.tick * 0.5 + s * 2) * 2;
+        const sy = by - chimH - 2 - s * 4 - smokeT * 0.3;
+        const sr = 2.5 + s * 1.5 + level * 0.5;
+        ctx.fillStyle = `rgba(160,160,160,${0.4 - s * 0.1})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // Windows
       ctx.fillStyle = winColor;
-      for (let row = 0; row < level; row++) {
-        ctx.fillRect(bx + 2, by + 3 + row * 5, 3, 2);
-        ctx.fillRect(bx + Math.floor(bw/2), by + 3 + row * 5, 3, 2);
+      for (let row = 0; row < level + 1; row++) {
+        ctx.fillRect(bx + 3, by + 4 + row * 5, 4, 3);
+        ctx.fillRect(bx + Math.floor(bw/2) - 1, by + 4 + row * 5, 4, 3);
       }
-      // Garage door
+      // Big garage door
       ctx.fillStyle = adjustBrightness('#3a3a3a', b);
-      ctx.fillRect(bx + 1, py + ts - 6, bw - 2, 4);
-      ctx.fillStyle = adjustBrightness('#555', b);
-      for (let i = 0; i < bw - 4; i += 3) ctx.fillRect(bx + 2 + i, py + ts - 6, 1, 4);
+      ctx.fillRect(bx + 1, py + ts - 7, bw - 2, 6);
+      // Garage door lines
+      ctx.strokeStyle = adjustBrightness('#666', b);
+      ctx.lineWidth = 0.5;
+      for (let i = 1; i < bw - 4; i += 3) {
+        ctx.beginPath();
+        ctx.moveTo(bx + 1 + i, py + ts - 7);
+        ctx.lineTo(bx + 1 + i, py + ts - 1);
+        ctx.stroke();
+      }
       break;
     }
   }
@@ -2080,10 +2153,193 @@ function drawSpecialShape2D(type, px, py, level, brightness) {
         ctx.fillRect(px - 8, py - 8, ts + 16, ts + 16);
       }
       break;
+
+    case T.THRONE_ROOM: {
+      // Throne room: golden temple with columns and crown
+      ctx.fillStyle = '#1a1a2e'; ctx.fillRect(px, py, ts, ts);
+      // Base platform
+      ctx.fillStyle = adjustBrightness('#8b6914', b);
+      ctx.fillRect(px + 2, py + ts - 8, ts - 4, 6);
+      ctx.fillStyle = adjustBrightness('#d4af37', b);
+      ctx.fillRect(px + 3, py + ts - 10, ts - 6, 4);
+      // Columns
+      ctx.fillStyle = adjustBrightness('#fbbf24', b);
+      ctx.fillRect(px + 5, py + ts - 20, 3, 12);
+      ctx.fillRect(px + ts - 8, py + ts - 20, 3, 12);
+      ctx.fillRect(px + ts/2 - 1, py + ts - 20, 3, 12);
+      // Roof — golden dome (triangle)
+      ctx.fillStyle = adjustBrightness('#ffd700', b);
+      ctx.beginPath();
+      ctx.moveTo(px + 4, py + ts - 20);
+      ctx.lineTo(px + ts/2, py + 4);
+      ctx.lineTo(px + ts - 4, py + ts - 20);
+      ctx.closePath(); ctx.fill();
+      // Crown on top
+      ctx.fillStyle = '#ffd700';
+      ctx.fillRect(px + ts/2 - 4, py + 2, 3, 3);
+      ctx.fillRect(px + ts/2 + 1, py + 2, 3, 3);
+      ctx.fillRect(px + ts/2 - 1, py, 3, 4);
+      // Jewel
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(px + ts/2 - 1, py + 3, 3, 2);
+      if (isNight) {
+        const grad = ctx.createRadialGradient(px + ts/2, py + ts/2, 0, px + ts/2, py + ts/2, ts);
+        grad.addColorStop(0, 'rgba(255,215,0,0.15)');
+        grad.addColorStop(1, 'rgba(255,215,0,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(px - 8, py - 8, ts + 16, ts + 16);
+      }
+      break;
+    }
+
+    case T.GRILL: {
+      // Napoleon Flex Flame Grill: red building with drawn flame
+      ctx.fillStyle = '#1a0808'; ctx.fillRect(px, py, ts, ts);
+      ctx.fillStyle = adjustBrightness('#991b1b', b);
+      ctx.fillRect(px + 3, py + 6, ts - 6, ts - 9);
+      ctx.fillStyle = adjustBrightness('#7f1d1d', b);
+      ctx.fillRect(px + ts - 7, py + 6, 4, ts - 9);
+      // Roof slab
+      ctx.fillStyle = adjustBrightness('#dc2626', b);
+      ctx.fillRect(px + 1, py + 4, ts - 2, 3);
+      // Grill grate (horizontal lines)
+      ctx.strokeStyle = adjustBrightness('#fbbf24', b); ctx.lineWidth = 1;
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.moveTo(px + 6, py + 10 + i * 3);
+        ctx.lineTo(px + ts - 6, py + 10 + i * 3);
+        ctx.stroke();
+      }
+      // Flame — drawn as triangle
+      const flicker = Math.sin(state.tick * 3) * 1;
+      ctx.fillStyle = '#ff6600';
+      ctx.beginPath();
+      ctx.moveTo(px + ts/2, py + 6 + flicker);
+      ctx.lineTo(px + ts/2 - 4, py + 12);
+      ctx.lineTo(px + ts/2 + 4, py + 12);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ffaa00';
+      ctx.beginPath();
+      ctx.moveTo(px + ts/2, py + 8 + flicker);
+      ctx.lineTo(px + ts/2 - 2, py + 12);
+      ctx.lineTo(px + ts/2 + 2, py + 12);
+      ctx.closePath(); ctx.fill();
+      if (isNight) {
+        const grad = ctx.createRadialGradient(px + ts/2, py + ts/2, 0, px + ts/2, py + ts/2, ts);
+        grad.addColorStop(0, 'rgba(255,80,0,0.15)');
+        grad.addColorStop(1, 'rgba(255,80,0,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(px - 8, py - 8, ts + 16, ts + 16);
+      }
+      break;
+    }
+
+    case T.GARAGE: {
+      // Glenn's Garage: grey building with bay door and sign
+      ctx.fillStyle = '#0f0f0f'; ctx.fillRect(px, py, ts, ts);
+      ctx.fillStyle = adjustBrightness('#64748b', b);
+      ctx.fillRect(px + 2, py + 4, ts - 4, ts - 6);
+      ctx.fillStyle = adjustBrightness('#475569', b);
+      ctx.fillRect(px + ts - 6, py + 4, 4, ts - 6);
+      // Roof
+      ctx.fillStyle = adjustBrightness('#94a3b8', b);
+      ctx.fillRect(px + 1, py + 2, ts - 2, 3);
+      // Big bay door
+      ctx.fillStyle = '#1a1a2a';
+      ctx.fillRect(px + 4, py + ts - 14, ts - 8, 12);
+      ctx.strokeStyle = adjustBrightness('#cbd5e1', b); ctx.lineWidth = 1;
+      ctx.strokeRect(px + 4, py + ts - 14, ts - 8, 12);
+      // Door panels
+      ctx.strokeStyle = adjustBrightness('#475569', b);
+      for (let i = 1; i < 4; i++) {
+        ctx.beginPath();
+        ctx.moveTo(px + 4, py + ts - 14 + i * 3);
+        ctx.lineTo(px + ts - 4, py + ts - 14 + i * 3);
+        ctx.stroke();
+      }
+      // Sign
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillRect(px + 4, py + 5, ts - 8, 5);
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 5px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('GARAGE', px + ts/2, py + 8);
+      break;
+    }
+
+    case T.GUMMY_FACTORY: {
+      // Smart Gummy Factory: pink building with rotating gears
+      ctx.fillStyle = '#0f0a0f'; ctx.fillRect(px, py, ts, ts);
+      ctx.fillStyle = adjustBrightness('#be185d', b);
+      ctx.fillRect(px + 2, py + 5, ts - 4, ts - 7);
+      ctx.fillStyle = adjustBrightness('#9d174d', b);
+      ctx.fillRect(px + ts - 6, py + 5, 4, ts - 7);
+      // Roof
+      ctx.fillStyle = adjustBrightness('#ec4899', b);
+      ctx.fillRect(px + 1, py + 3, ts - 2, 3);
+      // Rotating gears
+      const gearT = state.tick * 0.3;
+      const gx = px + ts/2, gy = py + ts/2 + 2;
+      ctx.strokeStyle = adjustBrightness('#f9a8d4', b); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(gx - 4, gy, 4, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(gx + 4, gy, 4, 0, Math.PI * 2); ctx.stroke();
+      // Gear teeth
+      ctx.fillStyle = adjustBrightness('#f472b6', b);
+      for (let a = 0; a < 8; a++) {
+        const ang = gearT + a * Math.PI / 4;
+        ctx.fillRect(gx - 4 + Math.cos(ang) * 4 - 1, gy + Math.sin(ang) * 4 - 1, 2, 2);
+      }
+      break;
+    }
+
+    case T.HORN_TOWER: {
+      // AI Horn Speaker Tower: cyan tower with speaker horn
+      ctx.fillStyle = '#06151a'; ctx.fillRect(px, py, ts, ts);
+      // Tower shaft
+      ctx.fillStyle = adjustBrightness('#0891b2', b);
+      ctx.beginPath();
+      ctx.moveTo(px + ts/2 - 4, py + ts - 3);
+      ctx.lineTo(px + ts/2 + 4, py + ts - 3);
+      ctx.lineTo(px + ts/2 + 3, py + 8);
+      ctx.lineTo(px + ts/2 - 3, py + 8);
+      ctx.closePath(); ctx.fill();
+      // Shadow side
+      ctx.fillStyle = adjustBrightness('#0e7490', b);
+      ctx.beginPath();
+      ctx.moveTo(px + ts/2, py + ts - 3);
+      ctx.lineTo(px + ts/2 + 4, py + ts - 3);
+      ctx.lineTo(px + ts/2 + 3, py + 8);
+      ctx.lineTo(px + ts/2, py + 8);
+      ctx.closePath(); ctx.fill();
+      // Speaker horn on top
+      ctx.fillStyle = adjustBrightness('#22d3ee', b);
+      ctx.beginPath();
+      ctx.moveTo(px + ts/2 - 5, py + 10);
+      ctx.lineTo(px + ts/2 + 5, py + 10);
+      ctx.lineTo(px + ts/2 + 3, py + 4);
+      ctx.lineTo(px + ts/2 - 3, py + 4);
+      ctx.closePath(); ctx.fill();
+      // Horn opening
+      ctx.fillStyle = adjustBrightness('#67e8f9', b);
+      ctx.beginPath(); ctx.arc(px + ts/2, py + 4, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#0a1a1a';
+      ctx.beginPath(); ctx.arc(px + ts/2, py + 4, 2, 0, Math.PI * 2); ctx.fill();
+      // Sound waves (animated)
+      const wavePhase = (state.tick % 6) / 6;
+      ctx.strokeStyle = `rgba(34,211,238,${0.5 - wavePhase * 0.5})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(px + ts/2, py + 4, 5 + wavePhase * 8, -Math.PI/3, Math.PI/3); ctx.stroke();
+      if (isNight) {
+        const grad = ctx.createRadialGradient(px + ts/2, py + ts/2, 0, px + ts/2, py + ts/2, ts);
+        grad.addColorStop(0, 'rgba(6,182,212,0.15)');
+        grad.addColorStop(1, 'rgba(6,182,212,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(px - 8, py - 8, ts + 16, ts + 16);
+      }
+      break;
+    }
   }
 }
-
-// Draw fire overlay for burning buildings
 function drawFireOverlay(tx, ty) {
   const px = tx * TILE, py = ty * TILE;
   const flicker = Math.sin(state.tick * 2 + tx * 3 + ty * 5) * 0.2 + 0.8;
@@ -2257,9 +2513,10 @@ function buildTabs() {
 function buildToolbar() {
   const tb = document.getElementById('toolbar');
   tb.innerHTML = '';
+  const isCompact = currentCat === 'special';
   TOOLS.filter(t => t.cat === currentCat).forEach(tool => {
     const el = document.createElement('div');
-    el.className = 'tool' + (activeTool === tool.id ? ' active' : '');
+    el.className = 'tool' + (isCompact ? ' compact' : '') + (activeTool === tool.id ? ' active' : '');
     el.innerHTML = `<div class="tool-icon">${tool.icon}</div><div class="tool-name">${tool.name}</div><div class="tool-cost">${tool.cost > 0 ? '$' + tool.cost : ''}</div>`;
     el.addEventListener('pointerdown', e => {
       e.preventDefault(); e.stopPropagation();
@@ -3311,18 +3568,22 @@ function updateNewsTicker() {
 // ═══════════════════════════════════════════════════════════════════
 // DISASTER SYSTEM
 // ═══════════════════════════════════════════════════════════════════
-let lastDisasterCheck = 0;
-let nextDisasterTime = 60000; // first check after 60s
+let lastDisasterCheck = Date.now();
+let nextDisasterTime = 45000; // first disaster check at 45s
+let firstDisasterFired = false; // guarantee first disaster happens quickly
 
 function updateDisasters() {
   const now = Date.now();
   if (now - lastDisasterCheck < nextDisasterTime) return;
   lastDisasterCheck = now;
-  // Random next check between 60-120 seconds
-  nextDisasterTime = 60000 + Math.random() * 60000;
 
-  // 5% chance of a random event
-  if (Math.random() > 0.05) return;
+  // First disaster: guaranteed within 60-90s (force it on first check)
+  // After that: 15% chance per 30s check
+  const forceDisaster = !firstDisasterFired;
+  firstDisasterFired = true;
+  nextDisasterTime = 30000 + Math.random() * 30000; // check every 30-60s
+
+  if (!forceDisaster && Math.random() > 0.15) return; // 15% chance after first
 
   // Find candidate buildings
   const industrialTiles = [];
