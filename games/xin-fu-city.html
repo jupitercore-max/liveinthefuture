@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Xin Fú City Builder — 新福特別行政區</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#e8e8e8;touch-action:none}
+#gameCanvas{display:block;cursor:crosshair;image-rendering:pixelated}
+#hud{position:fixed;top:0;left:0;right:0;height:52px;background:linear-gradient(180deg,#111 0%,#0a0a0a 100%);border-bottom:1px solid #2a2a2a;display:flex;align-items:center;justify-content:space-around;padding:0 8px;z-index:10;font-size:12px;gap:4px}
+.stat{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0}
+.stat-label{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:#666}
+.stat-val{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat-val.money{color:#4ade80}
+.stat-val.pop{color:#60a5fa}
+.stat-val.happy{color:#fbbf24}
+.stat-val.happy.low{color:#ef4444}
+#toolbar{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(0deg,#111 0%,#0a0a0a 100%);border-top:1px solid #2a2a2a;padding:6px 4px;z-index:10;display:flex;gap:3px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+#toolbar::-webkit-scrollbar{display:none}
+.tool{flex-shrink:0;width:54px;height:50px;border:1px solid #333;border-radius:8px;background:#1a1a1a;color:#ccc;font-size:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;transition:all .12s;user-select:none}
+.tool:active{transform:scale(.93)}
+.tool.active{border-color:#4a9eff;background:rgba(74,158,255,.12);color:#fff}
+.tool-icon{font-size:18px;line-height:1}
+.tool-cost{font-size:7px;color:#666}
+.tool.active .tool-cost{color:#4a9eff}
+#infoBar{position:fixed;bottom:62px;left:8px;right:8px;background:rgba(10,10,10,.92);border:1px solid #2a2a2a;border-radius:8px;padding:6px 10px;font-size:11px;z-index:9;display:none;max-width:320px}
+#infoBar.show{display:block}
+#infoBar .info-title{font-weight:700;color:#fbbf24;margin-bottom:2px}
+#toast{position:fixed;top:56px;left:50%;transform:translateX(-50%);background:rgba(10,10,10,.95);border:1px solid #444;border-radius:8px;padding:6px 16px;font-size:12px;z-index:20;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:90vw}
+#toast.show{opacity:1}
+#minimap{position:fixed;top:56px;right:6px;width:80px;height:80px;border:1px solid #333;border-radius:4px;z-index:8;opacity:.85;cursor:pointer}
+.presence-badge{position:fixed;top:52px;left:6px;font-size:9px;color:#888;background:rgba(10,10,10,.85);padding:2px 6px;border-radius:4px;z-index:8}
+.online-dot{display:inline-block;width:5px;height:5px;background:#22c55e;border-radius:50%;margin-right:3px}
+@media(max-width:600px){
+  .stat-val{font-size:14px}
+  .stat-label{font-size:8px}
+  .tool{width:46px;height:44px}
+  .tool-icon{font-size:16px}
+}
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="stat"><span class="stat-label">💰 Treasury</span><span class="stat-val money" id="moneyVal">$50,000</span></div>
+  <div class="stat"><span class="stat-label">👥 Citizens</span><span class="stat-val pop" id="popVal">0</span></div>
+  <div class="stat"><span class="stat-label">😊 Happiness</span><span class="stat-val happy" id="happyVal">75%</span></div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+<canvas id="minimap"></canvas>
+<div class="presence-badge" id="presenceBadge" style="display:none"><span class="online-dot"></span><span id="presenceText">just you</span></div>
+<div id="infoBar"></div>
+<div id="toast"></div>
+
+<div id="toolbar"></div>
+
+<script src="../firebase-shared.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// XIN FÚ CITY BUILDER — 新福特別行政區
+// A SimCity-style city builder for the Xin Fú SAR
+// ═══════════════════════════════════════════════════════════════════
+
+const TILE = 20;            // pixel size of each tile
+const GRID_W = 40, GRID_H = 40;
+const WORLD_W = GRID_W * TILE, WORLD_H = GRID_H * TILE;
+
+// ─── Tile Types ────────────────────────────────────────────────────
+const T = {
+  GRASS: 0, WATER: 1, ROAD: 2,
+  RES: 3, COM: 4, IND: 5, AGRI: 6,
+  BLUETOOTH_TOWER: 10,   // landmark
+  THRONE_ROOM: 11,       // civic
+  GRILL: 12,             // commercial special
+  GARAGE: 13,            // industrial special
+  GUMMY_FACTORY: 14,     // industrial special
+  HORN_TOWER: 15,        // utility
+  SIGN: 16,              // decorative sign
+};
+
+const TILE_DATA = {
+  [T.GRASS]:    { name:'Grass', color:'#2d5a2d', cost:0 },
+  [T.WATER]:    { name:'Water', color:'#1a3a5c', cost:0 },
+  [T.ROAD]:     { name:'Road', color:'#444', cost:50 },
+  [T.RES]:      { name:'Residential', color:'#3b82f6', cost:100 },
+  [T.COM]:      { name:'Commercial', color:'#f59e0b', cost:150 },
+  [T.IND]:      { name:'Industrial', color:'#a16207', cost:200 },
+  [T.AGRI]:     { name:'Pepper Farm', color:'#16a34a', cost:80 },
+  [T.BLUETOOTH_TOWER]: { name:'Bluetooth Tower', color:'#8b5cf6', cost:5000, special:true },
+  [T.THRONE_ROOM]:     { name:"Lord Bluetooth's Throne", color:'#c9a84c', cost:3000, special:true },
+  [T.GRILL]:           { name:'Napoleon Flex Flame Grill', color:'#ef4444', cost:1200, special:true },
+  [T.GARAGE]:          { name:"GLENN'S GARAGE", color:'#64748b', cost:1500, special:true },
+  [T.GUMMY_FACTORY]:   { name:'Smart Gummy Factory', color:'#ec4899', cost:2500, special:true },
+  [T.HORN_TOWER]:      { name:'AI Horn Speaker Tower', color:'#06b6d4', cost:1800, special:true },
+  [T.SIGN]:            { name:'Directional Sign', color:'#fbbf24', cost:10, special:true },
+};
+
+// ─── Tools ─────────────────────────────────────────────────────────
+const TOOLS = [
+  { id:'inspect', icon:'🔍', name:'Inspect', cost:0 },
+  { id:'road', icon:'🛣️', name:'Road', tile:T.ROAD, cost:50 },
+  { id:'res', icon:'🏠', name:'Residential', tile:T.RES, cost:100 },
+  { id:'com', icon:'🏪', name:'Commercial', tile:T.COM, cost:150 },
+  { id:'ind', icon:'🏭', name:'Industrial', tile:T.IND, cost:200 },
+  { id:'agri', icon:'🌶️', name:'Pepper Farm', tile:T.AGRI, cost:80 },
+  { id:'bluetooth', icon:'📡', name:'Bluetooth Tower', tile:T.BLUETOOTH_TOWER, cost:5000 },
+  { id:'throne', icon:'👑', name:'Throne Room', tile:T.THRONE_ROOM, cost:3000 },
+  { id:'grill', icon:'🔥', name:'Grill Station', tile:T.GRILL, cost:1200 },
+  { id:'garage', icon:'🔧', name:'Glenn\'s Garage', tile:T.GARAGE, cost:1500 },
+  { id:'gummy', icon:'🐻', name:'Gummy Factory', tile:T.GUMMY_FACTORY, cost:2500 },
+  { id:'horn', icon:'📢', name:'Horn Speaker', tile:T.HORN_TOWER, cost:1800 },
+  { id:'sign', icon:' signs', name:'Road Sign', tile:T.SIGN, cost:10 },
+  { id:'bulldoze', icon:'💥', name:'Bulldoze', cost:0 },
+];
+
+// ─── Road Signs ────────────────────────────────────────────────────
+const ROAD_SIGNS = [
+  { text:'Livermore — 45 mi ←', dir:'left' },
+  { text:'Las Vegas — 540 mi →', dir:'right', sub:"Lord Bluetooth's Territory" },
+  { text:'Menlo Park — 1215 Chrysler Dr →', dir:'right', sub:"Glenn's Garage HQ" },
+  { text:'Tokyo — 5,128 mi →', dir:'right' },
+  { text:'Copenhagen — 5,431 mi →', dir:'right' },
+  { text:'Xin Fú Downtown — ↑', dir:'up' },
+];
+
+// ─── Canvas Setup ──────────────────────────────────────────────────
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const minimap = document.getElementById('minimap');
+const mctx = minimap.getContext('2d');
+minimap.width = 80; minimap.height = 80;
+
+let camX = 0, camY = 0;  // camera offset in world pixels
+let zoom = 1;
+let dragStart = null;
+let isDragging = false;
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// ─── Game State ────────────────────────────────────────────────────
+let state = {
+  grid: [],
+  money: 50000,
+  population: 0,
+  happiness: 75,
+  income: 0,
+  expenses: 0,
+  tick: 0,
+  buildCount: {},
+};
+
+let activeTool = 'inspect';
+let touchPos = null;
+
+// ─── Init Grid ─────────────────────────────────────────────────────
+function initGrid() {
+  state.grid = [];
+  for (let y = 0; y < GRID_H; y++) {
+    const row = [];
+    for (let x = 0; x < GRID_W; x++) {
+      let tile = T.GRASS;
+      // Water features
+      if ((x < 4 && y < 4) || (x > 35 && y > 35)) tile = T.WATER;
+      if (x >= 8 && x <= 10 && y >= 30 && y <= 33) tile = T.WATER;
+      // Random trees on grass (visual variety via random shade)
+      row.push({ type: tile, level: 0, data: {} });
+    }
+    state.grid.push(row);
+  }
+
+  // Pre-place landmarks
+  // Bluetooth Tower — center
+  state.grid[20][20] = { type: T.BLUETOOTH_TOWER, level: 1, data: {} };
+  // Lord Bluetooth's Throne Room — near center
+  state.grid[18][22] = { type: T.THRONE_ROOM, level: 1, data: {} };
+  // Napoleon Flex Flame Grill — commercial
+  state.grid[22][18] = { type: T.GRILL, level: 1, data: {} };
+  // GLENN'S GARAGE — industrial
+  state.grid[26][28] = { type: T.GARAGE, level: 1, data: {} };
+  // Smart Gummy Factory — industrial
+  state.grid[28][26] = { type: T.GUMMY_FACTORY, level: 1, data: {} };
+  // AI Horn Speaker Tower — utility
+  state.grid[15][25] = { type: T.HORN_TOWER, level: 1, data: {} };
+  // Pepper farms
+  state.grid[24][14] = { type: T.AGRI, level: 1, data: {} };
+  state.grid[25][14] = { type: T.AGRI, level: 1, data: {} };
+  state.grid[24][15] = { type: T.AGRI, level: 1, data: {} };
+  state.grid[25][15] = { type: T.AGRI, level: 1, data: {} };
+
+  // Pre-place some roads
+  for (let x = 16; x <= 30; x++) state.grid[20][x] = { type: T.ROAD, level: 1, data: {} };
+  for (let y = 15; y <= 28; y++) state.grid[y][20] = { type: T.ROAD, level: 1, data: {} };
+  for (let y = 18; y <= 22; y++) state.grid[y][22] = { type: T.ROAD, level: 1, data: {} };
+  for (let x = 22; x <= 28; x++) state.grid[26][x] = { type: T.ROAD, level: 1, data: {} };
+  for (let x = 14; x <= 20; x++) state.grid[24][x] = { type: T.ROAD, level: 1, data: {} };
+
+  // Pre-place some residential and commercial
+  for (let y of [18,19]) for (let x of [17,18,19]) state.grid[y][x] = { type: T.RES, level: 1, data:{} };
+  for (let y of [21,22]) for (let x of [21,22,23]) state.grid[y][x] = { type: T.COM, level: 1, data:{} };
+  for (let y of [27,28]) for (let x of [27,29]) state.grid[y][x] = { type: T.IND, level: 1, data:{} };
+
+  // Place decorative road signs
+  const signPositions = [
+    { x: 12, y: 20, signIdx: 0 },
+    { x: 31, y: 20, signIdx: 1 },
+    { x: 20, y: 12, signIdx: 2 },
+    { x: 33, y: 15, signIdx: 3 },
+    { x: 6, y: 10, signIdx: 4 },
+    { x: 20, y: 16, signIdx: 5 },
+  ];
+  signPositions.forEach(s => {
+    state.grid[s.y][s.x] = { type: T.SIGN, level: 1, data: { signIdx: s.signIdx } };
+  });
+}
+
+// ─── Camera Controls ───────────────────────────────────────────────
+function screenToWorld(sx, sy) {
+  return {
+    x: (sx - camX) / zoom,
+    y: (sy - camY - 52) / zoom,  // account for HUD
+  };
+}
+
+function worldToTile(wx, wy) {
+  return {
+    x: Math.floor(wx / TILE),
+    y: Math.floor(wy / TILE),
+  };
+}
+
+function centerCamera() {
+  camX = (canvas.width - WORLD_W * zoom) / 2;
+  camY = (canvas.height - 52 - 60 - WORLD_H * zoom) / 2 + 52;
+  // Clamp
+  clampCamera();
+}
+
+function clampCamera() {
+  const maxX = 0;
+  const minX = canvas.width - WORLD_W * zoom;
+  const maxY = 52;
+  const minY = canvas.height - 60 - WORLD_H * zoom;
+  camX = Math.max(Math.min(camX, maxX), minX);
+  camY = Math.max(Math.min(camY, maxY), Math.min(minY, 52));
+}
+
+// Touch/mouse handling
+let pointers = new Map();
+let lastPinchDist = 0;
+
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (pointers.size === 1) {
+    const tx = worldToTile(screenToWorld(e.clientX, e.clientY));
+    if (activeTool === 'inspect') {
+      showTileInfo(tx.x, tx.y);
+    } else {
+      handleBuild(tx.x, tx.y);
+    }
+    dragStart = { x: e.clientX, y: e.clientY, camX, camY, placed: false };
+  } else if (pointers.size === 2) {
+    const pts = [...pointers.values()];
+    lastPinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  }
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (pointers.has(e.pointerId)) {
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  }
+
+  if (pointers.size === 2) {
+    // Pinch zoom
+    const pts = [...pointers.values()];
+    const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    if (lastPinchDist > 0) {
+      const scale = dist / lastPinchDist;
+      zoom = Math.max(0.5, Math.min(3, zoom * scale));
+      clampCamera();
+    }
+    lastPinchDist = dist;
+    return;
+  }
+
+  if (dragStart && pointers.size === 1) {
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      isDragging = true;
+      camX = dragStart.camX + dx;
+      camY = dragStart.camY + dy;
+      clampCamera();
+    }
+    // Continuous building for roads/zones
+    if (!isDragging && activeTool !== 'inspect' && activeTool !== 'bulldoze') {
+      const tool = TOOLS.find(t => t.id === activeTool);
+      if (tool && !tool.special) {
+        const tx = worldToTile(screenToWorld(e.clientX, e.clientY));
+        handleBuild(tx.x, tx.y);
+      }
+    }
+    if (activeTool === 'bulldoze' && Math.abs(dx) > 3) {
+      const tx = worldToTile(screenToWorld(e.clientX, e.clientY));
+      handleBulldoze(tx.x, tx.y);
+    }
+  }
+});
+
+canvas.addEventListener('pointerup', e => {
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) lastPinchDist = 0;
+  if (pointers.size === 0) {
+    dragStart = null;
+    setTimeout(() => { isDragging = false; }, 50);
+  }
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  const newZoom = Math.max(0.5, Math.min(3, zoom * delta));
+  // Zoom toward cursor
+  const wx = (e.clientX - camX) / zoom;
+  const wy = (e.clientY - camY - 52) / zoom;
+  zoom = newZoom;
+  camX = e.clientX - wx * zoom;
+  camY = e.clientY - wy * zoom - 52;
+  clampCamera();
+}, { passive: false });
+
+// ─── Building Logic ────────────────────────────────────────────────
+function handleBuild(tx, ty) {
+  if (tx < 0 || tx >= GRID_W || ty < 0 || ty >= GRID_H) return;
+  const tile = state.grid[ty][tx];
+  const tool = TOOLS.find(t => t.id === activeTool);
+  if (!tool) return;
+
+  if (activeTool === 'bulldoze') {
+    handleBulldoze(tx, ty);
+    return;
+  }
+
+  const data = TILE_DATA[tool.tile];
+  if (!data) return;
+
+  // Can't build on water or existing special buildings
+  if (tile.type === T.WATER) { toast('Cannot build on water!'); return; }
+  if (tile.type !== T.GRASS && tile.type !== T.ROAD) {
+    // Allow overwriting roads with zones
+    if (tile.type !== T.ROAD) { toast('Tile occupied! Bulldoze first.'); return; }
+  }
+
+  // Special buildings can only go on grass
+  if (data.special && tile.type !== T.GRASS) { toast('Clear the tile first!'); return; }
+
+  if (state.money < data.cost) { toast('Not enough funds!'); return; }
+
+  // Don't rebuild same tile
+  if (tile.type === tool.tile) return;
+
+  state.money -= data.cost;
+  state.grid[ty][tx] = { type: tool.tile, level: 1, data: {} };
+  state.buildCount[tool.tile] = (state.buildCount[tool.tile] || 0) + 1;
+  updateHUD();
+
+  // Save to Firebase
+  scheduleSave();
+}
+
+function handleBulldoze(tx, ty) {
+  if (tx < 0 || tx >= GRID_W || ty < 0 || ty >= GRID_H) return;
+  const tile = state.grid[ty][tx];
+  if (tile.type === T.GRASS || tile.type === T.WATER) return;
+
+  // Refund 25% of cost
+  const data = TILE_DATA[tile.type];
+  const refund = data ? Math.floor(data.cost * 0.25) : 0;
+  state.money += refund;
+  state.grid[ty][tx] = { type: T.GRASS, level: 0, data: {} };
+  updateHUD();
+  scheduleSave();
+}
+
+// ─── Tile Info ─────────────────────────────────────────────────────
+function showTileInfo(tx, ty) {
+  const infoBar = document.getElementById('infoBar');
+  if (tx < 0 || tx >= GRID_W || ty < 0 || ty >= GRID_H) {
+    infoBar.classList.remove('show');
+    return;
+  }
+  const tile = state.grid[ty][tx];
+  const data = TILE_DATA[tile.type];
+  if (!data) { infoBar.classList.remove('show'); return; }
+
+  let html = `<div class="info-title">${data.name}</div>`;
+  html += `<div style="color:#888">Location: (${tx}, ${ty})</div>`;
+
+  if (tile.type === T.SIGN && tile.data.signIdx != null) {
+    const sign = ROAD_SIGNS[tile.data.signIdx];
+    if (sign) html += `<div style="color:#fbbf24;margin-top:4px">${sign.text}</div>`;
+  }
+  if (tile.type === T.RES) html += `<div style="color:#888">Level ${tile.level} · ${getResPop(tile)} residents</div>`;
+  if (tile.type === T.COM) html += `<div style="color:#888">Level ${tile.level} · $${getComIncome(tile)}/cycle</div>`;
+  if (tile.type === T.IND) html += `<div style="color:#888">Level ${tile.level} · $${getIndIncome(tile)}/cycle</div>`;
+  if (tile.type === T.AGRI) html += `<div style="color:#888">Pepper farm · $${getAgriIncome(tile)}/cycle</div>`;
+
+  infoBar.innerHTML = html;
+  infoBar.classList.add('show');
+}
+
+// ─── Economy ───────────────────────────────────────────────────────
+function getResPop(tile) {
+  if (tile.type !== T.RES) return 0;
+  return tile.level * 12;
+}
+
+function getComIncome(tile) {
+  if (tile.type !== T.COM) return 0;
+  return tile.level * 8;
+}
+
+function getIndIncome(tile) {
+  if (tile.type !== T.IND) return 0;
+  return tile.level * 12;
+}
+
+function getAgriIncome(tile) {
+  if (tile.type !== T.AGRI) return 0;
+  return tile.level * 5;
+}
+
+function hasRoadAdjacent(tx, ty) {
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = tx + dx, ny = ty + dy;
+      if (nx < 0 || nx >= GRID_W || ny < 0 || ny >= GRID_H) continue;
+      if (state.grid[ny][nx].type === T.ROAD) return true;
+    }
+  }
+  return false;
+}
+
+function economyTick() {
+  state.tick++;
+  let income = 0;
+  let pop = 0;
+  let indCount = 0, resCount = 0, comCount = 0;
+  let happinessDelta = 0;
+
+  for (let y = 0; y < GRID_H; y++) {
+    for (let x = 0; x < GRID_W; x++) {
+      const tile = state.grid[y][x];
+      const hasRoad = hasRoadAdjacent(x, y);
+
+      switch (tile.type) {
+        case T.RES:
+          if (hasRoad) {
+            // Level up over time
+            if (tile.level < 3 && state.tick % 10 === 0 && Math.random() < 0.3) {
+              tile.level++;
+            }
+            pop += getResPop(tile);
+            resCount++;
+          }
+          break;
+        case T.COM:
+          if (hasRoad) {
+            income += getComIncome(tile);
+            comCount++;
+            if (tile.level < 3 && state.tick % 8 === 0 && Math.random() < 0.25) tile.level++;
+          }
+          break;
+        case T.IND:
+          if (hasRoad) {
+            income += getIndIncome(tile);
+            indCount++;
+            if (tile.level < 3 && state.tick % 12 === 0 && Math.random() < 0.2) tile.level++;
+          }
+          break;
+        case T.AGRI:
+          if (hasRoad) {
+            income += getAgriIncome(tile);
+          }
+          break;
+        case T.GRILL:
+          // Napoleon Flex Flame Grill boosts nearby commercial
+          income += 25;
+          break;
+        case T.GARAGE:
+          income += 30;
+          break;
+        case T.GUMMY_FACTORY:
+          income += 50;
+          happinessDelta -= 1; // gummy factories smell
+          break;
+        case T.THRONE_ROOM:
+          happinessDelta += 3;
+          break;
+        case T.BLUETOOTH_TOWER:
+          happinessDelta += 5;
+          break;
+        case T.HORN_TOWER:
+          happinessDelta += 2;
+          break;
+      }
+    }
+  }
+
+  // Special building area effects
+  const towerPos = findTile(T.BLUETOOTH_TOWER);
+  if (towerPos) {
+    happinessDelta += 2;
+  }
+
+  // Calculate happiness
+  if (indCount > resCount && resCount > 0) {
+    happinessDelta -= Math.min(10, Math.floor((indCount - resCount) * 0.5));
+  }
+  if (resCount > 0 && comCount === 0) {
+    happinessDelta -= 2; // no shops = sad
+  }
+
+  // Road coverage bonus
+  const roadCount = countTiles(T.ROAD);
+  if (roadCount > 10) happinessDelta += 1;
+
+  state.happiness = Math.max(0, Math.min(100, state.happiness + happinessDelta * 0.5));
+
+  // Tax revenue from population
+  const taxes = Math.floor(pop * (state.happiness / 100) * 0.5);
+  income += taxes;
+
+  // Maintenance
+  const maintenance = Math.floor((resCount + comCount + indCount) * 2 + roadCount * 0.5);
+
+  state.income = income;
+  state.expenses = maintenance;
+  state.population = pop;
+  state.money += income - maintenance;
+
+  updateHUD();
+}
+
+function findTile(type) {
+  for (let y = 0; y < GRID_H; y++)
+    for (let x = 0; x < GRID_W; x++)
+      if (state.grid[y][x].type === type) return { x, y };
+  return null;
+}
+
+function countTiles(type) {
+  let c = 0;
+  for (let y = 0; y < GRID_H; y++)
+    for (let x = 0; x < GRID_W; x++)
+      if (state.grid[y][x].type === type) c++;
+  return c;
+}
+
+// ─── HUD ───────────────────────────────────────────────────────────
+function updateHUD() {
+  document.getElementById('moneyVal').textContent = '$' + Math.floor(state.money).toLocaleString();
+  document.getElementById('popVal').textContent = state.population.toLocaleString();
+  const happyEl = document.getElementById('happyVal');
+  happyEl.textContent = Math.round(state.happiness) + '%';
+  happyEl.className = 'stat-val happy' + (state.happiness < 40 ? ' low' : '');
+
+  if (state.money < 0) {
+    document.getElementById('moneyVal').style.color = '#ef4444';
+  } else {
+    document.getElementById('moneyVal').style.color = '#4ade80';
+  }
+}
+
+// ─── Toast ─────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// ─── Toolbar ───────────────────────────────────────────────────────
+function buildToolbar() {
+  const tb = document.getElementById('toolbar');
+  tb.innerHTML = '';
+  TOOLS.forEach(tool => {
+    const btn = document.createElement('div');
+    btn.className = 'tool' + (activeTool === tool.id ? ' active' : '');
+    btn.innerHTML = `<div class="tool-icon">${tool.icon}</div><div>${tool.name}</div><div class="tool-cost">$${tool.cost}</div>`;
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      activeTool = tool.id;
+      buildToolbar();
+      document.getElementById('infoBar').classList.remove('show');
+    });
+    tb.appendChild(btn);
+  });
+}
+
+// ─── Rendering ─────────────────────────────────────────────────────
+function render() {
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  ctx.translate(camX, camY + 52);
+  ctx.scale(zoom, zoom);
+
+  // Visible tile range
+  const startX = Math.max(0, Math.floor(-camX / zoom / TILE));
+  const endX = Math.min(GRID_W, Math.ceil((canvas.width - camX) / zoom / TILE));
+  const startY = Math.max(0, Math.floor(-(camY + 52) / zoom / TILE));
+  const endY = Math.min(GRID_H, Math.ceil((canvas.height - camY - 52 - 60) / zoom / TILE));
+
+  for (let y = startY; y < endY; y++) {
+    for (let x = startX; x < endX; x++) {
+      drawTile(x, y);
+    }
+  }
+
+  // Draw grid lines (subtle)
+  if (zoom > 1) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 0.5;
+    for (let x = startX; x <= endX; x++) {
+      ctx.beginPath();
+      ctx.moveTo(x * TILE, startY * TILE);
+      ctx.lineTo(x * TILE, endY * TILE);
+      ctx.stroke();
+    }
+    for (let y = startY; y <= endY; y++) {
+      ctx.beginPath();
+      ctx.moveTo(startX * TILE, y * TILE);
+      ctx.lineTo(endX * TILE, y * TILE);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+
+  // Minimap
+  renderMinimap();
+}
+
+function drawTile(tx, ty) {
+  const tile = state.grid[ty][tx];
+  const data = TILE_DATA[tile.type] || TILE_DATA[T.GRASS];
+  const px = tx * TILE, py = ty * TILE;
+
+  // Base color
+  ctx.fillStyle = data.color;
+  ctx.fillRect(px, py, TILE, TILE);
+
+  // Texture/details per tile type
+  switch (tile.type) {
+    case T.GRASS:
+      // Subtle variation
+      if ((tx + ty) % 3 === 0) {
+        ctx.fillStyle = '#275027';
+        ctx.fillRect(px + 2, py + 2, 3, 3);
+      }
+      break;
+    case T.WATER:
+      // Animated shimmer
+      const sh = Math.sin(state.tick * 0.05 + tx * 0.5 + ty * 0.3) * 0.5 + 0.5;
+      ctx.fillStyle = `rgba(100,150,200,${sh * 0.15})`;
+      ctx.fillRect(px, py, TILE, TILE);
+      break;
+    case T.ROAD:
+      // Road with center line
+      ctx.fillStyle = '#333';
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = '#555';
+      ctx.fillRect(px + TILE/2 - 1, py, 2, TILE);
+      ctx.fillRect(px, py + TILE/2 - 1, TILE, 2);
+      break;
+    case T.RES:
+      drawBuilding(px, py, tile.level, '#3b82f6', '#1e40af');
+      break;
+    case T.COM:
+      drawBuilding(px, py, tile.level, '#f59e0b', '#92400e');
+      break;
+    case T.IND:
+      drawBuilding(px, py, tile.level, '#a16207', '#713f12');
+      // Smokestack
+      ctx.fillStyle = '#444';
+      ctx.fillRect(px + TILE - 5, py + 2, 3, 4);
+      break;
+    case T.AGRI:
+      // Pepper plants
+      ctx.fillStyle = '#15803d';
+      ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2);
+      ctx.fillStyle = '#dc2626';
+      for (let i = 0; i < 3; i++) {
+        ctx.fillRect(px + 3 + i * 5, py + 5 + (i % 2) * 6, 2, 2);
+      }
+      break;
+    case T.BLUETOOTH_TOWER:
+      // Tall tower with BT symbol
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = '#8b5cf6';
+      ctx.fillRect(px + TILE/2 - 1, py + 2, 3, TILE - 4);
+      // Signal arcs
+      ctx.strokeStyle = '#8b5cf6';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(px + TILE/2 + 1, py + 4, 4, -Math.PI/3, Math.PI/3);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(px + TILE/2 + 1, py + 4, 7, -Math.PI/3, Math.PI/3);
+      ctx.stroke();
+      // 💙 symbol
+      ctx.font = '7px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('📡', px + TILE/2, py + TILE - 3);
+      break;
+    case T.THRONE_ROOM:
+      // Gold/purple throne room
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = '#c9a84c';
+      ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
+      ctx.fillStyle = '#1a1a2e';
+      ctx.font = `${TILE - 6}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('👑', px + TILE/2, py + TILE/2);
+      break;
+    case T.GRILL:
+      // Red/orange grill
+      ctx.fillStyle = '#1a0a0a';
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = `${TILE - 6}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🔥', px + TILE/2, py + TILE/2);
+      break;
+    case T.GARAGE:
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2);
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(px + 4, py + 6, TILE - 8, TILE - 10);
+      // Text
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = '5px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('GARAGE', px + TILE/2, py + TILE - 3);
+      break;
+    case T.GUMMY_FACTORY:
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = '#ec4899';
+      ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
+      ctx.font = `${TILE - 8}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🐻', px + TILE/2, py + TILE/2);
+      break;
+    case T.HORN_TOWER:
+      ctx.fillStyle = '#0a1a1a';
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = '#06b6d4';
+      ctx.beginPath();
+      ctx.moveTo(px + TILE/2, py + 2);
+      ctx.lineTo(px + TILE - 3, py + TILE - 3);
+      ctx.lineTo(px + 3, py + TILE - 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#0a0a0a';
+      ctx.font = `${TILE - 12}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('📢', px + TILE/2, py + TILE/2 + 2);
+      break;
+    case T.SIGN:
+      // Road sign post
+      ctx.fillStyle = '#2d5a2d';
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = '#888';
+      ctx.fillRect(px + TILE/2 - 1, py + 4, 2, TILE - 4);
+      // Sign board
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillRect(px + 1, py + 2, TILE - 2, 5);
+      ctx.fillStyle = '#000';
+      ctx.font = '4px monospace';
+      ctx.textAlign = 'center';
+      const sign = ROAD_SIGNS[tile.data.signIdx || 0];
+      if (sign) {
+        const arrow = sign.dir === 'left' ? '◀' : sign.dir === 'right' ? '▶' : '▲';
+        ctx.fillText(arrow, px + TILE/2, py + 6);
+      }
+      break;
+  }
+
+  // Highlight if no road access for zones
+  if ((tile.type === T.RES || tile.type === T.COM || tile.type === T.IND || tile.type === T.AGRI) && !hasRoadAdjacent(tx, ty)) {
+    ctx.fillStyle = 'rgba(239,68,68,0.15)';
+    ctx.fillRect(px, py, TILE, TILE);
+  }
+}
+
+function drawBuilding(px, py, level, color, darkColor) {
+  const h = 4 + level * 4;
+  ctx.fillStyle = darkColor;
+  ctx.fillRect(px + 2, py + TILE - h - 2, TILE - 4, h);
+  ctx.fillStyle = color;
+  ctx.fillRect(px + 2, py + TILE - h - 2, TILE - 4, Math.min(h, 3));
+  // Windows
+  ctx.fillStyle = 'rgba(255,255,200,0.6)';
+  for (let i = 0; i < level; i++) {
+    ctx.fillRect(px + 4, py + TILE - 4 - i * 4, 2, 2);
+    ctx.fillRect(px + TILE - 6, py + TILE - 4 - i * 4, 2, 2);
+  }
+}
+
+// ─── Minimap ───────────────────────────────────────────────────────
+function renderMinimap() {
+  const mw = minimap.width / GRID_W;
+  const mh = minimap.height / GRID_H;
+  mctx.fillStyle = '#0a0a0a';
+  mctx.fillRect(0, 0, minimap.width, minimap.height);
+  for (let y = 0; y < GRID_H; y++) {
+    for (let x = 0; x < GRID_W; x++) {
+      const data = TILE_DATA[state.grid[y][x].type];
+      if (data && state.grid[y][x].type !== T.GRASS) {
+        mctx.fillStyle = data.color;
+        mctx.fillRect(x * mw, y * mh, mw + 0.5, mh + 0.5);
+      }
+    }
+  }
+  // Viewport indicator
+  const vx = -camX / zoom / TILE * mw;
+  const vy = -(camY + 52) / zoom / TILE * mh;
+  const vw = canvas.width / zoom / TILE * mw;
+  const vh = (canvas.height - 112) / zoom / TILE * mh;
+  mctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  mctx.lineWidth = 1;
+  mctx.strokeRect(vx, vy, vw, vh);
+}
+
+minimap.addEventListener('pointerdown', e => {
+  const rect = minimap.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) / rect.width;
+  const my = (e.clientY - rect.top) / rect.height;
+  camX = canvas.width / 2 - mx * WORLD_W * zoom;
+  camY = (canvas.height - 60) / 2 + 52 - my * WORLD_H * zoom;
+  clampCamera();
+});
+
+// ─── Firebase Sync ─────────────────────────────────────────────────
+let firebaseReady = false;
+let saveTimer = null;
+let cityRef = null;
+
+function scheduleSave() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveCity, 2000);
+}
+
+function serializeCity() {
+  // Compact grid serialization: flatten to type IDs + levels
+  const tiles = [];
+  for (let y = 0; y < GRID_H; y++) {
+    for (let x = 0; x < GRID_W; x++) {
+      const t = state.grid[y][x];
+      tiles.push(t.type, t.level, t.data.signIdx != null ? t.data.signIdx : -1);
+    }
+  }
+  return {
+    tiles: tiles.join(','),
+    money: Math.floor(state.money),
+    pop: state.population,
+    happiness: Math.round(state.happiness),
+    tick: state.tick,
+    updated: Date.now(),
+    builder: FirebaseShared ? FirebaseShared.getVisitorName() : 'Unknown',
+  };
+}
+
+function deserializeCity(data) {
+  if (!data || !data.tiles) return false;
+  const parts = data.tiles.split(',').map(Number);
+  if (parts.length !== GRID_W * GRID_H * 3) return false;
+
+  for (let y = 0; y < GRID_H; y++) {
+    for (let x = 0; x < GRID_W; x++) {
+      const idx = (y * GRID_W + x) * 3;
+      const type = parts[idx];
+      const level = parts[idx + 1];
+      const signIdx = parts[idx + 2];
+      state.grid[y][x] = {
+        type: type,
+        level: level,
+        data: signIdx >= 0 ? { signIdx } : {},
+      };
+    }
+  }
+  if (typeof data.money === 'number') state.money = data.money;
+  if (typeof data.happiness === 'number') state.happiness = data.happiness;
+  state.tick = data.tick || 0;
+  updateHUD();
+  return true;
+}
+
+async function saveCity() {
+  if (!firebaseReady || !cityRef) return;
+  try {
+    await cityRef.set(serializeCity());
+  } catch (e) {
+    console.warn('Save failed:', e);
+  }
+}
+
+function loadFromLocalStorage() {
+  try {
+    const saved = localStorage.getItem('xinfu_city');
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (deserializeCity(data)) {
+        toast('City loaded from local storage');
+        return true;
+      }
+    }
+  } catch (e) {}
+  return false;
+}
+
+function saveToLocalStorage() {
+  try {
+    localStorage.setItem('xinfu_city', JSON.stringify(serializeCity()));
+  } catch (e) {}
+}
+
+// ─── Init Firebase ─────────────────────────────────────────────────
+async function initFirebase() {
+  if (typeof FirebaseShared === 'undefined') {
+    toast('Firebase not available — using local storage');
+    loadFromLocalStorage();
+    return;
+  }
+
+  try {
+    await FirebaseShared.init('xinfu-city', { presenceId: 'presenceBadge' });
+
+    // Show presence badge
+    const badge = document.getElementById('presenceBadge');
+    const text = document.getElementById('presenceText');
+    badge.style.display = 'block';
+
+    // Connect to Firebase Database for city state
+    if (typeof firebase !== 'undefined' && firebase.database) {
+      const db = firebase.database();
+      cityRef = db.ref('xinfu-city/state');
+
+      // Listen for changes
+      cityRef.on('value', snap => {
+        const data = snap.val();
+        if (data) {
+          if (deserializeCity(data)) {
+            toast('City synced from cloud');
+            updateHUD();
+          }
+        }
+      });
+
+      // Initial save if empty
+      cityRef.once('value', snap => {
+        if (!snap.val()) {
+          saveCity();
+        }
+      });
+
+      firebaseReady = true;
+      toast('Connected to Xin Fú Cloud!');
+    }
+  } catch (e) {
+    console.warn('Firebase init failed:', e);
+    toast('Using local storage (Firebase unavailable)');
+    loadFromLocalStorage();
+  }
+}
+
+// ─── Main Loop ─────────────────────────────────────────────────────
+let lastEconomyTick = 0;
+
+function gameLoop() {
+  const now = Date.now();
+
+  // Economy tick every 3 seconds
+  if (now - lastEconomyTick > 3000) {
+    economyTick();
+    lastEconomyTick = now;
+    // Periodic local save
+    saveToLocalStorage();
+  }
+
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+// ─── Keyboard ─────────────────────────────────────────────────────
+window.addEventListener('keydown', e => {
+  const panSpeed = 30;
+  if (e.key === 'ArrowLeft') { camX += panSpeed; clampCamera(); }
+  else if (e.key === 'ArrowRight') { camX -= panSpeed; clampCamera(); }
+  else if (e.key === 'ArrowUp') { camY += panSpeed; clampCamera(); }
+  else if (e.key === 'ArrowDown') { camY -= panSpeed; clampCamera(); }
+  else if (e.key === '=' || e.key === '+') { zoom = Math.min(3, zoom * 1.15); clampCamera(); }
+  else if (e.key === '-') { zoom = Math.max(0.5, zoom / 1.15); clampCamera(); }
+});
+
+// ─── Boot ─────────────────────────────────────────────────────────
+initGrid();
+centerCamera();
+buildToolbar();
+updateHUD();
+gameLoop();
+
+// Start Firebase after a brief delay (let page settle)
+setTimeout(initFirebase, 500);
+
+// Welcome toast
+setTimeout(() => toast('👑 Welcome to Xin Fú SAR! Build your city.'), 800);
+</script>
+</body>
+</html>
