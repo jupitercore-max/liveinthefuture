@@ -3488,8 +3488,10 @@ function renderCars2D() {
 let firebaseReady = false;
 let cityRef = null;
 let saveTimer = null;
+let lastLocalEdit = 0;  // timestamp of last local build/change — suppresses stale remote overwrites
 
 function scheduleSave() {
+  lastLocalEdit = Date.now();
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(saveCity, 2000);
 }
@@ -3619,7 +3621,21 @@ async function initFirebase() {
         }
         // Set up listener for future changes
         cityRef.on('value',
-          s => { try { const d = s.val(); if (d && deserializeCity(d)) updateHUD(); } catch(e) {} },
+          s => {
+            try {
+              const d = s.val();
+              if (!d) return;
+              // Skip remote updates that are older than our last local edit
+              // (prevents buildings flickering away then back)
+              const remoteTime = d.updated || 0;
+              if (lastLocalEdit && remoteTime < lastLocalEdit) {
+                dlog('Firebase: skipping stale remote update', { remote: remoteTime, local: lastLocalEdit });
+                return;
+              }
+              deserializeCity(d);
+              updateHUD();
+            } catch(e) {}
+          },
           err => { console.warn('Firebase sync unavailable — using localStorage'); firebaseReady = false; cityRef = null; carRef = null; }
         );
         listenCars();
