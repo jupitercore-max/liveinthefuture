@@ -2454,16 +2454,42 @@ function drawPepperFarmIso(px, py, hw, hh, b, tx, ty) {
     ctx.fillRect(px - halfW, py + i, halfW * 2, 2);
   }
 
-  // Pepper plants — red dots
-  ctx.fillStyle = '#dc2626';
-  for (var r = 0; r < 4; r++) {
-    var ry = -hh + 5 + r * (hh * 0.4);
-    var rhalfW = (1 - Math.abs(ry) / hh) * hw;
-    ctx.fillRect(px - rhalfW * 0.5 + (r % 2) * 4 - 2, py + ry, 3, 3);
-    ctx.fillRect(px + rhalfW * 0.3 + (r % 2) * 3 - 2, py + ry + 2, 3, 3);
+  // Pepper plants — real pepper shapes with stems
+  var pepperColors = ['#dc2626', '#ef4444', '#b91c1c', '#e03030'];
+  var pepperSpots = [
+    { row: 0, xoff: -0.5, yoff: 0 },
+    { row: 0, xoff:  0.3, yoff: 2 },
+    { row: 1, xoff: -0.3, yoff: 1 },
+    { row: 1, xoff:  0.5, yoff: 0 },
+    { row: 2, xoff: -0.5, yoff: 2 },
+    { row: 2, xoff:  0.2, yoff: -1 }
+  ];
+  for (var pi = 0; pi < pepperSpots.length; pi++) {
+    var ps = pepperSpots[pi];
+    var pry = -hh + 5 + ps.row * (hh * 0.4);
+    var phalfW = (1 - Math.abs(pry) / hh) * hw;
+    var ppx = px + phalfW * ps.xoff + (pi % 2) * 3 - 2;
+    var ppy = py + pry + ps.yoff;
+    var pcol = pepperColors[pi % pepperColors.length];
+    // Green leaf/cap at top
+    ctx.fillStyle = adjustBrightness('#2a6a3a', b);
+    ctx.beginPath();
+    ctx.ellipse(ppx, ppy - 2, 1.8, 1, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Pepper body — elongated, rounded
+    ctx.fillStyle = adjustBrightness(pcol, b);
+    ctx.beginPath();
+    ctx.ellipse(ppx, ppy + 1, 1.5, 2.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Highlight on pepper
+    ctx.fillStyle = adjustBrightness('#ff8080', b * 0.7);
+    ctx.beginPath();
+    ctx.arc(ppx - 0.5, ppy, 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    // Tiny stem
+    ctx.fillStyle = adjustBrightness('#3a7a3a', b);
+    ctx.fillRect(ppx - 0.5, ppy - 3, 1, 1.5);
   }
-  ctx.fillStyle = '#ef4444';
-  ctx.fillRect(px + (tx % 4) - 2, py + (ty % 4) - 2, 2, 2);
 
   ctx.restore();
 }
