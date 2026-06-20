@@ -2682,71 +2682,100 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
     }
 
     case T.GUMMY_FACTORY: {
-      var h = 28;
-      var bw = hw * 0.75, bh = hh * 0.75;
+      var h = 32;
+      var bw = hw * 0.78, bh = hh * 0.78;
 
-      // Smokestack on left side (small pipe with smoke)
-      ctx.fillStyle = adjustBrightness('#6b7280', b);
-      ctx.fillRect(px - bw - 2, py - h - 6, 3, 8);  // pipe
-      // Smoke cloud
-      ctx.fillStyle = 'rgba(80,80,90,0.6)';
-      for (var si = 0; si < 5; si++) {
-        var sx = px - bw - 2 + Math.sin(state.tick * 0.1 + si) * 2 - si;
-        var sy = py - h - 8 - si * 3;
+      // Smokestack — small rectangular pipe on upper-left, clearly visible
+      ctx.fillStyle = adjustBrightness('#7c2d6f', b);
+      ctx.fillRect(px - bw + 2, py - h - 8, 4, 10);
+      // Dark charcoal smoke — messy puffs
+      ctx.fillStyle = 'rgba(50,50,55,0.7)';
+      var smokeBaseX = px - bw + 4;
+      var smokeBaseY = py - h - 8;
+      for (var si = 0; si < 6; si++) {
+        var sx = smokeBaseX + Math.sin(state.tick * 0.08 + si * 0.8) * 3 - si * 0.8;
+        var sy = smokeBaseY - si * 4;
+        var sr = 3 - si * 0.3;
+        if (sr < 1) sr = 1;
         ctx.beginPath();
-        ctx.arc(sx, sy, 2.5 - si * 0.3, 0, Math.PI * 2);
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // Main factory body — pink/purple box
+      // Main factory body — VIVID fuchsia/magenta
       drawIsoBox(px, py, bw, bh, h,
-        adjustBrightness('#d68fb8', b),         // top — lighter pink-purple
-        adjustBrightness('#8b3a6b', b * 0.55),  // left — dark magenta
-        adjustBrightness('#a84d7e', b * 0.85)); // right — medium pink-purple
+        adjustBrightness('#d633ac', b),          // top — vivid fuchsia
+        adjustBrightness('#8b1a6a', b * 0.6),    // left — deep magenta
+        adjustBrightness('#b82a89', b * 0.85));  // right — medium fuchsia
 
-      // Gummy bear logo on the front of the building
+      // BIG gummy bear logo — takes up half width, 2/3 height of front face
+      // Draw on right-visible face of iso box
       ctx.save();
-      var bearX = px + bw * 0.3;
-      var bearY = py - h * 0.5;
-      var bearR = 5;
-
-      // Light pink gummy bear
-      ctx.fillStyle = adjustBrightness('#f9c1d8', b);
-      // Body
+      var gx = px + bw * 0.35;
+      var gy = py - h * 0.45;
+      var scale = 1.8;  // make it BIG
+      
+      // Light bubblegum pink bear
+      ctx.fillStyle = adjustBrightness('#ffb3d1', b);
+      
+      // Ears (two rounds on top)
       ctx.beginPath();
-      ctx.arc(bearX, bearY + 2, bearR, 0, Math.PI * 2);
+      ctx.arc(gx - 4 * scale, gy - 8 * scale, 2.5 * scale, 0, Math.PI * 2);
       ctx.fill();
+      ctx.beginPath();
+      ctx.arc(gx + 4 * scale, gy - 8 * scale, 2.5 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      
       // Head
       ctx.beginPath();
-      ctx.arc(bearX, bearY - 4, bearR * 0.7, 0, Math.PI * 2);
+      ctx.arc(gx, gy - 4 * scale, 4 * scale, 0, Math.PI * 2);
       ctx.fill();
-      // Ears
+      
+      // Body — pear shape (wider at bottom)
       ctx.beginPath();
-      ctx.arc(bearX - 3, bearY - 8, 2, 0, Math.PI * 2);
+      ctx.ellipse(gx, gy + 4 * scale, 5 * scale, 5.5 * scale, 0, 0, Math.PI * 2);
       ctx.fill();
+      
+      // Arms (small bumps on sides, pointing slightly up)
       ctx.beginPath();
-      ctx.arc(bearX + 3, bearY - 8, 2, 0, Math.PI * 2);
-      ctx.fill();
-      // Arms
-      ctx.beginPath();
-      ctx.arc(bearX - 5, bearY + 1, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(bearX + 5, bearY + 1, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-      // Legs
-      ctx.beginPath();
-      ctx.arc(bearX - 2.5, bearY + 6, 1.5, 0, Math.PI * 2);
+      ctx.arc(gx - 5.5 * scale, gy + 2 * scale, 2 * scale, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(bearX + 2.5, bearY + 6, 1.5, 0, Math.PI * 2);
+      ctx.arc(gx + 5.5 * scale, gy + 2 * scale, 2 * scale, 0, Math.PI * 2);
       ctx.fill();
+      
+      // Legs (two small rounds at bottom)
+      ctx.beginPath();
+      ctx.arc(gx - 2.5 * scale, gy + 9 * scale, 2 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(gx + 2.5 * scale, gy + 9 * scale, 2 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Face details — dark fuchsia dots
+      ctx.fillStyle = adjustBrightness('#6a1040', b);
       // Eyes
-      ctx.fillStyle = adjustBrightness('#5a1a3a', b);
-      ctx.fillRect(bearX - 2, bearY - 5, 1, 1);
-      ctx.fillRect(bearX + 1, bearY - 5, 1, 1);
+      ctx.beginPath();
+      ctx.arc(gx - 1.8 * scale, gy - 5 * scale, 0.8 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(gx + 1.8 * scale, gy - 5 * scale, 0.8 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      // Nose (small dash)
+      ctx.fillRect(gx - 0.8 * scale, gy - 3 * scale, 1.6 * scale, 0.8);
+      
+      // Paw pads (3 tiny dots on belly area)
+      ctx.beginPath();
+      ctx.arc(gx - 2 * scale, gy + 6 * scale, 0.5 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(gx, gy + 7 * scale, 0.5 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(gx + 2 * scale, gy + 6 * scale, 0.5 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      
       ctx.restore();
-
       break;
     }
 
