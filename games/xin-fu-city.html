@@ -1741,11 +1741,7 @@ function drawTileIso(tx, ty, brightness) {
   ctx.fillStyle = adjustBrightness(data.color, b);
   ctx.fill();
 
-  // Subtle diamond outline for grid
-  var gridAlpha = zoom > 1.2 ? 0.06 : 0.03;
-  ctx.strokeStyle = 'rgba(255,255,255,' + gridAlpha + ')';
-  ctx.lineWidth = 0.5;
-  ctx.stroke();
+  // (grid outline removed for natural look)
 
   switch (tile.type) {
     case T.GRASS: drawGrassIso(px, py, tx, ty, hw, hh, b); break;
@@ -2068,9 +2064,18 @@ function drawRoadIso(px, py, tx, ty, hw, hh, b) {
     ctx.fill();
   }
 
-  // Inner asphalt (slightly inset diamond)
-  var inset = sw + 1;
-  isoDiamondPath(px, py, hw - inset, hh - inset * 0.5);
+  // Inner asphalt polygon — extends to edges where roads connect
+  var iSw = sw;
+  var topInset = n ? -hh : -hh + iSw;
+  var rightInset = e ? hw : hw - iSw * 1.5;
+  var bottomInset = s ? hh : hh - iSw;
+  var leftInset = w ? -hw : -hw + iSw * 1.5;
+  ctx.beginPath();
+  ctx.moveTo(px, py + topInset);
+  ctx.lineTo(px + rightInset, py);
+  ctx.lineTo(px, py + bottomInset);
+  ctx.lineTo(px + leftInset, py);
+  ctx.closePath();
   ctx.fillStyle = adjustBrightness('#2a2a2e', b);
   ctx.fill();
 
