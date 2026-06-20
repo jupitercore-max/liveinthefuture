@@ -3625,12 +3625,21 @@ async function initFirebase() {
       // Test read — if permission denied, fall back silently to localStorage
       try {
         const snap = await cityRef.once('value');
-        // Set up listeners with error suppression
+        // Load initial data immediately
+        const initialData = snap.val();
+        if (initialData) {
+          deserializeCity(initialData);
+          updateHUD();
+          dlog('Firebase: loaded saved city from DB');
+        } else {
+          saveCity();  // first time — save the fresh city
+          dlog('Firebase: no saved city, saved fresh');
+        }
+        // Set up listener for future changes
         cityRef.on('value',
           s => { try { const d = s.val(); if (d && deserializeCity(d)) updateHUD(); } catch(e) {} },
           err => { console.warn('Firebase sync unavailable — using localStorage'); firebaseReady = false; cityRef = null; carRef = null; }
         );
-        if (!snap.val()) saveCity();
         listenCars();
         firebaseReady = true;
       } catch(permErr) {
@@ -4320,6 +4329,7 @@ function gameLoop(ts) {
 // ═══════════════════════════════════════════════════════════════════
 try {
   initGrid();
+  loadLocal();   // immediately load saved state from localStorage (instant, no waiting for Firebase)
   centerCamera();
   buildTabs();
   buildToolbar();
