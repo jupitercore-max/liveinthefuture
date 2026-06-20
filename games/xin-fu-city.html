@@ -282,6 +282,11 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 const TILE = 32;
 const GRID = 30;
 const WORLD = GRID * TILE;
+// Isometric rendering constants
+const ISO_TILE_W = 64;
+const ISO_TILE_H = 32;
+const ISO_HW = ISO_TILE_W / 2;
+const ISO_HH = ISO_TILE_H / 2;
 const TICK_MS = 2000;
 const POWER_RADIUS = 6;
 const ROAD_RADIUS = 2;
@@ -517,44 +522,51 @@ function updateEffects(dt) {
 }
 
 function renderEffects() {
-  // Tile flash effects
-  for (const e of tileEffects) {
-    const px = e.tx * TILE, py = e.ty * TILE;
-    const alpha = e.life / e.maxLife;
+  // Tile flash effects — iso diamonds
+  for (var i = 0; i < tileEffects.length; i++) {
+    var e = tileEffects[i];
+    var iso = tileToIso(e.tx, e.ty);
+    var alpha = e.life / e.maxLife;
     ctx.save();
     ctx.globalAlpha = alpha * (e.intensity || 0.5);
+    isoDiamondPath(iso.x, iso.y, ISO_HW, ISO_HH);
     ctx.fillStyle = e.color;
-    ctx.fillRect(px, py, TILE, TILE);
+    ctx.fill();
     ctx.restore();
   }
 
-  // Particles
-  for (const p of particles) {
-    const alpha = p.life / p.maxLife;
+  // Particles — convert position to iso
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    var isoP = worldToIso(p.x, p.y);
+    var alphaP = p.life / p.maxLife;
     ctx.save();
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha = alphaP;
     ctx.fillStyle = p.color;
-    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    ctx.fillRect(isoP.x - p.size / 2, isoP.y - p.size / 2, p.size, p.size);
     ctx.restore();
   }
 
-  // Floaters
-  for (const f of floaters) {
-    const alpha = Math.min(1, f.life / 300);
+  // Floaters — convert position to iso, add upward screen drift
+  for (var i = 0; i < floaters.length; i++) {
+    var f = floaters[i];
+    var isoF = worldToIso(f.x, f.y);
+    var driftY = (1 - f.life / f.maxLife) * 18;
+    var alphaF = Math.min(1, f.life / 300);
     ctx.save();
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha = alphaF;
     ctx.fillStyle = f.color;
     ctx.font = 'bold 11px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    // Shadow for readability
     ctx.shadowColor = 'rgba(0,0,0,0.8)';
     ctx.shadowBlur = 3;
-    ctx.fillText(f.text, f.x, f.y);
+    ctx.fillText(f.text, isoF.x, isoF.y - driftY);
     ctx.restore();
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════
 // INIT GRID
 // ═══════════════════════════════════════════════════════════════════
@@ -648,17 +660,32 @@ window.addEventListener('resize', resizeCanvas);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeCanvas);
 
 function centerCamera() {
-  camX = (canvas.width - WORLD * zoom) / 2;
-  camY = HUD_H + (canvas.height - HUD_H - TOOLBAR_H - WORLD * zoom) / 2;
+  camX = canvas.width / 2;
+  camY = HUD_H + (canvas.height - HUD_H - TOOLBAR_H - GRID * ISO_TILE_H * zoom) / 2;
   clampCamera();
 }
 function clampCamera() {
-  const margin = 100;
-  camX = Math.max(Math.min(camX, margin), canvas.width - WORLD * zoom - margin);
-  camY = Math.max(HUD_H - margin, Math.min(camY, canvas.height - TOOLBAR_H - WORLD * zoom + margin));
+  var margin = 150;
+  var isoHalfW = GRID * ISO_HW;
+  var isoFullH = GRID * ISO_TILE_H;
+  var worldScreenW = 2 * isoHalfW * zoom;
+  var worldScreenH = isoFullH * zoom;
+  // Allow panning but keep world roughly visible
+  var minCamX = -margin + isoHalfW * zoom;
+  var maxCamX = canvas.width + margin - isoHalfW * zoom;
+  var minCamY = HUD_H - margin;
+  var maxCamY = canvas.height - TOOLBAR_H + margin - worldScreenH;
+  if (minCamX > maxCamX) { minCamX = maxCamX = canvas.width / 2; }
+  if (minCamY > maxCamY) { minCamY = maxCamY = (HUD_H + canvas.height - TOOLBAR_H) / 2; }
+  camX = Math.max(minCamX, Math.min(camX, maxCamX));
+  camY = Math.max(minCamY, Math.min(camY, maxCamY));
 }
 function screenToWorld(sx, sy) { return { x: (sx - camX) / zoom, y: (sy - camY) / zoom }; }
-function worldToTile(wx, wy) { return { x: Math.floor(wx / TILE), y: Math.floor(wy / TILE) }; }
+function worldToTile(wx, wy) {
+  var tx = wx / ISO_TILE_W + wy / ISO_TILE_H;
+  var ty = wy / ISO_TILE_H - wx / ISO_TILE_W;
+  return { x: Math.floor(tx), y: Math.floor(ty) };
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // INPUT CONTROLS — Layered: Touch (primary mobile) + Pointer (desktop) + Click (fallback)
@@ -1467,7 +1494,96 @@ function findNearestRoad(tx, ty) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// SC3K-QUALITY 2D RENDERING
+// ISOMETRIC HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════
+
+function tileToIso(tx, ty) {
+  return { x: (tx - ty) * ISO_HW, y: (tx + ty) * ISO_HH };
+}
+
+function isoToTile(ix, iy) {
+  return {
+    x: (ix / ISO_TILE_W) + (iy / ISO_TILE_H),
+    y: (iy / ISO_TILE_H) - (ix / ISO_TILE_W)
+  };
+}
+
+function worldToIso(wx, wy) {
+  return tileToIso(wx / TILE, wy / TILE);
+}
+
+function isoDiamondPath(px, py, hw, hh) {
+  ctx.beginPath();
+  ctx.moveTo(px, py - hh);
+  ctx.lineTo(px + hw, py);
+  ctx.lineTo(px, py + hh);
+  ctx.lineTo(px - hw, py);
+  ctx.closePath();
+}
+
+function drawIsoBox(px, py, hw, hh, h, topColor, leftColor, rightColor) {
+  if (h <= 0) {
+    // Just draw flat diamond
+    isoDiamondPath(px, py, hw, hh);
+    ctx.fillStyle = topColor;
+    ctx.fill();
+    return;
+  }
+  // Right wall (south-east face) — medium brightness
+  ctx.fillStyle = rightColor;
+  ctx.beginPath();
+  ctx.moveTo(px + hw, py);
+  ctx.lineTo(px, py + hh);
+  ctx.lineTo(px, py + hh - h);
+  ctx.lineTo(px + hw, py - h);
+  ctx.closePath();
+  ctx.fill();
+  // Left wall (south-west face) — darker
+  ctx.fillStyle = leftColor;
+  ctx.beginPath();
+  ctx.moveTo(px - hw, py);
+  ctx.lineTo(px, py + hh);
+  ctx.lineTo(px, py + hh - h);
+  ctx.lineTo(px - hw, py - h);
+  ctx.closePath();
+  ctx.fill();
+  // Top face (roof diamond) — brightest
+  ctx.fillStyle = topColor;
+  ctx.beginPath();
+  ctx.moveTo(px, py - hh - h);
+  ctx.lineTo(px + hw, py - h);
+  ctx.lineTo(px, py + hh - h);
+  ctx.lineTo(px - hw, py - h);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Draw windows on an iso wall face using transform
+function drawIsoWallWindows(px, py, hw, hh, h, isRightWall, winColor, rows, cols) {
+  ctx.save();
+  const wallLen = Math.hypot(hw, hh);
+  if (isRightWall) {
+    // Right wall: origin at (px+hw, py), u-axis toward (px, py+hh)
+    ctx.transform(-hw / wallLen, hh / wallLen, 0, -1, px + hw, py);
+  } else {
+    // Left wall: origin at (px-hw, py), u-axis toward (px, py+hh)
+    ctx.transform(hw / wallLen, hh / wallLen, 0, -1, px - hw, py);
+  }
+  ctx.fillStyle = winColor;
+  const winW = wallLen / (cols * 2 + 1);
+  const winH = h / (rows * 2 + 1);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const u = winW * (1 + c * 2);
+      const v = winH * (1 + r * 2);
+      ctx.fillRect(u, v, winW, winH);
+    }
+  }
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SC3K-QUALITY ISOMETRIC RENDERING
 // ═══════════════════════════════════════════════════════════════════
 
 // Tree color variants for visual variety
@@ -1501,6 +1617,9 @@ function isRoadAt(tx, ty) {
   return state.grid[ty][tx].type === T.ROAD;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// MAIN RENDER
+// ═══════════════════════════════════════════════════════════════════
 function render() {
   ctx.fillStyle = '#0a0a12';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1509,43 +1628,52 @@ function render() {
   ctx.translate(camX, camY);
   ctx.scale(zoom, zoom);
 
-  const sx = Math.max(0, Math.floor(-camX / zoom / TILE));
-  const ex = Math.min(GRID, Math.ceil((canvas.width - camX) / zoom / TILE));
-  const sy = Math.max(0, Math.floor(-camY / zoom / TILE));
-  const ey = Math.min(GRID, Math.ceil((canvas.height - camY) / zoom / TILE));
-
   const brightness = getDayNightTint();
   const nightData = getDayNightOverlay();
 
-  // Pass 1: Draw all base tiles
-  for (let y = sy; y < ey; y++)
-    for (let x = sx; x < ex; x++)
-      drawTile2D(x, y, brightness);
+  // Iterate tiles back-to-front (painter's algorithm) along iso diagonals
+  for (let d = 0; d <= 2 * (GRID - 1); d++) {
+    const xMin = Math.max(0, d - GRID + 1);
+    const xMax = Math.min(d, GRID - 1);
+    for (let x = xMin; x <= xMax; x++) {
+      const y = d - x;
+      // Visibility culling
+      const iso = tileToIso(x, y);
+      const sx = iso.x * zoom + camX;
+      const sy = iso.y * zoom + camY;
+      if (sx < -ISO_TILE_W * 1.5 * zoom || sx > canvas.width + ISO_TILE_W * 1.5 * zoom) continue;
+      if (sy < -120 * zoom || sy > canvas.height + ISO_TILE_H * 2 * zoom) continue;
+      drawTileIso(x, y, brightness);
+    }
+  }
 
-  // Grid lines — subtle
-  const gridAlpha = zoom > 1.2 ? 0.05 : 0.025;
-  ctx.strokeStyle = `rgba(255,255,255,${gridAlpha})`;
-  ctx.lineWidth = 0.5;
-  for (let x = sx; x <= ex; x++) { ctx.beginPath(); ctx.moveTo(x * TILE, sy * TILE); ctx.lineTo(x * TILE, ey * TILE); ctx.stroke(); }
-  for (let y = sy; y <= ey; y++) { ctx.beginPath(); ctx.moveTo(sx * TILE, y * TILE); ctx.lineTo(ex * TILE, y * TILE); ctx.stroke(); }
-
-  // Traffic cars with night headlights
+  // Traffic cars in iso
   for (const car of state.trafficCars) {
+    if (!Number.isFinite(car.x) || !Number.isFinite(car.y)) continue;
+    const iso = worldToIso(car.x, car.y);
     ctx.save();
-    ctx.translate(car.x, car.y);
-    const angle = Math.atan2(car.vy, car.vx);
-    ctx.rotate(angle);
-    // Headlight glow at night
+    ctx.translate(iso.x, iso.y);
+    // Convert tile-space velocity to screen-space angle
+    var svx = (car.vx - car.vy) * ISO_HW / TILE;
+    var svy = (car.vx + car.vy) * ISO_HH / TILE;
+    var screenAngle = Math.atan2(svy, svx);
+    ctx.rotate(screenAngle);
+    // Night headlight glow
     if (nightData && nightData.night > 0.4) {
-      const grad = ctx.createRadialGradient(6, 0, 0, 6, 0, 14);
-      grad.addColorStop(0, 'rgba(255,255,200,0.4)');
+      var glowR = 12;
+      var grad = ctx.createRadialGradient(5, 0, 0, 5, 0, glowR);
+      grad.addColorStop(0, 'rgba(255,255,200,0.35)');
       grad.addColorStop(1, 'rgba(255,255,200,0)');
       ctx.fillStyle = grad;
-      ctx.fillRect(-2, -14, 20, 28);
+      ctx.fillRect(-4, -glowR, 18, glowR * 2);
     }
-    ctx.fillStyle = car.color;
-    ctx.globalAlpha = 0.7;
-    ctx.fillRect(-TRAFFIC_CAR_SIZE / 2, -TRAFFIC_CAR_SIZE / 2, TRAFFIC_CAR_SIZE, TRAFFIC_CAR_SIZE);
+    // Car body — small rectangle
+    ctx.fillStyle = car.color || '#ef4444';
+    ctx.globalAlpha = 0.85;
+    ctx.fillRect(-4, -2.5, 8, 5);
+    // Windshield
+    ctx.fillStyle = 'rgba(150,200,255,0.7)';
+    ctx.fillRect(2, -1.5, 2, 3);
     ctx.globalAlpha = 1;
     ctx.restore();
   }
@@ -1555,274 +1683,249 @@ function render() {
 
   // Day/night overlay
   if (nightData) {
-    ctx.fillStyle = `rgba(${nightData.r},${nightData.g},${nightData.b},${nightData.a})`;
-    ctx.fillRect(sx * TILE, sy * TILE, (ex - sx) * TILE, (ey - sy) * TILE);
+    var overlayMinX = -GRID * ISO_HW - 100;
+    var overlayMaxX = GRID * ISO_HW + 100;
+    var overlayMinY = -150;
+    var overlayMaxY = GRID * ISO_TILE_H + 100;
+    ctx.fillStyle = 'rgba(' + nightData.r + ',' + nightData.g + ',' + nightData.b + ',' + nightData.a + ')';
+    ctx.fillRect(overlayMinX, overlayMinY, overlayMaxX - overlayMinX, overlayMaxY - overlayMinY);
   }
 
   ctx.restore();
   renderMinimap();
 }
 
-function drawTile2D(tx, ty, brightness) {
-  const tile = state.grid[ty][tx];
-  const data = TD[tile.type] || TD[T.GRASS];
-  const px = tx * TILE, py = ty * TILE;
-  const ts = TILE;
-  const b = brightness || 1;
+// ═══════════════════════════════════════════════════════════════════
+// ISO TILE RENDERING
+// ═══════════════════════════════════════════════════════════════════
+function drawTileIso(tx, ty, brightness) {
+  var tile = state.grid[ty][tx];
+  var data = TD[tile.type] || TD[T.GRASS];
+  var b = brightness || 1;
+  var iso = tileToIso(tx, ty);
+  var px = iso.x, py = iso.y;
+  var hw = ISO_HW, hh = ISO_HH;
 
-  // Base color
+  // Base diamond fill
+  isoDiamondPath(px, py, hw, hh);
   ctx.fillStyle = adjustBrightness(data.color, b);
-  ctx.fillRect(px, py, ts, ts);
+  ctx.fill();
+
+  // Subtle diamond outline for grid
+  var gridAlpha = zoom > 1.2 ? 0.06 : 0.03;
+  ctx.strokeStyle = 'rgba(255,255,255,' + gridAlpha + ')';
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
 
   switch (tile.type) {
-    case T.GRASS: {
-      // SC3K-style rich grass with terrain variety
-      const hash = (tx * 7 + ty * 13) % 10;
-      const seed = (tx * 31 + ty * 17) % 100;
-
-      // Subtle grass blade texture across ALL grass tiles
-      ctx.fillStyle = adjustBrightness('#4a8a4a', b);
-      ctx.fillRect(px + 2 + (seed % 20), py + 4 + (seed % 16), 2, 1);
-      ctx.fillRect(px + 10 + (seed % 14), py + 14 + (seed % 12), 2, 1);
-      ctx.fillStyle = adjustBrightness('#5a9a5a', b);
-      ctx.fillRect(px + 18 + (seed % 10), py + 8 + (seed % 14), 2, 1);
-      ctx.fillRect(px + 6 + (seed % 18), py + 22 + (seed % 8), 2, 1);
-
-      if (hash < 3) {
-        // ~30% tree coverage
-        drawTree(px, py, getTreeVariant(tx, ty), b);
-      } else if (hash === 3) {
-        // Flower patch — SC3K-style wildflowers
-        ctx.fillStyle = adjustBrightness('#f0d040', b); // yellow
-        ctx.fillRect(px + 8 + (tx % 8), py + 10 + (ty % 8), 2, 2);
-        ctx.fillStyle = adjustBrightness('#ffffff', b * 0.95); // white
-        ctx.fillRect(px + 16 + (tx % 6), py + 18 + (ty % 6), 2, 2);
-        ctx.fillStyle = adjustBrightness('#e04060', b); // pink/red
-        ctx.fillRect(px + 12 + (tx % 10), py + 22 + (ty % 5), 2, 2);
-        ctx.fillStyle = adjustBrightness('#c080ff', b); // purple
-        ctx.fillRect(px + 22 + (ty % 6), py + 6 + (tx % 8), 2, 2);
-      } else if (hash === 4) {
-        // Dirt patch — SC3K-style brown earth
-        ctx.fillStyle = adjustBrightness('#7a6a4a', b * 0.95);
-        ctx.beginPath();
-        ctx.arc(px + 10 + (tx % 12), py + 12 + (ty % 12), 3 + (tx % 2), 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = adjustBrightness('#8a7a5a', b);
-        ctx.fillRect(px + 8 + (tx % 8), py + 10 + (ty % 8), 4, 3);
-        // Small pebbles in dirt
-        ctx.fillStyle = adjustBrightness('#6a5a3a', b);
-        ctx.fillRect(px + 14 + (tx % 6), py + 16 + (ty % 6), 2, 2);
-      } else if (hash === 5) {
-        // Rock formation
-        ctx.fillStyle = adjustBrightness('#8a8a8e', b);
-        ctx.beginPath();
-        ctx.arc(px + 10 + (tx % 10), py + 14 + (ty % 10), 3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = adjustBrightness('#aaaaae', b);
-        ctx.fillRect(px + 9 + (tx % 10), py + 13 + (ty % 10), 4, 2);
-        // Tiny rock companion
-        ctx.fillStyle = adjustBrightness('#7a7a7e', b);
-        ctx.beginPath();
-        ctx.arc(px + 20 + (ty % 8), py + 22 + (tx % 6), 1.5, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (hash === 6) {
-        // Dense grass tuft cluster
-        ctx.fillStyle = adjustBrightness('#4a8a4a', b);
-        ctx.fillRect(px + 6 + (tx % 4), py + 8 + (ty % 4), 4, 2);
-        ctx.fillRect(px + 16 + (tx % 3), py + 18 + (ty % 3), 3, 2);
-        ctx.fillStyle = adjustBrightness('#5a9a5a', b);
-        ctx.fillRect(px + 10 + (tx % 6), py + 14 + (ty % 5), 3, 1);
-        ctx.fillRect(px + 20 + (ty % 5), py + 6 + (tx % 6), 3, 1);
-      } else if (hash === 7) {
-        // Tiny mushroom / detail dot
-        ctx.fillStyle = adjustBrightness('#c04040', b);
-        ctx.fillRect(px + 12 + (tx % 8), py + 16 + (ty % 8), 2, 2);
-        ctx.fillStyle = adjustBrightness('#e0e0e0', b * 0.9);
-        ctx.fillRect(px + 12 + (tx % 8), py + 18 + (ty % 8), 2, 1);
-      }
-      break;
-    }
-
-    case T.WATER: {
-      drawWater(px, py, tx, ty, ts, b);
-      break;
-    }
-
-    case T.ROAD:
-      drawRoad(px, py, tx, ty, ts, b);
-      break;
-
-    case T.RES:
-      drawBuilding2D(px, py, tile.level, '#5cb76f', '#2d6b3a', b, 'res');
-      break;
-    case T.COM:
-      drawBuilding2D(px, py, tile.level, '#4a9eff', '#1e4a8a', b, 'com');
-      break;
-    case T.IND:
-      drawBuilding2D(px, py, tile.level, '#f0b840', '#9a6a18', b, 'ind');
-      break;
-    case T.PEPPER_FARM:
-      ctx.fillStyle = adjustBrightness('#1a6a3a', b); ctx.fillRect(px + 1, py + 1, ts - 2, ts - 2);
-      // Field rows (darker green stripes)
-      ctx.fillStyle = adjustBrightness('#2a7a4a', b);
-      for (let ry = 2; ry < ts - 2; ry += 6) ctx.fillRect(px + 2, py + ry, ts - 4, 2);
-      // Pepper plants (red dots)
-      ctx.fillStyle = '#dc2626';
-      for (let i = 0; i < 4; i++)
-        ctx.fillRect(px + 4 + (i % 2) * 12, py + 6 + Math.floor(i / 2) * 12, 3, 3);
-      ctx.fillStyle = '#ef4444';
-      ctx.fillRect(px + 5 + (tx % 2) * 12, py + 7 + (ty % 2) * 12, 2, 2);
-      break;
-
-    case T.BLUETOOTH_TOWER:
-      drawSpecialShape2D(T.BLUETOOTH_TOWER, px, py, tile.level, b);
-      break;
-
-    case T.THRONE_ROOM:
-      drawSpecialShape2D(T.THRONE_ROOM, px, py, tile.level, b);
-      break;
-
-    case T.GRILL:
-      drawSpecialShape2D(T.GRILL, px, py, tile.level, b);
-      break;
-
-    case T.GARAGE:
-      drawSpecialShape2D(T.GARAGE, px, py, tile.level, b);
-      break;
-
-    case T.GUMMY_FACTORY:
-      drawSpecialShape2D(T.GUMMY_FACTORY, px, py, tile.level, b);
-      break;
-
-    case T.HORN_TOWER:
-      drawSpecialShape2D(T.HORN_TOWER, px, py, tile.level, b);
-      break;
-
-    case T.POWER_PLANT:
-      drawSpecialShape2D(T.POWER_PLANT, px, py, tile.level, b);
-      break;
-
-    case T.POWER_LINE:
-      ctx.fillStyle = adjustBrightness('#3a7a3a', b); ctx.fillRect(px, py, ts, ts);
-      ctx.fillStyle = '#6b7280'; ctx.fillRect(px + ts / 2 - 1, py, 2, ts);
-      ctx.fillStyle = '#9ca3af';
-      ctx.fillRect(px + ts / 2 - 4, py + 4, 8, 2);
-      ctx.fillRect(px + ts / 2 - 4, py + ts - 6, 8, 2);
-      break;
-
-    case T.SIGN:
-      ctx.fillStyle = adjustBrightness('#3a7a3a', b); ctx.fillRect(px, py, ts, ts);
-      ctx.fillStyle = '#888'; ctx.fillRect(px + ts / 2 - 1, py + 6, 2, ts - 6);
-      ctx.fillStyle = '#fbbf24'; ctx.fillRect(px + 2, py + 3, ts - 4, 7);
-      ctx.fillStyle = '#000'; ctx.font = '5px monospace'; ctx.textAlign = 'center';
-      const sign = SIGNS[tile.data.signIdx || 0];
-      if (sign) ctx.fillText(sign.text[0], px + ts / 2, py + 8);
-      break;
+    case T.GRASS: drawGrassIso(px, py, tx, ty, hw, hh, b); break;
+    case T.WATER: drawWaterIso(px, py, tx, ty, hw, hh, b); break;
+    case T.ROAD: drawRoadIso(px, py, tx, ty, hw, hh, b); break;
+    case T.RES: drawBuildingIso(px, py, hw, hh, tile.level, '#5cb76f', '#2d6b3a', b, 'res', tx, ty); break;
+    case T.COM: drawBuildingIso(px, py, hw, hh, tile.level, '#4a9eff', '#1e4a8a', b, 'com', tx, ty); break;
+    case T.IND: drawBuildingIso(px, py, hw, hh, tile.level, '#f0b840', '#9a6a18', b, 'ind', tx, ty); break;
+    case T.PEPPER_FARM: drawPepperFarmIso(px, py, hw, hh, b, tx, ty); break;
+    case T.BLUETOOTH_TOWER: drawSpecialIso(T.BLUETOOTH_TOWER, px, py, hw, hh, tile.level, b); break;
+    case T.THRONE_ROOM: drawSpecialIso(T.THRONE_ROOM, px, py, hw, hh, tile.level, b); break;
+    case T.GRILL: drawSpecialIso(T.GRILL, px, py, hw, hh, tile.level, b); break;
+    case T.GARAGE: drawSpecialIso(T.GARAGE, px, py, hw, hh, tile.level, b); break;
+    case T.GUMMY_FACTORY: drawSpecialIso(T.GUMMY_FACTORY, px, py, hw, hh, tile.level, b); break;
+    case T.HORN_TOWER: drawSpecialIso(T.HORN_TOWER, px, py, hw, hh, tile.level, b); break;
+    case T.POWER_PLANT: drawSpecialIso(T.POWER_PLANT, px, py, hw, hh, tile.level, b); break;
+    case T.POWER_LINE: drawPowerLineIso(px, py, hw, hh, b); break;
+    case T.SIGN: drawSignIso(px, py, hw, hh, tile, b); break;
   }
 
   // Pollution tint
-  const poll = getPollution(tx, ty);
+  var poll = getPollution(tx, ty);
   if (poll >= 3) {
-    ctx.fillStyle = `rgba(80,60,30,${Math.min(0.3, poll * 0.04)})`;
-    ctx.fillRect(px, py, ts, ts);
+    isoDiamondPath(px, py, hw, hh);
+    ctx.fillStyle = 'rgba(80,60,30,' + Math.min(0.3, poll * 0.04) + ')';
+    ctx.fill();
   }
 
-  // SC3K-style zone overlay — translucent tint on zone tiles
-  if ([T.RES, T.COM, T.IND].includes(tile.type)) {
-    const zoneColors = { [T.RES]: 'rgba(92,183,111,0.08)', [T.COM]: 'rgba(74,158,255,0.08)', [T.IND]: 'rgba(240,184,64,0.08)' };
-    ctx.fillStyle = zoneColors[tile.type];
-    ctx.fillRect(px, py, ts, ts);
+  // Zone overlay tint
+  if (tile.type === T.RES || tile.type === T.COM || tile.type === T.IND) {
+    var zc = tile.type === T.RES ? 'rgba(92,183,111,0.10)' :
+             tile.type === T.COM ? 'rgba(74,158,255,0.10)' :
+             'rgba(240,184,64,0.10)';
+    isoDiamondPath(px, py, hw, hh);
+    ctx.fillStyle = zc;
+    ctx.fill();
   }
 
   // Status overlays for zones
-  if ([T.RES, T.COM, T.IND].includes(tile.type)) {
+  if (tile.type === T.RES || tile.type === T.COM || tile.type === T.IND) {
     if (!hasRoadWithin(tx, ty, ROAD_RADIUS)) {
-      ctx.fillStyle = 'rgba(239,68,68,0.12)';
-      ctx.fillRect(px, py, ts, ts);
-      ctx.font = '8px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-      ctx.fillText('🚫', px + ts / 2, py + 1);
+      isoDiamondPath(px, py, hw, hh);
+      ctx.fillStyle = 'rgba(239,68,68,0.15)';
+      ctx.fill();
+      ctx.font = '7px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🚫', px, py);
     }
     if (!isPowered(tx, ty)) {
-      ctx.fillStyle = 'rgba(0,0,0,0.15)';
-      ctx.fillRect(px, py, ts, ts);
-      ctx.fillStyle = 'rgba(255,200,0,0.6)';
-      ctx.font = '7px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-      ctx.fillText('⚡', px + ts - 6, py + 2);
+      isoDiamondPath(px, py, hw, hh);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,200,0,0.7)';
+      ctx.font = '6px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('⚡', px + hw * 0.3, py - hh * 0.3);
     }
     if (isPowered(tx, ty) && tile.level > 0) {
       ctx.fillStyle = 'rgba(100,200,255,0.5)';
-      ctx.font = '6px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-      ctx.fillText('⚡', px + 1, py + ts - 8);
+      ctx.font = '5px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText('⚡', px - hw + 2, py + hh - 6);
     }
   }
 
   // Disaster overlays
-  if (tile.data && tile.data.onFire) drawFireOverlay(tx, ty);
+  if (tile.data && tile.data.onFire) drawFireOverlayIso(tx, ty);
   if (tile.type === T.POWER_PLANT && tile.data && tile.data.outageTicks) {
+    isoDiamondPath(px, py, hw, hh);
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(px, py, ts, ts);
-    ctx.fillStyle = '#fbbf24'; ctx.font = '8px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.fillText('⚠️', px + ts / 2, py + 2);
+    ctx.fill();
+    ctx.fillStyle = '#fbbf24'; ctx.font = '8px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('⚠️', px, py);
   }
 }
 
-// ─── SC3K Water Rendering ─────────────────────────────────────────
-function drawWater(px, py, tx, ty, ts, b) {
-  const t = state.tick;
-  // SC3K-style water with depth gradient
-  ctx.fillStyle = adjustBrightness('#1e4a7a', b);
-  ctx.fillRect(px, py, ts, ts);
+// ─── Grass ─────────────────────────────────────────────────────────
+function drawGrassIso(px, py, tx, ty, hw, hh, b) {
+  var hash = (tx * 7 + ty * 13) % 10;
+  var seed = (tx * 31 + ty * 17) % 100;
 
-  // Depth variation — deeper water is darker
-  const depthHash = (tx * 11 + ty * 7) % 5;
-  if (depthHash < 2 && !isWaterAt(tx, tx-1, ty) && !isWaterAt(tx, tx+1, ty) && !isWaterAt(tx, tx, ty-1) && !isWaterAt(tx, tx, ty+1)) {
-    ctx.fillStyle = `rgba(10,30,60,0.3)`;
-    ctx.fillRect(px, py, ts, ts);
+  ctx.save();
+  isoDiamondPath(px, py, hw, hh);
+  ctx.clip();
+
+  // Grass blade texture
+  ctx.fillStyle = adjustBrightness('#4a8a4a', b);
+  ctx.fillRect(px - 8 + (seed % 12), py - 4 + (seed % 8), 2, 1);
+  ctx.fillRect(px + 2 + (seed % 10), py + 2 + (seed % 6), 2, 1);
+  ctx.fillStyle = adjustBrightness('#5a9a5a', b);
+  ctx.fillRect(px - 4 + (seed % 14), py + 6 + (seed % 4), 2, 1);
+  ctx.fillRect(px + 6 + (tx % 8), py - 8 + (ty % 6), 2, 1);
+
+  if (hash < 3) {
+    // Tree coverage
+    drawTreeIso(px, py, getTreeVariant(tx, ty), b);
+  } else if (hash === 3) {
+    // Flower patch
+    ctx.fillStyle = adjustBrightness('#f0d040', b);
+    ctx.fillRect(px - 6, py - 2, 2, 2);
+    ctx.fillStyle = adjustBrightness('#ffffff', b * 0.95);
+    ctx.fillRect(px + 4, py + 4, 2, 2);
+    ctx.fillStyle = adjustBrightness('#e04060', b);
+    ctx.fillRect(px + 2, py - 6, 2, 2);
+    ctx.fillStyle = adjustBrightness('#c080ff', b);
+    ctx.fillRect(px - 8 + (ty % 6), py + 6 + (tx % 4), 2, 2);
+  } else if (hash === 4) {
+    // Dirt patch
+    ctx.fillStyle = adjustBrightness('#7a6a4a', b * 0.95);
+    ctx.beginPath();
+    ctx.arc(px + (seed % 6) - 3, py + (seed % 4) - 2, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = adjustBrightness('#6a5a3a', b);
+    ctx.fillRect(px + (seed % 8) - 4, py + (seed % 4) - 2, 2, 2);
+  } else if (hash === 5) {
+    // Rock formation
+    ctx.fillStyle = adjustBrightness('#8a8a8e', b);
+    ctx.beginPath();
+    ctx.arc(px - 4 + (seed % 6), py + 2 + (seed % 4), 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = adjustBrightness('#aaaaae', b);
+    ctx.fillRect(px - 5 + (seed % 6), py + 1 + (seed % 4), 3, 1);
+    ctx.fillStyle = adjustBrightness('#7a7a7e', b);
+    ctx.beginPath();
+    ctx.arc(px + 6 + (ty % 4), py + 4 + (tx % 3), 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (hash === 6) {
+    // Dense grass tuft
+    ctx.fillStyle = adjustBrightness('#4a8a4a', b);
+    ctx.fillRect(px - 6 + (tx % 4), py - 2 + (ty % 4), 3, 2);
+    ctx.fillRect(px + 4 + (tx % 3), py + 4 + (ty % 3), 3, 2);
+    ctx.fillStyle = adjustBrightness('#5a9a5a', b);
+    ctx.fillRect(px - 2 + (tx % 6), py + 2 + (ty % 3), 3, 1);
+  } else if (hash === 7) {
+    // Mushroom
+    ctx.fillStyle = adjustBrightness('#c04040', b);
+    ctx.fillRect(px - 2 + (tx % 6), py + (ty % 6), 2, 2);
+    ctx.fillStyle = adjustBrightness('#e0e0e0', b * 0.9);
+    ctx.fillRect(px - 2 + (tx % 6), py + 2 + (ty % 6), 2, 1);
   }
 
-  // Coastline detection
-  const isEdge = !isWaterAt(tx, tx-1, ty) || !isWaterAt(tx, tx+1, ty) || !isWaterAt(tx, tx, ty-1) || !isWaterAt(tx, tx, ty+1);
+  ctx.restore();
+}
+
+// ─── Water ─────────────────────────────────────────────────────────
+function drawWaterIso(px, py, tx, ty, hw, hh, b) {
+  var t = state.tick;
+
+  ctx.save();
+  isoDiamondPath(px, py, hw, hh);
+  ctx.clip();
+
+  // Depth variation
+  var depthHash = (tx * 11 + ty * 7) % 5;
+  if (depthHash < 2) {
+    ctx.fillStyle = 'rgba(10,30,60,0.25)';
+    ctx.fillRect(px - hw, py - hh, ISO_TILE_W, ISO_TILE_H);
+  }
+
+  // Coastline — lighter near non-water tiles
+  var isEdge = !isWaterAt(tx, tx-1, ty) || !isWaterAt(tx, tx+1, ty) || !isWaterAt(tx, tx, ty-1) || !isWaterAt(tx, tx, ty+1);
   if (isEdge) {
-    // Shallow water near coast — lighter blue-teal
-    ctx.fillStyle = adjustBrightness('#4a8ac8', b);
-    ctx.fillRect(px, py, ts, ts);
-    ctx.fillStyle = `rgba(120,190,230,0.2)`;
-    ctx.fillRect(px, py, ts, 2);
-    ctx.fillRect(px, py + ts - 2, ts, 2);
+    ctx.fillStyle = adjustBrightness('#3a6a9c', b);
+    ctx.fillRect(px - hw, py - hh, ISO_TILE_W, ISO_TILE_H);
   }
 
-  // Multi-layer animated waves
-  const sh1 = Math.sin(t * 0.06 + tx * 0.5 + ty * 0.3) * 0.5 + 0.5;
-  const sh2 = Math.sin(t * 0.10 + tx * 0.3 - ty * 0.4) * 0.5 + 0.5;
-  const sh3 = Math.sin(t * 0.04 + (tx + ty) * 0.6) * 0.5 + 0.5;
+  // Wave layers
+  var sh1 = Math.sin(t * 0.06 + tx * 0.5 + ty * 0.3) * 0.5 + 0.5;
+  var sh2 = Math.sin(t * 0.10 + tx * 0.3 - ty * 0.4) * 0.5 + 0.5;
+  var sh3 = Math.sin(t * 0.04 + (tx + ty) * 0.6) * 0.5 + 0.5;
 
-  // Wave layer 1 — broad shimmer
-  ctx.fillStyle = `rgba(80,150,210,${sh1 * 0.12})`;
-  ctx.fillRect(px, py, ts, ts);
+  ctx.fillStyle = 'rgba(80,150,210,' + (sh1 * 0.12) + ')';
+  ctx.fillRect(px - hw, py - hh, ISO_TILE_W, ISO_TILE_H);
 
-  // Wave layer 2 — visible wave crests
   if (sh2 > 0.6) {
-    ctx.fillStyle = `rgba(160,210,250,${(sh2 - 0.6) * 0.65})`;
-    const wx = px + 3 + ((tx * 7) % (ts - 10));
-    const wy = py + 3 + ((ty * 5) % (ts - 8));
-    ctx.fillRect(wx, wy, 8, 2);
-    ctx.fillRect(wx + 10, wy + 4, 5, 1);
-  }
-  // Wave layer 3 — sparkles
-  if (sh3 > 0.7) {
-    ctx.fillStyle = `rgba(220,240,255,${(sh3 - 0.7) * 0.7})`;
-    ctx.fillRect(px + 6 + (tx % 14), py + 10 + (ty % 12), 2, 1);
-    ctx.fillRect(px + 18 + (ty % 8), py + 6 + (tx % 10), 2, 1);
+    ctx.fillStyle = 'rgba(160,210,250,' + ((sh2 - 0.6) * 0.6) + ')';
+    var wx = px - 5 + ((tx * 7) % 10);
+    var wy = py - 3 + ((ty * 5) % 6);
+    ctx.fillRect(wx, wy, 6, 1);
+    ctx.fillRect(wx + 8, wy + 3, 4, 1);
   }
 
-  // Coastline foam — more prominent, only on coast-facing edges
-  if (isEdge && sh1 > 0.35) {
-    ctx.fillStyle = `rgba(220,245,255,${sh1 * 0.3})`;
-    if (!isWaterAt(tx, tx-1, ty)) ctx.fillRect(px, py, 2, ts);
-    if (!isWaterAt(tx, tx+1, ty)) ctx.fillRect(px + ts - 2, py, 2, ts);
-    if (!isWaterAt(tx, tx, ty-1)) ctx.fillRect(px, py, ts, 2);
-    if (!isWaterAt(tx, tx, ty+1)) ctx.fillRect(px, py + ts - 2, ts, 2);
+  if (sh3 > 0.7) {
+    ctx.fillStyle = 'rgba(220,240,255,' + ((sh3 - 0.7) * 0.7) + ')';
+    ctx.fillRect(px + (tx % 10) - 5, py + (ty % 8) - 4, 2, 1);
+    ctx.fillRect(px + (ty % 8) - 4, py + (tx % 6) - 3, 2, 1);
   }
+
+  // Coastline foam
+  if (isEdge && sh1 > 0.35) {
+    ctx.fillStyle = 'rgba(220,245,255,' + (sh1 * 0.25) + ')';
+    if (!isWaterAt(tx, tx-1, ty)) {
+      // Top-left edge foam
+      ctx.beginPath();
+      ctx.moveTo(px - hw, py);
+      ctx.lineTo(px, py - hh);
+      ctx.lineTo(px + 2, py - hh + 2);
+      ctx.lineTo(px - hw + 3, py + 1);
+      ctx.closePath();
+      ctx.fill();
+    }
+    if (!isWaterAt(tx, tx+1, ty)) {
+      ctx.beginPath();
+      ctx.moveTo(px + hw, py);
+      ctx.lineTo(px, py + hh);
+      ctx.lineTo(px - 2, py + hh - 2);
+      ctx.lineTo(px + hw - 3, py - 1);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
 }
 
 function isWaterAt(_tx, checkTx, checkTy) {
@@ -1830,174 +1933,246 @@ function isWaterAt(_tx, checkTx, checkTy) {
   return state.grid[checkTy][checkTx].type === T.WATER;
 }
 
-// ─── SC3K Road Rendering ──────────────────────────────────────────
-function drawRoad(px, py, tx, ty, ts, b) {
-  // SC3K-style concrete sidewalk border
-  ctx.fillStyle = adjustBrightness('#9a9a9e', b);
-  ctx.fillRect(px, py, ts, ts);
-  // Inner asphalt
-  ctx.fillStyle = adjustBrightness('#2a2a2e', b);
-  ctx.fillRect(px + 2, py + 2, ts - 4, ts - 4);
+// ─── Road ──────────────────────────────────────────────────────────
+function drawRoadIso(px, py, tx, ty, hw, hh, b) {
+  var n = isRoadAt(tx, ty - 1);
+  var s = isRoadAt(tx, ty + 1);
+  var e = isRoadAt(tx + 1, ty);
+  var w = isRoadAt(tx - 1, ty);
 
-  // Asphalt texture noise (only on inner area)
-  ctx.fillStyle = 'rgba(60,60,65,0.3)';
-  const hash = (tx * 7 + ty * 13) % 5;
-  ctx.fillRect(px + 4 + hash * 3, py + 4 + hash * 4, 3, 3);
-  
-  // Check connections
-  const n = isRoadAt(tx, ty - 1);
-  const s = isRoadAt(tx, ty + 1);
-  const e = isRoadAt(tx + 1, ty);
-  const w = isRoadAt(tx - 1, ty);
-  
-  const cx = px + ts / 2, cy = py + ts / 2;
-  
-  // Draw road connections with lane markings
+  // Redraw base as darker asphalt
+  isoDiamondPath(px, py, hw, hh);
   ctx.fillStyle = adjustBrightness('#3a3a3e', b);
-  // Horizontal road segment
-  if (e || w) {
-    ctx.fillRect(w ? px : cx - 3, py + ts * 0.3, (e ? px + ts : cx + 3) - (w ? px : cx - 3), ts * 0.4);
+  ctx.fill();
+
+  // Sidewalk borders on non-connected edges
+  ctx.fillStyle = adjustBrightness('#9a9a9e', b);
+  var sw = 3.5;
+
+  // TOP-RIGHT edge (no north road) — from top to right corner
+  if (!n) {
+    ctx.beginPath();
+    ctx.moveTo(px, py - hh);
+    ctx.lineTo(px + hw, py);
+    ctx.lineTo(px + hw - sw, py - sw * 0.5);
+    ctx.lineTo(px, py - hh + sw);
+    ctx.closePath();
+    ctx.fill();
   }
-  // Vertical road segment
-  if (n || s) {
-    ctx.fillRect(px + ts * 0.3, n ? py : cy - 3, ts * 0.4, (s ? py + ts : cy + 3) - (n ? py : cy - 3));
+  // BOTTOM-RIGHT edge (no east road) — from right to bottom corner
+  if (!e) {
+    ctx.beginPath();
+    ctx.moveTo(px + hw, py);
+    ctx.lineTo(px, py + hh);
+    ctx.lineTo(px - sw * 0.5, py + hh - sw);
+    ctx.lineTo(px + hw - sw, py - sw * 0.5);
+    ctx.closePath();
+    ctx.fill();
   }
-  // If isolated (no connections), draw a small road patch
-  if (!n && !s && !e && !w) {
-    ctx.fillRect(px + ts * 0.3, py + ts * 0.3, ts * 0.4, ts * 0.4);
+  // BOTTOM-LEFT edge (no south road) — from bottom to left corner
+  if (!s) {
+    ctx.beginPath();
+    ctx.moveTo(px, py + hh);
+    ctx.lineTo(px - hw, py);
+    ctx.lineTo(px - hw + sw, py + sw * 0.5);
+    ctx.lineTo(px, py + hh - sw);
+    ctx.closePath();
+    ctx.fill();
   }
-  
-  // Lane markings (dashed yellow center line)
+  // TOP-LEFT edge (no west road) — from left to top corner
+  if (!w) {
+    ctx.beginPath();
+    ctx.moveTo(px - hw, py);
+    ctx.lineTo(px, py - hh);
+    ctx.lineTo(px + sw * 0.5, py - hh + sw);
+    ctx.lineTo(px - hw + sw, py + sw * 0.5);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Inner asphalt (slightly inset diamond)
+  var inset = sw + 1;
+  isoDiamondPath(px, py, hw - inset, hh - inset * 0.5);
+  ctx.fillStyle = adjustBrightness('#2a2a2e', b);
+  ctx.fill();
+
+  // Asphalt texture noise
+  ctx.fillStyle = 'rgba(50,50,55,0.4)';
+  var noiseHash = (tx * 7 + ty * 13) % 5;
+  ctx.fillRect(px - 2 + noiseHash, py - 1 + noiseHash, 2, 2);
+
+  // Lane markings — dashed yellow center line
   ctx.fillStyle = adjustBrightness('#e8c840', b * 0.9);
-  // Horizontal dashes
+
+  // E-W markings (if east or west connection)
   if (e || w) {
-    const startX = w ? px + 2 : cx;
-    const endX = e ? px + ts - 2 : cx;
-    for (let x = startX; x < endX - 2; x += 6) {
-      ctx.fillRect(x, cy - 1, 3, 1);
+    // E-W road direction goes from TOP-LEFT edge mid to BOTTOM-RIGHT edge mid
+    // Start: (px - hw/2, py - hh/2) if w, else center
+    // End: (px + hw/2, py + hh/2) if e, else center
+    var ewStartX = w ? px - hw * 0.4 : px - 2;
+    var ewStartY = w ? py - hh * 0.4 : py;
+    var ewEndX = e ? px + hw * 0.4 : px + 2;
+    var ewEndY = e ? py + hh * 0.4 : py;
+    var ewDx = ewEndX - ewStartX, ewDy = ewEndY - ewStartY;
+    var ewLen = Math.hypot(ewDx, ewDy);
+    var ewUx = ewDx / ewLen, ewUy = ewDy / ewLen;
+    for (var i = 3; i < ewLen - 3; i += 5) {
+      var dashX = ewStartX + ewUx * i;
+      var dashY = ewStartY + ewUy * i;
+      // Draw small rotated rect
+      ctx.save();
+      ctx.translate(dashX, dashY);
+      ctx.rotate(Math.atan2(ewUy, ewUx));
+      ctx.fillRect(-1.5, -0.75, 3, 1.5);
+      ctx.restore();
     }
   }
-  // Vertical dashes
+
+  // N-S markings (if north or south connection)
   if (n || s) {
-    const startY = n ? py + 2 : cy;
-    const endY = s ? py + ts - 2 : cy;
-    for (let y = startY; y < endY - 2; y += 6) {
-      ctx.fillRect(cx - 0.5, y, 1, 3);
+    // N-S road direction goes from TOP-RIGHT edge mid to BOTTOM-LEFT edge mid
+    var nsStartX = n ? px + hw * 0.4 : px + 2;
+    var nsStartY = n ? py - hh * 0.4 : py;
+    var nsEndX = s ? px - hw * 0.4 : px - 2;
+    var nsEndY = s ? py + hh * 0.4 : py;
+    var nsDx = nsEndX - nsStartX, nsDy = nsEndY - nsStartY;
+    var nsLen = Math.hypot(nsDx, nsDy);
+    var nsUx = nsDx / nsLen, nsUy = nsDy / nsLen;
+    for (var i2 = 3; i2 < nsLen - 3; i2 += 5) {
+      var dashX2 = nsStartX + nsUx * i2;
+      var dashY2 = nsStartY + nsUy * i2;
+      ctx.save();
+      ctx.translate(dashX2, dashY2);
+      ctx.rotate(Math.atan2(nsUy, nsUx));
+      ctx.fillRect(-1.5, -0.75, 3, 1.5);
+      ctx.restore();
     }
   }
-  
-  // Intersection detail
+
+  // Intersection
   if ((n || s) && (e || w)) {
     ctx.fillStyle = adjustBrightness('#1a1a1e', b);
-    ctx.fillRect(cx - 5, cy - 5, 10, 10);
-    // Crosswalk stripes
-    ctx.fillStyle = 'rgba(200,200,200,0.3)';
-    for (let i = 0; i < 3; i++) {
-      ctx.fillRect(cx - 4 + i * 3, cy - 5, 1, 3);
-      ctx.fillRect(cx - 4 + i * 3, cy + 2, 1, 3);
+    ctx.beginPath();
+    ctx.arc(px, py, 4, 0, Math.PI * 2);
+    ctx.fill();
+    // Crosswalk
+    ctx.fillStyle = 'rgba(200,200,200,0.25)';
+    for (var ci = 0; ci < 3; ci++) {
+      ctx.fillRect(px - 3 + ci * 2, py - 4, 1, 2);
+      ctx.fillRect(px - 3 + ci * 2, py + 2, 1, 2);
     }
   }
-  
-  // Night: streetlight pools
-  const nightData = getDayNightOverlay();
+
+  // Night streetlight pools
+  var nightData = getDayNightOverlay();
   if (nightData && nightData.night > 0.4) {
-    const intensity = (nightData.night - 0.4) * 0.6;
-    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, ts * 0.6);
-    grad.addColorStop(0, `rgba(255,220,120,${intensity * 0.25})`);
+    var intensity = (nightData.night - 0.4) * 0.6;
+    var grad = ctx.createRadialGradient(px, py, 0, px, py, hw * 0.8);
+    grad.addColorStop(0, 'rgba(255,220,120,' + (intensity * 0.25) + ')');
     grad.addColorStop(1, 'rgba(255,220,120,0)');
     ctx.fillStyle = grad;
-    ctx.fillRect(px - 4, py - 4, ts + 8, ts + 8);
+    ctx.fillRect(px - hw, py - hh, ISO_TILE_W, ISO_TILE_H);
   }
 }
 
-// ─── SC3K Tree Rendering ──────────────────────────────────────────
-function drawTree(px, py, variant, b) {
-  const cx = px + 6 + (variant.seed % 12);
-  const cy = py + 6 + (variant.seed % 12);
+// ─── Trees ─────────────────────────────────────────────────────────
+function drawTreeIso(px, py, variant, b) {
+  var offsetX = (variant.seed % 12) - 6;
+  var offsetY = (variant.seed % 8) - 4;
+  var bx = px + offsetX, by = py + offsetY;
 
   switch (variant.style) {
     case 'pine':
-      // Triangle pine tree
-      ctx.fillStyle = adjustBrightness('#1a3a1a', b);
       // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
       ctx.beginPath();
-      ctx.ellipse(cx + 4, cy + 9, 5, 2, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(cx + 3, cy);
-      ctx.lineTo(cx + 6, cy + 8);
-      ctx.lineTo(cx, cy + 8);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = adjustBrightness(variant.color, b);
-      ctx.beginPath();
-      ctx.moveTo(cx + 3, cy + 1);
-      ctx.lineTo(cx + 5, cy + 7);
-      ctx.lineTo(cx + 1, cy + 7);
-      ctx.closePath();
+      ctx.ellipse(bx + 1, by + 5, 5, 2, 0, 0, Math.PI * 2);
       ctx.fill();
       // Trunk
       ctx.fillStyle = adjustBrightness('#4a3a1a', b);
-      ctx.fillRect(cx + 2, cy + 7, 2, 2);
+      ctx.fillRect(bx - 1, by + 1, 2, 5);
+      // Pine layers
+      ctx.fillStyle = adjustBrightness(variant.color, b);
+      ctx.beginPath();
+      ctx.moveTo(bx, by - 9);
+      ctx.lineTo(bx + 5, by + 2);
+      ctx.lineTo(bx - 5, by + 2);
+      ctx.closePath();
+      ctx.fill();
+      // Darker side for depth
+      ctx.fillStyle = adjustBrightness('#1a3a1a', b);
+      ctx.beginPath();
+      ctx.moveTo(bx, by - 9);
+      ctx.lineTo(bx + 5, by + 2);
+      ctx.lineTo(bx + 1, by + 2);
+      ctx.closePath();
+      ctx.fill();
+      // Highlight
+      ctx.fillStyle = adjustBrightness('#5a9a5a', b);
+      ctx.fillRect(bx - 2, by - 6, 2, 1);
       break;
 
     case 'deciduous':
-      // Round bushy tree
-      ctx.fillStyle = adjustBrightness('#1a3a1a', b);
       // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
       ctx.beginPath();
-      ctx.ellipse(cx + 4, cy + 9, 5, 2, 0, 0, Math.PI * 2);
+      ctx.ellipse(bx + 1, by + 5, 6, 3, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.beginPath();
-      ctx.arc(cx + 3, cy + 4, 5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = adjustBrightness(variant.color, b);
-      ctx.beginPath();
-      ctx.arc(cx + 3, cy + 3, 4, 0, Math.PI * 2);
-      ctx.fill();
-      // Highlights — multi-tone for depth
-      ctx.fillStyle = adjustBrightness('#6aaa6a', b);
-      ctx.fillRect(cx + 2, cy + 1, 2, 2);
-      ctx.fillStyle = adjustBrightness('#7aba7a', b);
-      ctx.fillRect(cx + 3, cy + 2, 1, 1);
       // Trunk
       ctx.fillStyle = adjustBrightness('#4a3a1a', b);
-      ctx.fillRect(cx + 2, cy + 7, 2, 2);
+      ctx.fillRect(bx - 1, by, 2, 5);
+      // Canopy
+      ctx.fillStyle = adjustBrightness(variant.color, b);
+      ctx.beginPath();
+      ctx.arc(bx, by - 2, 6, 0, Math.PI * 2);
+      ctx.fill();
+      // Darker bottom-right for depth
+      ctx.fillStyle = adjustBrightness('#1a3a1a', b);
+      ctx.beginPath();
+      ctx.arc(bx + 2, by, 4, 0, Math.PI * 2);
+      ctx.fill();
+      // Highlight top-left
+      ctx.fillStyle = adjustBrightness('#6aaa6a', b);
+      ctx.beginPath();
+      ctx.arc(bx - 1, by - 4, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = adjustBrightness('#7aba7a', b);
+      ctx.fillRect(bx - 2, by - 5, 2, 2);
       break;
 
     case 'bush':
-      // Small clustered bush with shadow
-      ctx.fillStyle = `rgba(0,0,0,0.2)`;
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
       ctx.beginPath();
-      ctx.ellipse(cx + 4, cy + 8, 5, 2, 0, 0, Math.PI * 2);
+      ctx.ellipse(bx + 1, by + 4, 5, 2, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = adjustBrightness(variant.color, b);
-      ctx.fillRect(cx, cy + 3, 3, 3);
-      ctx.fillRect(cx + 3, cy + 2, 3, 4);
-      ctx.fillRect(cx + 1, cy + 5, 2, 2);
+      ctx.beginPath();
+      ctx.arc(bx - 2, by, 3, 0, Math.PI * 2);
+      ctx.arc(bx + 2, by + 1, 3, 0, Math.PI * 2);
+      ctx.arc(bx, by - 1, 3, 0, Math.PI * 2);
+      ctx.fill();
       ctx.fillStyle = adjustBrightness('#5a9a5a', b);
-      ctx.fillRect(cx + 1, cy + 3, 2, 1);
-      ctx.fillStyle = adjustBrightness('#6aaa6a', b);
-      ctx.fillRect(cx + 4, cy + 3, 1, 1);
+      ctx.fillRect(bx - 2, by - 1, 2, 1);
+      ctx.fillRect(bx + 1, by, 1, 1);
       break;
 
     case 'palm':
-      // Palm tree with shadow
-      ctx.fillStyle = `rgba(0,0,0,0.2)`;
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
       ctx.beginPath();
-      ctx.ellipse(cx + 3, cy + 9, 4, 2, 0, 0, Math.PI * 2);
+      ctx.ellipse(bx + 1, by + 5, 4, 2, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = adjustBrightness('#6a4a2a', b);
-      ctx.fillRect(cx + 2, cy + 1, 1, 7);
-      // Fronds — more detailed
+      ctx.fillRect(bx, by - 6, 1, 9);
+      // Fronds
       ctx.fillStyle = adjustBrightness('#2d6a2d', b);
-      ctx.fillRect(cx, cy, 2, 1);
-      ctx.fillRect(cx + 3, cy, 3, 1);
-      ctx.fillRect(cx + 1, cy - 1, 2, 1);
-      ctx.fillRect(cx + 3, cy + 1, 2, 1);
+      ctx.fillRect(bx - 4, by - 6, 3, 1);
+      ctx.fillRect(bx + 1, by - 6, 4, 1);
+      ctx.fillRect(bx - 3, by - 8, 2, 1);
+      ctx.fillRect(bx + 1, by - 8, 2, 1);
+      ctx.fillRect(bx - 1, by - 9, 2, 1);
       // Coconut
       ctx.fillStyle = adjustBrightness('#4a3a1a', b);
-      ctx.fillRect(cx + 2, cy + 1, 1, 1);
+      ctx.fillRect(bx, by - 5, 2, 2);
       break;
   }
 }
@@ -2005,510 +2180,534 @@ function drawTree(px, py, variant, b) {
 // Helper: adjust hex color brightness
 function adjustBrightness(hex, factor) {
   if (!hex || hex[0] !== '#') return hex;
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const nr = Math.round(Math.min(255, r * factor));
-  const ng = Math.round(Math.min(255, g * factor));
-  const nb = Math.round(Math.min(255, b * factor));
-  return `rgb(${nr},${ng},${nb})`;
+  var r = parseInt(hex.slice(1, 3), 16);
+  var g = parseInt(hex.slice(3, 5), 16);
+  var bl = parseInt(hex.slice(5, 7), 16);
+  var nr = Math.round(Math.min(255, r * factor));
+  var ng = Math.round(Math.min(255, g * factor));
+  var nb = Math.round(Math.min(255, bl * factor));
+  return 'rgb(' + nr + ',' + ng + ',' + nb + ')';
 }
 
-// ─── SC3K Building Rendering with distinct shapes per type ─────
-function drawBuilding2D(px, py, level, color, darkColor, brightness, zoneType) {
-  const b = brightness || 1;
-  const nightData = getDayNightOverlay();
-  const isNight = nightData && nightData.night > 0.45;
-  const ts = TILE;
+// ─── Buildings ─────────────────────────────────────────────────────
+function drawBuildingIso(px, py, hw, hh, level, color, darkColor, b, zoneType, tx, ty) {
+  if (level === 0) return; // empty zone
 
-  // Height offsets per level — visible 2D extrusion
-  const heightOffsets = [0, 4, 8, 14];
-  const ho = heightOffsets[level] || 4;
-  const winColor = isNight ? 'rgba(255,230,100,0.85)' : 'rgba(200,220,255,0.5)';
+  var nightData = getDayNightOverlay();
+  var isNight = nightData && nightData.night > 0.45;
+  var winColor = isNight ? 'rgba(255,230,100,0.85)' : 'rgba(200,220,255,0.45)';
 
-  // ─── Shadow ──────────────────────────────────────────────
-  const shadowOp = Math.min(0.4, 0.1 + level * 0.1);
-  ctx.fillStyle = `rgba(0,0,0,${shadowOp})`;
-  if (level >= 2) {
-    // Bigger shadow for taller buildings
-    ctx.fillRect(px + ho, py + ts - ho, ts - 4, ho + 2);
-    ctx.beginPath();
-    ctx.ellipse(px + ts/2 + ho*0.5, py + ts - 1, ts * 0.4, 2.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-  } else {
-    ctx.fillRect(px + 2, py + ts - 3, ts - 4, 3);
-  }
+  // Building heights per level
+  var heights = [0, 16, 28, 42];
+  var h = heights[Math.min(level, 3)] || 16;
 
-  ctx.save();
+  // Building footprint slightly smaller than tile
+  var bw = hw * 0.72;
+  var bh = hh * 0.72;
+
+  // Shadow on ground
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(px + h * 0.25, py + bh * 0.5, bw + 3, bh + 1, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  var topC = adjustBrightness(color, b);
+  var rightC = adjustBrightness(darkColor, b * 0.85);
+  var leftC = adjustBrightness(darkColor, b * 0.55);
 
   switch (zoneType) {
-    // ─── RESIDENTIAL: house with triangle roof ────────────────
-    case 'res': {
-      const bw = ts - 8, bh = Math.max(10, 8 + level * 5);
-      const bx = px + 4, by = py + ts - bh - 3;
-
-      // Wall
-      ctx.fillStyle = adjustBrightness(darkColor, b);
-      ctx.fillRect(bx, by, bw, bh);
-      // Right side shading
-      ctx.fillStyle = adjustBrightness(darkColor, b * 0.55);
-      ctx.fillRect(bx + bw - 4, by, 4, bh);
-      // Left side highlight
-      ctx.fillStyle = adjustBrightness(color, b * 1.15);
-      ctx.fillRect(bx, by, 3, bh);
-      // Roof (triangle) — BIG and obvious
-      const roofH = 6 + level * 3;
-      ctx.fillStyle = adjustBrightness(color, b);
-      ctx.beginPath();
-      ctx.moveTo(bx - 2, by + 1);
-      ctx.lineTo(bx + bw / 2, by - roofH);
-      ctx.lineTo(bx + bw + 2, by + 1);
-      ctx.closePath();
-      ctx.fill();
-      // Roof shadow ridge
-      ctx.fillStyle = adjustBrightness(darkColor, b * 0.6);
-      ctx.beginPath();
-      ctx.moveTo(bx + bw / 2, by - roofH);
-      ctx.lineTo(bx + bw + 2, by + 1);
-      ctx.lineTo(bx + bw / 2 + 3, by + 1);
-      ctx.closePath();
-      ctx.fill();
-      // Roof outline
-      ctx.strokeStyle = adjustBrightness(darkColor, b * 0.4);
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(bx - 2, by + 1);
-      ctx.lineTo(bx + bw / 2, by - roofH);
-      ctx.lineTo(bx + bw + 2, by + 1);
-      ctx.stroke();
-
-      // Windows
-      ctx.fillStyle = winColor;
-      if (level >= 1) { ctx.fillRect(bx + 3, by + 3, 4, 3); ctx.fillRect(bx + bw - 7, by + 3, 4, 3); }
-      if (level >= 2) { ctx.fillRect(bx + 3, by + 8, 4, 3); ctx.fillRect(bx + bw - 7, by + 8, 4, 3); }
-      if (level >= 3) {
-        ctx.fillRect(bx + Math.floor(bw/2) - 2, by + 6, 4, 3);
-        // Chimney for level 3
-        ctx.fillStyle = adjustBrightness('#8B4513', b);
-        ctx.fillRect(bx + bw - 8, by - roofH + 1, 4, 5);
-        ctx.fillStyle = '#333';
-        ctx.fillRect(bx + bw - 8, by - roofH + 1, 4, 2);
-      }
-      // Door
-      ctx.fillStyle = adjustBrightness('#444', b);
-      ctx.fillRect(px + ts/2 - 2, py + ts - 5, 4, 4);
-      ctx.fillStyle = adjustBrightness('#666', b);
-      ctx.fillRect(px + ts/2 - 2, py + ts - 5, 4, 1);
+    case 'res':
+      drawResIso(px, py, bw, bh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor);
       break;
-    }
-
-    // ─── COMMERCIAL: wider rectangle (shopfront) ───────────────
-    case 'com': {
-      const bw = ts - 4, bh = Math.max(12, 8 + level * 7);
-      const bx = px + 2, by = py + ts - bh - 3;
-
-      // Wall
-      ctx.fillStyle = adjustBrightness(darkColor, b);
-      ctx.fillRect(bx, by, bw, bh);
-      // Right side shading
-      ctx.fillStyle = adjustBrightness(darkColor, b * 0.55);
-      ctx.fillRect(bx + bw - 4, by, 4, bh);
-      // Left highlight
-      ctx.fillStyle = adjustBrightness(color, b * 1.1);
-      ctx.fillRect(bx, by, 3, bh);
-      // Flat roof slab — wider than walls
-      ctx.fillStyle = adjustBrightness(color, b);
-      ctx.fillRect(bx - 2, by - 3, bw + 4, 4);
-      ctx.fillStyle = adjustBrightness(darkColor, b * 0.7);
-      ctx.fillRect(bx - 2, by - 1, bw + 4, 2);
-
-      // Awning (striped shopfront) — red/white stripes
-      const awningY = by + bh - 6;
-      ctx.fillStyle = adjustBrightness('#ef4444', b);
-      ctx.fillRect(bx, awningY, bw, 3);
-      ctx.fillStyle = '#fff';
-      for (let i = 0; i < bw; i += 6) ctx.fillRect(bx + i + 3, awningY, 3, 3);
-
-      // Windows — grid pattern
-      ctx.fillStyle = winColor;
-      for (let row = 0; row < level + 1; row++) {
-        ctx.fillRect(bx + 3, by + 3 + row * 5, 4, 3);
-        ctx.fillRect(bx + Math.floor(bw/2) - 1, by + 3 + row * 5, 4, 3);
-        ctx.fillRect(bx + bw - 7, by + 3 + row * 5, 4, 3);
-      }
-
-      if (level >= 3) {
-        // Sign on top
-        ctx.fillStyle = '#fbbf24';
-        ctx.fillRect(bx + bw/2 - 4, by - 8, 8, 4);
-        ctx.fillStyle = '#000';
-        ctx.font = '4px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('SHOP', bx + bw/2, by - 6);
-      }
-      // Door
-      ctx.fillStyle = adjustBrightness('#333', b);
-      ctx.fillRect(px + ts/2 - 3, py + ts - 6, 6, 5);
-      ctx.fillStyle = adjustBrightness('#888', b);
-      ctx.fillRect(px + ts/2 - 3, py + ts - 6, 6, 1);
+    case 'com':
+      drawComIso(px, py, bw, bh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor);
       break;
-    }
-
-    // ─── INDUSTRIAL: rectangle with big chimney + smoke ───────
-    case 'ind': {
-      const bw = ts - 6, bh = Math.max(10, 8 + level * 5);
-      const bx = px + 3, by = py + ts - bh - 3;
-
-      // Wall
-      ctx.fillStyle = adjustBrightness(darkColor, b);
-      ctx.fillRect(bx, by, bw, bh);
-      // Right side shading
-      ctx.fillStyle = adjustBrightness(darkColor, b * 0.5);
-      ctx.fillRect(bx + bw - 4, by, 4, bh);
-      // Left highlight
-      ctx.fillStyle = adjustBrightness(color, b * 0.9);
-      ctx.fillRect(bx, by, 3, bh);
-      // Flat roof
-      ctx.fillStyle = adjustBrightness(color, b * 0.75);
-      ctx.fillRect(bx - 1, by - 2, bw + 2, 3);
-      ctx.strokeStyle = adjustBrightness(darkColor, b * 0.4);
-      ctx.lineWidth = 1;
-      ctx.strokeRect(bx - 1, by - 2, bw + 2, 3);
-
-      // BIG chimney (always present on industrial)
-      const chimX = bx + bw - 8;
-      const chimH = 8 + level * 2;
-      ctx.fillStyle = adjustBrightness('#6b6b6b', b);
-      ctx.fillRect(chimX, by - chimH, 5, chimH);
-      // Chimney cap
-      ctx.fillStyle = '#444';
-      ctx.fillRect(chimX - 1, by - chimH, 7, 3);
-      // Chimney shadow stripe
-      ctx.fillStyle = adjustBrightness('#4a4a4a', b);
-      ctx.fillRect(chimX + 3, by - chimH, 2, chimH);
-
-      // Smoke from chimney — animated puffs
-      const smokeT = (state.tick % 10) * 0.6;
-      for (let s = 0; s < 3; s++) {
-        const sx = chimX + 2.5 + Math.sin(state.tick * 0.5 + s * 2) * 2;
-        const sy = by - chimH - 2 - s * 4 - smokeT * 0.3;
-        const sr = 2.5 + s * 1.5 + level * 0.5;
-        ctx.fillStyle = `rgba(160,160,160,${0.4 - s * 0.1})`;
-        ctx.beginPath();
-        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Windows
-      ctx.fillStyle = winColor;
-      for (let row = 0; row < level + 1; row++) {
-        ctx.fillRect(bx + 3, by + 4 + row * 5, 4, 3);
-        ctx.fillRect(bx + Math.floor(bw/2) - 1, by + 4 + row * 5, 4, 3);
-      }
-      // Big garage door
-      ctx.fillStyle = adjustBrightness('#3a3a3a', b);
-      ctx.fillRect(bx + 1, py + ts - 7, bw - 2, 6);
-      // Garage door lines
-      ctx.strokeStyle = adjustBrightness('#666', b);
-      ctx.lineWidth = 0.5;
-      for (let i = 1; i < bw - 4; i += 3) {
-        ctx.beginPath();
-        ctx.moveTo(bx + 1 + i, py + ts - 7);
-        ctx.lineTo(bx + 1 + i, py + ts - 1);
-        ctx.stroke();
-      }
+    case 'ind':
+      drawIndIso(px, py, bw, bh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor);
       break;
-    }
   }
 
-  ctx.restore();
-
-  // ─── Night glow ──────────────────────────────────────────
+  // Night glow
   if (isNight && level >= 1) {
-    const glowAlpha = 0.05 + level * 0.03;
-    const cx = px + ts/2, cy = py + ts - 6;
-    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, ts * 0.7);
-    grad.addColorStop(0, `rgba(255,200,80,${glowAlpha})`);
+    var glowAlpha = 0.06 + level * 0.02;
+    var grad = ctx.createRadialGradient(px, py - h / 2, 0, px, py - h / 2, hw);
+    grad.addColorStop(0, 'rgba(255,200,80,' + glowAlpha + ')');
     grad.addColorStop(1, 'rgba(255,200,80,0)');
     ctx.fillStyle = grad;
-    ctx.fillRect(px - 6, py - 6, ts + 12, ts + 12);
+    ctx.fillRect(px - hw, py - hh - h, ISO_TILE_W, ISO_TILE_H + h);
   }
 }
 
-// ─── Special building shapes (Bluetooth Tower, Power Plant, etc) ───
-function drawSpecialShape2D(type, px, py, level, brightness) {
-  const b = brightness || 1;
-  const ts = TILE;
-  const nightData = getDayNightOverlay();
-  const isNight = nightData && nightData.night > 0.45;
+function drawResIso(px, py, hw, hh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor) {
+  // Draw 3D box
+  drawIsoBox(px, py, hw, hh, h, topC, leftC, rightC);
+
+  // Windows on right wall
+  drawIsoWallWindows(px, py, hw, hh, h, true, winColor, level + 1, 2);
+
+  // Windows on left wall
+  drawIsoWallWindows(px, py, hw, hh, h, false, winColor, level + 1, 2);
+
+  // Roof detail — chimney for level 3
+  if (level >= 3) {
+    var chimX = px + hw * 0.3;
+    var chimY = py - h - 2;
+    ctx.fillStyle = adjustBrightness('#8B4513', b);
+    ctx.fillRect(chimX, chimY - 4, 3, 5);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(chimX, chimY - 4, 3, 2);
+  }
+
+  // Door at base of front wall
+  ctx.fillStyle = adjustBrightness('#444', b);
+  ctx.fillRect(px - 2, py + hh * 0.3, 4, 5);
+  ctx.fillStyle = adjustBrightness('#666', b);
+  ctx.fillRect(px - 2, py + hh * 0.3, 4, 1);
+}
+
+function drawComIso(px, py, hw, hh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor) {
+  // Draw 3D box
+  drawIsoBox(px, py, hw, hh, h, topC, leftC, rightC);
+
+  // Window grid on right wall
+  drawIsoWallWindows(px, py, hw, hh, h, true, winColor, level + 2, 3);
+
+  // Window grid on left wall
+  drawIsoWallWindows(px, py, hw, hh, h, false, winColor, level + 2, 3);
+
+  // Awning stripe at base of right wall
+  ctx.save();
+  var wallLen = Math.hypot(hw, hh);
+  ctx.transform(-hw / wallLen, hh / wallLen, 0, -1, px + hw, py);
+  ctx.fillStyle = adjustBrightness('#ef4444', b);
+  ctx.fillRect(0, h - 4, wallLen, 3);
+  ctx.fillStyle = '#fff';
+  for (var i = 0; i < wallLen; i += 5) {
+    ctx.fillRect(i + 2, h - 4, 2, 3);
+  }
+  ctx.restore();
+
+  // Sign on roof for level 3
+  if (level >= 3) {
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(px - 4, py - h - 5, 8, 4);
+    ctx.fillStyle = '#000';
+    ctx.font = '3px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('SHOP', px, py - h - 3);
+  }
+}
+
+function drawIndIso(px, py, hw, hh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor) {
+  // Draw 3D box
+  drawIsoBox(px, py, hw, hh, h, topC, leftC, rightC);
+
+  // Windows on right wall
+  drawIsoWallWindows(px, py, hw, hh, h, true, winColor, level + 1, 2);
+
+  // Windows on left wall
+  drawIsoWallWindows(px, py, hw, hh, h, false, winColor, level + 1, 2);
+
+  // Big chimney on roof
+  var chimX = px + hw * 0.3;
+  var chimH = 10 + level * 3;
+  ctx.fillStyle = adjustBrightness('#6b6b6b', b);
+  ctx.fillRect(chimX, py - h - chimH, 4, chimH);
+  // Chimney cap
+  ctx.fillStyle = '#444';
+  ctx.fillRect(chimX - 1, py - h - chimH, 6, 3);
+  // Chimney shadow stripe
+  ctx.fillStyle = adjustBrightness('#4a4a4a', b);
+  ctx.fillRect(chimX + 2, py - h - chimH, 2, chimH);
+
+  // Smoke from chimney — animated
+  var smokeT = (state.tick % 10) * 0.6;
+  for (var s = 0; s < 3; s++) {
+    var sx = chimX + 2 + Math.sin(state.tick * 0.5 + s * 2) * 2;
+    var sy = py - h - chimH - 2 - s * 4 - smokeT * 0.3;
+    var sr = 2.5 + s * 1.5 + level * 0.5;
+    ctx.fillStyle = 'rgba(160,160,160,' + (0.35 - s * 0.08) + ')';
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Garage door on left wall
+  ctx.save();
+  ctx.transform(hw / wallLen_safe(hw, hh), hh / wallLen_safe(hw, hh), 0, -1, px - hw, py);
+  ctx.fillStyle = adjustBrightness('#3a3a3a', b);
+  ctx.fillRect(wallLen_safe(hw, hh) * 0.2, 0, wallLen_safe(hw, hh) * 0.6, Math.min(h * 0.5, 8));
+  ctx.strokeStyle = adjustBrightness('#666', b);
+  ctx.lineWidth = 0.5;
+  for (var gi = 1; gi < 4; gi++) {
+    ctx.beginPath();
+    ctx.moveTo(wallLen_safe(hw, hh) * 0.2, gi * 2);
+    ctx.lineTo(wallLen_safe(hw, hh) * 0.8, gi * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function wallLen_safe(hw, hh) {
+  return Math.hypot(hw, hh);
+}
+
+// ─── Pepper Farm ───────────────────────────────────────────────────
+function drawPepperFarmIso(px, py, hw, hh, b, tx, ty) {
+  ctx.save();
+  isoDiamondPath(px, py, hw, hh);
+  ctx.clip();
+
+  // Field rows — darker green stripes
+  ctx.fillStyle = adjustBrightness('#2a7a4a', b);
+  for (var i = -hh + 3; i < hh; i += 5) {
+    // Draw a line across the diamond at this y offset
+    var halfW = (1 - Math.abs(i) / hh) * hw;
+    ctx.fillRect(px - halfW, py + i, halfW * 2, 2);
+  }
+
+  // Pepper plants — red dots
+  ctx.fillStyle = '#dc2626';
+  for (var r = 0; r < 4; r++) {
+    var ry = -hh + 5 + r * (hh * 0.4);
+    var rhalfW = (1 - Math.abs(ry) / hh) * hw;
+    ctx.fillRect(px - rhalfW * 0.5 + (r % 2) * 4 - 2, py + ry, 3, 3);
+    ctx.fillRect(px + rhalfW * 0.3 + (r % 2) * 3 - 2, py + ry + 2, 3, 3);
+  }
+  ctx.fillStyle = '#ef4444';
+  ctx.fillRect(px + (tx % 4) - 2, py + (ty % 4) - 2, 2, 2);
+
+  ctx.restore();
+}
+
+// ─── Power Line ────────────────────────────────────────────────────
+function drawPowerLineIso(px, py, hw, hh, b) {
+  // Pole
+  ctx.fillStyle = adjustBrightness('#6b7280', b);
+  ctx.fillRect(px - 1, py - 14, 2, 14);
+  ctx.fillStyle = adjustBrightness('#9ca3af', b);
+  ctx.fillRect(px - 4, py - 12, 8, 2);
+  ctx.fillRect(px - 4, py - 6, 8, 2);
+  // Wires (decorative)
+  ctx.strokeStyle = 'rgba(100,100,100,0.3)';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(px - hw, py);
+  ctx.quadraticCurveTo(px, py - 8, px + hw, py);
+  ctx.stroke();
+}
+
+// ─── Road Sign ─────────────────────────────────────────────────────
+function drawSignIso(px, py, hw, hh, tile, b) {
+  // Post
+  ctx.fillStyle = '#888';
+  ctx.fillRect(px - 1, py - 12, 2, 12);
+  // Sign board
+  ctx.fillStyle = '#fbbf24';
+  ctx.fillRect(px - 8, py - 16, 16, 8);
+  ctx.fillStyle = '#000';
+  ctx.font = '5px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  var sign = SIGNS[tile.data.signIdx || 0];
+  if (sign) ctx.fillText(sign.text.substring(0, 8), px, py - 12);
+}
+
+// ─── Special Buildings ─────────────────────────────────────────────
+function drawSpecialIso(type, px, py, hw, hh, level, b) {
+  var nightData = getDayNightOverlay();
+  var isNight = nightData && nightData.night > 0.45;
 
   switch (type) {
-    case T.BLUETOOTH_TOWER:
-      // Tall thin rectangle
-      ctx.fillStyle = '#1a1a2e'; ctx.fillRect(px, py, ts, ts);
-      // Tower shaft
-      ctx.fillStyle = adjustBrightness('#8b5cf6', b);
+    case T.BLUETOOTH_TOWER: {
+      // Tall tower with signal arcs
+      var h = 50;
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
       ctx.beginPath();
-      ctx.moveTo(px + ts/2 - 3, py + ts - 2);
-      ctx.lineTo(px + ts/2 + 3, py + ts - 2);
-      ctx.lineTo(px + ts/2 + 2, py + 4);
-      ctx.lineTo(px + ts/2 - 2, py + 4);
-      ctx.closePath(); ctx.fill();
-      // Shadow side
-      ctx.fillStyle = adjustBrightness('#5a3a9a', b);
+      ctx.ellipse(px + 4, py + hh * 0.4, hw * 0.5, hh * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Tower shaft — tapered
+      var tBaseW = 5, tTopW = 3;
+      // Right face
+      ctx.fillStyle = adjustBrightness('#8b5cf6', b * 0.85);
       ctx.beginPath();
-      ctx.moveTo(px + ts/2, py + ts - 2);
-      ctx.lineTo(px + ts/2 + 3, py + ts - 2);
-      ctx.lineTo(px + ts/2 + 2, py + 4);
-      ctx.lineTo(px + ts/2, py + 4);
-      ctx.closePath(); ctx.fill();
+      ctx.moveTo(px + tBaseW, py);
+      ctx.lineTo(px, py + hh * 0.4);
+      ctx.lineTo(px, py + hh * 0.4 - h);
+      ctx.lineTo(px + tTopW, py - h);
+      ctx.closePath();
+      ctx.fill();
+      // Left face
+      ctx.fillStyle = adjustBrightness('#5a3a9a', b * 0.7);
+      ctx.beginPath();
+      ctx.moveTo(px - tBaseW, py);
+      ctx.lineTo(px, py + hh * 0.4);
+      ctx.lineTo(px, py + hh * 0.4 - h);
+      ctx.lineTo(px - tTopW, py - h);
+      ctx.closePath();
+      ctx.fill();
+      // Top beacon
+      ctx.fillStyle = isNight ? '#a78bfa' : adjustBrightness('#6d28d9', b);
+      ctx.beginPath();
+      ctx.arc(px, py - h - 2, 4, 0, Math.PI * 2);
+      ctx.fill();
       // Signal arcs
       ctx.strokeStyle = adjustBrightness('#a78bfa', b); ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(px + ts/2, py + 6, 5, -Math.PI/3, Math.PI/3); ctx.stroke();
-      ctx.beginPath(); ctx.arc(px + ts/2, py + 6, 9, -Math.PI/3, Math.PI/3); ctx.stroke();
-      // Top beacon
-      ctx.fillStyle = isNight ? '#8b5cf6' : adjustBrightness('#6d28d9', b);
-      ctx.beginPath(); ctx.arc(px + ts/2, py + 3, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py - h, 7, -Math.PI / 3, Math.PI / 3); ctx.stroke();
+      ctx.beginPath(); ctx.arc(px, py - h, 12, -Math.PI / 3, Math.PI / 3); ctx.stroke();
       if (isNight) {
-        const grad = ctx.createRadialGradient(px + ts/2, py + 3, 0, px + ts/2, py + 3, 12);
-        grad.addColorStop(0, 'rgba(139,92,246,0.4)');
+        var grad = ctx.createRadialGradient(px, py - h, 0, px, py - h, 20);
+        grad.addColorStop(0, 'rgba(139,92,246,0.35)');
         grad.addColorStop(1, 'rgba(139,92,246,0)');
         ctx.fillStyle = grad;
-        ctx.fillRect(px - 6, py - 6, ts + 12, ts + 12);
+        ctx.fillRect(px - 22, py - h - 22, 44, 44);
       }
       break;
-
-    case T.POWER_PLANT:
-      // Square with smokestacks
-      ctx.fillStyle = '#1a1a0a'; ctx.fillRect(px, py, ts, ts);
-      ctx.fillStyle = adjustBrightness('#f59e0b', b);
-      ctx.fillRect(px + 3, py + 8, ts - 6, ts - 10);
-      // Shadow side
-      ctx.fillStyle = adjustBrightness('#b8790a', b);
-      ctx.fillRect(px + ts - 7, py + 8, 4, ts - 10);
-      // Smokestacks
-      ctx.fillStyle = adjustBrightness('#9a9a9a', b);
-      ctx.fillRect(px + 6, py + 3, 4, 6);
-      ctx.fillRect(px + ts - 10, py + 3, 4, 6);
-      // Smoke
-      const psmoke = (state.tick % 8) * 0.5;
-      ctx.fillStyle = `rgba(180,180,180,0.4)`;
-      ctx.beginPath(); ctx.arc(px + 8, py + 1 - psmoke, 3, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(px + ts - 8, py + 1 - psmoke * 1.3, 2.5, 0, Math.PI * 2); ctx.fill();
-      // Glow
-      ctx.fillStyle = '#ef4444';
-      ctx.fillRect(px + ts/2 - 2, py + 10, 4, 3);
-      if (isNight) {
-        const grad = ctx.createRadialGradient(px + ts/2, py + ts/2, 0, px + ts/2, py + ts/2, ts);
-        grad.addColorStop(0, 'rgba(255,100,0,0.1)');
-        grad.addColorStop(1, 'rgba(255,100,0,0)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(px - 8, py - 8, ts + 16, ts + 16);
-      }
-      break;
+    }
 
     case T.THRONE_ROOM: {
-      // Throne room: golden temple with columns and crown
-      ctx.fillStyle = '#1a1a2e'; ctx.fillRect(px, py, ts, ts);
-      // Base platform
-      ctx.fillStyle = adjustBrightness('#8b6914', b);
-      ctx.fillRect(px + 2, py + ts - 8, ts - 4, 6);
-      ctx.fillStyle = adjustBrightness('#d4af37', b);
-      ctx.fillRect(px + 3, py + ts - 10, ts - 6, 4);
-      // Columns
+      var h = 30;
+      // Golden temple
+      drawIsoBox(px, py, hw * 0.75, hh * 0.75, h,
+        adjustBrightness('#d4af37', b),
+        adjustBrightness('#8B6914', b * 0.6),
+        adjustBrightness('#b8941f', b * 0.85));
+      // Columns — draw as small vertical rectangles on the front face
       ctx.fillStyle = adjustBrightness('#fbbf24', b);
-      ctx.fillRect(px + 5, py + ts - 20, 3, 12);
-      ctx.fillRect(px + ts - 8, py + ts - 20, 3, 12);
-      ctx.fillRect(px + ts/2 - 1, py + ts - 20, 3, 12);
-      // Roof — golden dome (triangle)
-      ctx.fillStyle = adjustBrightness('#ffd700', b);
-      ctx.beginPath();
-      ctx.moveTo(px + 4, py + ts - 20);
-      ctx.lineTo(px + ts/2, py + 4);
-      ctx.lineTo(px + ts - 4, py + ts - 20);
-      ctx.closePath(); ctx.fill();
+      ctx.fillRect(px - hw * 0.4, py - h + 4, 2, h - 8);
+      ctx.fillRect(px + hw * 0.4, py - h + 4, 2, h - 8);
+      ctx.fillRect(px, py - h + 4, 2, h - 8);
       // Crown on top
       ctx.fillStyle = '#ffd700';
-      ctx.fillRect(px + ts/2 - 4, py + 2, 3, 3);
-      ctx.fillRect(px + ts/2 + 1, py + 2, 3, 3);
-      ctx.fillRect(px + ts/2 - 1, py, 3, 4);
+      ctx.fillRect(px - 4, py - h - 6, 3, 3);
+      ctx.fillRect(px + 1, py - h - 6, 3, 3);
+      ctx.fillRect(px - 1, py - h - 8, 3, 4);
       // Jewel
       ctx.fillStyle = '#ef4444';
-      ctx.fillRect(px + ts/2 - 1, py + 3, 3, 2);
+      ctx.fillRect(px - 1, py - h - 5, 3, 2);
       if (isNight) {
-        const grad = ctx.createRadialGradient(px + ts/2, py + ts/2, 0, px + ts/2, py + ts/2, ts);
-        grad.addColorStop(0, 'rgba(255,215,0,0.15)');
-        grad.addColorStop(1, 'rgba(255,215,0,0)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(px - 8, py - 8, ts + 16, ts + 16);
+        var tgrad = ctx.createRadialGradient(px, py - h / 2, 0, px, py - h / 2, hw);
+        tgrad.addColorStop(0, 'rgba(255,215,0,0.12)');
+        tgrad.addColorStop(1, 'rgba(255,215,0,0)');
+        ctx.fillStyle = tgrad;
+        ctx.fillRect(px - hw, py - hh - h, ISO_TILE_W, ISO_TILE_H + h);
       }
       break;
     }
 
     case T.GRILL: {
-      // Napoleon Flex Flame Grill: red building with drawn flame
-      ctx.fillStyle = '#1a0808'; ctx.fillRect(px, py, ts, ts);
-      ctx.fillStyle = adjustBrightness('#991b1b', b);
-      ctx.fillRect(px + 3, py + 6, ts - 6, ts - 9);
-      ctx.fillStyle = adjustBrightness('#7f1d1d', b);
-      ctx.fillRect(px + ts - 7, py + 6, 4, ts - 9);
-      // Roof slab
-      ctx.fillStyle = adjustBrightness('#dc2626', b);
-      ctx.fillRect(px + 1, py + 4, ts - 2, 3);
-      // Grill grate (horizontal lines)
+      var h = 20;
+      // Red building
+      drawIsoBox(px, py, hw * 0.72, hh * 0.72, h,
+        adjustBrightness('#dc2626', b),
+        adjustBrightness('#7f1d1d', b * 0.55),
+        adjustBrightness('#991b1b', b * 0.85));
+      // Grill grate lines on right wall
+      ctx.save();
+      var wl = Math.hypot(hw * 0.72, hh * 0.72);
+      ctx.transform(-hw * 0.72 / wl, hh * 0.72 / wl, 0, -1, px + hw * 0.72, py);
       ctx.strokeStyle = adjustBrightness('#fbbf24', b); ctx.lineWidth = 1;
-      for (let i = 0; i < 4; i++) {
+      for (var gj = 0; gj < 4; gj++) {
         ctx.beginPath();
-        ctx.moveTo(px + 6, py + 10 + i * 3);
-        ctx.lineTo(px + ts - 6, py + 10 + i * 3);
+        ctx.moveTo(2, 4 + gj * 4);
+        ctx.lineTo(wl - 2, 4 + gj * 4);
         ctx.stroke();
       }
-      // Flame — drawn as triangle
-      const flicker = Math.sin(state.tick * 3) * 1;
+      ctx.restore();
+      // Flame on top
+      var flicker = Math.sin(state.tick * 3) * 1;
       ctx.fillStyle = '#ff6600';
       ctx.beginPath();
-      ctx.moveTo(px + ts/2, py + 6 + flicker);
-      ctx.lineTo(px + ts/2 - 4, py + 12);
-      ctx.lineTo(px + ts/2 + 4, py + 12);
-      ctx.closePath(); ctx.fill();
+      ctx.moveTo(px, py - h - 2 + flicker);
+      ctx.lineTo(px - 4, py - h + 4);
+      ctx.lineTo(px + 4, py - h + 4);
+      ctx.closePath();
+      ctx.fill();
       ctx.fillStyle = '#ffaa00';
       ctx.beginPath();
-      ctx.moveTo(px + ts/2, py + 8 + flicker);
-      ctx.lineTo(px + ts/2 - 2, py + 12);
-      ctx.lineTo(px + ts/2 + 2, py + 12);
-      ctx.closePath(); ctx.fill();
+      ctx.moveTo(px, py - h + flicker);
+      ctx.lineTo(px - 2, py - h + 4);
+      ctx.lineTo(px + 2, py - h + 4);
+      ctx.closePath();
+      ctx.fill();
       if (isNight) {
-        const grad = ctx.createRadialGradient(px + ts/2, py + ts/2, 0, px + ts/2, py + ts/2, ts);
-        grad.addColorStop(0, 'rgba(255,80,0,0.15)');
-        grad.addColorStop(1, 'rgba(255,80,0,0)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(px - 8, py - 8, ts + 16, ts + 16);
+        var ggrad = ctx.createRadialGradient(px, py - h / 2, 0, px, py - h / 2, hw);
+        ggrad.addColorStop(0, 'rgba(255,80,0,0.12)');
+        ggrad.addColorStop(1, 'rgba(255,80,0,0)');
+        ctx.fillStyle = ggrad;
+        ctx.fillRect(px - hw, py - hh - h, ISO_TILE_W, ISO_TILE_H + h);
       }
       break;
     }
 
     case T.GARAGE: {
-      // Glenn's Garage: grey building with bay door and sign
-      ctx.fillStyle = '#0f0f0f'; ctx.fillRect(px, py, ts, ts);
-      ctx.fillStyle = adjustBrightness('#64748b', b);
-      ctx.fillRect(px + 2, py + 4, ts - 4, ts - 6);
-      ctx.fillStyle = adjustBrightness('#475569', b);
-      ctx.fillRect(px + ts - 6, py + 4, 4, ts - 6);
-      // Roof
-      ctx.fillStyle = adjustBrightness('#94a3b8', b);
-      ctx.fillRect(px + 1, py + 2, ts - 2, 3);
-      // Big bay door
+      var h = 22;
+      // Grey building
+      drawIsoBox(px, py, hw * 0.72, hh * 0.72, h,
+        adjustBrightness('#94a3b8', b),
+        adjustBrightness('#475569', b * 0.55),
+        adjustBrightness('#64748b', b * 0.85));
+      // Bay door on right wall
+      ctx.save();
+      var gwl = Math.hypot(hw * 0.72, hh * 0.72);
+      ctx.transform(-hw * 0.72 / gwl, hh * 0.72 / gwl, 0, -1, px + hw * 0.72, py);
       ctx.fillStyle = '#1a1a2a';
-      ctx.fillRect(px + 4, py + ts - 14, ts - 8, 12);
+      ctx.fillRect(gwl * 0.15, 0, gwl * 0.7, Math.min(h * 0.6, 14));
       ctx.strokeStyle = adjustBrightness('#cbd5e1', b); ctx.lineWidth = 1;
-      ctx.strokeRect(px + 4, py + ts - 14, ts - 8, 12);
-      // Door panels
-      ctx.strokeStyle = adjustBrightness('#475569', b);
-      for (let i = 1; i < 4; i++) {
+      ctx.strokeRect(gwl * 0.15, 0, gwl * 0.7, Math.min(h * 0.6, 14));
+      ctx.strokeStyle = adjustBrightness('#475569', b); ctx.lineWidth = 0.5;
+      for (var di = 1; di < 4; di++) {
         ctx.beginPath();
-        ctx.moveTo(px + 4, py + ts - 14 + i * 3);
-        ctx.lineTo(px + ts - 4, py + ts - 14 + i * 3);
+        ctx.moveTo(gwl * 0.15, di * 3);
+        ctx.lineTo(gwl * 0.85, di * 3);
         ctx.stroke();
       }
+      ctx.restore();
       // Sign
       ctx.fillStyle = '#fbbf24';
-      ctx.fillRect(px + 4, py + 5, ts - 8, 5);
+      ctx.fillRect(px - 6, py - h - 6, 12, 5);
       ctx.fillStyle = '#000';
-      ctx.font = 'bold 5px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('GARAGE', px + ts/2, py + 8);
+      ctx.font = 'bold 4px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('GARAGE', px, py - h - 3);
       break;
     }
 
     case T.GUMMY_FACTORY: {
-      // Smart Gummy Factory: pink building with rotating gears
-      ctx.fillStyle = '#0f0a0f'; ctx.fillRect(px, py, ts, ts);
-      ctx.fillStyle = adjustBrightness('#be185d', b);
-      ctx.fillRect(px + 2, py + 5, ts - 4, ts - 7);
-      ctx.fillStyle = adjustBrightness('#9d174d', b);
-      ctx.fillRect(px + ts - 6, py + 5, 4, ts - 7);
-      // Roof
-      ctx.fillStyle = adjustBrightness('#ec4899', b);
-      ctx.fillRect(px + 1, py + 3, ts - 2, 3);
-      // Rotating gears
-      const gearT = state.tick * 0.3;
-      const gx = px + ts/2, gy = py + ts/2 + 2;
+      var h = 26;
+      // Pink building
+      drawIsoBox(px, py, hw * 0.72, hh * 0.72, h,
+        adjustBrightness('#ec4899', b),
+        adjustBrightness('#9d174d', b * 0.55),
+        adjustBrightness('#be185d', b * 0.85));
+      // Rotating gears on right wall
+      ctx.save();
+      var fwl = Math.hypot(hw * 0.72, hh * 0.72);
+      ctx.transform(-hw * 0.72 / fwl, hh * 0.72 / fwl, 0, -1, px + hw * 0.72, py);
+      var gearT = state.tick * 0.3;
+      // Gears
       ctx.strokeStyle = adjustBrightness('#f9a8d4', b); ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(gx - 4, gy, 4, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(gx + 4, gy, 4, 0, Math.PI * 2); ctx.stroke();
-      // Gear teeth
+      ctx.beginPath(); ctx.arc(fwl * 0.3, h * 0.4, 4, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(fwl * 0.65, h * 0.4, 4, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = adjustBrightness('#f472b6', b);
-      for (let a = 0; a < 8; a++) {
-        const ang = gearT + a * Math.PI / 4;
-        ctx.fillRect(gx - 4 + Math.cos(ang) * 4 - 1, gy + Math.sin(ang) * 4 - 1, 2, 2);
+      for (var ga = 0; ga < 8; ga++) {
+        var ang = gearT + ga * Math.PI / 4;
+        ctx.fillRect(fwl * 0.3 + Math.cos(ang) * 4 - 1, h * 0.4 + Math.sin(ang) * 4 - 1, 2, 2);
+        ctx.fillRect(fwl * 0.65 + Math.cos(ang + 0.5) * 4 - 1, h * 0.4 + Math.sin(ang + 0.5) * 4 - 1, 2, 2);
       }
+      ctx.restore();
       break;
     }
 
     case T.HORN_TOWER: {
-      // AI Horn Speaker Tower: cyan tower with speaker horn
-      ctx.fillStyle = '#06151a'; ctx.fillRect(px, py, ts, ts);
-      // Tower shaft
-      ctx.fillStyle = adjustBrightness('#0891b2', b);
+      var h = 35;
+      // Cyan tower
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
       ctx.beginPath();
-      ctx.moveTo(px + ts/2 - 4, py + ts - 3);
-      ctx.lineTo(px + ts/2 + 4, py + ts - 3);
-      ctx.lineTo(px + ts/2 + 3, py + 8);
-      ctx.lineTo(px + ts/2 - 3, py + 8);
-      ctx.closePath(); ctx.fill();
-      // Shadow side
-      ctx.fillStyle = adjustBrightness('#0e7490', b);
+      ctx.ellipse(px + 3, py + hh * 0.3, hw * 0.4, hh * 0.25, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Shaft
+      var sBaseW = 5, sTopW = 3;
+      ctx.fillStyle = adjustBrightness('#0891b2', b * 0.85);
       ctx.beginPath();
-      ctx.moveTo(px + ts/2, py + ts - 3);
-      ctx.lineTo(px + ts/2 + 4, py + ts - 3);
-      ctx.lineTo(px + ts/2 + 3, py + 8);
-      ctx.lineTo(px + ts/2, py + 8);
-      ctx.closePath(); ctx.fill();
-      // Speaker horn on top
+      ctx.moveTo(px + sBaseW, py);
+      ctx.lineTo(px, py + hh * 0.4);
+      ctx.lineTo(px, py + hh * 0.4 - h);
+      ctx.lineTo(px + sTopW, py - h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = adjustBrightness('#0e7490', b * 0.65);
+      ctx.beginPath();
+      ctx.moveTo(px - sBaseW, py);
+      ctx.lineTo(px, py + hh * 0.4);
+      ctx.lineTo(px, py + hh * 0.4 - h);
+      ctx.lineTo(px - sTopW, py - h);
+      ctx.closePath();
+      ctx.fill();
+      // Speaker horn
       ctx.fillStyle = adjustBrightness('#22d3ee', b);
       ctx.beginPath();
-      ctx.moveTo(px + ts/2 - 5, py + 10);
-      ctx.lineTo(px + ts/2 + 5, py + 10);
-      ctx.lineTo(px + ts/2 + 3, py + 4);
-      ctx.lineTo(px + ts/2 - 3, py + 4);
-      ctx.closePath(); ctx.fill();
-      // Horn opening
+      ctx.moveTo(px - 5, py - h + 2);
+      ctx.lineTo(px + 5, py - h + 2);
+      ctx.lineTo(px + 3, py - h - 4);
+      ctx.lineTo(px - 3, py - h - 4);
+      ctx.closePath();
+      ctx.fill();
       ctx.fillStyle = adjustBrightness('#67e8f9', b);
-      ctx.beginPath(); ctx.arc(px + ts/2, py + 4, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py - h - 4, 4, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#0a1a1a';
-      ctx.beginPath(); ctx.arc(px + ts/2, py + 4, 2, 0, Math.PI * 2); ctx.fill();
-      // Sound waves (animated)
-      const wavePhase = (state.tick % 6) / 6;
-      ctx.strokeStyle = `rgba(34,211,238,${0.5 - wavePhase * 0.5})`;
+      ctx.beginPath(); ctx.arc(px, py - h - 4, 2, 0, Math.PI * 2); ctx.fill();
+      // Sound waves
+      var wavePhase = (state.tick % 6) / 6;
+      ctx.strokeStyle = 'rgba(34,211,238,' + (0.5 - wavePhase * 0.5) + ')';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(px + ts/2, py + 4, 5 + wavePhase * 8, -Math.PI/3, Math.PI/3); ctx.stroke();
+      ctx.arc(px, py - h - 4, 5 + wavePhase * 10, -Math.PI / 3, Math.PI / 3);
+      ctx.stroke();
       if (isNight) {
-        const grad = ctx.createRadialGradient(px + ts/2, py + ts/2, 0, px + ts/2, py + ts/2, ts);
-        grad.addColorStop(0, 'rgba(6,182,212,0.15)');
-        grad.addColorStop(1, 'rgba(6,182,212,0)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(px - 8, py - 8, ts + 16, ts + 16);
+        var hgrad = ctx.createRadialGradient(px, py - h / 2, 0, px, py - h / 2, hw);
+        hgrad.addColorStop(0, 'rgba(6,182,212,0.12)');
+        hgrad.addColorStop(1, 'rgba(6,182,212,0)');
+        ctx.fillStyle = hgrad;
+        ctx.fillRect(px - hw, py - hh - h, ISO_TILE_W, ISO_TILE_H + h);
+      }
+      break;
+    }
+
+    case T.POWER_PLANT: {
+      var h = 24;
+      // Orange/brown building
+      drawIsoBox(px, py, hw * 0.75, hh * 0.75, h,
+        adjustBrightness('#f59e0b', b),
+        adjustBrightness('#92400e', b * 0.55),
+        adjustBrightness('#b8790a', b * 0.85));
+      // Smokestacks
+      ctx.fillStyle = adjustBrightness('#9a9a9a', b);
+      ctx.fillRect(px - 6, py - h - 10, 4, 10);
+      ctx.fillRect(px + 3, py - h - 10, 4, 10);
+      // Caps
+      ctx.fillStyle = '#444';
+      ctx.fillRect(px - 7, py - h - 10, 6, 2);
+      ctx.fillRect(px + 2, py - h - 10, 6, 2);
+      // Smoke
+      var psmoke = (state.tick % 8) * 0.5;
+      ctx.fillStyle = 'rgba(180,180,180,0.35)';
+      ctx.beginPath(); ctx.arc(px - 4, py - h - 12 - psmoke, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(px + 5, py - h - 12 - psmoke * 1.3, 2.5, 0, Math.PI * 2); ctx.fill();
+      // Glow
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(px - 2, py - h + 6, 4, 3);
+      if (isNight) {
+        var pgrad = ctx.createRadialGradient(px, py - h / 2, 0, px, py - h / 2, hw);
+        pgrad.addColorStop(0, 'rgba(255,100,0,0.1)');
+        pgrad.addColorStop(1, 'rgba(255,100,0,0)');
+        ctx.fillStyle = pgrad;
+        ctx.fillRect(px - hw, py - hh - h, ISO_TILE_W, ISO_TILE_H + h);
       }
       break;
     }
   }
 }
-function drawFireOverlay(tx, ty) {
-  const px = tx * TILE, py = ty * TILE;
-  const flicker = Math.sin(state.tick * 2 + tx * 3 + ty * 5) * 0.2 + 0.8;
-  ctx.fillStyle = `rgba(255,80,0,${0.4 * flicker})`;
-  ctx.fillRect(px, py, TILE, TILE);
-  ctx.fillStyle = `rgba(255,200,0,${0.5 * flicker})`;
-  ctx.beginPath();
-  ctx.arc(px + TILE/2, py + TILE/2, TILE/3 * flicker, 0, Math.PI * 2);
+
+// ─── Fire Overlay ──────────────────────────────────────────────────
+function drawFireOverlayIso(tx, ty) {
+  var iso = tileToIso(tx, ty);
+  var px = iso.x, py = iso.y;
+  var flicker = Math.sin(state.tick * 2 + tx * 3 + ty * 5) * 0.2 + 0.8;
+  // Fire on diamond
+  isoDiamondPath(px, py, ISO_HW, ISO_HH);
+  ctx.fillStyle = 'rgba(255,80,0,' + (0.4 * flicker) + ')';
   ctx.fill();
-  // Flame particles
-  for (let i = 0; i < 3; i++) {
-    const fx = px + TILE/2 + Math.sin(state.tick * 3 + i * 2) * 4;
-    const fy = py + TILE/2 - (state.tick * 2 + i * 10) % 20;
-    ctx.fillStyle = `rgba(255,${100 + i * 50},0,${0.6 - i * 0.2})`;
+  ctx.fillStyle = 'rgba(255,200,0,' + (0.5 * flicker) + ')';
+  ctx.beginPath();
+  ctx.arc(px, py, ISO_HH * flicker, 0, Math.PI * 2);
+  ctx.fill();
+  // Flame particles rising
+  for (var i = 0; i < 3; i++) {
+    var fx = px + Math.sin(state.tick * 3 + i * 2) * 4;
+    var fy = py - (state.tick * 2 + i * 10) % 20;
+    ctx.fillStyle = 'rgba(255,' + (100 + i * 50) + ',0,' + (0.6 - i * 0.2) + ')';
     ctx.fillRect(fx - 1, fy - 2, 2, 4);
   }
 }
+
 
 // ═══════════════════════════════════════════════════════════════════
 // MINIMAP
@@ -2526,13 +2725,20 @@ function renderMinimap() {
       }
     }
   }
-  const vx = -camX / zoom / TILE * mw;
-  const vy = -camY / zoom / TILE * mh;
-  const vw = canvas.width / zoom / TILE * mw;
-  const vh = canvas.height / zoom / TILE * mh;
-  mctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  // Viewport indicator — approximate center of view in tile coords
+  var centerTile = isoToTile(
+    (canvas.width / 2 - camX) / zoom,
+    (canvas.height / 2 - camY) / zoom
+  );
+  var cx = centerTile.x * mw;
+  var cy = centerTile.y * mh;
+  mctx.strokeStyle = 'rgba(255,255,255,0.5)';
   mctx.lineWidth = 1;
-  mctx.strokeRect(vx, vy, vw, vh);
+  mctx.beginPath();
+  mctx.arc(cx, cy, 6, 0, Math.PI * 2);
+  mctx.stroke();
+  mctx.fillStyle = 'rgba(255,255,255,0.15)';
+  mctx.fill();
 }
 
 minimap.addEventListener('pointerdown', e => {
@@ -2540,8 +2746,11 @@ minimap.addEventListener('pointerdown', e => {
   const rect = minimap.getBoundingClientRect();
   const mx = (e.clientX - rect.left) / rect.width;
   const my = (e.clientY - rect.top) / rect.height;
-  camX = canvas.width / 2 - mx * WORLD * zoom;
-  camY = canvas.height / 2 - my * WORLD * zoom;
+  // Convert minimap position to tile coords, then to iso screen coords
+  var ttx = mx * GRID, tty = my * GRID;
+  var iso = tileToIso(ttx, tty);
+  camX = canvas.width / 2 - iso.x * zoom;
+  camY = canvas.height / 2 - iso.y * zoom;
   clampCamera();
 });
 
@@ -2930,8 +3139,9 @@ function hashCode(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = ((h <
 
 function centerCamOnCar() {
   if (!myCar) return;
-  camX = canvas.width / 2 - myCar.x * zoom;
-  camY = (canvas.height + HUD_H - TOOLBAR_H) / 2 - myCar.y * zoom;
+  var iso = worldToIso(myCar.x, myCar.y);
+  camX = canvas.width / 2 - iso.x * zoom;
+  camY = (canvas.height + HUD_H - TOOLBAR_H) / 2 - iso.y * zoom;
 }
 
 // D-pad
@@ -2991,23 +3201,36 @@ function updateCar(dt) {
 }
 
 function renderCars2D() {
-  const all = { ...cars };
+  var all = Object.assign({}, cars);
   if (myCar) all[getMyId()] = myCar;
-  for (const [id, car] of Object.entries(all)) {
-    const mine = id === getMyId();
+  for (var id in all) {
+    if (!all.hasOwnProperty(id)) continue;
+    var car = all[id];
+    var mine = id === getMyId();
+    var iso = worldToIso(car.x, car.y);
     ctx.save();
-    ctx.translate(car.x, car.y);
-    ctx.rotate(car.dir);
+    ctx.translate(iso.x, iso.y);
+    // Convert tile-space direction to screen angle
+    var cdir = car.dir || 0;
+    var cdx = Math.cos(cdir), cdy = Math.sin(cdir);
+    var svx = (cdx - cdy) * ISO_HW;
+    var svy = (cdx + cdy) * ISO_HH;
+    var screenAngle = Math.atan2(svy, svx);
+    ctx.rotate(screenAngle);
+    // Car body
     ctx.fillStyle = car.color || '#ef4444';
-    ctx.fillRect(-CAR_SIZE / 2, -CAR_SIZE / 2, CAR_SIZE, CAR_SIZE);
+    ctx.fillRect(-CAR_SIZE / 2, -CAR_SIZE / 3, CAR_SIZE, CAR_SIZE * 2 / 3);
     ctx.fillStyle = 'rgba(150,200,255,0.7)';
-    ctx.fillRect(CAR_SIZE / 2 - 4, -CAR_SIZE / 2 + 1, 2, CAR_SIZE - 2);
-    if (mine) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.strokeRect(-CAR_SIZE / 2 - 1, -CAR_SIZE / 2 - 1, CAR_SIZE + 2, CAR_SIZE + 2); }
+    ctx.fillRect(CAR_SIZE / 2 - 4, -CAR_SIZE / 3 + 1, 2, CAR_SIZE * 2 / 3 - 2);
+    if (mine) {
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+      ctx.strokeRect(-CAR_SIZE / 2 - 1, -CAR_SIZE / 3 - 1, CAR_SIZE + 2, CAR_SIZE * 2 / 3 + 2);
+    }
     ctx.restore();
     if (car.name) {
       ctx.fillStyle = mine ? '#fff' : '#aaa';
       ctx.font = '7px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(car.name, car.x, car.y - CAR_SIZE / 2 - 3);
+      ctx.fillText(car.name, iso.x, iso.y - CAR_SIZE / 2 - 3);
     }
   }
 }
