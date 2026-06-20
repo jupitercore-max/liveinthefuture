@@ -702,7 +702,7 @@ canvas.addEventListener('pointerup', e => {
   const info = pointers.get(e.pointerId);
   pointers.delete(e.pointerId);
   if (pointers.size < 2) lastPinchDist = 0;
-  if (info && dragInfo && !dragInfo.moved && pointers.size === 0) {
+  if (info && dragInfo && !dragInfo.moved) {
     const move = Math.hypot(e.clientX - info.sx, e.clientY - info.sy);
     if (move < TAP_THRESHOLD) {
       const t = worldToTile(screenToWorld(e.clientX, e.clientY));
@@ -713,6 +713,35 @@ canvas.addEventListener('pointerup', e => {
 });
 
 canvas.addEventListener('pointercancel', () => { pointers.clear(); dragInfo = null; lastPinchDist = 0; });
+
+// CLICK FALLBACK — some browsers/tools fire click without proper pointerup
+let lastPointerDown = null;
+canvas.addEventListener('pointerdown', e => { lastPointerDown = { x: e.clientX, y: e.clientY, t: Date.now() }; });
+canvas.addEventListener('click', e => {
+  if (lastPointerDown && Date.now() - lastPointerDown.t < 500) {
+    const move = Math.hypot(e.clientX - lastPointerDown.x, e.clientY - lastPointerDown.y);
+    if (move < TAP_THRESHOLD) {
+      const t = worldToTile(screenToWorld(e.clientX, e.clientY));
+      // Only handle if pointerup didn't already fire (dragInfo still set means pointerup missed)
+      if (dragInfo && !dragInfo.moved) {
+        handleTap(t.x, t.y);
+      }
+    }
+  }
+});
+
+// TOUCH FALLBACK for older mobile browsers
+canvas.addEventListener('touchend', e => {
+  if (e.changedTouches.length === 1) {
+    const touch = e.changedTouches[0];
+    const t = worldToTile(screenToWorld(touch.clientX, touch.clientY));
+    // If no drag happened, treat as tap
+    if (!dragInfo || !dragInfo.moved) {
+      handleTap(t.x, t.y);
+      e.preventDefault();
+    }
+  }
+}, { passive: false });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
