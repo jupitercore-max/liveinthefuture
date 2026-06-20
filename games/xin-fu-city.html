@@ -125,7 +125,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 .bp-row .val.neg{color:#ef4444}
 
 /* ═══ TUTORIAL OVERLAY ═══ */
-#tutorialOverlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px;pointer-events:none}
+#tutorialOverlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px;pointer-events:none;touch-action:none}
 #tutorialOverlay.show{display:flex;pointer-events:none}
 #tutorialOverlay.show .tutorial-card{pointer-events:auto}
 .tutorial-card{background:rgba(18,18,30,0.98);border:1px solid #3a3a5a;border-radius:16px;padding:24px 20px;max-width:340px;width:100%;text-align:center;animation:tutPop .3s ease}
@@ -645,16 +645,126 @@ function screenToWorld(sx, sy) { return { x: (sx - camX) / zoom, y: (sy - camY) 
 function worldToTile(wx, wy) { return { x: Math.floor(wx / TILE), y: Math.floor(wy / TILE) }; }
 
 // ═══════════════════════════════════════════════════════════════════
-// POINTER CONTROLS — unified mouse + touch
+// INPUT CONTROLS — Layered: Touch (primary mobile) + Pointer (desktop) + Click (fallback)
+// iOS Safari / iMessage WKWebView need explicit touch events.
+// setPointerCapture is NEVER called — it breaks iOS touch.
 // ═══════════════════════════════════════════════════════════════════
+const TAP_THRESHOLD = 10;  // 10px — safer for fingers
+
+// --- Shared state for both touch and pointer paths ---
+let _handleTapGuard = 0;  // timestamp of last handleTap call; prevents double-fire
+
+function _tryHandleTap(sx, sy) {
+  const now = Date.now();
+  if (now - _handleTapGuard < 200) return;  // debounced
+  _handleTapGuard = now;
+  const t = worldToTile(screenToWorld(sx, sy));
+  handleTap(t.x, t.y);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// LAYER 1: TOUCH EVENTS — Primary for mobile (iOS Safari, iMessage WKWebView)
+// ══════════════════════════════════════════════════════════════════
+let touchStart = null;   // { x, y, time, moved, camX, camY }
+let pinchStartDist = 0;
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  unlockAudio();
+
+  if (e.touches.length === 1) {
+    const t = e.touches[0];
+    touchStart = {
+      x: t.clientX, y: t.clientY,
+      time: Date.now(), moved: false,
+      camX: camX, camY: camY,
+    };
+  } else if (e.touches.length === 2) {
+    // Begin pinch zoom
+    const t1 = e.touches[0], t2 = e.touches[1];
+    pinchStartDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+    if (touchStart) touchStart.moved = true;  // suppress tap during pinch
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+
+  if (e.touches.length === 1 && touchStart) {
+    const t = e.touches[0];
+    const dx = t.clientX - touchStart.x;
+    const dy = t.clientY - touchStart.y;
+    if (Math.hypot(dx, dy) > TAP_THRESHOLD) {
+      touchStart.moved = true;
+      // Pan camera
+      camX = touchStart.camX + dx;
+      camY = touchStart.camY + dy;
+      clampCamera();
+
+      // Drag-build for roads / bulldoze
+      if (activeTool !== 'inspect' && activeTool !== 'drive') {
+        const tile = worldToTile(screenToWorld(t.clientX, t.clientY));
+        if (activeTool === 'bulldoze') doBulldoze(tile.x, tile.y);
+        else doBuild(tile.x, tile.y);
+      }
+    }
+  } else if (e.touches.length === 2) {
+    // Pinch zoom
+    const t1 = e.touches[0], t2 = e.touches[1];
+    const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+    if (pinchStartDist > 0) {
+      zoom = Math.max(0.4, Math.min(3, zoom * (dist / pinchStartDist)));
+      clampCamera();
+    }
+    pinchStartDist = dist;
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+
+  if (touchStart && !touchStart.moved && e.changedTouches.length === 1) {
+    // IT'S A TAP — place building
+    const t = e.changedTouches[0];
+    _tryHandleTap(t.clientX, t.clientY);
+  }
+
+  // Reset touch state. If fingers remain, rebuild start from remaining touch.
+  if (e.touches.length === 0) {
+    touchStart = null;
+    pinchStartDist = 0;
+  } else if (e.touches.length === 1) {
+    // Went from 2→1 finger: set up pan from remaining finger
+    const t = e.touches[0];
+    touchStart = {
+      x: t.clientX, y: t.clientY,
+      time: Date.now(), moved: true,  // suppress tap after pinch
+      camX: camX, camY: camY,
+    };
+    pinchStartDist = 0;
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchcancel', () => {
+  touchStart = null;
+  pinchStartDist = 0;
+}, { passive: false });
+
+// ══════════════════════════════════════════════════════════════════
+// LAYER 2: POINTER EVENTS — Secondary for desktop browsers
+// NOTE: No setPointerCapture — it breaks iOS Safari touch.
+// ══════════════════════════════════════════════════════════════════
 const pointers = new Map();
 let dragInfo = null;
 let lastPinchDist = 0;
-const TAP_THRESHOLD = 8;
+let _pointerIsTouch = false;  // flag: suppress pointer tap if touch already handled
 
 canvas.addEventListener('pointerdown', e => {
+  // If this is a touch-generated pointer event, track but let touch layer handle taps
+  _pointerIsTouch = (e.pointerType === 'touch');
+
   e.preventDefault();
-  canvas.setPointerCapture(e.pointerId);
+  // DO NOT call setPointerCapture — breaks iOS
   unlockAudio();
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
   if (pointers.size === 1) {
@@ -691,6 +801,7 @@ canvas.addEventListener('pointermove', e => {
       camX = dragInfo.camX + dx;
       camY = dragInfo.camY + dy;
       clampCamera();
+      // Drag-build for mouse (desktop)
       if (activeTool !== 'inspect' && activeTool !== 'drive') {
         const t = worldToTile(screenToWorld(e.clientX, e.clientY));
         if (activeTool === 'bulldoze') doBulldoze(t.x, t.y);
@@ -704,43 +815,35 @@ canvas.addEventListener('pointerup', e => {
   const info = pointers.get(e.pointerId);
   pointers.delete(e.pointerId);
   if (pointers.size < 2) lastPinchDist = 0;
-  if (info && dragInfo && !dragInfo.moved) {
+  // Only treat as tap for non-touch pointers (mouse/pen).
+  // Touch taps are handled by the touchend layer above.
+  if (info && dragInfo && !dragInfo.moved && !_pointerIsTouch) {
     const move = Math.hypot(e.clientX - info.sx, e.clientY - info.sy);
     if (move < TAP_THRESHOLD) {
-      const t = worldToTile(screenToWorld(e.clientX, e.clientY));
-      handleTap(t.x, t.y);
+      _tryHandleTap(e.clientX, e.clientY);
     }
   }
-  if (pointers.size === 0) dragInfo = null;
+  if (pointers.size === 0) { dragInfo = null; _pointerIsTouch = false; }
 });
 
 canvas.addEventListener('pointercancel', () => { pointers.clear(); dragInfo = null; lastPinchDist = 0; });
 
-// CLICK FALLBACK — some browsers/tools fire click without proper pointerup
-let lastPointerDown = null;
-canvas.addEventListener('pointerdown', e => { lastPointerDown = { x: e.clientX, y: e.clientY, t: Date.now() }; });
+// ══════════════════════════════════════════════════════════════════
+// LAYER 3: CLICK FALLBACK — for desktop browsers that fire click without pointerup
+// ══════════════════════════════════════════════════════════════════
+let _lastPointerDown = null;
+canvas.addEventListener('pointerdown', e => { _lastPointerDown = { x: e.clientX, y: e.clientY, t: Date.now(), touch: e.pointerType === 'touch' }; });
 canvas.addEventListener('click', e => {
-  if (lastPointerDown && Date.now() - lastPointerDown.t < 500) {
-    const move = Math.hypot(e.clientX - lastPointerDown.x, e.clientY - lastPointerDown.y);
+  // Skip if generated by touch (touchend layer handles it)
+  if (_lastPointerDown && _lastPointerDown.touch) return;
+  if (_lastPointerDown && Date.now() - _lastPointerDown.t < 500) {
+    const move = Math.hypot(e.clientX - _lastPointerDown.x, e.clientY - _lastPointerDown.y);
     if (move < TAP_THRESHOLD) {
-      const t = worldToTile(screenToWorld(e.clientX, e.clientY));
-      handleTap(t.x, t.y);
+      _tryHandleTap(e.clientX, e.clientY);
     }
   }
 });
 
-// TOUCH FALLBACK for older mobile browsers
-canvas.addEventListener('touchend', e => {
-  if (e.changedTouches.length === 1) {
-    const touch = e.changedTouches[0];
-    const t = worldToTile(screenToWorld(touch.clientX, touch.clientY));
-    // If no drag happened, treat as tap
-    if (!dragInfo || !dragInfo.moved) {
-      handleTap(t.x, t.y);
-      e.preventDefault();
-    }
-  }
-}, { passive: false });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
@@ -2160,10 +2263,10 @@ const V3 = {
 
     dom.addEventListener('pointerdown', e => {
       e.preventDefault();
-      dom.setPointerCapture(e.pointerId);
+      // DO NOT call setPointerCapture — breaks iOS Safari
       unlockAudio();
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
-      if (ptrs.size === 1) drag3D = { x: e.clientX, y: e.clientY, moved: false };
+      if (ptrs.size === 1) drag3D = { x: e.clientX, y: e.clientY, moved: false, touch: e.pointerType === 'touch' };
       else if (ptrs.size === 2) {
         const pts = [...ptrs.values()];
         lastPinch = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
@@ -2197,13 +2300,67 @@ const V3 = {
       const info = ptrs.get(e.pointerId);
       ptrs.delete(e.pointerId);
       if (ptrs.size < 2) lastPinch = 0;
-      if (info && ptrs.size === 0 && !drag3D?.moved) {
+      // Only pick tile on non-touch (mouse/pen); touch handled by touchend below
+      if (info && ptrs.size === 0 && !drag3D?.moved && !(drag3D && drag3D.touch)) {
         const move = Math.hypot(e.clientX - info.sx, e.clientY - info.sy);
-        if (move < 8) { this.pickTile(e.clientX, e.clientY); haptic(10); }
+        if (move < 10) { this.pickTile(e.clientX, e.clientY); haptic(10); }
       }
       if (ptrs.size === 0) drag3D = null;
     });
 
+    // TOUCH EVENTS for 3D view (iOS Safari / iMessage WKWebView)
+    let tStart3D = null, pinch3D = 0;
+    dom.addEventListener('touchstart', e => {
+      e.preventDefault();
+      if (e.touches.length === 1) {
+        const t = e.touches[0];
+        tStart3D = { x: t.clientX, y: t.clientY, moved: false };
+      } else if (e.touches.length === 2) {
+        const t1 = e.touches[0], t2 = e.touches[1];
+        pinch3D = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        if (tStart3D) tStart3D.moved = true;
+      }
+    }, { passive: false });
+
+    dom.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (e.touches.length === 1 && tStart3D) {
+        const t = e.touches[0];
+        const dx = t.clientX - tStart3D.x, dy = t.clientY - tStart3D.y;
+        if (Math.hypot(dx, dy) > 5) {
+          tStart3D.moved = true;
+          this.camAngle -= dx * 0.008;
+          this.camPitch = Math.max(0.15, Math.min(1.2, this.camPitch - dy * 0.005));
+          this.updateCam();
+          tStart3D.x = t.clientX; tStart3D.y = t.clientY;
+        }
+      } else if (e.touches.length === 2) {
+        const t1 = e.touches[0], t2 = e.touches[1];
+        const d = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        if (pinch3D > 0) {
+          this.camDist = Math.max(8, Math.min(60, this.camDist / (d / pinch3D)));
+          this.updateCam();
+        }
+        pinch3D = d;
+      }
+    }, { passive: false });
+
+    dom.addEventListener('touchend', e => {
+      e.preventDefault();
+      if (tStart3D && !tStart3D.moved && e.changedTouches.length === 1) {
+        const t = e.changedTouches[0];
+        this.pickTile(t.clientX, t.clientY);
+        haptic(10);
+      }
+      if (e.touches.length === 0) { tStart3D = null; pinch3D = 0; }
+      else if (e.touches.length === 1) {
+        const t = e.touches[0];
+        tStart3D = { x: t.clientX, y: t.clientY, moved: true };
+        pinch3D = 0;
+      }
+    }, { passive: false });
+
+    dom.addEventListener('touchcancel', () => { tStart3D = null; pinch3D = 0; }, { passive: false });
     dom.addEventListener('pointercancel', () => { ptrs.clear(); drag3D = null; lastPinch = 0; });
     dom.addEventListener('wheel', e => {
       e.preventDefault();
