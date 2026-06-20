@@ -315,6 +315,7 @@ const T = {
   PLAYGROUND: 18,
   EMMY_ELECTRONICS: 19,
   ELSIE_RESTAURANT: 20,
+  FIRE_DEPT: 21,
 };
 
 const TD = {
@@ -337,6 +338,7 @@ const TD = {
   [T.PLAYGROUND]:      { name:'Playground',       color:'#22c55e', cost:800, happy:5, desc:'Swings, slides, and fun for kids! Boosts nearby happiness.' },
   [T.EMMY_ELECTRONICS]: { name:'Emmy\'s Electronics', color:'#06b6d4', cost:2000, income:45, jobs:15, happy:2, desc:'Emmy\'s gadget shop. Sells the latest tech and gizmos!' },
   [T.ELSIE_RESTAURANT]:  { name:'Elsie\'s Eatery', color:'#ef4444', cost:1500, income:35, happy:3, desc:'Elsie\'s cozy eatery. Great food and happy customers!' },
+  [T.FIRE_DEPT]:          { name:'Fire Department', color:'#dc2626', cost:3000, happy:1, desc:'Puts out fires in nearby buildings. Protects within 5 tiles.' },
 };
 
 // ─── Categories & Tools ────────────────────────────────────────────
@@ -365,6 +367,7 @@ const TOOLS = [
   { id:'playground', icon:'🛝', name:'Playground',  tile:T.PLAYGROUND,    cost:800,  cat:'special' },
   { id:'electronics', icon:'🔌', name:'Emmy\'s Electronics', tile:T.EMMY_ELECTRONICS, cost:2000, cat:'special' },
   { id:'restaurant', icon:'🍽️', name:'Elsie\'s Eatery', tile:T.ELSIE_RESTAURANT, cost:1500, cat:'special' },
+  { id:'firedept',   icon:'🚒', name:'Fire Dept',     tile:T.FIRE_DEPT,          cost:3000, cat:'special' },
   { id:'inspect',   icon:'🔍', name:'Inspect',     cost:0,               cat:'tools' },
   { id:'bulldoze',  icon:'💥', name:'Bulldoze',    cost:0,               cat:'tools' },
   { id:'drive',     icon:'🚗', name:'Drive',       cost:0,               cat:'tools' },
@@ -1155,6 +1158,19 @@ function computePoweredTiles() {
 function isPowered(tx, ty) { return state.poweredTiles.has(ty * GRID + tx); }
 function getPollution(tx, ty) { return state.pollution[ty] ? Math.round(state.pollution[ty][tx] || 0) : 0; }
 
+// Check for nearby fire department within radius
+function hasFireDeptWithin(tx, ty, radius) {
+  for (var dy = -radius; dy <= radius; dy++) {
+    for (var dx = -radius; dx <= radius; dx++) {
+      var nx = tx + dx, ny = ty + dy;
+      if (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID) {
+        if (state.grid[ny][nx].type === T.FIRE_DEPT) return true;
+      }
+    }
+  }
+  return false;
+}
+
 function updatePollution() {
   for (let y = 0; y < GRID; y++)
     for (let x = 0; x < GRID; x++)
@@ -1169,6 +1185,7 @@ function updatePollution() {
       else if (tile.type === T.GARAGE) pAmount = 1;
       else if (tile.type === T.EMMY_ELECTRONICS) pAmount = 1;
       else if (tile.type === T.ELSIE_RESTAURANT) pAmount = 1;
+      // Fire Department is clean — pAmount stays 0
       if (pAmount > 0) {
         for (let dy = -POLLUTION_RADIUS; dy <= POLLUTION_RADIUS; dy++) {
           for (let dx = -POLLUTION_RADIUS; dx <= POLLUTION_RADIUS; dx++) {
@@ -1278,6 +1295,13 @@ function simTick() {
             if (powered && road) {
               // Disaster: fire damage
               if (tile.data && tile.data.onFire) {
+                // Fire Department suppression — extinguish immediately if within 5 tiles
+                if (hasFireDeptWithin(x, y, 5)) {
+                  tile.data.onFire = false;
+                  tile.data.fireTicks = 0;
+                  addTileEffect(x, y, '#3b82f6', 800);
+                  addFloater(x * TILE + TILE / 2, y * TILE - 4, '🚒 Extinguished!', '#3b82f6');
+                } else {
                 tile.data.fireTicks = (tile.data.fireTicks || 0) + 1;
                 if (tile.data.fireTicks >= 5) {
                   if (tile.level > 1) {
@@ -1289,6 +1313,7 @@ function simTick() {
                   tile.data.fireTicks = 0;
                   addTileEffect(x, y, '#666', 600);
                 }
+                } // end else (no fire dept nearby)
               }
               if (tile.level < 5) {
                 var growChance = 0.15 * (state.rci.i / 100);
@@ -1327,6 +1352,7 @@ function simTick() {
           case T.PLAYGROUND:     specialBuildings++; break;
           case T.EMMY_ELECTRONICS:  income += 45; specialBuildings++; break;
           case T.ELSIE_RESTAURANT:  income += 35; specialBuildings++; break;
+          case T.FIRE_DEPT:         income -= 20; specialBuildings++; break; // Maintenance cost
         }
       }
     }
@@ -1824,6 +1850,7 @@ function drawTileIso(tx, ty, brightness) {
     case T.PLAYGROUND: drawSpecialIso(T.PLAYGROUND, px, py, hw, hh, tile.level, b); break;
     case T.EMMY_ELECTRONICS: drawSpecialIso(T.EMMY_ELECTRONICS, px, py, hw, hh, tile.level, b); break;
     case T.ELSIE_RESTAURANT: drawSpecialIso(T.ELSIE_RESTAURANT, px, py, hw, hh, tile.level, b); break;
+    case T.FIRE_DEPT: drawSpecialIso(T.FIRE_DEPT, px, py, hw, hh, tile.level, b); break;
     case T.POWER_LINE: drawPowerLineIso(px, py, hw, hh, b); break;
     case T.SIGN: drawSignIso(px, py, hw, hh, tile, b); break;
   }
@@ -3031,10 +3058,47 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
 
       break;
     }
+    case T.FIRE_DEPT: {
+      var h = 26;
+      var bw = hw * 0.75, bh = hh * 0.75;
+
+      // Building body — fire engine red
+      drawIsoBox(px, py, bw, bh, h,
+        adjustBrightness('#dc2626', b),
+        adjustBrightness('#7f1d1d', b * 0.55),
+        adjustBrightness('#b91c1c', b * 0.85));
+
+      // White trim band
+      ctx.fillStyle = adjustBrightness('#f5f5f5', b);
+      ctx.fillRect(px - bw * 0.5, py - h * 0.55, bw, 4);
+
+      // Garage door (dark)
+      ctx.fillStyle = adjustBrightness('#1a1a1a', b);
+      ctx.fillRect(px - bw * 0.3, py - h * 0.35, bw * 0.6, h * 0.3);
+
+      // Siren light on top (flashing red/white)
+      var sirenFlash = Math.floor(state.tick * 4) % 2;
+      ctx.fillStyle = sirenFlash ? '#ff0000' : '#ffffff';
+      ctx.beginPath();
+      ctx.arc(px, py - h - 2, 3, 0, Math.PI * 2);
+      ctx.fill();
+      // Glow
+      ctx.fillStyle = sirenFlash ? 'rgba(255,0,0,0.3)' : 'rgba(255,255,255,0.3)';
+      ctx.beginPath();
+      ctx.arc(px, py - h - 2, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 🚒 symbol
+      ctx.fillStyle = adjustBrightness('#fbbf24', b);
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🚒', px, py - h * 0.2);
+
+      break;
+    }
   }
 }
-
-// ─── Fire Overlay ─────────────────────────────────────────────────
 function drawFireOverlayIso(tx, ty) {
   var iso = tileToIso(tx, ty);
   var px = iso.x, py = iso.y;
@@ -4429,6 +4493,19 @@ function checkMilestones() {
           break;
         }
   }
+
+  // Fire Department milestone
+  if (!state.milestones.firedept) {
+    for (let y = 0; y < GRID; y++)
+      for (let x = 0; x < GRID; x++)
+        if (state.grid[y][x].type === T.FIRE_DEPT) {
+          state.milestones.firedept = true;
+          toast('🚒 Fire Department operational — protecting the city!');
+          sndGrow();
+          haptic(15);
+          break;
+        }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -4449,6 +4526,7 @@ const NEWS_MESSAGES = [
   'The future is now in Xin Fú City!',
   'New businesses flocking to Xin Fú downtown!',
   'City planners recommend mixed-use zoning.',
+  'Fire Department urges: clear roads save lives!',
 ];
 
 let newsIdx = 0;
