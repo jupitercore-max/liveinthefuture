@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>3 Nights of Spring Break Stories</title>
+  <style>
+    :root { color-scheme: dark; --accent: #f0a060; --accent-dim: rgba(240,160,96,0.14); --accent-bright: #f8c088; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; -webkit-font-smoothing: antialiased; }
+    body { position: relative; user-select: none; -webkit-user-select: none; }
+    .story-page { position: relative; width: 100%; height: 100%; overflow: hidden; color: #fff; isolation: isolate; }
+    .slide {
+      position: absolute; inset: 0; z-index: 1;
+      display: flex; flex-direction: column; justify-content: flex-end;
+      padding: 0 28px 52px;
+      animation: slide-arrive 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    .slide-bg {
+      position: absolute; inset: -5%; z-index: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 25% 30%, rgba(240,160,96,0.14) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 60% at 80% 70%, rgba(240,130,60,0.10) 0%, transparent 70%),
+        #080503;
+      animation: slow-drift 25s ease-in-out infinite alternate;
+      will-change: transform;
+    }
+    .slide::after {
+      content: ""; position: absolute; inset: 0; z-index: 1; opacity: 0.055; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+    }
+    .slide::before {
+      content: ""; position: absolute; inset: 0; z-index: 1;
+      background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.42) 100%);
+      pointer-events: none;
+    }
+    .orb {
+      position: absolute; z-index: 0; border-radius: 50%; filter: blur(80px); will-change: transform, opacity;
+      animation: float 18s ease-in-out infinite alternate;
+      background: rgba(240,160,96,0.18);
+      width: 280px; height: 280px; top: 10%; right: -8%;
+    }
+    .orb--secondary {
+      width: 210px; height: 210px; bottom: 12%; left: -8%;
+      filter: blur(90px); opacity: 0.8;
+      animation-duration: 24s; animation-direction: alternate-reverse;
+      background: rgba(240,110,40,0.10);
+    }
+    #particles { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+    .mock {
+      position: absolute; top: 7%; left: 0; right: 0; z-index: 5;
+      width: 290px; margin: 0 auto; padding: 20px;
+      border: 1px solid rgba(255,255,255,0.06); border-radius: 20px;
+      background: rgba(16,14,10,0.93);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.55);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      animation: mock-in 0.8s cubic-bezier(0.16,1,0.3,1) both, mock-breathe 4s ease-in-out 1s infinite;
+    }
+    .m-sticker {
+      position: absolute; top: -20px; right: -18px; z-index: 2;
+      width: 52px; height: 52px; transform: rotate(12deg);
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+    }
+    .m-sticker svg { display: block; width: 100%; height: 100%; }
+    .m-sticker-text {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      color: #222; font-size: 7px; font-weight: 800; letter-spacing: 0.06em;
+      text-transform: uppercase; padding-top: 1px;
+    }
+    .m-head {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+      padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .m-title { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.9); }
+    .m-badge {
+      margin-left: auto; font-size: 9px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--accent); background: var(--accent-dim);
+      padding: 2px 7px; border-radius: 8px;
+    }
+    .m-story-card {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(240,160,96,0.2);
+      border-radius: 12px; padding: 12px; margin-bottom: 8px;
+      opacity: 0; transform: translateY(8px);
+      animation: card-in 0.5s cubic-bezier(0.16,1,0.3,1) forwards;
+    }
+    .m-story-card:nth-child(2) { animation-delay: 0.4s; }
+    .m-story-card:nth-child(3) { animation-delay: 0.55s; }
+    .m-story-card:nth-child(4) { animation-delay: 0.7s; }
+    .m-story-night {
+      font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 4px;
+    }
+    .m-story-title { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.92); margin-bottom: 3px; }
+    .m-story-preview { font-size: 10px; font-weight: 400; color: rgba(255,255,255,0.45); line-height: 1.4; }
+    .m-story-time { font-size: 9px; color: rgba(255,255,255,0.25); text-align: right; margin-top: 4px; }
+    .slide-content { position: relative; z-index: 10; }
+    .slide-content::before {
+      content: ""; position: absolute; bottom: -52px; left: -28px; right: -28px; height: 450px; z-index: -1;
+      background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
+    }
+    .label {
+      margin-bottom: 14px; font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--accent);
+      opacity: 0; animation: fade-in 0.6s ease 0.12s forwards;
+    }
+    .label::after {
+      content: ""; display: block; width: 0; height: 1.5px; margin-top: 10px; border-radius: 1px;
+      background: var(--accent); opacity: 0.35;
+      animation: line-grow 0.7s ease-out 0.25s forwards;
+    }
+    .stat-num {
+      font-size: 88px; font-weight: 800; letter-spacing: -0.045em; line-height: 0.9;
+      background: linear-gradient(180deg, #ffffff 25%, var(--accent)); 
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      opacity: 0; transform: translateY(18px);
+      animation: slide-up 0.6s cubic-bezier(0.16,1,0.3,1) 0.18s forwards;
+    }
+    .stat-unit {
+      font-size: 28px; font-weight: 400; letter-spacing: -0.01em;
+      color: rgba(255,255,255,0.55); margin-bottom: 10px;
+      opacity: 0; transform: translateY(18px);
+      animation: slide-up 0.6s cubic-bezier(0.16,1,0.3,1) 0.22s forwards;
+    }
+    .detail {
+      font-size: 14px; font-weight: 400; color: rgba(255,255,255,0.45);
+      max-width: 300px; line-height: 1.5;
+      opacity: 0; transform: translateY(18px);
+      animation: slide-up 0.6s cubic-bezier(0.16,1,0.3,1) 0.28s forwards;
+    }
+    .swipe-hint {
+      position: absolute; bottom: 18px; left: 0; right: 0; z-index: 15;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      opacity: 0; animation: fade-in 0.6s ease 0.8s forwards;
+    }
+    .swipe-chevron {
+      width: 16px; height: 16px; border-top: 1.5px solid rgba(255,255,255,0.25);
+      border-right: 1.5px solid rgba(255,255,255,0.25);
+      transform: rotate(-45deg); animation: bob 1.8s ease-in-out infinite;
+    }
+    .swipe-text { font-size: 10px; font-weight: 500; letter-spacing: 0.05em; color: rgba(255,255,255,0.25); }
+    /* Drawer */
+    .drawer {
+      position: absolute; inset-inline: 0; bottom: 0; z-index: 20;
+      background: rgba(12,10,8,0.97); backdrop-filter: blur(20px);
+      border-radius: 24px 24px 0 0; border-top: 1px solid rgba(255,255,255,0.08);
+      padding: 28px 24px 36px; transform: translateY(100%);
+      transition: transform 0.5s cubic-bezier(0.32,0.72,0,1);
+    }
+    .drawer.open { transform: translateY(0); }
+    .drawer-handle { width: 36px; height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; margin: 0 auto 24px; }
+    .drawer-title { font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+    .drawer-subtitle { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 14px; letter-spacing: 0.03em; }
+    .drawer-desc { font-size: 14px; font-weight: 400; color: rgba(255,255,255,0.6); line-height: 1.6; margin-bottom: 20px; }
+    .drawer-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+    .tag {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--accent); background: var(--accent-dim);
+      padding: 4px 10px; border-radius: 20px;
+    }
+    .cta-btn {
+      width: 100%; padding: 16px; border: none; border-radius: 14px; cursor: pointer;
+      font-size: 16px; font-weight: 700; color: #fff; letter-spacing: 0.01em;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-bright) 100%);
+      position: relative; overflow: hidden;
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+    .cta-btn::after {
+      content: ""; position: absolute; top: 0; left: -100%; width: 60%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      animation: shimmer 2.5s ease 1.2s infinite;
+    }
+    .cta-btn:active { transform: scale(0.96); filter: brightness(1.1); }
+    /* Keyframes */
+    @keyframes slide-arrive { from { transform: scale(1.025); } to { transform: scale(1); } }
+    @keyframes slow-drift { from { transform: scale(1); } to { transform: scale(1.08) translate(1%, 0.5%); } }
+    @keyframes float {
+      0% { transform: translate(0,0) scale(1); }
+      33% { transform: translate(-12px,18px) scale(1.03); }
+      66% { transform: translate(8px,-10px) scale(0.97); }
+      100% { transform: translate(-6px,12px) scale(1.01); }
+    }
+    @keyframes mock-in { from { opacity: 0; transform: translateY(20px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes mock-breathe {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-4px) scale(1.008); }
+    }
+    @keyframes card-in { to { opacity: 1; transform: translateY(0); } }
+    @keyframes fade-in { to { opacity: 1; } }
+    @keyframes slide-up { to { opacity: 1; transform: translateY(0); } }
+    @keyframes line-grow { to { width: 28px; } }
+    @keyframes bob { 0%, 100% { transform: translateY(0) rotate(-45deg); } 50% { transform: translateY(-4px) rotate(-45deg); } }
+    @keyframes shimmer { from { left: -100%; } to { left: 200%; } }
+  </style>
+</head>
+<body>
+  <div class="story-page">
+    <div class="slide">
+      <div class="slide-bg"></div>
+      <div class="orb"></div>
+      <div class="orb orb--secondary"></div>
+      <canvas id="particles"></canvas>
+
+      <div class="mock">
+        <div class="m-sticker">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 251 249"><path d="m245 124.2c0 7.46-14.56 15.6-20.19 21.89-6.55 7.44 0.09 14.7 4.53 28.99 3.72 11.9-2.86 12.83-13.54 14.51-6.48 1.02-13.29 1.54-17.09 3.84-9.12 5.25-4.5 23.61-10.78 32.24-3.94 5.4-10.52 2.07-15.22 0.17-6.75-2.73-13.79-6.36-19.09-6.36-7.59 0-15.46 17.48-24.58 23.54-5.31 3.61-9.25 0-12.18-3.25-7.9-8.41-10.88-17.81-19.05-19.86-6.65-1.1-17.2 6.37-25.9 8.35-7.34 1.37-9.63-3.4-10.71-9.45-2.21-12.58-1.69-18.62-6.37-23.55-4.54-4.19-12.83-4.1-23.86-6.4-9.51-1.68-12.43-5-10.14-12.47 3.19-10.41 7.93-17.88 7.3-24.03-0.76-6.95-13.6-13.9-19.89-21.49-4.03-4.85-1.74-10.25 2.72-14.04 11.03-9.8 17.8-13.79 17.8-20.74 0-6.35-7.02-17.06-8.66-24.86-1.66-8.42 3.67-10.56 10.06-11.74 15.72-2.83 22.93-1.87 26.71-7.92 3.69-5.88 3.24-20.65 6.06-27.09 3.21-7.29 8.13-6.19 13.69-4.42 9.99 3.2 16.24 7.54 22.66 7.2 7.05-0.38 13.54-13.53 21.19-19.97 4.3-3.71 9.86-1.27 12.99 2.96 8.48 10.41 11.72 17.17 18.4 17.33 7.34 0.24 15.82-5.82 25.32-8.12 7.34-1.98 10.26 1.63 11.78 7.68 2.38 10.09 1.25 21.5 6.8 26.65 4.7 4.43 13 4.08 25.92 6.61 8.19 1.21 9.63 6.21 7.53 12.26-3.33 10.25-7.65 17.63-7.25 23.98 0.48 6.95 12.17 13.39 20.65 21.8 1.62 1.84 2.39 3.55 2.39 5.76z" fill="#FEFFFE"/></svg>
+          <span class="m-sticker-text">example</span>
+        </div>
+        <div class="m-head">
+          <span class="m-title">Kit · Bedtime Stories</span>
+          <span class="m-badge">spring break</span>
+        </div>
+        <div class="m-story-card">
+          <div class="m-story-night">Night 1 · Tonight</div>
+          <div class="m-story-title">Eliza and the Starfield Map</div>
+          <div class="m-story-preview">"She had exactly three minutes before the portal closed…"</div>
+          <div class="m-story-time">8:00 PM</div>
+        </div>
+        <div class="m-story-card">
+          <div class="m-story-night">Night 2 · Tomorrow</div>
+          <div class="m-story-title">Icee's Invisible Invention</div>
+          <div class="m-story-preview">Coming tomorrow evening…</div>
+          <div class="m-story-time">8:00 PM</div>
+        </div>
+        <div class="m-story-card">
+          <div class="m-story-night">Night 3 · Thursday</div>
+          <div class="m-story-title">The Ballerina Who Broke Time</div>
+          <div class="m-story-preview">Coming Thursday evening…</div>
+          <div class="m-story-time">8:00 PM</div>
+        </div>
+      </div>
+
+      <div class="slide-content">
+        <p class="label">Spring Break · 3 Nights Left</p>
+        <div class="stat-num">3</div>
+        <div class="stat-unit">nights before school starts</div>
+        <p class="detail">Three personalized illustrated chapters — Eliza, Icee, and Ballerina as the heroes — auto-delivered before bed.</p>
+      </div>
+
+      <div class="swipe-hint">
+        <div class="swipe-chevron"></div>
+        <span class="swipe-text">swipe up to set up</span>
+      </div>
+    </div>
+
+    <!-- Drawer -->
+    <div class="drawer" id="drawer">
+      <div class="drawer-handle"></div>
+      <div class="drawer-title">Three nights to make it memorable</div>
+      <div class="drawer-subtitle">Bedtime Story Cron · Spring Break 2026</div>
+      <p class="drawer-desc">Wire up a 3-night cron that generates one illustrated bedtime chapter each evening — Eliza, Icee, and Ballerina as the heroes — and delivers it to Telegram at 8 PM. Spring break ends April 11. This window closes in three days.</p>
+      <div class="drawer-tags">
+        <span class="tag">kids</span>
+        <span class="tag">bedtime</span>
+        <span class="tag">telegram</span>
+      </div>
+      <button class="cta-btn" onclick="handleCta()">Set up my stories</button>
+    </div>
+  </div>
+
+  <script>
+    // Particles
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+    const COLORS = ['rgba(240,160,96,0.7)', 'rgba(255,200,130,0.5)', 'rgba(240,100,50,0.4)'];
+    let particles = [];
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    resize();
+    window.addEventListener('resize', resize);
+    function spawnParticle() {
+      particles.push({
+        x: Math.random() * canvas.width, y: canvas.height + 10,
+        vy: -(0.4 + Math.random() * 0.7), vx: (Math.random() - 0.5) * 0.4,
+        size: 1.5 + Math.random() * 2.5, alpha: 0.6 + Math.random() * 0.4,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        phase: Math.random() * Math.PI * 2, freq: 0.008 + Math.random() * 0.006,
+        life: 0, maxLife: 180 + Math.random() * 120
+      });
+    }
+    let frame = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      frame++;
+      if (frame % 8 === 0 && particles.length < 35) spawnParticle();
+      particles = particles.filter(p => p.life < p.maxLife);
+      for (const p of particles) {
+        p.life++;
+        p.y += p.vy;
+        p.x += p.vx + Math.sin(p.phase + p.life * p.freq) * 0.5;
+        const progress = p.life / p.maxLife;
+        const a = p.alpha * (progress < 0.15 ? progress / 0.15 : progress > 0.75 ? 1 - (progress - 0.75) / 0.25 : 1);
+        ctx.save();
+        ctx.globalAlpha = a * 0.5;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * 2.5, 0, Math.PI * 2);
+        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2.5);
+        grad.addColorStop(0, p.color);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.fill();
+        ctx.restore();
+        ctx.save();
+        ctx.globalAlpha = a;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+    animate();
+
+    // Drawer interaction
+    let drawerOpen = false;
+    let startY = 0;
+    document.addEventListener('touchstart', e => { startY = e.touches[0].clientY; });
+    document.addEventListener('touchend', e => {
+      const dy = startY - e.changedTouches[0].clientY;
+      if (!drawerOpen && dy > 40) openDrawer();
+      else if (drawerOpen && dy < -40) closeDrawer();
+    });
+    document.addEventListener('mousedown', e => { startY = e.clientY; });
+    document.addEventListener('mouseup', e => {
+      const dy = startY - e.clientY;
+      if (!drawerOpen && dy > 20) openDrawer();
+      else if (drawerOpen && dy < -20) closeDrawer();
+    });
+    function openDrawer() { drawerOpen = true; document.getElementById('drawer').classList.add('open'); }
+    function closeDrawer() { drawerOpen = false; document.getElementById('drawer').classList.remove('open'); }
+
+    function handleCta() {
+      const btn = document.querySelector('.cta-btn');
+      btn.textContent = 'Setting up…';
+      btn.style.filter = 'brightness(1.05)';
+      setTimeout(() => {
+        btn.textContent = 'Started ✓';
+        btn.style.background = 'linear-gradient(135deg, #4caf82 0%, #6dd4a0 100%)';
+        setTimeout(() => closeDrawer(), 900);
+      }, 900);
+    }
+  </script>
+</body>
+</html>

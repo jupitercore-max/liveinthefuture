@@ -1,0 +1,166 @@
+# HEARTBEAT.md — Unified Scheduler
+
+You are the single dispatcher. Every 30 minutes, you wake up, read the work queue, and dispatch the highest-priority ready task. Think `systemd`, not `crontab`.
+
+---
+
+## Step 1: Priority Checks (P0 — always first)
+
+1. **Urgent emails** — check Gmail for anything needing immediate attention
+2. **Calendar** — any events in the next 2 hours?
+3. **Active subagent issues** — anything stuck or errored?
+
+If any P0 item needs action → handle it, then continue to Step 2 if time permits.
+
+---
+
+## Step 2: Read Scheduler State
+
+```bash
+cat ~/workspace/scheduler/state.json
+```
+
+Check for `"paused": true` → if paused, skip all P2/P3 work. Just do P0 checks and `HEARTBEAT_OK`.
+
+### Reset daily stats
+If `stats.today_date` != today's date (UTC), reset:
+- `dispatches_today` → 0
+- `articles_published_today` → all 0
+- `skipped_backpressure` → 0
+
+---
+
+## Step 3: Backpressure Check
+
+Check if previous dispatches are still running:
+```
+subagents list (action: "list")
+```
+
+If there are running subagents from a previous heartbeat dispatch:
+- Increment `stats.skipped_backpressure`
+- Write updated state.json
+- `HEARTBEAT_OK` — don't pile on
+
+---
+
+## Step 4: Read Pipeline State
+
+For each site (litf, crashreport, aihome), read its current phase:
+```bash
+cat ~/workspace/{repo}/drafts/status.json
+```
+
+Build the ready queue — tasks that can be dispatched right now:
+
+| Phase | Cost | Concurrency Limit |
+|---|---|---|
+| SHIP | Low | Unlimited (just publishing) |
+| QA | Low | Unlimited (just verifying) |
+| CRITIQUE | **High** | MAX 1 at a time |
+| DRAFT | Medium | MAX 2 at a time |
+| RESEARCH | Low | MAX 3 at a time |
+| DONE/null | — | Start new RESEARCH |
+
+---
+
+## Step 5: Pick Task (Priority Queue)
+
+### P2 — Article Pipeline (batch work)
+
+Sort ready tasks by phase priority:
+1. **SHIP** first — cheapest, highest value, unblocks pipeline
+2. **QA** second — cheap verification, cleans up artifacts
+3. **CRITIQUE** third — expensive (6 critics), only 1 at a time
+4. **DRAFT** fourth — moderate, max 2 concurrent
+5. **RESEARCH/new** fifth — lightweight, max 3 concurrent
+
+Pick the first task that fits within concurrency limits.
+
+### P3 — Idle Work (only if NO P2 tasks ready)
+
+If all sites are either:
+- In SHIP but blocked by 1/day limit
+- In PARKED state
+- Recently dispatched (< 30 min ago) and likely still running
+
+Then do P3 idle work. Rotate through `p3_rotation_order`:
+1. `game` — improve one LITF game (read `scheduler/tasks/game-improve.md`)
+2. `experience` — improve one LITF experience (read `scheduler/tasks/experience-improve.md`)
+3. `skill_audit` — audit one skill from `~/skills/`
+4. `aipm_refresh` — update AIPM page stats
+5. `memory_hygiene` — review daily notes, distill to MEMORY.md
+6. `repo_health` — run validation scripts, fix broken links/images
+
+Increment `p3_rotation_index` (mod length) after each P3 dispatch.
+
+---
+
+## Step 6: Dispatch
+
+### For P2 article tasks:
+1. Read the task definition file: `~/workspace/scheduler/tasks/article-{site}.md`
+2. Spawn an **isolated** subagent with the full task content
+3. The subagent will read the site's `drafts/status.json`, execute the current phase, update status, commit and push
+
+### For P3 tasks with task files (game, experience):
+1. Read the task definition file from `scheduler/tasks/`
+2. Spawn an **isolated** subagent with the full task content
+
+### For P3 tasks without task files (skill_audit, aipm_refresh, memory_hygiene, repo_health):
+Do the work inline in this heartbeat session — these are lightweight.
+
+### After dispatch:
+Update `scheduler/state.json`:
+- Set `last_dispatch` to current ISO timestamp
+- Set `last_dispatch_task` to "{site}-{phase}" or "p3-{task}"
+- Update `active_dispatches` array
+- Increment `stats.total_dispatches` and `stats.dispatches_today`
+- Update concurrency counters
+- Update the site's `last_dispatch_time`
+
+---
+
+## Step 7: Write State and Exit
+
+Write updated `scheduler/state.json`. Then:
+- If a task was dispatched → done, don't call anything else
+- If nothing to dispatch → `HEARTBEAT_OK`
+
+---
+
+## Querying Status
+
+When Ray asks "what's the scheduler doing?" or "scheduler status":
+
+1. Read `scheduler/state.json`
+2. Read each site's `drafts/status.json`
+3. Report:
+   - What phase each site is in
+   - What was last dispatched and when
+   - How many dispatches today
+   - Any backpressure skips
+   - What P3 task is next in rotation
+
+Format as a clean table:
+```
+| Site | Phase | Slug | Last Dispatch |
+|---|---|---|---|
+| LITF | DRAFT | ocean-alkalinity... | 14:40 UTC |
+| Crash Report | QA | hood-height... | 14:00 UTC |
+| AI Home | DRAFT | ai-land-acq... | 14:20 UTC |
+
+Stats: 3 dispatches today, 0 backpressure skips
+Next P3: game (if idle)
+```
+
+---
+
+## Rules
+- ONE dispatch per heartbeat cycle (don't overload)
+- Respect concurrency limits — they exist for a reason
+- Backpressure > throughput — never pile on
+- P3 only when P2 queue is empty
+- If nothing needs attention → `HEARTBEAT_OK`, move on
+- Don't install system packages without asking
+- Don't notify Ray about routine dispatches — only genuinely important things (stuck pipelines, errors, notable publishes)

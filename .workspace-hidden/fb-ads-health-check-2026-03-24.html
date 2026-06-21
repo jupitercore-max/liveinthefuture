@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Facebook Ads Health Check — March 24, 2026</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: #fff; color: #1a1a2e; line-height: 1.6; padding: 40px 20px;
+    max-width: 1100px; margin: 0 auto;
+  }
+  h1 { font-size: 28px; margin-bottom: 6px; color: #1a1a2e; }
+  .subtitle { font-size: 14px; color: #666; margin-bottom: 30px; }
+  .subtitle span { display: inline-block; margin-right: 24px; }
+  h2 { font-size: 22px; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #e0e0e0; color: #1a1a2e; }
+  h3 { font-size: 17px; margin: 28px 0 12px; color: #333; }
+  p { margin: 10px 0; font-size: 15px; }
+  strong { color: #1a1a2e; }
+
+  /* TOC */
+  .toc { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px 28px; margin-bottom: 32px; }
+  .toc h3 { margin: 0 0 12px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px; color: #666; }
+  .toc ol { padding-left: 20px; columns: 2; column-gap: 40px; }
+  .toc li { font-size: 14px; margin-bottom: 6px; }
+  .toc a { color: #2563eb; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* Executive Summary */
+  .exec-summary {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    color: #fff; border-radius: 10px; padding: 28px 32px; margin-bottom: 32px;
+  }
+  .exec-summary h2 { color: #fff; border-bottom-color: rgba(255,255,255,0.2); margin-top: 0; }
+  .exec-summary ol { padding-left: 22px; }
+  .exec-summary li { margin-bottom: 10px; font-size: 15px; line-height: 1.55; }
+  .exec-summary strong { color: #60a5fa; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 14px; }
+  th { background: #1a1a2e; color: #fff; padding: 10px 12px; text-align: left; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.3px; }
+  td { padding: 9px 12px; border-bottom: 1px solid #eee; }
+  tr:nth-child(even) td { background: #f8f9fa; }
+  tr:hover td { background: #eef2ff; }
+  td:first-child { font-weight: 500; }
+
+  /* ROAS coloring */
+  .roas-green { color: #16a34a; font-weight: 700; }
+  .roas-yellow { color: #ca8a04; font-weight: 700; }
+  .roas-red { color: #dc2626; font-weight: 700; }
+
+  /* Verdict badges */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-yellow { background: #fef9c3; color: #854d0e; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-gray { background: #f3f4f6; color: #6b7280; }
+
+  /* Recommendation cards */
+  .rec-card {
+    background: #fff; border: 1px solid #e0e0e0; border-radius: 8px;
+    padding: 20px 24px; margin-bottom: 16px; position: relative;
+    border-left: 4px solid #2563eb;
+  }
+  .rec-card.urgent { border-left-color: #dc2626; }
+  .rec-card.strategic { border-left-color: #ca8a04; }
+  .rec-card .rec-num {
+    position: absolute; top: -10px; left: -10px;
+    background: #1a1a2e; color: #fff; width: 28px; height: 28px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+  }
+  .rec-card h4 { font-size: 16px; margin-bottom: 8px; color: #1a1a2e; }
+  .rec-card ul { padding-left: 18px; margin: 6px 0; }
+  .rec-card li { font-size: 14px; margin-bottom: 4px; }
+  .rec-label { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 8px; border-radius: 3px; margin-bottom: 8px; }
+  .rec-label.immediate { background: #fee2e2; color: #991b1b; }
+  .rec-label.strategic { background: #fef9c3; color: #854d0e; }
+
+  /* Risk flags */
+  .risk-flags {
+    background: #fffbeb; border: 1px solid #f59e0b; border-radius: 8px;
+    padding: 24px 28px; margin: 24px 0;
+  }
+  .risk-flags h2 { color: #92400e; border-bottom-color: #fbbf24; margin-top: 0; }
+  .risk-flag { margin-bottom: 14px; padding-left: 32px; position: relative; font-size: 14px; }
+  .risk-flag::before { content: '⚠️'; position: absolute; left: 0; top: 0; font-size: 18px; }
+  .risk-flag strong { color: #92400e; }
+
+  /* Impact summary */
+  .impact-box {
+    background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px;
+    padding: 24px 28px; margin: 24px 0;
+  }
+  .impact-box h2 { color: #166534; border-bottom-color: #86efac; margin-top: 0; }
+  .impact-total { font-size: 22px; font-weight: 700; color: #16a34a; margin: 12px 0; }
+
+  /* What changed list */
+  .change-list { margin: 12px 0; }
+  .change-list li { margin-bottom: 6px; font-size: 14px; }
+
+  /* Funnel bar */
+  .funnel-bar { display: flex; height: 36px; border-radius: 6px; overflow: hidden; margin: 12px 0 20px; }
+  .funnel-seg { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 600; }
+
+  /* Footnote */
+  .footnote { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e0e0e0; font-size: 13px; color: #999; font-style: italic; }
+
+  /* Print */
+  @media print {
+    body { padding: 20px; font-size: 12px; }
+    .exec-summary { background: #f0f0f0 !important; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .exec-summary strong { color: #000 !important; }
+    h2 { break-after: avoid; }
+    table { break-inside: avoid; }
+    .rec-card { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Facebook Ads Health Check</h1>
+<div class="subtitle">
+  <span><strong>Date:</strong> March 24, 2026</span>
+  <span><strong>Period:</strong> Mar 17–24 (7-day) + Feb 22–Mar 24 (30-day)</span>
+  <span><strong>Accounts:</strong> 5 under RL Hardware / Wearables</span>
+  <span><strong>Previous:</strong> March 17, 2026</span>
+</div>
+
+<nav class="toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#exec">Executive Summary</a></li>
+    <li><a href="#overview">Account Overview (7-Day)</a></li>
+    <li><a href="#wow">Week-over-Week Comparison</a></li>
+    <li><a href="#funnel">Funnel Analysis</a></li>
+    <li><a href="#geo">Geographic Performance</a></li>
+    <li><a href="#top10">Top 10 Campaigns</a></li>
+    <li><a href="#bottom10">Bottom 10 Campaigns</a></li>
+    <li><a href="#creative">Creative Analysis</a></li>
+    <li><a href="#trend">30-Day Trend</a></li>
+    <li><a href="#recs">Recommendations (10)</a></li>
+    <li><a href="#impact">Projected Impact</a></li>
+    <li><a href="#risks">Risk Flags</a></li>
+  </ol>
+</nav>
+
+<!-- EXECUTIVE SUMMARY -->
+<div class="exec-summary" id="exec">
+  <h2>Executive Summary</h2>
+  <ol>
+    <li><strong>Blended ROAS improved from 1.62x → 1.91x</strong> — but mostly because the worst accounts stopped spending, not because performance improved</li>
+    <li><strong>Vayner account effectively shut down</strong> — went from $94K/wk to $0/wk. The 30-day shows $1.94M spent at 0.31x ROAS. That's <strong>$1.34M burned</strong> in a month.</li>
+    <li><strong>TestSandbox is STILL the best campaign at 3.48x ROAS</strong> — but only getting $42K/wk (3.6% of total spend). Last week it was 3.67x. Slight regression but still dominant.</li>
+    <li><strong>UAE Test account cratered from 3.67x → 0.20x</strong> — the Test account flipped from best to worst. $12.7K spent, $2.5K returned. The UAE campaign is burning cash.</li>
+    <li><strong>Funnel is now 100% BOF</strong> — zero TOF, zero MOF spend. Worse than last week's 6.4%/21.4%/72.1% split. You're running entirely on bottom-of-funnel conversion. This is unsustainable — you're depleting your retargeting pools without refilling them.</li>
+  </ol>
+</div>
+
+<!-- ACCOUNT OVERVIEW -->
+<h2 id="overview">Account Overview (7-Day)</h2>
+<table>
+  <thead>
+    <tr><th>Account</th><th>Spend</th><th>Purchases</th><th>Revenue</th><th>ROAS</th><th>CPP</th><th>Status</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>RBM Global</strong> (main)</td><td>$1,170,550</td><td>5,221</td><td>$2,254,439</td><td class="roas-green">1.93x</td><td>$224</td><td><span class="badge badge-green">✅ Profitable</span></td></tr>
+    <tr><td>DGEN RBM US</td><td>$0</td><td>0</td><td>$0</td><td>—</td><td>—</td><td><span class="badge badge-gray">⚫ Inactive</span></td></tr>
+    <tr><td>DGEN RBM UK</td><td>$0</td><td>0</td><td>$0</td><td>—</td><td>—</td><td><span class="badge badge-gray">⚫ Inactive</span></td></tr>
+    <tr><td>Vayner US</td><td>$0</td><td>1*</td><td>$284*</td><td>—</td><td>—</td><td><span class="badge badge-gray">⚫ Shut down</span></td></tr>
+    <tr><td><strong>RBM Global Test</strong></td><td>$12,744</td><td>10</td><td>$2,487</td><td class="roas-red">0.20x</td><td>$1,274</td><td><span class="badge badge-red">🔴 Bleeding</span></td></tr>
+    <tr style="font-weight:700; background:#f0f0f0;"><td>BLENDED</td><td>$1,183,294</td><td>5,232</td><td>$2,257,211</td><td class="roas-green">1.91x</td><td>$226</td><td></td></tr>
+  </tbody>
+</table>
+<p style="font-size:13px; color:#888;">*Vayner: 1 residual attribution from prior spend, no new spend this week</p>
+
+<!-- WEEK OVER WEEK -->
+<h2 id="wow">Week-over-Week Comparison</h2>
+<table>
+  <thead>
+    <tr><th>Metric</th><th>March 17</th><th>March 24</th><th>Change</th><th>Verdict</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Blended ROAS</td><td>1.62x</td><td>1.91x</td><td style="color:#16a34a; font-weight:700;">+18%</td><td>⬆️ Driven by shutting off losers, not improving winners</td></tr>
+    <tr><td>RBM Global ROAS</td><td>~1.84x</td><td>1.93x</td><td style="color:#16a34a; font-weight:700;">+5%</td><td>⬆️ Genuine improvement</td></tr>
+    <tr><td>Weekly Spend (all)</td><td>~$1.56M*</td><td>$1.18M</td><td style="color:#dc2626; font-weight:700;">-24%</td><td>⬇️ Spend contraction</td></tr>
+    <tr><td>Vayner Spend</td><td>$94K/wk</td><td>$0</td><td style="color:#16a34a; font-weight:700;">-100%</td><td>✅ Stopped the bleeding</td></tr>
+    <tr><td>Test Account ROAS</td><td>3.67x</td><td>0.20x</td><td style="color:#dc2626; font-weight:700;">-95%</td><td>🔴 Catastrophic reversal</td></tr>
+    <tr><td>TOF % of spend</td><td>6.4%</td><td>0%</td><td style="color:#dc2626; font-weight:700;">-100%</td><td>🔴 Critical — no funnel filling</td></tr>
+    <tr><td>MOF % of spend</td><td>21.4%</td><td>0%</td><td style="color:#dc2626; font-weight:700;">-100%</td><td>🔴 No consideration spend</td></tr>
+    <tr><td>BOF % of spend</td><td>72.1%</td><td>100%</td><td style="color:#dc2626; font-weight:700;">+39%</td><td>🔴 Entirely bottom-heavy</td></tr>
+  </tbody>
+</table>
+<p style="font-size:13px; color:#888;">*Estimated from prior week's multi-account totals</p>
+
+<h3>What Actually Changed</h3>
+<ul class="change-list">
+  <li><strong style="color:#16a34a;">Good:</strong> Vayner stopped burning $94K/wk at 0.17% CTR. DGEN US/UK also quiet. RBM Global core improved modestly.</li>
+  <li><strong style="color:#dc2626;">Bad:</strong> Test account went from star performer to dumpster fire (UAE campaign). Funnel went from imbalanced to non-existent at TOF/MOF.</li>
+  <li><strong style="color:#ca8a04;">Structural risk:</strong> Running 100% BOF means you're retargeting people who already know the product. When you exhaust that pool, performance cliff-edges. This is a 4-8 week ticking clock.</li>
+</ul>
+
+<!-- FUNNEL ANALYSIS -->
+<h2 id="funnel">Funnel Analysis</h2>
+<table>
+  <thead>
+    <tr><th>Stage</th><th>Spend</th><th>% of Total</th><th>Target</th><th>Gap</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>TOF</strong> (Awareness)</td><td>$0</td><td>0%</td><td>15-25%</td><td><span class="badge badge-red">🔴 -$178K to -$296K understaffed</span></td></tr>
+    <tr><td><strong>MOF</strong> (Consideration)</td><td>$0</td><td>0%</td><td>20-30%</td><td><span class="badge badge-red">🔴 -$237K to -$355K understaffed</span></td></tr>
+    <tr><td><strong>BOF</strong> (Conversion)</td><td>$1,183,294</td><td>100%</td><td>40-55%</td><td><span class="badge badge-red">🔴 Overstaffed</span></td></tr>
+  </tbody>
+</table>
+
+<div class="funnel-bar">
+  <div class="funnel-seg" style="width:100%; background:#dc2626;">BOF 100% — No TOF/MOF</div>
+</div>
+
+<p><strong>Note:</strong> All campaigns classified as OUTCOME_SALES objective. Some function as pseudo-TOF (broad prospecting ASC) vs true BOF (retargeting custom audiences). US Evergreen ASC ($280K) and INTL Prospecting ($158K) are functionally prospecting but optimized for purchase, not awareness.</p>
+
+<h3>Corrected Functional Funnel Estimate</h3>
+<div class="funnel-bar">
+  <div class="funnel-seg" style="width:42%; background:#2563eb;">Prospecting 42%</div>
+  <div class="funnel-seg" style="width:19%; background:#16a34a;">RTG/BOF 19%</div>
+  <div class="funnel-seg" style="width:39%; background:#ca8a04;">Tests 39%</div>
+</div>
+<ul style="font-size:14px; margin:8px 0 16px; padding-left:18px;">
+  <li>Broad Prospecting (pseudo-TOF): ~$500K (42%) — ASC campaigns with broad targeting</li>
+  <li>Retargeting (BOF): ~$220K (19%) — RTG custom audience campaigns</li>
+  <li>Tests: ~$463K (39%) — various A/B test campaigns</li>
+  <li>True TOF/MOF (awareness/traffic): <strong style="color:#dc2626;">$0 (0%)</strong></li>
+</ul>
+<p>Even with this correction, there is <strong>zero dedicated awareness or consideration spend.</strong> Every dollar optimizes for purchase. This works until it doesn't — and the cliff comes fast.</p>
+
+<!-- GEOGRAPHIC PERFORMANCE -->
+<h2 id="geo">Geographic Performance (7-Day, RBM Global)</h2>
+
+<h3>🟢 Profitable Markets (ROAS &gt; 1.5x)</h3>
+<table>
+  <thead>
+    <tr><th>Country</th><th>Spend</th><th>Purchases</th><th>Revenue</th><th>ROAS</th><th>CPP</th><th>Verdict</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>🇮🇪 Ireland</td><td>$3,947</td><td>27</td><td>$10,444</td><td class="roas-green">2.65x</td><td>$146</td><td><span class="badge badge-green">Hidden gem</span></td></tr>
+    <tr><td>🇦🇹 Austria</td><td>$5,104</td><td>24</td><td>$12,764</td><td class="roas-green">2.50x</td><td>$213</td><td><span class="badge badge-green">Scale candidate</span></td></tr>
+    <tr><td>🇺🇸 US</td><td>$789,807</td><td>4,053</td><td>$1,709,251</td><td class="roas-green">2.16x</td><td>$195</td><td><span class="badge badge-green">Core market</span></td></tr>
+    <tr><td>🇬🇧 UK</td><td>$71,925</td><td>313</td><td>$153,523</td><td class="roas-green">2.13x</td><td>$230</td><td><span class="badge badge-green">Strong</span></td></tr>
+    <tr><td>🇫🇷 France</td><td>$20,179</td><td>69</td><td>$33,346</td><td class="roas-green">1.65x</td><td>$292</td><td><span class="badge badge-green">Solid</span></td></tr>
+    <tr><td>🇧🇷 Brazil</td><td>$4,232</td><td>19</td><td>$6,993</td><td class="roas-green">1.65x</td><td>$223</td><td><span class="badge badge-green">Small but efficient</span></td></tr>
+    <tr><td>🇫🇮 Finland</td><td>$3,177</td><td>14</td><td>$5,205</td><td class="roas-green">1.64x</td><td>$227</td><td><span class="badge badge-green">Solid</span></td></tr>
+    <tr><td>🇳🇴 Norway</td><td>$4,301</td><td>15</td><td>$6,973</td><td class="roas-green">1.62x</td><td>$287</td><td><span class="badge badge-green">OK</span></td></tr>
+    <tr><td>🇮🇹 Italy</td><td>$33,330</td><td>99</td><td>$51,488</td><td class="roas-green">1.54x</td><td>$337</td><td><span class="badge badge-yellow">Marginal at this CPP</span></td></tr>
+  </tbody>
+</table>
+
+<h3>🟡 Marginal Markets (ROAS 1.0x–1.5x)</h3>
+<table>
+  <thead>
+    <tr><th>Country</th><th>Spend</th><th>Purchases</th><th>Revenue</th><th>ROAS</th><th>CPP</th><th>Verdict</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>🇩🇪 Germany</td><td>$38,539</td><td>108</td><td>$55,367</td><td class="roas-yellow">1.44x</td><td>$357</td><td><span class="badge badge-yellow">Barely profitable</span></td></tr>
+    <tr><td>🇦🇺 Australia</td><td>$16,261</td><td>53</td><td>$22,290</td><td class="roas-yellow">1.37x</td><td>$307</td><td><span class="badge badge-yellow">On the edge</span></td></tr>
+    <tr><td>🇲🇽 Mexico</td><td>$54,021</td><td>139</td><td>$64,338</td><td class="roas-yellow">1.19x</td><td>$389</td><td><span class="badge badge-yellow">Losing after COGS</span></td></tr>
+    <tr><td>🇨🇦 Canada</td><td>$34,561</td><td>109</td><td>$38,202</td><td class="roas-yellow">1.11x</td><td>$318</td><td><span class="badge badge-yellow">Barely breaking even</span></td></tr>
+    <tr><td>🇪🇸 Spain</td><td>$34,705</td><td>75</td><td>$37,892</td><td class="roas-yellow">1.09x</td><td>$463</td><td><span class="badge badge-yellow">Unprofitable after COGS</span></td></tr>
+    <tr><td>🇳🇱 Netherlands</td><td>$20,445</td><td>48</td><td>$22,200</td><td class="roas-yellow">1.09x</td><td>$426</td><td><span class="badge badge-yellow">Unprofitable after COGS</span></td></tr>
+  </tbody>
+</table>
+
+<h3>🔴 Unprofitable Markets (ROAS &lt; 1.0x)</h3>
+<table>
+  <thead>
+    <tr><th>Country</th><th>Spend</th><th>Purchases</th><th>Revenue</th><th>ROAS</th><th>CPP</th><th>$ Lost</th><th>Verdict</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>🇮🇳 India</td><td>$10,159</td><td>20</td><td>$8,768</td><td class="roas-red">0.86x</td><td>$508</td><td style="color:#dc2626;">-$1,391</td><td><span class="badge badge-red">Kill</span></td></tr>
+    <tr><td>🇨🇭 Switzerland</td><td>$9,343</td><td>14</td><td>$7,468</td><td class="roas-red">0.80x</td><td>$667</td><td style="color:#dc2626;">-$1,875</td><td><span class="badge badge-red">Kill</span></td></tr>
+    <tr><td>🇩🇰 Denmark</td><td>$6,546</td><td>11</td><td>$3,193</td><td class="roas-red">0.49x</td><td>$595</td><td style="color:#dc2626;">-$3,353</td><td><span class="badge badge-red">Kill immediately</span></td></tr>
+    <tr><td>🇸🇪 Sweden</td><td>$9,969</td><td>7</td><td>$3,285</td><td class="roas-red">0.33x</td><td>$1,424</td><td style="color:#dc2626;">-$6,684</td><td><span class="badge badge-red">Kill immediately</span></td></tr>
+  </tbody>
+</table>
+<p><strong style="color:#dc2626;">Total weekly loss from unprofitable markets: -$13,303</strong></p>
+
+<!-- TOP 10 CAMPAIGNS -->
+<h2 id="top10">Top 10 Campaigns by Efficiency</h2>
+<p style="font-size:13px; color:#888; margin-bottom:8px;">Minimum $5K spend, ranked by ROAS</p>
+<table>
+  <thead>
+    <tr><th>#</th><th>Campaign</th><th>Spend</th><th>ROAS</th><th>CPP</th><th>Purchases</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td><strong>US TestSandbox</strong></td><td>$42,397</td><td class="roas-green">3.48x</td><td>$117</td><td>361</td></tr>
+    <tr><td>2</td><td><strong>US StandardInfluencer</strong></td><td>$9,482</td><td class="roas-green">3.36x</td><td>$146</td><td>65</td></tr>
+    <tr><td>3</td><td><strong>US Evergreen ASC</strong> (main)</td><td>$279,869</td><td class="roas-green">2.43x</td><td>$171</td><td>1,640</td></tr>
+    <tr><td>4</td><td><strong>US Retargeting</strong></td><td>$160,988</td><td class="roas-green">2.35x</td><td>$182</td><td>886</td></tr>
+    <tr><td>5</td><td><strong>US MaxDelivery Test</strong></td><td>$69,947</td><td class="roas-green">2.31x</td><td>$198</td><td>354</td></tr>
+    <tr><td>6</td><td><strong>US tCPA Test</strong></td><td>$62,953</td><td class="roas-green">2.17x</td><td>$208</td><td>302</td></tr>
+    <tr><td>7</td><td><strong>US PersonalizationLP Test</strong></td><td>$10,330</td><td class="roas-green">1.82x</td><td>$265</td><td>39</td></tr>
+    <tr><td>8</td><td><strong>INTL Retargeting</strong></td><td>$58,947</td><td class="roas-green">1.75x</td><td>$268</td><td>220</td></tr>
+    <tr><td>9</td><td><strong>FR Influencer</strong></td><td>$20,189</td><td class="roas-green">1.65x</td><td>$293</td><td>69</td></tr>
+    <tr><td>10</td><td><strong>INTL Influencer</strong></td><td>$5,376</td><td class="roas-green">1.60x</td><td>$207</td><td>26</td></tr>
+  </tbody>
+</table>
+<p><strong>Pattern:</strong> TestSandbox and Influencer campaigns consistently outperform. US core is solid. Retargeting works but is ceiling-limited by pool size.</p>
+
+<!-- BOTTOM 10 CAMPAIGNS -->
+<h2 id="bottom10">Bottom 10 Campaigns (Worst Performers)</h2>
+<p style="font-size:13px; color:#888; margin-bottom:8px;">Minimum $2K spend</p>
+<table>
+  <thead>
+    <tr><th>#</th><th>Campaign</th><th>Spend</th><th>ROAS</th><th>CPP</th><th>$ Lost</th><th>Action</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td><strong>AU Purchase Test</strong></td><td>$3,068</td><td class="roas-red">0.17x</td><td>$3,068</td><td style="color:#dc2626;">-$2,560</td><td><span class="badge badge-red">KILL</span></td></tr>
+    <tr><td>2</td><td><strong>UAE Test</strong> (Test acct)</td><td>$12,744</td><td class="roas-red">0.20x</td><td>$1,274</td><td style="color:#dc2626;">-$10,257</td><td><span class="badge badge-red">KILL</span></td></tr>
+    <tr><td>3</td><td><strong>SE (Sweden via INTL)</strong></td><td>$9,969</td><td class="roas-red">0.33x</td><td>$1,424</td><td style="color:#dc2626;">-$6,684</td><td><span class="badge badge-red">KILL</span></td></tr>
+    <tr><td>4</td><td><strong>CA Purchase Test</strong></td><td>$2,935</td><td class="roas-red">0.38x</td><td>$587</td><td style="color:#dc2626;">-$1,820</td><td><span class="badge badge-red">KILL</span></td></tr>
+    <tr><td>5</td><td><strong>DK (Denmark via INTL)</strong></td><td>$6,546</td><td class="roas-red">0.49x</td><td>$595</td><td style="color:#dc2626;">-$3,353</td><td><span class="badge badge-red">KILL</span></td></tr>
+    <tr><td>6</td><td><strong>IN Supernova</strong></td><td>$5,114</td><td class="roas-red">0.55x</td><td>$731</td><td style="color:#dc2626;">-$2,286</td><td><span class="badge badge-red">KILL</span></td></tr>
+    <tr><td>7</td><td><strong>US AltCapture SloMo</strong></td><td>$13,858</td><td class="roas-red">0.60x</td><td>$693</td><td style="color:#dc2626;">-$5,506</td><td><span class="badge badge-red">KILL</span></td></tr>
+    <tr><td>8</td><td><strong>US MMAI Creative</strong></td><td>$13,972</td><td class="roas-red">0.62x</td><td>$582</td><td style="color:#dc2626;">-$5,326</td><td><span class="badge badge-red">KILL</span></td></tr>
+    <tr><td>9</td><td><strong>US LiveTranslation Creative</strong></td><td>$14,024</td><td class="roas-red">0.65x</td><td>$668</td><td style="color:#dc2626;">-$4,874</td><td><span class="badge badge-red">KILL</span></td></tr>
+    <tr><td>10</td><td><strong>US AltCapture 3kCapture</strong></td><td>$13,793</td><td class="roas-red">0.76x</td><td>$600</td><td style="color:#dc2626;">-$3,384</td><td><span class="badge badge-yellow">PAUSE</span></td></tr>
+  </tbody>
+</table>
+<p><strong style="color:#dc2626;">Total weekly waste from bottom 10: ~$45,850</strong></p>
+
+<!-- CREATIVE ANALYSIS -->
+<h2 id="creative">Creative Analysis: AltCapture Test Breakdown</h2>
+<p>5 creative variants running head-to-head at equal spend. Clear winner and losers:</p>
+<table>
+  <thead>
+    <tr><th>Creative Variant</th><th>Spend</th><th>Purchases</th><th>ROAS</th><th>CPP</th><th>Verdict</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Hyperlapse</strong></td><td>$13,868</td><td>78</td><td class="roas-yellow">1.36x</td><td>$178</td><td><span class="badge badge-green">✅ WINNER — scale this</span></td></tr>
+    <tr><td>LiveTranslation</td><td>$13,846</td><td>38</td><td class="roas-yellow">1.38x</td><td>$364</td><td><span class="badge badge-yellow">Good ROAS but high CPP</span></td></tr>
+    <tr><td>3kCapture</td><td>$13,793</td><td>23</td><td class="roas-red">0.76x</td><td>$600</td><td><span class="badge badge-red">Below breakeven</span></td></tr>
+    <tr><td>Stabilization</td><td>$13,889</td><td>33</td><td class="roas-red">0.89x</td><td>$421</td><td><span class="badge badge-red">Below breakeven</span></td></tr>
+    <tr><td>SloMo</td><td>$13,858</td><td>20</td><td class="roas-red">0.60x</td><td>$693</td><td><span class="badge badge-red">Worst performer</span></td></tr>
+  </tbody>
+</table>
+<p><strong>Insight:</strong> Hyperlapse is the clear creative winner — 78 purchases vs 20 for SloMo at same spend. People want <em>results</em> (cool time-lapse content), not <em>features</em> (stabilization, slow-mo as abstract capabilities). The winning angle is <strong>"look what you can create"</strong> not "look what specs we have."</p>
+
+<h3>Features Creative Test (Separate Campaign)</h3>
+<table>
+  <thead>
+    <tr><th>Creative</th><th>Spend</th><th>ROAS</th><th>Verdict</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>LookAndPlay</td><td>$14,079</td><td class="roas-yellow">1.03x</td><td><span class="badge badge-yellow">Borderline</span></td></tr>
+    <tr><td>3kCapture</td><td>$14,003</td><td class="roas-yellow">1.07x</td><td><span class="badge badge-yellow">Borderline</span></td></tr>
+    <tr><td>LiveTranslation</td><td>$14,024</td><td class="roas-red">0.65x</td><td><span class="badge badge-red">Kill</span></td></tr>
+    <tr><td>MMAI</td><td>$13,972</td><td class="roas-red">0.62x</td><td><span class="badge badge-red">Kill</span></td></tr>
+  </tbody>
+</table>
+<p><strong>Combined pattern:</strong> "Meta AI" as a creative angle is underperforming (0.62x). Capture/camera features sell better than AI features.<br>
+<strong>Ranking:</strong> Hyperlapse &gt; LiveTranslation &gt; 3kCapture &gt; Stabilization &gt; SloMo &gt; MMAI.</p>
+
+<!-- 30-DAY TREND -->
+<h2 id="trend">30-Day Trend</h2>
+<table>
+  <thead>
+    <tr><th>Account</th><th>30-Day Spend</th><th>30-Day ROAS</th><th>7-Day ROAS</th><th>Trend</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>RBM Global</strong></td><td>$5,957,738</td><td class="roas-green">1.96x</td><td class="roas-green">1.93x</td><td>➡️ Stable</td></tr>
+    <tr><td>Vayner US</td><td>$1,944,553</td><td class="roas-red">0.31x</td><td>— (shut off)</td><td>✅ Finally stopped</td></tr>
+    <tr><td>Test</td><td>$72,956</td><td class="roas-red">0.22x</td><td class="roas-red">0.20x</td><td>⬇️ Getting worse</td></tr>
+  </tbody>
+</table>
+<p><strong style="color:#dc2626;">Vayner 30-day reality check:</strong> $1.94M spent, $606K returned. <strong>Net loss: $1.34M in one month.</strong> This account should have been killed 3 weeks ago.</p>
+<p><strong>RBM Global is stable:</strong> 1.96x over 30 days, 1.93x over 7 days. No degradation, but no improvement either. The ~$168K/day run rate is consistent.</p>
+
+<!-- RECOMMENDATIONS -->
+<h2 id="recs">Specific Recommendations</h2>
+
+<h3>Immediate Actions (This Week)</h3>
+
+<div class="rec-card urgent">
+  <div class="rec-num">1</div>
+  <span class="rec-label immediate">Immediate</span>
+  <h4>Kill UAE Test Campaign — Save $12.7K/week</h4>
+  <ul>
+    <li><strong>Campaign:</strong> <code style="font-size:12px; background:#f3f4f6; padding:2px 6px; border-radius:3px;">Wearables_UAE_Snow_DCAP_SCL_PSPT_Test_Sales_CONVE_ActivationLLV2_Facebook_ASC_1V7C1EV_NODRMR_RayBanMeta</code></li>
+    <li><strong>Current:</strong> 0.20x ROAS, $1,274 CPP</li>
+    <li><strong>Action:</strong> Pause immediately</li>
+    <li><strong>Impact:</strong> Saves $12.7K/week, eliminates $10.3K weekly loss</li>
+  </ul>
+</div>
+
+<div class="rec-card urgent">
+  <div class="rec-num">2</div>
+  <span class="rec-label immediate">Immediate</span>
+  <h4>Kill AltCapture SloMo, MMAI Creative, and 3kCapture ad sets — Save $41.6K/week</h4>
+  <ul>
+    <li>SloMo: 0.60x ROAS → losing $5.5K/week</li>
+    <li>MMAI: 0.62x ROAS → losing $5.3K/week</li>
+    <li>3kCapture: 0.76x ROAS → losing $3.4K/week</li>
+    <li>Stabilization: 0.89x ROAS → losing $1.5K/week</li>
+    <li><strong>Action:</strong> Pause all four. Reallocate budget to Hyperlapse ad set (1.36x ROAS)</li>
+    <li><strong>Impact:</strong> Saves ~$41.6K/week in underperforming creative spend</li>
+  </ul>
+</div>
+
+<div class="rec-card urgent">
+  <div class="rec-num">3</div>
+  <span class="rec-label immediate">Immediate</span>
+  <h4>Kill or cap unprofitable geos — Save $13.3K/week</h4>
+  <ul>
+    <li>Sweden: 0.33x → -$6.7K/week. <strong>Kill.</strong></li>
+    <li>Denmark: 0.49x → -$3.4K/week. <strong>Kill.</strong></li>
+    <li>Switzerland: 0.80x → -$1.9K/week. <strong>Kill.</strong></li>
+    <li>India: 0.86x → -$1.4K/week. <strong>Kill</strong> (unless strategic market entry).</li>
+    <li><strong>Action:</strong> Add geo exclusions to INTL campaigns for SE, DK, CH, IN</li>
+    <li><strong>Impact:</strong> Saves $13.3K/week</li>
+  </ul>
+</div>
+
+<div class="rec-card urgent">
+  <div class="rec-num">4</div>
+  <span class="rec-label immediate">Immediate</span>
+  <h4>Scale TestSandbox from $42K → $100K/week</h4>
+  <ul>
+    <li><strong>Current:</strong> 3.48x ROAS at $42K — your most efficient dollar</li>
+    <li>Even at 30% efficiency loss from scaling, a 2.4x ROAS at $100K is better than a 0.60x ROAS at $14K</li>
+    <li><strong>Action:</strong> Increase daily budget by 20% every 3 days (avoid learning phase reset)</li>
+    <li><strong>Impact:</strong> If ROAS holds at 2.5x+, generates additional $87K+ weekly revenue</li>
+  </ul>
+</div>
+
+<div class="rec-card urgent">
+  <div class="rec-num">5</div>
+  <span class="rec-label immediate">Immediate</span>
+  <h4>Scale StandardInfluencer from $9.5K → $25K/week</h4>
+  <ul>
+    <li><strong>Current:</strong> 3.36x ROAS, highest CTR (2.36%)</li>
+    <li>This is your most engaging creative — people are actually clicking</li>
+    <li><strong>Action:</strong> Duplicate winning ad sets, expand lookalike audiences</li>
+    <li><strong>Impact:</strong> At 2.5x ROAS, generates additional $38K+ weekly revenue</li>
+  </ul>
+</div>
+
+<h3>Strategic Actions (Next 2–4 Weeks)</h3>
+
+<div class="rec-card strategic">
+  <div class="rec-num">6</div>
+  <span class="rec-label strategic">Strategic</span>
+  <h4>Launch dedicated TOF campaign — Budget $50-75K/week</h4>
+  <ul>
+    <li>You have <strong>ZERO</strong> awareness spend. This is a ticking time bomb.</li>
+    <li>Your retargeting pool is finite. Without new top-of-funnel traffic, BOF campaigns will degrade over 4-8 weeks as audiences fatigue.</li>
+    <li><strong>Recommendation:</strong> Launch awareness/reach campaign using Hyperlapse creative (proven performer)</li>
+    <li><strong>Target:</strong> Broad US audiences, 18-45, interests in tech/photography/outdoor</li>
+    <li><strong>KPI:</strong> CPM under $8, Video View Rate >25%, audience size growth</li>
+    <li>Don't optimize for purchase — optimize for reach and video views</li>
+    <li><strong>Impact:</strong> Refills retargeting pools, prevents the 4-8 week performance cliff</li>
+  </ul>
+</div>
+
+<div class="rec-card strategic">
+  <div class="rec-num">7</div>
+  <span class="rec-label strategic">Strategic</span>
+  <h4>Test Vayner-style TOF with proper creative</h4>
+  <ul>
+    <li>Vayner's TOF failed at 0.17% CTR — but the problem was creative, not strategy</li>
+    <li>Take your winning Hyperlapse creative and run it as an awareness campaign</li>
+    <li>Expected CTR for good awareness creative: 0.8-1.2%</li>
+    <li>If Vayner's creative was getting 0.17%, the content was the problem, not the funnel position</li>
+  </ul>
+</div>
+
+<div class="rec-card strategic">
+  <div class="rec-num">8</div>
+  <span class="rec-label strategic">Strategic</span>
+  <h4>Investigate Mexico inefficiency</h4>
+  <ul>
+    <li>MX is getting $54K/week at 1.19x ROAS with $389 CPP</li>
+    <li>That's your 3rd-highest international spend but one of the worst CPPs</li>
+    <li>Either optimize creative for MX market or reduce budget to $20K and watch ROAS</li>
+    <li><strong>Potential savings:</strong> $20-25K/week reallocation</li>
+  </ul>
+</div>
+
+<div class="rec-card strategic">
+  <div class="rec-num">9</div>
+  <span class="rec-label strategic">Strategic</span>
+  <h4>Double down on Ireland and Austria</h4>
+  <ul>
+    <li>IE: 2.65x ROAS at only $3.9K — barely any spend</li>
+    <li>AT: 2.50x ROAS at only $5.1K — barely any spend</li>
+    <li>These are your most efficient international markets</li>
+    <li><strong>Action:</strong> Scale both to $15-20K/week</li>
+    <li><strong>Impact:</strong> At 2.0x ROAS (conservative), adds $30-40K weekly revenue</li>
+  </ul>
+</div>
+
+<div class="rec-card strategic">
+  <div class="rec-num">10</div>
+  <span class="rec-label strategic">Strategic</span>
+  <h4>A/B test Hyperlapse creative in international markets</h4>
+  <ul>
+    <li>Hyperlapse is winning in US. Test it in UK, FR, IT, DE, IE, AT</li>
+    <li>If it performs internationally like it does domestically, it could lift INTL from 1.47x to 2.0x+</li>
+    <li><strong>Impact on INTL $158K spend:</strong> additional $80K+ weekly revenue</li>
+  </ul>
+</div>
+
+<!-- PROJECTED IMPACT -->
+<div class="impact-box" id="impact">
+  <h2>Summary of Projected Impact</h2>
+  <table>
+    <thead>
+      <tr><th>Action</th><th>Weekly Savings/Revenue</th><th>Confidence</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Kill UAE Test</td><td style="color:#16a34a; font-weight:700;">+$10.3K saved</td><td>High</td></tr>
+      <tr><td>Kill underperforming creatives</td><td style="color:#16a34a; font-weight:700;">+$15.7K saved</td><td>High</td></tr>
+      <tr><td>Kill unprofitable geos</td><td style="color:#16a34a; font-weight:700;">+$13.3K saved</td><td>High</td></tr>
+      <tr><td>Scale TestSandbox</td><td style="color:#16a34a; font-weight:700;">+$87K revenue</td><td>Medium</td></tr>
+      <tr><td>Scale Influencer</td><td style="color:#16a34a; font-weight:700;">+$38K revenue</td><td>Medium</td></tr>
+      <tr><td>Launch TOF</td><td style="font-weight:700;">Prevents future cliff</td><td style="color:#dc2626; font-weight:700;">Critical</td></tr>
+      <tr><td>Scale IE/AT</td><td style="color:#16a34a; font-weight:700;">+$30-40K revenue</td><td>Medium</td></tr>
+    </tbody>
+  </table>
+  <p class="impact-total">Total potential weekly improvement: $194K–$204K</p>
+  <p>(Mix of cost savings and new revenue)</p>
+  <p><strong>Net effect on ROAS:</strong> If you save $39.3K in waste and generate $125K+ in new efficient revenue, blended ROAS could move from <strong>1.91x → 2.1-2.3x</strong>.</p>
+</div>
+
+<!-- RISK FLAGS -->
+<div class="risk-flags" id="risks">
+  <h2>Risk Flags</h2>
+
+  <div class="risk-flag">
+    <strong>No TOF = Ticking Clock.</strong> You are running 100% conversion campaigns. Retargeting pools deplete. The typical timeline for performance degradation without TOF refill is 4-8 weeks. You are already several weeks into this cycle.
+  </div>
+
+  <div class="risk-flag">
+    <strong>Vayner burned $1.34M in 30 days.</strong> Who approved this spend at 0.31x ROAS? The account should have been paused after week 1 when ROAS was clearly below 0.5x.
+  </div>
+
+  <div class="risk-flag">
+    <strong>Test account flipped.</strong> The TestSandbox was your star at 3.67x. This week the <em>Test account overall</em> is 0.20x because the UAE campaign dragged it down. The TestSandbox campaign within RBM Global main account is still 3.48x. Make sure budget doesn't bleed from TestSandbox to UAE.
+  </div>
+
+  <div class="risk-flag">
+    <strong>Canada is a false positive.</strong> 1.11x ROAS looks "almost profitable" but after COGS, shipping, returns, and payment processing, anything below 1.5x is losing money. Same for Spain (1.09x) and Netherlands (1.09x). These should be capped or cut.
+  </div>
+</div>
+
+<p class="footnote">Data pulled from Facebook Marketing API v21.0 on March 24, 2026. All figures in USD.</p>
+
+</body>
+</html>

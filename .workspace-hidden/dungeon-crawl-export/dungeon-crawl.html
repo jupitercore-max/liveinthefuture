@@ -1,0 +1,3660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="canonical" href="https://liveinthefuture.org/games/dungeon-crawl.html" />
+  <meta property="og:title" content="Dungeon Crawl - Hypernova WebApp" />
+  <meta property="og:url" content="https://liveinthefuture.org/games/dungeon-crawl.html" />
+  <meta property="og:site_name" content="Live in the Future" />
+  <meta name="twitter:card" content="summary" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=600, height=600, initial-scale=1.0">
+<title>Dungeon Crawl - Hypernova WebApp</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0d0d0d;
+  color: #e8e8e8;
+  width: 600px;
+  height: 600px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600"></canvas>
+<script>
+(function(){
+var cv = document.getElementById('c');
+var ctx = cv.getContext('2d');
+var W = 600, H = 600;
+
+// ─── Audio ──────────────────────────────────────────────────────
+var audioCtx = null;
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+function tone(freq, dur, type, vol) {
+  if (!audioCtx) return;
+  var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type || 'sine'; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol || 0.1, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+function panTone(freq, dur, type, vol, pan) {
+  if (!audioCtx) return;
+  var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  var p = audioCtx.createStereoPanner();
+  o.type = type || 'sine'; o.frequency.value = freq;
+  p.pan.value = Math.max(-1, Math.min(1, pan || 0));
+  g.gain.setValueAtTime(vol || 0.1, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  o.connect(g); g.connect(p); p.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+function noise(dur, vol) {
+  if (!audioCtx) return;
+  var bufSize = audioCtx.sampleRate * dur;
+  var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  var data = buf.getChannelData(0);
+  for (var i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * vol;
+  var src = audioCtx.createBufferSource();
+  var g = audioCtx.createGain();
+  src.buffer = buf;
+  g.gain.setValueAtTime(vol, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  src.connect(g); g.connect(audioCtx.destination);
+  src.start();
+}
+
+// Enemy ambient sounds
+var HEARING_RANGE = 8;
+var ENEMY_SOUNDS = {
+  'Rat':      function(pan, vol) { panTone(800 + Math.random()*400, 0.04, 'sine', vol*0.5, pan); setTimeout(function(){ panTone(900+Math.random()*300, 0.03, 'sine', vol*0.4, pan); }, 30); },
+  'Bat':      function(pan, vol) { panTone(2000+Math.random()*1000, 0.05, 'sine', vol*0.3, pan); },
+  'Skeleton': function(pan, vol) { panTone(120+Math.random()*40, 0.08, 'square', vol*0.4, pan); panTone(180+Math.random()*30, 0.06, 'square', vol*0.3, pan); },
+  'Orc':      function(pan, vol) { panTone(80+Math.random()*20, 0.12, 'sawtooth', vol*0.5, pan); },
+  'Wraith':   function(pan, vol) { panTone(300+Math.random()*100, 0.2, 'sine', vol*0.3, pan); panTone(310+Math.random()*100, 0.2, 'sine', vol*0.25, pan); },
+  'Dragon':   function(pan, vol) { panTone(50+Math.random()*15, 0.25, 'sawtooth', vol*0.6, pan); panTone(55+Math.random()*10, 0.3, 'triangle', vol*0.4, pan); }
+};
+function playEnemyAmbient() {
+  if (!audioCtx || state !== ST_PLAY) return;
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    if (e.frozen > 0) continue; // frozen enemies are silent
+    var dx = e.x - player.x, dy = e.y - player.y;
+    var dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist > HEARING_RANGE) continue;
+    if (!explored[e.y] || !explored[e.y][e.x]) continue;
+    var pan = Math.max(-1, Math.min(1, dx / HEARING_RANGE));
+    var vol = 0.08 * (1 - dist / HEARING_RANGE);
+    var sndFn = ENEMY_SOUNDS[e.name];
+    if (sndFn && Math.random() < 0.6) {
+      (function(fn, p, v) { setTimeout(function(){ fn(p, v); }, Math.random()*150); })(sndFn, pan, vol);
+    }
+  }
+}
+function playProximityWarning() {
+  if (!audioCtx || state !== ST_PLAY) return;
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    var dx = Math.abs(e.x - player.x), dy = Math.abs(e.y - player.y);
+    if (dx <= 1 && dy <= 1 && (dx + dy) > 0) {
+      var pan = (e.x - player.x) * 0.8;
+      panTone(60, 0.15, 'sine', 0.06, pan);
+      break;
+    }
+  }
+}
+function sndStep() { tone(200 + Math.random() * 60, 0.06, 'sine', 0.04); }
+function sndHit() { tone(120, 0.15, 'sawtooth', 0.12); tone(80, 0.2, 'square', 0.06); }
+function sndKill() { tone(440, 0.1, 'sine', 0.1); tone(660, 0.12, 'sine', 0.08); }
+function sndHurt() { tone(90, 0.25, 'sawtooth', 0.15); }
+function sndPickup() { tone(520, 0.08, 'sine', 0.1); tone(780, 0.12, 'sine', 0.08); }
+function sndStairs() { for (var i = 0; i < 4; i++) { (function(i){ setTimeout(function(){ tone(330+i*110, 0.15, 'sine', 0.08); }, i*60); })(i); } }
+function sndDeath() { tone(200, 0.4, 'sawtooth', 0.12); tone(100, 0.6, 'square', 0.08); tone(50, 0.8, 'sine', 0.06); }
+
+// Wand sounds
+function sndWandFire(pan) { panTone(600, 0.15, 'sawtooth', 0.12, pan); noise(0.12, 0.08); setTimeout(function(){ panTone(400, 0.1, 'sawtooth', 0.08, pan); }, 50); }
+function sndWandDig(pan) { noise(0.2, 0.1); panTone(80, 0.2, 'square', 0.08, pan); }
+function sndWandTeleport() { tone(1200, 0.08, 'sine', 0.1); tone(800, 0.1, 'sine', 0.08); tone(600, 0.12, 'sine', 0.06); }
+function sndWandIce() { tone(1800, 0.15, 'sine', 0.06); tone(2200, 0.2, 'sine', 0.04); tone(1400, 0.18, 'sine', 0.05); }
+function sndWandCrumble() { noise(0.3, 0.1); tone(200, 0.3, 'square', 0.06); }
+function sndWandPoison(pan) { panTone(200, 0.2, 'sawtooth', 0.08, pan); panTone(180, 0.25, 'sawtooth', 0.06, pan); }
+function sndWandLightning(pan) { noise(0.05, 0.15); panTone(1600, 0.06, 'square', 0.12, pan); setTimeout(function(){ noise(0.04, 0.12); panTone(1200, 0.05, 'square', 0.1, pan); }, 60); }
+function sndWandSlow(pan) { panTone(400, 0.3, 'sine', 0.08, pan); panTone(350, 0.35, 'sine', 0.06, pan); }
+function sndWandHeal() { tone(660, 0.15, 'sine', 0.1); tone(880, 0.2, 'sine', 0.08); tone(1100, 0.25, 'sine', 0.06); }
+function sndWandSummon() { tone(220, 0.3, 'sine', 0.08); tone(330, 0.25, 'sine', 0.07); noise(0.15, 0.06); }
+function sndRangedFire(pan) { panTone(500, 0.08, 'triangle', 0.08, pan); }
+function sndEnemyRanged(pan) { panTone(300, 0.1, 'square', 0.06, pan); }
+function sndFamiliarAtk(pan) { panTone(900, 0.06, 'sine', 0.06, pan); }
+function sndLegend() { tone(800, 0.05, 'sine', 0.04); tone(1000, 0.06, 'sine', 0.03); }
+function sndDjinni() { tone(220, 0.5, 'sine', 0.08); tone(330, 0.5, 'sine', 0.06); tone(440, 0.6, 'sine', 0.05); tone(550, 0.7, 'sine', 0.04); }
+function sndWishGranted() { for (var i = 0; i < 5; i++) { (function(i){ setTimeout(function(){ tone(440+i*110, 0.2, 'sine', 0.1); }, i*80); })(i); } }
+
+// Class selection sounds
+function sndClassWarrior() { tone(120, 0.2, 'square', 0.12); tone(80, 0.3, 'square', 0.08); }
+function sndClassRogue() { tone(800, 0.05, 'triangle', 0.1); tone(600, 0.05, 'triangle', 0.08); }
+function sndClassWizard() { tone(660, 0.3, 'sine', 0.06); tone(880, 0.3, 'sine', 0.05); tone(1100, 0.3, 'sine', 0.04); }
+
+// ─── Game States ────────────────────────────────────────────────
+var ST_TITLE = 0, ST_CLASS = 1, ST_PLAY = 2, ST_DEAD = 3, ST_WISH = 4, ST_SHOP = 5, ST_WAND_SEL = 6, ST_PAUSE = 7;
+var state = ST_TITLE;
+
+// ─── Projectiles, Familiar, Summons, Bestiary ───────────────────
+var projectiles = []; // { x, y, dx, dy, ch, color, dmg, fromEnemy, passWalls, remaining, chain, poison, onHit }
+var familiar = null; // { x, y, cooldown } — Wizard only
+var summons = []; // { x, y, hp, maxHp, atk, cooldown }
+var seenEnemyTypes = {}; // { 'Rat': true, ... } — for bestiary legend
+var legendFlashes = []; // { name, stats, x, y, timer }
+var classRangedCooldown = 0; // turns until next class ranged attack
+var turnCount = 0; // global turn counter for cooldowns
+var lastHitSource = ''; // tracks what last damaged the player
+var runStats = { dmgDealt: 0, dmgTaken: 0, healed: 0, wandZaps: 0, crits: 0, goldSpent: 0, stepsWalked: 0, killsByType: {}, maxHitDealt: 0, maxHitTaken: 0, floorsCleared: 0, shrinesActivated: 0, chestsOpened: 0, minibossesKilled: 0, barrelsSmashed: 0, scrollsRead: 0 };
+function trackDealt(d) { runStats.dmgDealt += d; if (d > runStats.maxHitDealt) runStats.maxHitDealt = d; }
+function trackTaken(d, src) { runStats.dmgTaken += d; if (d > runStats.maxHitTaken) runStats.maxHitTaken = d; if (src) lastHitSource = src; }
+
+// ─── Map ────────────────────────────────────────────────────────
+var MW = 40, MH = 40;
+var TILE = 40;
+var VISIBLE = 15;
+var map = [];
+var explored = [];
+var T_WALL = 0, T_FLOOR = 1, T_STAIRS = 2;
+
+// ─── Classes ────────────────────────────────────────────────────
+var CLASSES = [
+  { name: 'Warrior', desc: 'Sweep: hits all adjacent, +3 HP/lvl', color: '#ff4444', hpPerLevel: 8, baseAtk: 4, baseDef: 1, sightBonus: 0, critChance: 0, wandBonus: 1, chargeMult: 1 },
+  { name: 'Rogue',   desc: 'Double strike + 20% crit, +2 sight', color: '#44ff88', hpPerLevel: 5, baseAtk: 3, baseDef: 1, sightBonus: 2, critChance: 0.2, wandBonus: 1, chargeMult: 1 },
+  { name: 'Wizard',  desc: 'Wand master: 3x find, 2x charges', color: '#aa88ff', hpPerLevel: 4, baseAtk: 2, baseDef: 0, sightBonus: 0, critChance: 0, wandBonus: 3, chargeMult: 2 }
+];
+var classSel = 0;
+var playerClass = null; // set on class pick
+
+// ─── Class Abilities (unlocked per level) ───────────────────────
+var CLASS_ABILITIES = {
+  Warrior: [
+    null,
+    { name: 'Shield Bash', desc: 'Stun adjacent enemy 2 turns on kill', type: 'passive' },
+    { name: 'War Cry', desc: 'All enemies in sight lose 1 turn', type: 'active', cooldown: 10 },
+    { name: 'Cleave+', desc: 'Sweep damage +50%', type: 'passive' },
+    { name: 'Iron Skin', desc: 'Permanent +3 DEF', type: 'passive' },
+    { name: 'Whirlwind', desc: 'Sweep hits 2-tile radius', type: 'passive' },
+    { name: 'Battle Rage', desc: 'Below 30% HP, ATK doubles', type: 'passive' },
+    { name: 'Fortify', desc: 'Heal 3 HP per kill', type: 'passive' }
+  ],
+  Rogue: [
+    null,
+    { name: 'Poison Strike', desc: 'Attacks poison: 2 dmg/turn, 3 turns', type: 'passive' },
+    { name: 'Smoke Bomb', desc: 'Invisible 3 turns', type: 'active', cooldown: 8 },
+    { name: 'Critical+', desc: 'Crit chance 20% to 35%', type: 'passive' },
+    { name: 'Shadow Step', desc: 'Teleport behind nearest enemy', type: 'active', cooldown: 5 },
+    { name: 'Assassinate', desc: 'First hit on full-HP enemy does 3x', type: 'passive' },
+    { name: 'Evasion', desc: '20% chance to dodge attacks', type: 'passive' },
+    { name: 'Death Mark', desc: 'Crits chain to adjacent enemies', type: 'passive' }
+  ],
+  Wizard: [
+    null,
+    { name: 'Mana Shield', desc: 'Absorb first hit each floor', type: 'passive' },
+    { name: 'Arcane Blast', desc: '3x3 area damage on target', type: 'active', cooldown: 6 },
+    { name: 'Wand Mastery+', desc: 'Found wands get +1 charge', type: 'passive' },
+    { name: 'Familiar+', desc: 'Familiar gains ranged attack', type: 'passive' },
+    { name: 'Spell Echo', desc: '25% chance wand costs no charge', type: 'passive' },
+    { name: 'Teleport', desc: 'Blink to random explored tile', type: 'active', cooldown: 4 },
+    { name: 'Archmage', desc: 'All wand damage +50%', type: 'passive' }
+  ]
+};
+var abilityCooldowns = {};
+var manaShieldHP = 0;
+var smokeInvisible = 0;
+var spiritBuffs = [];
+
+function hasAbility(name) {
+  if (!playerClass) return false;
+  var abilities = CLASS_ABILITIES[playerClass.name];
+  if (!abilities) return false;
+  for (var i = 1; i < abilities.length && i < player.level; i++) {
+    if (abilities[i] && abilities[i].name === name) return true;
+  }
+  return false;
+}
+function abilityCooldownReady(name) { return !abilityCooldowns[name] || abilityCooldowns[name] <= 0; }
+function useAbility(name) {
+  var abilities = CLASS_ABILITIES[playerClass.name];
+  for (var i = 0; i < abilities.length; i++) {
+    if (abilities[i] && abilities[i].name === name) { abilityCooldowns[name] = abilities[i].cooldown || 0; return true; }
+  }
+  return false;
+}
+function tickAbilityCooldowns() {
+  for (var k in abilityCooldowns) { if (abilityCooldowns.hasOwnProperty(k) && abilityCooldowns[k] > 0) abilityCooldowns[k]--; }
+  if (smokeInvisible > 0) smokeInvisible--;
+}
+function sndAbilityLearn() { tone(660, 0.15, 'sine', 0.1); tone(880, 0.2, 'sine', 0.08); tone(1100, 0.25, 'sine', 0.07); tone(1320, 0.3, 'sine', 0.06); }
+function sndWarCry() { tone(80, 0.3, 'square', 0.15); tone(100, 0.25, 'sawtooth', 0.12); tone(60, 0.4, 'square', 0.1); }
+function sndSmokeBomb() { noise(0.25, 0.1); tone(200, 0.15, 'sine', 0.06); }
+function sndShadowStep() { tone(1200, 0.06, 'sine', 0.08); tone(400, 0.1, 'sine', 0.06); }
+function sndArcaneBlast() { tone(300, 0.2, 'sawtooth', 0.1); noise(0.15, 0.08); tone(600, 0.15, 'sine', 0.06); }
+function sndTeleportAbility() { tone(1200, 0.08, 'sine', 0.1); tone(800, 0.1, 'sine', 0.08); tone(600, 0.12, 'sine', 0.06); }
+function sndManaShield() { tone(1000, 0.1, 'sine', 0.08); tone(1200, 0.08, 'sine', 0.06); }
+function sndSpiritBuff() { tone(700, 0.08, 'sine', 0.06); tone(900, 0.1, 'sine', 0.05); }
+
+// Spirit buff tick — decrement timers, remove expired
+function tickSpiritBuffs() {
+  for (var i = spiritBuffs.length - 1; i >= 0; i--) {
+    spiritBuffs[i].timer--;
+    if (spiritBuffs[i].timer <= 0) {
+      if (spiritBuffs[i].type === 'atk') player.atk -= spiritBuffs[i].val;
+      spiritBuffs.splice(i, 1);
+    }
+  }
+}
+
+// Centralized damage intake: Evasion + Mana Shield
+function playerTakeDamage(dmg, source) {
+  // Rogue Evasion — 20% dodge
+  if (hasAbility('Evasion') && Math.random() < 0.2) {
+    addFloat(player.x, player.y, 'DODGE!', '#44ff88');
+    return 0;
+  }
+  // Wizard Mana Shield — absorb first hit each floor
+  if (manaShieldHP > 0) {
+    var absorbed = Math.min(dmg, manaShieldHP);
+    manaShieldHP -= absorbed;
+    dmg -= absorbed;
+    sndManaShield();
+    addFloat(player.x, player.y, '🛡-' + absorbed, '#88ccff');
+    if (dmg <= 0) return 0;
+  }
+  // Smoke Bomb invisibility — enemies can't target us, but AoE/traps still can
+  player.hp -= dmg;
+  trackTaken(dmg, source);
+  sndHurt();
+  addFloat(player.x, player.y, '-' + dmg, '#ff3333');
+  addFlash(player.x, player.y, 'rgba(255,50,50,0.5)');
+  if (player.hp <= 0) playerDie();
+  return dmg;
+}
+
+// Use active ability (War Cry, Smoke Bomb, Shadow Step, Arcane Blast, Teleport)
+function useActiveAbility() {
+  if (!playerClass) return false;
+  var className = playerClass.name;
+  if (className === 'Warrior' && hasAbility('War Cry') && abilityCooldownReady('War Cry')) {
+    useAbility('War Cry');
+    sndWarCry();
+    var sightRange = 5 + (player.sightBonus || 0);
+    var stunned = 0;
+    for (var i = 0; i < enemies.length; i++) {
+      var d = Math.abs(enemies[i].x - player.x) + Math.abs(enemies[i].y - player.y);
+      if (d <= sightRange) {
+        enemies[i].frozen = (enemies[i].frozen || 0) + 2;
+        addFloat(enemies[i].x, enemies[i].y, 'STUNNED', '#ffcc44');
+        stunned++;
+      }
+    }
+    addFloat(player.x, player.y, '📢 WAR CRY!', '#ff4444');
+    showMsg('War Cry! ' + stunned + ' enemies stunned!');
+    return true;
+  }
+  if (className === 'Rogue' && hasAbility('Smoke Bomb') && abilityCooldownReady('Smoke Bomb')) {
+    useAbility('Smoke Bomb');
+    sndSmokeBomb();
+    smokeInvisible = 4; // 3 turns + current
+    addFloat(player.x, player.y, '💨 SMOKE!', '#888888');
+    showMsg('Smoke Bomb! Invisible for 3 turns!');
+    return true;
+  }
+  if (className === 'Rogue' && hasAbility('Shadow Step') && abilityCooldownReady('Shadow Step')) {
+    // Find nearest enemy and teleport behind them
+    var closest = null, closestDist = 999;
+    for (var i = 0; i < enemies.length; i++) {
+      var d = Math.abs(enemies[i].x - player.x) + Math.abs(enemies[i].y - player.y);
+      if (d < closestDist && d <= 8) { closest = enemies[i]; closestDist = d; }
+    }
+    if (closest) {
+      // Find tile behind enemy (opposite side from player)
+      var bdx = closest.x - player.x, bdy = closest.y - player.y;
+      var nx = closest.x + (bdx !== 0 ? (bdx > 0 ? 1 : -1) : 0);
+      var ny = closest.y + (bdy !== 0 ? (bdy > 0 ? 1 : -1) : 0);
+      if (nx >= 0 && nx < MW && ny >= 0 && ny < MH && map[ny][nx] !== T_WALL && !enemyAt(nx, ny)) {
+        player.x = nx; player.y = ny;
+        player.facing = { x: closest.x - nx, y: closest.y - ny };
+        useAbility('Shadow Step');
+        sndShadowStep();
+        addFloat(nx, ny, '⚡ Shadow Step!', '#44ff88');
+        showMsg('Shadow Step! Behind ' + closest.name + '!');
+        reveal(player.x, player.y);
+        return true;
+      } else {
+        // Try adjacent tiles to the enemy
+        var dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+        for (var di = 0; di < dirs.length; di++) {
+          nx = closest.x + dirs[di][0]; ny = closest.y + dirs[di][1];
+          if (nx >= 0 && nx < MW && ny >= 0 && ny < MH && map[ny][nx] !== T_WALL && !enemyAt(nx, ny) && !(nx === player.x && ny === player.y)) {
+            player.x = nx; player.y = ny;
+            player.facing = { x: closest.x - nx, y: closest.y - ny };
+            useAbility('Shadow Step');
+            sndShadowStep();
+            addFloat(nx, ny, '⚡ Shadow Step!', '#44ff88');
+            showMsg('Shadow Step! Flanked ' + closest.name + '!');
+            reveal(player.x, player.y);
+            return true;
+          }
+        }
+      }
+    }
+    showMsg('No target for Shadow Step!');
+    return false;
+  }
+  if (className === 'Wizard' && hasAbility('Arcane Blast') && abilityCooldownReady('Arcane Blast')) {
+    // 3x3 area centered on nearest enemy
+    var closest = null, closestDist = 999;
+    for (var i = 0; i < enemies.length; i++) {
+      var d = Math.abs(enemies[i].x - player.x) + Math.abs(enemies[i].y - player.y);
+      if (d < closestDist && d <= 6) { closest = enemies[i]; closestDist = d; }
+    }
+    if (closest) {
+      useAbility('Arcane Blast');
+      sndArcaneBlast();
+      var blastDmg = player.atk * 2 + player.level;
+      if (hasAbility('Archmage')) blastDmg = Math.floor(blastDmg * 1.5);
+      var hit = 0;
+      for (var by = -1; by <= 1; by++) {
+        for (var bx = -1; bx <= 1; bx++) {
+          var tx = closest.x + bx, ty = closest.y + by;
+          if (tx >= 0 && tx < MW && ty >= 0 && ty < MH) {
+            addFlash(tx, ty, 'rgba(170,136,255,0.5)');
+            var be = enemyAt(tx, ty);
+            if (be) {
+              be.hp -= blastDmg; trackDealt(blastDmg);
+              addFloat(tx, ty, '-' + blastDmg + '💥', '#aa88ff');
+              if (be.hp <= 0) killEnemy(be);
+              hit++;
+            }
+          }
+        }
+      }
+      addFloat(player.x, player.y, '💥 ARCANE BLAST!', '#aa88ff');
+      showMsg('Arcane Blast! Hit ' + hit + ' enemies for ' + blastDmg + ' each!');
+      return true;
+    }
+    showMsg('No targets for Arcane Blast!');
+    return false;
+  }
+  if (className === 'Wizard' && hasAbility('Teleport') && abilityCooldownReady('Teleport')) {
+    // Blink to random explored tile
+    var candidates = [];
+    for (var ty = 0; ty < MH; ty++) {
+      for (var tx = 0; tx < MW; tx++) {
+        if (explored[ty][tx] && map[ty][tx] !== T_WALL && !enemyAt(tx, ty) && !(tx === player.x && ty === player.y)) {
+          candidates.push({ x: tx, y: ty });
+        }
+      }
+    }
+    if (candidates.length > 0) {
+      var dest = candidates[Math.floor(Math.random() * candidates.length)];
+      player.x = dest.x; player.y = dest.y;
+      useAbility('Teleport');
+      sndTeleportAbility();
+      addFloat(dest.x, dest.y, '✨ TELEPORT!', '#88ccff');
+      showMsg('Teleported!');
+      reveal(player.x, player.y);
+      return true;
+    }
+    showMsg('Nowhere to teleport!');
+    return false;
+  }
+  return false;
+}
+
+// ─── Summon Helpers ─────────────────────────────────────────────
+var SUMMON_TYPES = {
+  Warrior: { ch: '🛡', name: 'Guardian', color: '#ff4444', hpMult: 1.5, atkMult: 0.6, desc: 'Tank' },
+  Rogue:   { ch: '🗡', name: 'Assassin', color: '#44ff88', hpMult: 0.7, atkMult: 1.3, desc: 'DPS' },
+  Wizard:  { ch: '🔮', name: 'Caster',   color: '#aa88ff', hpMult: 0.8, atkMult: 1.0, desc: 'Ranged', ranged: true }
+};
+var MAX_SUMMONS = 3;
+
+function createSummon(x, y) {
+  if (summons.length >= MAX_SUMMONS) {
+    showMsg('Max summons! (' + MAX_SUMMONS + ')');
+    return false;
+  }
+  var sType = SUMMON_TYPES[playerClass ? playerClass.name : 'Warrior'];
+  var baseHp = 8 + player.level * 3;
+  var baseAtk = 2 + Math.floor(player.level * 1.5);
+  var s = {
+    x: x, y: y,
+    hp: Math.floor(baseHp * sType.hpMult),
+    maxHp: Math.floor(baseHp * sType.hpMult),
+    atk: Math.floor(baseAtk * sType.atkMult),
+    cooldown: 0,
+    sType: playerClass ? playerClass.name : 'Warrior'
+  };
+  summons.push(s);
+  addFloat(x, y, sType.ch + ' ' + sType.name + '!', sType.color);
+  return true;
+}
+
+function summonDeath(s) {
+  // Spirit buff on death: leave a pickup on its tile
+  var sType = SUMMON_TYPES[s.sType || 'Warrior'];
+  spiritBuffs.push({ x: s.x, y: s.y, timer: 30, type: 'heal', val: 5 + player.level });
+  addFloat(s.x, s.y, '👻 Spirit!', '#888888');
+  sndSpiritBuff();
+}
+
+// ─── Player & Entities ─────────────────────────────────────────
+var player = { x: 5, y: 5, hp: 20, maxHp: 20, atk: 3, def: 1, floor: 1, kills: 0, steps: 0, gold: 0, xp: 0, level: 1, sightBonus: 0, healMult: 1.0, critChance: 0, facing: {x:0,y:-1} };
+var enemies = [];
+var items = [];
+var msgText = '';
+var msgTimer = 0;
+var camX = 0, camY = 0;
+var animT = 0;
+var showMinimap = false;
+var bestFloor = 0;
+try { bestFloor = parseInt(localStorage.getItem('dc_best')) || 0; } catch(e){}
+
+// Wand inventory
+var wands = []; // array of { type, charges }
+var activeWandIdx = 0;
+var enterDownTime = 0;
+var enterTimer = null;
+var wandSelIdx = 0;
+
+// Wand types
+var WAND_TYPES = [
+  { name: 'Fire',      ch: '🔥', color: '#ff6622', charges: 3 },
+  { name: 'Dig',       ch: '⛏',  color: '#aa8855', charges: 5 },
+  { name: 'Teleport',  ch: '✨', color: '#88ccff', charges: 3 },
+  { name: 'Ice',       ch: '❄',  color: '#aaddff', charges: 2 },
+  { name: 'Poison',    ch: '☠',  color: '#44cc44', charges: 4 },
+  { name: 'Lightning', ch: '⚡', color: '#ffff44', charges: 3 },
+  { name: 'Slow',      ch: '🐌', color: '#6688ff', charges: 3 },
+  { name: 'Heal',      ch: '💛', color: '#ffcc44', charges: 3 },
+  { name: 'Summon',    ch: '★',  color: '#cc66ff', charges: 2 }
+];
+
+// Helper: add wand to inventory (merge if same type)
+function addWand(type, charges) {
+  var mult = (playerClass && playerClass.chargeMult) ? playerClass.chargeMult : 1;
+  var finalCharges = charges * mult;
+  // Wand Mastery+: found wands get +1 charge
+  if (hasAbility('Wand Mastery+')) finalCharges += 1;
+  var i;
+  for (i = 0; i < wands.length; i++) {
+    if (wands[i].type === type) { wands[i].charges += finalCharges; return; }
+  }
+  wands.push({ type: type, charges: finalCharges });
+  if (wands.length === 1) activeWandIdx = 0;
+}
+function sndWandSelect() { tone(500, 0.06, 'sine', 0.08); tone(700, 0.08, 'sine', 0.06); }
+
+// ─── Shrines ────────────────────────────────────────────────────
+var SHRINE_TYPES = [
+  { name: 'Blessed Shrine', color: '#ffcc44', msg: '"Blessings upon the worthy."', effect: 'bless' },
+  { name: 'Corrupted Shrine', color: '#aa44cc', msg: '"Power demands sacrifice."', effect: 'corrupt' },
+  { name: 'Mysterious Shrine', color: '#44cccc', msg: '"The unknown favors the bold."', effect: 'mystery' },
+  { name: 'Burning Shrine', color: '#ff4422', msg: '"Cleansing fire takes all."', effect: 'burn' },
+  { name: 'Enchanted Shrine', color: '#4488ff', msg: '"Magic flows through you."', effect: 'enchant' },
+  { name: 'Cryptic Shrine', color: '#44cc44', msg: '"Knowledge is the true treasure."', effect: 'reveal' },
+  { name: 'Sacred Shrine', color: '#ffffff', msg: '"Rest now, weary traveler."', effect: 'sacred' }
+];
+var shrines = []; // { x, y, type (index), activated }
+
+// ─── Trapped Chests ─────────────────────────────────────────────
+var chests = []; // { x, y, opened }
+
+// ─── Destructible Barrels ───────────────────────────────────────
+var barrels = []; // { x, y }
+
+// ─── Lore Scrolls ───────────────────────────────────────────────
+var LORE_SCROLLS = [
+  '"The shopkeeper isn\'t trapped here. He chose to stay."',
+  '"Floor 10 is where the rats learned to organize."',
+  '"The Wizard Tower fell not from attack, but from a single miscast."',
+  '"They built the dungeon to contain something. Nobody remembers what."',
+  '"The orcs don\'t hate you. They\'re just very territorial."',
+  '"Every wand was once a branch of the World Tree."',
+  '"Wraiths are echoes of adventurers who never found the stairs."',
+  '"The dragons came last. They found the dungeon already built."',
+  '"Gold has no value down here. Only habit makes us collect it."',
+  '"The bats see more than they let on."',
+  '"Someone carved \'TURN BACK\' on floor 3. They were on floor 15."',
+  '"The familiar remembers every wizard it has served."',
+  '"Skeletons fight because they forgot how to stop."',
+  '"Each floor is deeper than the last. Nobody asks \'deeper into what?\'"',
+  '"The djinni grants wishes. It never said they\'d last."',
+  '"Somewhere below floor 20, the walls start breathing."'
+];
+var scrolls = []; // { x, y, textIdx }
+
+// ─── Miniboss Names ─────────────────────────────────────────────
+var BOSS_ADJ = ['Cursed','Hollow','Burning','Ancient','Shadow','Forgotten','Iron','Crimson','Dread','Withered'];
+var BOSS_TITLE = ['Warden','Sentinel','Reaver','Guardian','Horror','Tyrant','Colossus','Butcher','Defiler','Abomination'];
+function genBossName() {
+  return 'The ' + BOSS_ADJ[Math.floor(Math.random()*BOSS_ADJ.length)] + ' ' + BOSS_TITLE[Math.floor(Math.random()*BOSS_TITLE.length)];
+}
+var miniboss = null; // reference to the miniboss enemy on current floor (or null)
+
+// Sounds for new features
+function sndShrine() { tone(440, 0.3, 'sine', 0.1); tone(660, 0.3, 'sine', 0.08); tone(880, 0.35, 'sine', 0.06); tone(1100, 0.4, 'sine', 0.04); }
+function sndChestOpen() { tone(300, 0.1, 'triangle', 0.08); tone(500, 0.15, 'triangle', 0.06); }
+function sndChestTrap() { noise(0.2, 0.12); tone(120, 0.3, 'sawtooth', 0.1); }
+function sndMimic() { tone(100, 0.2, 'square', 0.12); tone(150, 0.15, 'square', 0.1); tone(80, 0.25, 'sawtooth', 0.08); }
+function sndBarrel() { noise(0.08, 0.08); tone(150, 0.1, 'square', 0.06); }
+function sndScroll() { tone(600, 0.1, 'sine', 0.06); tone(800, 0.12, 'sine', 0.05); }
+function sndMiniboss() { tone(60, 0.5, 'sawtooth', 0.15); tone(80, 0.4, 'square', 0.1); tone(50, 0.6, 'sawtooth', 0.08); }
+
+// Wish state
+var wishSel = 0;
+var wishWandSel = 0;
+var wishPickingWand = false;
+var hadWish = false; // track if player already got a wish this run
+var WISH_OPTIONS = ['Full HP Restore', '+3 Attack Power', '+3 Defense', 'Reveal Floor', 'Any Wand (full)'];
+
+// ─── Shop ───────────────────────────────────────────────────────
+var shopkeeper = null; // { x, y }
+var shopStock = [];    // [{ name, desc, cost, action }]
+var shopSel = 0;
+var SHOP_POOL = [
+  { name: 'Health Potion', desc: 'Restore 50% HP', cost: 15 },
+  { name: 'ATK Boost', desc: '+1 Attack (permanent)', cost: 25 },
+  { name: 'DEF Boost', desc: '+1 Defense (permanent)', cost: 25 },
+  { name: 'Sight Scroll', desc: '+1 Sight range (permanent)', cost: 20 },
+  { name: 'Wand', desc: 'Random wand', cost: 30 }
+];
+function sndShopOpen() { tone(440, 0.08, 'sine', 0.08); tone(554, 0.1, 'sine', 0.06); tone(660, 0.12, 'sine', 0.06); }
+function sndShopBuy() { tone(660, 0.08, 'sine', 0.1); tone(880, 0.15, 'sine', 0.08); }
+function sndShopFail() { tone(150, 0.15, 'square', 0.08); }
+function genShopStock() {
+  shopStock = [];
+  var pool = SHOP_POOL.slice();
+  // Shuffle pool
+  for (var i = pool.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+  }
+  var count = 3 + Math.floor(Math.random() * 2); // 3-4 items
+  for (var i = 0; i < count && i < pool.length; i++) {
+    shopStock.push({ name: pool[i].name, desc: pool[i].desc, cost: pool[i].cost, sold: false });
+  }
+}
+
+// ─── Rank Progression ───────────────────────────────────────────
+var RANKS = [
+  { name: 'Novice',       threshold: 0,    hpBonus: 0,  atkBonus: 0, defBonus: 0, sightBonus: 0, healMult: 1.0 },
+  { name: 'Squire',       threshold: 20,   hpBonus: 3,  atkBonus: 0, defBonus: 0, sightBonus: 0, healMult: 1.0 },
+  { name: 'Fighter',      threshold: 60,   hpBonus: 3,  atkBonus: 1, defBonus: 0, sightBonus: 0, healMult: 1.1 },
+  { name: 'Veteran',      threshold: 150,  hpBonus: 5,  atkBonus: 1, defBonus: 1, sightBonus: 0, healMult: 1.2 },
+  { name: 'Knight',       threshold: 300,  hpBonus: 5,  atkBonus: 1, defBonus: 1, sightBonus: 1, healMult: 1.2 },
+  { name: 'Champion',     threshold: 600,  hpBonus: 8,  atkBonus: 2, defBonus: 1, sightBonus: 1, healMult: 1.3 },
+  { name: 'Slayer',       threshold: 1200, hpBonus: 10, atkBonus: 2, defBonus: 2, sightBonus: 1, healMult: 1.4 },
+  { name: 'Dungeon Lord', threshold: 2500, hpBonus: 12, atkBonus: 3, defBonus: 2, sightBonus: 2, healMult: 1.5 }
+];
+var totalKills = 0;
+var rankAtRunStart = 0;
+function loadStats() { try { var d = JSON.parse(localStorage.getItem('dc_stats')); if (d) totalKills = d.totalKills || 0; } catch(e){} }
+function saveStats() { try { localStorage.setItem('dc_stats', JSON.stringify({ totalKills: totalKills })); } catch(e){} }
+function getRankIdx() { for (var i = RANKS.length - 1; i >= 0; i--) { if (totalKills >= RANKS[i].threshold) return i; } return 0; }
+function getRankBonuses() { return RANKS[getRankIdx()]; }
+function rankUpChime() { if (!audioCtx) return; var notes = [523, 659, 784, 1047]; for (var i = 0; i < notes.length; i++) { (function(n, d){ setTimeout(function(){ tone(n, 0.18, 'sine', 0.1); }, d); })(notes[i], i * 80); } }
+loadStats();
+
+// Title screen state
+var titleSel = 0; // 0 = continue/new, 1 = new
+
+// ─── Save/Load ──────────────────────────────────────────────────
+function saveGame() {
+  try {
+    localStorage.setItem('dc_save', JSON.stringify({
+      player: player, map: map, explored: explored,
+      enemies: enemies, items: items, wands: wands, activeWandIdx: activeWandIdx,
+      playerClass: playerClass, hadWish: hadWish,
+      bestFloor: bestFloor, rankAtRunStart: rankAtRunStart,
+      shopkeeper: shopkeeper, shopStock: shopStock,
+      familiar: familiar, summons: summons, runStats: runStats,
+      seenEnemyTypes: seenEnemyTypes,
+      classRangedCooldown: classRangedCooldown, turnCount: turnCount,
+      shrines: shrines, chests: chests, barrels: barrels, scrolls: scrolls,
+      miniboss: miniboss,
+      abilityCooldowns: abilityCooldowns, manaShieldHP: manaShieldHP,
+      smokeInvisible: smokeInvisible, spiritBuffs: spiritBuffs
+    }));
+  } catch(e) {}
+}
+function loadSave() { try { var r = localStorage.getItem('dc_save'); return r ? JSON.parse(r) : null; } catch(e) { return null; } }
+function hasSave() { try { return !!localStorage.getItem('dc_save'); } catch(e) { return false; } }
+function deleteSave() { try { localStorage.removeItem('dc_save'); } catch(e) {} }
+function restoreGame() {
+  initAudio();
+  var save = loadSave();
+  if (!save) { state = ST_CLASS; return; }
+  player = save.player;
+  map = save.map; explored = save.explored;
+  enemies = save.enemies; items = save.items;
+  // Wand inventory (backward compat with old single-wand saves)
+  if (save.wands) {
+    wands = save.wands;
+    activeWandIdx = save.activeWandIdx || 0;
+  } else if (save.playerWand) {
+    wands = [save.playerWand];
+    activeWandIdx = 0;
+  } else {
+    wands = [];
+    activeWandIdx = 0;
+  }
+  playerClass = save.playerClass || CLASSES[0];
+  hadWish = save.hadWish || false;
+  bestFloor = save.bestFloor || bestFloor;
+  rankAtRunStart = save.rankAtRunStart || getRankIdx();
+  shopkeeper = save.shopkeeper || null;
+  shopStock = save.shopStock || [];
+  familiar = save.familiar || null;
+  // Respawn familiar for wizard if missing from old save
+  if (!familiar && playerClass && playerClass.name === 'Wizard') {
+    familiar = { x: player.x, y: player.y, cooldown: 0 };
+  }
+  summons = save.summons || [];
+  seenEnemyTypes = save.seenEnemyTypes || {};
+  if (save.runStats) runStats = save.runStats;
+  else runStats = { dmgDealt: 0, dmgTaken: 0, healed: 0, wandZaps: 0, crits: 0, goldSpent: 0, stepsWalked: 0, killsByType: {}, maxHitDealt: 0, maxHitTaken: 0, floorsCleared: 0, shrinesActivated: 0, chestsOpened: 0, minibossesKilled: 0, barrelsSmashed: 0, scrollsRead: 0 };
+  // Ensure new runStats fields exist for old saves
+  if (!runStats.shrinesActivated) runStats.shrinesActivated = 0;
+  if (!runStats.chestsOpened) runStats.chestsOpened = 0;
+  if (!runStats.minibossesKilled) runStats.minibossesKilled = 0;
+  if (!runStats.barrelsSmashed) runStats.barrelsSmashed = 0;
+  if (!runStats.scrollsRead) runStats.scrollsRead = 0;
+  classRangedCooldown = save.classRangedCooldown || 0;
+  turnCount = save.turnCount || 0;
+  shrines = save.shrines || [];
+  chests = save.chests || [];
+  barrels = save.barrels || [];
+  scrolls = save.scrolls || [];
+  miniboss = save.miniboss || null;
+  abilityCooldowns = save.abilityCooldowns || {};
+  manaShieldHP = save.manaShieldHP || 0;
+  smokeInvisible = save.smokeInvisible || 0;
+  spiritBuffs = save.spiritBuffs || [];
+  projectiles = [];
+  legendFlashes = [];
+  // Restore frozen counters
+  for (var i = 0; i < enemies.length; i++) {
+    if (!enemies[i].frozen) enemies[i].frozen = 0;
+    if (!enemies[i].poisoned) enemies[i].poisoned = 0;
+    if (!enemies[i].slowed) enemies[i].slowed = 0;
+    if (!enemies[i].rangedCooldown) enemies[i].rangedCooldown = 0;
+    if (!enemies[i].level) enemies[i].level = player.floor; // backward compat
+  }
+  floats = []; flashes = [];
+  showMinimap = false;
+  state = ST_PLAY;
+  showMsg('Welcome back — Floor ' + player.floor + ' (' + playerClass.name + ')');
+}
+
+// ─── Floating Text & Flashes ────────────────────────────────────
+var floats = [];
+var flashes = [];
+function addFloat(tx, ty, text, color) { floats.push({ x: tx, y: ty, text: text, color: color, life: 40, maxLife: 40 }); }
+function addFlash(tx, ty, color) { flashes.push({ tx: tx, ty: ty, color: color, life: 12 }); }
+
+// ─── Enemy Types ────────────────────────────────────────────────
+var ENEMY_TYPES = [
+  { name: 'Rat', ch: 'r', color: '#aa8866', hp: 4, atk: 1, def: 0, xp: 2, gold: 1 },
+  { name: 'Bat', ch: 'b', color: '#8866aa', hp: 3, atk: 2, def: 0, xp: 3, gold: 1 },
+  { name: 'Skeleton', ch: 's', color: '#ccccaa', hp: 8, atk: 3, def: 1, xp: 5, gold: 3 },
+  { name: 'Orc', ch: 'O', color: '#66aa44', hp: 14, atk: 5, def: 2, xp: 8, gold: 5 },
+  { name: 'Wraith', ch: 'W', color: '#8888ff', hp: 10, atk: 7, def: 1, xp: 12, gold: 4 },
+  { name: 'Dragon', ch: 'D', color: '#ff4444', hp: 30, atk: 10, def: 4, xp: 25, gold: 15 }
+];
+
+// Item types (floor pickups)
+var ITEM_TYPES = [
+  { name: 'Health Potion', ch: '♥', color: '#ff4466', type: 'heal', val: 8 },
+  { name: 'Sword', ch: '†', color: '#aaccff', type: 'atk', val: 1 },
+  { name: 'Shield', ch: '◆', color: '#ffcc44', type: 'def', val: 1 },
+  { name: 'Big Potion', ch: '♥', color: '#ff88aa', type: 'heal', val: 20 },
+  { name: 'Gold Pile', ch: '$', color: '#ffdd00', type: 'gold', val: 10 }
+];
+
+// ─── Dungeon Generation ─────────────────────────────────────────
+function genMap(floor) {
+  map = []; explored = [];
+  for (var y = 0; y < MH; y++) {
+    map[y] = []; explored[y] = [];
+    for (var x = 0; x < MW; x++) { map[y][x] = T_WALL; explored[y][x] = false; }
+  }
+  var rooms = [];
+  var numRooms = 6 + Math.min(floor, 6);
+  var attempts = 0;
+  while (rooms.length < numRooms && attempts < 500) {
+    attempts++;
+    var rw = 4 + Math.floor(Math.random() * 5);
+    var rh = 4 + Math.floor(Math.random() * 5);
+    var rx = 1 + Math.floor(Math.random() * (MW - rw - 2));
+    var ry = 1 + Math.floor(Math.random() * (MH - rh - 2));
+    var overlap = false;
+    for (var i = 0; i < rooms.length; i++) {
+      var r = rooms[i];
+      if (rx - 1 < r.x + r.w && rx + rw + 1 > r.x && ry - 1 < r.y + r.h && ry + rh + 1 > r.y) { overlap = true; break; }
+    }
+    if (!overlap) rooms.push({ x: rx, y: ry, w: rw, h: rh });
+  }
+  for (var i = 0; i < rooms.length; i++) {
+    var r = rooms[i];
+    for (var dy = 0; dy < r.h; dy++) for (var dx = 0; dx < r.w; dx++) map[r.y + dy][r.x + dx] = T_FLOOR;
+  }
+  for (var i = 1; i < rooms.length; i++) {
+    var a = rooms[i - 1], b = rooms[i];
+    var ax = Math.floor(a.x + a.w / 2), ay = Math.floor(a.y + a.h / 2);
+    var bx = Math.floor(b.x + b.w / 2), by = Math.floor(b.y + b.h / 2);
+    var cx = ax;
+    while (cx !== bx) { map[ay][cx] = T_FLOOR; cx += (bx > ax) ? 1 : -1; }
+    map[ay][bx] = T_FLOOR;
+    var cy = ay;
+    while (cy !== by) { map[cy][bx] = T_FLOOR; cy += (by > ay) ? 1 : -1; }
+    map[by][bx] = T_FLOOR;
+  }
+  // Player in first room
+  var pr = rooms[0];
+  player.x = Math.floor(pr.x + pr.w / 2);
+  player.y = Math.floor(pr.y + pr.h / 2);
+  // Stairs in last room
+  var lr = rooms[rooms.length - 1];
+  var sx = Math.floor(lr.x + lr.w / 2), sy = Math.floor(lr.y + lr.h / 2);
+  map[sy][sx] = T_STAIRS;
+
+  // Enemies
+  enemies = [];
+  var numEnemies = 5 + floor * 2;
+  for (var i = 0; i < numEnemies; i++) {
+    var room = rooms[1 + Math.floor(Math.random() * (rooms.length - 1))];
+    var ex = room.x + 1 + Math.floor(Math.random() * (room.w - 2));
+    var ey = room.y + 1 + Math.floor(Math.random() * (room.h - 2));
+    if (ex === player.x && ey === player.y) continue;
+    if (ex === sx && ey === sy) continue;
+    var maxType = Math.min(Math.floor(floor / 2) + 1, ENEMY_TYPES.length);
+    var typeIdx = Math.floor(Math.random() * maxType);
+    if (floor > 3 && Math.random() < 0.3) typeIdx = Math.min(typeIdx + 1, maxType - 1);
+    var et = ENEMY_TYPES[typeIdx];
+    // Enemy level: base = floor, 15% chance elite (+1-2), elites scale with player
+    var eLvl = floor;
+    var isElite = false;
+    var lvlRoll = Math.random();
+    if (lvlRoll < 0.05) { eLvl = Math.max(floor + 2, player.level + 1); isElite = true; }
+    else if (lvlRoll < 0.20) { eLvl = Math.max(floor + 1, player.level); isElite = true; }
+    var lvlScale = 1 + (eLvl - 1) * 0.12;
+    var hpScale = 1 + (floor - 1) * 0.15;
+    // Elites get bonus scaling from player stats to stay threatening
+    var eliteHpMult = isElite ? 1.5 : 1;
+    var eliteAtkBonus = isElite ? Math.floor(player.atk * 0.3) : 0;
+    var hpScale = 1 + (floor - 1) * 0.15;
+    enemies.push({
+      x: ex, y: ey,
+      hp: Math.ceil(et.hp * hpScale * lvlScale * eliteHpMult), maxHp: Math.ceil(et.hp * hpScale * lvlScale * eliteHpMult),
+      atk: et.atk + Math.floor(floor * 0.3) + Math.floor((eLvl - floor) * 1.5) + eliteAtkBonus,
+      def: et.def + Math.floor((eLvl - floor) * 0.5),
+      name: et.name, ch: et.ch, color: isElite ? '#ffcc00' : et.color, xp: et.xp + (eLvl - floor) * 2 + (isElite ? 5 : 0),
+      gold: et.gold + (eLvl - floor) + (isElite ? 3 : 0),
+      frozen: 0, poisoned: 0, slowed: 0, rangedCooldown: 0,
+      level: eLvl
+    });
+  }
+
+  // Shrines
+  for (var si = 0; si < shrines.length; si++) {
+    var shr = shrines[si];
+    if (!explored[shr.y] || !explored[shr.y][shr.x]) continue;
+    var ssx = (shr.x - camX) * TILE, ssy = (shr.y - camY) * TILE;
+    if (ssx < -TILE || ssx > W || ssy < -TILE || ssy > H) continue;
+    var sInSight = Math.abs(shr.x - player.x) + Math.abs(shr.y - player.y) <= sightRange;
+    ctx.globalAlpha = sInSight ? 1 : 0.35;
+    if (!shr.activated) {
+      var sc = SHRINE_TYPES[shr.type].color;
+      var sPulse = 0.5 + Math.sin(animT * 2 + shr.x) * 0.3;
+      ctx.globalAlpha = (sInSight ? 1 : 0.35) * sPulse;
+      ctx.fillStyle = sc;
+      ctx.beginPath(); ctx.arc(ssx + TILE / 2, ssy + TILE / 2, 16, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = sInSight ? 1 : 0.35;
+      ctx.font = '600 22px -apple-system, sans-serif'; ctx.fillStyle = sc;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('✦', ssx + TILE / 2, ssy + TILE / 2);
+    } else {
+      ctx.font = '600 18px -apple-system, sans-serif'; ctx.fillStyle = '#333';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('✦', ssx + TILE / 2, ssy + TILE / 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Chests
+  for (var ci = 0; ci < chests.length; ci++) {
+    var ch2 = chests[ci];
+    if (!explored[ch2.y] || !explored[ch2.y][ch2.x]) continue;
+    var csx = (ch2.x - camX) * TILE, csy = (ch2.y - camY) * TILE;
+    if (csx < -TILE || csx > W || csy < -TILE || csy > H) continue;
+    var cInSight = Math.abs(ch2.x - player.x) + Math.abs(ch2.y - player.y) <= sightRange;
+    ctx.globalAlpha = cInSight ? 1 : 0.35;
+    if (!ch2.opened) {
+      ctx.font = '600 20px -apple-system, sans-serif'; ctx.fillStyle = '#cc9944';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('▣', csx + TILE / 2, csy + TILE / 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Barrels
+  for (var bi = 0; bi < barrels.length; bi++) {
+    var br = barrels[bi];
+    if (!explored[br.y] || !explored[br.y][br.x]) continue;
+    var bsx = (br.x - camX) * TILE, bsy = (br.y - camY) * TILE;
+    if (bsx < -TILE || bsx > W || bsy < -TILE || bsy > H) continue;
+    var bInSight = Math.abs(br.x - player.x) + Math.abs(br.y - player.y) <= sightRange;
+    ctx.globalAlpha = bInSight ? 1 : 0.35;
+    ctx.font = '600 18px -apple-system, sans-serif'; ctx.fillStyle = '#aa7733';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('o', bsx + TILE / 2, bsy + TILE / 2);
+    ctx.globalAlpha = 1;
+  }
+
+  // Scrolls
+  for (var li = 0; li < scrolls.length; li++) {
+    var scr = scrolls[li];
+    if (!explored[scr.y] || !explored[scr.y][scr.x]) continue;
+    var lsx = (scr.x - camX) * TILE, lsy = (scr.y - camY) * TILE;
+    if (lsx < -TILE || lsx > W || lsy < -TILE || lsy > H) continue;
+    var lInSight = Math.abs(scr.x - player.x) + Math.abs(scr.y - player.y) <= sightRange;
+    ctx.globalAlpha = lInSight ? 1 : 0.35;
+    ctx.font = '600 16px -apple-system, sans-serif'; ctx.fillStyle = '#ddcc88';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var sBob = Math.sin(animT * 2 + scr.x * 3) * 2;
+    ctx.fillText('?', lsx + TILE / 2, lsy + TILE / 2 + sBob);
+    ctx.globalAlpha = 1;
+  }
+
+  // Items
+  items = [];
+  var numItems = 3 + Math.floor(floor * 0.5);
+  for (var i = 0; i < numItems; i++) {
+    var room = rooms[Math.floor(Math.random() * rooms.length)];
+    var ix = room.x + 1 + Math.floor(Math.random() * (room.w - 2));
+    var iy = room.y + 1 + Math.floor(Math.random() * (room.h - 2));
+    if (ix === player.x && iy === player.y) continue;
+    var maxItem = Math.min(2 + Math.floor(floor / 3), ITEM_TYPES.length);
+    var it = ITEM_TYPES[Math.floor(Math.random() * maxItem)];
+    items.push({ x: ix, y: iy, name: it.name, ch: it.ch, color: it.color, type: it.type, val: it.val });
+  }
+
+  // Wands on floor
+  var wandChance = 0.25 * (playerClass && playerClass.wandBonus ? playerClass.wandBonus : 1);
+  var numWands = 0;
+  for (var i = 0; i < 3; i++) { if (Math.random() < wandChance) numWands++; }
+  if (numWands < 1 && floor > 1) numWands = 1; // At least 1 wand per floor after floor 1
+  for (var i = 0; i < numWands; i++) {
+    var room = rooms[Math.floor(Math.random() * rooms.length)];
+    var wx = room.x + 1 + Math.floor(Math.random() * (room.w - 2));
+    var wy = room.y + 1 + Math.floor(Math.random() * (room.h - 2));
+    if (wx === player.x && wy === player.y) continue;
+    var wt = WAND_TYPES[Math.floor(Math.random() * WAND_TYPES.length)];
+    items.push({ x: wx, y: wy, name: 'Wand of ' + wt.name, ch: '/', color: wt.color, type: 'wand', wandType: wt.name, charges: wt.charges });
+  }
+
+  // Shopkeeper (floor 2+, one per floor, in a middle room)
+  shopkeeper = null;
+  if (floor > 1 && rooms.length > 2) {
+    var shopRoom = rooms[1 + Math.floor(Math.random() * (rooms.length - 2))];
+    var skx = Math.floor(shopRoom.x + shopRoom.w / 2);
+    var sky = Math.floor(shopRoom.y + shopRoom.h / 2);
+    // Don't overlap with stairs or player
+    if (!(skx === sx && sky === sy) && !(skx === player.x && sky === player.y)) {
+      shopkeeper = { x: skx, y: sky };
+      genShopStock();
+    }
+  }
+
+  // Wish wand (rare)
+  if (!hadWish) {
+    var wishChance = floor >= 10 ? 1.0 : 0.02;
+    if (Math.random() < wishChance) {
+      var room = rooms[Math.floor(Math.random() * rooms.length)];
+      var wx = room.x + 1 + Math.floor(Math.random() * (room.w - 2));
+      var wy = room.y + 1 + Math.floor(Math.random() * (room.h - 2));
+      items.push({ x: wx, y: wy, name: 'Magic Lamp', ch: '🪔', color: '#ffcc00', type: 'wish', val: 0 });
+    }
+  }
+
+  // ─── Shrine (1 per floor) ──────────────────────────────────
+  shrines = [];
+  if (rooms.length > 2) {
+    var shrRoom = rooms[1 + Math.floor(Math.random() * (rooms.length - 2))];
+    var shx = shrRoom.x + 1 + Math.floor(Math.random() * (shrRoom.w - 2));
+    var shy = shrRoom.y + 1 + Math.floor(Math.random() * (shrRoom.h - 2));
+    if (!(shx === player.x && shy === player.y) && !enemyAt(shx, shy) && !(shopkeeper && shx === shopkeeper.x && shy === shopkeeper.y)) {
+      var shrType = Math.floor(Math.random() * SHRINE_TYPES.length);
+      shrines.push({ x: shx, y: shy, type: shrType, activated: false });
+    }
+  }
+
+  // ─── Trapped Chests (1-2 per floor, floor 2+) ─────────────
+  chests = [];
+  if (floor >= 2) {
+    var numChests = 1 + (Math.random() < 0.5 ? 1 : 0);
+    for (var ci = 0; ci < numChests; ci++) {
+      var cRoom = rooms[1 + Math.floor(Math.random() * (rooms.length - 1))];
+      var cx = cRoom.x + 1 + Math.floor(Math.random() * (cRoom.w - 2));
+      var cy = cRoom.y + 1 + Math.floor(Math.random() * (cRoom.h - 2));
+      if (!(cx === player.x && cy === player.y) && !(cx === sx && cy === sy) && !enemyAt(cx, cy)) {
+        chests.push({ x: cx, y: cy, opened: false });
+      }
+    }
+  }
+
+  // ─── Destructible Barrels (~40% of rooms, 2-4 per room) ───
+  barrels = [];
+  for (var bi = 1; bi < rooms.length; bi++) {
+    if (Math.random() > 0.4) continue;
+    var bRoom = rooms[bi];
+    var numBarrels = 2 + Math.floor(Math.random() * 3);
+    for (var bj = 0; bj < numBarrels; bj++) {
+      var bx = bRoom.x + 1 + Math.floor(Math.random() * (bRoom.w - 2));
+      var by = bRoom.y + 1 + Math.floor(Math.random() * (bRoom.h - 2));
+      if (!(bx === player.x && by === player.y) && !(bx === sx && by === sy) && !enemyAt(bx, by)) {
+        barrels.push({ x: bx, y: by });
+      }
+    }
+  }
+
+  // ─── Lore Scrolls (0-2 per floor) ─────────────────────────
+  scrolls = [];
+  var numScrolls = Math.random() < 0.6 ? 1 : (Math.random() < 0.5 ? 2 : 0);
+  for (var si = 0; si < numScrolls; si++) {
+    var sRoom = rooms[Math.floor(Math.random() * rooms.length)];
+    var scx = sRoom.x + 1 + Math.floor(Math.random() * (sRoom.w - 2));
+    var scy = sRoom.y + 1 + Math.floor(Math.random() * (sRoom.h - 2));
+    if (!(scx === player.x && scy === player.y)) {
+      scrolls.push({ x: scx, y: scy, textIdx: Math.floor(Math.random() * LORE_SCROLLS.length) });
+    }
+  }
+
+  // ─── Miniboss (every 5 floors: 5, 10, 15...) ─────────────
+  miniboss = null;
+  if (floor > 0 && floor % 5 === 0 && rooms.length > 2) {
+    var bossRoom = rooms[rooms.length - 2]; // room before stairs
+    var mbx = Math.floor(bossRoom.x + bossRoom.w / 2);
+    var mby = Math.floor(bossRoom.y + bossRoom.h / 2);
+    var bossName = genBossName();
+    var bossLevel = floor + 3;
+    var baseType = ENEMY_TYPES[Math.min(Math.floor(floor / 3), ENEMY_TYPES.length - 1)];
+    var bossHp = Math.ceil(baseType.hp * (1 + (floor - 1) * 0.2) * 3);
+    var bossAtk = Math.ceil(baseType.atk + floor * 0.5) + Math.floor(player.atk * 0.3);
+    var bossDef = baseType.def + Math.floor(floor * 0.3);
+    // Remove any existing enemy at that spot
+    for (var ei = enemies.length - 1; ei >= 0; ei--) {
+      if (enemies[ei].x === mbx && enemies[ei].y === mby) enemies.splice(ei, 1);
+    }
+    var bossEnemy = {
+      x: mbx, y: mby, hp: bossHp, maxHp: bossHp,
+      atk: bossAtk, def: bossDef,
+      name: bossName, ch: 'M', color: '#ff2222',
+      xp: 30 + floor * 5, gold: 20 + floor * 3,
+      frozen: 0, poisoned: 0, slowed: 0, rangedCooldown: 0,
+      level: bossLevel, isBoss: true
+    };
+    enemies.push(bossEnemy);
+    miniboss = bossEnemy;
+  }
+}
+
+function reveal(px, py) {
+  var radius = 4 + (player.sightBonus || 0);
+  for (var dy = -radius; dy <= radius; dy++) {
+    for (var dx = -radius; dx <= radius; dx++) {
+      var tx = px + dx, ty = py + dy;
+      if (tx >= 0 && tx < MW && ty >= 0 && ty < MH) {
+        if (dx * dx + dy * dy <= radius * radius + 1) explored[ty][tx] = true;
+      }
+    }
+  }
+}
+
+function revealAll() {
+  for (var y = 0; y < MH; y++) for (var x = 0; x < MW; x++) if (map[y][x] !== T_WALL) explored[y][x] = true;
+}
+
+function enemyAt(x, y) {
+  for (var i = 0; i < enemies.length; i++) { if (enemies[i].x === x && enemies[i].y === y) return enemies[i]; }
+  return null;
+}
+function itemAt(x, y) {
+  for (var i = 0; i < items.length; i++) { if (items[i].x === x && items[i].y === y) return items[i]; }
+  return null;
+}
+
+// ─── Wand Zap ───────────────────────────────────────────────────
+function zapWand() {
+  if (wands.length === 0 || activeWandIdx >= wands.length) return false;
+  var curWand = wands[activeWandIdx];
+  if (!curWand || curWand.charges <= 0) return false;
+  var fx = player.facing.x, fy = player.facing.y;
+  if (fx === 0 && fy === 0) fy = -1; // default up
+  var pan = fx * 0.6;
+
+  if (curWand.type === 'Fire') {
+    sndWandFire(pan);
+    for (var d = 1; d <= 3; d++) {
+      var tx = player.x + fx * d, ty = player.y + fy * d;
+      if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+      if (map[ty][tx] === T_WALL) break;
+      addFlash(tx, ty, 'rgba(255,100,30,0.6)');
+      var en = enemyAt(tx, ty);
+      if (en) {
+        var dmg = 8 + player.level * 2;
+        if (hasAbility('Archmage')) dmg = Math.floor(dmg * 1.5);
+        en.hp -= dmg;
+        addFloat(en.x, en.y, '-' + dmg + '🔥', '#ff6622');
+        if (en.hp <= 0) { killEnemy(en); }
+      }
+    }
+  } else if (curWand.type === 'Dig') {
+    sndWandDig(pan);
+    var tx = player.x + fx, ty = player.y + fy;
+    if (tx >= 1 && tx < MW-1 && ty >= 1 && ty < MH-1 && map[ty][tx] === T_WALL) {
+      map[ty][tx] = T_FLOOR;
+      addFlash(tx, ty, 'rgba(170,136,85,0.6)');
+      addFloat(tx, ty, '⛏', '#aa8855');
+      explored[ty][tx] = true;
+    } else {
+      showMsg('Nothing to dig there');
+      return false; // don't consume charge
+    }
+  } else if (curWand.type === 'Teleport') {
+    sndWandTeleport();
+    var nx = player.x, ny = player.y;
+    for (var d = 1; d <= 4; d++) {
+      var tx = player.x + fx * d, ty = player.y + fy * d;
+      if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+      if (map[ty][tx] !== T_WALL && !enemyAt(tx, ty)) { nx = tx; ny = ty; }
+    }
+    if (nx !== player.x || ny !== player.y) {
+      addFlash(player.x, player.y, 'rgba(136,204,255,0.5)');
+      player.x = nx; player.y = ny;
+      addFlash(nx, ny, 'rgba(136,204,255,0.5)');
+      reveal(nx, ny);
+    }
+  } else if (curWand.type === 'Ice') {
+    sndWandIce();
+    for (var i = 0; i < enemies.length; i++) {
+      var en = enemies[i];
+      var dx = Math.abs(en.x - player.x), dy = Math.abs(en.y - player.y);
+      if (dx <= 2 && dy <= 2) {
+        en.frozen = 3;
+        addFloat(en.x, en.y, '❄', '#aaddff');
+        addFlash(en.x, en.y, 'rgba(170,221,255,0.5)');
+      }
+    }
+  } else if (curWand.type === 'Poison') {
+    sndWandPoison(pan);
+    for (var d = 1; d <= 4; d++) {
+      var tx = player.x + fx * d, ty = player.y + fy * d;
+      if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+      if (map[ty][tx] === T_WALL) break;
+      addFlash(tx, ty, 'rgba(68,204,68,0.4)');
+      var en = enemyAt(tx, ty);
+      if (en) {
+        en.poisoned = 3; // 3 turns of damage
+        en.poisonDmg = 2;
+        addFloat(en.x, en.y, '☠ Poison!', '#44cc44');
+        break;
+      }
+    }
+  } else if (curWand.type === 'Lightning') {
+    sndWandLightning(pan);
+    var hitFirst = null;
+    for (var d = 1; d <= 5; d++) {
+      var tx = player.x + fx * d, ty = player.y + fy * d;
+      if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+      if (map[ty][tx] === T_WALL) break;
+      addFlash(tx, ty, 'rgba(255,255,68,0.5)');
+      var en = enemyAt(tx, ty);
+      if (en) { hitFirst = en; break; }
+    }
+    if (hitFirst) {
+      var dmg = 10 + player.level * 2;
+      if (hasAbility('Archmage')) dmg = Math.floor(dmg * 1.5);
+      hitFirst.hp -= dmg;
+      addFloat(hitFirst.x, hitFirst.y, '-' + dmg + '⚡', '#ffff44');
+      if (hitFirst.hp <= 0) killEnemy(hitFirst);
+      // Chain to one adjacent enemy
+      for (var ci = 0; ci < enemies.length; ci++) {
+        var ce = enemies[ci];
+        if (ce === hitFirst) continue;
+        var cdx = Math.abs(ce.x - hitFirst.x), cdy = Math.abs(ce.y - hitFirst.y);
+        if (cdx <= 1 && cdy <= 1) {
+          var chainDmg = Math.floor(dmg * 0.6);
+          ce.hp -= chainDmg;
+          addFloat(ce.x, ce.y, '-' + chainDmg + '⚡', '#ffff44');
+          addFlash(ce.x, ce.y, 'rgba(255,255,68,0.5)');
+          if (ce.hp <= 0) killEnemy(ce);
+          break; // only chain once
+        }
+      }
+    }
+  } else if (curWand.type === 'Slow') {
+    sndWandSlow(pan);
+    for (var d = 1; d <= 4; d++) {
+      var tx = player.x + fx * d, ty = player.y + fy * d;
+      if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+      if (map[ty][tx] === T_WALL) break;
+      addFlash(tx, ty, 'rgba(102,136,255,0.4)');
+      var en = enemyAt(tx, ty);
+      if (en) {
+        en.slowed = 5; // halved speed for 5 turns
+        addFloat(en.x, en.y, '🐌 Slow!', '#6688ff');
+        break;
+      }
+    }
+  } else if (curWand.type === 'Heal') {
+    sndWandHeal();
+    var healAmt = Math.ceil(player.maxHp * 0.2);
+    var _oldHp = player.hp; player.hp = Math.min(player.hp + healAmt, player.maxHp); runStats.healed += player.hp - _oldHp;
+    addFloat(player.x, player.y, '+' + healAmt + ' HP', '#ffcc44');
+    addFlash(player.x, player.y, 'rgba(255,204,68,0.5)');
+    showMsg('Healed ' + healAmt + ' HP!');
+  } else if (curWand.type === 'Summon') {
+    sndWandSummon();
+    var sx = player.x + fx, sy = player.y + fy;
+    // Find nearest open tile
+    if (sx < 0 || sx >= MW || sy < 0 || sy >= MH || map[sy][sx] === T_WALL || enemyAt(sx, sy)) {
+      // Try adjacent tiles
+      var dirs = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+      var found = false;
+      for (var di = 0; di < dirs.length; di++) {
+        var txx = player.x + dirs[di].x, tyy = player.y + dirs[di].y;
+        if (txx >= 0 && txx < MW && tyy >= 0 && tyy < MH && map[tyy][txx] !== T_WALL && !enemyAt(txx, tyy)) {
+          sx = txx; sy = tyy; found = true; break;
+        }
+      }
+      if (!found) { showMsg('No room to summon!'); return false; }
+    }
+    if (!createSummon(sx, sy)) return false;
+    addFlash(sx, sy, 'rgba(204,102,255,0.5)');
+  }
+
+  // Spell Echo: 25% chance wand use costs no charge
+  if (hasAbility('Spell Echo') && Math.random() < 0.25) {
+    addFloat(player.x, player.y, '🔮 Echo!', '#aa88ff');
+  } else {
+    curWand.charges--;
+  }
+  runStats.wandZaps++;
+  if (curWand.charges <= 0) {
+    sndWandCrumble();
+    addFloat(player.x, player.y, 'Wand crumbles!', '#888');
+    wands.splice(activeWandIdx, 1);
+    if (activeWandIdx >= wands.length && wands.length > 0) activeWandIdx = wands.length - 1;
+  }
+  return true;
+}
+
+// ─── Shrine Activation ──────────────────────────────────────────
+function shrineAt(x, y) {
+  for (var i = 0; i < shrines.length; i++) { if (shrines[i].x === x && shrines[i].y === y && !shrines[i].activated) return shrines[i]; }
+  return null;
+}
+function activateShrine(shr) {
+  shr.activated = true;
+  runStats.shrinesActivated++;
+  var st = SHRINE_TYPES[shr.type];
+  sndShrine();
+  showMsg(st.name + ': ' + st.msg);
+  if (st.effect === 'bless') {
+    player.atk += 1; player.def += 1; player.maxHp += 5; player.hp = Math.min(player.hp + 5, player.maxHp);
+    addFloat(shr.x, shr.y, 'ATK+1 DEF+1 HP+5', '#ffcc44');
+  } else if (st.effect === 'corrupt') {
+    player.atk += 3; player.maxHp = Math.max(10, player.maxHp - 10); player.hp = Math.min(player.hp, player.maxHp);
+    addFloat(shr.x, shr.y, 'ATK+3 MaxHP-10!', '#aa44cc');
+  } else if (st.effect === 'mystery') {
+    var stats = ['atk', 'def', 'maxHp'];
+    var pick = stats[Math.floor(Math.random() * stats.length)];
+    if (Math.random() < 0.6) {
+      var gain = pick === 'maxHp' ? 8 : 2;
+      player[pick] += gain; if (pick === 'maxHp') player.hp = Math.min(player.hp + gain, player.maxHp);
+      addFloat(shr.x, shr.y, '+' + gain + ' ' + pick.toUpperCase() + '!', '#44cccc');
+    } else {
+      var lose = pick === 'maxHp' ? 5 : 1;
+      player[pick] = Math.max(pick === 'maxHp' ? 10 : 1, player[pick] - lose);
+      if (pick === 'maxHp') player.hp = Math.min(player.hp, player.maxHp);
+      addFloat(shr.x, shr.y, '-' + lose + ' ' + pick.toUpperCase(), '#cc4444');
+    }
+  } else if (st.effect === 'burn') {
+    var burnDmg = 15;
+    player.hp -= burnDmg; trackTaken(burnDmg, 'Burning Shrine');
+    addFloat(player.x, player.y, '-' + burnDmg + '🔥', '#ff4422');
+    if (player.hp <= 0) { playerDie(); return; }
+    // Kill all enemies on floor
+    var killed = enemies.length;
+    for (var i = enemies.length - 1; i >= 0; i--) {
+      killEnemy(enemies[i]);
+    }
+    addFloat(shr.x, shr.y, 'ALL ENEMIES SLAIN!', '#ff4422');
+  } else if (st.effect === 'enchant') {
+    for (var i = 0; i < wands.length; i++) {
+      var wt = null;
+      for (var j = 0; j < WAND_TYPES.length; j++) { if (WAND_TYPES[j].name === wands[i].type) { wt = WAND_TYPES[j]; break; } }
+      var maxCh = wt ? wt.charges * ((playerClass && playerClass.chargeMult) || 1) : 99;
+      wands[i].charges = maxCh;
+    }
+    addFloat(shr.x, shr.y, 'Wands refilled!', '#4488ff');
+  } else if (st.effect === 'reveal') {
+    revealAll();
+    addFloat(shr.x, shr.y, 'Map revealed!', '#44cc44');
+  } else if (st.effect === 'sacred') {
+    player.hp = player.maxHp;
+    addFloat(shr.x, shr.y, 'Full HP!', '#ffffff');
+  }
+  addFlash(shr.x, shr.y, 'rgba(255,255,255,0.5)');
+}
+
+// ─── Chest Opening ──────────────────────────────────────────────
+function chestAt(x, y) {
+  for (var i = 0; i < chests.length; i++) { if (chests[i].x === x && chests[i].y === y && !chests[i].opened) return chests[i]; }
+  return null;
+}
+function openChest(ch) {
+  ch.opened = true;
+  runStats.chestsOpened++;
+  var roll = Math.random();
+  if (roll < 0.15) {
+    // Mimic!
+    sndMimic();
+    showMsg('It\'s a MIMIC!');
+    addFloat(ch.x, ch.y, 'MIMIC!', '#ff2222');
+    var mimicHp = 15 + player.floor * 4;
+    enemies.push({
+      x: ch.x, y: ch.y, hp: mimicHp, maxHp: mimicHp,
+      atk: player.atk + 2, def: Math.floor(player.def * 0.5),
+      name: 'Mimic', ch: '▣', color: '#ff8844',
+      xp: 15 + player.floor * 2, gold: 10 + player.floor * 2,
+      frozen: 0, poisoned: 0, slowed: 0, rangedCooldown: 0,
+      level: player.floor + 1
+    });
+  } else if (roll < 0.40) {
+    // Trapped! Explosion damage
+    sndChestTrap();
+    var trapDmg = 8 + Math.floor(player.floor * 0.5);
+    player.hp -= trapDmg; trackTaken(trapDmg, 'Trapped Chest');
+    addFloat(player.x, player.y, '-' + trapDmg + ' TRAP!', '#ff4444');
+    addFlash(ch.x, ch.y, 'rgba(255,100,30,0.6)');
+    showMsg('Trapped chest! -' + trapDmg + ' HP');
+    if (player.hp <= 0) { playerDie(); return; }
+    // Still drops some loot
+    giveChestLoot(ch.x, ch.y);
+  } else {
+    // Normal loot
+    sndChestOpen();
+    showMsg('Chest opened!');
+    giveChestLoot(ch.x, ch.y);
+  }
+}
+function giveChestLoot(x, y) {
+  var lootRoll = Math.random();
+  if (lootRoll < 0.35) {
+    var g = 8 + Math.floor(player.floor * 2 + Math.random() * 10);
+    player.gold += g;
+    addFloat(x, y, '+' + g + ' Gold', '#ffdd00');
+  } else if (lootRoll < 0.65) {
+    var healAmt = Math.ceil(player.maxHp * 0.3);
+    var _oldHp = player.hp; player.hp = Math.min(player.hp + healAmt, player.maxHp); runStats.healed += player.hp - _oldHp;
+    addFloat(x, y, '+' + healAmt + ' HP', '#44ff88');
+  } else {
+    var wt = WAND_TYPES[Math.floor(Math.random() * WAND_TYPES.length)];
+    addWand(wt.name, wt.charges);
+    addFloat(x, y, wt.ch + ' ' + wt.name, wt.color);
+    showMsg('Found Wand of ' + wt.name + '!');
+  }
+}
+
+// ─── Barrel Smashing ────────────────────────────────────────────
+function barrelAt(x, y) {
+  for (var i = 0; i < barrels.length; i++) { if (barrels[i].x === x && barrels[i].y === y) return i; }
+  return -1;
+}
+function smashBarrel(idx) {
+  var b = barrels[idx];
+  barrels.splice(idx, 1);
+  runStats.barrelsSmashed++;
+  sndBarrel();
+  addFlash(b.x, b.y, 'rgba(170,136,85,0.4)');
+  var roll = Math.random();
+  if (roll < 0.50) {
+    addFloat(b.x, b.y, '💨', '#666');
+  } else if (roll < 0.80) {
+    var g = 2 + Math.floor(Math.random() * 5);
+    player.gold += g;
+    addFloat(b.x, b.y, '+' + g + 'g', '#ffdd00');
+  } else if (roll < 0.95) {
+    var healAmt = Math.ceil(player.maxHp * 0.15);
+    var _oldHp = player.hp; player.hp = Math.min(player.hp + healAmt, player.maxHp); runStats.healed += player.hp - _oldHp;
+    addFloat(b.x, b.y, '+' + healAmt + ' HP', '#44ff88');
+  } else {
+    // Hidden rat!
+    addFloat(b.x, b.y, '🐀!', '#aa8866');
+    var ratHp = 3 + player.floor;
+    enemies.push({
+      x: b.x, y: b.y, hp: ratHp, maxHp: ratHp,
+      atk: 1 + Math.floor(player.floor * 0.3), def: 0,
+      name: 'Rat', ch: 'r', color: '#aa8866',
+      xp: 2, gold: 1,
+      frozen: 0, poisoned: 0, slowed: 0, rangedCooldown: 0,
+      level: player.floor
+    });
+    showMsg('A rat was hiding in the barrel!');
+  }
+}
+
+// ─── Scroll Reading ─────────────────────────────────────────────
+function scrollAt(x, y) {
+  for (var i = 0; i < scrolls.length; i++) { if (scrolls[i].x === x && scrolls[i].y === y) return i; }
+  return -1;
+}
+function readScroll(idx) {
+  var sc = scrolls[idx];
+  scrolls.splice(idx, 1);
+  runStats.scrollsRead++;
+  sndScroll();
+  showMsg(LORE_SCROLLS[sc.textIdx]);
+}
+
+function killEnemy(en) {
+  sndKill();
+  addFloat(en.x, en.y, '💀', '#ff4444');
+  player.kills++;
+  if (!runStats.killsByType[en.name]) runStats.killsByType[en.name] = 0;
+  runStats.killsByType[en.name]++;
+  var prevRank = getRankIdx();
+  totalKills++; saveStats();
+  var newRank = getRankIdx();
+  if (newRank > prevRank) { rankUpChime(); showMsg('RANK UP! ' + RANKS[newRank].name + '!'); }
+  player.xp += en.xp;
+  player.gold += en.gold;
+  // Miniboss kill: guaranteed drop + tracking
+  if (en.isBoss) {
+    runStats.minibossesKilled++;
+    miniboss = null;
+    sndMiniboss();
+    showMsg(en.name + ' has been defeated!');
+    // Guaranteed wand drop
+    var wt = WAND_TYPES[Math.floor(Math.random() * WAND_TYPES.length)];
+    addWand(wt.name, wt.charges + 2);
+    addFloat(en.x, en.y, wt.ch + ' ' + wt.name + '!', wt.color);
+    // Bonus stat
+    if (Math.random() < 0.5) { player.atk += 1; addFloat(en.x, en.y, 'ATK+1!', '#ffcc44'); }
+    else { player.def += 1; addFloat(en.x, en.y, 'DEF+1!', '#4a9eff'); }
+  }
+  enemies.splice(enemies.indexOf(en), 1);
+  // Warrior: Shield Bash — stun an adjacent enemy on kill
+  if (hasAbility('Shield Bash')) {
+    var dirs8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+    for (var bi = 0; bi < dirs8.length; bi++) {
+      var be = enemyAt(en.x + dirs8[bi][0], en.y + dirs8[bi][1]);
+      if (be && (!be.frozen || be.frozen < 2)) {
+        be.frozen = 2; addFloat(be.x, be.y, 'STUNNED', '#ffcc44'); break;
+      }
+    }
+  }
+  // Warrior: Fortify — heal 3 HP per kill
+  if (hasAbility('Fortify') && player.hp < player.maxHp) {
+    var fHeal = 3;
+    player.hp = Math.min(player.hp + fHeal, player.maxHp);
+    runStats.healed += fHeal;
+    addFloat(player.x, player.y, '+' + fHeal + '♥', '#44ff88');
+  }
+  // Level up check
+  var nextLvl = Math.floor(15 * Math.pow(1.5, player.level - 1));
+  if (player.xp >= nextLvl) {
+    player.level++;
+    var hpGain = playerClass ? playerClass.hpPerLevel : 5;
+    player.maxHp += hpGain;
+    player.hp = Math.min(player.hp + hpGain + 5, player.maxHp);
+    player.atk += 1;
+    // Check for new class ability
+    var newAbility = null;
+    if (playerClass && CLASS_ABILITIES[playerClass.name]) {
+      var aIdx = player.level - 1; // L2 = index 1, L3 = index 2, etc.
+      if (aIdx < CLASS_ABILITIES[playerClass.name].length) {
+        newAbility = CLASS_ABILITIES[playerClass.name][aIdx];
+      }
+    }
+    if (newAbility) {
+      // Apply passive stat bonuses
+      if (newAbility.name === 'Iron Skin') { player.def += 3; }
+      if (newAbility.name === 'Critical+') { player.critChance = 0.35; }
+      if (newAbility.name === 'Mana Shield') { manaShieldHP = 5 + player.level * 2; }
+      showMsg('LEVEL ' + player.level + '! Learned: ' + newAbility.name);
+      sndAbilityLearn();
+    } else {
+      showMsg('LEVEL UP! Lv' + player.level + ' HP+' + hpGain + ' ATK+1');
+      tone(440, 0.1, 'sine', 0.1); tone(550, 0.12, 'sine', 0.08); tone(660, 0.14, 'sine', 0.08);
+    }
+  }
+}
+
+// ─── Movement & Combat ──────────────────────────────────────────
+function tryMove(dx, dy) {
+  player.facing = { x: dx, y: dy };
+  var nx = player.x + dx, ny = player.y + dy;
+  if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) return;
+  // Shopkeeper — can't walk through, opens shop
+  if (shopkeeper && nx === shopkeeper.x && ny === shopkeeper.y) {
+    sndShopOpen();
+    shopSel = 0;
+    state = ST_SHOP;
+    return;
+  }
+  if (map[ny][nx] === T_WALL) return;
+
+  var en = enemyAt(nx, ny);
+  if (en) {
+    // --- Primary melee attack ---
+    var effAtk = player.atk;
+    if (hasAbility('Battle Rage') && player.hp <= player.maxHp * 0.3) effAtk *= 2;
+    var dmg = Math.max(1, effAtk - en.def + Math.floor(Math.random() * 3));
+    // Rogue Assassinate: 3x on full-HP enemy
+    if (hasAbility('Assassinate') && en.hp >= en.maxHp) dmg *= 3;
+    var isCrit = player.critChance > 0 && Math.random() < player.critChance;
+    if (isCrit) dmg *= 2;
+    en.hp -= dmg;
+    trackDealt(dmg);
+    if (isCrit) runStats.crits++;
+    sndHit();
+    addFloat(en.x, en.y, (isCrit ? 'CRIT! -' : '-') + dmg, isCrit ? '#ffff44' : '#ff8844');
+    addFlash(en.x, en.y, 'rgba(255,136,68,0.4)');
+    if (en.hp <= 0) {
+      rogueElementalKill(en.x, en.y);
+      // Death Mark: crits chain to adjacent enemies
+      if (isCrit && hasAbility('Death Mark')) {
+        var dDirs = [[-1,0],[1,0],[0,-1],[0,1]];
+        for (var di = 0; di < dDirs.length; di++) {
+          var de = enemyAt(en.x + dDirs[di][0], en.y + dDirs[di][1]);
+          if (de) {
+            var chainDmg = Math.max(1, Math.floor(dmg * 0.5));
+            de.hp -= chainDmg; trackDealt(chainDmg);
+            addFloat(de.x, de.y, 'CHAIN -' + chainDmg, '#ff44ff');
+            addFlash(de.x, de.y, 'rgba(255,68,255,0.4)');
+            if (de.hp <= 0) killEnemy(de);
+          }
+        }
+      }
+      killEnemy(en);
+    } else {
+      // Rogue Poison Strike
+      if (hasAbility('Poison Strike') && (!en.poisoned || en.poisoned < 3)) {
+        en.poisoned = 3; en.poisonDmg = 2 + Math.floor(player.level * 0.5);
+        addFloat(en.x, en.y, '☠ Poison', '#44cc44');
+      }
+      rogueElementalHit(en, dmg);
+      showMsg((isCrit ? 'Critical! ' : '') + 'Hit ' + en.name + ' for ' + dmg + '! (' + en.hp + '/' + en.maxHp + ')');
+    }
+
+    // --- Warrior sweep: hit ALL adjacent enemies (Cleave+/Whirlwind upgrade) ---
+    if (playerClass && playerClass.name === 'Warrior') {
+      var sweepRange = hasAbility('Whirlwind') ? 2 : 1;
+      var sweepMult = hasAbility('Cleave+') ? 0.75 : 0.5;
+      var sweepTargets = [];
+      for (var sy2 = -sweepRange; sy2 <= sweepRange; sy2++) {
+        for (var sx2 = -sweepRange; sx2 <= sweepRange; sx2++) {
+          if (sx2 === 0 && sy2 === 0) continue;
+          var stx = player.x + sx2, sty = player.y + sy2;
+          if (stx === nx && sty === ny) continue;
+          var se = enemyAt(stx, sty);
+          if (se) sweepTargets.push(se);
+        }
+      }
+      for (var si = 0; si < sweepTargets.length; si++) {
+        var se = sweepTargets[si];
+        var sDmg = Math.max(1, Math.floor(player.atk * sweepMult) - se.def + Math.floor(Math.random() * 2));
+        se.hp -= sDmg; trackDealt(sDmg);
+        sndHit();
+        addFloat(se.x, se.y, (sweepRange > 1 ? 'WHIRL -' : 'SWEEP -') + sDmg, '#ff6644');
+        addFlash(se.x, se.y, 'rgba(255,100,68,0.3)');
+        if (se.hp <= 0) {
+          killEnemy(se);
+        } else {
+          showMsg('Sweep hit ' + se.name + ' for ' + sDmg + '!');
+        }
+      }
+    }
+
+    // --- Rogue double strike: 2nd hit at 60% ATK with crit chance ---
+    if (playerClass && playerClass.name === 'Rogue' && en.hp > 0) {
+      var dmg2 = Math.max(1, Math.floor(player.atk * 0.6) - en.def + Math.floor(Math.random() * 2));
+      var isCrit2 = Math.random() < player.critChance;
+      if (isCrit2) dmg2 *= 2;
+      en.hp -= dmg2; trackDealt(dmg2); if (isCrit2) runStats.crits++;
+      sndHit();
+      addFloat(en.x, en.y, (isCrit2 ? 'CRIT x2! -' : 'x2 -') + dmg2, isCrit2 ? '#ffff44' : '#44ff88');
+      if (en.hp <= 0) {
+        rogueElementalKill(en.x, en.y);
+        killEnemy(en);
+      } else {
+        rogueElementalHit(en, dmg2); // elemental on double strike too
+        showMsg((isCrit2 ? 'Crit double strike! ' : 'Double strike! ') + en.name + ' for ' + dmg2 + '! (' + en.hp + '/' + en.maxHp + ')');
+      }
+    }
+
+    // Enemy counter-attack
+    if (en.hp > 0 && en.frozen <= 0) {
+      var eDmg = Math.max(1, en.atk - player.def + Math.floor(Math.random() * 2));
+      var actualDmg = playerTakeDamage(eDmg, en.name + ' (melee)');
+      if (actualDmg > 0) wizardShieldReprisal(en); // wizard shield retaliates
+      if (player.hp <= 0) return;
+    }
+    moveEnemies();
+    tickTurn();
+    saveGame();
+    return;
+  }
+
+  // Shrine check (walk into to activate, blocks movement)
+  var shr = shrineAt(nx, ny);
+  if (shr) {
+    activateShrine(shr);
+    moveEnemies();
+    tickTurn();
+    saveGame();
+    return;
+  }
+
+  // Chest check (walk into to open, blocks movement)
+  var chest = chestAt(nx, ny);
+  if (chest) {
+    openChest(chest);
+    moveEnemies();
+    tickTurn();
+    saveGame();
+    return;
+  }
+
+  // Barrel check (walk into to smash, blocks movement)
+  var bIdx = barrelAt(nx, ny);
+  if (bIdx >= 0) {
+    smashBarrel(bIdx);
+    moveEnemies();
+    tickTurn();
+    saveGame();
+    return;
+  }
+
+  // Move
+  player.x = nx; player.y = ny; player.steps++; runStats.stepsWalked++;
+  sndStep(); playEnemyAmbient(); playProximityWarning();
+
+  // Pick up scroll on floor
+  var scIdx = scrollAt(nx, ny);
+  if (scIdx >= 0) {
+    readScroll(scIdx);
+  }
+
+  // Pick up ALL items on this tile
+  var it = itemAt(nx, ny);
+  while (it) {
+    sndPickup();
+    if (it.type === 'heal') {
+      var healAmt = Math.round(it.val * (player.healMult || 1));
+      var _oldHp = player.hp; player.hp = Math.min(player.hp + healAmt, player.maxHp); runStats.healed += player.hp - _oldHp;
+      showMsg(it.name + '! +' + healAmt + ' HP');
+      addFloat(nx, ny, '+' + healAmt, '#44ff88');
+    } else if (it.type === 'atk') {
+      player.atk += it.val;
+      showMsg(it.name + '! ATK +' + it.val);
+      addFloat(nx, ny, '⚔+' + it.val, '#ffcc44');
+    } else if (it.type === 'def') {
+      player.def += it.val;
+      showMsg(it.name + '! DEF +' + it.val);
+      addFloat(nx, ny, '🛡+' + it.val, '#4a9eff');
+    } else if (it.type === 'gold') {
+      player.gold += it.val;
+      showMsg('+' + it.val + ' Gold!');
+      addFloat(nx, ny, '+' + it.val + 'g', '#ffdd44');
+    } else if (it.type === 'wand') {
+      addWand(it.wandType, it.charges);
+      showMsg('Picked up ' + it.name + '! (' + it.charges + ' charges)');
+      addFloat(nx, ny, it.name, it.color);
+    } else if (it.type === 'wish') {
+      // Magic lamp — enter wish state
+      hadWish = true;
+      sndDjinni();
+      wishSel = 0;
+      wishPickingWand = false;
+      state = ST_WISH;
+      items.splice(items.indexOf(it), 1);
+      return; // don't continue processing
+    }
+    items.splice(items.indexOf(it), 1);
+    it = itemAt(nx, ny); // check for more items on same tile
+  }
+
+  // Pick up spirit buffs
+  for (var sbi = spiritBuffs.length - 1; sbi >= 0; sbi--) {
+    if (spiritBuffs[sbi].x === nx && spiritBuffs[sbi].y === ny) {
+      var sb = spiritBuffs[sbi];
+      if (sb.type === 'heal') {
+        var sbAmt = Math.min(sb.val, player.maxHp - player.hp);
+        if (sbAmt > 0) { player.hp += sbAmt; runStats.healed += sbAmt; }
+        addFloat(nx, ny, '+' + sb.val + '👻', '#88ccff');
+        showMsg('Spirit heals you for ' + sb.val + '!');
+      }
+      spiritBuffs.splice(sbi, 1);
+    }
+  }
+
+  // Stairs?
+  if (map[ny][nx] === T_STAIRS) {
+    sndStairs();
+    player.floor++; runStats.floorsCleared++;
+    showMinimap = false;
+    showMsg('Descending to floor ' + player.floor + '...');
+    genMap(player.floor);
+    // Reposition familiar and summons near player on new floor
+    if (familiar) { familiar.x = player.x; familiar.y = player.y; familiar.cooldown = 0; }
+    // Summons follow between floors: heal to full, reposition near player
+    for (var si = 0; si < summons.length; si++) {
+      summons[si].hp = summons[si].maxHp;
+      summons[si].x = player.x; summons[si].y = player.y;
+      summons[si].cooldown = 0;
+    }
+    // Reset mana shield each floor
+    if (hasAbility('Mana Shield')) manaShieldHP = 5 + player.level * 2;
+    spiritBuffs = [];
+    projectiles = [];
+    saveGame(); // auto-save on floor transition
+  }
+
+  reveal(player.x, player.y);
+  moveEnemies();
+  tickTurn();
+  saveGame();
+}
+
+// ─── Projectile System ──────────────────────────────────────────
+function addProjectile(x, y, dx, dy, ch, color, dmg, fromEnemy, passWalls, remaining, extra) {
+  var p = { x: x, y: y, dx: dx, dy: dy, ch: ch, color: color, dmg: dmg, fromEnemy: fromEnemy, passWalls: passWalls || false, remaining: remaining || 4 };
+  if (extra) { if (extra.poison) p.poison = extra.poison; if (extra.chain) p.chain = extra.chain; if (extra.source) p.source = extra.source; }
+  projectiles.push(p);
+}
+
+function stepProjectiles() {
+  for (var i = projectiles.length - 1; i >= 0; i--) {
+    var p = projectiles[i];
+    p.x += p.dx; p.y += p.dy;
+    p.remaining--;
+    // Out of bounds
+    if (p.x < 0 || p.x >= MW || p.y < 0 || p.y >= MH) { projectiles.splice(i, 1); continue; }
+    // Wall check
+    if (!p.passWalls && map[p.y][p.x] === T_WALL) { projectiles.splice(i, 1); continue; }
+    // Range exhausted
+    if (p.remaining <= 0) { projectiles.splice(i, 1); continue; }
+    if (p.fromEnemy) {
+      // Check hit player
+      if (p.x === player.x && p.y === player.y) {
+        var eDmg = Math.max(1, p.dmg - player.def);
+        var shieldReduce = wizardShieldRangedReprisal(eDmg);
+        eDmg = Math.max(1, eDmg - shieldReduce);
+        playerTakeDamage(eDmg, (p.source || 'Ranged') + ' (ranged)');
+        projectiles.splice(i, 1);
+        if (player.hp <= 0) return;
+        continue;
+      }
+      // Check hit summon
+      for (var si = summons.length - 1; si >= 0; si--) {
+        if (summons[si].x === p.x && summons[si].y === p.y) {
+          summons[si].hp -= p.dmg;
+          addFloat(p.x, p.y, '-' + p.dmg, '#ff6666');
+          if (summons[si].hp <= 0) { summonDeath(summons[si]); summons.splice(si, 1); }
+          projectiles.splice(i, 1); break;
+        }
+      }
+    } else {
+      // Friendly projectile — check hit enemy
+      var en = enemyAt(p.x, p.y);
+      if (en) {
+        en.hp -= p.dmg;
+        addFloat(en.x, en.y, '-' + p.dmg, p.color);
+        addFlash(en.x, en.y, 'rgba(255,136,68,0.3)');
+        if (en.hp <= 0) killEnemy(en);
+        projectiles.splice(i, 1);
+        continue;
+      }
+    }
+  }
+}
+
+// ─── Enemy Ranged Attacks ───────────────────────────────────────
+function enemyRangedAttacks() {
+  if (smokeInvisible > 0) return; // enemies can't target invisible player
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    if (e.frozen > 0 || (e.slowed > 0 && turnCount % 2 !== 0)) continue;
+    if (!e.rangedCooldown) e.rangedCooldown = 0;
+    if (e.rangedCooldown > 0) { e.rangedCooldown--; continue; }
+    var dx = player.x - e.x, dy = player.y - e.y;
+    var dist = Math.abs(dx) + Math.abs(dy);
+    var sightRange = 5 + (player.sightBonus || 0);
+    if (dist > sightRange) continue;
+
+    if (e.name === 'Skeleton' && dist <= 3 && dist > 1) {
+      // Bone throw — straight line only
+      if (dx === 0 || dy === 0) {
+        var ndx = dx === 0 ? 0 : (dx > 0 ? 1 : -1);
+        var ndy = dy === 0 ? 0 : (dy > 0 ? 1 : -1);
+        addProjectile(e.x + ndx, e.y + ndy, ndx, ndy, '·', '#ccccaa', Math.max(1, Math.floor(e.atk * 0.5)), true, false, 3, {source: e.name});
+        sndEnemyRanged((e.x - player.x) / sightRange);
+        e.rangedCooldown = 2;
+      }
+    } else if (e.name === 'Wraith' && dist <= 4 && dist > 1) {
+      // Spectral bolt — passes through walls
+      if (dx === 0 || dy === 0) {
+        var ndx = dx === 0 ? 0 : (dx > 0 ? 1 : -1);
+        var ndy = dy === 0 ? 0 : (dy > 0 ? 1 : -1);
+        addProjectile(e.x + ndx, e.y + ndy, ndx, ndy, '~', '#8888ff', Math.max(1, Math.floor(e.atk * 0.6)), true, true, 4, {source: e.name});
+        sndEnemyRanged((e.x - player.x) / sightRange);
+        e.rangedCooldown = 3;
+      }
+    } else if (e.name === 'Dragon' && dist <= 4 && dist > 1) {
+      // Fire breath — line of 4, straight lines and diagonals
+      if (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy)) {
+        var ndx = dx === 0 ? 0 : (dx > 0 ? 1 : -1);
+        var ndy = dy === 0 ? 0 : (dy > 0 ? 1 : -1);
+        // Multiple projectiles for the breath line
+        for (var bd = 1; bd <= 4; bd++) {
+          var bx = e.x + ndx * bd, by = e.y + ndy * bd;
+          if (bx >= 0 && bx < MW && by >= 0 && by < MH && map[by][bx] !== T_WALL) {
+            addFlash(bx, by, 'rgba(255,68,68,0.4)');
+            if (bx === player.x && by === player.y) {
+              var fireDmg = Math.max(1, Math.floor(e.atk * 0.8) - player.def);
+              var fireReduce = wizardShieldRangedReprisal(fireDmg);
+              fireDmg = Math.max(1, fireDmg - fireReduce);
+              playerTakeDamage(fireDmg, e.name + ' (fire breath)');
+              if (player.hp <= 0) return;
+            }
+            // Hit summons in the line
+            for (var si = summons.length - 1; si >= 0; si--) {
+              if (summons[si].x === bx && summons[si].y === by) {
+                summons[si].hp -= Math.floor(e.atk * 0.8);
+                if (summons[si].hp <= 0) { summonDeath(summons[si]); summons.splice(si, 1); }
+              }
+            }
+          } else break;
+        }
+        sndEnemyRanged((e.x - player.x) / sightRange);
+        e.rangedCooldown = 4;
+      }
+    }
+  }
+}
+
+// ─── Class Ranged Abilities (auto-fire) ─────────────────────────
+function classRangedAttack() {
+  if (!playerClass || classRangedCooldown > 0) { classRangedCooldown--; return; }
+  var fx = player.facing.x, fy = player.facing.y;
+  if (fx === 0 && fy === 0) fy = -1;
+  var pan = fx * 0.5;
+
+  if (playerClass.name === 'Warrior') {
+    // Throwing axe — 2 tile range, ATK*0.5, every 3 turns
+    var target = null;
+    for (var d = 1; d <= 2; d++) {
+      var tx = player.x + fx * d, ty = player.y + fy * d;
+      if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || map[ty][tx] === T_WALL) break;
+      var en = enemyAt(tx, ty);
+      if (en) { target = en; break; }
+    }
+    if (target) {
+      var dmg = Math.max(1, Math.floor(player.atk * 0.5));
+      target.hp -= dmg;
+      sndRangedFire(pan);
+      addFloat(target.x, target.y, '-' + dmg + '†', '#ff4444');
+      addFlash(target.x, target.y, 'rgba(255,68,68,0.3)');
+      if (target.hp <= 0) killEnemy(target);
+      classRangedCooldown = 3;
+    }
+  } else if (playerClass.name === 'Rogue') {
+    // Throwing knives — 3 tile range, ATK*0.4, 20% crit, every 2 turns
+    var target = null;
+    for (var d = 1; d <= 3; d++) {
+      var tx = player.x + fx * d, ty = player.y + fy * d;
+      if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || map[ty][tx] === T_WALL) break;
+      var en = enemyAt(tx, ty);
+      if (en) { target = en; break; }
+    }
+    if (target) {
+      var dmg = Math.max(1, Math.floor(player.atk * 0.4));
+      var isCrit = Math.random() < 0.2;
+      if (isCrit) dmg *= 2;
+      target.hp -= dmg;
+      sndRangedFire(pan);
+      addFloat(target.x, target.y, (isCrit ? 'CRIT! ' : '') + '-' + dmg, isCrit ? '#ffff44' : '#44ff88');
+      addFlash(target.x, target.y, 'rgba(68,255,136,0.3)');
+      if (target.hp <= 0) { rogueElementalKill(target.x, target.y); killEnemy(target); }
+      else rogueElementalHit(target, dmg); // elemental on throwing knives
+      classRangedCooldown = 2;
+    }
+  }
+  // Wizard uses familiar instead — handled separately
+}
+
+// ─── Familiar AI (Wizard) ───────────────────────────────────────
+function updateFamiliar() {
+  // Respawn familiar if wizard lost it somehow
+  if (!familiar && playerClass && playerClass.name === 'Wizard') {
+    familiar = { x: player.x, y: player.y, cooldown: 0 };
+    addFloat(player.x, player.y, 'Familiar returns!', '#aa88ff');
+    showMsg('Your familiar reforms beside you.');
+  }
+  if (!familiar) return;
+
+  // Teleport to player if too far away (prevents getting stuck behind walls)
+  var fdx = player.x - familiar.x, fdy = player.y - familiar.y;
+  var fdist = Math.abs(fdx) + Math.abs(fdy);
+  if (fdist > 4) {
+    // Find an open adjacent tile near the player
+    var dirs = [[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[-1,1],[1,-1],[1,1]];
+    var placed = false;
+    for (var d = 0; d < dirs.length; d++) {
+      var tx = player.x + dirs[d][0], ty = player.y + dirs[d][1];
+      if (tx >= 0 && tx < MW && ty >= 0 && ty < MH && map[ty][tx] !== T_WALL && !enemyAt(tx, ty)) {
+        familiar.x = tx; familiar.y = ty; placed = true; break;
+      }
+    }
+    if (!placed) { familiar.x = player.x; familiar.y = player.y; }
+    fdx = player.x - familiar.x; fdy = player.y - familiar.y;
+    fdist = Math.abs(fdx) + Math.abs(fdy);
+  }
+
+  // Move toward player if > 1 tile away, with smarter pathfinding
+  if (fdist > 1) {
+    // Try both axes, prefer the longer one, but try the other if blocked
+    var mx1 = 0, my1 = 0, mx2 = 0, my2 = 0;
+    if (Math.abs(fdx) >= Math.abs(fdy)) {
+      mx1 = fdx > 0 ? 1 : -1; my2 = fdy > 0 ? 1 : (fdy < 0 ? -1 : 0);
+    } else {
+      my1 = fdy > 0 ? 1 : -1; mx2 = fdx > 0 ? 1 : (fdx < 0 ? -1 : 0);
+    }
+    var nx = familiar.x + mx1, ny = familiar.y + my1;
+    if (nx >= 0 && nx < MW && ny >= 0 && ny < MH && map[ny][nx] !== T_WALL && !enemyAt(nx, ny)) {
+      familiar.x = nx; familiar.y = ny;
+    } else if (mx2 !== 0 || my2 !== 0) {
+      nx = familiar.x + mx2; ny = familiar.y + my2;
+      if (nx >= 0 && nx < MW && ny >= 0 && ny < MH && map[ny][nx] !== T_WALL && !enemyAt(nx, ny)) {
+        familiar.x = nx; familiar.y = ny;
+      }
+    }
+  }
+
+  // Attack nearest enemy — range 5 with Familiar+, else 3
+  if (familiar.cooldown > 0) { familiar.cooldown--; return; }
+  var famRange = hasAbility('Familiar+') ? 5 : 3;
+  var closest = null, closestDist = 999;
+  for (var i = 0; i < enemies.length; i++) {
+    var en = enemies[i];
+    var d = Math.abs(en.x - familiar.x) + Math.abs(en.y - familiar.y);
+    if (d <= famRange && d < closestDist) { closest = en; closestDist = d; }
+  }
+  if (closest) {
+    var dmg = Math.max(1, Math.floor(player.atk * 0.5) + player.level);
+    if (hasAbility('Archmage')) dmg = Math.floor(dmg * 1.5);
+    closest.hp -= dmg;
+    var fpan = (closest.x - player.x) / 8;
+    sndFamiliarAtk(fpan);
+    addFloat(closest.x, closest.y, '-' + dmg + 'f', '#aa88ff');
+    addFlash(closest.x, closest.y, 'rgba(170,136,255,0.3)');
+    if (closest.hp <= 0) killEnemy(closest);
+    familiar.cooldown = 1;
+  }
+}
+
+// ─── Summon AI ──────────────────────────────────────────────────
+function updateSummons() {
+  // Pick up spirit buffs (player steps handled in tryMove, this is for summon locations)
+  for (var bi = spiritBuffs.length - 1; bi >= 0; bi--) {
+    var b = spiritBuffs[bi];
+    if (b.x === player.x && b.y === player.y) {
+      if (b.type === 'heal') {
+        var hAmt = Math.min(b.val, player.maxHp - player.hp);
+        player.hp += hAmt; runStats.healed += hAmt;
+        addFloat(player.x, player.y, '+' + hAmt + '👻', '#88ccff');
+      }
+      spiritBuffs.splice(bi, 1);
+    }
+  }
+  for (var i = summons.length - 1; i >= 0; i--) {
+    var s = summons[i];
+    var sTypeInfo = SUMMON_TYPES[s.sType || 'Warrior'];
+    // Find nearest enemy
+    var closest = null, closestDist = 999;
+    for (var j = 0; j < enemies.length; j++) {
+      var en = enemies[j];
+      var d = Math.abs(en.x - s.x) + Math.abs(en.y - s.y);
+      if (d < closestDist) { closest = en; closestDist = d; }
+    }
+    if (!closest) continue;
+    // Wizard summons: ranged attack from 3 tiles (or if player has Familiar+)
+    var isRanged = sTypeInfo.ranged || hasAbility('Familiar+');
+    var attackRange = isRanged ? 3 : 1;
+    if (closestDist <= attackRange) {
+      if (s.cooldown > 0) { s.cooldown--; continue; }
+      var dmg = Math.max(1, s.atk - closest.def);
+      // Rogue summons: backstab bonus if enemy is adjacent to player (flanking)
+      if (s.sType === 'Rogue') {
+        var nearPlayer = Math.abs(closest.x - player.x) + Math.abs(closest.y - player.y) <= 1;
+        if (nearPlayer) { dmg = Math.floor(dmg * 1.5); }
+      }
+      closest.hp -= dmg;
+      var dmgCh = sTypeInfo.ch || '★';
+      addFloat(closest.x, closest.y, '-' + dmg + dmgCh, sTypeInfo.color);
+      addFlash(closest.x, closest.y, 'rgba(204,102,255,0.3)');
+      if (isRanged && closestDist > 1) {
+        // Fire a visual projectile
+        var pdx = closest.x > s.x ? 1 : (closest.x < s.x ? -1 : 0);
+        var pdy = closest.y > s.y ? 1 : (closest.y < s.y ? -1 : 0);
+        addProjectile(s.x + pdx, s.y + pdy, pdx, pdy, '·', sTypeInfo.color, 0, false, false, closestDist - 1);
+      }
+      if (closest.hp <= 0) killEnemy(closest);
+      s.cooldown = isRanged ? 2 : 1;
+    } else {
+      // Move toward closest enemy
+      var dx = closest.x - s.x, dy = closest.y - s.y;
+      var mx = 0, my = 0;
+      if (Math.abs(dx) >= Math.abs(dy)) mx = dx > 0 ? 1 : -1;
+      else my = dy > 0 ? 1 : -1;
+      var nx = s.x + mx, ny = s.y + my;
+      if (nx >= 0 && nx < MW && ny >= 0 && ny < MH && map[ny][nx] !== T_WALL && !enemyAt(nx, ny) && !(nx === player.x && ny === player.y)) {
+        s.x = nx; s.y = ny;
+      }
+    }
+  }
+}
+
+// ─── Enemy Bestiary Legend ──────────────────────────────────────
+function checkBestiary() {
+  var sightRange = 5 + (player.sightBonus || 0);
+  for (var i = 0; i < enemies.length; i++) {
+    var en = enemies[i];
+    var dist = Math.abs(en.x - player.x) + Math.abs(en.y - player.y);
+    if (dist <= sightRange && !seenEnemyTypes[en.name]) {
+      seenEnemyTypes[en.name] = true;
+      var specials = { Skeleton: 'Bone throw', Wraith: 'Spectral bolt (thru walls)', Dragon: 'Fire breath (line)' };
+      var statStr = 'L' + (en.level || player.floor) + ' HP:' + en.maxHp + ' ATK:' + en.atk + ' DEF:' + en.def;
+      if (specials[en.name]) statStr += ' · ' + specials[en.name];
+      if (en.isBoss) statStr = '⚠ BOSS · ' + statStr;
+      legendFlashes.push({ name: en.name, stats: statStr, x: en.x, y: en.y, timer: en.isBoss ? 180 : 120 });
+      if (en.isBoss) { sndMiniboss(); showMsg('⚠ ' + en.name + ' blocks your path!'); }
+      else sndLegend();
+    }
+  }
+}
+
+// ─── Poison/Slow Tick ───────────────────────────────────────────
+function tickStatusEffects() {
+  for (var i = enemies.length - 1; i >= 0; i--) {
+    var en = enemies[i];
+    if (en.poisoned && en.poisoned > 0) {
+      en.hp -= (en.poisonDmg || 2);
+      addFloat(en.x, en.y, '-' + (en.poisonDmg || 2) + '☠', '#44cc44');
+      en.poisoned--;
+      if (en.hp <= 0) { killEnemy(en); continue; }
+    }
+    if (en.slowed && en.slowed > 0) en.slowed--;
+  }
+}
+
+function moveEnemies() {
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    // Frozen check
+    if (e.frozen > 0) { e.frozen--; continue; }
+    // Slowed: skip every other turn
+    if (e.slowed && e.slowed > 0 && turnCount % 2 !== 0) continue;
+    var dx = player.x - e.x, dy = player.y - e.y;
+    var dist = Math.abs(dx) + Math.abs(dy);
+    if (dist > 8) continue;
+    if (dist <= 1) continue;
+    // Smoke bomb: enemies wander randomly instead of pathfinding to player
+    var mx = 0, my = 0;
+    if (smokeInvisible > 0) {
+      var wanderDirs = [[-1,0],[1,0],[0,-1],[0,1]];
+      var wd = wanderDirs[Math.floor(Math.random() * 4)];
+      mx = wd[0]; my = wd[1];
+    } else {
+      if (Math.abs(dx) >= Math.abs(dy)) { mx = dx > 0 ? 1 : -1; }
+      else { my = dy > 0 ? 1 : -1; }
+    }
+    var nx = e.x + mx, ny = e.y + my;
+    if (nx >= 0 && nx < MW && ny >= 0 && ny < MH && map[ny][nx] !== T_WALL) {
+      if (nx === player.x && ny === player.y) {
+        // Smoke bomb invisibility — enemies can't find player
+        if (smokeInvisible > 0) {
+          // Enemy walks past — move them to the tile
+          if (!enemyAt(nx, ny)) { e.x = nx; e.y = ny; }
+        } else {
+          var eDmg = Math.max(1, e.atk - player.def + Math.floor(Math.random() * 2));
+          var actualDmg = playerTakeDamage(eDmg, e.name + ' (melee)');
+          if (actualDmg > 0) wizardShieldReprisal(e);
+          if (player.hp <= 0) return;
+        }
+      } else {
+        // Check if hitting a summon
+        var hitSummon = false;
+        for (var si = summons.length - 1; si >= 0; si--) {
+          if (summons[si].x === nx && summons[si].y === ny) {
+            summons[si].hp -= Math.max(1, e.atk);
+            addFloat(nx, ny, '-' + Math.max(1, e.atk), '#ff6666');
+            if (summons[si].hp <= 0) { summonDeath(summons[si]); summons.splice(si, 1); }
+            hitSummon = true; break;
+          }
+        }
+        // Check familiar
+        if (!hitSummon && familiar && familiar.x === nx && familiar.y === ny) {
+          // Familiar takes a hit — it's ethereal, enemy passes through, small damage to player
+          var fDmg = Math.max(1, Math.floor(e.atk * 0.3));
+          player.hp -= fDmg; trackTaken(fDmg, 'Familiar redirect');
+          addFloat(familiar.x, familiar.y, '-' + fDmg, '#aa88ff');
+          if (player.hp <= 0) { playerDie(); return; }
+          hitSummon = true;
+        }
+        if (!hitSummon && !enemyAt(nx, ny)) {
+          e.x = nx; e.y = ny;
+        }
+      }
+    }
+  }
+}
+
+// ─── Turn Tick (called after every player action) ───────────────
+function tickTurn() {
+  turnCount++;
+  tickAbilityCooldowns();
+  tickStatusEffects();
+  tickSpiritBuffs();
+  wizardShieldTick();
+  enemyRangedAttacks();
+  classRangedAttack();
+  updateFamiliar();
+  updateSummons();
+  stepProjectiles();
+  checkBestiary();
+}
+
+// ─── Wizard Elemental Shield ────────────────────────────────────
+// Shield colors by wand type
+var SHIELD_COLORS = {
+  Fire: '#ff6622', Dig: '#aa8855', Teleport: '#88ccff', Ice: '#aaddff',
+  Poison: '#44cc44', Lightning: '#ffff44', Slow: '#6688ff', Heal: '#ffcc44', Summon: '#cc66ff'
+};
+function getActiveShieldType() {
+  if (!playerClass || playerClass.name !== 'Wizard') return null;
+  if (wands.length === 0 || activeWandIdx >= wands.length) return null;
+  return wands[activeWandIdx].type;
+}
+function wizardShieldTick() {
+  var sType = getActiveShieldType();
+  if (!sType) return;
+  var dirs8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+  if (sType === 'Fire') {
+    // Damage all adjacent enemies — scales with ATK
+    for (var i = 0; i < dirs8.length; i++) {
+      var en = enemyAt(player.x + dirs8[i][0], player.y + dirs8[i][1]);
+      if (en) {
+        var fd = Math.max(1, Math.floor(player.atk * 0.3) + Math.floor(Math.random() * 2));
+        en.hp -= fd; addFloat(en.x, en.y, '-' + fd + '🔥', '#ff6622');
+        if (en.hp <= 0) killEnemy(en);
+      }
+    }
+  } else if (sType === 'Poison') {
+    // Poison aura damage — scales with ATK
+    for (var i = 0; i < dirs8.length; i++) {
+      var en = enemyAt(player.x + dirs8[i][0], player.y + dirs8[i][1]);
+      if (en) {
+        var pd = Math.max(1, Math.floor(player.atk * 0.2));
+        en.hp -= pd; addFloat(en.x, en.y, '-' + pd + '☠', '#44cc44');
+        if (en.hp <= 0) killEnemy(en);
+      }
+    }
+  } else if (sType === 'Lightning') {
+    // Chain lightning zaps ALL adjacent enemies — scales with ATK, but lower per-target
+    for (var i = 0; i < dirs8.length; i++) {
+      var en = enemyAt(player.x + dirs8[i][0], player.y + dirs8[i][1]);
+      if (en) {
+        var ld = Math.max(1, Math.floor(player.atk * 0.25));
+        en.hp -= ld; addFloat(en.x, en.y, '-' + ld + '⚡', '#ffff44');
+        if (en.hp <= 0) killEnemy(en);
+      }
+    }
+    // Bonus: also zap one random enemy within 3 tiles (not adjacent)
+    var ranged = [];
+    for (var i = 0; i < enemies.length; i++) {
+      var en = enemies[i];
+      var d = Math.abs(en.x - player.x) + Math.abs(en.y - player.y);
+      if (d > 1 && d <= 3) ranged.push(en);
+    }
+    if (ranged.length > 0) {
+      var rt = ranged[Math.floor(Math.random() * ranged.length)];
+      var rd = Math.max(1, Math.floor(player.atk * 0.2));
+      rt.hp -= rd; addFloat(rt.x, rt.y, '-' + rd + '⚡', '#ffff44');
+      if (rt.hp <= 0) killEnemy(rt);
+    }
+  } else if (sType === 'Slow') {
+    // Slow all adjacent enemies
+    for (var i = 0; i < dirs8.length; i++) {
+      var en = enemyAt(player.x + dirs8[i][0], player.y + dirs8[i][1]);
+      if (en && (!en.slowed || en.slowed < 2)) en.slowed = 2;
+    }
+  } else if (sType === 'Heal') {
+    // Regen 1 HP every 3 turns
+    if (turnCount % 3 === 0 && player.hp < player.maxHp) {
+      player.hp = Math.min(player.hp + 1, player.maxHp);
+      addFloat(player.x, player.y, '+1', '#ffcc44');
+    }
+  }
+}
+// Called when wizard takes melee damage — shield reprisal
+function wizardShieldReprisal(en) {
+  var sType = getActiveShieldType();
+  if (!sType || !en || en.hp <= 0) return;
+  if (sType === 'Fire') {
+    // 30% ATK reflect as fire
+    var ref = Math.max(1, Math.floor(player.atk * 0.3));
+    en.hp -= ref; addFloat(en.x, en.y, '-' + ref + '🔥', '#ff6622');
+    addFlash(en.x, en.y, 'rgba(255,100,30,0.4)');
+    if (en.hp <= 0) killEnemy(en);
+  } else if (sType === 'Ice') {
+    if (Math.random() < 0.2) {
+      en.frozen = Math.max(en.frozen || 0, 1);
+      addFloat(en.x, en.y, '❄ Frozen!', '#aaddff');
+    }
+  } else if (sType === 'Poison') {
+    en.poisoned = Math.max(en.poisoned || 0, 2);
+    en.poisonDmg = 2;
+    addFloat(en.x, en.y, '☠', '#44cc44');
+  } else if (sType === 'Lightning') {
+    if (Math.random() < 0.4) {
+      // Chain lightning to nearby enemies
+      for (var ci = 0; ci < enemies.length; ci++) {
+        var ce = enemies[ci];
+        if (ce === en) continue;
+        var cdx = Math.abs(ce.x - en.x), cdy = Math.abs(ce.y - en.y);
+        if (cdx <= 1 && cdy <= 1) {
+          var cd = Math.max(1, Math.floor(player.atk * 0.3));
+          ce.hp -= cd; addFloat(ce.x, ce.y, '-' + cd + '⚡', '#ffff44');
+          if (ce.hp <= 0) killEnemy(ce);
+          break;
+        }
+      }
+    }
+  } else if (sType === 'Slow') {
+    en.slowed = Math.max(en.slowed || 0, 2);
+    addFloat(en.x, en.y, '🐌', '#6688ff');
+  } else if (sType === 'Summon') {
+    if (Math.random() < 0.1) {
+      var dirs = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+      for (var di = 0; di < dirs.length; di++) {
+        var txx = player.x + dirs[di].x, tyy = player.y + dirs[di].y;
+        if (txx >= 0 && txx < MW && tyy >= 0 && tyy < MH && map[tyy][txx] !== T_WALL && !enemyAt(txx, tyy)) {
+          createSummon(txx, tyy); break;
+        }
+      }
+    }
+  } else if (sType === 'Teleport') {
+    if (Math.random() < 0.15) {
+      // Blink 3 tiles in a random direction
+      var blinkDirs = [[0,-1],[0,1],[-1,0],[1,0]];
+      var bd = blinkDirs[Math.floor(Math.random() * 4)];
+      var bx = player.x, by = player.y;
+      for (var d = 3; d >= 1; d--) {
+        var tx = player.x + bd[0]*d, ty = player.y + bd[1]*d;
+        if (tx >= 0 && tx < MW && ty >= 0 && ty < MH && map[ty][tx] !== T_WALL && !enemyAt(tx, ty)) {
+          bx = tx; by = ty; break;
+        }
+      }
+      if (bx !== player.x || by !== player.y) {
+        addFlash(player.x, player.y, 'rgba(136,204,255,0.5)');
+        player.x = bx; player.y = by;
+        addFlash(bx, by, 'rgba(136,204,255,0.5)');
+        addFloat(bx, by, 'Blink!', '#88ccff');
+        reveal(bx, by);
+      }
+    }
+  } else if (sType === 'Dig') {
+    // Knock back attacker 1 tile
+    var kbx = en.x + (en.x - player.x), kby = en.y + (en.y - player.y);
+    if (kbx >= 0 && kbx < MW && kby >= 0 && kby < MH && map[kby][kbx] !== T_WALL && !enemyAt(kbx, kby)) {
+      en.x = kbx; en.y = kby;
+      addFloat(kbx, kby, 'Knockback!', '#aa8855');
+    }
+  }
+}
+// Called when wizard takes ranged damage
+function wizardShieldRangedReprisal(dmg) {
+  var sType = getActiveShieldType();
+  if (!sType) return 0;
+  if (sType === 'Ice') return Math.floor(dmg * 0.2); // reduce ranged dmg by 20%
+  return 0;
+}
+
+// ─── Rogue Elemental Weapons ────────────────────────────────────
+function getActiveElement() {
+  if (!playerClass || playerClass.name !== 'Rogue') return null;
+  if (wands.length === 0 || activeWandIdx >= wands.length) return null;
+  return wands[activeWandIdx].type;
+}
+function rogueElementalHit(en, dmgDealt) {
+  var elem = getActiveElement();
+  if (!elem || !en || en.hp <= 0) return;
+  var bonusDmg = 0;
+  var elemColor = SHIELD_COLORS[elem] || '#fff';
+  if (elem === 'Fire') {
+    bonusDmg = 2;
+    if (Math.random() < 0.1) { en.poisoned = 2; en.poisonDmg = 2; addFloat(en.x, en.y, '🔥 Ignite!', '#ff6622'); } // reuse poison for burn
+  } else if (elem === 'Ice') {
+    bonusDmg = 1;
+    if (Math.random() < 0.15) { en.frozen = Math.max(en.frozen || 0, 1); addFloat(en.x, en.y, '❄ Freeze!', '#aaddff'); }
+  } else if (elem === 'Poison') {
+    bonusDmg = 1;
+    if (Math.random() < 0.25) { en.poisoned = 3; en.poisonDmg = 2; addFloat(en.x, en.y, '☠ Poison!', '#44cc44'); }
+  } else if (elem === 'Lightning') {
+    bonusDmg = 2;
+    if (Math.random() < 0.1) {
+      for (var ci = 0; ci < enemies.length; ci++) {
+        var ce = enemies[ci];
+        if (ce === en) continue;
+        if (Math.abs(ce.x - en.x) <= 1 && Math.abs(ce.y - en.y) <= 1) {
+          var cd = Math.max(1, Math.floor(player.atk * 0.3));
+          ce.hp -= cd; addFloat(ce.x, ce.y, '-' + cd + '⚡', '#ffff44');
+          if (ce.hp <= 0) killEnemy(ce);
+          break;
+        }
+      }
+    }
+  } else if (elem === 'Slow') {
+    bonusDmg = 1;
+    if (Math.random() < 0.2) { en.slowed = Math.max(en.slowed || 0, 2); addFloat(en.x, en.y, '🐌', '#6688ff'); }
+  } else if (elem === 'Heal') {
+    // Lifesteal 15%
+    var steal = Math.max(1, Math.floor(dmgDealt * 0.15));
+    player.hp = Math.min(player.hp + steal, player.maxHp);
+    addFloat(player.x, player.y, '+' + steal, '#ffcc44');
+  } else if (elem === 'Summon') {
+    // On kill: handled in killEnemy, here just track
+  } else if (elem === 'Teleport') {
+    if (Math.random() < 0.1) {
+      var rx, ry, found = false;
+      for (var tries = 0; tries < 20; tries++) {
+        rx = Math.floor(Math.random() * MW); ry = Math.floor(Math.random() * MH);
+        if (map[ry][rx] === T_FLOOR && !enemyAt(rx, ry) && !(rx === player.x && ry === player.y)) { found = true; break; }
+      }
+      if (found) { en.x = rx; en.y = ry; addFloat(rx, ry, '✨ Teleport!', '#88ccff'); }
+    }
+  } else if (elem === 'Dig') {
+    // Knockback 1 tile, +3 if into wall
+    var kbx = en.x + (en.x - player.x), kby = en.y + (en.y - player.y);
+    if (kbx >= 0 && kbx < MW && kby >= 0 && kby < MH) {
+      if (map[kby][kbx] !== T_WALL && !enemyAt(kbx, kby)) {
+        en.x = kbx; en.y = kby;
+        addFloat(kbx, kby, 'Knockback!', '#aa8855');
+      } else if (map[kby][kbx] === T_WALL) {
+        en.hp -= 3; addFloat(en.x, en.y, 'SLAM -3!', '#aa8855');
+        if (en.hp <= 0) killEnemy(en);
+      }
+    }
+  }
+  if (bonusDmg > 0 && en.hp > 0) {
+    en.hp -= bonusDmg;
+    addFloat(en.x, en.y, '+' + bonusDmg + ' elem', elemColor);
+    if (en.hp <= 0) killEnemy(en);
+  }
+}
+// Rogue summon-on-kill: 20% chance to spawn ally from corpse
+function rogueElementalKill(ex, ey) {
+  var elem = getActiveElement();
+  if (elem === 'Summon' && Math.random() < 0.2) {
+    if (map[ey][ex] !== T_WALL && !enemyAt(ex, ey)) {
+      createSummon(ex, ey);
+    }
+  }
+}
+
+function playerDie() {
+  player.hp = 0;
+  state = ST_DEAD;
+  sndDeath();
+  deleteSave(); // permadeath
+  if (player.floor > bestFloor) {
+    bestFloor = player.floor;
+    try { localStorage.setItem('dc_best', bestFloor); } catch(e){}
+  }
+}
+
+function showMsg(text) { msgText = text; msgTimer = 120; }
+
+function startGame(cls) {
+  initAudio();
+  playerClass = cls;
+  var rb = getRankBonuses();
+  var baseHp = 20 + rb.hpBonus;
+  if (cls.name === 'Warrior') baseHp += 3;
+  player = {
+    x: 5, y: 5, hp: baseHp, maxHp: baseHp,
+    atk: cls.baseAtk + rb.atkBonus,
+    def: cls.baseDef + rb.defBonus,
+    floor: 1, kills: 0, steps: 0, gold: 0, xp: 0, level: 1,
+    sightBonus: cls.sightBonus + rb.sightBonus,
+    healMult: rb.healMult,
+    critChance: cls.critChance,
+    facing: {x:0, y:-1}
+  };
+  wands = [];
+  activeWandIdx = 0;
+  enterDownTime = 0;
+  if (enterTimer) { clearTimeout(enterTimer); enterTimer = null; }
+  hadWish = false;
+  rankAtRunStart = getRankIdx();
+  floats = []; flashes = [];
+  projectiles = []; legendFlashes = [];
+  familiar = null; summons = [];
+  abilityCooldowns = {}; manaShieldHP = 0; smokeInvisible = 0; spiritBuffs = [];
+  runStats = { dmgDealt: 0, dmgTaken: 0, healed: 0, wandZaps: 0, crits: 0, goldSpent: 0, stepsWalked: 0, killsByType: {}, maxHitDealt: 0, maxHitTaken: 0, floorsCleared: 0, shrinesActivated: 0, chestsOpened: 0, minibossesKilled: 0, barrelsSmashed: 0, scrollsRead: 0 };
+  lastHitSource = '';
+  seenEnemyTypes = {};
+  classRangedCooldown = 0;
+  turnCount = 0;
+  genMap(1);
+  // Wizard starts with a random wand
+  if (cls.name === 'Wizard') {
+    var wt = WAND_TYPES[Math.floor(Math.random() * WAND_TYPES.length)];
+    addWand(wt.name, wt.charges);
+    familiar = { x: player.x, y: player.y, cooldown: 0 };
+    showMsg('Your familiar joins you. Wand of ' + wt.name + '.');
+  } else {
+    showMsg('You descend into the dungeon.');
+  }
+  reveal(player.x, player.y);
+  state = ST_PLAY;
+  saveGame();
+}
+
+// ─── Drawing ────────────────────────────────────────────────────
+function draw() {
+  animT += 0.016;
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  if (state === ST_TITLE) drawTitle();
+  else if (state === ST_CLASS) drawClassSelect();
+  else if (state === ST_DEAD) { drawGame(); drawDeath(); }
+  else if (state === ST_WISH) { drawGame(); drawWish(); }
+  else if (state === ST_SHOP) { drawGame(); drawShop(); }
+  else if (state === ST_WAND_SEL) { drawGame(); drawWandSelect(); }
+  else if (state === ST_PAUSE) { drawGame(); drawPauseStats(); }
+  else { drawGame(); if (showMinimap) drawMinimap(); }
+  if (msgTimer > 0) { msgTimer--; drawMsg(); }
+  requestAnimationFrame(draw);
+}
+
+function drawTitle() {
+  ctx.fillStyle = '#111';
+  for (var y = 0; y < 15; y++) for (var x = 0; x < 15; x++) {
+    var n = Math.sin(x * 3.7 + y * 2.3 + animT * 0.5) * 0.5 + 0.5;
+    if (n > 0.6) { ctx.globalAlpha = 0.15; ctx.fillRect(x * 40, y * 40, 40, 40); }
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = '900 48px -apple-system, sans-serif'; ctx.fillStyle = '#ff8844';
+  ctx.fillText('⚔ DUNGEON', W / 2, 160);
+  ctx.font = '900 40px -apple-system, sans-serif'; ctx.fillStyle = '#cc6633';
+  ctx.fillText('CRAWL', W / 2, 210);
+  ctx.font = '16px -apple-system, sans-serif'; ctx.fillStyle = '#888';
+  ctx.fillText('A tiny roguelike for your glasses', W / 2, 250);
+
+  // Rank
+  var ri = getRankIdx(); var rank = RANKS[ri];
+  ctx.font = '600 20px -apple-system, sans-serif'; ctx.fillStyle = '#ff8844';
+  ctx.fillText(rank.name, W / 2, 290);
+  if (ri < RANKS.length - 1) {
+    var next = RANKS[ri + 1];
+    var prog = (totalKills - rank.threshold) / (next.threshold - rank.threshold);
+    var barW = 200, barH = 8, barX = (W - barW) / 2, barY = 308;
+    ctx.fillStyle = '#222'; ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#ff8844'; ctx.fillRect(barX, barY, barW * Math.min(1, prog), barH);
+    ctx.font = '12px -apple-system, sans-serif'; ctx.fillStyle = '#888';
+    ctx.fillText(totalKills + '/' + next.threshold + ' kills → ' + next.name, W / 2, 332);
+  } else {
+    ctx.font = '12px -apple-system, sans-serif'; ctx.fillStyle = '#ffcc44';
+    ctx.fillText('★ MAX RANK ★  ' + totalKills + ' total kills', W / 2, 320);
+  }
+
+  if (bestFloor > 0) {
+    ctx.font = '14px -apple-system, sans-serif'; ctx.fillStyle = '#ffcc44';
+    ctx.fillText('Best: Floor ' + bestFloor, W / 2, 370);
+  }
+
+  // Continue / New Game options
+  var hasSv = hasSave();
+  if (hasSv) {
+    var opts = ['Continue', 'New Game'];
+    for (var i = 0; i < 2; i++) {
+      var sel = (titleSel === i);
+      ctx.font = sel ? '600 22px -apple-system, sans-serif' : '18px -apple-system, sans-serif';
+      ctx.fillStyle = sel ? '#4a9eff' : '#666';
+      var pulse = sel ? (Math.sin(animT * 3) * 0.3 + 0.7) : 0.6;
+      ctx.globalAlpha = pulse;
+      ctx.fillText((sel ? '▸ ' : '  ') + opts[i], W / 2, 430 + i * 36);
+    }
+    ctx.globalAlpha = 1;
+    ctx.font = '12px -apple-system, sans-serif'; ctx.fillStyle = '#555';
+    ctx.fillText('↑↓ select  ·  Enter to confirm', W / 2, 520);
+  } else {
+    var pulse = Math.sin(animT * 3) * 0.3 + 0.7;
+    ctx.globalAlpha = pulse;
+    ctx.font = '600 22px -apple-system, sans-serif'; ctx.fillStyle = '#4a9eff';
+    ctx.fillText('Enter to Start', W / 2, 450);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawClassSelect() {
+  ctx.fillStyle = '#111';
+  for (var y = 0; y < 15; y++) for (var x = 0; x < 15; x++) {
+    var n = Math.sin(x * 3.7 + y * 2.3 + animT * 0.5) * 0.5 + 0.5;
+    if (n > 0.6) { ctx.globalAlpha = 0.15; ctx.fillRect(x * 40, y * 40, 40, 40); }
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = '600 28px -apple-system, sans-serif'; ctx.fillStyle = '#ff8844';
+  ctx.fillText('Choose Your Class', W / 2, 100);
+
+  for (var i = 0; i < CLASSES.length; i++) {
+    var cls = CLASSES[i];
+    var sel = (classSel === i);
+    var yy = 200 + i * 100;
+    // Highlight box
+    if (sel) {
+      ctx.fillStyle = 'rgba(74,158,255,0.08)';
+      ctx.fillRect(80, yy - 30, W - 160, 70);
+      ctx.strokeStyle = '#4a9eff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(80, yy - 30, W - 160, 70);
+    }
+    ctx.font = sel ? '900 24px -apple-system, sans-serif' : '600 22px -apple-system, sans-serif';
+    ctx.fillStyle = sel ? cls.color : '#888';
+    ctx.fillText(cls.name, W / 2, yy);
+    ctx.font = '14px -apple-system, sans-serif';
+    ctx.fillStyle = sel ? '#ccc' : '#555';
+    ctx.fillText(cls.desc, W / 2, yy + 22);
+  }
+
+  ctx.font = '12px -apple-system, sans-serif'; ctx.fillStyle = '#555';
+  ctx.fillText('↑↓ select  ·  Enter to confirm', W / 2, 540);
+}
+
+function drawGame() {
+  var sightRange = 5 + (player.sightBonus || 0);
+  camX = player.x - Math.floor(VISIBLE / 2);
+  camY = player.y - Math.floor(VISIBLE / 2);
+  if (camX < 0) camX = 0; if (camY < 0) camY = 0;
+  if (camX > MW - VISIBLE) camX = MW - VISIBLE;
+  if (camY > MH - VISIBLE) camY = MH - VISIBLE;
+
+  // Map tiles
+  for (var sy = 0; sy < VISIBLE; sy++) for (var sx = 0; sx < VISIBLE; sx++) {
+    var tx = camX + sx, ty = camY + sy;
+    var px = sx * TILE, py = sy * TILE;
+    if (tx >= MW || ty >= MH || !explored[ty][tx]) {
+      ctx.fillStyle = '#0a0a0a'; ctx.fillRect(px, py, TILE, TILE); continue;
+    }
+    var tile = map[ty][tx];
+    var inSight = Math.abs(tx - player.x) + Math.abs(ty - player.y) <= sightRange;
+    ctx.globalAlpha = inSight ? 1 : 0.35;
+    if (tile === T_WALL) {
+      ctx.fillStyle = '#222'; ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = '#2a2a2a'; ctx.fillRect(px + 1, py + 1, TILE - 2, 2);
+    } else if (tile === T_FLOOR) {
+      ctx.fillStyle = '#1a1a1a'; ctx.fillRect(px, py, TILE, TILE);
+      if ((tx + ty) % 3 === 0) { ctx.fillStyle = '#1e1e1e'; ctx.fillRect(px + 8, py + 8, 4, 4); }
+    } else if (tile === T_STAIRS) {
+      ctx.fillStyle = '#1a1a1a'; ctx.fillRect(px, py, TILE, TILE);
+      ctx.font = '600 24px -apple-system, sans-serif'; ctx.fillStyle = '#44ff88';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      var stairPulse = Math.sin(animT * 4) * 0.2 + 0.8;
+      ctx.globalAlpha = (inSight ? 1 : 0.35) * stairPulse;
+      ctx.fillText('▼', px + TILE / 2, py + TILE / 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Items
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    if (!explored[it.y][it.x]) continue;
+    var sx2 = (it.x - camX) * TILE, sy2 = (it.y - camY) * TILE;
+    if (sx2 < -TILE || sx2 > W || sy2 < -TILE || sy2 > H) continue;
+    var inSight = Math.abs(it.x - player.x) + Math.abs(it.y - player.y) <= sightRange;
+    ctx.globalAlpha = inSight ? 1 : 0.4;
+    ctx.font = '600 20px -apple-system, sans-serif'; ctx.fillStyle = it.color;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var bob = Math.sin(animT * 3 + it.x * 2 + it.y * 3) * 3;
+    ctx.fillText(it.ch, sx2 + TILE / 2, sy2 + TILE / 2 + bob);
+    ctx.globalAlpha = 1;
+  }
+
+  // Shopkeeper
+  if (shopkeeper && explored[shopkeeper.y] && explored[shopkeeper.y][shopkeeper.x]) {
+    var sksx = (shopkeeper.x - camX) * TILE, sksy = (shopkeeper.y - camY) * TILE;
+    if (sksx >= -TILE && sksx < W && sksy >= -TILE && sksy < H) {
+      var skInSight = Math.abs(shopkeeper.x - player.x) + Math.abs(shopkeeper.y - player.y) <= sightRange;
+      ctx.globalAlpha = skInSight ? 1 : 0.4;
+      ctx.font = '900 26px -apple-system, sans-serif'; ctx.fillStyle = '#44ff44';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('S', sksx + TILE / 2, sksy + TILE / 2);
+      // Label
+      if (skInSight && Math.abs(shopkeeper.x - player.x) + Math.abs(shopkeeper.y - player.y) <= 3) {
+        ctx.font = '10px -apple-system, sans-serif'; ctx.fillStyle = '#44ff44';
+        ctx.fillText('SHOP', sksx + TILE / 2, sksy - 4);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // Enemies
+  for (var i = 0; i < enemies.length; i++) {
+    var en = enemies[i];
+    if (!explored[en.y][en.x]) continue;
+    var inSight = Math.abs(en.x - player.x) + Math.abs(en.y - player.y) <= sightRange;
+    if (!inSight) continue;
+    var esx = (en.x - camX) * TILE, esy = (en.y - camY) * TILE;
+    if (esx < -TILE || esx > W || esy < -TILE || esy > H) continue;
+    // Frozen tint
+    if (en.frozen > 0) {
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = '#aaddff';
+      ctx.fillRect(esx + 4, esy + 4, TILE - 8, TILE - 8);
+      ctx.globalAlpha = 1;
+    }
+    // Poisoned tint
+    if (en.poisoned > 0) {
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = '#44cc44';
+      ctx.fillRect(esx + 4, esy + 4, TILE - 8, TILE - 8);
+      ctx.globalAlpha = 1;
+    }
+    // Slowed tint
+    if (en.slowed > 0) {
+      ctx.globalAlpha = 0.2;
+      ctx.fillStyle = '#6688ff';
+      ctx.fillRect(esx + 4, esy + 4, TILE - 8, TILE - 8);
+      ctx.globalAlpha = 1;
+    }
+    // Power aura: green (easy), yellow (fair), red (dangerous), boss = bright red pulse
+    var eLvl = en.level || player.floor;
+    var lvlDiff = eLvl - player.level;
+    if (en.isBoss) {
+      var bossPulse = 0.4 + Math.sin(animT * 5) * 0.3;
+      ctx.globalAlpha = bossPulse;
+      ctx.fillStyle = 'rgba(255,0,0,0.4)';
+      ctx.beginPath(); ctx.arc(esx + TILE / 2, esy + TILE / 2, 24, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ff2222'; ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.3 + Math.sin(animT * 6) * 0.2;
+      ctx.beginPath(); ctx.arc(esx + TILE / 2, esy + TILE / 2, 26 + Math.sin(animT * 3) * 3, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else {
+      var auraColor = lvlDiff >= 2 ? 'rgba(255,50,50,0.25)' : lvlDiff <= -2 ? 'rgba(50,255,50,0.2)' : 'rgba(255,255,50,0.15)';
+      var auraPulse = 0.6 + Math.sin(animT * 3 + en.x * 2 + en.y) * 0.4;
+      ctx.globalAlpha = auraPulse * (lvlDiff >= 2 ? 0.35 : lvlDiff <= -2 ? 0.2 : 0.15);
+      ctx.fillStyle = auraColor;
+      ctx.beginPath(); ctx.arc(esx + TILE / 2, esy + TILE / 2, 18, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.font = '900 26px -apple-system, sans-serif'; ctx.fillStyle = en.color;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(en.ch, esx + TILE / 2, esy + TILE / 2);
+    // Level number (small, top-right corner of tile)
+    ctx.font = '600 10px -apple-system, sans-serif';
+    ctx.fillStyle = lvlDiff >= 2 ? '#ff4444' : lvlDiff <= -2 ? '#44cc44' : '#cccc44';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillText('L' + eLvl, esx + TILE - 2, esy + 2);
+    // HP bar
+    var hpPct = en.hp / en.maxHp;
+    var barW = 30, barH = 4, barX = esx + (TILE - barW) / 2, barY = esy + 2;
+    ctx.fillStyle = '#333'; ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = hpPct > 0.5 ? '#44cc44' : hpPct > 0.25 ? '#cccc44' : '#cc4444';
+    ctx.fillRect(barX, barY, barW * hpPct, barH);
+  }
+
+  // Summons
+  for (var si = 0; si < summons.length; si++) {
+    var s = summons[si];
+    var ssx = (s.x - camX) * TILE, ssy = (s.y - camY) * TILE;
+    if (ssx < -TILE || ssx > W || ssy < -TILE || ssy > H) continue;
+    var sInSight = Math.abs(s.x - player.x) + Math.abs(s.y - player.y) <= sightRange;
+    if (!sInSight) continue;
+    var sTypeInfo = SUMMON_TYPES[s.sType || 'Warrior'];
+    ctx.font = '18px -apple-system, sans-serif'; ctx.fillStyle = sTypeInfo.color;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(sTypeInfo.ch, ssx + TILE / 2, ssy + TILE / 2);
+    // HP bar
+    var shpPct = s.hp / s.maxHp;
+    ctx.fillStyle = '#333'; ctx.fillRect(ssx + 5, ssy + 2, 30, 3);
+    ctx.fillStyle = sTypeInfo.color; ctx.fillRect(ssx + 5, ssy + 2, 30 * shpPct, 3);
+  }
+  // Spirit buffs
+  for (var bi = 0; bi < spiritBuffs.length; bi++) {
+    var b = spiritBuffs[bi];
+    var bsx = (b.x - camX) * TILE, bsy = (b.y - camY) * TILE;
+    if (bsx < -TILE || bsx > W || bsy < -TILE || bsy > H) continue;
+    var bInSight = Math.abs(b.x - player.x) + Math.abs(b.y - player.y) <= sightRange;
+    if (!bInSight) continue;
+    var bPulse = Math.sin(animT * 5) * 0.3 + 0.7;
+    ctx.globalAlpha = bPulse;
+    ctx.font = '14px -apple-system, sans-serif'; ctx.fillStyle = '#88ccff';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('👻', bsx + TILE / 2, bsy + TILE / 2);
+    ctx.globalAlpha = 1;
+  }
+
+  // Familiar
+  if (familiar) {
+    var fsx = (familiar.x - camX) * TILE, fsy = (familiar.y - camY) * TILE;
+    if (fsx >= -TILE && fsx <= W && fsy >= -TILE && fsy <= H) {
+      var fInSight = Math.abs(familiar.x - player.x) + Math.abs(familiar.y - player.y) <= sightRange;
+      if (fInSight) {
+        var fBob = Math.sin(animT * 4) * 3;
+        ctx.globalAlpha = 0.7 + Math.sin(animT * 3) * 0.15;
+        ctx.font = '600 18px -apple-system, sans-serif'; ctx.fillStyle = '#aa88ff';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('f', fsx + TILE / 2, fsy + TILE / 2 + fBob);
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  // Projectiles
+  for (var pi = 0; pi < projectiles.length; pi++) {
+    var p = projectiles[pi];
+    var psx = (p.x - camX) * TILE, psy = (p.y - camY) * TILE;
+    if (psx < -TILE || psx > W || psy < -TILE || psy > H) continue;
+    ctx.font = '900 18px -apple-system, sans-serif'; ctx.fillStyle = p.color;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(p.ch, psx + TILE / 2, psy + TILE / 2);
+  }
+
+  // Player
+  var ppx = (player.x - camX) * TILE, ppy = (player.y - camY) * TILE;
+  // Wizard elemental shield aura
+  var shieldType = getActiveShieldType();
+  if (shieldType) {
+    var sc = SHIELD_COLORS[shieldType] || '#aa88ff';
+    var shieldPulse = 0.15 + Math.sin(animT * 4) * 0.08;
+    ctx.globalAlpha = shieldPulse;
+    ctx.fillStyle = sc;
+    ctx.beginPath(); ctx.arc(ppx + TILE / 2, ppy + TILE / 2, 24, 0, Math.PI * 2); ctx.fill();
+    // Outer ring
+    ctx.strokeStyle = sc;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.3 + Math.sin(animT * 6) * 0.15;
+    ctx.beginPath(); ctx.arc(ppx + TILE / 2, ppy + TILE / 2, 26 + Math.sin(animT * 3) * 2, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  // Rogue elemental glow
+  var rogueElem = getActiveElement();
+  if (rogueElem) {
+    var rc = SHIELD_COLORS[rogueElem] || '#44ff88';
+    ctx.globalAlpha = 0.08 + Math.sin(animT * 3) * 0.04;
+    ctx.fillStyle = rc;
+    ctx.beginPath(); ctx.arc(ppx + TILE / 2, ppy + TILE / 2, 20, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.globalAlpha = 0.15 + Math.sin(animT * 2) * 0.05;
+  ctx.fillStyle = playerClass ? playerClass.color : '#4a9eff';
+  ctx.beginPath(); ctx.arc(ppx + TILE / 2, ppy + TILE / 2, 22, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.font = '900 28px -apple-system, sans-serif';
+  ctx.fillStyle = playerClass ? playerClass.color : '#4a9eff';
+  // Smoke bomb invisibility visual
+  if (smokeInvisible > 0) { ctx.globalAlpha = 0.3 + Math.sin(animT * 6) * 0.15; ctx.fillStyle = '#888888'; }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('@', ppx + TILE / 2, ppy + TILE / 2);
+  if (smokeInvisible > 0) ctx.globalAlpha = 1;
+  // Mana shield visual indicator
+  if (manaShieldHP > 0) {
+    ctx.strokeStyle = '#88ccff'; ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.6 + Math.sin(animT * 3) * 0.2;
+    ctx.beginPath(); ctx.arc(ppx + TILE / 2, ppy + TILE / 2, 18, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // Tile flashes
+  for (var fi = flashes.length - 1; fi >= 0; fi--) {
+    var fl = flashes[fi];
+    var fsx = (fl.tx - camX) * TILE, fsy = (fl.ty - camY) * TILE;
+    if (fsx >= 0 && fsx < W && fsy >= 0 && fsy < H) {
+      ctx.globalAlpha = fl.life / 12; ctx.fillStyle = fl.color;
+      ctx.fillRect(fsx, fsy, TILE, TILE); ctx.globalAlpha = 1;
+    }
+    fl.life--; if (fl.life <= 0) flashes.splice(fi, 1);
+  }
+
+  // Floating text
+  for (var fti = floats.length - 1; fti >= 0; fti--) {
+    var ft = floats[fti];
+    var ftx = (ft.x - camX) * TILE + TILE / 2;
+    var progress = 1 - ft.life / ft.maxLife;
+    var fty = (ft.y - camY) * TILE - progress * 30;
+    if (ftx >= 0 && ftx < W && fty >= -20 && fty < H) {
+      ctx.globalAlpha = ft.life / ft.maxLife;
+      ctx.font = '900 16px -apple-system, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#000'; ctx.fillText(ft.text, ftx + 1, fty + 1);
+      ctx.fillStyle = ft.color; ctx.fillText(ft.text, ftx, fty);
+      ctx.globalAlpha = 1;
+    }
+    ft.life--; if (ft.life <= 0) floats.splice(fti, 1);
+  }
+
+  // Enemy legend flashes
+  for (var li = legendFlashes.length - 1; li >= 0; li--) {
+    var lf = legendFlashes[li];
+    var lsx = (lf.x - camX) * TILE + TILE / 2;
+    var lsy = (lf.y - camY) * TILE - 16;
+    if (lsx >= 0 && lsx < W && lsy >= -30 && lsy < H) {
+      var lAlpha = Math.min(1, lf.timer / 30);
+      ctx.globalAlpha = lAlpha;
+      // Background
+      ctx.fillStyle = 'rgba(0,0,0,0.8)';
+      var labelW = ctx.measureText(lf.name + ' — ' + lf.stats).width + 16;
+      ctx.font = '600 12px -apple-system, sans-serif';
+      labelW = ctx.measureText(lf.name + ' — ' + lf.stats).width + 16;
+      ctx.fillRect(lsx - labelW / 2, lsy - 10, labelW, 20);
+      // Text
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ffcc44';
+      ctx.fillText(lf.name + ' — ' + lf.stats, lsx, lsy);
+      ctx.globalAlpha = 1;
+    }
+    lf.timer--;
+    if (lf.timer <= 0) legendFlashes.splice(li, 1);
+  }
+
+  drawLegend();
+  drawHUD();
+}
+
+function drawLegend() {
+  // Collect visible glyphs
+  var sightRange = 5 + (player.sightBonus || 0);
+  var entries = [];
+  var seen = {};
+  // Always show player
+  entries.push({ ch: '@', color: playerClass ? playerClass.color : '#4a9eff', label: playerClass ? playerClass.name : 'Player' });
+  // Familiar
+  if (familiar) {
+    var fd = Math.abs(familiar.x - player.x) + Math.abs(familiar.y - player.y);
+    if (fd <= sightRange) entries.push({ ch: 'f', color: '#aa88ff', label: 'Familiar' });
+  }
+  // Enemies in sight
+  for (var i = 0; i < enemies.length; i++) {
+    var en = enemies[i];
+    var d = Math.abs(en.x - player.x) + Math.abs(en.y - player.y);
+    if (d <= sightRange && !seen['e_' + en.name]) {
+      seen['e_' + en.name] = true;
+      entries.push({ ch: en.ch, color: en.color, label: en.name });
+    }
+  }
+  // Summons in sight
+  for (var i = 0; i < summons.length; i++) {
+    var s = summons[i];
+    var d = Math.abs(s.x - player.x) + Math.abs(s.y - player.y);
+    if (d <= sightRange && !seen['summon']) {
+      seen['summon'] = true;
+      var stInfo = SUMMON_TYPES[summons[si].sType || 'Warrior'];
+      entries.push({ ch: stInfo.ch, color: stInfo.color, label: stInfo.name + ' (' + summons[si].hp + '/' + summons[si].maxHp + ')' });
+    }
+  }
+  // Items in sight
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    if (!explored[it.y] || !explored[it.y][it.x]) continue;
+    var d = Math.abs(it.x - player.x) + Math.abs(it.y - player.y);
+    if (d <= sightRange) {
+      var ik = it.type === 'wand' ? 'wand' : it.type === 'wish' ? 'wish' : it.type;
+      if (!seen['i_' + ik]) {
+        seen['i_' + ik] = true;
+        var lab = it.type === 'wand' ? 'Wand' : it.type === 'wish' ? 'Magic Lamp' : it.type === 'gold' ? 'Gold' : it.type === 'heal' ? 'Potion' : it.type === 'atk' ? 'Sword' : it.type === 'def' ? 'Shield' : it.name;
+        entries.push({ ch: it.ch, color: it.color, label: lab });
+      }
+    }
+  }
+  // Shopkeeper
+  if (shopkeeper && explored[shopkeeper.y] && explored[shopkeeper.y][shopkeeper.x]) {
+    var sd = Math.abs(shopkeeper.x - player.x) + Math.abs(shopkeeper.y - player.y);
+    if (sd <= sightRange && !seen['shop']) {
+      seen['shop'] = true;
+      entries.push({ ch: 'S', color: '#44ff44', label: 'Shop' });
+    }
+  }
+  // Stairs
+  for (var sy = Math.max(0, player.y - sightRange); sy <= Math.min(MH-1, player.y + sightRange); sy++) {
+    for (var sx = Math.max(0, player.x - sightRange); sx <= Math.min(MW-1, player.x + sightRange); sx++) {
+      if (explored[sy] && explored[sy][sx] && map[sy][sx] === T_STAIRS && !seen['stairs']) {
+        seen['stairs'] = true;
+        entries.push({ ch: '▼', color: '#44ff88', label: 'Stairs' });
+      }
+    }
+  }
+  // Shrines in sight
+  for (var si = 0; si < shrines.length; si++) {
+    var shr = shrines[si];
+    if (shr.activated) continue;
+    var sd = Math.abs(shr.x - player.x) + Math.abs(shr.y - player.y);
+    if (sd <= sightRange && !seen['shrine']) {
+      seen['shrine'] = true;
+      entries.push({ ch: '✦', color: SHRINE_TYPES[shr.type].color, label: 'Shrine' });
+    }
+  }
+  // Chests in sight
+  for (var ci = 0; ci < chests.length; ci++) {
+    var ch = chests[ci];
+    if (ch.opened) continue;
+    var cd = Math.abs(ch.x - player.x) + Math.abs(ch.y - player.y);
+    if (cd <= sightRange && !seen['chest']) {
+      seen['chest'] = true;
+      entries.push({ ch: '▣', color: '#cc9944', label: 'Chest' });
+    }
+  }
+  // Barrels in sight
+  for (var bi = 0; bi < barrels.length; bi++) {
+    var br = barrels[bi];
+    var bd = Math.abs(br.x - player.x) + Math.abs(br.y - player.y);
+    if (bd <= sightRange && !seen['barrel']) {
+      seen['barrel'] = true;
+      entries.push({ ch: 'o', color: '#aa7733', label: 'Barrel' });
+    }
+  }
+  // Scrolls in sight
+  for (var li = 0; li < scrolls.length; li++) {
+    var scr = scrolls[li];
+    var ld = Math.abs(scr.x - player.x) + Math.abs(scr.y - player.y);
+    if (ld <= sightRange && !seen['scroll']) {
+      seen['scroll'] = true;
+      entries.push({ ch: '?', color: '#ddcc88', label: 'Scroll' });
+    }
+  }
+  if (entries.length <= 1) return; // just player, not useful
+  // Draw in bottom-right, compact
+  var lineH = 14;
+  var maxShow = Math.min(entries.length, 8);
+  var legH = maxShow * lineH + 8;
+  var legW = 90;
+  var legX = W - legW - 4;
+  var legY = H - legH - 28; // above bottom bar
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(legX, legY, legW, legH);
+  ctx.globalAlpha = 1;
+  ctx.font = '600 10px -apple-system, sans-serif';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  for (var i = 0; i < maxShow; i++) {
+    var e = entries[i];
+    var ey = legY + 6 + i * lineH + lineH / 2;
+    ctx.fillStyle = e.color;
+    ctx.fillText(e.ch, legX + 4, ey);
+    ctx.fillStyle = '#999';
+    ctx.fillText(e.label, legX + 20, ey);
+  }
+}
+
+function drawHUD() {
+  ctx.fillStyle = 'rgba(13,13,13,0.85)';
+  ctx.fillRect(0, 0, W, 36);
+  ctx.font = '600 14px -apple-system, sans-serif';
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+
+  // HP
+  var hpPct = player.hp / player.maxHp;
+  ctx.fillStyle = hpPct > 0.5 ? '#44cc44' : hpPct > 0.25 ? '#cccc44' : '#cc4444';
+  ctx.fillText('♥' + player.hp + '/' + player.maxHp, 10, 18);
+
+  // ATK / DEF
+  ctx.fillStyle = '#aaccff'; ctx.fillText('⚔' + player.atk, 120, 18);
+  ctx.fillStyle = '#ffcc44'; ctx.fillText('◆' + player.def, 165, 18);
+
+  // Level
+  ctx.fillStyle = '#e8e8e8'; ctx.fillText('Lv' + player.level, 210, 18);
+
+  // Gold
+  ctx.fillStyle = '#ffdd00'; ctx.fillText('$' + player.gold, 260, 18);
+
+  // Wand (active from inventory)
+  if (wands.length > 0 && activeWandIdx < wands.length) {
+    var aw = wands[activeWandIdx];
+    ctx.fillStyle = '#aa88ff';
+    var wandLabel = '/' + aw.type + ':' + aw.charges;
+    if (wands.length > 1) wandLabel += ' (' + (activeWandIdx + 1) + '/' + wands.length + ')';
+    // Show shield/element indicator
+    if (getActiveShieldType()) wandLabel += ' 🛡';
+    else if (getActiveElement()) wandLabel += ' ⚔';
+    ctx.fillText(wandLabel, 310, 18);
+  }
+
+  // Floor + class
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#44ff88';
+  ctx.fillText('F' + player.floor, W - 10, 12);
+  ctx.fillStyle = playerClass ? playerClass.color : '#ff8844';
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillText((playerClass ? playerClass.name : '') + ' · ' + RANKS[getRankIdx()].name, W - 10, 28);
+
+  // Nearby enemies
+  var nearby = 0, closest = HEARING_RANGE + 1;
+  for (var ni = 0; ni < enemies.length; ni++) {
+    var ndx = enemies[ni].x - player.x, ndy = enemies[ni].y - player.y;
+    var nd = Math.sqrt(ndx*ndx + ndy*ndy);
+    if (nd <= HEARING_RANGE) { nearby++; if (nd < closest) closest = nd; }
+  }
+  if (nearby > 0) {
+    ctx.fillStyle = 'rgba(13,13,13,0.85)'; ctx.fillRect(0, H - 24, W, 24);
+    ctx.font = '12px -apple-system, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var warn = closest <= 2 ? '⚠️ ' : '';
+    var clr = closest <= 2 ? '#ff4444' : closest <= 4 ? '#ffcc44' : '#666';
+    ctx.fillStyle = clr;
+    ctx.fillText(warn + '🔊 ' + nearby + ' nearby' + (closest <= 2 ? ' — CLOSE' : ''), W / 2, H - 12);
+  }
+
+  // Ability cooldown/status bar
+  var abilityStr = '';
+  if (smokeInvisible > 0) abilityStr += '💨' + smokeInvisible + ' ';
+  if (manaShieldHP > 0) abilityStr += '🛡' + manaShieldHP + ' ';
+  if (playerClass && CLASS_ABILITIES[playerClass.name]) {
+    var classAbs = CLASS_ABILITIES[playerClass.name];
+    for (var ai = 1; ai < classAbs.length && ai < player.level; ai++) {
+      if (classAbs[ai] && classAbs[ai].type === 'active') {
+        var aName = classAbs[ai].name;
+        var cd = abilityCooldowns[aName] || 0;
+        if (cd > 0) abilityStr += aName.charAt(0) + ':' + cd + ' ';
+        else abilityStr += aName.charAt(0) + ':✓ ';
+      }
+    }
+  }
+  if (summons.length > 0) abilityStr += '★' + summons.length + '/' + MAX_SUMMONS + ' ';
+  if (abilityStr) {
+    ctx.fillStyle = 'rgba(13,13,13,0.8)'; ctx.fillRect(0, 36, W, 16);
+    ctx.font = '10px -apple-system, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#88aacc'; ctx.fillText(abilityStr.trim(), W / 2, 44);
+  }
+}
+
+function drawMinimap() {
+  ctx.fillStyle = 'rgba(0,0,0,0.82)'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.font = '600 16px -apple-system, sans-serif'; ctx.fillStyle = '#888';
+  ctx.fillText('MAP — Floor ' + player.floor + '  (Enter to close)', W / 2, 8);
+
+  var mapPad = 30, mapTop = 32;
+  var cellW = (W - mapPad * 2) / MW;
+  var cellH = (H - mapTop - mapPad) / MH;
+  var cell = Math.min(cellW, cellH);
+  var ox = (W - MW * cell) / 2;
+  var oy = mapTop + (H - mapTop - mapPad - MH * cell) / 2;
+  var sightRange = 5 + (player.sightBonus || 0);
+
+  for (var ty = 0; ty < MH; ty++) for (var tx = 0; tx < MW; tx++) {
+    if (!explored[ty][tx]) continue;
+    var px = ox + tx * cell, py = oy + ty * cell;
+    var tile = map[ty][tx];
+    ctx.fillStyle = tile === T_WALL ? '#2a2a2a' : tile === T_STAIRS ? '#44ff88' : '#3a3a3a';
+    ctx.fillRect(px, py, cell - 0.5, cell - 0.5);
+  }
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    if (!explored[it.y][it.x]) continue;
+    ctx.fillStyle = it.color;
+    ctx.fillRect(ox + it.x * cell + cell * 0.15, oy + it.y * cell + cell * 0.15, cell * 0.7, cell * 0.7);
+  }
+  // Shopkeeper on minimap
+  if (shopkeeper && explored[shopkeeper.y] && explored[shopkeeper.y][shopkeeper.x]) {
+    ctx.fillStyle = '#44ff44';
+    ctx.fillRect(ox + shopkeeper.x * cell, oy + shopkeeper.y * cell, cell, cell);
+  }
+  for (var i = 0; i < enemies.length; i++) {
+    var en = enemies[i];
+    var dist = Math.abs(en.x - player.x) + Math.abs(en.y - player.y);
+    if (dist > sightRange || !explored[en.y][en.x]) continue;
+    ctx.fillStyle = en.color;
+    ctx.fillRect(ox + en.x * cell + cell * 0.1, oy + en.y * cell + cell * 0.1, cell * 0.8, cell * 0.8);
+  }
+  // Summons on minimap
+  for (var si = 0; si < summons.length; si++) {
+    var smInfo = SUMMON_TYPES[summons[si].sType || 'Warrior'];
+    ctx.fillStyle = smInfo.color;
+    ctx.fillRect(ox + summons[si].x * cell, oy + summons[si].y * cell, cell, cell);
+  }
+  // Shrines on minimap
+  for (var si = 0; si < shrines.length; si++) {
+    if (!shrines[si].activated && explored[shrines[si].y] && explored[shrines[si].y][shrines[si].x]) {
+      ctx.fillStyle = SHRINE_TYPES[shrines[si].type].color;
+      ctx.fillRect(ox + shrines[si].x * cell, oy + shrines[si].y * cell, cell, cell);
+    }
+  }
+  // Chests on minimap
+  for (var ci = 0; ci < chests.length; ci++) {
+    if (!chests[ci].opened && explored[chests[ci].y] && explored[chests[ci].y][chests[ci].x]) {
+      ctx.fillStyle = '#cc9944';
+      ctx.fillRect(ox + chests[ci].x * cell, oy + chests[ci].y * cell, cell, cell);
+    }
+  }
+  // Familiar on minimap
+  if (familiar) {
+    ctx.fillStyle = '#aa88ff';
+    ctx.fillRect(ox + familiar.x * cell + cell * 0.1, oy + familiar.y * cell + cell * 0.1, cell * 0.8, cell * 0.8);
+  }
+  var pulse = 1 + Math.sin(animT * 4) * 0.3;
+  var ppx = ox + player.x * cell + cell / 2;
+  var ppy = oy + player.y * cell + cell / 2;
+  ctx.fillStyle = playerClass ? playerClass.color : '#4a9eff';
+  ctx.beginPath(); ctx.arc(ppx, ppy, cell * 1.2 * pulse, 0, Math.PI * 2); ctx.fill();
+
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.font = '600 14px -apple-system, sans-serif'; ctx.fillStyle = '#888';
+  var explored_count = 0, total_floor = 0;
+  for (var ty2 = 0; ty2 < MH; ty2++) for (var tx2 = 0; tx2 < MW; tx2++) {
+    if (map[ty2][tx2] !== T_WALL) total_floor++;
+    if (explored[ty2][tx2] && map[ty2][tx2] !== T_WALL) explored_count++;
+  }
+  var pct = total_floor > 0 ? Math.round(explored_count / total_floor * 100) : 0;
+  ctx.fillText('Explored: ' + pct + '%  ·  Enemies: ' + enemies.length + '  ·  Items: ' + items.length, W / 2, H - 10);
+}
+
+function drawWish() {
+  ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  // Djinni
+  ctx.font = '48px -apple-system, sans-serif'; ctx.fillStyle = '#ffcc00';
+  ctx.fillText('🧞', W / 2, 100);
+  ctx.font = '900 28px -apple-system, sans-serif'; ctx.fillStyle = '#ffcc00';
+  ctx.fillText('A Djinni Appears!', W / 2, 160);
+  ctx.font = '16px -apple-system, sans-serif'; ctx.fillStyle = '#ccc';
+  ctx.fillText('You are granted one wish.', W / 2, 195);
+
+  if (!wishPickingWand) {
+    for (var i = 0; i < WISH_OPTIONS.length; i++) {
+      var sel = (wishSel === i);
+      ctx.font = sel ? '600 20px -apple-system, sans-serif' : '16px -apple-system, sans-serif';
+      ctx.fillStyle = sel ? '#ffcc00' : '#888';
+      var pulse = sel ? (Math.sin(animT * 3) * 0.2 + 0.8) : 0.5;
+      ctx.globalAlpha = pulse;
+      ctx.fillText((sel ? '▸ ' : '  ') + WISH_OPTIONS[i], W / 2, 260 + i * 42);
+    }
+  } else {
+    ctx.font = '600 18px -apple-system, sans-serif'; ctx.fillStyle = '#ccc';
+    ctx.fillText('Choose a wand:', W / 2, 240);
+    for (var i = 0; i < WAND_TYPES.length; i++) {
+      var wt = WAND_TYPES[i];
+      var sel = (wishWandSel === i);
+      ctx.font = sel ? '600 20px -apple-system, sans-serif' : '16px -apple-system, sans-serif';
+      ctx.fillStyle = sel ? wt.color : '#888';
+      var pulse = sel ? (Math.sin(animT * 3) * 0.2 + 0.8) : 0.5;
+      ctx.globalAlpha = pulse;
+      ctx.fillText((sel ? '▸ ' : '  ') + wt.ch + ' ' + wt.name + ' (' + wt.charges + ' charges)', W / 2, 290 + i * 42);
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.font = '12px -apple-system, sans-serif'; ctx.fillStyle = '#555';
+  ctx.fillText('↑↓ select  ·  Enter to confirm', W / 2, 540);
+}
+
+function drawShop() {
+  ctx.fillStyle = 'rgba(0,0,0,0.88)'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  ctx.font = '900 32px -apple-system, sans-serif'; ctx.fillStyle = '#44ff44';
+  ctx.fillText('🏪 SHOP', W / 2, 70);
+  ctx.font = '600 16px -apple-system, sans-serif'; ctx.fillStyle = '#ffdd00';
+  ctx.fillText('Gold: $' + player.gold, W / 2, 110);
+
+  for (var i = 0; i < shopStock.length; i++) {
+    var item = shopStock[i];
+    var sel = (shopSel === i);
+    var yy = 175 + i * 72;
+    // Selection box
+    if (sel) {
+      ctx.fillStyle = 'rgba(68,255,68,0.08)';
+      ctx.fillRect(60, yy - 28, W - 120, 58);
+      ctx.strokeStyle = '#44ff44'; ctx.lineWidth = 2;
+      ctx.strokeRect(60, yy - 28, W - 120, 58);
+    }
+    if (item.sold) {
+      ctx.font = '600 18px -apple-system, sans-serif'; ctx.fillStyle = '#555';
+      ctx.fillText(item.name + '  — SOLD', W / 2, yy);
+    } else {
+      ctx.font = sel ? '600 20px -apple-system, sans-serif' : '18px -apple-system, sans-serif';
+      ctx.fillStyle = sel ? '#e8e8e8' : '#888';
+      ctx.fillText((sel ? '▸ ' : '  ') + item.name + '  — $' + item.cost, W / 2, yy);
+      ctx.font = '12px -apple-system, sans-serif'; ctx.fillStyle = sel ? '#aaa' : '#666';
+      ctx.fillText(item.desc, W / 2, yy + 20);
+    }
+  }
+
+  ctx.font = '12px -apple-system, sans-serif'; ctx.fillStyle = '#555';
+  ctx.fillText('↑↓ browse  ·  Enter buy  ·  Esc leave', W / 2, 540);
+}
+
+function drawWandSelect() {
+  ctx.fillStyle = 'rgba(0,0,0,0.92)'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  ctx.font = '900 24px -apple-system, sans-serif'; ctx.fillStyle = '#aa88ff';
+  ctx.fillText('⚡ WANDS', W / 2, 36);
+  ctx.font = '12px -apple-system, sans-serif'; ctx.fillStyle = '#666';
+  ctx.fillText('↑↓ select  ·  Enter equip  ·  Esc cancel', W / 2, 58);
+
+  if (wands.length === 0) {
+    ctx.font = '18px -apple-system, sans-serif'; ctx.fillStyle = '#666';
+    ctx.fillText('No wands in inventory', W / 2, 200);
+    return;
+  }
+
+  // --- Scrollable wand list (top half) ---
+  var listTop = 76, rowH = 48, maxVisible = 5;
+  var listH = maxVisible * rowH;
+  var scrollOffset = 0;
+  if (wands.length > maxVisible) {
+    scrollOffset = Math.max(0, Math.min(wandSelIdx - Math.floor(maxVisible / 2), wands.length - maxVisible));
+  }
+
+  // Clip region for list
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, listTop, W, listH);
+  ctx.clip();
+
+  for (var i = scrollOffset; i < Math.min(wands.length, scrollOffset + maxVisible); i++) {
+    var w = wands[i];
+    var sel = (wandSelIdx === i);
+    var isActive = (i === activeWandIdx);
+    var yy = listTop + (i - scrollOffset) * rowH + rowH / 2;
+    var wtInfo = null;
+    for (var j = 0; j < WAND_TYPES.length; j++) {
+      if (WAND_TYPES[j].name === w.type) { wtInfo = WAND_TYPES[j]; break; }
+    }
+    var wColor = wtInfo ? wtInfo.color : '#aa88ff';
+    var wIcon = wtInfo ? wtInfo.ch : '/';
+
+    if (sel) {
+      ctx.fillStyle = 'rgba(170,136,255,0.12)';
+      ctx.fillRect(40, yy - 20, W - 80, 40);
+      ctx.strokeStyle = '#aa88ff'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(40, yy - 20, W - 80, 40);
+    }
+
+    ctx.font = sel ? '600 18px -apple-system, sans-serif' : '16px -apple-system, sans-serif';
+    ctx.fillStyle = sel ? wColor : '#777';
+    var label = (sel ? '▸ ' : '  ') + wIcon + ' ' + w.type + '  ×' + w.charges;
+    if (isActive) label += '  ★';
+    ctx.fillText(label, W / 2, yy - 2);
+
+    // Charges bar
+    var maxCh = wtInfo ? wtInfo.charges * ((playerClass && playerClass.chargeMult) || 1) : w.charges;
+    var barW = 120, barH = 4;
+    var barX = (W - barW) / 2, barY = yy + 14;
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = wColor;
+    ctx.globalAlpha = sel ? 1 : 0.4;
+    ctx.fillRect(barX, barY, barW * Math.min(1, w.charges / Math.max(1, maxCh)), barH);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+
+  // Scroll indicators
+  if (scrollOffset > 0) {
+    ctx.font = '14px -apple-system, sans-serif'; ctx.fillStyle = '#555';
+    ctx.fillText('▲ more', W / 2, listTop - 4);
+  }
+  if (scrollOffset + maxVisible < wands.length) {
+    ctx.font = '14px -apple-system, sans-serif'; ctx.fillStyle = '#555';
+    ctx.fillText('▼ more', W / 2, listTop + listH + 10);
+  }
+
+  // --- Description panel (bottom half) ---
+  var descTop = listTop + listH + 24;
+  var selW = wands[wandSelIdx];
+  var selInfo = null;
+  for (var j = 0; j < WAND_TYPES.length; j++) {
+    if (WAND_TYPES[j].name === selW.type) { selInfo = WAND_TYPES[j]; break; }
+  }
+  var selColor = selInfo ? selInfo.color : '#aa88ff';
+
+  // Divider
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(60, descTop - 8); ctx.lineTo(W - 60, descTop - 8); ctx.stroke();
+
+  // Wand name
+  ctx.font = '600 20px -apple-system, sans-serif'; ctx.fillStyle = selColor;
+  ctx.fillText(selW.type + ' Wand', W / 2, descTop + 10);
+
+  // Zap effect description
+  var zapDesc = {
+    'Fire': 'Zap: Fireball that burns target',
+    'Dig': 'Zap: Breaks one wall tile',
+    'Teleport': 'Zap: Blink to a random room',
+    'Ice': 'Zap: Freezes target for 3 turns',
+    'Poison': 'Zap: Poison DoT (2 dmg/turn, 3 turns)',
+    'Lightning': 'Zap: Bolt + chain to adjacent enemy',
+    'Slow': 'Zap: Halves target speed for 5 turns',
+    'Heal': 'Zap: Restore 20 HP (self-cast)',
+    'Summon': 'Zap: Spawn friendly ally for 10 turns'
+  };
+  ctx.font = '14px -apple-system, sans-serif'; ctx.fillStyle = '#aaa';
+  ctx.fillText(zapDesc[selW.type] || 'Zap: Unknown effect', W / 2, descTop + 38);
+
+  // Class-specific bonus
+  var classBonus = '';
+  var classColor = '#888';
+  if (playerClass && playerClass.name === 'Wizard') {
+    classColor = '#aa88ff';
+    var shieldDesc = {
+      'Fire': '🛡 Fire Shield: ATK×0.3 AoE per turn + 30% melee reflect',
+      'Dig': '🛡 Earth Shield: Knockback melee attackers',
+      'Teleport': '🛡 Phase Shield: 15% blink away when hit',
+      'Ice': '🛡 Ice Shield: 20% freeze attackers + ranged reduction',
+      'Poison': '🛡 Toxic Shield: ATK×0.2 AoE + poison attackers',
+      'Lightning': '🛡 Storm Shield: ATK×0.25 all adjacent + ranged zap + 40% chain',
+      'Slow': '🛡 Time Shield: Slows all adjacent + attackers',
+      'Heal': '🛡 Regen Shield: +1 HP every 3 turns',
+      'Summon': '🛡 Spirit Shield: 10% spawn ally when hit'
+    };
+    classBonus = shieldDesc[selW.type] || '';
+  } else if (playerClass && playerClass.name === 'Rogue') {
+    classColor = '#44ff88';
+    var elemDesc = {
+      'Fire': '⚔ Fire Blade: +2 dmg, 10% ignite on hits',
+      'Dig': '⚔ Impact Blade: Knockback + wall slam (+3)',
+      'Teleport': '⚔ Phase Blade: 10% teleport target away',
+      'Ice': '⚔ Frost Blade: +1 dmg, 15% freeze on hits',
+      'Poison': '⚔ Venom Blade: +1 dmg, 25% poison on hits',
+      'Lightning': '⚔ Storm Blade: +2 dmg, 10% chain to adjacent',
+      'Slow': '⚔ Tempo Blade: +1 dmg, 20% slow on hits',
+      'Heal': '⚔ Vampiric Blade: 15% lifesteal on hits',
+      'Summon': '⚔ Soul Blade: 20% spawn ally on kill'
+    };
+    classBonus = elemDesc[selW.type] || '';
+  } else if (playerClass && playerClass.name === 'Warrior') {
+    classColor = '#ff4444';
+    classBonus = '⚔ No elemental bonus (Warrior uses sweep)';
+  }
+
+  if (classBonus) {
+    ctx.font = '13px -apple-system, sans-serif'; ctx.fillStyle = classColor;
+    ctx.fillText(classBonus, W / 2, descTop + 64);
+  }
+
+  // Charges remaining
+  ctx.font = '12px -apple-system, sans-serif'; ctx.fillStyle = '#555';
+  ctx.fillText(selW.charges + ' charges remaining', W / 2, descTop + 90);
+}
+
+function drawPauseStats() {
+  ctx.fillStyle = 'rgba(0,0,0,0.93)'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = '900 22px -apple-system, sans-serif'; ctx.fillStyle = '#e8e8e8';
+  ctx.fillText('⏸ PAUSED', W / 2, 30);
+  var cColor = playerClass ? playerClass.color : '#4a9eff';
+  ctx.font = '600 16px -apple-system, sans-serif'; ctx.fillStyle = cColor;
+  ctx.fillText((playerClass ? playerClass.name : 'Adventurer') + '  ·  Level ' + player.level + '  ·  Floor ' + player.floor, W / 2, 52);
+  var col1 = 50, col2 = 320, y = 70, lh = 16;
+  function statRow(label, val, color) {
+    ctx.textAlign = 'left'; ctx.font = '11px -apple-system, monospace';
+    ctx.fillStyle = color; ctx.fillText(label, col1, y);
+    ctx.fillStyle = '#ccc'; ctx.fillText('' + val, col2, y); y += lh;
+  }
+  function section(title, color) {
+    y += 4; ctx.textAlign = 'center'; ctx.font = '600 12px -apple-system, sans-serif';
+    ctx.fillStyle = color; ctx.fillText('— ' + title + ' —', W / 2, y); y += 15;
+  }
+  section('COMBAT', '#ff8844');
+  statRow('Damage Dealt', runStats.dmgDealt, '#ff8844');
+  statRow('Damage Taken', runStats.dmgTaken, '#ff3333');
+  statRow('HP Healed', runStats.healed, '#44ff88');
+  statRow('Biggest Hit Dealt', runStats.maxHitDealt, '#ffff44');
+  statRow('Biggest Hit Taken', runStats.maxHitTaken, '#ff6666');
+  statRow('Critical Hits', runStats.crits, '#ffcc44');
+  statRow('Wand Zaps', runStats.wandZaps, '#aa88ff');
+  section('EXPLORATION', '#4a9eff');
+  statRow('Steps Walked', runStats.stepsWalked, '#aaddff');
+  statRow('Floors Cleared', runStats.floorsCleared, '#88cc88');
+  statRow('Gold Spent', runStats.goldSpent + 'g (holding ' + player.gold + 'g)', '#ffaa44');
+  statRow('Total Kills', player.kills, '#ff4444');
+  var killTypes = [];
+  for (var k in runStats.killsByType) { if (runStats.killsByType.hasOwnProperty(k)) killTypes.push({ name: k, count: runStats.killsByType[k] }); }
+  killTypes.sort(function(a, b) { return b.count - a.count; });
+  if (killTypes.length > 0) {
+    section('BESTIARY', '#cc6666');
+    var maxShow = Math.min(killTypes.length, 5);
+    for (var i = 0; i < maxShow; i++) statRow(killTypes[i].name, '×' + killTypes[i].count, '#999');
+    if (killTypes.length > 5) { ctx.textAlign = 'left'; ctx.font = '11px -apple-system, monospace'; ctx.fillStyle = '#555'; ctx.fillText('...+' + (killTypes.length - 5) + ' more', col1, y); y += lh; }
+  }
+  section('DISCOVERIES', '#ffcc44');
+  statRow('Shrines Activated', runStats.shrinesActivated, '#ffcc44');
+  statRow('Chests Opened', runStats.chestsOpened, '#cc9944');
+  statRow('Minibosses Killed', runStats.minibossesKilled, '#ff2222');
+  statRow('Barrels Smashed', runStats.barrelsSmashed, '#aa7733');
+  statRow('Scrolls Read', runStats.scrollsRead, '#ddcc88');
+  // Class Abilities section
+  if (playerClass && CLASS_ABILITIES[playerClass.name] && player.level > 1) {
+    section('ABILITIES', playerClass.color);
+    var classAbs = CLASS_ABILITIES[playerClass.name];
+    for (var ai = 1; ai < classAbs.length && ai < player.level; ai++) {
+      if (classAbs[ai]) {
+        var abLabel = classAbs[ai].name;
+        if (classAbs[ai].type === 'active') {
+          var cd = abilityCooldowns[classAbs[ai].name] || 0;
+          abLabel += cd > 0 ? ' (CD: ' + cd + ')' : ' (READY)';
+        }
+        statRow('L' + (ai + 1) + ': ' + abLabel, classAbs[ai].desc, playerClass.color);
+      }
+    }
+  }
+  // Summon status
+  if (summons.length > 0) {
+    section('SUMMONS (' + summons.length + '/' + MAX_SUMMONS + ')', '#cc66ff');
+    for (var si = 0; si < summons.length; si++) {
+      var sInfo = SUMMON_TYPES[summons[si].sType || 'Warrior'];
+      statRow(sInfo.ch + ' ' + sInfo.name, 'HP:' + summons[si].hp + '/' + summons[si].maxHp + ' ATK:' + summons[si].atk, sInfo.color);
+    }
+  }
+  var efficiency = runStats.dmgTaken > 0 ? (runStats.dmgDealt / runStats.dmgTaken).toFixed(1) : '∞';
+  ctx.textAlign = 'center'; ctx.font = '600 13px -apple-system, sans-serif'; ctx.fillStyle = '#e8e8e8';
+  ctx.fillText('Damage Ratio: ' + efficiency + ':1', W / 2, H - 48);
+  ctx.font = '11px -apple-system, sans-serif'; ctx.fillStyle = '#555';
+  ctx.fillText('Esc / Enter to resume', W / 2, H - 24);
+}
+
+function drawMsg() {
+  var alpha = msgTimer > 20 ? 1 : msgTimer / 20;
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(50, H - 80, W - 100, 36);
+  ctx.font = '600 15px -apple-system, sans-serif'; ctx.fillStyle = '#ffcc44';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(msgText, W / 2, H - 62);
+  ctx.globalAlpha = 1;
+}
+
+function drawDeath() {
+  ctx.fillStyle = 'rgba(10,0,0,0.85)'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = '900 42px -apple-system, sans-serif'; ctx.fillStyle = '#cc3333';
+  ctx.fillText('YOU DIED', W / 2, 130);
+
+  // Show what killed the player
+  if (lastHitSource) {
+    ctx.font = '14px -apple-system, sans-serif'; ctx.fillStyle = '#ff6666';
+    ctx.fillText('Killed by: ' + lastHitSource, W / 2, 155);
+  }
+
+  ctx.font = '600 16px -apple-system, sans-serif';
+  ctx.fillStyle = playerClass ? playerClass.color : '#e8e8e8';
+  ctx.fillText(playerClass ? playerClass.name : '', W / 2, 175);
+
+  ctx.font = '18px -apple-system, sans-serif'; ctx.fillStyle = '#e8e8e8';
+  ctx.fillText('Floor ' + player.floor + '  ·  Level ' + player.level, W / 2, 210);
+  ctx.fillText('Kills: ' + player.kills + '  ·  Steps: ' + player.steps, W / 2, 240);
+  ctx.fillText('Gold: ' + player.gold + '  ·  XP: ' + player.xp, W / 2, 270);
+
+  // Rank
+  var ri = getRankIdx(); var rank = RANKS[ri];
+  ctx.font = '600 16px -apple-system, sans-serif'; ctx.fillStyle = '#ff8844';
+  ctx.fillText(rank.name, W / 2, 305);
+  if (ri < RANKS.length - 1) {
+    var next = RANKS[ri + 1];
+    var prog = (totalKills - rank.threshold) / (next.threshold - rank.threshold);
+    var barW = 160, barH = 6, barX = (W - barW) / 2, barY = 320;
+    ctx.fillStyle = '#222'; ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#ff8844'; ctx.fillRect(barX, barY, barW * Math.min(1, prog), barH);
+    ctx.font = '12px -apple-system, sans-serif'; ctx.fillStyle = '#888';
+    ctx.fillText('+' + player.kills + ' kills this run → ' + Math.round(prog * 100) + '% to ' + next.name, W / 2, 342);
+  }
+  if (getRankIdx() > rankAtRunStart) {
+    ctx.font = '600 18px -apple-system, sans-serif'; ctx.fillStyle = '#ff8844';
+    var rankPulse = Math.sin(animT * 4) * 0.2 + 0.8;
+    ctx.globalAlpha = rankPulse;
+    ctx.fillText('★ RANKED UP TO ' + rank.name.toUpperCase() + '! ★', W / 2, 375);
+    ctx.globalAlpha = 1;
+  }
+  if (player.floor >= bestFloor && player.floor > 1) {
+    ctx.fillStyle = '#ffcc44'; ctx.font = '600 18px -apple-system, sans-serif';
+    ctx.fillText('★ NEW BEST: Floor ' + player.floor + ' ★', W / 2, 410);
+  } else if (bestFloor > 0) {
+    ctx.fillStyle = '#888'; ctx.font = '14px -apple-system, sans-serif';
+    ctx.fillText('Best: Floor ' + bestFloor, W / 2, 410);
+  }
+
+  var pulse = Math.sin(animT * 3) * 0.3 + 0.7;
+  ctx.globalAlpha = pulse;
+  ctx.font = '600 22px -apple-system, sans-serif'; ctx.fillStyle = '#4a9eff';
+  ctx.fillText('Enter to Try Again', W / 2, 470);
+  ctx.font = '14px -apple-system, sans-serif'; ctx.fillStyle = '#666';
+  ctx.fillText('Esc: Title Screen', W / 2, 500);
+  ctx.globalAlpha = 1;
+}
+
+// ─── Input ──────────────────────────────────────────────────────
+document.addEventListener('keydown', function(e) {
+  e.preventDefault();
+
+  if (state === ST_TITLE) {
+    var hasSv = hasSave();
+    if (hasSv) {
+      if (e.key === 'ArrowUp') { titleSel = 0; }
+      else if (e.key === 'ArrowDown') { titleSel = 1; }
+      else if (e.key === 'Enter') {
+        initAudio();
+        if (titleSel === 0) { restoreGame(); }
+        else { deleteSave(); classSel = 0; state = ST_CLASS; }
+      }
+    } else {
+      if (e.key === 'Enter') { initAudio(); classSel = 0; state = ST_CLASS; }
+    }
+    return;
+  }
+
+  if (state === ST_CLASS) {
+    if (e.key === 'ArrowUp') {
+      classSel = (classSel - 1 + CLASSES.length) % CLASSES.length;
+      if (classSel === 0) sndClassWarrior();
+      else if (classSel === 1) sndClassRogue();
+      else sndClassWizard();
+    } else if (e.key === 'ArrowDown') {
+      classSel = (classSel + 1) % CLASSES.length;
+      if (classSel === 0) sndClassWarrior();
+      else if (classSel === 1) sndClassRogue();
+      else sndClassWizard();
+    } else if (e.key === 'Enter') {
+      startGame(CLASSES[classSel]);
+    }
+    return;
+  }
+
+  if (state === ST_WISH) {
+    if (!wishPickingWand) {
+      if (e.key === 'ArrowUp') wishSel = (wishSel - 1 + WISH_OPTIONS.length) % WISH_OPTIONS.length;
+      else if (e.key === 'ArrowDown') wishSel = (wishSel + 1) % WISH_OPTIONS.length;
+      else if (e.key === 'Enter') {
+        if (wishSel === 0) { // Full HP
+          player.hp = player.maxHp;
+          sndWishGranted(); addFloat(player.x, player.y, 'Full HP!', '#44ff88');
+          showMsg('Wish granted! Full HP restore!');
+          state = ST_PLAY;
+        } else if (wishSel === 1) { // +3 ATK
+          player.atk += 3;
+          sndWishGranted(); addFloat(player.x, player.y, 'ATK+3!', '#ffcc44');
+          showMsg('Wish granted! +3 Attack Power!');
+          state = ST_PLAY;
+        } else if (wishSel === 2) { // +3 DEF
+          player.def += 3;
+          sndWishGranted(); addFloat(player.x, player.y, 'DEF+3!', '#4a9eff');
+          showMsg('Wish granted! +3 Defense!');
+          state = ST_PLAY;
+        } else if (wishSel === 3) { // Reveal floor
+          revealAll();
+          sndWishGranted(); addFloat(player.x, player.y, 'Map revealed!', '#ffcc00');
+          showMsg('Wish granted! The entire floor is revealed!');
+          state = ST_PLAY;
+        } else if (wishSel === 4) { // Wand pick
+          wishPickingWand = true; wishWandSel = 0;
+        }
+        if (state === ST_PLAY) saveGame();
+      }
+    } else {
+      if (e.key === 'ArrowUp') wishWandSel = (wishWandSel - 1 + WAND_TYPES.length) % WAND_TYPES.length;
+      else if (e.key === 'ArrowDown') wishWandSel = (wishWandSel + 1) % WAND_TYPES.length;
+      else if (e.key === 'Enter') {
+        var wt = WAND_TYPES[wishWandSel];
+        addWand(wt.name, wt.charges);
+        sndWishGranted();
+        addFloat(player.x, player.y, wt.ch + ' ' + wt.name + '!', wt.color);
+        showMsg('Wish granted! Wand of ' + wt.name + '!');
+        state = ST_PLAY;
+        saveGame();
+      } else if (e.key === 'Escape' || e.key === 'Backspace') {
+        wishPickingWand = false;
+      }
+    }
+    return;
+  }
+
+  if (state === ST_SHOP) {
+    if (e.key === 'ArrowUp') shopSel = (shopSel - 1 + shopStock.length) % shopStock.length;
+    else if (e.key === 'ArrowDown') shopSel = (shopSel + 1) % shopStock.length;
+    else if (e.key === 'Enter') {
+      var item = shopStock[shopSel];
+      if (item.sold) {
+        showMsg('Already sold!');
+      } else if (player.gold < item.cost) {
+        sndShopFail();
+        showMsg('Not enough gold! Need $' + item.cost);
+      } else {
+        player.gold -= item.cost; runStats.goldSpent += item.cost;
+        item.sold = true;
+        sndShopBuy();
+        if (item.name === 'Health Potion') {
+          var heal = Math.ceil(player.maxHp * 0.5);
+          player.hp = Math.min(player.hp + heal, player.maxHp);
+          showMsg('Healed +' + heal + ' HP!');
+          addFloat(player.x, player.y, '+' + heal, '#44ff88');
+        } else if (item.name === 'ATK Boost') {
+          player.atk += 1;
+          showMsg('ATK +1!');
+          addFloat(player.x, player.y, '⚔+1', '#ffcc44');
+        } else if (item.name === 'DEF Boost') {
+          player.def += 1;
+          showMsg('DEF +1!');
+          addFloat(player.x, player.y, '🛡+1', '#4a9eff');
+        } else if (item.name === 'Sight Scroll') {
+          player.sightBonus += 1;
+          reveal(player.x, player.y);
+          showMsg('Sight +1!');
+          addFloat(player.x, player.y, '👁+1', '#88ccff');
+        } else if (item.name === 'Wand') {
+          var wt = WAND_TYPES[Math.floor(Math.random() * WAND_TYPES.length)];
+          addWand(wt.name, wt.charges);
+          showMsg('Got Wand of ' + wt.name + '!');
+          addFloat(player.x, player.y, wt.ch + wt.name, wt.color);
+        }
+        saveGame();
+      }
+    } else if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      state = ST_PLAY;
+      showMsg('Thanks for shopping!');
+    }
+    return;
+  }
+
+  if (state === ST_DEAD) {
+    if (e.key === 'Enter') { classSel = 0; state = ST_CLASS; }
+    if (e.key === 'Escape' || e.key === 'Backspace') state = ST_TITLE;
+    return;
+  }
+
+  if (state === ST_WAND_SEL) {
+    if (e.key === 'ArrowUp') { wandSelIdx = (wandSelIdx - 1 + wands.length) % wands.length; sndWandSelect(); }
+    else if (e.key === 'ArrowDown') { wandSelIdx = (wandSelIdx + 1) % wands.length; sndWandSelect(); }
+    else if (e.key === 'Enter') {
+      activeWandIdx = wandSelIdx;
+      sndWandSelect();
+      var aw = wands[activeWandIdx];
+      showMsg('Equipped Wand of ' + aw.type);
+      state = ST_PLAY;
+    }
+    else if (e.key === 'Escape' || e.key === 'Backspace') {
+      state = ST_PLAY;
+    }
+    return;
+  }
+
+  if (state === ST_PLAY) {
+    // Enter: long-press opens wand select, short press zaps or toggles minimap
+    if (e.key === 'Enter') {
+      if (showMinimap) { showMinimap = false; return; }
+      enterDownTime = Date.now();
+      if (enterTimer) clearTimeout(enterTimer);
+      enterTimer = setTimeout(function() {
+        enterTimer = null;
+        if (wands.length > 1) {
+          wandSelIdx = activeWandIdx;
+          state = ST_WAND_SEL;
+        }
+      }, 300);
+      return;
+    }
+    if (showMinimap) return;
+    if (e.key === 'ArrowUp') tryMove(0, -1);
+    else if (e.key === 'ArrowDown') tryMove(0, 1);
+    else if (e.key === 'ArrowLeft') tryMove(-1, 0);
+    else if (e.key === 'ArrowRight') tryMove(1, 0);
+    else if (e.key === 'Escape' || e.key === 'Backspace') { state = ST_PAUSE; return; }
+  }
+
+  // Pause screen
+  if (state === ST_PAUSE) {
+    if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'Enter') { state = ST_PLAY; return; }
+    return;
+  }
+});
+
+// Keyup handler for short-press Enter detection
+document.addEventListener('keyup', function(e) {
+  if (e.key !== 'Enter') return;
+  if (state === ST_PLAY && enterDownTime > 0) {
+    var held = Date.now() - enterDownTime;
+    enterDownTime = 0;
+    if (enterTimer) { clearTimeout(enterTimer); enterTimer = null; }
+    // Only fire on short press (< 300ms) and if wand select didn't open
+    if (held < 300) {
+      if (wands.length > 0 && activeWandIdx < wands.length && wands[activeWandIdx].charges > 0) {
+        if (zapWand()) { moveEnemies(); tickTurn(); saveGame(); }
+        else if (useActiveAbility()) { moveEnemies(); tickTurn(); saveGame(); }
+      } else if (useActiveAbility()) {
+        moveEnemies(); tickTurn(); saveGame();
+      } else {
+        showMinimap = true;
+      }
+    }
+  }
+});
+
+draw();
+})();
+</script>
+</body>
+</html>
