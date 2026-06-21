@@ -156,6 +156,13 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 .hd-suggestion .hd-sug-text{flex:1}
 .hd-suggestion.priority{background:rgba(251,191,36,0.08);border-color:rgba(251,191,36,0.2)}
 .hd-no-suggestions{text-align:center;color:#555;font-size:11px;padding:8px;font-style:italic}
+
+/* ═══ FUND PANEL ═══ */
+#fundPanel{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);right:4px;background:rgba(12,12,20,0.97);border:1px solid #3a3a5a;border-radius:12px;padding:14px;font-size:12px;z-index:12;display:none;width:300px;max-width:calc(100vw - 8px);max-height:calc(100vh - 210px);overflow-y:auto;-webkit-overflow-scrolling:touch;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.6)}
+#fundPanel.show{display:block}
+.fp-btn{background:#1a1a2e;border:1px solid #3a3a5a;border-radius:6px;padding:6px 10px;color:#ccc;font-size:11px;font-weight:600;cursor:pointer;transition:transform .1s,background .15s;-webkit-appearance:none;appearance:none;text-align:center}
+.fp-btn:active{transform:scale(.92);background:#222238}
+.fp-btn:disabled{opacity:.4;cursor:default}
 .bp-title{font-weight:700;color:#4ade80;margin-bottom:4px;font-size:12px}
 .bp-row{display:flex;justify-content:space-between;margin:2px 0;color:#999}
 .bp-row .val{font-weight:600}
@@ -213,6 +220,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 <!-- ═══ TOP HUD ═══ -->
 <div id="hud">
   <div class="stat"><span class="stat-label">💰 Treasury</span><span class="stat-val money" id="moneyVal">$20,000</span></div>
+  <div class="stat" id="fundStatWrap" style="display:none"><span class="stat-label">🏦 Fund</span><span class="stat-val" id="fundVal" style="color:#a78bfa">$0</span></div>
   <div class="stat"><span class="stat-label">👥 Pop</span><span class="stat-val pop" id="popVal">0</span></div>
   <div class="stat"><span class="stat-label">😊 Happy</span><span class="stat-val happy" id="happyVal">75%</span></div>
   <div id="rciMeter" title="RCI Demand">
@@ -236,6 +244,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 
 <!-- Happiness Dashboard -->
 <div id="happyDashboard"></div>
+<div id="fundPanel"></div>
 <div id="toast"></div>
 <div id="newsTicker">📍 Xin Fú City — Building the future!</div>
 
@@ -251,6 +260,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 <!-- Extra controls -->
 <div id="extraControls">
   <div class="extra-btn" id="budgetBtn" title="Budget">💰</div>
+  <div class="extra-btn" id="fundBtn" title="Sovereign Wealth Fund">🏦</div>
   <div class="extra-btn" id="happyBtn" title="Happiness Dashboard">😊</div>
   <div class="extra-btn" id="muteBtn" title="Sound">🔊</div>
   <div class="extra-btn" id="helpBtn" title="Help">❓</div>
@@ -441,6 +451,13 @@ const state = {
   pollution: [],
   poweredTiles: new Set(),
   trafficCars: [],
+  fund: { balance: 0, tier: 'conservative', history: [], lastWithdrawTick: 0 },
+};
+
+const FUND_TIERS = {
+  conservative: { name: '🟢 Conservative Bonds', short: 'Conservative', rate: 0.0003, max: 10000000, risk: 0, desc: 'Safe government bonds. No risk, steady returns.' },
+  diversified:   { name: '🟡 Diversified Portfolio', short: 'Diversified', rate: 0.0005, max: 25000000, risk: 0, desc: 'Mixed assets. Balanced risk and reward.' },
+  aggressive:   { name: '🔴 Aggressive Growth', short: 'Aggressive', rate: 0.0008, max: 50000000, risk: 0.02, desc: 'High-yield investments. 2% chance/tick of losing 5-10%.' },
 };
 
 let activeTool = 'res';
@@ -1656,6 +1673,7 @@ function simTick() {
   }
   sndTick();
 
+  try { processFundTick(); } catch(e) { console.warn('fund tick error:', e); }
   try { updateTraffic(); } catch(e) { console.warn('traffic error:', e); }
   try { updateDisasters(); } catch(e) { console.warn('disaster error:', e); }
   updateHUD();
@@ -3531,6 +3549,14 @@ function updateHUD() {
   document.getElementById('rciI').style.height = Math.max(2, state.rci.i / 100 * 22) + 'px';
   updateBudgetPanel();
   updateHappyDashboard();
+  updateFundPanel();
+  var fundStat = document.getElementById('fundStatWrap');
+  if (fundStat) {
+    if (state.fund.balance > 0) {
+      fundStat.style.display = '';
+      document.getElementById('fundVal').textContent = '$' + Math.floor(state.fund.balance).toLocaleString();
+    } else { fundStat.style.display = 'none'; }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -3648,6 +3674,7 @@ function updateBudgetPanel() {
     <hr style="border-color:#222;margin:4px 0">
     <div class="bp-row"><span>👥 Population</span><span class="val">${state.population.toLocaleString()}</span></div>
     <div class="bp-row"><span>🏛️ Tax Rate</span><span class="val">${state.taxRate}%</span></div>
+    <div class="bp-row"><span>🏦 Fund Balance</span><span class="val" style="color:#a78bfa">$${Math.floor(state.fund.balance).toLocaleString()}</span></div>
     ${happyHTML}
   `;
 }
@@ -4110,6 +4137,221 @@ function toggleHappyDashboard() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// SOVEREIGN WEALTH FUND
+// ═══════════════════════════════════════════════════════════════════
+function getFundTier() { return FUND_TIERS[state.fund.tier] || FUND_TIERS.conservative; }
+
+function fundDeposit(amount) {
+  amount = Math.floor(amount);
+  var tier = getFundTier();
+  if (amount < 10000) { toast('Minimum deposit is $10,000!', true); sndError(); haptic(20); return; }
+  if (state.money < amount) { toast('Not enough treasury funds!', true); sndError(); haptic(20); return; }
+  if (state.fund.balance + amount > tier.max) {
+    amount = tier.max - state.fund.balance;
+    if (amount <= 0) { toast('Fund at capacity for this tier!', true); sndError(); haptic(20); return; }
+    toast('Adjusted deposit to tier cap: $' + amount.toLocaleString());
+  }
+  state.money -= amount;
+  state.fund.balance += amount;
+  state.fund.history.unshift({ type: 'deposit', amount: amount, tick: state.tick, time: Date.now() });
+  if (state.fund.history.length > 10) state.fund.history.length = 10;
+  toast('🏦 Deposited $' + amount.toLocaleString() + ' into fund');
+  sndPlace(); haptic(12);
+  updateFundPanel(); updateHUD(); scheduleSave();
+}
+
+function fundWithdraw(amount) {
+  amount = Math.floor(amount);
+  if (amount <= 0) return;
+  if (state.fund.balance < amount) amount = state.fund.balance;
+  if (amount <= 0) { toast('Fund is empty!', true); sndError(); haptic(20); return; }
+  var fee = Math.floor(amount * 0.05);
+  var net = amount - fee;
+  state.fund.balance -= amount;
+  state.money += net;
+  state.fund.lastWithdrawTick = state.tick;
+  state.fund.history.unshift({ type: 'withdraw', amount: amount, fee: fee, tick: state.tick, time: Date.now() });
+  if (state.fund.history.length > 10) state.fund.history.length = 10;
+  toast('🏦 Withdrew $' + net.toLocaleString() + ' (5% fee: $' + fee.toLocaleString() + ')');
+  sndIncome(); haptic(12);
+  updateFundPanel(); updateHUD(); scheduleSave();
+}
+
+function fundSwitchTier(tierId) {
+  if (!FUND_TIERS[tierId]) return;
+  var tier = FUND_TIERS[tierId];
+  if (state.fund.balance > tier.max) {
+    var excess = state.fund.balance - tier.max;
+    var fee = Math.floor(excess * 0.05);
+    state.money += excess - fee;
+    state.fund.balance = tier.max;
+    state.fund.history.unshift({ type: 'withdraw', amount: excess, fee: fee, tick: state.tick, time: Date.now(), note: 'tier switch' });
+    if (state.fund.history.length > 10) state.fund.history.length = 10;
+    toast('Withdrew $' + excess.toLocaleString() + ' (exceeds ' + tier.short + ' max)');
+  }
+  state.fund.tier = tierId;
+  toast('Switched to ' + tier.name);
+  sndClick(); haptic(8);
+  updateFundPanel(); updateHUD(); scheduleSave();
+}
+
+function processFundTick() {
+  if (state.fund.balance <= 0) return;
+  var tier = getFundTier();
+  if (tier.risk > 0 && Math.random() < tier.risk) {
+    var lossPct = 0.05 + Math.random() * 0.05;
+    var loss = Math.floor(state.fund.balance * lossPct);
+    state.fund.balance -= loss;
+    state.fund.history.unshift({ type: 'loss', amount: loss, tick: state.tick, time: Date.now() });
+    if (state.fund.history.length > 10) state.fund.history.length = 10;
+    addFloater(GRID / 2 * TILE, GRID / 2 * TILE - 40, '📉 Fund −$' + loss.toLocaleString() + '!', '#ef4444');
+    toast('📉 Market crash! Fund lost $' + loss.toLocaleString(), true);
+    sndError();
+  } else {
+    var interest = Math.floor(state.fund.balance * tier.rate);
+    if (interest > 0) {
+      state.fund.balance += interest;
+      if (state.fund.balance > tier.max) state.fund.balance = tier.max;
+    }
+  }
+}
+
+function updateFundPanel() {
+  var panel = document.getElementById('fundPanel');
+  if (!panel || !panel.classList.contains('show')) return;
+  var tier = getFundTier();
+  var perTick = Math.floor(state.fund.balance * tier.rate);
+  var perMin = perTick * (60000 / TICK_MS);
+  var maxDep = Math.max(0, Math.min(state.money, tier.max - state.fund.balance));
+
+  var html = '<div class="hd-header">';
+  html += '<div class="hd-title">🏦 Wealth Fund</div>';
+  html += '<button class="hd-close" id="fpClose">×</button>';
+  html += '</div>';
+
+  // Balance box
+  html += '<div class="hd-score-box" style="background:rgba(167,139,250,0.08);border-color:rgba(167,139,250,0.2)">';
+  html += '<div class="hd-score-num" style="color:#a78bfa;font-size:24px">$' + Math.floor(state.fund.balance).toLocaleString() + '</div>';
+  html += '<div class="hd-score-label">Fund Balance</div>';
+  html += '<div style="font-size:10px;color:#888;margin-top:4px">💰 Treasury: $' + Math.floor(state.money).toLocaleString() + '</div>';
+  html += '</div>';
+
+  // Current tier
+  html += '<div class="hd-section">Investment Tier</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#e8e8e8;margin-bottom:2px">' + tier.name + '</div>';
+  html += '<div style="font-size:10px;color:#999;margin-bottom:4px">' + tier.desc + '</div>';
+
+  // Stats
+  html += '<div class="hd-factor"><span class="hd-fac-label">📈 Interest Rate</span><span class="hd-fac-val pos">' + (tier.rate * 100).toFixed(3) + '%/tick</span></div>';
+  html += '<div class="hd-factor"><span class="hd-fac-label">💵 Income/Tick</span><span class="hd-fac-val pos">+$' + perTick.toLocaleString() + '</span></div>';
+  html += '<div class="hd-factor"><span class="hd-fac-label">⏱️ Income/Min</span><span class="hd-fac-val pos">+$' + perMin.toLocaleString() + '</span></div>';
+  html += '<div class="hd-factor"><span class="hd-fac-label">📊 Fund Cap</span><span class="hd-fac-val">$' + tier.max.toLocaleString() + '</span></div>';
+
+  // Tier switcher
+  html += '<div class="hd-section">Switch Tier</div>';
+  for (var id in FUND_TIERS) {
+    var t = FUND_TIERS[id];
+    var active = state.fund.tier === id;
+    html += '<div class="hd-factor clickable" data-tier="' + id + '" style="' + (active ? 'background:rgba(74,158,255,0.15);border:1px solid rgba(74,158,255,0.3);border-radius:6px' : '') + '">';
+    html += '<span class="hd-fac-label">' + t.name + '</span>';
+    if (active) html += '<span class="hd-fac-val pos">✅ Active</span>';
+    else html += '<span class="hd-fac-val" style="color:#999">' + (t.rate * 100).toFixed(3) + '%</span>';
+    html += '</div>';
+  }
+
+  // Deposit
+  html += '<div class="hd-section">Deposit to Fund</div>';
+  html += '<div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">';
+  html += '<button class="fp-btn" data-deposit="10000" style="flex:1;min-width:56px">$10K</button>';
+  html += '<button class="fp-btn" data-deposit="100000" style="flex:1;min-width:56px">$100K</button>';
+  html += '<button class="fp-btn" data-deposit="1000000" style="flex:1;min-width:56px">$1M</button>';
+  html += '<button class="fp-btn" data-deposit="' + maxDep + '" style="flex:1;min-width:56px">Max</button>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:4px;align-items:center">';
+  html += '<input type="number" id="fpDepositInput" placeholder="Custom $" style="flex:1;background:#1a1a2e;border:1px solid #444;border-radius:6px;padding:6px 8px;color:#e8e8e8;font-size:12px;outline:none;min-width:0" min="10000">';
+  html += '<button class="fp-btn" id="fpDepositBtn" style="flex-shrink:0">Deposit</button>';
+  html += '</div>';
+
+  // Withdraw
+  html += '<div class="hd-section">Withdraw <span style="color:#fbbf24">(5% fee)</span></div>';
+  html += '<div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">';
+  html += '<button class="fp-btn" data-withdraw="10000" style="flex:1;min-width:56px">$10K</button>';
+  html += '<button class="fp-btn" data-withdraw="100000" style="flex:1;min-width:56px">$100K</button>';
+  html += '<button class="fp-btn" data-withdraw="1000000" style="flex:1;min-width:56px">$1M</button>';
+  html += '<button class="fp-btn" data-withdraw="' + Math.max(0, state.fund.balance) + '" style="flex:1;min-width:56px">All</button>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:4px;align-items:center">';
+  html += '<input type="number" id="fpWithdrawInput" placeholder="Custom $" style="flex:1;background:#1a1a2e;border:1px solid #444;border-radius:6px;padding:6px 8px;color:#e8e8e8;font-size:12px;outline:none;min-width:0" min="1">';
+  html += '<button class="fp-btn" id="fpWithdrawBtn" style="flex-shrink:0">Withdraw</button>';
+  html += '</div>';
+
+  // Transaction history
+  if (state.fund.history.length > 0) {
+    html += '<div class="hd-section">Recent Transactions</div>';
+    for (var i = 0; i < Math.min(5, state.fund.history.length); i++) {
+      var h = state.fund.history[i];
+      var icon = h.type === 'deposit' ? '⬇️' : h.type === 'withdraw' ? '⬆️' : '📉';
+      var label = h.type === 'deposit' ? 'Deposit' : h.type === 'withdraw' ? 'Withdraw' : 'Market Loss';
+      var color = h.type === 'deposit' ? '#60a5fa' : h.type === 'withdraw' ? '#fbbf24' : '#ef4444';
+      var detail = '$' + h.amount.toLocaleString();
+      if (h.fee) detail += ' (fee $' + h.fee.toLocaleString() + ')';
+      html += '<div class="hd-factor"><span class="hd-fac-label">' + icon + ' ' + label + '</span><span class="hd-fac-val" style="color:' + color + '">' + detail + '</span></div>';
+    }
+  }
+
+  // Note
+  html += '<div style="margin-top:8px;padding:6px 8px;border-radius:8px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.12);font-size:10px;color:#999;line-height:1.35">';
+  html += '💡 Withdrawals incur a 5% management fee. Aggressive tier has 2% chance/tick of losing 5-10% of fund value.';
+  html += '</div>';
+
+  panel.innerHTML = html;
+
+  // Close button
+  var closeBtn = document.getElementById('fpClose');
+  if (closeBtn) closeBtn.addEventListener('pointerdown', function(e) { e.preventDefault(); e.stopPropagation(); panel.classList.remove('show'); sndClick(); haptic(8); });
+
+  // Tier switch
+  var tierBtns = panel.querySelectorAll('[data-tier]');
+  for (var i = 0; i < tierBtns.length; i++) {
+    (function(btn) {
+      btn.addEventListener('pointerdown', function(e) { e.preventDefault(); e.stopPropagation(); fundSwitchTier(btn.getAttribute('data-tier')); });
+    })(tierBtns[i]);
+  }
+
+  // Deposit buttons
+  var depBtns = panel.querySelectorAll('[data-deposit]');
+  for (var i = 0; i < depBtns.length; i++) {
+    (function(btn) {
+      btn.addEventListener('pointerdown', function(e) { e.preventDefault(); e.stopPropagation(); fundDeposit(parseInt(btn.getAttribute('data-deposit'))); });
+    })(depBtns[i]);
+  }
+
+  // Withdraw buttons
+  var witBtns = panel.querySelectorAll('[data-withdraw]');
+  for (var i = 0; i < witBtns.length; i++) {
+    (function(btn) {
+      btn.addEventListener('pointerdown', function(e) { e.preventDefault(); e.stopPropagation(); fundWithdraw(parseInt(btn.getAttribute('data-withdraw'))); });
+    })(witBtns[i]);
+  }
+
+  // Custom inputs
+  var depInput = document.getElementById('fpDepositInput');
+  var depBtn = document.getElementById('fpDepositBtn');
+  if (depBtn) depBtn.addEventListener('pointerdown', function(e) { e.preventDefault(); e.stopPropagation(); fundDeposit(parseInt(depInput.value) || 0); });
+
+  var witInput = document.getElementById('fpWithdrawInput');
+  var witBtn = document.getElementById('fpWithdrawBtn');
+  if (witBtn) witBtn.addEventListener('pointerdown', function(e) { e.preventDefault(); e.stopPropagation(); fundWithdraw(parseInt(witInput.value) || 0); });
+}
+
+function toggleFundPanel() {
+  var panel = document.getElementById('fundPanel');
+  panel.classList.toggle('show');
+  if (panel.classList.contains('show')) updateFundPanel();
+  sndClick(); haptic(8);
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // TOOLBAR
 // ═══════════════════════════════════════════════════════════════════
 function buildTabs() {
@@ -4320,6 +4562,10 @@ document.getElementById('happyBtn').addEventListener('pointerdown', e => {
   e.preventDefault(); e.stopPropagation();
   toggleHappyDashboard();
 });
+document.getElementById('fundBtn').addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation();
+  toggleFundPanel();
+});
 document.getElementById('taxSlider').addEventListener('input', e => {
   state.taxRate = parseInt(e.target.value);
   document.getElementById('taxVal').textContent = state.taxRate + '%';
@@ -4524,6 +4770,7 @@ function serializeCity() {
     happiness: Math.round(state.happiness),
     taxRate: state.taxRate,
     tick: state.tick,
+    fund: JSON.parse(JSON.stringify(state.fund)),
     updated: Date.now(),
   };
 }
@@ -4548,6 +4795,7 @@ function deserializeCity(data) {
     document.getElementById('taxVal').textContent = state.taxRate + '%';
   }
   state.tick = data.tick || 0;
+  if (data.fund) state.fund = Object.assign({ balance: 0, tier: 'conservative', history: [], lastWithdrawTick: 0 }, data.fund);
   updateHUD();
   if (view3DMode) V3.buildAll();
   return true;
@@ -4597,6 +4845,7 @@ async function saveCity() {
       updates['money'] = Math.floor(state.money);
       updates['happiness'] = Math.round(state.happiness);
       updates['taxRate'] = state.taxRate;
+      updates['fund'] = JSON.parse(JSON.stringify(state.fund));
       updates['metaUpdated'] = now;
       lastFullSync = now;
     }
@@ -4685,6 +4934,7 @@ async function initFirebase() {
             if (typeof initialData.money === 'number') state.money = initialData.money;
             if (typeof initialData.happiness === 'number') state.happiness = initialData.happiness;
             if (typeof initialData.taxRate === 'number') state.taxRate = initialData.taxRate;
+            if (initialData.fund) state.fund = Object.assign({ balance: 0, tier: 'conservative', history: [], lastWithdrawTick: 0 }, initialData.fund);
           } else {
             deserializeCity(initialData);
           }
@@ -4733,6 +4983,7 @@ async function initFirebase() {
                 if (ts) ts.value = state.taxRate;
                 if (tv) tv.textContent = state.taxRate + '%';
               }
+              if (d.fund) state.fund = Object.assign({ balance: 0, tier: 'conservative', history: [], lastWithdrawTick: 0 }, d.fund);
               updateHUD();
             } catch(e) {}
           },
