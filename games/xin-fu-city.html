@@ -144,6 +144,10 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 .hd-factor{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px}
 .hd-factor .hd-fac-label{color:#ccc;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hd-factor .hd-fac-val{font-weight:700;flex-shrink:0;margin-left:8px;font-variant-numeric:tabular-nums}
+.hd-factor.clickable{cursor:pointer;border-radius:6px;padding:4px 6px;margin:1px -6px;transition:background .15s}
+.hd-factor.clickable:hover{background:rgba(74,158,255,0.1)}
+.hd-factor.clickable:active{background:rgba(74,158,255,0.2)}
+.hd-factor .hd-fac-hint{font-size:9px;color:#555;flex-shrink:0;margin-left:4px}
 .hd-factor .hd-fac-val.pos{color:#4ade80}
 .hd-factor .hd-fac-val.neg{color:#ef4444}
 .hd-suggestions{margin-top:8px}
@@ -1264,6 +1268,94 @@ const prevLevels = {};
 // ─── Happiness factors (exposed for budget panel) ────────────────
 let happinessFactors = [];
 
+// ─── Problem tile tracking for interactive dashboard ──────────────
+// Populated during simTick / computeHappinessBreakdown
+let problemTiles = {
+  unpowered: [],     // [{x,y}]
+  pollution: [],     // [{x,y}] — residential tiles near pollution
+  polluting: [],     // [{x,y}] — industrial/gummy tiles causing pollution
+  fires: [],         // [{x,y}] — tiles currently on fire
+  noRoad: [],        // [{x,y}] — zones without road access
+  specials: [],      // [{x,y,type,name}] — happiness-boosting buildings
+  taxRate: null      // current tax rate (for pulsing the slider)
+};
+
+// ─── Camera pan animation state ───────────────────────────────────
+let panAnim = null;  // {fromX,fromY,toX,toY,duration,elapsed}
+let highlightRing = null;  // {tx,ty,life,maxLife}
+
+function panToTile(tx, ty) {
+  // Convert tile to iso screen position at center
+  var iso = tileToIso(tx, ty);
+  var targetCamX = canvas.width / 2 - iso.x * zoom;
+  var targetCamY = (canvas.height + HUD_H - TOOLBAR_H) / 2 - iso.y * zoom;
+  panAnim = {
+    fromX: camX, fromY: camY,
+    toX: targetCamX, toY: targetCamY,
+    duration: 500, elapsed: 0
+  };
+}
+
+function updatePanAnim(dt) {
+  if (!panAnim) return;
+  panAnim.elapsed += dt;
+  if (panAnim.elapsed >= panAnim.duration) {
+    camX = panAnim.toX;
+    camY = panAnim.toY;
+    panAnim = null;
+  } else {
+    var t = panAnim.elapsed / panAnim.duration;
+    // Ease-in-out cubic
+    var e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    camX = panAnim.fromX + (panAnim.toX - panAnim.fromX) * e;
+    camY = panAnim.fromY + (panAnim.toY - panAnim.fromY) * e;
+  }
+  clampCamera();
+}
+
+function highlightTile(tx, ty) {
+  highlightRing = { tx: tx, ty: ty, life: 1500, maxLife: 1500 };
+  // Also add a brief tile effect for extra visual punch
+  addTileEffect(tx, ty, '#ffeb3b', 800, 0.4);
+}
+
+function renderHighlightRing() {
+  if (!highlightRing) return;
+  var iso = tileToIso(highlightRing.tx, highlightRing.ty);
+  var t = highlightRing.life / highlightRing.maxLife;
+  var alpha = t > 0.5 ? 1 : t * 2; // fade out in second half
+  var ringR = (1 - t) * 20 + ISO_HW; // expand outward
+  ctx.save();
+  ctx.globalAlpha = alpha * 0.8;
+  ctx.strokeStyle = '#ffeb3b';
+  ctx.lineWidth = 3;
+  ctx.shadowColor = '#ffeb3b';
+  ctx.shadowBlur = 12;
+  // Draw expanding iso diamond ring
+  isoDiamondPath(iso.x, iso.y, ringR, ringR * 0.5);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ─── Pulse tax slider (for tax-related dashboard clicks) ─────────
+function pulseTaxSlider() {
+  var slider = document.getElementById('taxSlider');
+  if (!slider) return;
+  slider.style.transition = 'box-shadow 0.3s';
+  slider.style.boxShadow = '0 0 16px 3px rgba(251,191,36,0.8)';
+  setTimeout(function() { slider.style.boxShadow = ''; }, 1200);
+}
+
+// ─── Dashboard click cycling helper ───────────────────────────────
+var dashClickIndex = {};  // {factorKey: currentIndex}
+function cycleTiles(key, tiles) {
+  if (!tiles || tiles.length === 0) return null;
+  var idx = dashClickIndex[key] || 0;
+  var tile = tiles[idx % tiles.length];
+  dashClickIndex[key] = (idx + 1) % tiles.length;
+  return tile;
+}
+
 function simTick() {
   state.tick++;
   try { computePoweredTiles(); updatePollution(); }
@@ -1275,6 +1367,15 @@ function simTick() {
   let resNearPollution = 0;
   let hasPowerPlant = false;
   let specialBuildings = 0;
+
+  // Reset problem tile tracking for interactive dashboard
+  problemTiles.unpowered = [];
+  problemTiles.pollution = [];
+  problemTiles.polluting = [];
+  problemTiles.fires = [];
+  problemTiles.noRoad = [];
+  problemTiles.specials = [];
+  problemTiles.taxRate = state.taxRate;
 
   try {
     for (let y = 0; y < GRID; y++) {
@@ -1304,9 +1405,16 @@ function simTick() {
                 }
               }
               pop += resPop(tile);
-              if (poll >= 4) resNearPollution += poll;
+              if (poll >= 4) {
+                resNearPollution += poll;
+                problemTiles.pollution.push({x: x, y: y});
+              }
             } else {
-              if (!powered) resUnpoweredCount++;
+              if (!powered) {
+                resUnpoweredCount++;
+                problemTiles.unpowered.push({x: x, y: y});
+              }
+              if (!road) problemTiles.noRoad.push({x: x, y: y});
             }
             break;
 
@@ -1408,6 +1516,22 @@ function simTick() {
           case T.FIRE_DEPT:         income -= 20; specialBuildings++; break; // Maintenance cost
           case T.JAM_STORE:         income += 40; specialBuildings++; break;
           case T.FISHING_HUT:    income += 20; specialBuildings++; break;
+        }
+
+        // ── Track problem tiles for interactive dashboard ──
+        // Polluting buildings (IND, Gummy Factory)
+        if (tile.type === T.IND || tile.type === T.GUMMY_FACTORY) {
+          if (TD[tile.type].pollute || tile.type === T.IND) problemTiles.polluting.push({x: x, y: y});
+        }
+        // Active fires on any building
+        if (tile.data && tile.data.onFire) problemTiles.fires.push({x: x, y: y});
+        // Special happiness buildings
+        if (TD[tile.type] && TD[tile.type].happy) {
+          problemTiles.specials.push({x: x, y: y, type: tile.type, name: TD[tile.type].name});
+        }
+        // Zones without road access (RES, COM, IND)
+        if ((tile.type === T.RES || tile.type === T.COM || tile.type === T.IND) && !road) {
+          problemTiles.noRoad.push({x: x, y: y});
         }
       }
     }
@@ -1867,6 +1991,7 @@ function render() {
 
   renderCars2D();
   renderEffects();
+  renderHighlightRing();
 
   // Day/night overlay
   if (nightData) {
@@ -3542,20 +3667,49 @@ function computeHappinessBreakdown() {
   let hasFire = false;
   let indCount = 0, comCount = 0;
 
+  // Refresh problem tiles for dashboard clickability
+  problemTiles.unpowered = [];
+  problemTiles.pollution = [];
+  problemTiles.polluting = [];
+  problemTiles.fires = [];
+  problemTiles.noRoad = [];
+  problemTiles.specials = [];
+  problemTiles.taxRate = state.taxRate;
+
   for (let y = 0; y < GRID; y++) {
     for (let x = 0; x < GRID; x++) {
       if (!state.grid[y] || !state.grid[y][x]) continue;
       const tile = state.grid[y][x];
       const td = TD[tile.type];
+      const powered = isPowered(x, y);
+      const road = hasRoadWithin(x, y, ROAD_RADIUS);
 
       if (tile.type === T.RES) {
         resCount++;
-        if (!isPowered(x, y)) resUnpoweredCount++;
+        if (!powered) {
+          resUnpoweredCount++;
+          problemTiles.unpowered.push({x: x, y: y});
+        }
         const poll = getPollution(x, y);
-        if (poll >= 4) resNearPollution += poll;
+        if (poll >= 4) {
+          resNearPollution += poll;
+          problemTiles.pollution.push({x: x, y: y});
+        }
+        if (!road) problemTiles.noRoad.push({x: x, y: y});
       }
-      if (tile.type === T.IND) indCount++;
-      if (tile.type === T.COM) comCount++;
+      if (tile.type === T.IND) {
+        indCount++;
+        problemTiles.polluting.push({x: x, y: y});
+        if (!road) problemTiles.noRoad.push({x: x, y: y});
+      }
+      if (tile.type === T.COM) {
+        comCount++;
+        if (!road) problemTiles.noRoad.push({x: x, y: y});
+      }
+      if (tile.type === T.GUMMY_FACTORY) problemTiles.polluting.push({x: x, y: y});
+
+      // Active fires
+      if (tile.data && tile.data.onFire) problemTiles.fires.push({x: x, y: y});
 
       // Count specials and their happiness contributions
       if (td && td.happy) {
@@ -3563,6 +3717,7 @@ function computeHappinessBreakdown() {
         if (existing) existing.count++;
         else specialList.push({ type: tile.type, name: td.name, happy: td.happy, count: 1 });
         specialBuildings++;
+        problemTiles.specials.push({x: x, y: y, type: tile.type, name: td.name});
       }
 
       // Check for active fires
@@ -3776,6 +3931,17 @@ function updateHappyDashboard() {
   const scoreColor = breakdown.score >= 60 ? '#4ade80' : breakdown.score >= 40 ? '#fbbf24' : '#ef4444';
   const scoreEmoji = breakdown.score >= 75 ? '😄' : breakdown.score >= 50 ? '🙂' : breakdown.score >= 30 ? '😐' : '😢';
 
+  // Map factor labels to problemTiles keys for clickability
+  // Each entry: {key: problemTiles key, label_match: substring to match in factor label}
+  var factorClickMap = {
+    'unpowered':   'unpowered',
+    'pollution':   'pollution',
+    'tax':         'high tax',
+    'fires':       'fire',
+    'unemployment':'unemployed'
+  };
+  var specialClickNames = {};  // name → type, built from problemTiles.specials
+
   let html = '<div class="hd-header">';
   html += '<div class="hd-title">😊 Happiness Dashboard</div>';
   html += '<button class="hd-close" id="hdClose">×</button>';
@@ -3787,25 +3953,60 @@ function updateHappyDashboard() {
   html += '<div class="hd-score-label">' + scoreEmoji + ' Current Happiness</div>';
   html += '</div>';
 
-  // Factor breakdown
+  // Factor breakdown — with click handlers for actionable items
   html += '<div class="hd-section">Happiness Breakdown</div>';
   for (const f of breakdown.factors) {
     const valStr = (f.val > 0 ? '+' : '') + f.val;
-    html += '<div class="hd-factor">';
-    html += '<span class="hd-fac-label">' + f.label + '</span>';
+    var clickKey = null;
+    var labelText = f.label;
+    var hint = '';
+
+    // Determine if this factor is clickable
+    var lowerLabel = f.label.toLowerCase();
+    if (lowerLabel.indexOf('unpowered') >= 0 && problemTiles.unpowered.length > 0) {
+      clickKey = 'unpowered';
+      hint = ' (' + problemTiles.unpowered.length + ' tiles)';
+    } else if (lowerLabel.indexOf('pollution') >= 0 && problemTiles.pollution.length > 0) {
+      clickKey = 'pollution';
+      hint = ' (' + problemTiles.pollution.length + ' homes)';
+    } else if (lowerLabel.indexOf('high tax') >= 0) {
+      clickKey = 'tax';
+      hint = ' ⟳ slider';
+    } else if (lowerLabel.indexOf('fire') >= 0 && problemTiles.fires.length > 0) {
+      clickKey = 'fires';
+      hint = ' (' + problemTiles.fires.length + ' burning)';
+    } else if (lowerLabel.indexOf('unemployed') >= 0) {
+      clickKey = 'unemployment';
+      hint = ' ⟳ jobs';
+    } else if (!f.positive && lowerLabel.indexOf('no road') >= 0) {
+      clickKey = 'noRoad';
+    }
+
+    if (clickKey) {
+      html += '<div class="hd-factor clickable" data-click-key="' + clickKey + '">';
+    } else {
+      html += '<div class="hd-factor">';
+    }
+    html += '<span class="hd-fac-label">' + labelText + '</span>';
     html += '<span class="hd-fac-val ' + (f.positive ? 'pos' : 'neg') + '">' + valStr + '</span>';
+    if (hint) html += '<span class="hd-fac-hint">' + hint + '</span>';
     html += '</div>';
   }
 
-  // Special buildings detail
+  // Special buildings detail — clickable to pan to building
   if (breakdown.specialList.length > 0) {
     html += '<div class="hd-section">Special Buildings</div>';
     // Sort by happiness contribution descending
     const sorted = breakdown.specialList.slice().sort((a, b) => b.happy - a.happy);
     for (const s of sorted) {
-      html += '<div class="hd-factor">';
+      // Find tiles for this special type
+      var tiles = problemTiles.specials.filter(function(t) { return t.type === s.type; });
+      var canClick = tiles.length > 0;
+      html += '<div class="hd-factor' + (canClick ? ' clickable' : '') + '"' +
+              (canClick ? ' data-click-key="special:' + s.type + '"' : '') + '>';
       html += '<span class="hd-fac-label">' + s.name + ' ×' + s.count + '</span>';
       html += '<span class="hd-fac-val pos">+' + s.happy + ' each</span>';
+      if (canClick) html += '<span class="hd-fac-hint"> ⟳</span>';
       html += '</div>';
     }
   }
@@ -3828,6 +4029,17 @@ function updateHappyDashboard() {
 
   panel.innerHTML = html;
 
+  // ── Attach click handlers to clickable factors ──────────────
+  var clickables = panel.querySelectorAll('.clickable[data-click-key]');
+  for (var i = 0; i < clickables.length; i++) {
+    (function(el) {
+      el.addEventListener('pointerdown', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        handleDashClick(el.getAttribute('data-click-key'));
+      });
+    })(clickables[i]);
+  }
+
   // Close button
   const closeBtn = document.getElementById('hdClose');
   if (closeBtn) {
@@ -3836,6 +4048,57 @@ function updateHappyDashboard() {
       panel.classList.remove('show');
       sndClick(); haptic(8);
     });
+  }
+}
+
+// ── Handle dashboard item click: pan to problem tile ─────────────
+function handleDashClick(clickKey) {
+  sndClick(); haptic(8);
+
+  if (clickKey === 'tax') {
+    pulseTaxSlider();
+    return;
+  }
+
+  if (clickKey === 'unemployment') {
+    // Pan to nearest commercial zone (or where jobs are needed)
+    var comTiles = [];
+    for (var y = 0; y < GRID; y++) {
+      for (var x = 0; x < GRID; x++) {
+        if (state.grid[y][x].type === T.COM) comTiles.push({x: x, y: y});
+      }
+    }
+    if (comTiles.length > 0) {
+      var t = cycleTiles('unemployment', comTiles);
+      if (t) { panToTile(t.x, t.y); highlightTile(t.x, t.y); }
+    } else {
+      toast('Build Commercial zones for jobs!');
+    }
+    return;
+  }
+
+  // Special building click: e.g. "special:6" (BLUETOOTH_TOWER type id)
+  if (clickKey.indexOf('special:') === 0) {
+    var spType = parseInt(clickKey.split(':')[1]);
+    var tiles = problemTiles.specials.filter(function(t) { return t.type === spType; });
+    if (tiles.length > 0) {
+      var t = cycleTiles('special_' + spType, tiles);
+      if (t) { panToTile(t.x, t.y); highlightTile(t.x, t.y); }
+    }
+    return;
+  }
+
+  // Standard problem tile keys
+  var tiles = problemTiles[clickKey];
+  if (!tiles || tiles.length === 0) {
+    toast('No active tiles for this issue.');
+    return;
+  }
+
+  var t = cycleTiles(clickKey, tiles);
+  if (t) {
+    panToTile(t.x, t.y);
+    highlightTile(t.x, t.y);
   }
 }
 
@@ -5239,6 +5502,11 @@ function gameLoop(ts) {
 
   updateCar(dt);
   updateEffects(dt);
+  updatePanAnim(dt);
+  if (highlightRing) {
+    highlightRing.life -= dt;
+    if (highlightRing.life <= 0) highlightRing = null;
+  }
 
   if (view3DMode) V3.render3D(dt);
   else render();
