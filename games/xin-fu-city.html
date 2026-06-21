@@ -129,6 +129,29 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 /* ═══ BUDGET PANEL ═══ */
 #budgetPanel{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);left:4px;background:rgba(12,12,20,0.96);border:1px solid #2a2a3a;border-radius:10px;padding:10px 14px;font-size:11px;z-index:9;display:none;min-width:200px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 #budgetPanel.show{display:block}
+
+/* ═══ HAPPINESS DASHBOARD ═══ */
+#happyDashboard{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);right:4px;background:rgba(12,12,20,0.97);border:1px solid #3a3a5a;border-radius:12px;padding:14px;font-size:12px;z-index:12;display:none;width:300px;max-width:calc(100vw - 8px);max-height:calc(100vh - 210px);overflow-y:auto;-webkit-overflow-scrolling:touch;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.6)}
+#happyDashboard.show{display:block}
+.hd-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.hd-title{font-size:15px;font-weight:700;color:#fbbf24;display:flex;align-items:center;gap:6px}
+.hd-close{color:#555;font-size:20px;cursor:pointer;padding:2px 6px;line-height:1;background:none;border:none}
+.hd-close:active{color:#888}
+.hd-score-box{text-align:center;margin-bottom:12px;padding:10px;border-radius:10px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2)}
+.hd-score-num{font-size:32px;font-weight:800;color:#fbbf24;line-height:1}
+.hd-score-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#888;margin-top:2px}
+.hd-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6a6a8a;margin:10px 0 4px;padding-bottom:3px;border-bottom:1px solid #222}
+.hd-factor{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px}
+.hd-factor .hd-fac-label{color:#ccc;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hd-factor .hd-fac-val{font-weight:700;flex-shrink:0;margin-left:8px;font-variant-numeric:tabular-nums}
+.hd-factor .hd-fac-val.pos{color:#4ade80}
+.hd-factor .hd-fac-val.neg{color:#ef4444}
+.hd-suggestions{margin-top:8px}
+.hd-suggestion{display:flex;gap:6px;align-items:flex-start;padding:6px 8px;margin:4px 0;border-radius:8px;background:rgba(74,158,255,0.06);border:1px solid rgba(74,158,255,0.12);font-size:11px;color:#bcd;line-height:1.35}
+.hd-suggestion .hd-sug-icon{flex-shrink:0;font-size:14px;line-height:1.2}
+.hd-suggestion .hd-sug-text{flex:1}
+.hd-suggestion.priority{background:rgba(251,191,36,0.08);border-color:rgba(251,191,36,0.2)}
+.hd-no-suggestions{text-align:center;color:#555;font-size:11px;padding:8px;font-style:italic}
 .bp-title{font-weight:700;color:#4ade80;margin-bottom:4px;font-size:12px}
 .bp-row{display:flex;justify-content:space-between;margin:2px 0;color:#999}
 .bp-row .val{font-weight:600}
@@ -206,6 +229,9 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 <div id="debugOverlay"></div>
 <div id="infoBar"></div>
 <div id="budgetPanel"></div>
+
+<!-- Happiness Dashboard -->
+<div id="happyDashboard"></div>
 <div id="toast"></div>
 <div id="newsTicker">📍 Xin Fú City — Building the future!</div>
 
@@ -221,6 +247,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 <!-- Extra controls -->
 <div id="extraControls">
   <div class="extra-btn" id="budgetBtn" title="Budget">💰</div>
+  <div class="extra-btn" id="happyBtn" title="Happiness Dashboard">😊</div>
   <div class="extra-btn" id="muteBtn" title="Sound">🔊</div>
   <div class="extra-btn" id="helpBtn" title="Help">❓</div>
 </div>
@@ -3378,6 +3405,7 @@ function updateHUD() {
   document.getElementById('rciC').style.height = Math.max(2, state.rci.c / 100 * 22) + 'px';
   document.getElementById('rciI').style.height = Math.max(2, state.rci.i / 100 * 22) + 'px';
   updateBudgetPanel();
+  updateHappyDashboard();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -3497,6 +3525,325 @@ function updateBudgetPanel() {
     <div class="bp-row"><span>🏛️ Tax Rate</span><span class="val">${state.taxRate}%</span></div>
     ${happyHTML}
   `;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HAPPINESS DASHBOARD
+// ═══════════════════════════════════════════════════════════════════
+function computeHappinessBreakdown() {
+  const factors = [];
+  let happy = 50;
+  factors.push({ label: 'Base', val: 50, positive: true, category: 'base' });
+
+  let resCount = 0, resUnpoweredCount = 0, resNearPollution = 0;
+  let specialBuildings = 0;
+  let pollutingNearRes = 0;
+  const specialList = []; // {name, happy, count}
+  let hasFire = false;
+  let indCount = 0, comCount = 0;
+
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      if (!state.grid[y] || !state.grid[y][x]) continue;
+      const tile = state.grid[y][x];
+      const td = TD[tile.type];
+
+      if (tile.type === T.RES) {
+        resCount++;
+        if (!isPowered(x, y)) resUnpoweredCount++;
+        const poll = getPollution(x, y);
+        if (poll >= 4) resNearPollution += poll;
+      }
+      if (tile.type === T.IND) indCount++;
+      if (tile.type === T.COM) comCount++;
+
+      // Count specials and their happiness contributions
+      if (td && td.happy) {
+        const existing = specialList.find(s => s.type === tile.type);
+        if (existing) existing.count++;
+        else specialList.push({ type: tile.type, name: td.name, happy: td.happy, count: 1 });
+        specialBuildings++;
+      }
+
+      // Check for active fires
+      if (tile.data && tile.data.onFire) hasFire = true;
+    }
+  }
+
+  // Now mirror the simTick happiness logic exactly
+  // -25 ghost town
+  if (resCount === 0) {
+    happy -= 25;
+    factors.push({ label: '🏚️ Ghost town (no homes)', val: -25, positive: false, category: 'penalty' });
+  }
+
+  // -up to 25 unpowered
+  if (resUnpoweredCount > 0) {
+    const penalty = Math.min(25, resUnpoweredCount * 5);
+    happy -= penalty;
+    factors.push({ label: '⚡ ' + resUnpoweredCount + ' unpowered home' + (resUnpoweredCount > 1 ? 's' : ''), val: -penalty, positive: false, category: 'penalty' });
+  }
+
+  // -up to 20 pollution
+  if (resNearPollution > 0) {
+    const pollPenalty = Math.min(20, Math.round(resNearPollution * 2));
+    happy -= pollPenalty;
+    factors.push({ label: '☁️ Pollution near homes', val: -pollPenalty, positive: false, category: 'penalty' });
+    pollutingNearRes = pollPenalty;
+  }
+
+  // Tax penalty
+  if (state.taxRate > 5) {
+    const taxPenalty = (state.taxRate - 5) * 2;
+    happy -= taxPenalty;
+    factors.push({ label: '💸 High tax (' + state.taxRate + '%)', val: -taxPenalty, positive: false, category: 'penalty' });
+  }
+
+  // Unemployment
+  const pop = state.population;
+  const jobCount = comCount * 8 + indCount * 12;
+  if (pop > 10) {
+    const unemploymentPct = Math.max(0, (pop - jobCount) / pop * 100);
+    if (unemploymentPct > 30) {
+      happy -= 20;
+      factors.push({ label: '📉 ' + Math.round(unemploymentPct) + '% unemployed', val: -20, positive: false, category: 'penalty' });
+    }
+  }
+
+  // Population bonus
+  if (pop > 0 && resCount > 0) {
+    const popBonus = Math.min(15, Math.round(pop / 10));
+    happy += popBonus;
+    factors.push({ label: '👥 Population (' + pop + ')', val: popBonus, positive: true, category: 'bonus' });
+  }
+
+  // Specials with diminishing returns
+  if (specialBuildings > 0) {
+    let specialHappy = 0;
+    let collected = [];
+    for (const s of specialList) {
+      for (let i = 0; i < s.count; i++) collected.push(s.happy);
+    }
+    collected.sort((a, b) => b - a);
+    let dimMult = 1;
+    for (const h of collected) {
+      specialHappy += h * dimMult;
+      dimMult *= 0.75;
+    }
+    specialHappy = Math.min(15, Math.round(specialHappy));
+    if (specialHappy > 0) {
+      happy += specialHappy;
+      factors.push({ label: '★ Special buildings (' + specialBuildings + ')', val: specialHappy, positive: true, category: 'specials' });
+    }
+  }
+
+  // Well-balanced bonus
+  const hasPenalties = factors.some(f => !f.positive);
+  if (!hasPenalties && pop > 0) {
+    factors.push({ label: '✨ Well-balanced city', val: 5, positive: true, category: 'bonus' });
+    happy += 5;
+  }
+
+  // Fire damage
+  if (hasFire) {
+    factors.push({ label: '🔥 Active fires!', val: -5, positive: false, category: 'penalty' });
+    happy -= 5;
+  }
+
+  happy = clamp(happy, 0, 100);
+
+  return {
+    score: state.happiness,
+    rawScore: happy,
+    factors: factors,
+    specialList: specialList,
+    suggestions: generateSuggestions({
+      resCount, resUnpoweredCount, resNearPollution, pollutingNearRes,
+      specialBuildings, specialList, hasFire, taxRate: state.taxRate,
+      pop, indCount, comCount, jobCount, happiness: state.happiness
+    })
+  };
+}
+
+function generateSuggestions(ctx) {
+  const tips = [];
+
+  // Tax suggestion
+  if (ctx.taxRate > 5) {
+    const currentPenalty = (ctx.taxRate - 5) * 2;
+ const lowerRate = Math.max(5, ctx.taxRate - 3);
+    const newPenalty = (lowerRate - 5) * 2;
+    const gain = currentPenalty - newPenalty;
+    if (gain > 0) {
+      tips.push({
+        icon: '💸',
+        text: 'Tax is at ' + ctx.taxRate + '% — lowering to ' + lowerRate + '% would gain +' + gain + ' happiness',
+        priority: currentPenalty
+      });
+    }
+  }
+
+  // Power suggestion
+  if (ctx.resUnpoweredCount > 0) {
+    tips.push({
+      icon: '⚡',
+      text: ctx.resUnpoweredCount + ' home' + (ctx.resUnpoweredCount > 1 ? 's have' : ' has') + ' no power — build a Power Plant nearby (6-tile radius)',
+      priority: ctx.resUnpoweredCount * 5
+    });
+  }
+
+  // Pollution suggestion
+  if (ctx.pollutingNearRes > 0) {
+    const indTiles = countTileType(T.IND);
+    const gummyTiles = countTileType(T.GUMMY_FACTORY);
+    let pollutText = 'You have ' + indTiles + ' industrial' + (indTiles === 1 ? '' : 's') + (gummyTiles > 0 ? ' and ' + gummyTiles + ' Gummy Factor' + (gummyTiles > 1 ? 'ies' : 'y') : '') + ' near residential zones — move them farther away';
+    tips.push({
+      icon: '☁️',
+      text: pollutText,
+      priority: ctx.pollutingNearRes
+    });
+  }
+
+  // Special buildings suggestion
+  const happySpecials = ctx.specialList.filter(s => s.happy >= 4);
+  if (ctx.specialBuildings === 0 || ctx.happiness < 65) {
+    const recommendations = [];
+    if (!ctx.specialList.find(s => s.type === T.BLUETOOTH_TOWER))
+      recommendations.push('Bluetooth Tower (+8 happiness, $5000)');
+    if (!ctx.specialList.find(s => s.type === T.THRONE_ROOM))
+      recommendations.push('Throne Room (+6 happiness, $3000)');
+    if (!ctx.specialList.find(s => s.type === T.PLAYGROUND))
+      recommendations.push('Playground (+5 happiness, $800)');
+    if (recommendations.length > 0) {
+      tips.push({
+        icon: '⭐',
+        text: 'Build happiness boosters: ' + recommendations.slice(0, 3).join(', '),
+        priority: 10
+      });
+    }
+  }
+
+  // Fire coverage suggestion
+  if (ctx.hasFire) {
+    tips.push({
+      icon: '🚒',
+      text: 'You have active fires — build a Fire Dept to protect buildings (5-tile radius)',
+      priority: 15
+    });
+  }
+
+  // Unemployment suggestion
+  if (ctx.pop > 10) {
+    const unemploymentPct = Math.max(0, (ctx.pop - ctx.jobCount) / ctx.pop * 100);
+    if (unemploymentPct > 30) {
+      tips.push({
+        icon: '📉',
+        text: 'Unemployment is ' + Math.round(unemploymentPct) + '% — build more Commercial or Industrial zones for jobs',
+        priority: 12
+      });
+    }
+  }
+
+  // Ghost town
+  if (ctx.resCount === 0) {
+    tips.push({
+      icon: '🏠',
+      text: 'No residential zones — build homes so citizens can move in!',
+      priority: 30
+    });
+  }
+
+  // Sort by priority descending, take top 3
+  tips.sort((a, b) => b.priority - a.priority);
+  return tips.slice(0, 3);
+}
+
+function countTileType(type) {
+  let n = 0;
+  for (let y = 0; y < GRID; y++)
+    for (let x = 0; x < GRID; x++)
+      if (state.grid[y] && state.grid[y][x] && state.grid[y][x].type === type) n++;
+  return n;
+}
+
+function updateHappyDashboard() {
+  const panel = document.getElementById('happyDashboard');
+  if (!panel || !panel.classList.contains('show')) return;
+
+  const breakdown = computeHappinessBreakdown();
+
+  // Build score header
+  const scoreColor = breakdown.score >= 60 ? '#4ade80' : breakdown.score >= 40 ? '#fbbf24' : '#ef4444';
+  const scoreEmoji = breakdown.score >= 75 ? '😄' : breakdown.score >= 50 ? '🙂' : breakdown.score >= 30 ? '😐' : '😢';
+
+  let html = '<div class="hd-header">';
+  html += '<div class="hd-title">😊 Happiness Dashboard</div>';
+  html += '<button class="hd-close" id="hdClose">×</button>';
+  html += '</div>';
+
+  // Score box
+  html += '<div class="hd-score-box">';
+  html += '<div class="hd-score-num" style="color:' + scoreColor + '">' + breakdown.score + '%</div>';
+  html += '<div class="hd-score-label">' + scoreEmoji + ' Current Happiness</div>';
+  html += '</div>';
+
+  // Factor breakdown
+  html += '<div class="hd-section">Happiness Breakdown</div>';
+  for (const f of breakdown.factors) {
+    const valStr = (f.val > 0 ? '+' : '') + f.val;
+    html += '<div class="hd-factor">';
+    html += '<span class="hd-fac-label">' + f.label + '</span>';
+    html += '<span class="hd-fac-val ' + (f.positive ? 'pos' : 'neg') + '">' + valStr + '</span>';
+    html += '</div>';
+  }
+
+  // Special buildings detail
+  if (breakdown.specialList.length > 0) {
+    html += '<div class="hd-section">Special Buildings</div>';
+    // Sort by happiness contribution descending
+    const sorted = breakdown.specialList.slice().sort((a, b) => b.happy - a.happy);
+    for (const s of sorted) {
+      html += '<div class="hd-factor">';
+      html += '<span class="hd-fac-label">' + s.name + ' ×' + s.count + '</span>';
+      html += '<span class="hd-fac-val pos">+' + s.happy + ' each</span>';
+      html += '</div>';
+    }
+  }
+
+  // Suggestions
+  html += '<div class="hd-section">💡 Suggestions</div>';
+  html += '<div class="hd-suggestions">';
+  if (breakdown.suggestions.length === 0) {
+    html += '<div class="hd-no-suggestions">🎉 Your citizens are thriving! Keep it up!</div>';
+  } else {
+    for (let i = 0; i < breakdown.suggestions.length; i++) {
+      const s = breakdown.suggestions[i];
+      html += '<div class="hd-suggestion' + (i === 0 ? ' priority' : '') + '">';
+      html += '<span class="hd-sug-icon">' + s.icon + '</span>';
+      html += '<span class="hd-sug-text">' + s.text + '</span>';
+      html += '</div>';
+    }
+  }
+  html += '</div>';
+
+  panel.innerHTML = html;
+
+  // Close button
+  const closeBtn = document.getElementById('hdClose');
+  if (closeBtn) {
+    closeBtn.addEventListener('pointerdown', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      panel.classList.remove('show');
+      sndClick(); haptic(8);
+    });
+  }
+}
+
+function toggleHappyDashboard() {
+  const panel = document.getElementById('happyDashboard');
+  panel.classList.toggle('show');
+  if (panel.classList.contains('show')) updateHappyDashboard();
+  sndClick(); haptic(8);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -3705,6 +4052,10 @@ document.getElementById('budgetBtn').addEventListener('pointerdown', e => {
   e.preventDefault(); e.stopPropagation();
   document.getElementById('budgetPanel').classList.toggle('show');
   sndClick(); haptic(8);
+});
+document.getElementById('happyBtn').addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation();
+  toggleHappyDashboard();
 });
 document.getElementById('taxSlider').addEventListener('input', e => {
   state.taxRate = parseInt(e.target.value);
