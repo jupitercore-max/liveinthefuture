@@ -318,6 +318,7 @@ const T = {
   FIRE_DEPT: 21,
   JAM_STORE: 22,
   GRAPE_FARM: 23,
+  FISHING_HUT: 24,
 };
 
 const TD = {
@@ -343,6 +344,7 @@ const TD = {
   [T.ELSIE_RESTAURANT]:  { name:'Elsie\'s Eatery', color:'#ef4444', cost:1500, income:35, happy:3, desc:'Elsie\'s cozy eatery. Great food and happy customers!' },
   [T.FIRE_DEPT]:          { name:'Fire Department', color:'#dc2626', cost:3000, happy:1, desc:'Puts out fires in nearby buildings. Protects within 5 tiles.' },
   [T.JAM_STORE]:  { name:'Jeremy\'s Jam', color:'#7c3aed', cost:1800, income:40, happy:4, desc:'Jeremy\'s music store. Jams, vinyl, and good vibes!' },
+  [T.FISHING_HUT]:     { name:'Fishing Hut',    color:'#0891b2', cost:1000, income:20, happy:3, desc:'A cozy fishing hut by the water. Generates income and boosts happiness.' },
 };
 
 // ─── Categories & Tools ────────────────────────────────────────────
@@ -374,6 +376,7 @@ const TOOLS = [
   { id:'restaurant', icon:'🍽️', name:'Elsie\'s Eatery', tile:T.ELSIE_RESTAURANT, cost:1500, cat:'special' },
   { id:'firedept',   icon:'🚒', name:'Fire Dept',     tile:T.FIRE_DEPT,          cost:3000, cat:'special' },
   { id:'jamstore', icon:'🎵', name:'Jeremy\'s Jam', tile:T.JAM_STORE, cost:1800, cat:'special' },
+  { id:'fishinghut', icon:'🎣', name:'Fishing Hut', tile:T.FISHING_HUT, cost:1000, cat:'special' },
   { id:'inspect',   icon:'🔍', name:'Inspect',     cost:0,               cat:'tools' },
   { id:'bulldoze',  icon:'💥', name:'Bulldoze',    cost:0,               cat:'tools' },
   { id:'drive',     icon:'🚗', name:'Drive',       cost:0,               cat:'tools' },
@@ -1194,6 +1197,7 @@ function updatePollution() {
       // Fire Department is clean — pAmount stays 0
       else if (tile.type === T.JAM_STORE) pAmount = 0;
       else if (tile.type === T.GRAPE_FARM) pAmount = 0;
+      else if (tile.type === T.FISHING_HUT) pAmount = 0;
       if (pAmount > 0) {
         for (let dy = -POLLUTION_RADIUS; dy <= POLLUTION_RADIUS; dy++) {
           for (let dx = -POLLUTION_RADIUS; dx <= POLLUTION_RADIUS; dx++) {
@@ -1376,6 +1380,7 @@ function simTick() {
           case T.ELSIE_RESTAURANT:  income += 35; specialBuildings++; break;
           case T.FIRE_DEPT:         income -= 20; specialBuildings++; break; // Maintenance cost
           case T.JAM_STORE:         income += 40; specialBuildings++; break;
+          case T.FISHING_HUT:    income += 20; specialBuildings++; break;
         }
       }
     }
@@ -1889,6 +1894,7 @@ function drawTileIso(tx, ty, brightness) {
     case T.ELSIE_RESTAURANT: drawSpecialIso(T.ELSIE_RESTAURANT, px, py, hw, hh, tile.level, b); break;
     case T.FIRE_DEPT: drawSpecialIso(T.FIRE_DEPT, px, py, hw, hh, tile.level, b); break;
     case T.JAM_STORE: drawSpecialIso(T.JAM_STORE, px, py, hw, hh, tile.level, b); break;
+    case T.FISHING_HUT: drawSpecialIso(T.FISHING_HUT, px, py, hw, hh, tile.level, b); break;
     case T.POWER_LINE: drawPowerLineIso(px, py, hw, hh, b); break;
     case T.SIGN: drawSignIso(px, py, hw, hh, tile, b); break;
   }
@@ -3212,6 +3218,82 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
 
       break;
     }
+
+    case T.FISHING_HUT: {
+      var h = 22;
+      var bw = hw * 0.7, bh = hh * 0.7;
+
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.beginPath();
+      ctx.ellipse(px + 3, py + bh * 0.4, bw * 0.5, bh * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Dock / pier extending toward viewer
+      ctx.fillStyle = adjustBrightness('#8B6914', b * 0.8);
+      ctx.fillRect(px - bw * 0.3, py + 2, bw * 0.6, 6);
+      // Dock planks
+      ctx.fillStyle = adjustBrightness('#6B4F0F', b * 0.6);
+      for (var di = 0; di < 3; di++) {
+        ctx.fillRect(px - bw * 0.3 + di * bw * 0.2, py + 2, 1, 6);
+      }
+
+      // Hut body — teal/cyan
+      drawIsoBox(px, py - 4, bw, bh, h,
+        adjustBrightness('#0891b2', b),
+        adjustBrightness('#045a6e', b * 0.55),
+        adjustBrightness('#067a92', b * 0.85));
+
+      // Roof — darker teal angled
+      ctx.fillStyle = adjustBrightness('#0e7490', b * 0.9);
+      ctx.beginPath();
+      ctx.moveTo(px - bw * 0.55, py - 4 - h * 0.3);
+      ctx.lineTo(px, py - 4 - h * 0.9);
+      ctx.lineTo(px + bw * 0.55, py - 4 - h * 0.3);
+      ctx.lineTo(px + bw * 0.4, py - 4 - h * 0.1);
+      ctx.lineTo(px - bw * 0.4, py - 4 - h * 0.1);
+      ctx.closePath();
+      ctx.fill();
+
+      // Door — warm dark opening
+      ctx.fillStyle = adjustBrightness('#033a47', b * 0.5);
+      ctx.fillRect(px - 4, py - 4 - h * 0.6, 8, h * 0.55);
+
+      // Window with warm glow at night
+      var nightData = getDayNightOverlay();
+      var isNight = nightData && nightData.night > 0.45;
+      ctx.fillStyle = isNight ? 'rgba(255,200,100,0.75)' : 'rgba(120,200,230,0.4)';
+      ctx.fillRect(px + bw * 0.15, py - 4 - h * 0.55, 6, 6);
+
+      // Fishing rod leaning against the hut
+      ctx.strokeStyle = adjustBrightness('#92400e', b);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(px + bw * 0.35, py - 4);
+      ctx.lineTo(px + bw * 0.5, py - 4 - h * 0.7);
+      ctx.stroke();
+      // Rod tip
+      ctx.fillStyle = adjustBrightness('#fbbf24', b);
+      ctx.beginPath();
+      ctx.arc(px + bw * 0.5, py - 4 - h * 0.7, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 🎣 icon above
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🎣', px, py - h - 8);
+
+      if (isNight) {
+        var fgrad = ctx.createRadialGradient(px, py - h * 0.4, 0, px, py - h * 0.4, hw);
+        fgrad.addColorStop(0, 'rgba(8,145,178,0.15)');
+        fgrad.addColorStop(1, 'rgba(8,145,178,0)');
+        ctx.fillStyle = fgrad;
+        ctx.fillRect(px - hw, py - hh - h, ISO_TILE_W, ISO_TILE_H + h);
+      }
+
+      break;
+    }
   }
 }
 function drawFireOverlayIso(tx, ty) {
@@ -4449,6 +4531,15 @@ const V3 = {
         board.position.y = 0.38; g.add(board);
         break;
       }
+      case T.FISHING_HUT: {
+        const hutBody = new THREE.Mesh(this.geo.box(0.7, 0.45, 0.7), new THREE.MeshStandardMaterial({ color: 0x0891b2 }));
+        hutBody.position.y = 0.23; hutBody.castShadow = true; g.add(hutBody);
+        const hutRoof = new THREE.Mesh(this.geo.box(0.8, 0.15, 0.8), new THREE.MeshStandardMaterial({ color: 0x0e7490 }));
+        hutRoof.position.y = 0.53; g.add(hutRoof);
+        const dock = new THREE.Mesh(this.geo.box(0.5, 0.05, 0.25), new THREE.MeshStandardMaterial({ color: 0x8B6914 }));
+        dock.position.set(0, 0.03, 0.5); g.add(dock);
+        break;
+      }
     }
     return g.children.length ? g : null;
   },
@@ -4645,6 +4736,19 @@ function checkMilestones() {
         if (state.grid[y][x].type === T.GRAPE_FARM) {
           state.milestones.grapefarm = true;
           toast('🍇 Grape Farm planted — wine country vibes!');
+          sndGrow();
+          haptic(15);
+          break;
+        }
+  }
+
+  // Fishing Hut milestone
+  if (!state.milestones.fishinghut) {
+    for (let y = 0; y < GRID; y++)
+      for (let x = 0; x < GRID; x++)
+        if (state.grid[y][x].type === T.FISHING_HUT) {
+          state.milestones.fishinghut = true;
+          toast('🎣 Fishing Hut built — happy anglers!');
           sndGrow();
           haptic(15);
           break;
