@@ -246,12 +246,17 @@ function getRankBonuses(stats){
 var stats=loadStats();
 try{guideEnabled=localStorage.getItem('pulse_guide')!=='0';}catch(ex){}
 
-// Medical Emergencies system
+// Medical Emergencies system — Spatial Audio Mapping
+// Direction encoded in audio through bone conduction for eyes-free play:
+// ↑ DEFIB: high pitch (1200Hz), center pan — "high" = "up"
+// ↓ VENTILATE: low rumble (300Hz), center pan — "low" = "down"
+// ← PUSH EPI: mid pitch (600Hz), hard LEFT pan — left ear = "left"
+// → TRANSFUSE: mid pitch (800Hz), hard RIGHT pan — right ear = "right"
 var EMERGENCIES=[
-  {name:'DEFIB',emoji:'⚡',key:'ArrowUp',keyLabel:'↑',color:'#ffd700',desc:'Cardiac arrest!',sound:1200},
-  {name:'VENTILATE',emoji:'🫁',key:'ArrowDown',keyLabel:'↓',color:'#00bfff',desc:'Respiratory failure!',sound:800},
-  {name:'PUSH EPI',emoji:'💉',key:'ArrowLeft',keyLabel:'←',color:'#ff6b6b',desc:'Epinephrine needed!',sound:1000},
-  {name:'TRANSFUSE',emoji:'🩸',key:'ArrowRight',keyLabel:'→',color:'#ff8c42',desc:'Blood loss critical!',sound:600}
+  {name:'DEFIB',emoji:'⚡',key:'ArrowUp',keyLabel:'↑',color:'#ffd700',desc:'Cardiac arrest!',sound:1200,pan:0,wave:'triangle'},
+  {name:'VENTILATE',emoji:'🫁',key:'ArrowDown',keyLabel:'↓',color:'#00bfff',desc:'Respiratory failure!',sound:300,pan:0,wave:'sine'},
+  {name:'PUSH EPI',emoji:'💉',key:'ArrowLeft',keyLabel:'←',color:'#ff6b6b',desc:'Epinephrine needed!',sound:600,pan:-1,wave:'square'},
+  {name:'TRANSFUSE',emoji:'🩸',key:'ArrowRight',keyLabel:'→',color:'#ff8c42',desc:'Blood loss critical!',sound:800,pan:1,wave:'square'}
 ];
 var activeEmergency=null,emergencyTimer=0,emergencyWindow=4000;
 var nextEmergencyAt=0,emergencyResponseTimer=0;
@@ -267,19 +272,27 @@ function saveEmergencyDiscovery(d){
 var emergencyDiscovery=loadEmergencyDiscovery();
 function countDiscovered(){var n=0;for(var i=0;i<EMERGENCIES.length;i++){if(emergencyDiscovery[EMERGENCIES[i].name])n++;}return n;}
 
-function playEmergencyAlarm(freq){
+function playEmergencyAlarm(freq,pan,wave){
   if(!audioCtx)return;
   var t=audioCtx.currentTime;
-  // Urgent two-tone alarm
+  // Spatial stereo panner for directional cues through bone conduction
+  var panNode=null;
+  if(audioCtx.createStereoPanner){
+    panNode=audioCtx.createStereoPanner();
+    panNode.pan.value=pan||0;
+    panNode.connect(audioCtx.destination);
+  }
+  var dest=panNode||audioCtx.destination;
+  // Urgent directional alarm — pitch + pan encode D-pad direction by ear
   for(var i=0;i<3;i++){
     var osc=audioCtx.createOscillator();
     var g=audioCtx.createGain();
-    osc.type='square';
+    osc.type=wave||'square';
     osc.frequency.setValueAtTime(freq,t+i*0.2);
     osc.frequency.setValueAtTime(freq*0.7,t+i*0.2+0.1);
     g.gain.setValueAtTime(0.08,t+i*0.2);
     g.gain.exponentialRampToValueAtTime(0.001,t+i*0.2+0.19);
-    osc.connect(g);g.connect(audioCtx.destination);
+    osc.connect(g);g.connect(dest);
     osc.start(t+i*0.2);osc.stop(t+i*0.2+0.2);
   }
 }
@@ -311,7 +324,7 @@ function triggerEmergency(){
   var idx=Math.floor(Math.random()*EMERGENCIES.length);
   activeEmergency=EMERGENCIES[idx];
   emergencyTimer=emergencyWindow;
-  playEmergencyAlarm(activeEmergency.sound);
+  playEmergencyAlarm(activeEmergency.sound,activeEmergency.pan,activeEmergency.wave);
 }
 
 function handleEmergencyInput(key){
@@ -466,7 +479,7 @@ function drawMenu(){
 
   ctx.font='13px -apple-system,sans-serif';
   ctx.fillStyle='#444';
-  ctx.fillText('↑↓←→ Emergencies · ↑ Guide (no emergency) · Enter Beat · Esc Back',W/2,560);
+  ctx.fillText('🎧 Listen: ↑=high ↓=low ←=left →=right · ↑ Guide (no emergency) · Enter Beat · Esc Back',W/2,560);
 }
 
 var showHelp=false;
