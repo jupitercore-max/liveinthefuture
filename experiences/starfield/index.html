@@ -149,6 +149,16 @@ var pingFrames = 0;
 var PING_DURATION = 60; // frames (1 second at 60fps)
 var PINGS_PER_WAYPOINT = 3;
 
+// ── Warp Burst (Voyager) ──
+// Enter triggers a speed boost. In Deep Space, costs 1 charge (shared with
+// pings — information vs speed tradeoff). In Normal mode, cooldown-based.
+var burstActive = false;
+var burstFrames = 0;
+var BURST_DURATION = 90; // frames (1.5s at 60fps)
+var burstPreSpeed = 0;
+var burstCooldown = 0;
+var BURST_COOLDOWN = 600; // frames (10s at 60fps) — normal mode only
+
 function startVoyager() {
   var used = {};
   voyagerTargets = [];
@@ -171,6 +181,9 @@ function startVoyager() {
   pingRemaining = PINGS_PER_WAYPOINT;
   pingActive = false;
   pingFrames = 0;
+  burstActive = false;
+  burstFrames = 0;
+  burstCooldown = 0;
   // deepSpace persists across voyages — player's chosen difficulty
 }
 
@@ -448,6 +461,36 @@ function playSonarPing() {
   o2.stop(now + 0.2);
 }
 
+function playWarpBurst() {
+  if (!synthStarted || !synthCtx) return;
+  var now = synthCtx.currentTime;
+  // Ascending sine sweep — opposite of ping's descending chirp
+  var o = synthCtx.createOscillator();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(200, now);
+  o.frequency.exponentialRampToValueAtTime(1000, now + 0.25);
+  o.frequency.exponentialRampToValueAtTime(400, now + 0.5);
+  var g = synthCtx.createGain();
+  g.gain.setValueAtTime(0.08, now);
+  g.gain.linearRampToValueAtTime(0.12, now + 0.15);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+  o.connect(g);
+  g.connect(masterGain);
+  o.start(now);
+  o.stop(now + 0.7);
+  // Sub-bass thrum for physicality through bone conduction
+  var sub = synthCtx.createOscillator();
+  sub.type = 'triangle';
+  sub.frequency.value = 60;
+  var sg = synthCtx.createGain();
+  sg.gain.setValueAtTime(0.06, now);
+  sg.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+  sub.connect(sg);
+  sg.connect(masterGain);
+  sub.start(now);
+  sub.stop(now + 0.5);
+}
+
 function initMic() {
   if (micActive || micFailed) return;
   micFailed = true;
@@ -561,6 +604,33 @@ document.addEventListener('keydown', function(e) {
         gameMode = 0;
         voyagerShowSummary = false;
         if (beaconGain && synthCtx) beaconGain.gain.setTargetAtTime(0, synthCtx.currentTime, 0.1);
+      } else if (!burstActive) {
+        // Warp Burst during active Voyager navigation
+        if (deepSpace) {
+          // Deep Space: costs 1 ping charge (shared resource — info vs speed)
+          if (pingRemaining > 0) {
+            pingRemaining--;
+            burstActive = true;
+            burstFrames = BURST_DURATION;
+            burstPreSpeed = targetSpeed;
+            targetSpeed = 2.0;
+            flashAlpha = 0.3;
+            flashHue = 180;
+            playWarpBurst();
+          }
+        } else {
+          // Normal mode: cooldown-based
+          if (burstCooldown <= 0) {
+            burstActive = true;
+            burstFrames = BURST_DURATION;
+            burstCooldown = BURST_COOLDOWN;
+            burstPreSpeed = targetSpeed;
+            targetSpeed = 2.0;
+            flashAlpha = 0.25;
+            flashHue = 200;
+            playWarpBurst();
+          }
+        }
       }
     }
   } else if (e.key === 'Escape' || e.key === 'Backspace') {
@@ -619,6 +689,16 @@ function draw() {
       pingActive = false;
     }
   }
+
+  // Warp Burst timer countdown
+  if (burstActive) {
+    burstFrames--;
+    if (burstFrames <= 0) {
+      burstActive = false;
+      targetSpeed = burstPreSpeed;
+    }
+  }
+  if (burstCooldown > 0) burstCooldown--;
 
   // Mic-driven speed (Free Roam mic mode only)
   if (micMode && micActive && gameMode === 0) {
@@ -850,6 +930,8 @@ function draw() {
       pingRemaining = PINGS_PER_WAYPOINT; // reset pings for next waypoint
       pingActive = false;
       pingFrames = 0;
+      if (burstActive) { burstActive = false; targetSpeed = burstPreSpeed; }
+      burstCooldown = 0; // reset cooldown for next waypoint
       voyagerIdx++;
       if (voyagerIdx >= voyagerChainLen) {
         voyagerComplete = true;
@@ -931,11 +1013,11 @@ function draw() {
       var dsAlpha = 0.5 + Math.sin(tick * 0.04) * 0.2;
       ctx.fillStyle = 'rgba(80,140,220,' + dsAlpha + ')';
       ctx.fillText('DEEP SPACE', 110, 18);
-      // Sonar ping counter
+      // Sonar ping / charge counter
       ctx.font = '11px -apple-system, sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillStyle = pingRemaining > 0 ? (pingActive ? '#80ffcc' : '#4acdff') : '#444';
-      ctx.fillText('\ud83d\udd0a ' + pingRemaining + '/' + PINGS_PER_WAYPOINT, 200, 18);
+      ctx.fillStyle = pingRemaining > 0 ? (pingActive ? '#80ffcc' : (burstActive ? '#ff9944' : '#4acdff')) : '#444';
+      ctx.fillText('\u26a1 ' + pingRemaining + '/' + PINGS_PER_WAYPOINT, 200, 18);
     }
 
     if (!voyagerComplete && voyagerIdx < voyagerTargets.length) {
@@ -1151,7 +1233,15 @@ function draw() {
   } else if (voyagerComplete) {
     hint = 'Enter Free Roam  Esc Back';
   } else {
-    hint = (deepSpace ? '\u2191 Ping(' + pingRemaining + ')' : '\u2191 Speed') + '  \u2190\u2192 Steer  \u2193 ' + (deepSpace ? 'Normal' : 'Deep Space') + '  Esc Cancel  \ud83d\udd14';
+    var burstHint = '';
+    if (burstActive) {
+      burstHint = '  \u2728WARP';
+    } else if (deepSpace) {
+      burstHint = pingRemaining > 0 ? '  Enter Burst' : '';
+    } else {
+      burstHint = burstCooldown <= 0 ? '  Enter Burst' : '  Enter ' + Math.ceil(burstCooldown / 60) + 's';
+    }
+    hint = (deepSpace ? '\u2191 Ping' : '\u2191 Speed') + '  \u2190\u2192 Steer' + burstHint + '  \u2193 ' + (deepSpace ? 'Normal' : 'Deep Space');
   }
   ctx.fillText(hint, W / 2, H - 14);
 
