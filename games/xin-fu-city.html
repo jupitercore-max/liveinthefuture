@@ -787,32 +787,29 @@ function centerCamera() {
   clampCamera();
 }
 function clampCamera() {
-  var margin = 200;
+  var margin = 100;
   var viewH = canvas.height - HUD_H - TOOLBAR_H;
   var viewW = canvas.width;
-  // Actual isometric diamond drawn extents (tile centers ± ISO_HW/HH for each side):
-  // Horizontal: tile at tx=0,ty=GRID gives leftmost point at -(GRID*ISO_HW+ISO_HW) = -1248
-  //             tile at tx=GRID,ty=0 gives rightmost point at (GRID*ISO_HW+ISO_HW) = 1216
-  // Vertical:   topmost tile at tx=0,ty=0 gives top at -ISO_HH = -16
-  //             bottommost tile at tx=GRID-1,ty=GRID-1 gives bottom at GRID*ISO_TILE_H+ISO_HH = 1232
-  var diamondLeft   = -(GRID * ISO_HW + ISO_HW);   // -1248 at zoom=1
-  var diamondRight  =   GRID * ISO_HW + ISO_HW;     //  1216 at zoom=1
-  var diamondTop    = -ISO_HH;                      // -16 at zoom=1
-  var diamondBottom =   GRID * ISO_TILE_H + ISO_HH; // 1232 at zoom=1
+  // Isometric diamond world extents at zoom=1
+  var diamondLeft   = -(GRID * ISO_HW + ISO_HW);
+  var diamondRight  =   GRID * ISO_HW + ISO_HW;
+  var diamondTop    = -ISO_HH;
+  var diamondBottom =   GRID * ISO_TILE_H + ISO_HH;
   // Apply zoom
   var dl = diamondLeft   * zoom, dr = diamondRight  * zoom;
   var dt = diamondTop    * zoom, db = diamondBottom * zoom;
-  // Horizontal: left edge of diamond (camX + dl) should be >= 0 - margin,
-  //             right edge (camX + dr) should be <= viewW + margin
-  var minCamX = -dl - margin;         // 1248 - margin: can push diamond left until left edge at screen x = -margin
-  var maxCamX =  viewW - dr + margin; // viewW - 1216 + margin: can push right until right edge at screen x = viewW + margin
-  // Vertical: top edge of diamond (camY + dt) should be >= HUD_H - margin,
-  //           bottom edge (camY + db) should be <= HUD_H + viewH + margin
-  var minCamY = HUD_H - dt - margin;   // 48 - (-16) - 200 = -136: can push up until top at HUD - margin
-  var maxCamY = HUD_H + viewH - db + margin; // 48 + 700 - 1232 + 200 = -284: can push down until bottom at HUD+viewH+margin
-  // Ensure non-collapsed range
+  // Allow panning so that map edges can reach viewport edges ± margin
+  // camX is the screen x of world origin (0,0). Screen pos of diamond edge = camX + diamond_edge * zoom.
+  var minCamX = viewW - dr + margin;   // right edge aligned to right side of viewport (most negative camX)
+  var maxCamX = -dl - margin;           // left edge aligned to left side of viewport (most positive camX)
+  var minCamY = HUD_H + viewH - db + margin;  // bottom edge at bottom of viewport
+  var maxCamY = HUD_H - dt - margin;          // top edge at top of HUD
+  // Ensure non-collapsed range (map bigger than viewport)
   if (maxCamX < minCamX) { var midX = (minCamX + maxCamX) / 2; minCamX = midX - 50; maxCamX = midX + 50; }
   if (maxCamY < minCamY) { var midY = (minCamY + maxCamY) / 2; minCamY = midY - 50; maxCamY = midY + 50; }
+  // Swap so min < max (they may be reversed because isometric diamond is wider than tall)
+  if (minCamX > maxCamX) { var tmp = minCamX; minCamX = maxCamX; maxCamX = tmp; }
+  if (minCamY > maxCamY) { var tmp2 = minCamY; minCamY = maxCamY; maxCamY = tmp2; }
   camX = Math.max(minCamX, Math.min(camX, maxCamX));
   camY = Math.max(minCamY, Math.min(camY, maxCamY));
 }
