@@ -787,10 +787,13 @@ function centerCamera() {
   clampCamera();
 }
 function clampCamera() {
-  var margin = 100;
-  var viewH = canvas.height - HUD_H - TOOLBAR_H;
+  // Generous margin so users can always pan to see every tile at any zoom.
+  // Includes slack for tall buildings (up to ~50px above tile footprint).
+  var margin = 600;
+  var viewTop = HUD_H;
+  var viewBottom = canvas.height - TOOLBAR_H;
   var viewW = canvas.width;
-  // Isometric diamond world extents at zoom=1
+  // Isometric diamond world extents at zoom=1 (covers ALL tiles 0..GRID-1)
   var diamondLeft   = -(GRID * ISO_HW + ISO_HW);
   var diamondRight  =   GRID * ISO_HW + ISO_HW;
   var diamondTop    = -ISO_HH;
@@ -798,18 +801,30 @@ function clampCamera() {
   // Apply zoom
   var dl = diamondLeft   * zoom, dr = diamondRight  * zoom;
   var dt = diamondTop    * zoom, db = diamondBottom * zoom;
-  // Allow panning so that map edges can reach viewport edges ± margin
-  // camX is the screen x of world origin (0,0). Screen pos of diamond edge = camX + diamond_edge * zoom.
-  var minCamX = viewW - dr + margin;   // right edge aligned to right side of viewport (most negative camX)
-  var maxCamX = -dl - margin;           // left edge aligned to left side of viewport (most positive camX)
-  var minCamY = HUD_H + viewH - db + margin;  // bottom edge at bottom of viewport
-  var maxCamY = HUD_H - dt - margin;          // top edge at top of HUD
-  // Ensure non-collapsed range (map bigger than viewport)
-  if (maxCamX < minCamX) { var midX = (minCamX + maxCamX) / 2; minCamX = midX - 50; maxCamX = midX + 50; }
-  if (maxCamY < minCamY) { var midY = (minCamY + maxCamY) / 2; minCamY = midY - 50; maxCamY = midY + 50; }
-  // Swap so min < max (they may be reversed because isometric diamond is wider than tall)
-  if (minCamX > maxCamX) { var tmp = minCamX; minCamX = maxCamX; maxCamX = tmp; }
-  if (minCamY > maxCamY) { var tmp2 = minCamY; minCamY = maxCamY; maxCamY = tmp2; }
+  // camX/camY is screen position of world origin (0,0).
+  // Screen pos of any world point = cam + worldPoint * zoom.
+  // We want to allow panning so that any diamond edge can reach within `margin`
+  // of the corresponding viewport edge (or beyond).
+  //
+  // X axis: pan left (camX decreases) to see the right side of the map,
+  //         pan right (camX increases) to see the left side.
+  //   minCamX: right diamond edge (dr, positive) visible near left side of screen
+  //           camX + dr >= -margin  =>  camX >= -margin - dr
+  //   maxCamX: left diamond edge (dl, negative) visible near right side of screen
+  //           camX + dl <= viewW + margin  =>  camX <= viewW + margin - dl
+  var minCamX = -margin - dr;
+  var maxCamX = viewW + margin - dl;
+  // Y axis: pan up (camY decreases) to see bottom of map,
+  //         pan down (camY increases) to see top of map.
+  //   minCamY: bottom diamond edge (db, positive) visible near top of viewport
+  //           camY + db >= viewTop - margin  =>  camY >= viewTop - margin - db
+  //   maxCamY: top diamond edge (dt, negative) visible near bottom of viewport
+  //           camY + dt <= viewBottom + margin  =>  camY <= viewBottom + margin - dt
+  var minCamY = viewTop - margin - db;
+  var maxCamY = viewBottom + margin - dt;
+  // Ensure min < max (when map fits in viewport, values may be inverted)
+  if (minCamX > maxCamX) { var tmpX = minCamX; minCamX = maxCamX; maxCamX = tmpX; }
+  if (minCamY > maxCamY) { var tmpY = minCamY; minCamY = maxCamY; maxCamY = tmpY; }
   camX = Math.max(minCamX, Math.min(camX, maxCamX));
   camY = Math.max(minCamY, Math.min(camY, maxCamY));
 }
