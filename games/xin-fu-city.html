@@ -360,6 +360,8 @@ const T = {
   JAM_STORE: 22,
   GRAPE_FARM: 23,
   FISHING_HUT: 24,
+  HOSPITAL: 25,
+  SCHOOL: 26,
 };
 
 const TD = {
@@ -386,6 +388,8 @@ const TD = {
   [T.FIRE_DEPT]:          { name:'Fire Department', color:'#dc2626', cost:3000, happy:1, desc:'Puts out fires in nearby buildings. Protects within 5 tiles.' },
   [T.JAM_STORE]:  { name:'Jeremy\'s Jam', color:'#7c3aed', cost:1800, income:40, happy:4, desc:'Jeremy\'s music store. Jams, vinyl, and good vibes!' },
   [T.FISHING_HUT]:     { name:'Fishing Hut',    color:'#0891b2', cost:1000, income:20, happy:3, desc:'A cozy fishing hut by the water. Generates income and boosts happiness.' },
+  [T.HOSPITAL]:        { name:'Hospital',        color:'#f87171', cost:3500, happy:5, desc:'Heals citizens and boosts happiness. Keeps everyone healthy!' },
+  [T.SCHOOL]:          { name:'School',           color:'#60a5fa', cost:2500, happy:4, desc:'Educates young citizens. Higher education = brighter future!' },
 };
 
 // ─── Categories & Tools ────────────────────────────────────────────
@@ -418,6 +422,8 @@ const TOOLS = [
   { id:'firedept',   icon:'🚒', name:'Fire Dept',     tile:T.FIRE_DEPT,          cost:3000, cat:'special' },
   { id:'jamstore', icon:'🎵', name:'Jeremy\'s Jam', tile:T.JAM_STORE, cost:1800, cat:'special' },
   { id:'fishinghut', icon:'🎣', name:'Fishing Hut', tile:T.FISHING_HUT, cost:1000, cat:'special' },
+  { id:'hospital',  icon:'🏥', name:'Hospital',     tile:T.HOSPITAL,        cost:3500, cat:'special' },
+  { id:'school',    icon:'🏫', name:'School',        tile:T.SCHOOL,          cost:2500, cat:'special' },
   { id:'inspect',   icon:'🔍', name:'Inspect',     cost:0,               cat:'tools' },
   { id:'bulldoze',  icon:'💥', name:'Bulldoze',    cost:0,               cat:'tools' },
   { id:'drive',     icon:'🚗', name:'Drive',       cost:0,               cat:'tools' },
@@ -2065,6 +2071,8 @@ function drawTileIso(tx, ty, brightness) {
     case T.FIRE_DEPT: drawSpecialIso(T.FIRE_DEPT, px, py, hw, hh, tile.level, b); break;
     case T.JAM_STORE: drawSpecialIso(T.JAM_STORE, px, py, hw, hh, tile.level, b); break;
     case T.FISHING_HUT: drawSpecialIso(T.FISHING_HUT, px, py, hw, hh, tile.level, b); break;
+    case T.HOSPITAL: drawSpecialIso(T.HOSPITAL, px, py, hw, hh, tile.level, b); break;
+    case T.SCHOOL: drawSpecialIso(T.SCHOOL, px, py, hw, hh, tile.level, b); break;
     case T.POWER_LINE: drawPowerLineIso(px, py, hw, hh, b); break;
     case T.SIGN: drawSignIso(px, py, hw, hh, tile, b); break;
   }
@@ -3461,6 +3469,63 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
         ctx.fillStyle = fgrad;
         ctx.fillRect(px - hw, py - hh - h, ISO_TILE_W, ISO_TILE_H + h);
       }
+
+      break;
+    }
+
+    case T.HOSPITAL: {
+      var h = 28;
+      var bw = hw * 0.75, bh = hh * 0.75;
+
+      // Building body — red/coral
+      drawIsoBox(px, py, bw, bh, h,
+        adjustBrightness('#f87171', b),
+        adjustBrightness('#b91c1c', b * 0.55),
+        adjustBrightness('#ef4444', b * 0.85));
+
+      // White cross on front
+      ctx.fillStyle = adjustBrightness('#ffffff', b);
+      ctx.fillRect(px - 2, py - h * 0.7, 4, h * 0.5);
+      ctx.fillRect(px - bw * 0.2, py - h * 0.45, bw * 0.4, 4);
+
+      // 🏥 symbol
+      ctx.fillStyle = adjustBrightness('#fbbf24', b);
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🏥', px, py - h * 0.2);
+
+      break;
+    }
+
+    case T.SCHOOL: {
+      var h = 24;
+      var bw = hw * 0.75, bh = hh * 0.75;
+
+      // Building body — blue
+      drawIsoBox(px, py, bw, bh, h,
+        adjustBrightness('#60a5fa', b),
+        adjustBrightness('#1e40af', b * 0.55),
+        adjustBrightness('#3b82f6', b * 0.85));
+
+      // School flag pole on top
+      ctx.fillStyle = adjustBrightness('#fbbf24', b);
+      ctx.fillRect(px - 1, py - h - 6, 2, 6);
+      // Flag
+      ctx.fillStyle = adjustBrightness('#fbbf24', b);
+      ctx.beginPath();
+      ctx.moveTo(px + 1, py - h - 6);
+      ctx.lineTo(px + 7, py - h - 4);
+      ctx.lineTo(px + 1, py - h - 2);
+      ctx.closePath();
+      ctx.fill();
+
+      // 🏫 symbol
+      ctx.fillStyle = adjustBrightness('#fbbf24', b);
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🏫', px, py - h * 0.2);
 
       break;
     }
