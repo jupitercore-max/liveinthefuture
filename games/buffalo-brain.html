@@ -79,6 +79,16 @@ button:disabled{opacity:0.35;cursor:not-allowed}
 @keyframes dpad-flash{0%{transform:scale(1.2)}100%{transform:scale(1)}}
 .mic-bar{display:flex;align-items:center;gap:4px;font-size:9px;color:#26a69a;letter-spacing:1px;text-transform:uppercase;font-weight:700;margin-top:1px}
 .mic-bar .m-fill{height:3px;background:#26a69a;border-radius:2px;transition:width 0.3s;min-width:2px;box-shadow:0 0 4px #26a69a}
+.neuro-spec{display:none;margin-top:2px;padding:2px 0}
+.neuro-spec .ns-row{display:flex;align-items:center;gap:3px;margin:1px 0;font-size:8px;letter-spacing:0.5px;font-weight:700;font-family:'SF Mono',Menlo,Consolas,monospace}
+.neuro-spec .ns-label{width:32px;text-align:right;opacity:0.7}
+.neuro-spec .ns-bar{flex:1;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;position:relative}
+.neuro-spec .ns-fill{height:100%;border-radius:2px;transition:width 0.3s;min-width:1px}
+.neuro-spec .ns-nt{width:10px;font-size:7px;opacity:0.5}
+.neuro-spec .ns-fill.bass{background:#26a69a;box-shadow:0 0 4px rgba(38,166,154,0.5)}
+.neuro-spec .ns-fill.mid{background:#42a5f5;box-shadow:0 0 4px rgba(66,165,245,0.5)}
+.neuro-spec .ns-fill.treb{background:#ab47bc;box-shadow:0 0 4px rgba(171,71,188,0.5)}
+.neuro-spec .ns-active{opacity:1!important;text-shadow:0 0 4px currentColor}
 .rank-badge{font-size:10px;color:#ffd700;letter-spacing:1px;margin-top:4px;text-shadow:0 0 6px rgba(255,215,0,0.4)}
 .mode-card.selected{box-shadow:0 0 30px rgba(255,255,255,0.3)!important;transform:translateY(-3px)}
 .fallback-link{font-size:10px;color:#666;margin-top:4px;cursor:pointer;text-decoration:underline}
@@ -209,6 +219,12 @@ button:disabled{opacity:0.35;cursor:not-allowed}
       <div style="flex:1;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;margin-left:4px">
         <div class="m-fill" id="micFill" style="width:0%"></div>
       </div>
+    </div>
+    <div class="neuro-spec" id="neuroSpec">
+      <div style="font-size:7px;color:#888;letter-spacing:1px;text-transform:uppercase;text-align:center;margin-bottom:1px">🧠 NEURAL SPECTRUM</div>
+      <div class="ns-row"><span class="ns-label" style="color:#26a69a">BASS</span><div class="ns-bar"><div class="ns-fill bass" id="nsBass" style="width:0%"></div></div><span class="ns-nt" id="nsNtS" style="color:#26a69a">S</span></div>
+      <div class="ns-row"><span class="ns-label" style="color:#42a5f5">MID</span><div class="ns-bar"><div class="ns-fill mid" id="nsMid" style="width:0%"></div></div><span class="ns-nt" id="nsNtA" style="color:#42a5f5">A</span></div>
+      <div class="ns-row"><span class="ns-label" style="color:#ab47bc">TREB</span><div class="ns-bar"><div class="ns-fill treb" id="nsTreb" style="width:0%"></div></div><span class="ns-nt" id="nsNtG" style="color:#ab47bc">G</span></div>
     </div>
     <div class="controls">
       <button class="btn-hack" id="hackBtn" disabled>HACK (-1 BC)</button>
@@ -416,6 +432,13 @@ const dom = {
   dpadVal: $('dpadVal'),
   micBar: $('micBar'),
   micFill: $('micFill'),
+  neuroSpec: $('neuroSpec'),
+  nsBass: $('nsBass'),
+  nsMid: $('nsMid'),
+  nsTreb: $('nsTreb'),
+  nsNtS: $('nsNtS'),
+  nsNtA: $('nsNtA'),
+  nsNtG: $('nsNtG'),
   titleRank: $('titleRank')
 };
 const ctx = dom.reels.getContext('2d');
@@ -610,12 +633,24 @@ function generateKidProblem(spinNum) {
 }
 
 // =====================================================================
-// MIC SENSOR (ambient noise — affects timer speed and NT volatility)
+// MIC SENSOR — SPECTRAL NEURAL MAPPING
+// Acoustic spectrum → targeted neurotransmitter pressure:
+//   Bass (~0-1720Hz) → Serotonin drain (low-freq rumble = mood disruption)
+//   Mid (~1720-6880Hz) → Acetylcholine drain (speech = cognitive load)
+//   Treble (~6880Hz+) → GABA drain (sharp sounds = anxiety trigger)
+// Same total drain budget as original (micSmooth × 15), but distributed
+// by spectral content. A café drains Acetylcholine (conversation).
+// A machine room drains Serotonin (bass rumble). Music drains GABA (treble).
 // =====================================================================
 var micActive = false;
 var micSmooth = 0;
 var micAnalyser = null;
 var micDataArr = null;
+// Spectral Neural Mapping: frequency bands → specific NT drain targets
+// Bass (~0-860Hz, bins 0-9) → Serotonin (low-freq rumble linked to mood disruption)
+// Mid (~860-3440Hz, bins 10-39) → Acetylcholine (speech frequencies impair focus/memory)
+// Treble (~3440Hz+, bins 40+) → GABA (sharp high-freq sounds trigger anxiety response)
+var micBands = { bass: 0, mid: 0, treble: 0 };
 
 function initMicSensor() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
@@ -629,17 +664,42 @@ function initMicSensor() {
     micDataArr = new Uint8Array(micAnalyser.frequencyBinCount);
     micActive = true;
     dom.micBar.style.display = 'flex';
+    dom.neuroSpec.style.display = 'block';
   }).catch(function() { micActive = false; });
 }
 
 function readMicLevel() {
   if (!micActive || !micAnalyser || !micDataArr) return;
   micAnalyser.getByteFrequencyData(micDataArr);
-  var sum = 0;
-  for (var i = 0; i < micDataArr.length; i++) sum += micDataArr[i];
-  var raw = sum / micDataArr.length / 255;
+  var sum = 0, bassSum = 0, midSum = 0, trebSum = 0;
+  var bc = micDataArr.length; // 128 bins @ fftSize=256, ~172Hz per bin
+  for (var i = 0; i < bc; i++) {
+    sum += micDataArr[i];
+    if (i < 10) bassSum += micDataArr[i];       // bins 0-9: ~0-1720Hz
+    else if (i < 40) midSum += micDataArr[i];    // bins 10-39: ~1720-6880Hz
+    else trebSum += micDataArr[i];               // bins 40+: ~6880Hz+
+  }
+  var raw = sum / bc / 255;
   micSmooth = micSmooth * 0.92 + raw * 0.08;
+  // Spectral bands — smoothed independently (0-1 range)
+  micBands.bass = micBands.bass * 0.9 + (bassSum / (10 * 255)) * 0.1;
+  micBands.mid = micBands.mid * 0.9 + (midSum / (30 * 255)) * 0.1;
+  micBands.treble = micBands.treble * 0.9 + (trebSum / ((bc - 40) * 255)) * 0.1;
   dom.micFill.style.width = Math.min(100, micSmooth * 200) + '%';
+  updateSpectrumHUD();
+}
+
+function updateSpectrumHUD() {
+  // Update 3-band neural spectrum bars
+  var scale = 300; // visual scaling factor
+  dom.nsBass.style.width = Math.min(100, micBands.bass * scale) + '%';
+  dom.nsMid.style.width = Math.min(100, micBands.mid * scale) + '%';
+  dom.nsTreb.style.width = Math.min(100, micBands.treble * scale) + '%';
+  // Highlight NT labels when their band is active (threshold 0.03)
+  var bT = 0.03;
+  dom.nsNtS.className = 'ns-nt' + (micBands.bass > bT ? ' ns-active' : '');
+  dom.nsNtA.className = 'ns-nt' + (micBands.mid > bT ? ' ns-active' : '');
+  dom.nsNtG.className = 'ns-nt' + (micBands.treble > bT ? ' ns-active' : '');
 }
 
 // =====================================================================
@@ -1154,14 +1214,20 @@ function finishSpin() {
     flashMeter('G','drain');
     state.seizureLeft--;
   }
-  // Mic integration: ambient noise causes extra NT volatility per spin
+  // Spectral Neural Mapping: acoustic frequency bands → targeted NT drains
+  // Same total drain budget as before (micSmooth × 15), but distributed by spectral content
+  // Bass → Serotonin | Mid → Acetylcholine | Treble → GABA
   if (micActive && micSmooth > 0.05 && state.mode === 'adult') {
-    var micDrain = Math.floor(micSmooth * 15);
-    if (micDrain > 0) {
-      var ks = ADULT_KEYS;
-      var victim = ks[Math.floor(Math.random() * ks.length)];
-      setNT(victim, state.nt[victim] - micDrain);
-      flashMeter(victim, 'drain');
+    var totalBudget = Math.floor(micSmooth * 15);
+    if (totalBudget > 0) {
+      var bT = micBands.bass + micBands.mid + micBands.treble;
+      if (bT < 0.01) bT = 1; // fallback: distribute evenly if bands are zero
+      var bD = Math.round(totalBudget * micBands.bass / bT);
+      var mD = Math.round(totalBudget * micBands.mid / bT);
+      var tD = Math.max(0, totalBudget - bD - mD); // remainder avoids rounding loss
+      if (bD > 0) { setNT('S', state.nt.S - bD); flashMeter('S','drain'); }
+      if (mD > 0) { setNT('A', state.nt.A - mD); flashMeter('A','drain'); }
+      if (tD > 0) { setNT('G', state.nt.G - tD); flashMeter('G','drain'); }
     }
   }
   const evalRes = evaluateSpin(state.grid);
