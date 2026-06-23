@@ -362,6 +362,7 @@ const T = {
   FISHING_HUT: 24,
   HOSPITAL: 25,
   SCHOOL: 26,
+  BOAT: 27,
 };
 
 const TD = {
@@ -390,6 +391,7 @@ const TD = {
   [T.FISHING_HUT]:     { name:'Fishing Hut',    color:'#0891b2', cost:1000, income:20, happy:3, desc:'A cozy fishing hut by the water. Generates income and boosts happiness.' },
   [T.HOSPITAL]:        { name:'Hospital',        color:'#f87171', cost:3500, happy:5, desc:'Heals citizens and boosts happiness. Keeps everyone healthy!' },
   [T.SCHOOL]:          { name:'School',           color:'#60a5fa', cost:2500, happy:4, desc:'Educates young citizens. Higher education = brighter future!' },
+  [T.BOAT]:            { name:'Boat',             color:'#3b82f6', cost:500, happy:2, desc:'A little boat sailing on the water. Boosts happiness!' },
 };
 
 // ─── Categories & Tools ────────────────────────────────────────────
@@ -424,6 +426,7 @@ const TOOLS = [
   { id:'fishinghut', icon:'🎣', name:'Fishing Hut', tile:T.FISHING_HUT, cost:1000, cat:'special' },
   { id:'hospital',  icon:'🏥', name:'Hospital',     tile:T.HOSPITAL,        cost:3500, cat:'special' },
   { id:'school',    icon:'🏫', name:'School',        tile:T.SCHOOL,          cost:2500, cat:'special' },
+  { id:'boat',      icon:'🚤', name:'Boat',          tile:T.BOAT,            cost:500,  cat:'special' },
   { id:'inspect',   icon:'🔍', name:'Inspect',     cost:0,               cat:'tools' },
   { id:'bulldoze',  icon:'💥', name:'Bulldoze',    cost:0,               cat:'tools' },
   { id:'drive',     icon:'🚗', name:'Drive',       cost:0,               cat:'tools' },
@@ -1082,10 +1085,21 @@ function doBuild(tx, ty) {
   dlog('doBuild: tile.type=', tile.type, 'need grass/road. money=', state.money, 'cost=', data.cost);
 
   // Error checks with RED flash + error sound
+  // BOAT can ONLY be placed on water; all other buildings blocked from water
   if (tile.type === T.WATER) {
-    dlog('doBuild: REJECTED water');
+    if (tool.tile !== T.BOAT) {
+      dlog('doBuild: REJECTED water');
+      addTileEffect(tx, ty, '#ef4444', 500, 0.8);
+      toast('Cannot build on water!', true);
+      sndError();
+      haptic(20);
+      return;
+    }
+  } else if (tool.tile === T.BOAT) {
+    // BOAT may ONLY be placed on water
+    dlog('doBuild: REJECTED land for boat');
     addTileEffect(tx, ty, '#ef4444', 500, 0.8);
-    toast('Cannot build on water!', true);
+    toast('Boat can only be placed on water!', true);
     sndError();
     haptic(20);
     return;
@@ -1539,6 +1553,7 @@ function simTick() {
           case T.FIRE_DEPT:         income -= 20; specialBuildings++; break; // Maintenance cost
           case T.JAM_STORE:         income += 40; specialBuildings++; break;
           case T.FISHING_HUT:    income += 20; specialBuildings++; break;
+          case T.BOAT:           specialBuildings++; break;
         }
 
         // ── Track problem tiles for interactive dashboard ──
@@ -2073,6 +2088,7 @@ function drawTileIso(tx, ty, brightness) {
     case T.FISHING_HUT: drawSpecialIso(T.FISHING_HUT, px, py, hw, hh, tile.level, b); break;
     case T.HOSPITAL: drawSpecialIso(T.HOSPITAL, px, py, hw, hh, tile.level, b); break;
     case T.SCHOOL: drawSpecialIso(T.SCHOOL, px, py, hw, hh, tile.level, b); break;
+    case T.BOAT: drawSpecialIso(T.BOAT, px, py, hw, hh, tile.level, b); break;
     case T.POWER_LINE: drawPowerLineIso(px, py, hw, hh, b); break;
     case T.SIGN: drawSignIso(px, py, hw, hh, tile, b); break;
   }
@@ -3527,6 +3543,40 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
       ctx.textBaseline = 'middle';
       ctx.fillText('🏫', px, py - h * 0.2);
 
+      break;
+    }
+
+    case T.BOAT: {
+      // Boat floating on water — small hull with sail
+      var h = 14;
+      var bw = hw * 0.6, bh = hh * 0.4;
+      // Hull shadow on water
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.beginPath();
+      ctx.ellipse(px + 2, py + hh * 0.1, hw * 0.55, hh * 0.25, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Hull — blue boat body
+      drawIsoBox(px, py, bw, bh, h * 0.5,
+        adjustBrightness('#3b82f6', b),
+        adjustBrightness('#1e3a8a', b * 0.55),
+        adjustBrightness('#2563eb', b * 0.85));
+      // Mast
+      ctx.fillStyle = adjustBrightness('#92400e', b);
+      ctx.fillRect(px - 1, py - h * 1.8, 2, h * 1.5);
+      // Sail
+      ctx.fillStyle = adjustBrightness('#f0f9ff', b * 0.9);
+      ctx.beginPath();
+      ctx.moveTo(px, py - h * 1.8);
+      ctx.lineTo(px + bw * 0.6, py - h * 0.6);
+      ctx.lineTo(px, py - h * 0.4);
+      ctx.closePath();
+      ctx.fill();
+      // 🚤 symbol
+      ctx.fillStyle = adjustBrightness('#fbbf24', b);
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🚤', px, py - h * 0.1);
       break;
     }
   }
