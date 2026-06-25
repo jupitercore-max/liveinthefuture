@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Three-Person Lab Just Designed a Drug-Grabbing Protein That Rivals the Human Body's Own. It Took Five Hours of Compute. — Live in the Future</title>
+    <meta name="description" content="Dana-Farber researchers built an algorithm called NISE that designed a protein binding apixaban at 80 picomolar affinity — matching factor Xa, the drug's natural target — with an 83% hit rate versus 0.044% for previous methods. We calculated the screening cost reduction: roughly 1,500-fold.">
+    <link rel="stylesheet" href="/story.css">
+    <script>(function(){var t=localStorage.getItem("theme");if(t==="dark"||(!t&&window.matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark");})();</script>
+</head>
+<body>
+    <div class="story-page">
+        <article class="story-body">
+            <span class="story-kicker">🧪 Genomics</span>
+            <h1>A Three-Person Lab Just Designed a Drug-Grabbing Protein That Rivals the Human Body's Own. It Took Five Hours of Compute.</h1>
+            <p class="story-deck">Dana-Farber researchers built an algorithm that designed a protein binding the blockbuster anticoagulant apixaban at 80 picomolar affinity, matching factor Xa, the drug's natural target. We calculated what the 83% hit rate means for screening costs: roughly 1,500-fold cheaper than the previous best method.</p>
+
+            <img src="../images/nise-zero-shot-protein-drug-binder-80-picomolar.webp" alt="Abstract molecular visualization of a glowing protein scaffold cradling a small molecule drug in its binding pocket, rendered in cool blues and greens against a dark background with faint structural data overlays" class="story-hero">
+
+            <p class="story-byline">By <strong>Dr. Kenji Watanabe</strong> &middot; Genomics &middot; June 25, 2026 &middot; &#9749; 9 min read</p>
+
+            <p>Eighty picomoles per liter. That is the dissociation constant of a protein called APEX, and what it means is that a molecule that never existed in nature, designed entirely by an algorithm running on four graphics cards for five hours, grabs the blockbuster blood-thinner apixaban about as tightly as the human enzyme it was designed to inhibit. Factor Xa, the coagulation protein that apixaban targets therapeutically, binds the drug with an inhibition constant between 80 and 700 picomolar. APEX matches the tight end of that range at one-third the molecular weight.</p>
+
+            <p>Nobody evolved APEX. Three researchers at Dana-Farber Cancer Institute and Harvard Medical School built it: Benjamin Fry, Kaia Slaw, and their advisor Nicholas Polizzi. Their algorithm, NISE (Neural Iterative Selection-Expansion), was <a href="https://www.nature.com/articles/s41586-026-10670-w">published Tuesday in Nature</a>. Five of six NISE-designed proteins bound apixaban with nanomolar or better affinity, an 83% hit rate that dwarfs every prior attempt at computational small-molecule binder design by orders of magnitude.</p>
+
+            <h2>What the numbers mean for drug development</h2>
+
+            <p>A 2024 study tackled the same target using the same protein scaffolds with LigandMPNN and Rosetta, two workhorses of computational protein design, providing the cleanest head-to-head comparison available anywhere in the literature. That team synthesized and tested 9,024 designed proteins, found four that bound, and reported a hit rate of 0.044% with a best dissociation constant of 680 nanomolar, roughly 8,500 times weaker than APEX.</p>
+
+            <p>We ran cost numbers that do not appear in the paper. Each designed protein must be expressed in <em>E. coli</em>, purified by chromatography, and tested in a fluorescence binding assay, a pipeline that costs between $50 and $200 per candidate depending on the lab, including materials, instrument time, and labor. Using $100 as a reasonable midpoint, screening 9,024 candidates cost the prior campaign roughly $900,000 for four hits, about $225,000 per validated binder. NISE screened six candidates for approximately $600 total and found five binders, roughly $120 each, plus $10 to $20 in cloud compute for a five-hour run on four NVIDIA A6000 GPUs. Combining those figures yields a screening-phase cost reduction of approximately 1,450-fold.</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>LigandMPNN / Rosetta (2024)</th>
+                        <th>NISE (2026)</th>
+                        <th>Improvement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Designs tested</td>
+                        <td>9,024</td>
+                        <td>6</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>Binders found</td>
+                        <td>4</td>
+                        <td>5</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>Hit rate</td>
+                        <td>0.044%</td>
+                        <td>83%</td>
+                        <td>~1,886&times;</td>
+                    </tr>
+                    <tr>
+                        <td>Best K<sub>d</sub></td>
+                        <td>680 nM</td>
+                        <td>80 pM</td>
+                        <td>8,500&times; tighter</td>
+                    </tr>
+                    <tr>
+                        <td>Est. screening cost</td>
+                        <td>~$900,000</td>
+                        <td>~$620</td>
+                        <td>~1,450&times; cheaper</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p>Caveats apply. Academic labs in low-cost settings may halve the per-design figure; GMP-grade campaigns at contract research organizations can quintuple it. But when a hit rate jumps from one in two thousand to five in six, the economics of drug-adjacent protein design change category, not merely degree, and the ratio holds whether you peg screening at $50 or $500 per candidate.</p>
+
+            <h2>Neural networks replace energy functions</h2>
+
+            <p>NISE couples two neural networks in a closed optimization loop. LASErMPNN, trained on protein-ligand co-crystal structures from the Protein Data Bank, designs protein sequences conditioned on a three-dimensional protein-ligand structure. Boltz-2, the co-structure predictor used in the apixaban campaign, takes each designed sequence and predicts what the resulting complex would look like, assigning confidence scores to the ligand's predicted position. Feed the best structures back in, design again, predict again, and after fourteen rounds the algorithm converges on sequences where predicted structure, sequence fitness, and ligand placement reinforce each other in a self-consistency that has no analogue in energy-based design.</p>
+
+            <p>What matters most is what NISE refuses to use. Traditional protocols employ Rosetta, an energy-based modeling suite, to refine backbone and ligand coordinates between design rounds, and Polizzi's team tested that substitution head-to-head and watched it fail: iteratively selecting Rosetta-minimized structures by ligand energy and expanding them through LASErMPNN did not reduce the negative log-likelihood of designed sequences or increase confidence in predicted ligand placement. Physics-based energy functions, the paper argues, cannot fully capture the subtleties of productive protein-ligand interactions because their gradient lies partly orthogonal to the joint probability distribution that NISE navigates.</p>
+
+            <h2>A second drug, a stability breakthrough</h2>
+
+            <p>Validating an algorithm on a single target invites accusations of cherry-picking, so Polizzi's team ran NISE on exatecan, a potent anticancer compound from the camptothecin class used as a payload in antibody-drug conjugates, a category of precision oncology drugs that collectively generated more than $15 billion in global sales last year and depend on linker chemistry that often fails to protect labile payloads from premature degradation. Exatecan's lactone ring hydrolyzes rapidly at physiological pH with a half-life of roughly two hours, and the ring-open carboxylate form is far less bioactive. A designed protein that encapsulates and protects that ring could serve as a drug-delivery vehicle.</p>
+
+            <p>All four NISE-designed proteins bound exatecan. COMBS, the traditional method, managed three of sixteen. EPIC, the tightest NISE binder, achieved a dissociation constant of 120 nanomolar, about 70 times tighter than COMBS's best. Then LASErMPNN was used to "proofread" EPIC's sequence, suggesting single amino acid substitutions predicted to improve binding-site fitness without any additional experimental data. Two substitutions individually improved affinity more than tenfold, and combining them yielded a double mutant, EPIC(Q51N/M97L), that binds exatecan at 1.2 nanomolar, a hundredfold improvement over the parent protein achieved through pure computation.</p>
+
+            <p>Crystal structures at 2.0 and 2.2 angstrom resolution confirmed that EPIC folds exactly as designed. Time-resolved absorption spectroscopy showed the functional payoff: with the improved double mutant present, more than 99% of exatecan remained in its bioactive ring-closed form for at least fifty hours at physiological pH, no major hydrolysis product detected, versus a two-hour half-life for unprotected drug in solution. That transforms a labile anticancer payload into a stable reservoir.</p>
+
+            <h2>Clinical implications and honest limits</h2>
+
+            <p>Apixaban, sold as Eliquis by Bristol-Myers Squibb and Pfizer, generated roughly $20.7 billion in revenue in 2024, making it the one of the highest-grossing drugs on Earth, a molecule prescribed to millions of patients with atrial fibrillation and venous thromboembolism who depend on it to prevent strokes. Polizzi's paper notes an unmet clinical need: an inexpensive antidote that avoids the procoagulant side effects observed with andexanet alfa, a catalytically inactive factor Xa variant recently withdrawn from some markets. APEX fits the profile. But clinical deployment is years of preclinical and regulatory work away, and the paper does not claim otherwise.</p>
+
+            <p>Honest limits deserve honest names. NISE has been validated on two drugs and two protein folds, both featuring preformed pockets amenable to small-molecule binding, and extending the approach to flat protein-protein interfaces, allosteric sites, or intrinsically disordered regions remains undemonstrated. Polizzi's team reports that an earlier co-structure predictor, RFAA, would have led them to discard the apixaban binders entirely; only switching to Boltz-2 rescued those designs for experimental testing, a fragility that will resolve as these models improve but constrains what NISE can do today.</p>
+
+            <p>All code, model weights, and design coordinates are publicly available. A Google Colab notebook lets anyone run LASErMPNN from a browser. Dana-Farber's provisional patent covers the proteins, not the algorithm.</p>
+
+            <p>David Baker won the 2024 Nobel Prize in Chemistry for computational protein design. His Institute for Protein Design at the University of Washington has driven most of the field's landmarks, from Rosetta to ProteinMPNN to RFdiffusion. NISE comes from a three-person lab in Boston that used some of Baker's published scaffolds as starting points and then outperformed those tools by nearly two thousand-fold on an identical benchmark. Five hours, four GPUs, six proteins, five hits, picomolar affinity. Nature published it on a Tuesday.</p>
+
+        </article>
+    </div>
+    <script src="/story-nav.js"></script>
+    <script src="/story.js"></script>
+</body>
+</html>
