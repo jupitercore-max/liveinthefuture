@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LITF-PA-2026-043: Open-Source Volatile Organic Compound Breath Sensor Array for Multi-Disease Screening Using Edge-Deployed Machine Learning | Live in the Future</title>
+  <meta name="description" content="Defensive prior art disclosure: A low-cost, open-source electronic nose using commodity metal-oxide semiconductor gas sensors with on-device neural network classification for non-invasive disease screening from breath volatile organic compounds.">
+  <meta property="og:title" content="System and Method for Multi-Disease Screening via Commodity MOX Sensor Array with Edge-Deployed Neural Network Classification of Breath Volatile Organic Compounds">
+  <meta property="og:url" content="https://liveinthefuture.org/priorart/voc-breath-sensor-disease-screening.html">
+  <link rel="canonical" href="https://liveinthefuture.org/priorart/voc-breath-sensor-disease-screening.html">
+  <link rel="stylesheet" href="../story.css">
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+    document.documentElement.classList.add('dark');})();
+  </script>
+  <meta property="og:image" content="https://liveinthefuture.org/images/voc-breath-sensor-disease-detection-oss-hardware-stack.webp">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<div class="reading-progress" id="readingProgress"></div>
+  <nav class="story-nav">
+    <a href="/priorart/" class="nav-home">&larr; Prior Art Disclosures</a>
+  </nav>
+
+  <article class="story-page">
+    <header class="story-header">
+      <span class="story-kicker">LITF-PA-2026-043 &middot; Biomedical Sensing / Diagnostics</span>
+      <h1>System and Method for Multi-Disease Screening via Commodity MOX Sensor Array with Edge-Deployed Neural Network Classification of Breath Volatile Organic Compounds</h1>
+      <div class="story-meta">
+        <span class="story-author">Defensive Prior Art Disclosure</span>
+        <time datetime="2026-06-28">Published June 28, 2026</time>
+      </div>
+    </header>
+
+    <figure class="story-hero">
+      <img src="../images/voc-breath-sensor-disease-detection-oss-hardware-stack.webp" alt="Electronic sensor array circuit board with breath vapor visualization" loading="eager">
+    </figure>
+
+    <div class="story-body">
+
+      <div style="background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; font-size: 0.9rem;">
+        <strong>&#9878; Prior Art Notice:</strong> This document is published as defensive prior art under <a href="https://www.law.cornell.edu/uscode/text/35/102">35 U.S.C. &sect; 102(a)(1)</a>. The inventions described herein are dedicated to the public domain as of the publication date above. This disclosure is intended to prevent the patenting of these concepts by any party.
+      </div>
+
+      <h2>Abstract</h2>
+
+      <p>Disclosed is a system and method for non-invasive multi-disease screening using a low-cost electronic nose comprising four commodity metal-oxide semiconductor (MOX) gas sensors (Bosch BME688) configured as a cross-reactive array, each running distinct heater temperature profiles to generate multidimensional volatile organic compound (VOC) response signatures from human breath samples. The sensor array is controlled by an ESP32-S3 microcontroller running a quantized INT8 convolutional neural network (CNN) model via TensorFlow Lite Micro for on-device classification. The system includes a controlled breath sampling subsystem with micro diaphragm air pump, digital flow meter (Sensirion SFM3019), activated carbon baseline scrubber, and 3D-printed or borosilicate glass sampling chamber. The complete device operates on battery power (3.7V 2000mAh LiPo), logs raw sensor data to local microSD storage, displays classification results on an integrated OLED display, and achieves a total bill of materials cost of approximately $87 USD. The system is designed for community-scale screening and open-source training data collection, not as a standalone diagnostic device.</p>
+
+      <h2>Field of the Invention</h2>
+
+      <p>This invention relates to biomedical sensor systems, specifically to low-cost, portable electronic nose devices using commodity semiconductor gas sensor arrays with edge-deployed machine learning for classification of volatile organic compound patterns in human breath as indicators of disease states including but not limited to Parkinson's disease, lung cancer, gastric cancer, colorectal cancer, Crohn's disease, ulcerative colitis, multiple sclerosis, chronic kidney disease, and pre-eclampsia.</p>
+
+      <h2>Background</h2>
+
+      <p>Human breath contains over 1,000 volatile organic compounds in concentrations ranging from parts-per-million to parts-per-trillion. Disease processes alter cellular metabolism, producing characteristic changes in the VOC profile exhaled by affected individuals. Joy Milne demonstrated the biological principle in 2012 by correctly identifying Parkinson's disease from the sebum odor of T-shirts worn by patients and controls, including one "false positive" control who was subsequently diagnosed eight months later. Barran et al. at the University of Manchester confirmed the chemical basis by identifying specific VOC biomarkers (hippuric acid, eicosane, octadecanal, perillic aldehyde) that differ systematically between PD patients and controls using gas chromatography-mass spectrometry (<a href="https://doi.org/10.1021/acscentsci.8b00879">ACS Central Science, 2019</a>).</p>
+
+      <p>Haick et al. at Technion demonstrated multi-disease classification using an artificially intelligent nanoarray of gold nanoparticles and single-walled carbon nanotubes. In a study of 2,808 breath samples from 1,404 subjects across 9 clinical centers in 5 countries, the system classified 17 different diseases with an average accuracy of 86% (<a href="https://doi.org/10.1021/acsnano.6b04930">ACS Nano, 2017</a>). A team at Zhejiang University achieved 94.4% classification accuracy for Parkinson's disease from ear canal secretions using a GC-SAW sensor paired with a CNN (<a href="https://doi.org/10.1021/acs.analchem.5c00908">Analytical Chemistry, 2025</a>).</p>
+
+      <p>Existing patented systems use proprietary sensor architectures. Haick holds US 11,181,519 B2 and at least nine related patents covering cross-reactive nanoparticle sensor arrays with pattern recognition. Owlstone Medical holds EP 3,448,254 A1 covering FAIMS-based chemical detection with selective breath fraction collection. US 11,045,111 B2 covers integrated sensor-plus-diagnostic-module architecture. US 2021/0186367 A1 covers modular VOC detection with replaceable disease-specific sensor cartridges and molecularly imprinted polymer sensors.</p>
+
+      <p>The gap in the prior art is a complete, open-source, sub-$100 disease screening system built entirely from commodity components (no custom nanoparticles, no proprietary FAIMS hardware, no specialized fabrication) that runs neural network inference on-device without cloud connectivity and is designed for community-scale data collection rather than point-of-care diagnosis.</p>
+
+      <h2>Detailed Description</h2>
+
+      <h3>1. Sensor Array Architecture</h3>
+
+      <p>The sensing element comprises four (4) Bosch BME688 MOX gas sensors mounted on SparkFun SEN-19096 Qwiic breakout boards, connected via I2C bus to the microcontroller. The BME688 integrates a MOX sensing element, temperature sensor, humidity sensor, barometric pressure sensor, and programmable heater in a 3mm x 3mm LGA package. Each sensor's MOX layer changes electrical resistance when volatile organic compounds adsorb to the heated metal-oxide surface.</p>
+
+      <p>The four sensors are configured with distinct heater temperature profiles to maximize cross-reactivity:</p>
+
+      <ul>
+        <li><strong>Sensor A:</strong> Low-temperature sweep (150-250&deg;C), 10 steps, 50ms per step. Preferentially sensitive to alcohols, aldehydes, and ketones.</li>
+        <li><strong>Sensor B:</strong> Mid-temperature sweep (250-350&deg;C), 10 steps, 50ms per step. Preferentially sensitive to aromatic hydrocarbons and esters.</li>
+        <li><strong>Sensor C:</strong> High-temperature sweep (350-450&deg;C), 10 steps, 50ms per step. Preferentially sensitive to alkanes and combustion products.</li>
+        <li><strong>Sensor D:</strong> Pulsed rapid cycle (200&deg;C and 400&deg;C alternating, 25ms intervals). Exploits the differential kinetics of adsorption and desorption at different temperatures to capture transient VOC signatures invisible to steady-state measurements.</li>
+      </ul>
+
+      <p>Each heater cycle generates a 40-dimensional resistance vector (10 steps x 4 sensors) per measurement. At a 1 Hz sampling rate over a 30-second breath capture window, the system produces a 40 x 30 = 1,200-element feature matrix per sample. Including the co-located temperature, humidity, and pressure readings from each BME688 (12 additional channels), the total feature space is 1,560 elements per sample.</p>
+
+      <h3>2. Breath Sampling Subsystem</h3>
+
+      <p>The breath sampling system comprises:</p>
+
+      <ul>
+        <li><strong>Intake mouthpiece:</strong> Disposable polypropylene tube (medical-grade, individually sealed) with one-way valve to prevent backflow from the sensor chamber.</li>
+        <li><strong>Dead space rejection:</strong> The subject exhales through the mouthpiece while the system monitors flow rate via the Sensirion SFM3019 digital flow meter. The first 150mL of exhalation (anatomical dead space) is vented to atmosphere through a solenoid-controlled bypass. Alveolar air is then routed to the sensor chamber. The 150mL threshold is configurable via firmware for pediatric or reduced-lung-capacity subjects.</li>
+        <li><strong>Sensor chamber:</strong> A 3D-printed PLA or borosilicate glass cylinder (25mm diameter x 80mm length, approximately 39mL volume) housing the four BME688 breakout boards mounted on an internal PCB carrier. The chamber includes inlet and outlet ports with medical-grade silicone gaskets.</li>
+        <li><strong>Baseline scrubber:</strong> An activated carbon cartridge (2g granulated, replaceable) in the airflow path upstream of the sensor chamber provides scrubbed ambient air for baseline calibration before each breath sample. The system runs a 60-second baseline capture on scrubbed air before each measurement cycle.</li>
+        <li><strong>Micro pump:</strong> A 3V micro diaphragm air pump draws breath through the chamber at a controlled 200mL/min flow rate, ensuring consistent sample delivery and preventing condensation from stagnant airflow.</li>
+        <li><strong>Exhaust filter:</strong> A second activated carbon cartridge on the exhaust port prevents VOCs from contaminating the testing environment.</li>
+      </ul>
+
+      <h3>3. Microcontroller and Edge Inference</h3>
+
+      <p>The ESP32-S3 DevKitC-1 (N16R8 variant, dual-core Xtensa LX7 at 240MHz, 16MB flash, 8MB PSRAM) serves as the system controller. It manages I2C communication with the four BME688 sensors, controls the solenoid valve and pump via GPIO pins and a MOSFET driver, reads the SFM3019 flow meter, logs raw data to microSD, runs neural network inference, and displays results on a 0.96" SSD1306 OLED (128x64 pixels, I2C).</p>
+
+      <p>The classification model is a quantized INT8 convolutional neural network deployed via TensorFlow Lite Micro. The model architecture:</p>
+
+      <ul>
+        <li>Input layer: 1,560-element feature vector (40 resistance channels x 30 timesteps + 12 environmental channels x 30 timesteps), reshaped to a 52 x 30 x 1 2D input tensor.</li>
+        <li>Conv1D block 1: 32 filters, kernel size 3, ReLU activation, batch normalization, max pooling (2).</li>
+        <li>Conv1D block 2: 64 filters, kernel size 3, ReLU activation, batch normalization, max pooling (2).</li>
+        <li>Flatten + Dense: 128 neurons, ReLU, dropout 0.3.</li>
+        <li>Output: N-class softmax (N = number of disease categories in training data + 1 healthy control class).</li>
+      </ul>
+
+      <p>Quantized model size is approximately 180KB, well within the ESP32-S3's 16MB flash. Inference latency is under 100ms per classification. The model can be retrained and reflashed via USB-C without hardware modification.</p>
+
+      <p>Alternative inference paths: Bosch's proprietary BSEC 2.0 (Bosch Sensortec Environmental Cluster) library provides sensor compensation and drift correction algorithms, and BME AI Studio provides a GUI for training custom classification models exportable to the ESP32. Edge Impulse provides a free-tier cloud platform for sensor data ingestion, model training with automated architecture search, and one-click deployment to ESP32 targets.</p>
+
+      <h3>4. Calibration and Drift Mitigation</h3>
+
+      <p>Sensor drift is the primary deployment failure mode for MOX-based systems. The disclosed system implements three mitigation strategies:</p>
+
+      <ul>
+        <li><strong>Per-session baseline correction:</strong> Every measurement session begins with a 60-second baseline capture on scrubbed ambient air. The resistance vector from this baseline is subtracted from all subsequent breath measurements, removing the contribution of ambient VOCs and sensor aging from the signal.</li>
+        <li><strong>Relative ratio features:</strong> Instead of using absolute resistance values, the classification model is trained on inter-sensor resistance ratios (Sensor A/B, A/C, A/D, B/C, B/D, C/D) at each timestep. Ratiometric features are inherently more stable against uniform drift than absolute values.</li>
+        <li><strong>Periodic reference gas calibration:</strong> An optional reference gas ampoule (saturated headspace of a standardized solution, e.g., 100ppm ethanol in distilled water) can be sampled monthly to quantify drift and apply a correction factor. The firmware stores calibration history and flags when drift exceeds a configurable threshold (default: 20% deviation from initial calibration).</li>
+      </ul>
+
+      <h3>5. Data Collection Protocol for Community Screening</h3>
+
+      <p>The system is designed to operate as an open data collection instrument. Each measurement session records:</p>
+
+      <ul>
+        <li>Raw resistance time series from all four sensors at all heater steps (1,200 values x 30 seconds = 36,000 data points per session).</li>
+        <li>Environmental covariates: ambient temperature, humidity, barometric pressure (from the BME688 environmental sensors), and sampling flow rate (from SFM3019).</li>
+        <li>Subject metadata (entered via companion app or USB serial terminal): age, sex, smoking status (current/former/never, pack-years if applicable), last meal time, current medications, known diagnoses.</li>
+        <li>Device metadata: firmware version, sensor serial numbers, hours since last calibration, drift correction factors in effect.</li>
+      </ul>
+
+      <p>All data is stored locally on microSD in CSV format with per-session directories. A companion Python script (provided in the open-source repository) validates data integrity, anonymizes subject identifiers via SHA-256 hashing, and packages sessions for upload to a centralized open dataset repository. The data schema is designed for compatibility with the Machine Learning for Health (ML4H) community data standards.</p>
+
+      <h3>6. Bill of Materials</h3>
+
+      <table>
+        <thead>
+          <tr><th>Component</th><th>Part Number / Description</th><th>Unit Cost (USD)</th><th>Qty</th><th>Extended Cost</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>MOX gas sensor array</td><td>Bosch BME688 on SparkFun SEN-19096 Qwiic breakout</td><td>$7.50</td><td>4</td><td>$30.00</td></tr>
+          <tr><td>Microcontroller</td><td>ESP32-S3 DevKitC-1 (N16R8)</td><td>$10.00</td><td>1</td><td>$10.00</td></tr>
+          <tr><td>Sampling pump</td><td>3V micro diaphragm air pump, 200mL/min</td><td>$4.50</td><td>1</td><td>$4.50</td></tr>
+          <tr><td>Flow meter</td><td>Sensirion SFM3019 digital flow meter</td><td>$12.00</td><td>1</td><td>$12.00</td></tr>
+          <tr><td>Sampling chamber</td><td>3D-printed PLA or borosilicate glass tube, 25mm x 80mm</td><td>$3.00</td><td>1</td><td>$3.00</td></tr>
+          <tr><td>Baseline scrubber (x2)</td><td>Activated carbon cartridge, 2g granulated</td><td>$2.50</td><td>2</td><td>$5.00</td></tr>
+          <tr><td>Battery + charger</td><td>3.7V 2000mAh LiPo + TP4056 USB-C charge board</td><td>$5.50</td><td>1</td><td>$5.50</td></tr>
+          <tr><td>Display</td><td>0.96" SSD1306 OLED 128x64, I2C</td><td>$5.00</td><td>1</td><td>$5.00</td></tr>
+          <tr><td>Storage</td><td>32GB microSD card</td><td>$5.00</td><td>1</td><td>$5.00</td></tr>
+          <tr><td>Connectors and misc</td><td>Qwiic cables, JST connectors, headers, MOSFET driver, solenoid valve, enclosure</td><td>$7.00</td><td>1</td><td>$7.00</td></tr>
+          <tr><td colspan="4"><strong>Total Bill of Materials</strong></td><td><strong>$87.00</strong></td></tr>
+        </tbody>
+      </table>
+
+      <h2>Claims</h2>
+
+      <p>The following claims describe the inventive concepts disclosed herein and dedicated to the public domain:</p>
+
+      <ol>
+        <li>A portable breath analysis device comprising a cross-reactive array of four or more commodity metal-oxide semiconductor (MOX) gas sensors, each configured with a distinct programmable heater temperature profile, connected to a microcontroller running a quantized neural network for on-device classification of volatile organic compound patterns associated with disease states, wherein the total hardware cost is less than $100 USD.</li>
+
+        <li>The device of claim 1, wherein the MOX gas sensors are Bosch BME688 or equivalent integrated MOX/environmental sensors, and the distinct heater profiles span a range from 150&deg;C to 450&deg;C in at least three non-overlapping temperature bands to exploit differential chemical selectivity at different operating temperatures.</li>
+
+        <li>The device of claim 1, further comprising a breath sampling subsystem with dead space rejection, wherein the subsystem monitors exhalation flow rate via a digital flow meter and diverts a configurable initial volume (default 150mL) of anatomical dead space air to atmosphere before routing alveolar air to the sensor chamber.</li>
+
+        <li>The device of claim 1, further comprising a per-session baseline calibration system wherein scrubbed ambient air is sampled through an activated carbon cartridge for a defined period (default 60 seconds) before each breath measurement, and the resulting baseline resistance vector is subtracted from subsequent breath measurements to compensate for ambient VOC contamination and sensor aging.</li>
+
+        <li>The device of claim 1, wherein the neural network classification model is trained on inter-sensor resistance ratios rather than absolute resistance values, providing inherent stability against uniform sensor drift without requiring external calibration gas.</li>
+
+        <li>A method for community-scale disease screening data collection using a network of portable breath sensor devices as described in claim 1, wherein each device records raw sensor time series, environmental covariates, anonymized subject metadata, and device calibration state in a standardized schema compatible with federated machine learning, and wherein the collected data is contributed to an open dataset repository for collaborative model training across multiple geographic sites.</li>
+
+        <li>The method of claim 6, wherein the classification model deployed on each device is periodically updated via firmware reflash as the centralized open dataset grows, and wherein model performance is tracked across device serial numbers to identify and compensate for unit-to-unit sensor variation.</li>
+
+        <li>A system for non-invasive multi-disease screening comprising: (a) a handheld breath collection and sensing unit as described in claims 1-5; (b) a companion software application that manages subject enrollment, displays classification results with confidence intervals and disclaimer text, and transmits anonymized session data to a centralized repository; (c) a cloud or institutional server that performs federated model training on aggregated multi-site data and distributes updated classification models to field devices; wherein the system operates as an open-source screening tool designed to generate training data for regulatory-grade diagnostic development, not as a standalone diagnostic device.</li>
+
+        <li>The device of claim 1, wherein a fourth sensor in the array operates in a pulsed rapid-cycle mode alternating between two temperatures (default 200&deg;C and 400&deg;C at 25ms intervals), exploiting differential adsorption and desorption kinetics to capture transient VOC signatures that are not detectable by steady-state resistance measurements.</li>
+
+        <li>The device of claim 1, further comprising an optional reference gas calibration ampoule (saturated headspace of a standardized solution, default 100ppm ethanol in distilled water), sampled at defined intervals (default monthly), with firmware that stores calibration history and generates drift alerts when deviation from initial calibration exceeds a configurable threshold (default 20%).</li>
+      </ol>
+
+      <h2>Referenced Prior Art</h2>
+
+      <ul>
+        <li>Haick et al., "Diagnosis and Classification of 17 Diseases from 1404 Subjects via Pattern Analysis of Exhaled Molecules," <a href="https://doi.org/10.1021/acsnano.6b04930">ACS Nano, 2017</a></li>
+        <li>Barran et al., "Discovery of Volatile Biomarkers of Parkinson's Disease from Sebum," <a href="https://doi.org/10.1021/acscentsci.8b00879">ACS Central Science, 2019</a></li>
+        <li>Zhejiang University, "GC-SAW + CNN for PD Detection from Ear Canal Secretions," <a href="https://doi.org/10.1021/acs.analchem.5c00908">Analytical Chemistry, 2025</a></li>
+        <li>US 11,181,519 B2, "System and method for differential diagnosis of diseases" (Haick/Technion, granted 2021)</li>
+        <li>EP 3,448,254 A1, "Breath Collection Apparatus and Method" (Owlstone Medical)</li>
+        <li>US 11,045,111 B2, "Real time breath analyzer for detecting volatile organic compounds" (granted 2021)</li>
+        <li>US 2021/0186367 A1, "Modular VOC detection system with replaceable sensor cartridges" (pending)</li>
+        <li>WO 2020/005874 A1, "Breath analysis methodology for medical diagnostics"</li>
+        <li>Moglia, "nonhumanscent: ML-assisted chemical identification board," <a href="https://github.com/eigenlucy/nonhumanscent">GitHub (open source)</a></li>
+        <li>Bosch Sensortec, "BME688 Digital Low Power Gas, Pressure, Temperature &amp; Humidity Sensor," <a href="https://www.bosch-sensortec.com/products/environmental-sensors/gas-sensors/bme688/">Product page</a></li>
+      </ul>
+
+      <h2>Disclaimer</h2>
+
+      <p>This disclosure describes a system architecture and component selection for community-scale data collection and research. It is not a medical device. It has not been validated in clinical trials. It has not received FDA clearance or approval for any diagnostic indication. Classification outputs from this system should not be used to diagnose, treat, or make clinical decisions about any disease. The system is intended to generate standardized, open training datasets that may eventually support the development of regulatory-grade diagnostic devices through established clinical validation pathways.</p>
+
+    </div>
+  </article>
+
+  <script src="/story-nav.js"></script>
+  <script src="/story.js"></script>
+</body>
+</html>
