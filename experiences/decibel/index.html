@@ -53,6 +53,7 @@ var weightingMode = 'A'; // A, C, or Z
 var currentDb = 0;
 var peakDb = 0;
 var peakHoldTimer = 0;
+var referenceDb = null; // reference level for comparison (↓ to capture/clear)
 var smoothDb = 0;
 var minDb = 999;
 var maxDb = 0;
@@ -317,6 +318,29 @@ function playDoseAlert(beeps) {
   }
 }
 
+// Reference level audio cue
+function playRefTone(isCapture) {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  osc.type = 'triangle';
+  if (isCapture) {
+    // Descending tone — "captured"
+    osc.frequency.value = 880;
+    osc.frequency.setTargetAtTime(440, audioCtx.currentTime, 0.08);
+  } else {
+    // Ascending tone — "cleared"
+    osc.frequency.value = 440;
+    osc.frequency.setTargetAtTime(880, audioCtx.currentTime, 0.08);
+  }
+  g.gain.value = 0.05;
+  g.gain.setTargetAtTime(0, audioCtx.currentTime + 0.15, 0.04);
+  osc.connect(g);
+  g.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.3);
+}
+
 // Persistence
 function loadPersistence() {
   try {
@@ -530,6 +554,20 @@ function drawMeter() {
     ctx.globalAlpha = 1;
   }
 
+  // Reference level marker (amber line on arc)
+  if (referenceDb !== null) {
+    var refFrac = Math.min(referenceDb / 120, 1);
+    var refAngle = startAngle + refFrac * totalAngle;
+    ctx.strokeStyle = '#cc8844';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    var refInnerR = radius - 14;
+    var refOuterR = radius + 14;
+    ctx.moveTo(cx + Math.cos(refAngle) * refInnerR, cy + Math.sin(refAngle) * refInnerR);
+    ctx.lineTo(cx + Math.cos(refAngle) * refOuterR, cy + Math.sin(refAngle) * refOuterR);
+    ctx.stroke();
+  }
+
   // Big dB number
   ctx.font = '700 64px -apple-system, sans-serif';
   ctx.fillStyle = t.textColor;
@@ -550,6 +588,16 @@ function drawMeter() {
   ctx.font = '14px -apple-system, sans-serif';
   ctx.fillStyle = '#888';
   ctx.fillText('Safe exposure: ' + t.safe, cx, cy + 118);
+
+  // Reference delta display
+  if (referenceDb !== null) {
+    var delta = currentDb - referenceDb;
+    var deltaSign = delta >= 0 ? '+' : '';
+    var deltaColor = delta > 3 ? '#dd4444' : delta < -3 ? '#4a8a4a' : '#aaaa4a';
+    ctx.font = '600 16px -apple-system, sans-serif';
+    ctx.fillStyle = deltaColor;
+    ctx.fillText('\u0394 ' + deltaSign + delta.toFixed(1) + ' dB  (ref: ' + Math.round(referenceDb) + ' dB)', cx, cy + 142);
+  }
 }
 
 function drawDoseBar() {
@@ -753,13 +801,16 @@ function drawStats() {
     ctx.fillText('Monitoring: ' + min + ':' + (sec < 10 ? '0' : '') + sec, W - 20, 585);
   }
 
-  // Badge count
+  // Footer: reference level hint + badge count
   var totalEarned = Object.keys(earnedBadges).length;
-  if (totalEarned > 0 || lifetimeStats.sessions > 0) {
-    ctx.font = '11px -apple-system, sans-serif';
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.textAlign = 'left';
+  if (referenceDb !== null) {
+    ctx.fillStyle = '#cc8844';
+    ctx.fillText('\uD83D\uDCD0 REF: ' + Math.round(referenceDb) + ' dB  \u2193 Clear', 20, 585);
+  } else {
     ctx.fillStyle = '#555';
-    ctx.textAlign = 'left';
-    ctx.fillText('🏆 ' + totalEarned + '/' + badges.length + '  ↓ Badges', 20, 585);
+    ctx.fillText('\u2193 Set ref level' + (totalEarned > 0 ? '  \uD83C\uDFC6 ' + totalEarned + '/' + badges.length : ''), 20, 585);
   }
 }
 
@@ -888,6 +939,7 @@ function drawHeader() {
   } else {
     var liveLabel = '● LIVE';
     if (feedbackOn) liveLabel += '  🔔 Audio';
+    if (referenceDb !== null) liveLabel += '  📐 REF';
     ctx.fillStyle = '#4a8a4a';
     ctx.fillText(liveLabel + '  ' + weightingMode + '-weight', W - 14, 20);
   }
@@ -909,8 +961,8 @@ function drawPrompt() {
   ctx.fillStyle = '#4a9eff';
   ctx.fillText('Press Enter to enable microphone', W/2, H/2 + 30);
   ctx.fillStyle = '#555';
-  ctx.fillText('↑ Audio  •  ↓ Badges  •  ←→ Weighting', W/2, H/2 + 60);
-  ctx.fillText('Enter: Reset stats  •  Esc: Back', W/2, H/2 + 80);
+  ctx.fillText('↑ Audio  •  ↓ Ref level  •  ←→ Weighting', W/2, H/2 + 60);
+  ctx.fillText('Enter: Start  •  Esc: Back', W/2, H/2 + 80);
   // Show badge progress if returning user
   try {
     var raw = localStorage.getItem('decibel_data');
@@ -977,6 +1029,10 @@ document.addEventListener('keydown', function(e) {
       loadPersistence();
       if (!micActive && !micFailed) initMic();
     }
+    if (e.key === 'ArrowDown') {
+      loadPersistence();
+      showBadges = true;
+    }
     return;
   }
   // While running
@@ -1002,6 +1058,7 @@ document.addEventListener('keydown', function(e) {
     lastDoseTime = Date.now();
     exposureStart = Date.now();
     lastDoseAlert = 0;
+    referenceDb = null;
     safeFrames = 0;
     quietFrames = 0;
     whisperFrames = 0;
@@ -1016,7 +1073,13 @@ document.addEventListener('keydown', function(e) {
     feedbackOn = !feedbackOn;
   }
   if (e.key === 'ArrowDown') {
-    showBadges = !showBadges;
+    if (referenceDb !== null) {
+      referenceDb = null;
+      playRefTone(false);
+    } else if (micActive && smoothDb > 5) {
+      referenceDb = smoothDb;
+      playRefTone(true);
+    }
   }
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
     var modes = ['A', 'C', 'Z'];
