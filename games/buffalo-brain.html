@@ -483,6 +483,72 @@ function sfxCardWrong() { tone(220, 0.2, 'square', 0.05); }
 function sfxClick() { tone(600, 0.04, 'sine', 0.04); }
 
 // =====================================================================
+// NEURAL HARMONY — Continuous bone conduction NT encoding
+// =====================================================================
+// 4 core NTs encoded as a C-E-G-C harmonic chord through bone conduction.
+// Balanced NTs (~50) = consonant major chord. Imbalanced = pitch shifts create
+// audible dissonance identifying WHICH NT is off. Dopamine = master volume.
+// "Hearing your brain chemistry" — thematic, glasses-native, genuinely useful.
+let neuralOscs = null;
+const NEURAL_FREQS = { S: 262, N: 330, A: 392, G: 523 }; // C4-E4-G4-C5
+const NEURAL_WAVES = { S: 'sine', N: 'triangle', A: 'sine', G: 'triangle' };
+const NEURAL_VOL = 0.012; // Per-voice base — quiet ambient through bone conduction
+
+function startNeuralHarmony() {
+  const c = getAudio();
+  if (!c || state.mode !== 'adult') return;
+  stopNeuralHarmony();
+  const master = c.createGain();
+  master.gain.value = 0;
+  master.connect(c.destination);
+  const voices = {};
+  for (const k of ['S','N','A','G']) {
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = NEURAL_WAVES[k];
+    o.frequency.value = NEURAL_FREQS[k];
+    g.gain.value = 0;
+    o.connect(g);
+    g.connect(master);
+    o.start();
+    voices[k] = { osc: o, gain: g };
+  }
+  neuralOscs = { master, voices, ctx: c };
+  // Smooth fade-in over 0.8s
+  master.gain.setTargetAtTime(0.6, c.currentTime, 0.3);
+}
+
+function updateNeuralHarmony() {
+  if (!neuralOscs || state.mode !== 'adult') return;
+  const c = neuralOscs.ctx;
+  const t = c.currentTime;
+  // Dopamine → master volume: high D = louder neural activity, low D = quiet crash
+  const dNorm = Math.max(0, Math.min(100, state.nt.D || 50)) / 100;
+  neuralOscs.master.gain.setTargetAtTime(0.25 + dNorm * 0.75, t, 0.4);
+  for (const k of ['S','N','A','G']) {
+    const v = neuralOscs.voices[k];
+    const lvl = Math.max(0, Math.min(100, state.nt[k] || 50)) / 100;
+    // Pitch: base × (0.85 + 0.3 × level) — at 50% = base freq, deviations detune
+    v.osc.frequency.setTargetAtTime(NEURAL_FREQS[k] * (0.85 + lvl * 0.3), t, 0.2);
+    // Gain: louder when further from balance (draws attention to imbalanced NTs)
+    const dist = Math.abs(lvl - 0.5) / 0.5; // 0 at balance, 1 at extremes
+    v.gain.gain.setTargetAtTime(NEURAL_VOL * (1 + dist * 0.6), t, 0.15);
+  }
+}
+
+function stopNeuralHarmony() {
+  if (!neuralOscs) return;
+  const t = neuralOscs.ctx.currentTime;
+  neuralOscs.master.gain.setTargetAtTime(0, t, 0.3);
+  const oscs = neuralOscs;
+  neuralOscs = null;
+  setTimeout(() => {
+    for (const k of ['S','N','A','G']) { try { oscs.voices[k].osc.stop(); } catch(e) {} }
+    try { oscs.master.disconnect(); } catch(e) {}
+  }, 1500);
+}
+
+// =====================================================================
 // BOZ SAY + SCREEN FLASH
 // =====================================================================
 let bozTimeout = null;
@@ -558,6 +624,7 @@ function setNT(k, v) {
     el.querySelector('.v').textContent = v;
     if (v <= 15) el.classList.add('critical'); else el.classList.remove('critical');
   }
+  updateNeuralHarmony();
 }
 function flashMeter(k, kind) {
   const el = dom.meters.querySelector(`.meter[data-k="${k}"]`);
@@ -1583,6 +1650,7 @@ function endGame(kind, reason) {
   state.endKind = kind;
   stopListening();
   stopRenderLoop();
+  stopNeuralHarmony();
   // Track win discovery
   if (kind === 'win' && state.mode === 'adult') trackDiscovery(DISC.ENLIGHTENMENT);
   // Save progress to localStorage
@@ -1683,6 +1751,7 @@ function startGame(mode) {
   updateStreakDisplay();
   if (!initSpeechRecognition()) enableFallback();
   initMicSensor();
+  startNeuralHarmony();
   startRenderLoop();
   state.grid = newGrid();
   renderReels();
