@@ -1840,11 +1840,17 @@ function drawTitle() {
   ctx.font = 'bold 20px Courier New';
   ctx.fillText('▶  START GAME', BASE_W/2, btnY + 32);
 
-  // High score
-  const hs = parseInt(localStorage.getItem('lbtdscore') || '0');
-  if (hs > 0) {
-    ctx.fillStyle = '#ffcc00';
-    ctx.font = '11px Courier New';
+  // Full-screen tappable start area (iPhone friendly — no Enter key)
+  ctx.fillStyle = `rgba(0,255,68,${0.08 + Math.sin(t*3)*0.04})`;
+  ctx.fillRect(0, BASE_H * 0.6, BASE_W, BASE_H * 0.4);
+  ctx.fillStyle = '#00ff44';
+  ctx.font = 'bold 20px Courier New';
+  ctx.fillText('TAP ANYWHERE TO START', BASE_W/2, BASE_H * 0.78);
+  ctx.fillStyle = '#008844';
+  ctx.font = '11px Courier New';
+  ctx.fillText('No keyboard required', BASE_W/2, BASE_H * 0.83);
+  ctx.font = '16px Courier New';
+  ctx.fillText('▶', BASE_W/2, BASE_H * 0.90);
     ctx.fillText(`High Score: ${hs}`, BASE_W/2, btnY + btnH + 20);
   }
 }
@@ -1900,12 +1906,8 @@ function handleTouchStart(e) {
   audioCtx.resume().catch(()=>{});
 
   if (state === STATE.TITLE) {
-    // Check play button
-    const btnW = 200, btnH = 52;
-    const btnX = BASE_W/2 - btnW/2, btnY = BASE_H * 0.76;
-    if (pos.x >= btnX && pos.x <= btnX + btnW && pos.y >= btnY && pos.y <= btnY + btnH) {
-      initGame();
-    }
+    // Any tap starts the game (iPhone friendly, no Enter key needed)
+    initGame();
     return;
   }
 
