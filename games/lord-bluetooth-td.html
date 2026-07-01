@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lord Bluetooth TD</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d0d0d;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    cursor: crosshair;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// =============================================================
+//  LORD BLUETOOTH TOWER DEFENSE
+//  Defend the Spectrum. Ship the Product.
+// =============================================================
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 600, H = 700;
+canvas.width = W;
+canvas.height = H;
+
+// ── AUDIO / VOICE SYSTEM ─────────────────────────────────────
+var VOICE = {
+  waveStart:    'audio/lb-td-boz-wave-start.mp3',
+  towerPlaced:  'audio/lb-td-boz-tower-placed.mp3',
+  enemyKilled:  'audio/lb-td-boz-enemy-killed.mp3',
+  lbDamaged:    'audio/lb-td-boz-lb-damaged.mp3',
+  win:          'audio/lb-td-boz-win.mp3',
+  lose:         'audio/lb-td-boz-lose.mp3',
+  scopeCreep:   'audio/lb-td-boz-scope-creep.mp3',
+  event:        'audio/lb-td-boz-event.mp3',
+  codeReview:   'audio/lb-td-boz-code-review.mp3',
+  hotTake:      'audio/lb-td-boz-hot-take.mp3',
+  featureShipped:'audio/lb-td-ceo-feature-shipped.mp3',
+  yellingGuy:    'audio/lb-td-ceo-yelling-guy.mp3',
+  prodIncident:  'audio/lb-td-ceo-production-incident.mp3',
+};
+
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playVoice(key) {
+  const src = VOICE[key];
+  if (!src) return;
+  const tryPlay = (url) => {
+    fetch(url)
+      .then(r => r.arrayBuffer())
+      .then(buf => audioCtx.decodeAudioData(buf))
+      .then(ab => {
+        const s = audioCtx.createBufferSource();
+        s.buffer = ab;
+        s.connect(audioCtx.destination);
+        s.start();
+      })
+      .catch(() => {});
+  };
+  tryPlay(src);
+}
+
+function synthTone(freq, dur, type='square', vol=0.08) {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + dur);
+}
+
+function synthShoot() { synthTone(800, 0.05, 'square', 0.05); }
+function synthHit()    { synthTone(300, 0.08, 'sawtooth', 0.06); }
+function synthPlace()  { synthTone(523, 0.1, 'triangle', 0.07); }
+function synthKill()   { synthTone(200, 0.15, 'sawtooth', 0.08); }
+function synthLBDmg()  { synthTone(100, 0.4, 'sawtooth', 0.1); }
+function synthEvent()  { synthTone(440, 0.2, 'sine', 0.06); }
+function synthWin()    { [523,659,784,1047].forEach((f,i) => setTimeout(() => synthTone(f, 0.3, 'triangle', 0.08), i*150)); }
+function synthLose()   { [400,300,200,100].forEach((f,i) => setTimeout(() => synthTone(f, 0.3, 'sawtooth', 0.08), i*200)); }
+
+// ── TEAM TEXTS ────────────────────────────────────────────────
+const TEAM_TEXTS = [
+  "Team aggressively disrupting, thanks so much.",
+  "Team move fast and break things, thanks so much.",
+  "Team pivot or die, thanks so much.",
+  "Team infinite sprint, thanks so much.",
+  "Team passive aggressive, thanks so much.",
+  "Team whiteboard session, thanks so much.",
+  "Team return to office, thanks so much.",
+  "Team Slack thread, thanks so much.",
+  "Team synergy, thanks so much.",
+  "Team blockchain, thanks so much.",
+  "Team hot take, thanks so much.",
+  "Team standup, thanks so much.",
+  "Team ping pong, thanks so much.",
+  "Team oat milk, thanks so much.",
+  "Team synergy theater, thanks so much.",
+];
+
+// ── CONSTANTS ─────────────────────────────────────────────────
+const CELL = 50;
+const COLS = 12;
+const ROWS = 10;
+const GAME_H = ROWS * CELL; // 500
+const HUD_Y = 500;
+const HUD_H = 200;
+
+const LB_X = 325; // center of cell (6,5)
+const LB_Y = 275;
+
+// PATH waypoints (grid col, row) — enemies follow this
+const PATH_WAYPOINTS = [
+  {c:0,r:0},{c:11,r:0},{c:11,r:4},{c:0,r:4},{c:0,r:8},{c:6,r:8}
+];
+
+// Build full pixel waypoint list
+function buildPathPixels() {
+  const pts = [];
+  for (let i = 0; i < PATH_WAYPOINTS.length - 1; i++) {
+    const a = PATH_WAYPOINTS[i], b = PATH_WAYPOINTS[i+1];
+    if (a.c === b.c) {
+      const minR = Math.min(a.r, b.r), maxR = Math.max(a.r, b.r);
+      for (let r = minR; r <= maxR; r++) pts.push({x: a.c * CELL + CELL/2, y: r * CELL + CELL/2});
+    } else {
+      const minC = Math.min(a.c, b.c), maxC = Math.max(a.c, b.c);
+      for (let c = minC; c <= maxC; c++) pts.push({x: c * CELL + CELL/2, y: a.r * CELL + CELL/2});
+    }
+  }
+  return pts;
+}
+const PATH_PIXELS = buildPathPixels();
+
+// Cells the path passes through (for placement validation)
+function getPathCells() {
+  const cells = new Set();
+  for (let i = 0; i < PATH_WAYPOINTS.length - 1; i++) {
+    const a = PATH_WAYPOINTS[i], b = PATH_WAYPOINTS[i+1];
+    if (a.c === b.c) {
+      for (let r = Math.min(a.r,b.r); r <= Math.max(a.r,b.r); r++) cells.add(`${a.c},${r}`);
+    } else {
+      for (let c = Math.min(a.c,b.c); c <= Math.max(a.c,b.c); c++) cells.add(`${c},${a.r}`);
+    }
+  }
+  // Last leg to LB
+  const last = PATH_WAYPOINTS[PATH_WAYPOINTS.length - 1];
+  const lbCell = {c:6, r:5};
+  if (last.c === lbCell.c) {
+    for (let r = Math.min(last.r,lbCell.r); r <= Math.max(last.r,lbCell.r); r++) cells.add(`${last.c},${r}`);
+  } else {
+    for (let c = Math.min(last.c,lbCell.c); c <= Math.max(last.c,lbCell.c); c++) cells.add(`${c},${last.r}`);
+  }
+  return cells;
+}
+const PATH_CELLS = getPathCells();
+
+// ── GAME STATE ────────────────────────────────────────────────
+const STATE = { TITLE: 0, PLAYING: 1, WAVE_COMPLETE: 2, WIN: 3, LOSE: 4, PAUSED: 5 };
+let state = STATE.TITLE;
+let prevState = null;
+
+// ── LORD BLUETOOTH ───────────────────────────────────────────
+let lbHP = 500, lbMaxHP = 500;
+let lbRingPhase = 0;
+let lbDamagedFlash = 0;
+let lbHealRate = 0; // HP/sec from architects
+
+// ── TOWERS ───────────────────────────────────────────────────
+const TOWER_DEFS = [
+  { name:'Junior Engineer',  emoji:'🧑‍💻', cost:50,  range:80,  dmg:8,   rate:0.3,  color:'#4CAF50', canHitFlying:false },
+  { name:'Senior Engineer',  emoji:'👨‍💼', cost:150, range:60,  dmg:30,  rate:1.2,  color:'#2196F3', canHitFlying:true  },
+  { name:'Code Reviewer',   emoji:'🔍', cost:100, range:100, dmg:0,   rate:0.5,  color:'#FF9800', canHitFlying:false, slows:0.4 },
+  { name:'CI/CD Pipeline', emoji:'⚙️',  cost:200, range:90,  dmg:15,  rate:0.5,  color:'#9C27B0', canHitFlying:true,  bugsOnly:true },
+  { name:'Bluetooth Node',  emoji:'📡', cost:120, range:0,   dmg:0,   rate:0,    color:'#00BCD4', canHitFlying:false, isBT:true },
+  { name:'Architect',       emoji:'🏗️', cost:80,  range:0,   dmg:0,   rate:0,    color:'#FFD700', canHitFlying:false, heals:0.5 },
+];
+let towers = [];
+let selectedTowerType = null;
+let btPairingMode = false;
+let btPairingSrc = null; // tower index being paired FROM
+let pairings = []; // [{from, to}]
+
+// ── ENEMIES ──────────────────────────────────────────────────
+const ENEMY_DEFS = {
+  bug:          { emoji:'🐛', hp:30,  speed:1.0, reward:10, color:'#8B4513', flying:false },
+  segfault:     { emoji:'💥', hp:15,  speed:2.5, reward:15, color:'#FF0000', flying:false },
+  memleak:      { emoji:'💧', hp:50,  speed:0.8, reward:25, color:'#4444FF', flying:false },
+  hottake:      { emoji:'🔥', hp:20,  speed:1.5, reward:20, color:'#FF6600', flying:true  },
+  yellingguy:   { emoji:'🗣️', hp:150, speed:0.5, reward:50, color:'#CC0000', flying:false },
+  scopecreep:   { emoji:'👾', hp:500, speed:0.3, reward:200, color:'#8800CC', flying:false },
+};
+
+let enemies = [];
+let projectiles = [];
+let particles = [];
+let flyingEnemyCrossTimer = 0; // for Hot Take crossing events
+
+// ── WAVES ────────────────────────────────────────────────────
+const WAVES = [
+  [{t:'bug',n:8}],
+  [{t:'bug',n:10},{t:'segfault',n:3}],
+  [{t:'bug',n:8},{t:'segfault',n:5},{t:'memleak',n:2}],
+  [{t:'bug',n:12},{t:'segfault',n:6},{t:'memleak',n:3}],
+  [{t:'bug',n:10},{t:'segfault',n:8},{t:'memleak',n:4},{t:'yellingguy',n:1}],
+  [{t:'bug',n:15},{t:'segfault',n:8},{t:'memleak',n:5},{t:'hottake',n:2}],
+  [{t:'bug',n:10},{t:'segfault',n:10},{t:'memleak',n:5},{t:'hottake',n:3},{t:'yellingguy',n:1}],
+  [{t:'bug',n:20},{t:'segfault',n:12},{t:'memleak',n:6},{t:'hottake',n:4},{t:'yellingguy',n:2}],
+  [{t:'bug',n:15},{t:'segfault',n:15},{t:'memleak',n:8},{t:'hottake',n:5},{t:'yellingguy',n:3}],
+  [{t:'bug',n:10},{t:'segfault',n:10},{t:'memleak',n:8},{t:'hottake',n:6},{t:'yellingguy',n:3},{t:'scopecreep',n:1}],
+];
+
+let waveIndex = -1;
+let waveEnemiesLeft = 0;
+let waveSpawnQueue = [];
+let waveSpawnTimer = 0;
+let waveStarted = false;
+let betweenWaves = true;
+
+// ── RANDOM EVENTS ─────────────────────────────────────────────
+const EVENTS = [
+  { name:'Code Review Attack', voiceKey:'codeReview', teamText:'Team passive aggressive, thanks so much.',
+    apply: () => {
+      const active = towers.filter(t => t.def.canHitFlying || t.def.slows);
+      if (active.length > 0) {
+        const t = active[Math.floor(Math.random() * active.length)];
+        t.disabled = 5;
+      }
+      overlays.push({ text:'⚠️ CODE REVIEW ATTACK!', sub:'A tower is blocked!', color:'#FF9800', life:3, y:H/2 });
+    }
+  },
+  { name:'Passive-Aggressive Comment', voiceKey:'event', teamText:'Team passive aggressive, thanks so much.',
+    apply: () => {
+      enemySpeedMult = 1.3;
+      setTimeout(() => enemySpeedMult = 1.0, 6000);
+      overlays.push({ text:'😤 PASSIVE-AGGRESSIVE COMMENT', sub:'All enemies speed up!', color:'#FF9800', life:3, y:H/2 });
+    }
+  },
+  { name:'Hot Take on Slack', voiceKey:'hotTake', teamText:'Team Slack thread, thanks so much.',
+    apply: () => {
+      spawnFlyingCrossers(3);
+      overlays.push({ text:'🔥 HOT TAKE ON SLACK', sub:'Flying enemies incoming!', color:'#FF6600', life:3, y:H/2 });
+    }
+  },
+  { name:'Scope Creep Incoming', voiceKey:'scopeCreep', teamText:'Team infinite sprint, thanks so much.',
+    apply: () => {
+      credits += Math.floor(credits * 0.1);
+      overlays.push({ text:'👾 SCOPE CREEP!', sub:'+10% credits!', color:'#8800CC', life:3, y:H/2 });
+    }
+  },
+  { name:'Production Incident', voiceKey:'prodIncident', teamText:'Team standup, thanks so much.',
+    apply: () => {
+      towers.forEach(t => t.disabled = (t.disabled||0) + 3);
+      overlays.push({ text:'🚨 PRODUCTION INCIDENT!', sub:'All towers paused!', color:'#FF0000', life:3, y:H/2 });
+    }
+  },
+];
+
+let nextEventTimer = 0;
+let enemySpeedMult = 1.0;
+
+// ── CREDITS / MONEY ───────────────────────────────────────────
+let credits = 200;
+
+// ── HUD ───────────────────────────────────────────────────────
+let selectedButton = null; // tower shop button index
+let hoveredButton = null;
+let clickedTowerIdx = null; // for range display
+
+// ── TEXT OVERLAYS ─────────────────────────────────────────────
+let textOverlays = [];
+function addTeamText() {
+  const t = TEAM_TEXTS[Math.floor(Math.random() * TEAM_TEXTS.length)];
+  textOverlays.push({ text: t, y: HUD_Y - 40, alpha: 1.0, vy: -0.5, life: 3 });
+}
+
+// ── EVENT OVERLAYS ────────────────────────────────────────────
+let overlays = [];
+
+// ── PARTICLES ─────────────────────────────────────────────────
+function spawnParticles(x, y, color, n=8) {
+  for (let i = 0; i < n; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const spd = 1 + Math.random() * 3;
+    particles.push({ x, y, vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd, life:0.6+Math.random()*0.4, color, r:2+Math.random()*3 });
+  }
+}
+
+// ── SPAWN ─────────────────────────────────────────────────────
+function spawnEnemy(type, crossY=null) {
+  const def = ENEMY_DEFS[type];
+  const startPt = PATH_PIXELS[0];
+  // For flying crossers, start from edge
+  let x, y;
+  if (crossY !== null) {
+    x = -30;
+    y = crossY;
+  } else {
+    x = startPt.x;
+    y = startPt.y;
+  }
+  const hp = def.hp;
+  enemies.push({
+    type, emoji: def.emoji,
+    x, y,
+    hp, maxHp: hp,
+    speed: def.speed,
+    reward: def.reward,
+    color: def.color,
+    flying: def.flying,
+    pathIdx: 0,
+    slowMult: 1.0,
+    scale: 1.0,
+    crossY,
+    baseSpeed: def.speed,
+    memleakGrowth: type === 'memleak' ? 1.02 : 1.0,
+    dead: false,
+    reachedLB: false,
+  });
+}
+
+function spawnFlyingCrossers(n) {
+  for (let i = 0; i < n; i++) {
+    const y = 50 + Math.random() * (GAME_H - 100);
+    spawnEnemy('hottake', y);
+  }
+}
+
+// ── WAVE MANAGEMENT ────────────────────────────────────────────
+function startWave(idx) {
+  if (idx >= WAVES.length) { winGame(); return; }
+  waveIndex = idx;
+  waveSpawnQueue = [];
+  for (const grp of WAVES[idx]) {
+    for (let i = 0; i < grp.n; i++) waveSpawnQueue.push(grp.t);
+  }
+  // Shuffle
+  for (let i = waveSpawnQueue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [waveSpawnQueue[i], waveSpawnQueue[j]] = [waveSpawnQueue[j], waveSpawnQueue[i]];
+  }
+  waveEnemiesLeft = waveSpawnQueue.length;
+  waveSpawnTimer = 0;
+  waveStarted = true;
+  betweenWaves = false;
+  nextEventTimer = 15 + Math.random() * 10;
+  playVoice('waveStart');
+  addTeamText();
+}
+
+function checkWaveComplete() {
+  if (!waveStarted) return;
+  if (waveSpawnQueue.length === 0 && enemies.length === 0) {
+    waveStarted = false;
+    betweenWaves = true;
+    if (waveIndex >= WAVES.length - 1) {
+      winGame();
+    } else {
+      state = STATE.WAVE_COMPLETE;
+    }
+  }
+}
+
+function winGame() {
+  state = STATE.WIN;
+  playVoice('win');
+  addTeamText();
+  synthWin();
+  saveHighScore();
+}
+
+function loseGame() {
+  state = STATE.LOSE;
+  playVoice('lose');
+  addTeamText();
+  synthLose();
+  saveHighScore();
+}
+
+// ── HIGH SCORE ────────────────────────────────────────────────
+function saveHighScore() {
+  const score = waveIndex * 100 + Math.max(0, lbHP);
+  const prev = parseInt(localStorage.getItem('lbtd_highscore') || '0');
+  if (score > prev) localStorage.setItem('lbtd_highscore', score);
+}
+function getHighScore() { return parseInt(localStorage.getItem('lbtd_highscore') || '0'); }
+
+// ── INIT ──────────────────────────────────────────────────────
+function initGame() {
+  lbHP = 500; lbMaxHP = 500;
+  lbDamagedFlash = 0;
+  lbHealRate = 0;
+  towers = [];
+  enemies = [];
+  projectiles = [];
+  particles = [];
+  textOverlays = [];
+  overlays = [];
+  waveIndex = -1;
+  waveStarted = false;
+  betweenWaves = true;
+  credits = 200;
+  selectedTowerType = null;
+  selectedButton = null;
+  btPairingMode = false;
+  btPairingSrc = null;
+  pairings = [];
+  enemySpeedMult = 1.0;
+  nextEventTimer = 15 + Math.random() * 10;
+  state = STATE.PLAYING;
+  startWave(0);
+}
+
+// ── UPDATE ────────────────────────────────────────────────────
+let lastTime = 0;
+let pauseTimer = 0;
+
+function update(dt) {
+  if (state === STATE.TITLE || state === STATE.WIN || state === STATE.LOSE) return;
+  if (state === STATE.PAUSED) { pauseTimer += dt; return; }
+
+  // Architect healing
+  let architectHeal = 0;
+  for (const t of towers) {
+    if (t.def.heals && !t.disabled) architectHeal += t.def.heals;
+  }
+  lbHP = Math.min(lbMaxHP, lbHP + architectHeal * dt);
+
+  // Spawn enemies
+  if (waveStarted && waveSpawnQueue.length > 0) {
+    waveSpawnTimer -= dt;
+    if (waveSpawnTimer <= 0) {
+      spawnEnemy(waveSpawnQueue.shift());
+      waveSpawnTimer = 0.6 + Math.random() * 0.4;
+    }
+  }
+
+  // Flying crossers (move horizontally)
+  for (const e of enemies) {
+    if (e.crossY !== null) {
+      e.x += e.speed * 60 * dt;
+      if (e.x > W + 50) e.dead = true;
+      // Check if reached LB (rare case)
+      const dx = e.x - LB_X, dy = e.y - LB_Y;
+      if (Math.sqrt(dx*dx+dy*dy) < 30) {
+        lbHP -= Math.ceil(e.maxHp / 3);
+        lbDamagedFlash = 0.5;
+        e.dead = true;
+        synthLBDmg();
+        playVoice('lbDamaged');
+        if (lbHP <= 0) { lbHP = 0; loseGame(); return; }
+      }
+      continue;
+    }
+  }
+
+  // Enemy movement
+  for (const e of enemies) {
+    if (e.dead || e.crossY !== null) continue;
+
+    // Slow effect
+    let slowed = false;
+    for (const t of towers) {
+      if (t.def.slows && !t.disabled) {
+        const dx = e.x - t.x, dy = e.y - t.y;
+        if (Math.sqrt(dx*dx+dy*dy) <= t.def.range) { slowed = true; break; }
+      }
+    }
+    e.slowMult = slowed ? 0.6 : 1.0;
+
+    // Memory leak growth
+    if (e.memleakGrowth > 1.0) {
+      e.maxHp = Math.ceil(e.maxHp * 1.02 * dt + e.maxHp * (1 - 1.02*dt));
+      e.maxHp = Math.ceil(e.maxHp * e.memleakGrowth * dt + e.maxHp * (1 - e.memleakGrowth * dt));
+      e.maxHp = Math.ceil(e.maxHp + e.maxHp * 0.02 * dt);
+      e.hp = Math.min(e.hp, e.maxHp);
+    }
+
+    // Move along path
+    const target = PATH_PIXELS[e.pathIdx];
+    if (!target) {
+      // Reached end — go to LB
+      const dx = LB_X - e.x, dy = LB_Y - e.y;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if (dist < 2) {
+        e.reachedLB = true;
+        lbHP -= Math.ceil(e.maxHp / 3);
+        lbDamagedFlash = 0.5;
+        e.dead = true;
+        synthLBDmg();
+        playVoice('lbDamaged');
+        if (lbHP <= 0) { lbHP = 0; loseGame(); return; }
+      } else {
+        const spd = e.speed * e.slowMult * enemySpeedMult * 60 * dt;
+        e.x += (dx/dist) * spd;
+        e.y += (dy/dist) * spd;
+      }
+      continue;
+    }
+    const dx = target.x - e.x, dy = target.y - e.y;
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    const spd = e.speed * e.slowMult * enemySpeedMult * 60 * dt;
+    if (dist <= spd + 2) {
+      e.pathIdx++;
+      if (e.pathIdx >= PATH_PIXELS.length) {
+        e.pathIdx = PATH_PIXELS.length - 1;
+      }
+    } else {
+      e.x += (dx/dist) * spd;
+      e.y += (dy/dist) * spd;
+    }
+  }
+
+  // Tower attacks
+  for (const t of towers) {
+    if (t.disabled > 0) { t.disabled -= dt; continue; }
+    if (t.def.dmg === 0 && !t.def.slows && !t.def.heals) continue;
+    if (t.def.isBT) continue; // Bluetooth nodes don't attack
+
+    t.fireCooldown -= dt;
+    // Apply pairing fire rate boost
+    let rateMult = 1.0;
+    for (const p of pairings) {
+      if (p.to === towers.indexOf(t)) rateMult = 1.5;
+    }
+
+    if (t.fireCooldown <= 0) {
+      // Find target
+      let best = null, bestDist = Infinity;
+      for (const e of enemies) {
+        if (e.dead || e.crossY !== null) continue;
+        if (e.flying && !t.def.canHitFlying) continue;
+        if (t.def.bugsOnly && e.type !== 'bug') continue;
+        const dx = e.x - t.x, dy = e.y - t.y;
+        const d = Math.sqrt(dx*dx+dy*dy);
+        if (d <= t.def.range && d < bestDist) { best = e; bestDist = d; }
+      }
+      if (best) {
+        const dmg = t.def.dmg;
+        projectiles.push({ x:t.x, y:t.y, tx:best.x, ty:best.y, target:best, dmg, color:t.def.color, life:0.5 });
+        synthShoot();
+        t.fireCooldown = t.def.rate / rateMult;
+      } else {
+        t.fireCooldown = 0.1;
+      }
+    }
+  }
+
+  // Projectiles
+  for (const p of projectiles) {
+    const dx = p.tx - p.x, dy = p.ty - p.y;
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    const spd = 400 * dt;
+    if (dist < spd + 4) {
+      // Hit
+      if (p.target && !p.target.dead) {
+        p.target.hp -= p.dmg;
+        spawnParticles(p.tx, p.ty, p.color, 4);
+        synthHit();
+        if (p.target.hp <= 0) {
+          killEnemy(p.target);
+        }
+      }
+      p.life = 0;
+    } else {
+      p.x += (dx/dist) * spd;
+      p.y += (dy/dist) * spd;
+    }
+    p.life -= dt;
+  }
+  projectiles = projectiles.filter(p => p.life > 0);
+
+  // Remove dead enemies that reached LB or were killed
+  for (const e of enemies) {
+    if (e.dead && !e.reachedLB) continue;
+  }
+  enemies = enemies.filter(e => !e.dead);
+
+  // Particles
+  for (const p of particles) {
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.1;
+    p.life -= dt;
+  }
+  particles = particles.filter(p => p.life > 0);
+
+  // Text overlays
+  for (const o of textOverlays) {
+    o.y += o.vy;
+    o.life -= dt;
+    if (o.life < 0.5) o.alpha = Math.max(0, o.life / 0.5);
+  }
+  textOverlays = textOverlays.filter(o => o.life > 0);
+
+  // Event overlays
+  for (const o of overlays) {
+    o.life -= dt;
+  }
+  overlays = overlays.filter(o => o.life > 0);
+
+  // Lord Bluetooth ring animation
+  lbRingPhase += dt * 2;
+  lbDamagedFlash = Math.max(0, lbDamagedFlash - dt);
+
+  // Random events
+  if (waveStarted && !betweenWaves) {
+    nextEventTimer -= dt;
+    if (nextEventTimer <= 0) {
+      const ev = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+      ev.apply();
+      playVoice(ev.voiceKey);
+      addTeamText();
+      nextEventTimer = 15 + Math.random() * 10;
+    }
+  }
+
+  // Wave complete state — wait for input
+  if (state === STATE.WAVE_COMPLETE) {
+    // waiting for 'N' key
+  }
+}
+
+function killEnemy(e) {
+  e.dead = true;
+  credits += e.reward;
+  spawnParticles(e.x, e.y, e.color, 12);
+  synthKill();
+  playVoice('enemyKilled');
+
+  // Yelling Guy spawns mini-bugs
+  if (e.type === 'yellingguy') {
+    for (let i = 0; i < 2; i++) {
+      enemies.push({
+        type:'bug', emoji:'🐛',
+        x: e.x + (Math.random()-0.5)*20, y: e.y + (Math.random()-0.5)*20,
+        hp:10, maxHp:10,
+        speed:1.5, reward:0, color:'#8B4513', flying:false,
+        pathIdx: e.pathIdx, slowMult:1.0, scale:0.7,
+        memleakGrowth:1.0, dead:false, reachedLB:false, baseSpeed:1.5,
+      });
+    }
+    playVoice('yellingGuy');
+  }
+
+  // Scope Creep grows
+  if (e.type === 'scopecreep') {
+    // Already killed — don't regrow
+  }
+
+  waveEnemiesLeft = Math.max(0, waveEnemiesLeft - 1);
+  checkWaveComplete();
+}
+
+// ── DRAWING ───────────────────────────────────────────────────
+
+function drawBackground() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(30,80,30,0.3)';
+  ctx.lineWidth = 0.5;
+  for (let c = 0; c <= COLS; c++) {
+    ctx.beginPath(); ctx.moveTo(c*CELL, 0); ctx.lineTo(c*CELL, GAME_H); ctx.stroke();
+  }
+  for (let r = 0; r <= ROWS; r++) {
+    ctx.beginPath(); ctx.moveTo(0, r*CELL); ctx.lineTo(W, r*CELL); ctx.stroke();
+  }
+}
+
+function drawPath() {
+  // Draw path cells
+  ctx.fillStyle = 'rgba(0,40,0,0.5)';
+  for (const cell of PATH_CELLS) {
+    const [c,r] = cell.split(',').map(Number);
+    ctx.fillRect(c*CELL+1, r*CELL+1, CELL-2, CELL-2);
+  }
+
+  // Draw path line
+  ctx.strokeStyle = 'rgba(0,200,0,0.4)';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([8,8]);
+  ctx.beginPath();
+  for (let i = 0; i < PATH_PIXELS.length; i++) {
+    if (i === 0) ctx.moveTo(PATH_PIXELS[i].x, PATH_PIXELS[i].y);
+    else ctx.lineTo(PATH_PIXELS[i].x, PATH_PIXELS[i].y);
+  }
+  // Last leg to LB
+  ctx.lineTo(LB_X, LB_Y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Glow on path
+  ctx.shadowColor = '#00ff00';
+  ctx.shadowBlur = 8;
+  ctx.strokeStyle = 'rgba(0,255,0,0.15)';
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  for (let i = 0; i < PATH_PIXELS.length; i++) {
+    if (i === 0) ctx.moveTo(PATH_PIXELS[i].x, PATH_PIXELS[i].y);
+    else ctx.lineTo(PATH_PIXELS[i].x, PATH_PIXELS[i].y);
+  }
+  ctx.lineTo(LB_X, LB_Y);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+function drawLordBluetooth() {
+  const x = LB_X, y = LB_Y;
+
+  // Animated rings
+  for (let i = 0; i < 3; i++) {
+    const phase = (lbRingPhase + i * 0.7) % (Math.PI * 2);
+    const radius = 20 + phase * 15;
+    const alpha = Math.max(0, 1 - phase / (Math.PI * 2)) * 0.4;
+    ctx.strokeStyle = `rgba(0,150,255,${alpha})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Bluetooth wave arcs
+  const t = Date.now() / 1000;
+  ctx.strokeStyle = 'rgba(0,100,255,0.3)';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 4; i++) {
+    const phase = (t * 2 + i * 0.5) % 2;
+    const r = 10 + phase * 30;
+    ctx.globalAlpha = Math.max(0, 1 - phase/2);
+    ctx.beginPath();
+    ctx.arc(x, y, r, -Math.PI/4, Math.PI/4);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Throne base
+  const grad = ctx.createRadialGradient(x, y, 0, x, y, 28);
+  grad.addColorStop(0, lbDamagedFlash > 0 ? '#ff4444' : '#2244aa');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(x, y, 28, 0, Math.PI*2); ctx.fill();
+
+  // Crown emoji
+  ctx.font = '28px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('👑', x, y - 2);
+
+  // HP bar
+  const bw = 80, bh = 10;
+  const bx = x - bw/2, by = y - 42;
+  ctx.fillStyle = '#111';
+  ctx.fillRect(bx-1, by-1, bw+2, bh+2);
+  const hpPct = lbHP / lbMaxHP;
+  const hpColor = hpPct > 0.5 ? '#00aaff' : hpPct > 0.25 ? '#ffaa00' : '#ff0000';
+  ctx.fillStyle = hpColor;
+  ctx.fillRect(bx, by, bw * hpPct, bh);
+  ctx.strokeStyle = '#338';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx, by, bw, bh);
+
+  // HP text
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 10px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${lbHP}/${lbMaxHP}`, x, by - 5);
+}
+
+function drawTowers() {
+  for (const t of towers) {
+    const x = t.x, y = t.y;
+    const sz = 36;
+
+    // Range circle for selected tower
+    if (clickedTowerIdx === towers.indexOf(t)) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x, y, t.def.range, 0, Math.PI*2); ctx.stroke();
+    }
+
+    // Glow
+    ctx.shadowColor = t.def.color;
+    ctx.shadowBlur = t.disabled > 0 ? 0 : 10;
+
+    // Body
+    ctx.fillStyle = t.disabled > 0 ? '#444' : t.def.color;
+    ctx.fillRect(x - sz/2, y - sz/2, sz, sz);
+
+    // Border
+    ctx.strokeStyle = t.disabled > 0 ? '#666' : '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x - sz/2, y - sz/2, sz, sz);
+
+    ctx.shadowBlur = 0;
+
+    // Emoji
+    ctx.font = '18px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(t.def.emoji, x, y);
+
+    // Disabled indicator
+    if (t.disabled > 0) {
+      ctx.fillStyle = 'rgba(255,0,0,0.5)';
+      ctx.fillRect(x - sz/2, y - sz/2, sz, sz);
+      ctx.font = '10px Courier New';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(Math.ceil(t.disabled) + 's', x, y);
+    }
+
+    // Bluetooth pairing indicator
+    const myIdx = towers.indexOf(t);
+    for (const p of pairings) {
+      if (p.from === myIdx || p.to === myIdx) {
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4,4]);
+        const other = towers[p.from === myIdx ? p.to : p.from];
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(other.x, other.y); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+  }
+
+  // Bluetooth pairing mode indicator
+  if (btPairingMode && btPairingSrc !== null) {
+    const t = towers[btPairingSrc];
+    ctx.strokeStyle = '#00ffff';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6,4]);
+    ctx.beginPath(); ctx.arc(t.x, t.y, t.def.range > 0 ? t.def.range : 80, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#00ffff';
+    ctx.font = '11px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('PAIRING...', t.x, t.y - 30);
+  }
+}
+
+function drawEnemies() {
+  for (const e of enemies) {
+    if (e.dead) continue;
+    const x = e.x, y = e.y;
+    const r = (e.scale || 1) * (e.type === 'scopecreep' ? 18 : e.type === 'yellingguy' ? 14 : 10);
+
+    // Glow when close to LB
+    const dx = x - LB_X, dy = y - LB_Y;
+    const distToLB = Math.sqrt(dx*dx+dy*dy);
+    if (distToLB < 100) {
+      ctx.shadowColor = e.color;
+      ctx.shadowBlur = 15 * (1 - distToLB/100);
+    }
+
+    // Body
+    ctx.fillStyle = e.color;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fill();
+
+    // Flying indicator
+    if (e.flying) {
+      ctx.strokeStyle = '#ff8800';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, y, r+3, 0, Math.PI*2);
+      ctx.stroke();
+    }
+
+    ctx.shadowBlur = 0;
+
+    // Emoji
+    ctx.font = `${Math.floor(r*1.4)}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(e.emoji, x, y);
+
+    // HP bar
+    if (e.maxHp > 10) {
+      const bw = r * 2.5, bh = 3;
+      const bx = x - bw/2, by = y - r - 6;
+      ctx.fillStyle = '#111';
+      ctx.fillRect(bx, by, bw, bh);
+      const hpPct = Math.max(0, e.hp / e.maxHp);
+      ctx.fillStyle = e.color;
+      ctx.fillRect(bx, by, bw * hpPct, bh);
+    }
+
+    // Slow indicator
+    if (e.slowMult < 1.0) {
+      ctx.fillStyle = 'rgba(255,150,0,0.6)';
+      ctx.font = '8px Courier New';
+      ctx.fillText('🐌', x + r, y - r);
+    }
+  }
+}
+
+function drawProjectiles() {
+  for (const p of projectiles) {
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawHUD() {
+  // HUD background
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, HUD_Y, W, HUD_H);
+  ctx.strokeStyle = '#1a3a1a';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, HUD_Y); ctx.lineTo(W, HUD_Y); ctx.stroke();
+
+  // Credits
+  ctx.fillStyle = '#FFD700';
+  ctx.font = 'bold 16px Courier New';
+  ctx.textAlign = 'left';
+  ctx.fillText(`💰 ${credits}`, 10, HUD_Y + 22);
+
+  // Wave counter
+  ctx.fillStyle = '#aaffaa';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 16px Courier New';
+  ctx.fillText(`WAVE ${waveIndex + 1} / ${WAVES.length}`, W/2, HUD_Y + 22);
+
+  // Between waves indicator
+  if (betweenWaves && state === STATE.PLAYING) {
+    ctx.fillStyle = '#00ff00';
+    ctx.font = '12px Courier New';
+    ctx.fillText('[ Press N for next wave (+$50) ]', W/2, HUD_Y + 42);
+  }
+
+  // Lord Bluetooth HP (prominent)
+  const lbBarW = 300, lbBarH = 28;
+  const lbBarX = (W - lbBarW) / 2;
+  const lbBarY = HUD_Y + 50;
+
+  // Label
+  ctx.fillStyle = '#00aaff';
+  ctx.font = 'bold 13px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('👑 LORD BLUETOOTH', W/2, lbBarY - 6);
+
+  // Bar bg
+  ctx.fillStyle = '#111';
+  ctx.fillRect(lbBarX - 1, lbBarY - 1, lbBarW + 2, lbBarH + 2);
+  const hpPct = lbHP / lbMaxHP;
+  const hpColor = hpPct > 0.5 ? '#0088ff' : hpPct > 0.25 ? '#ffaa00' : '#ff2200';
+  ctx.fillStyle = hpColor;
+  ctx.fillRect(lbBarX, lbBarY, lbBarW * hpPct, lbBarH);
+
+  // HP numbers
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${lbHP} / ${lbMaxHP}`, W/2, lbBarY + lbBarH/2 + 5);
+
+  // Bar border
+  ctx.strokeStyle = '#336';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(lbBarX, lbBarY, lbBarW, lbBarH);
+
+  // Lives (enemies remaining)
+  ctx.fillStyle = '#aaa';
+  ctx.font = '12px Courier New';
+  ctx.textAlign = 'right';
+  ctx.fillText(`Enemies: ${enemies.length + waveSpawnQueue.length}`, W - 10, HUD_Y + 22);
+
+  // Tower shop
+  const btnW = 90, btnH = 55, btnY = HUD_Y + 90;
+  const totalW = TOWER_DEFS.length * btnW;
+  let startX = (W - totalW) / 2;
+  for (let i = 0; i < TOWER_DEFS.length; i++) {
+    const def = TOWER_DEFS[i];
+    const bx = startX + i * btnW;
+    const hovered = hoveredButton === i;
+    const selected = selectedTowerType === i;
+    const canAfford = credits >= def.cost;
+
+    // Button bg
+    ctx.fillStyle = selected ? def.color : hovered ? 'rgba(255,255,255,0.1)' : '#111';
+    ctx.fillRect(bx + 1, btnY, btnW - 2, btnH);
+
+    // Border
+    ctx.strokeStyle = selected ? '#fff' : hovered ? def.color : '#333';
+    ctx.lineWidth = selected ? 2 : 1;
+    ctx.strokeRect(bx + 1, btnY, btnW - 2, btnH);
+
+    // Can't afford dimming
+    if (!canAfford) {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(bx + 1, btnY, btnW - 2, btnH);
+    }
+
+    // Emoji
+    ctx.font = '20px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(def.emoji, bx + btnW/2, btnY + 18);
+
+    // Name
+    ctx.fillStyle = canAfford ? '#eee' : '#666';
+    ctx.font = '8px Courier New';
+    ctx.fillText(def.name, bx + btnW/2, btnY + 36);
+
+    // Cost
+    ctx.fillStyle = canAfford ? '#FFD700' : '#660000';
+    ctx.font = 'bold 10px Courier New';
+    ctx.fillText(`$${def.cost}`, bx + btnW/2, btnY + 48);
+  }
+
+  // Controls hint
+  ctx.fillStyle = '#444';
+  ctx.font = '10px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('[P] Pause   [N] Next Wave   [SPACE] Pair 📡   [ESC] Deselect', W/2, HUD_Y + 155);
+}
+
+function drawTextOverlays() {
+  for (const o of textOverlays) {
+    ctx.globalAlpha = o.alpha;
+    ctx.fillStyle = '#00ff88';
+    ctx.font = 'bold 14px Courier New';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#00ff88';
+    ctx.shadowBlur = 10;
+    ctx.fillText(o.text, W/2, o.y);
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawEventOverlays() {
+  for (const o of overlays) {
+    const alpha = Math.min(1, o.life);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = o.color || '#ff0';
+    ctx.font = 'bold 22px Courier New';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = o.color || '#ff0';
+    ctx.shadowBlur = 15;
+    ctx.fillText(o.text, W/2, o.y - 20);
+    ctx.font = '14px Courier New';
+    ctx.fillText(o.sub || '', W/2, o.y + 8);
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawTitleScreen() {
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+
+  // Animated background rings
+  const t = Date.now() / 1000;
+  for (let i = 0; i < 5; i++) {
+    const phase = (t + i * 0.3) % 3;
+    const r = 50 + phase * 80;
+    const alpha = Math.max(0, 0.15 - phase * 0.04);
+    ctx.strokeStyle = `rgba(0,100,255,${alpha})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(W/2, H/2 - 40, r, 0, Math.PI*2);
+    ctx.stroke();
+  }
+
+  // Title
+  ctx.shadowColor = '#0088ff';
+  ctx.shadowBlur = 30;
+  ctx.fillStyle = '#00aaff';
+  ctx.font = 'bold 42px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('LORD BLUETOOTH', W/2, 140);
+  ctx.fillStyle = '#00ff88';
+  ctx.font = 'bold 28px Courier New';
+  ctx.fillText('TOWER DEFENSE', W/2, 180);
+  ctx.shadowBlur = 0;
+
+  // Subtitle
+  ctx.fillStyle = '#888';
+  ctx.font = 'italic 14px Courier New';
+  ctx.fillText('Defend the Spectrum. Ship the Product.', W/2, 215);
+
+  // Boz quote
+  ctx.fillStyle = '#5599ff';
+  ctx.font = 'italic 13px Courier New';
+  ctx.fillText('"We\'re going to be the most Bluetooth-native', W/2, 280);
+  ctx.fillText('company in human history." — Boz', W/2, 300);
+
+  // Lord Bluetooth icon
+  ctx.font = '64px serif';
+  ctx.fillText('👑', W/2, 380);
+
+  // Controls
+  ctx.fillStyle = '#555';
+  ctx.font = '12px Courier New';
+  const controls = [
+    'Click tower → Click grid to place (not on path)',
+    'Click placed tower → Show range',
+    '[P / ESC] Pause  [N] Next wave (+$50)',
+    '[SPACE] Pair 📡 Bluetooth Node to another tower',
+    'Defeat all 10 waves. Keep Lord Bluetooth alive.',
+  ];
+  controls.forEach((c, i) => ctx.fillText(c, W/2, 430 + i * 20));
+
+  // High score
+  const hs = getHighScore();
+  if (hs > 0) {
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 13px Courier New';
+    ctx.fillText(`High Score: ${hs}`, W/2, 555);
+  }
+
+  // Start prompt
+  ctx.fillStyle = '#00ff00';
+  ctx.font = 'bold 16px Courier New';
+  const blink = Math.sin(t * 4) > 0;
+  if (blink) ctx.fillText('[ Press ENTER to Start ]', W/2, 590);
+
+  // Decorative path preview
+  ctx.strokeStyle = 'rgba(0,100,0,0.3)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5,5]);
+  ctx.beginPath();
+  ctx.moveTo(0, 0); ctx.lineTo(W, 0); ctx.lineTo(W, GAME_H);
+  ctx.lineTo(0, GAME_H); ctx.lineTo(0, 0);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawPauseScreen() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 32px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('PAUSED', W/2, H/2 - 10);
+  ctx.font = '14px Courier New';
+  ctx.fillText('[P or ESC to resume]', W/2, H/2 + 20);
+}
+
+function drawWaveCompleteScreen() {
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.shadowColor = '#00ff00';
+  ctx.shadowBlur = 20;
+  ctx.fillStyle = '#00ff88';
+  ctx.font = 'bold 28px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText(`WAVE ${waveIndex + 1} COMPLETE!`, W/2, H/2 - 20);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#aaa';
+  ctx.font = '14px Courier New';
+  ctx.fillText('Get ready for the next wave...', W/2, H/2 + 15);
+  ctx.fillStyle = '#FFD700';
+  ctx.font = 'bold 14px Courier New';
+  ctx.fillText('[ Press N for next wave (+$50 bonus) ]', W/2, H/2 + 45);
+}
+
+function drawEndScreen(won) {
+  ctx.fillStyle = 'rgba(0,0,0,0.85)';
+  ctx.fillRect(0, 0, W, H);
+
+  const t = Date.now() / 1000;
+  if (won) {
+    ctx.shadowColor = '#00ff88';
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = '#00ff88';
+    ctx.font = 'bold 40px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('🎉 YOU SHIPPED! 🎉', W/2, H/2 - 60);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px Courier New';
+    ctx.fillText('All 10 waves defeated!', W/2, H/2 - 20);
+    ctx.fillText(`Lord Bluetooth HP: ${lbHP}/${lbMaxHP}`, W/2, H/2 + 10);
+    playVoice('win');
+  } else {
+    ctx.shadowColor = '#ff0000';
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = '#ff4444';
+    ctx.font = 'bold 40px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('💀 SPECTRUM CORRUPTED 💀', W/2, H/2 - 60);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px Courier New';
+    ctx.fillText('Lord Bluetooth has fallen...', W/2, H/2 - 20);
+    ctx.fillText(`Reached Wave ${waveIndex + 1}`, W/2, H/2 + 10);
+    playVoice('lose');
+  }
+
+  const hs = getHighScore();
+  ctx.fillStyle = '#FFD700';
+  ctx.font = 'bold 14px Courier New';
+  ctx.fillText(`High Score: ${hs}`, W/2, H/2 + 50);
+
+  ctx.fillStyle = '#666';
+  ctx.font = '12px Courier New';
+  ctx.fillText('[ Press ENTER to play again ]', W/2, H/2 + 80);
+}
+
+// ── MAIN LOOP ─────────────────────────────────────────────────
+let lastFrameTime = 0;
+
+function loop(ts) {
+  const dt = Math.min((ts - lastFrameTime) / 1000, 0.05);
+  lastFrameTime = ts;
+
+  if (state !== STATE.TITLE && state !== STATE.WIN && state !== STATE.LOSE) {
+    update(dt);
+  }
+
+  // Draw
+  if (state === STATE.TITLE) {
+    drawTitleScreen();
+  } else {
+    drawBackground();
+    drawPath();
+    drawLordBluetooth();
+    drawTowers();
+    drawEnemies();
+    drawProjectiles();
+    drawParticles();
+    drawHUD();
+    drawTextOverlays();
+    drawEventOverlays();
+
+    if (state === STATE.PAUSED) drawPauseScreen();
+    if (state === STATE.WAVE_COMPLETE) drawWaveCompleteScreen();
+    if (state === STATE.WIN) drawEndScreen(true);
+    if (state === STATE.LOSE) drawEndScreen(false);
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// ── INPUT ─────────────────────────────────────────────────────
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (W / rect.width);
+  const my = (e.clientY - rect.top) * (H / rect.height);
+
+  // Tower shop hover
+  if (my >= HUD_Y + 90 && my < HUD_Y + 90 + 55) {
+    const btnW = 90;
+    const totalW = TOWER_DEFS.length * btnW;
+    const startX = (W - totalW) / 2;
+    const idx = Math.floor((mx - startX) / btnW);
+    hoveredButton = (idx >= 0 && idx < TOWER_DEFS.length) ? idx : null;
+  } else {
+    hoveredButton = null;
+  }
+});
+
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (W / rect.width);
+  const my = (e.clientY - rect.top) * (H / rect.height);
+
+  // Resume audio context
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  if (state === STATE.TITLE) return;
+
+  // Tower shop click
+  if (my >= HUD_Y + 90 && my < HUD_Y + 90 + 55) {
+    const btnW = 90;
+    const totalW = TOWER_DEFS.length * btnW;
+    const startX = (W - totalW) / 2;
+    const idx = Math.floor((mx - startX) / btnW);
+    if (idx >= 0 && idx < TOWER_DEFS.length) {
+      const def = TOWER_DEFS[idx];
+      if (credits >= def.cost) {
+        if (def.isBT) {
+          // Bluetooth node: start pairing mode
+          selectedTowerType = idx;
+          btPairingMode = true;
+          btPairingSrc = null;
+        } else {
+          selectedTowerType = idx;
+          btPairingMode = false;
+          btPairingSrc = null;
+        }
+        synthPlace();
+      }
+    }
+    return;
+  }
+
+  // Game area click
+  if (my < GAME_H) {
+    const col = Math.floor(mx / CELL);
+    const row = Math.floor(my / CELL);
+    if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
+
+    const key = `${col},${row}`;
+
+    // Bluetooth pairing mode
+    if (btPairingMode && btPairingSrc === null) {
+      // Try to place BT node first
+      if (selectedTowerType === 4) { // Bluetooth Node
+        if (PATH_CELLS.has(key)) return;
+        if (towers.find(t => t.col === col && t.row === row)) return;
+        placeTower(col, row, 4);
+        btPairingSrc = towers.length - 1;
+        // Now wait for second click to pick target
+        return;
+      } else {
+        // Direct pairing: click on existing tower
+        const existing = towers.find(t => t.col === col && t.row === row);
+        if (existing && existing.def.isBT) {
+          // Can't pair FROM a BT node
+          return;
+        }
+        if (existing) {
+          // Find an unpaired BT node
+          const btNodes = towers.filter(t => t.def.isBT);
+          for (const bt of btNodes) {
+            const alreadyPaired = pairings.some(p => p.from === towers.indexOf(bt) || p.to === towers.indexOf(bt));
+            if (!alreadyPaired) {
+              if (pairings.length < 2) {
+                pairings.push({ from: towers.indexOf(bt), to: towers.indexOf(existing) });
+                btPairingMode = false;
+                btPairingSrc = null;
+                synthPlace();
+                return;
+              }
+            }
+          }
+        }
+        return;
+      }
+    }
+
+    if (btPairingMode && btPairingSrc !== null) {
+      // Second click: target tower
+      const existing = towers.find(t => t.col === col && t.row === row);
+      if (existing && existing !== towers[btPairingSrc]) {
+        if (pairings.length < 2) {
+          pairings.push({ from: btPairingSrc, to: towers.indexOf(existing) });
+          btPairingMode = false;
+          btPairingSrc = null;
+          synthPlace();
+        }
+      }
+      btPairingMode = false;
+      btPairingSrc = null;
+      return;
+    }
+
+    if (selectedTowerType !== null) {
+      // Place tower
+      if (PATH_CELLS.has(key)) return;
+      if (towers.find(t => t.col === col && t.row === row)) return;
+      placeTower(col, row, selectedTowerType);
+    } else {
+      // Click existing tower to show range
+      const t = towers.find(t => t.col === col && t.row === row);
+      clickedTowerIdx = t ? towers.indexOf(t) : null;
+    }
+  }
+});
+
+function placeTower(col, row, typeIdx) {
+  const def = TOWER_DEFS[typeIdx];
+  if (credits < def.cost) return;
+  credits -= def.cost;
+  const x = col * CELL + CELL/2;
+  const y = row * CELL + CELL/2;
+  towers.push({
+    x, y, col, row, def,
+    fireCooldown: 0,
+    disabled: 0,
+  });
+  synthPlace();
+  playVoice('towerPlaced');
+  addTeamText();
+  // Don't deselect so player can place multiple
+}
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  selectedTowerType = null;
+  btPairingMode = false;
+  btPairingSrc = null;
+  clickedTowerIdx = null;
+});
+
+document.addEventListener('keydown', e => {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  if (e.key === 'Enter') {
+    if (state === STATE.TITLE || state === STATE.WIN || state === STATE.LOSE) {
+      initGame();
+    }
+  }
+  if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+    if (state === STATE.PLAYING) { prevState = state; state = STATE.PAUSED; }
+    else if (state === STATE.PAUSED) { state = prevState || STATE.PLAYING; }
+    else if (state === STATE.WAVE_COMPLETE) { state = STATE.PAUSED; }
+  }
+  if ((e.key === 'n' || e.key === 'N') && (state === STATE.PLAYING || state === STATE.WAVE_COMPLETE)) {
+    if (betweenWaves || state === STATE.WAVE_COMPLETE) {
+      credits += 50;
+      state = STATE.PLAYING;
+      startWave(waveIndex + 1);
+    }
+  }
+  if (e.key === ' ') {
+    if (state === STATE.PLAYING && selectedTowerType === 4) {
+      btPairingMode = !btPairingMode;
+      btPairingSrc = null;
+    }
+    e.preventDefault();
+  }
+});
+
+// ── START ─────────────────────────────────────────────────────
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
