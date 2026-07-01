@@ -2,101 +2,179 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Lord Bluetooth TD</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #0d0d0d;
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body {
+    background: #06060f;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
-    min-height: 100vh;
-    font-family: 'Courier New', monospace;
+    justify-content: flex-start;
+    min-height: 100dvh;
     overflow: hidden;
+    font-family: 'Courier New', monospace;
+    touch-action: none;
+  }
+  #wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 520px;
+    position: relative;
   }
   canvas {
     display: block;
-    cursor: crosshair;
+    touch-action: none;
+    image-rendering: pixelated;
   }
 </style>
 </head>
 <body>
+<div id="wrap">
 <canvas id="c"></canvas>
+</div>
 <script>
-// =============================================================
-//  LORD BLUETOOTH TOWER DEFENSE
-//  Defend the Spectrum. Ship the Product.
-// =============================================================
+// ================================================================
+//  LORD BLUETOOTH TOWER DEFENSE — Mobile-First Rewritten
+// ================================================================
 
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
-const W = 600, H = 700;
-canvas.width = W;
-canvas.height = H;
 
-// ── AUDIO / VOICE SYSTEM ─────────────────────────────────────
-var VOICE = {
-  waveStart:    'audio/lb-td-boz-wave-start.mp3',
-  towerPlaced:  'audio/lb-td-boz-tower-placed.mp3',
-  enemyKilled:  'audio/lb-td-boz-enemy-killed.mp3',
-  lbDamaged:    'audio/lb-td-boz-lb-damaged.mp3',
-  win:          'audio/lb-td-boz-win.mp3',
-  lose:         'audio/lb-td-boz-lose.mp3',
-  scopeCreep:   'audio/lb-td-boz-scope-creep.mp3',
-  event:        'audio/lb-td-boz-event.mp3',
-  codeReview:   'audio/lb-td-boz-code-review.mp3',
-  hotTake:      'audio/lb-td-boz-hot-take.mp3',
-  featureShipped:'audio/lb-td-ceo-feature-shipped.mp3',
-  yellingGuy:    'audio/lb-td-ceo-yelling-guy.mp3',
-  prodIncident:  'audio/lb-td-ceo-production-incident.mp3',
-};
+// ── DEVICE / SCALING ───────────────────────────────────────────
+const BASE_W = 400;  // logical canvas width
+const BASE_H = 640;  // logical canvas height (game area + HUD)
+const CELL  = 44;    // grid cell size
+const COLS  = 9;     // grid cols
+const ROWS  = 9;     // grid rows
+const GAME_H = ROWS * CELL;       // 396
+const HUD_H  = BASE_H - GAME_H;   // 244
+const LB_COL = 4;   // Lord Bluetooth grid col
+const LB_ROW = 4;   // Lord Bluetooth grid row
 
+let scale = 1, offsetX = 0, offsetY = 0;
+
+function resize() {
+  const ww = window.innerWidth;
+  const wh = window.innerHeight;
+  const aspect = BASE_W / BASE_H;
+  let w = Math.min(ww, 520);
+  let h = Math.floor(w / aspect);
+  if (h > wh) { h = wh; w = Math.floor(h * aspect); }
+  scale = w / BASE_W;
+  canvas.width  = BASE_W;
+  canvas.height = BASE_H;
+  canvas.style.width  = w + 'px';
+  canvas.style.height = h + 'px';
+  offsetX = (ww - w) / 2;
+  offsetY = (wh - h) / 2;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Helper: map logical coords to canvas coords
+function mapX(lx) { return lx * scale; }
+function mapY(ly) { return ly * scale; }
+
+// ── AUDIO ─────────────────────────────────────────────────────
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-function playVoice(key) {
-  const src = VOICE[key];
-  if (!src) return;
-  const tryPlay = (url) => {
-    fetch(url)
-      .then(r => r.arrayBuffer())
-      .then(buf => audioCtx.decodeAudioData(buf))
-      .then(ab => {
-        const s = audioCtx.createBufferSource();
-        s.buffer = ab;
-        s.connect(audioCtx.destination);
-        s.start();
-      })
-      .catch(() => {});
-  };
-  tryPlay(src);
+function loadAudio(url) {
+  return fetch(url).then(r => r.arrayBuffer()).then(buf => audioCtx.decodeAudioData(buf)).catch(() => null);
 }
 
-function synthTone(freq, dur, type='square', vol=0.08) {
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = type;
-  osc.frequency.value = freq;
-  gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + dur);
+const audioCache = {};
+async function playAudioClip(url, vol=0.7) {
+  if (!audioCache[url]) audioCache[url] = await loadAudio(url);
+  const ab = audioCache[url];
+  if (!ab) return;
+  const s = audioCtx.createBufferSource();
+  s.buffer = ab;
+  const g = audioCtx.createGain();
+  g.gain.value = vol;
+  s.connect(g); g.connect(audioCtx.destination);
+  s.start();
 }
 
-function synthShoot() { synthTone(800, 0.05, 'square', 0.05); }
-function synthHit()    { synthTone(300, 0.08, 'sawtooth', 0.06); }
-function synthPlace()  { synthTone(523, 0.1, 'triangle', 0.07); }
-function synthKill()   { synthTone(200, 0.15, 'sawtooth', 0.08); }
-function synthLBDmg()  { synthTone(100, 0.4, 'sawtooth', 0.1); }
-function synthEvent()  { synthTone(440, 0.2, 'sine', 0.06); }
-function synthWin()    { [523,659,784,1047].forEach((f,i) => setTimeout(() => synthTone(f, 0.3, 'triangle', 0.08), i*150)); }
-function synthLose()   { [400,300,200,100].forEach((f,i) => setTimeout(() => synthTone(f, 0.3, 'sawtooth', 0.08), i*200)); }
+function synthTone(freq, dur, type='square', vol=0.06, delay=0) {
+  setTimeout(() => {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(vol, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + dur);
+  }, delay * 1000);
+}
 
-// ── TEAM TEXTS ────────────────────────────────────────────────
-const TEAM_TEXTS = [
-  "Team aggressively disrupting, thanks so much.",
+function synthShoot()  { synthTone(900, 0.04, 'square', 0.04); }
+function synthHit()    { synthTone(250, 0.06, 'sawtooth', 0.05); }
+function synthKill()   { synthTone(180, 0.12, 'sawtooth', 0.07); synthTone(120, 0.08, 'triangle', 0.05, 0.06); }
+function synthPlace()  { synthTone(440, 0.08, 'triangle', 0.06); synthTone(660, 0.08, 'triangle', 0.05, 0.05); }
+function synthUpgrade(){ synthTone(523, 0.1, 'sine', 0.07); synthTone(784, 0.1, 'sine', 0.06, 0.08); synthTone(1047, 0.12, 'sine', 0.05, 0.16); }
+function synthLBDmg()  { synthTone(80, 0.4, 'sawtooth', 0.12); synthTone(60, 0.5, 'sawtooth', 0.1, 0.1); }
+function synthWave()   { [440,554,659,880].forEach((f,i) => synthTone(f, 0.25, 'triangle', 0.07, i*0.12)); }
+function synthWin()    { [523,659,784,1047,1047,784,1047].forEach((f,i) => synthTone(f, 0.3, 'triangle', 0.08, i*0.15)); }
+function synthLose()   { [400,300,200,150,100].forEach((f,i) => synthTone(f, 0.35, 'sawtooth', 0.09, i*0.22)); }
+function synthEvent()   { synthTone(330, 0.15, 'sine', 0.06); synthTone(220, 0.2, 'sine', 0.06, 0.1); }
+function synthBoss()    { synthTone(80, 0.8, 'sawtooth', 0.15); [160,200,250,320].forEach((f,i) => synthTone(f, 0.2, 'sawtooth', 0.1, i*0.1)); }
+
+// Resume audio context on first touch
+document.addEventListener('touchstart', () => audioCtx.resume().catch(()=>{}), {once:true});
+document.addEventListener('click', () => audioCtx.resume().catch(()=>{}), {once:true});
+
+// ── VOICE / CEO SYSTEM ─────────────────────────────────────────
+// Boz is the main announcer; others cameo
+const VOICE_CLIPS = {
+  boz: {
+    waveStart:   'games/audio/boz-inspiration.mp3',
+    towerPlace:  'games/audio/boz-lord-bluetooth-pitch.mp3',
+    enemyKill:   'games/audio/boz-rap.mp3',
+    lbDamaged:   'games/audio/boz-source.mp3',
+    win:         'games/audio/boz-zuck-synergy.mp3',
+    lose:        'games/audio/boz-lord-bluetooth-v2.mp3',
+    event:       'games/audio/boz-inspiration.mp3',
+  },
+  steve: {
+    bigKill:    'games/audio/ceo-culture.mp3',
+    win:        'games/audio/ceo-vision.mp3',
+  },
+  jensen: {
+    bigKill:    'games/audio/ceo-synergy.mp3',
+    gpu:        'games/audio/ceo-ai-clone.mp3',
+  },
+  zuck: {
+    bigKill:    'games/audio/ceo-townhall.mp3',
+    meta:       'games/audio/ceo-survey.mp3',
+  },
+  bezos: {
+    bigKill:    'games/audio/ceo-customer.mp3',
+    dayone:     'games/audio/ceo-pivot.mp3',
+  },
+  bill: {
+    bigKill:    'games/audio/ceo-exit-interview.mp3',
+    warn:       'games/audio/ceo-standing-desk.mp3',
+  },
+  elon: {
+    bigKill:    'games/audio/ceo-reorg.mp3',
+    meme:       'games/audio/ceo-leak.mp3',
+  },
+};
+
+async function playVoice(who, key) {
+  const clips = VOICE_CLIPS[who];
+  if (!clips || !clips[key]) return;
+  await playAudioClip(clips[key], 0.65);
+}
+
+// ── TEAM SIGN-OFFS ─────────────────────────────────────────────
+const TEAM_SIGN_OFFS = [
+  "Team aggressively passive, thanks so much.",
   "Team move fast and break things, thanks so much.",
   "Team pivot or die, thanks so much.",
   "Team infinite sprint, thanks so much.",
@@ -111,368 +189,569 @@ const TEAM_TEXTS = [
   "Team ping pong, thanks so much.",
   "Team oat milk, thanks so much.",
   "Team synergy theater, thanks so much.",
+  "Team psychological safety, thanks so much.",
+  "Team psychological unsafe, thanks so much.",
+  "Team water cooler, thanks so much.",
+  "Team parking spot, thanks so much.",
+  "Team bean bag chair, thanks so much.",
+  "Team mandatory fun, thanks so much.",
+  "Team zoom fatigue, thanks so much.",
+  "Team async-first, thanks so much.",
+  "Team four-day work week, thanks so much.",
+  "Team RTO mandate, thanks so much.",
+  "Team unlimited PTO, thanks so much.",
+  "Team OKR, thanks so much.",
+  "Team KPI theater, thanks so much.",
+  "Team stack ranking, thanks so much.",
+  "Team all-hands, thanks so much.",
+  "Team fire side chat, thanks so much.",
+  "Team offsite, thanks so much.",
+  "Team icebreaker, thanks so much.",
+  "Team synergy, thanks so much.",
+  "Team vision deck, thanks so much.",
+  "Team cultural fit, thanks so much.",
+  "Team growth mindset, thanks so much.",
+  "Team disrupt yourself, thanks so much.",
+  "Team lean startup, thanks so much.",
+  "Team agile, thanks so much.",
+  "Team scale up, thanks so much.",
 ];
 
-// ── CONSTANTS ─────────────────────────────────────────────────
-const CELL = 50;
-const COLS = 12;
-const ROWS = 10;
-const GAME_H = ROWS * CELL; // 500
-const HUD_Y = 500;
-const HUD_H = 200;
+function teamSignOff(minor=false) {
+  if (minor && Math.random() > 0.25) return; // only sometimes for minor events
+  const t = TEAM_SIGN_OFFS[Math.floor(Math.random() * TEAM_SIGN_OFFS.length)];
+  addOverlay({ text: t, sub: null, color: '#00ffcc', life: 2.5, y: GAME_H / 2 - 20, style:'team' });
+}
 
-const LB_X = 325; // center of cell (6,5)
-const LB_Y = 275;
+// CEO lines on specific events
+const CEO_REACTIONS = {
+  bigKill: [
+    { who:'steve', key:'bigKill', text:'"Think different."', color:'#aaaaaa' },
+    { who:'jensen', key:'gpu', text:'"The more agents, the more you save."', color:'#44ff44' },
+    { who:'zuck', key:'bigKill', text:'"That's... that's great."', color:'#0088ff' },
+    { who:'bezos', key:'dayone', text:'"Day One."', color:'#ff9900' },
+    { who:'elon', key:'meme', text:'"The most entertaining outcome is the likely one."', color:'#ff3333' },
+    { who:'bill', key:'warn', text:'"A computer on every desk."', color:'#0088ff' },
+  ],
+  waveComplete: [
+    { who:'steve', key:'win', text:'"Insanely great."', color:'#aaaaaa' },
+    { who:'boz', key:'waveStart', text:'Team shipping, thanks so much.', color:'#00ffcc' },
+  ],
+  lbDamaged: [
+    { who:'bill', key:'warn', text:'"This is a teachable moment."', color:'#0088ff' },
+    { who:'elon', key:'meme', text:'"This is fine."', color:'#ff3333' },
+  ],
+  bossDefeated: [
+    { who:'steve', key:'bigKill', text:'"One more thing..."', color:'#aaaaaa' },
+    { who:'boz', key:'waveStart', text:'Team scope creep contained, thanks so much.', color:'#00ffcc' },
+  ],
+  pairMade: [
+    { who:'jensen', key:'gpu', text:'"The more agents, the more you save."', color:'#44ff44' },
+    { who:'zuck', key:'meta', text:'"Connect all the things."', color:'#0088ff' },
+  ],
+};
 
-// PATH waypoints (grid col, row) — enemies follow this
-const PATH_WAYPOINTS = [
-  {c:0,r:0},{c:11,r:0},{c:11,r:4},{c:0,r:4},{c:0,r:8},{c:6,r:8}
+function triggerCEOShoutout(type) {
+  const pool = CEO_REACTIONS[type];
+  if (!pool || Math.random() > 0.5) return;
+  const r = pool[Math.floor(Math.random() * pool.length)];
+  addOverlay({ text: r.text, sub: null, color: r.color, life: 2.0, y: GAME_H * 0.38, style:'ceo' });
+  playVoice(r.who, r.key).catch(()=>{});
+}
+
+// ── LORD BLUETOOTH QUOTES ───────────────────────────────────────
+const LB_QUOTES = {
+  idle: [
+    "Build the future.",
+    "Ship it.",
+    "Don't break the build.",
+    "Ship, ship, ship.",
+    "Quality is not an act.",
+    "I am the build.",
+    "Deploy with confidence.",
+    "Shipping is the feature.",
+    "Code is law.",
+    "Make it work.",
+  ],
+  damaged: [
+    "Ow! Watch it!",
+    "I'm taking fire here!",
+    "Defend me!",
+    "This is NOT a code review!",
+    "DEPLOY PROTECTION!",
+    "I'm in production!",
+  ],
+  waveStart: [
+    "Another wave? BRING IT.",
+    "Time to ship.",
+    "Let's gooooo!",
+    "BUILD THAT DEFENSE.",
+    "They're coming for me.",
+    "Show no mercy.",
+  ],
+  waveComplete: [
+    "NICE SHIP.",
+    "That's how we roll.",
+    "Outstanding.",
+    "Shipping excellence.",
+    "Again.",
+  ],
+  bossSpawn: [
+    "BOSS INCOMING!",
+    "THE SCOPE IS CREEPING!",
+    "HEAVY FIREPOWER!",
+  ],
+  pairing: [
+    "CONNECTED.",
+    "SYNERGY!",
+    "LINK ESTABLISHED.",
+    "BUILDING PROTOCOLS.",
+  ],
+  lose: [
+    "Downtime... activated.",
+    "Production... terminated.",
+    "We broke the build.",
+    "Rebuilding...",
+  ],
+  win: [
+    "WE SHIPPED.",
+    "TOTAL SHIP.",
+    "LORD BLUETOOTH VICTORIOUS.",
+  ],
+};
+
+// Lord Bluetooth personality bubble
+let lbBubble = null; // { text, color, life }
+
+function lbReact(type, force=false) {
+  const pool = LB_QUOTES[type];
+  if (!pool) return;
+  const q = pool[Math.floor(Math.random() * pool.length)];
+  lbBubble = { text: q, color: '#00ccff', life: 2.0 };
+  if (force) addOverlay({ text: q, sub: '— Lord Bluetooth', color: '#00ccff', life: 2.5, y: GAME_H * 0.42, style:'lb' });
+}
+
+// ── GAME CONSTANTS ─────────────────────────────────────────────
+const CELL_PX = CELL;
+const GAME_W   = COLS * CELL; // 396
+const HUD_Y    = GAME_H;
+
+const LB_X = LB_COL * CELL + CELL/2;  // 4*44 + 22 = 198
+const LB_Y = LB_ROW * CELL + CELL/2;  // 4*44 + 22 = 198
+
+// PATH: Enter left, snake right→down→left→down→right→LB center
+const PATH = [
+  {c:0,r:1},{c:8,r:1},{c:8,r:3},{c:0,r:3},{c:0,r:5},{c:7,r:5},{c:7,r:7},{c:1,r:7},{c:1,r:8},{c:6,r:8}
 ];
 
-// Build full pixel waypoint list
 function buildPathPixels() {
   const pts = [];
-  for (let i = 0; i < PATH_WAYPOINTS.length - 1; i++) {
-    const a = PATH_WAYPOINTS[i], b = PATH_WAYPOINTS[i+1];
+  for (let i = 0; i < PATH.length - 1; i++) {
+    const a = PATH[i], b = PATH[i+1];
     if (a.c === b.c) {
-      const minR = Math.min(a.r, b.r), maxR = Math.max(a.r, b.r);
-      for (let r = minR; r <= maxR; r++) pts.push({x: a.c * CELL + CELL/2, y: r * CELL + CELL/2});
+      for (let r = Math.min(a.r,b.r); r <= Math.max(a.r,b.r); r++)
+        pts.push({x: a.c*CELL_PX + CELL_PX/2, y: r*CELL_PX + CELL_PX/2});
     } else {
-      const minC = Math.min(a.c, b.c), maxC = Math.max(a.c, b.c);
-      for (let c = minC; c <= maxC; c++) pts.push({x: c * CELL + CELL/2, y: a.r * CELL + CELL/2});
+      for (let c = Math.min(a.c,b.c); c <= Math.max(a.c,b.c); c++)
+        pts.push({x: c*CELL_PX + CELL_PX/2, y: a.r*CELL_PX + CELL_PX/2});
     }
   }
   return pts;
 }
 const PATH_PIXELS = buildPathPixels();
 
-// Cells the path passes through (for placement validation)
 function getPathCells() {
-  const cells = new Set();
-  for (let i = 0; i < PATH_WAYPOINTS.length - 1; i++) {
-    const a = PATH_WAYPOINTS[i], b = PATH_WAYPOINTS[i+1];
+  const s = new Set();
+  for (let i = 0; i < PATH.length - 1; i++) {
+    const a = PATH[i], b = PATH[i+1];
     if (a.c === b.c) {
-      for (let r = Math.min(a.r,b.r); r <= Math.max(a.r,b.r); r++) cells.add(`${a.c},${r}`);
+      for (let r = Math.min(a.r,b.r); r <= Math.max(a.r,b.r); r++) s.add(`${a.c},${r}`);
     } else {
-      for (let c = Math.min(a.c,b.c); c <= Math.max(a.c,b.c); c++) cells.add(`${c},${a.r}`);
+      for (let c = Math.min(a.c,b.c); c <= Math.max(a.c,b.c); c++) s.add(`${c},${a.r}`);
     }
   }
-  // Last leg to LB
-  const last = PATH_WAYPOINTS[PATH_WAYPOINTS.length - 1];
-  const lbCell = {c:6, r:5};
-  if (last.c === lbCell.c) {
-    for (let r = Math.min(last.r,lbCell.r); r <= Math.max(last.r,lbCell.r); r++) cells.add(`${last.c},${r}`);
-  } else {
-    for (let c = Math.min(last.c,lbCell.c); c <= Math.max(last.c,lbCell.c); c++) cells.add(`${c},${last.r}`);
-  }
-  return cells;
+  return s;
 }
 const PATH_CELLS = getPathCells();
 
-// ── GAME STATE ────────────────────────────────────────────────
-const STATE = { TITLE: 0, PLAYING: 1, WAVE_COMPLETE: 2, WIN: 3, LOSE: 4, PAUSED: 5 };
-let state = STATE.TITLE;
-let prevState = null;
-
-// ── LORD BLUETOOTH ───────────────────────────────────────────
-let lbHP = 500, lbMaxHP = 500;
-let lbRingPhase = 0;
-let lbDamagedFlash = 0;
-let lbHealRate = 0; // HP/sec from architects
-
-// ── TOWERS ───────────────────────────────────────────────────
+// ── TOWER DEFINITIONS ──────────────────────────────────────────
 const TOWER_DEFS = [
-  { name:'Junior Engineer',  emoji:'🧑‍💻', cost:50,  range:80,  dmg:8,   rate:0.3,  color:'#4CAF50', canHitFlying:false },
-  { name:'Senior Engineer',  emoji:'👨‍💼', cost:150, range:60,  dmg:30,  rate:1.2,  color:'#2196F3', canHitFlying:true  },
-  { name:'Code Reviewer',   emoji:'🔍', cost:100, range:100, dmg:0,   rate:0.5,  color:'#FF9800', canHitFlying:false, slows:0.4 },
-  { name:'CI/CD Pipeline', emoji:'⚙️',  cost:200, range:90,  dmg:15,  rate:0.5,  color:'#9C27B0', canHitFlying:true,  bugsOnly:true },
-  { name:'Bluetooth Node',  emoji:'📡', cost:120, range:0,   dmg:0,   rate:0,    color:'#00BCD4', canHitFlying:false, isBT:true },
-  { name:'Architect',       emoji:'🏗️', cost:80,  range:0,   dmg:0,   rate:0,    color:'#FFD700', canHitFlying:false, heals:0.5 },
+  {
+    id:'junior', name:'Junior\nEngineer', emoji:'🧑‍💻', cost:50, range:80, dmg:6, rate:0.25,
+    color:'#22cc55', canFly:false, desc:'Fast, cheap, weak',
+    upgrades: [{cost:40,dmg:10,rate:0.18,range:95},{cost:60,dmg:16,rate:0.14,range:110}],
+  },
+  {
+    id:'senior', name:'Senior\nEngineer', emoji:'👨‍💼', cost:150, range:65, dmg:28, rate:1.1,
+    color:'#3399ff', canFly:true, desc:'Slow, powerful',
+    upgrades: [{cost:100,dmg:50,rate:0.9,range:80},{cost:150,dmg:85,rate:0.75,range:100}],
+  },
+  {
+    id:'reviewer', name:'Code\nReviewer', emoji:'🔍', cost:90, range:105, dmg:0, rate:0.6,
+    color:'#ff9900', canFly:false, slows:0.5, desc:'Slows enemies in range',
+    upgrades: [{cost:70,range:125,rate:0.5,slows:0.65},{cost:100,range:145,rate:0.4,slows:0.75}],
+  },
+  {
+    id:'cicd', name:'CI/CD\nPipeline', emoji:'⚙️', cost:180, range:95, dmg:12, rate:0.6,
+    color:'#aa44ff', canFly:true, aoe:40, desc:'AoE damage',
+    upgrades: [{cost:120,dmg:22,rate:0.5,aoe:55},{cost:160,dmg:38,rate:0.4,aoe:70}],
+  },
+  {
+    id:'bluetooth', name:'BT\nNode', emoji:'📡', cost:110, range:0, dmg:0, rate:0,
+    color:'#00ccdd', canFly:false, isBT:true, desc:'Pairs with nearby towers to buff them',
+    upgrades: [{cost:80,range:70,buff:1.4},{cost:120,range:90,buff:1.7}],
+  },
+  {
+    id:'architect', name:'Architect', emoji:'🏗️', cost:130, range:110, dmg:0, rate:0,
+    color:'#ffcc00', canFly:false, heals:4, desc:'Heals Lord Bluetooth',
+    upgrades: [{cost:90,heals:8,range:130},{cost:130,heals:14,range:155}],
+  },
+  {
+    id:'qa', name:'QA\nTester', emoji:'🧪', cost:100, range:90, dmg:3, rate:0.8,
+    color:'#ff4466', canFly:false, stunDur:0.8, desc:'Stuns enemies briefly',
+    upgrades: [{cost:75,stunDur:1.3,dmg:5,range:105},{cost:110,stunDur:1.9,dmg:8,range:120}],
+  },
+  {
+    id:'pm', name:'Product\nManager', emoji:'📊', cost:140, range:85, dmg:0, rate:0,
+    color:'#ff66aa', canFly:false, buffs:1.5, buffRange:85, desc:'Boosts fire rate of nearby towers',
+    upgrades: [{cost:100,buffs:1.8,buffRange:100},{cost:150,buffs:2.2,buffRange:115}],
+  },
 ];
-let towers = [];
-let selectedTowerType = null;
-let btPairingMode = false;
-let btPairingSrc = null; // tower index being paired FROM
-let pairings = []; // [{from, to}]
 
-// ── ENEMIES ──────────────────────────────────────────────────
+// ── ENEMY DEFINITIONS ──────────────────────────────────────────
 const ENEMY_DEFS = {
-  bug:          { emoji:'🐛', hp:30,  speed:1.0, reward:10, color:'#8B4513', flying:false },
-  segfault:     { emoji:'💥', hp:15,  speed:2.5, reward:15, color:'#FF0000', flying:false },
-  memleak:      { emoji:'💧', hp:50,  speed:0.8, reward:25, color:'#4444FF', flying:false },
-  hottake:      { emoji:'🔥', hp:20,  speed:1.5, reward:20, color:'#FF6600', flying:true  },
-  yellingguy:   { emoji:'🗣️', hp:150, speed:0.5, reward:50, color:'#CC0000', flying:false },
-  scopecreep:   { emoji:'👾', hp:500, speed:0.3, reward:200, color:'#8800CC', flying:false },
+  bug:         { emoji:'🐛', hp:25,  spd:0.9,  rwd:8,  col:'#8B6914', fly:false, sz:10 },
+  segfault:    { emoji:'💥', hp:12,  spd:2.8,  rwd:12, col:'#ff2222', fly:false, sz:8  },
+  memleak:     { emoji:'💧', hp:45,  spd:0.7,  rwd:20, col:'#3366ff', fly:false, sz:11, grows:true },
+  hottake:     { emoji:'🔥', hp:18,  spd:1.4,  rwd:15, col:'#ff6600', fly:true,  sz:9  },
+  yellingguy:  { emoji:'🗣️', hp:130, spd:0.5,  rwd:45, col:'#cc1111', fly:false, sz:13, spawnsMini:2 },
+  scopecreep:  { emoji:'👾', hp:450, spd:0.28, rwd:180,col:'#8800cc', fly:false, sz:17, boss:true },
+  mergeconflict:{ emoji:'🔀', hp:80,  spd:1.0,  rwd:35, col:'#cc00aa', fly:false, sz:12, splits:2 },
+  hotfix:      { emoji:'🩹', hp:60,  spd:1.2,  rwd:25, col:'#ff4488', fly:false, sz:10 },
+  production:  { emoji:'🚨', hp:35,  spd:1.6,  rwd:30, col:'#ff0000', fly:true,  sz:9, disablesTower:true },
+  rollback:    { emoji:'⏪', hp:200, spd:0.4,  rwd:80, col:'#0044cc', fly:false, sz:14, shields:0.5 },
 };
 
-let enemies = [];
-let projectiles = [];
-let particles = [];
-let flyingEnemyCrossTimer = 0; // for Hot Take crossing events
-
-// ── WAVES ────────────────────────────────────────────────────
+// ── WAVE DEFINITIONS ─────────────────────────────────────────
 const WAVES = [
   [{t:'bug',n:8}],
-  [{t:'bug',n:10},{t:'segfault',n:3}],
-  [{t:'bug',n:8},{t:'segfault',n:5},{t:'memleak',n:2}],
-  [{t:'bug',n:12},{t:'segfault',n:6},{t:'memleak',n:3}],
-  [{t:'bug',n:10},{t:'segfault',n:8},{t:'memleak',n:4},{t:'yellingguy',n:1}],
-  [{t:'bug',n:15},{t:'segfault',n:8},{t:'memleak',n:5},{t:'hottake',n:2}],
-  [{t:'bug',n:10},{t:'segfault',n:10},{t:'memleak',n:5},{t:'hottake',n:3},{t:'yellingguy',n:1}],
-  [{t:'bug',n:20},{t:'segfault',n:12},{t:'memleak',n:6},{t:'hottake',n:4},{t:'yellingguy',n:2}],
-  [{t:'bug',n:15},{t:'segfault',n:15},{t:'memleak',n:8},{t:'hottake',n:5},{t:'yellingguy',n:3}],
-  [{t:'bug',n:10},{t:'segfault',n:10},{t:'memleak',n:8},{t:'hottake',n:6},{t:'yellingguy',n:3},{t:'scopecreep',n:1}],
+  [{t:'bug',n:8},{t:'segfault',n:4}],
+  [{t:'bug',n:10},{t:'segfault',n:6},{t:'memleak',n:2}],
+  [{t:'bug',n:8},{t:'segfault',n:8},{t:'memleak',n:3},{t:'hotfix',n:2}],
+  [{t:'bug',n:6},{t:'segfault',n:6},{t:'memleak',n:4},{t:'yellingguy',n:1}],           // wave 5 = boss
+  [{t:'bug',n:12},{t:'segfault',n:8},{t:'hottake',n:3}],
+  [{t:'bug',n:10},{t:'segfault',n:10},{t:'memleak',n:5},{t:'yellingguy',n:2},{t:'hotfix',n:3}],
+  [{t:'segfault',n:15},{t:'memleak',n:6},{t:'hottake',n:5},{t:'hotfix',n:4}],           // wave 8
+  [{t:'bug',n:12},{t:'segfault',n:12},{t:'memleak',n:6},{t:'yellingguy',n:3},{t:'rollback',n:2}],
+  [{t:'bug',n:8},{t:'segfault',n:8},{t:'memleak',n:5},{t:'yellingguy',n:2},{t:'scopecreep',n:1}], // wave 10 = boss
+  [{t:'segfault',n:18},{t:'hottake',n:8},{t:'production',n:4},{t:'hotfix',n:6}],
+  [{t:'memleak',n:10},{t:'yellingguy',n:4},{t:'rollback',n:4},{t:'mergeconflict',n:3}],
+  [{t:'segfault',n:20},{t:'hottake',n:10},{t:'production',n:6},{t:'hotfix',n:8}],         // wave 13
+  [{t:'yellingguy',n:6},{t:'rollback',n:6},{t:'mergeconflict',n:5},{t:'production',n:8},{t:'scopecreep',n:1}], // wave 14 = boss
+  [{t:'bug',n:20},{t:'segfault',n:20},{t:'memleak',n:15},{t:'hottake',n:12},{t:'production',n:8},{t:'scopecreep',n:2}], // wave 15 = final
 ];
-
-let waveIndex = -1;
-let waveEnemiesLeft = 0;
-let waveSpawnQueue = [];
-let waveSpawnTimer = 0;
-let waveStarted = false;
-let betweenWaves = true;
 
 // ── RANDOM EVENTS ─────────────────────────────────────────────
 const EVENTS = [
-  { name:'Code Review Attack', voiceKey:'codeReview', teamText:'Team passive aggressive, thanks so much.',
-    apply: () => {
-      const active = towers.filter(t => t.def.canHitFlying || t.def.slows);
-      if (active.length > 0) {
-        const t = active[Math.floor(Math.random() * active.length)];
-        t.disabled = 5;
-      }
-      overlays.push({ text:'⚠️ CODE REVIEW ATTACK!', sub:'A tower is blocked!', color:'#FF9800', life:3, y:H/2 });
+  {
+    name:'Code Review Attack',
+    desc:'One tower gets blocked!',
+    color:'#ff9900',
+    async apply() {
+      const active = towers.filter(t => !t.def.isBT && !t.def.heals);
+      if (active.length === 0) return;
+      const t = active[Math.floor(Math.random() * active.length)];
+      t.disabled = 4;
+      addOverlay({text:'⚠️ CODE REVIEW ATTACK', sub:`${t.def.name} blocked!`, color:'#ff9900', life:2.5, y:GAME_H*0.4});
+      teamSignOff();
     }
   },
-  { name:'Passive-Aggressive Comment', voiceKey:'event', teamText:'Team passive aggressive, thanks so much.',
-    apply: () => {
-      enemySpeedMult = 1.3;
-      setTimeout(() => enemySpeedMult = 1.0, 6000);
-      overlays.push({ text:'😤 PASSIVE-AGGRESSIVE COMMENT', sub:'All enemies speed up!', color:'#FF9800', life:3, y:H/2 });
+  {
+    name:'Passive-Aggressive Slack',
+    desc:'Enemies speed up!',
+    color:'#ff6644',
+    async apply() {
+      enemySpeedMult = 1.4;
+      setTimeout(() => enemySpeedMult = 1.0, 7000);
+      addOverlay({text:'😤 PASSIVE-AGGRESSIVE SLACK', sub:'Enemies SPEED UP!', color:'#ff6644', life:2.5, y:GAME_H*0.4});
+      teamSignOff();
     }
   },
-  { name:'Hot Take on Slack', voiceKey:'hotTake', teamText:'Team Slack thread, thanks so much.',
-    apply: () => {
-      spawnFlyingCrossers(3);
-      overlays.push({ text:'🔥 HOT TAKE ON SLACK', sub:'Flying enemies incoming!', color:'#FF6600', life:3, y:H/2 });
+  {
+    name:'All Hands Meeting',
+    desc:'Enemies slow down!',
+    color:'#44aaff',
+    async apply() {
+      enemySpeedMult = 0.6;
+      setTimeout(() => enemySpeedMult = 1.0, 5000);
+      addOverlay({text:'📋 ALL HANDS MEETING', sub:'Enemies slow down!', color:'#44aaff', life:2.5, y:GAME_H*0.4});
+      teamSignOff();
     }
   },
-  { name:'Scope Creep Incoming', voiceKey:'scopeCreep', teamText:'Team infinite sprint, thanks so much.',
-    apply: () => {
-      credits += Math.floor(credits * 0.1);
-      overlays.push({ text:'👾 SCOPE CREEP!', sub:'+10% credits!', color:'#8800CC', life:3, y:H/2 });
+  {
+    name:'Tech Debt Day',
+    desc:'Free credits!',
+    color:'#ffcc00',
+    async apply() {
+      const bonus = Math.floor(50 + credits * 0.08);
+      credits += bonus;
+      addOverlay({text:'💰 TECH DEBT DAY', sub:`+${bonus} credits!`, color:'#ffcc00', life:2.5, y:GAME_H*0.4});
+      teamSignOff();
     }
   },
-  { name:'Production Incident', voiceKey:'prodIncident', teamText:'Team standup, thanks so much.',
-    apply: () => {
-      towers.forEach(t => t.disabled = (t.disabled||0) + 3);
-      overlays.push({ text:'🚨 PRODUCTION INCIDENT!', sub:'All towers paused!', color:'#FF0000', life:3, y:H/2 });
+  {
+    name:'Production Incident',
+    desc:'All towers pause briefly!',
+    color:'#ff2244',
+    async apply() {
+      towers.forEach(t => { if (!t.def.isBT) t.disabled = (t.disabled||0) + 2; });
+      addOverlay({text:'🚨 PRODUCTION INCIDENT!', sub:'All towers stunned!', color:'#ff2244', life:2.5, y:GAME_H*0.4});
+      triggerCEOShoutout('lbDamaged');
+      teamSignOff();
+    }
+  },
+  {
+    name:'Scope Creep',
+    desc:'Next enemies get bigger!',
+    color:'#aa44ff',
+    async apply() {
+      nextWaveSizeMult = 1.5;
+      setTimeout(() => nextWaveSizeMult = 1.0, 10000);
+      addOverlay({text:'👾 SCOPE CREEP!', sub:'Next wave is STRONGER!', color:'#aa44ff', life:2.5, y:GAME_H*0.4});
+      triggerCEOShoutout('bigKill');
+      teamSignOff();
+    }
+  },
+  {
+    name:'Free Sprint',
+    desc:'Double credits this wave!',
+    color:'#00ffcc',
+    async apply() {
+      waveCreditsMult = 2.0;
+      setTimeout(() => waveCreditsMult = 1.0, 8000);
+      addOverlay({text:'⚡ FREE SPRINT!', sub:'2x credits this wave!', color:'#00ffcc', life:2.5, y:GAME_H*0.4});
+      teamSignOff();
+    }
+  },
+  {
+    name:'Crunch Time',
+    desc:'Towers attack 50% faster!',
+    color:'#ff4488',
+    async apply() {
+      towerRateMult = 1.5;
+      setTimeout(() => towerRateMult = 1.0, 6000);
+      addOverlay({text:'😫 CRUNCH TIME!', sub:'Towers +50% speed!', color:'#ff4488', life:2.5, y:GAME_H*0.4});
+      triggerCEOShoutout('bigKill');
+      teamSignOff();
     }
   },
 ];
 
-let nextEventTimer = 0;
-let enemySpeedMult = 1.0;
-
-// ── CREDITS / MONEY ───────────────────────────────────────────
+// ── GAME STATE ─────────────────────────────────────────────────
+const STATE = { TITLE:0, PLAYING:1, WAVE_END:2, WIN:3, LOSE:4, PAUSED:5, TOWER_INFO:6 };
+let state = STATE.TITLE;
+let lbHP = 400, lbMaxHP = 400;
 let credits = 200;
+let score = 0;
+let towers = [];
+let enemies = [];
+let projectiles = [];
+let particles = [];
+let overlays = [];     // center screen overlays
+let floatingTexts = []; // small floating +credits etc
+let screenShake = 0;
+let waveCreditsMult = 1.0;
+let nextWaveSizeMult = 1.0;
+let enemySpeedMult = 1.0;
+let towerRateMult = 1.0;
+let waveIndex = -1;
+let waveQueue = [];
+let waveSpawnTimer = 0;
+let waveStarted = false;
+let betweenWaves = true;
+let nextEventTimer = 0;
+let eventPending = false;
+let btPairMode = false;
+let btPairSrc = null;
+let pairings = []; // [{from, to}]
+let selectedTower = null; // clicked tower for info panel
+let bossActive = false;
 
-// ── HUD ───────────────────────────────────────────────────────
-let selectedButton = null; // tower shop button index
-let hoveredButton = null;
-let clickedTowerIdx = null; // for range display
+// Lord Bluetooth anim state
+let lbPhase = 0;
+let lbDmgFlash = 0;
+let lbIdleTimer = 0;
+let lbTalkBubble = null;
 
-// ── TEXT OVERLAYS ─────────────────────────────────────────────
-let textOverlays = [];
-function addTeamText() {
-  const t = TEAM_TEXTS[Math.floor(Math.random() * TEAM_TEXTS.length)];
-  textOverlays.push({ text: t, y: HUD_Y - 40, alpha: 1.0, vy: -0.5, life: 3 });
-}
+// Touch state
+let touchStart = null;
+let isSwiping = false;
+let swipeStart = null;
+let cameraX = 0, cameraY = 0; // for potential pan
 
-// ── EVENT OVERLAYS ────────────────────────────────────────────
-let overlays = [];
-
-// ── PARTICLES ─────────────────────────────────────────────────
-function spawnParticles(x, y, color, n=8) {
-  for (let i = 0; i < n; i++) {
-    const ang = Math.random() * Math.PI * 2;
-    const spd = 1 + Math.random() * 3;
-    particles.push({ x, y, vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd, life:0.6+Math.random()*0.4, color, r:2+Math.random()*3 });
-  }
-}
-
-// ── SPAWN ─────────────────────────────────────────────────────
-function spawnEnemy(type, crossY=null) {
-  const def = ENEMY_DEFS[type];
-  const startPt = PATH_PIXELS[0];
-  // For flying crossers, start from edge
-  let x, y;
-  if (crossY !== null) {
-    x = -30;
-    y = crossY;
-  } else {
-    x = startPt.x;
-    y = startPt.y;
-  }
-  const hp = def.hp;
-  enemies.push({
-    type, emoji: def.emoji,
-    x, y,
-    hp, maxHp: hp,
-    speed: def.speed,
-    reward: def.reward,
-    color: def.color,
-    flying: def.flying,
-    pathIdx: 0,
-    slowMult: 1.0,
-    scale: 1.0,
-    crossY,
-    baseSpeed: def.speed,
-    memleakGrowth: type === 'memleak' ? 1.02 : 1.0,
-    dead: false,
-    reachedLB: false,
-  });
-}
-
-function spawnFlyingCrossers(n) {
-  for (let i = 0; i < n; i++) {
-    const y = 50 + Math.random() * (GAME_H - 100);
-    spawnEnemy('hottake', y);
-  }
-}
-
-// ── WAVE MANAGEMENT ────────────────────────────────────────────
-function startWave(idx) {
-  if (idx >= WAVES.length) { winGame(); return; }
-  waveIndex = idx;
-  waveSpawnQueue = [];
-  for (const grp of WAVES[idx]) {
-    for (let i = 0; i < grp.n; i++) waveSpawnQueue.push(grp.t);
-  }
-  // Shuffle
-  for (let i = waveSpawnQueue.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i+1));
-    [waveSpawnQueue[i], waveSpawnQueue[j]] = [waveSpawnQueue[j], waveSpawnQueue[i]];
-  }
-  waveEnemiesLeft = waveSpawnQueue.length;
-  waveSpawnTimer = 0;
-  waveStarted = true;
-  betweenWaves = false;
-  nextEventTimer = 15 + Math.random() * 10;
-  playVoice('waveStart');
-  addTeamText();
-}
-
-function checkWaveComplete() {
-  if (!waveStarted) return;
-  if (waveSpawnQueue.length === 0 && enemies.length === 0) {
-    waveStarted = false;
-    betweenWaves = true;
-    if (waveIndex >= WAVES.length - 1) {
-      winGame();
-    } else {
-      state = STATE.WAVE_COMPLETE;
-    }
-  }
-}
-
-function winGame() {
-  state = STATE.WIN;
-  playVoice('win');
-  addTeamText();
-  synthWin();
-  saveHighScore();
-}
-
-function loseGame() {
-  state = STATE.LOSE;
-  playVoice('lose');
-  addTeamText();
-  synthLose();
-  saveHighScore();
-}
-
-// ── HIGH SCORE ────────────────────────────────────────────────
-function saveHighScore() {
-  const score = waveIndex * 100 + Math.max(0, lbHP);
-  const prev = parseInt(localStorage.getItem('lbtd_highscore') || '0');
-  if (score > prev) localStorage.setItem('lbtd_highscore', score);
-}
-function getHighScore() { return parseInt(localStorage.getItem('lbtd_highscore') || '0'); }
-
-// ── INIT ──────────────────────────────────────────────────────
+// ── INIT ───────────────────────────────────────────────────────
 function initGame() {
-  lbHP = 500; lbMaxHP = 500;
-  lbDamagedFlash = 0;
-  lbHealRate = 0;
+  lbHP = 400; lbMaxHP = 400;
+  lbDmgFlash = 0;
+  lbPhase = 0;
+  lbIdleTimer = 0;
+  lbTalkBubble = null;
   towers = [];
   enemies = [];
   projectiles = [];
   particles = [];
-  textOverlays = [];
   overlays = [];
+  floatingTexts = [];
+  screenShake = 0;
+  waveCreditsMult = 1.0;
+  nextWaveSizeMult = 1.0;
+  enemySpeedMult = 1.0;
+  towerRateMult = 1.0;
   waveIndex = -1;
+  waveQueue = [];
+  waveSpawnTimer = 0;
   waveStarted = false;
   betweenWaves = true;
   credits = 200;
-  selectedTowerType = null;
-  selectedButton = null;
-  btPairingMode = false;
-  btPairingSrc = null;
+  score = 0;
+  btPairMode = false;
+  btPairSrc = null;
   pairings = [];
-  enemySpeedMult = 1.0;
-  nextEventTimer = 15 + Math.random() * 10;
+  selectedTower = null;
+  bossActive = false;
+  nextEventTimer = 12 + Math.random() * 8;
   state = STATE.PLAYING;
+  lbReact('idle');
   startWave(0);
+}
+
+// ── WAVE MANAGEMENT ─────────────────────────────────────────────
+function startWave(idx) {
+  waveIndex = idx;
+  const isBoss = (idx + 1) % 5 === 0;
+  if (idx >= WAVES.length) { winGame(); return; }
+
+  const waveData = JSON.parse(JSON.stringify(WAVES[idx]));
+  if (nextWaveSizeMult > 1.0) {
+    for (const g of waveData) g.n = Math.ceil(g.n * nextWaveSizeMult);
+  }
+  waveQueue = [];
+  for (const grp of waveData) {
+    for (let i = 0; i < grp.n; i++) waveQueue.push(grp.t);
+  }
+  // Shuffle
+  for (let i = waveQueue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [waveQueue[i], waveQueue[j]] = [waveQueue[j], waveQueue[i]];
+  }
+
+  // Boss spawn delay
+  if (isBoss) {
+    bossActive = true;
+    lbReact('bossSpawn', true);
+    synthBoss();
+    triggerCEOShoutout('bossDefeated');
+  } else {
+    bossActive = false;
+  }
+
+  waveSpawnTimer = 1.0;
+  waveStarted = true;
+  betweenWaves = false;
+  nextEventTimer = 18 + Math.random() * 12;
+  waveCreditsMult = 1.0;
+  synthWave();
+  lbReact('waveStart');
+  playVoice('boz','waveStart').catch(()=>{});
+  teamSignOff(true);
+}
+
+function checkWaveDone() {
+  if (!waveStarted) return;
+  if (waveQueue.length === 0 && enemies.length === 0) {
+    waveStarted = false;
+    betweenWaves = true;
+    bossActive = false;
+    score += (waveIndex + 1) * 50 * waveCreditsMult;
+    lbReact('waveComplete');
+    triggerCEOShoutout('waveComplete');
+    teamSignOff();
+    if (waveIndex >= WAVES.length - 1) {
+      winGame();
+    } else {
+      state = STATE.WAVE_END;
+    }
+  }
+}
+
+function winGame()  { state = STATE.WIN;  lbReact('win'); synthWin(); triggerCEOShoutout('waveComplete'); teamSignOff(); saveScore(); }
+function loseGame() { state = STATE.LOSE; lbReact('lose'); synthLose(); triggerCEOShoutout('lbDamaged'); teamSignOff(); saveScore(); }
+
+function saveScore() {
+  const prev = parseInt(localStorage.getItem('lbtdscore') || '0');
+  if (score > prev) localStorage.setItem('lbtdscore', score);
+}
+
+// ── ENEMY SPAWN ────────────────────────────────────────────────
+function spawnEnemy(type, startPt=null) {
+  const def = ENEMY_DEFS[type];
+  if (!def) return;
+  const sp = startPt || PATH_PIXELS[0];
+  const hp = def.hp * (nextWaveSizeMult > 1.0 ? 1.3 : 1.0);
+  enemies.push({
+    type, emoji: def.emoji,
+    x: sp.x, y: sp.y,
+    hp, maxHp: hp,
+    spd: def.spd, baseSpd: def.spd,
+    rwd: def.rwd,
+    col: def.col,
+    sz: def.sz,
+    fly: def.fly,
+    pathIdx: 0,
+    slowMult: 1.0,
+    stunTimer: 0,
+    dead: false,
+    reached: false,
+    scale: 1.0,
+    grows: def.grows || false,
+    spawnsMini: def.spawnsMini || 0,
+    splits: def.splits || 0,
+    disablesTower: def.disablesTower || false,
+    shield: 0,
+  });
 }
 
 // ── UPDATE ────────────────────────────────────────────────────
 let lastTime = 0;
-let pauseTimer = 0;
 
 function update(dt) {
   if (state === STATE.TITLE || state === STATE.WIN || state === STATE.LOSE) return;
-  if (state === STATE.PAUSED) { pauseTimer += dt; return; }
+  if (state === STATE.PAUSED) return;
+
+  dt = Math.min(dt, 0.05);
 
   // Architect healing
-  let architectHeal = 0;
+  let healRate = 0;
   for (const t of towers) {
-    if (t.def.heals && !t.disabled) architectHeal += t.def.heals;
+    if (t.def.heals && !t.disabled) healRate += t.def.heals * (t.level||0);
   }
-  lbHP = Math.min(lbMaxHP, lbHP + architectHeal * dt);
+  lbHP = Math.min(lbMaxHP, lbHP + healRate * dt);
 
-  // Spawn enemies
-  if (waveStarted && waveSpawnQueue.length > 0) {
+  // Spawn
+  if (waveStarted && waveQueue.length > 0) {
     waveSpawnTimer -= dt;
     if (waveSpawnTimer <= 0) {
-      spawnEnemy(waveSpawnQueue.shift());
-      waveSpawnTimer = 0.6 + Math.random() * 0.4;
+      spawnEnemy(waveQueue.shift());
+      waveSpawnTimer = 0.45 + Math.random() * 0.3;
     }
   }
 
-  // Flying crossers (move horizontally)
+  // Enemies move
   for (const e of enemies) {
-    if (e.crossY !== null) {
-      e.x += e.speed * 60 * dt;
-      if (e.x > W + 50) e.dead = true;
-      // Check if reached LB (rare case)
-      const dx = e.x - LB_X, dy = e.y - LB_Y;
-      if (Math.sqrt(dx*dx+dy*dy) < 30) {
-        lbHP -= Math.ceil(e.maxHp / 3);
-        lbDamagedFlash = 0.5;
-        e.dead = true;
-        synthLBDmg();
-        playVoice('lbDamaged');
-        if (lbHP <= 0) { lbHP = 0; loseGame(); return; }
-      }
-      continue;
-    }
-  }
+    if (e.dead) continue;
+    if (e.stunTimer > 0) { e.stunTimer -= dt; continue; }
 
-  // Enemy movement
-  for (const e of enemies) {
-    if (e.dead || e.crossY !== null) continue;
-
-    // Slow effect
+    // Slow from reviewers
     let slowed = false;
     for (const t of towers) {
       if (t.def.slows && !t.disabled) {
@@ -480,375 +759,586 @@ function update(dt) {
         if (Math.sqrt(dx*dx+dy*dy) <= t.def.range) { slowed = true; break; }
       }
     }
-    e.slowMult = slowed ? 0.6 : 1.0;
+    e.slowMult = slowed ? 0.55 : 1.0;
 
     // Memory leak growth
-    if (e.memleakGrowth > 1.0) {
-      e.maxHp = Math.ceil(e.maxHp * 1.02 * dt + e.maxHp * (1 - 1.02*dt));
-      e.maxHp = Math.ceil(e.maxHp * e.memleakGrowth * dt + e.maxHp * (1 - e.memleakGrowth * dt));
-      e.maxHp = Math.ceil(e.maxHp + e.maxHp * 0.02 * dt);
+    if (e.grows) {
+      const grow = 1 + 0.015 * dt * 60;
+      e.maxHp = Math.ceil(e.maxHp * grow);
       e.hp = Math.min(e.hp, e.maxHp);
+      e.scale = Math.min(2.5, e.scale + 0.003 * dt * 60);
     }
 
-    // Move along path
+    // Move toward next path pixel
     const target = PATH_PIXELS[e.pathIdx];
     if (!target) {
-      // Reached end — go to LB
+      // Reached end
       const dx = LB_X - e.x, dy = LB_Y - e.y;
       const dist = Math.sqrt(dx*dx+dy*dy);
-      if (dist < 2) {
-        e.reachedLB = true;
-        lbHP -= Math.ceil(e.maxHp / 3);
-        lbDamagedFlash = 0.5;
-        e.dead = true;
+      if (dist < 20) {
+        e.reached = true;
+        let dmg = Math.ceil(e.maxHp * 0.25);
+        if (e.shield > 0) dmg = Math.ceil(dmg * (1 - e.shield));
+        lbHP -= dmg;
+        lbDmgFlash = 0.6;
+        screenShake = Math.max(screenShake, 0.3);
+        spawnParticles(LB_X, LB_Y, '#ff0000', 20);
         synthLBDmg();
-        playVoice('lbDamaged');
+        lbReact('damaged', true);
+        triggerCEOShoutout('lbDamaged');
         if (lbHP <= 0) { lbHP = 0; loseGame(); return; }
+        e.dead = true;
       } else {
-        const spd = e.speed * e.slowMult * enemySpeedMult * 60 * dt;
+        const spd = e.spd * e.slowMult * enemySpeedMult * 55 * dt;
         e.x += (dx/dist) * spd;
         e.y += (dy/dist) * spd;
       }
       continue;
     }
+
     const dx = target.x - e.x, dy = target.y - e.y;
     const dist = Math.sqrt(dx*dx+dy*dy);
-    const spd = e.speed * e.slowMult * enemySpeedMult * 60 * dt;
+    const spd = e.spd * e.slowMult * enemySpeedMult * 55 * dt;
     if (dist <= spd + 2) {
+      e.x = target.x; e.y = target.y;
       e.pathIdx++;
-      if (e.pathIdx >= PATH_PIXELS.length) {
-        e.pathIdx = PATH_PIXELS.length - 1;
-      }
+      if (e.pathIdx >= PATH_PIXELS.length) e.pathIdx = PATH_PIXELS.length - 1;
     } else {
       e.x += (dx/dist) * spd;
       e.y += (dy/dist) * spd;
     }
   }
 
-  // Tower attacks
+  // Towers attack
   for (const t of towers) {
     if (t.disabled > 0) { t.disabled -= dt; continue; }
-    if (t.def.dmg === 0 && !t.def.slows && !t.def.heals) continue;
-    if (t.def.isBT) continue; // Bluetooth nodes don't attack
+    if (t.def.dmg === 0 && !t.def.slows && !t.def.heals && !t.def.isBT && !t.def.buffs) continue;
 
-    t.fireCooldown -= dt;
-    // Apply pairing fire rate boost
-    let rateMult = 1.0;
+    // Find paired buff
+    let rateBonus = 1.0, dmgBonus = 1.0;
     for (const p of pairings) {
-      if (p.to === towers.indexOf(t)) rateMult = 1.5;
+      const otherIdx = p.from === t._idx ? p.to : p.from;
+      if (otherIdx === t._idx) continue;
+      const other = towers.find((_,i) => i === otherIdx);
+      if (other && other.def.isBT && !other.disabled) {
+        const buffMult = other.def.buff || 1.4;
+        rateBonus *= buffMult > 1.0 ? buffMult : 1.0;
+        dmgBonus  *= buffMult > 1.0 ? (buffMult - 0.3) : 1.0;
+      }
     }
+    rateBonus *= towerRateMult;
 
-    if (t.fireCooldown <= 0) {
-      // Find target
-      let best = null, bestDist = Infinity;
-      for (const e of enemies) {
-        if (e.dead || e.crossY !== null) continue;
-        if (e.flying && !t.def.canHitFlying) continue;
-        if (t.def.bugsOnly && e.type !== 'bug') continue;
-        const dx = e.x - t.x, dy = e.y - t.y;
-        const d = Math.sqrt(dx*dx+dy*dy);
-        if (d <= t.def.range && d < bestDist) { best = e; bestDist = d; }
+    t._cooldown = Math.max(0, (t._cooldown||0) - dt);
+
+    if (t._cooldown <= 0 && t.def.dmg > 0) {
+      // QA stun tower has special targeting
+      let targets = enemies.filter(e => !e.dead && !e.reached && (t.def.canFly || !e.fly));
+      if (t.def.stunDur) {
+        targets = targets.filter(e => e.stunTimer <= 0);
       }
-      if (best) {
-        const dmg = t.def.dmg;
-        projectiles.push({ x:t.x, y:t.y, tx:best.x, ty:best.y, target:best, dmg, color:t.def.color, life:0.5 });
-        synthShoot();
-        t.fireCooldown = t.def.rate / rateMult;
+      if (t.def.aoe) {
+        // AoE: find nearest enemy, damage all in radius
+        let nearest = null, nearDist = Infinity;
+        for (const e of targets) {
+          const dx = e.x - t.x, dy = e.y - t.y;
+          const d = Math.sqrt(dx*dx+dy*dy);
+          if (d <= t.def.range && d < nearDist) { nearest = e; nearDist = d; }
+        }
+        if (nearest) {
+          const aoeR = t.def.aoe * (t.level >= 1 ? 1.2 : 1);
+          for (const e of targets) {
+            const dx = e.x - nearest.x, dy = e.y - nearest.y;
+            if (Math.sqrt(dx*dx+dy*dy) <= aoeR) {
+              const finalDmg = Math.ceil(t.def.dmg * dmgBonus * (t.level+1));
+              e.hp -= finalDmg;
+              if (t.def.stunDur) e.stunTimer = t.def.stunDur * (t.level >= 1 ? 1.3 : 1);
+              spawnParticles(e.x, e.y, t.def.color, 3);
+            }
+          }
+          projectiles.push({ x:t.x, y:t.y, tx:nearest.x, ty:nearest.y, life:0.3, col:t.def.color, isAoE:true });
+          synthShoot();
+        }
       } else {
-        t.fireCooldown = 0.1;
+        let best = null, bestDist = Infinity;
+        for (const e of targets) {
+          const dx = e.x - t.x, dy = e.y - t.y;
+          const d = Math.sqrt(dx*dx+dy*dy);
+          if (d <= t.def.range && d < bestDist) { best = e; bestDist = d; }
+        }
+        if (best) {
+          const finalDmg = Math.ceil(t.def.dmg * dmgBonus * (t.level+1));
+          best.hp -= finalDmg;
+          if (t.def.stunDur) best.stunTimer = t.def.stunDur * (t.level >= 1 ? 1.3 : 1);
+          projectiles.push({ x:t.x, y:t.y, tx:best.x, ty:best.y, target:best, life:0.35, col:t.def.color });
+          spawnParticles(best.x, best.y, t.def.color, 2);
+          synthShoot();
+        }
       }
+      const baseRate = t.def.rate || 0.5;
+      t._cooldown = baseRate / rateBonus;
     }
   }
 
   // Projectiles
   for (const p of projectiles) {
+    p.life -= dt;
+    if (!p.isAoE && p.target && !p.target.dead) {
+      p.tx = p.target.x; p.ty = p.target.y;
+    }
     const dx = p.tx - p.x, dy = p.ty - p.y;
     const dist = Math.sqrt(dx*dx+dy*dy);
-    const spd = 400 * dt;
-    if (dist < spd + 4) {
-      // Hit
-      if (p.target && !p.target.dead) {
-        p.target.hp -= p.dmg;
-        spawnParticles(p.tx, p.ty, p.color, 4);
-        synthHit();
-        if (p.target.hp <= 0) {
-          killEnemy(p.target);
-        }
+    const spd = 380 * dt;
+    if (dist < spd + 5 || p.life <= 0) {
+      if (!p.isAoE && p.target && !p.target.dead) {
+        p.target.hp -= p.target.hp; // already applied direct
       }
       p.life = 0;
     } else {
-      p.x += (dx/dist) * spd;
-      p.y += (dy/dist) * spd;
+      e.x = p.x + (dx/dist)*spd; // no — update projectile
+      p.x += (dx/dist)*spd; p.y += (dy/dist)*spd;
     }
-    p.life -= dt;
   }
   projectiles = projectiles.filter(p => p.life > 0);
 
-  // Remove dead enemies that reached LB or were killed
+  // Kill check & death effects
   for (const e of enemies) {
-    if (e.dead && !e.reachedLB) continue;
+    if (e.dead || e.reached) continue;
+    if (e.hp <= 0) {
+      killEnemy(e);
+    }
   }
-  enemies = enemies.filter(e => !e.dead);
+
+  // Remove dead/reached
+  enemies = enemies.filter(e => !e.dead && !e.reached);
 
   // Particles
   for (const p of particles) {
-    p.x += p.vx; p.y += p.vy;
-    p.vy += 0.1;
+    p.x += p.vx; p.y += p.vy; p.vy += 0.08;
     p.life -= dt;
   }
   particles = particles.filter(p => p.life > 0);
 
-  // Text overlays
-  for (const o of textOverlays) {
-    o.y += o.vy;
-    o.life -= dt;
-    if (o.life < 0.5) o.alpha = Math.max(0, o.life / 0.5);
+  // Floating texts
+  for (const ft of floatingTexts) {
+    ft.y -= 25 * dt;
+    ft.life -= dt;
+    ft.alpha = Math.max(0, ft.life / 0.8);
   }
-  textOverlays = textOverlays.filter(o => o.life > 0);
+  floatingTexts = floatingTexts.filter(ft => ft.life > 0);
 
-  // Event overlays
-  for (const o of overlays) {
-    o.life -= dt;
-  }
+  // Overlays
+  for (const o of overlays) { o.life -= dt; }
   overlays = overlays.filter(o => o.life > 0);
 
-  // Lord Bluetooth ring animation
-  lbRingPhase += dt * 2;
-  lbDamagedFlash = Math.max(0, lbDamagedFlash - dt);
+  // Lord Bluetooth anim
+  lbPhase += dt * 1.8;
+  lbDmgFlash = Math.max(0, lbDmgFlash - dt * 2);
+  lbIdleTimer += dt;
+  if (lbIdleTimer > 8) { lbIdleTimer = 0; lbReact('idle'); }
+  if (lbTalkBubble) { lbTalkBubble.life -= dt; if (lbTalkBubble.life <= 0) lbTalkBubble = null; }
 
   // Random events
   if (waveStarted && !betweenWaves) {
     nextEventTimer -= dt;
     if (nextEventTimer <= 0) {
       const ev = EVENTS[Math.floor(Math.random() * EVENTS.length)];
-      ev.apply();
-      playVoice(ev.voiceKey);
-      addTeamText();
-      nextEventTimer = 15 + Math.random() * 10;
+      ev.apply().catch(()=>{});
+      playVoice('boz','event').catch(()=>{});
+      nextEventTimer = 18 + Math.random() * 12;
     }
-  }
-
-  // Wave complete state — wait for input
-  if (state === STATE.WAVE_COMPLETE) {
-    // waiting for 'N' key
   }
 }
 
 function killEnemy(e) {
   e.dead = true;
-  credits += e.reward;
-  spawnParticles(e.x, e.y, e.color, 12);
+  const reward = Math.ceil(e.rwd * waveCreditsMult);
+  credits += reward;
+  score += reward;
+  spawnParticles(e.x, e.y, e.col, 14);
   synthKill();
-  playVoice('enemyKilled');
+  addFloating(`+${reward}`, e.x, e.y - 15, '#ffdd00');
 
-  // Yelling Guy spawns mini-bugs
-  if (e.type === 'yellingguy') {
-    for (let i = 0; i < 2; i++) {
+  if (e.spawnsMini > 0) {
+    for (let i = 0; i < e.spawnsMini; i++) {
       enemies.push({
         type:'bug', emoji:'🐛',
-        x: e.x + (Math.random()-0.5)*20, y: e.y + (Math.random()-0.5)*20,
-        hp:10, maxHp:10,
-        speed:1.5, reward:0, color:'#8B4513', flying:false,
-        pathIdx: e.pathIdx, slowMult:1.0, scale:0.7,
-        memleakGrowth:1.0, dead:false, reachedLB:false, baseSpeed:1.5,
+        x: e.x + (Math.random()-0.5)*18, y: e.y + (Math.random()-0.5)*18,
+        hp:10, maxHp:10, spd:1.5, baseSpd:1.5, rwd:0, col:'#8B6914', sz:7,
+        fly:false, pathIdx:e.pathIdx, slowMult:1, stunTimer:0,
+        dead:false, reached:false, scale:0.7, grows:false, spawnsMini:0, splits:0,
+        disablesTower:false, shield:0,
       });
     }
-    playVoice('yellingGuy');
+    playVoice('steve','bigKill').catch(()=>{});
+    triggerCEOShoutout('bigKill');
   }
 
-  // Scope Creep grows
-  if (e.type === 'scopecreep') {
-    // Already killed — don't regrow
+  if (e.splits > 0) {
+    for (let i = 0; i < e.splits; i++) {
+      const hp = Math.ceil(e.maxHp * 0.45);
+      enemies.push({
+        type:'bug', emoji:'🐛',
+        x: e.x + (Math.random()-0.5)*14, y: e.y + (Math.random()-0.5)*14,
+        hp, maxHp:hp, spd:1.3, baseSpd:1.3, rwd:0, col:'#cc00aa', sz:9,
+        fly:false, pathIdx:e.pathIdx, slowMult:1, stunTimer:0,
+        dead:false, reached:false, scale:1, grows:false, spawnsMini:0, splits:0,
+        disablesTower:false, shield:0,
+      });
+    }
   }
 
-  waveEnemiesLeft = Math.max(0, waveEnemiesLeft - 1);
-  checkWaveComplete();
+  if (e.disablesTower) {
+    const active = towers.filter(t => !t.def.isBT && !t.def.heals && !t.disabled);
+    if (active.length > 0) {
+      const t = active[Math.floor(Math.random() * active.length)];
+      t.disabled = 3;
+      addOverlay({text:'🚨 PRODUCTION INCIDENT', sub:`${t.def.name} offline!`, color:'#ff2244', life:2, y:GAME_H*0.42});
+    }
+    playVoice('elon','meme').catch(()=>{});
+  }
+
+  // Shield: Rollback shields nearby
+  if (e.shield > 0) {
+    for (const other of enemies) {
+      if (!other.dead && other !== e) {
+        const dx = other.x - e.x, dy = other.y - e.y;
+        if (Math.sqrt(dx*dx+dy*dy) < 80) {
+          other.shield = Math.max(other.shield, e.shield);
+        }
+      }
+    }
+  }
+
+  const isBossKill = ENEMY_DEFS[e.type] && ENEMY_DEFS[e.type].boss;
+  if (isBossKill || e.type === 'scopecreep') {
+    triggerCEOShoutout('bossDefeated');
+    teamSignOff();
+    screenShake = Math.max(screenShake, 0.5);
+  } else if (Math.random() < 0.12) {
+    triggerCEOShoutout('bigKill');
+  } else if (Math.random() < 0.2) {
+    teamSignOff(true);
+  }
+
+  waveQueue.length = Math.max(0, waveQueue.length - 1);
+  checkWaveDone();
 }
 
-// ── DRAWING ───────────────────────────────────────────────────
+function spawnParticles(x, y, col, n=8) {
+  for (let i = 0; i < n; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const spd = 1.5 + Math.random() * 3.5;
+    particles.push({ x, y, vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd, life:0.5+Math.random()*0.5, col, r:2+Math.random()*3 });
+  }
+}
+
+function addFloating(text, x, y, col='#fff') {
+  floatingTexts.push({ text, x, y, col, life:0.8, alpha:1.0 });
+}
+
+function addOverlay({text, sub, color, life, y, style='event'}) {
+  overlays.push({ text, sub, color, life, maxLife: life, y: y || GAME_H*0.38, style });
+}
+
+// ── DRAW ──────────────────────────────────────────────────────
+let t = 0; // global time for animations
+
+function draw() {
+  const W = BASE_W, H = BASE_H;
+  ctx.clearRect(0, 0, W, H);
+
+  // Screen shake
+  let sx = 0, sy = 0;
+  if (screenShake > 0) {
+    sx = (Math.random()-0.5) * screenShake * 12;
+    sy = (Math.random()-0.5) * screenShake * 12;
+    screenShake = Math.max(0, screenShake - 0.03);
+    ctx.save();
+    ctx.translate(sx, sy);
+  }
+
+  if (state === STATE.TITLE) { drawTitle(); ctx.restore(); return; }
+
+  drawBackground();
+  drawPath();
+  drawLordBluetooth();
+  drawTowers();
+  drawEnemies();
+  drawProjectiles();
+  drawParticles();
+  drawFloatingTexts();
+  drawHUD();
+
+  if (state === STATE.WAVE_END) drawWaveEnd();
+  if (state === STATE.WIN)       drawWin();
+  if (state === STATE.LOSE)     drawLose();
+  if (state === STATE.PAUSED)   drawPaused();
+
+  drawOverlays();
+
+  if (screenShake > 0) ctx.restore();
+  t += 0.016;
+}
 
 function drawBackground() {
-  ctx.fillStyle = '#0d0d0d';
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#070712';
+  ctx.fillRect(0, 0, BASE_W, GAME_H);
 
-  // Grid
-  ctx.strokeStyle = 'rgba(30,80,30,0.3)';
+  // Subtle grid
+  ctx.strokeStyle = 'rgba(0,140,180,0.07)';
   ctx.lineWidth = 0.5;
   for (let c = 0; c <= COLS; c++) {
     ctx.beginPath(); ctx.moveTo(c*CELL, 0); ctx.lineTo(c*CELL, GAME_H); ctx.stroke();
   }
   for (let r = 0; r <= ROWS; r++) {
-    ctx.beginPath(); ctx.moveTo(0, r*CELL); ctx.lineTo(W, r*CELL); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, r*CELL); ctx.lineTo(BASE_W, r*CELL); ctx.stroke();
+  }
+
+  // Subtle scanlines
+  ctx.fillStyle = 'rgba(0,0,0,0.08)';
+  for (let y = 0; y < GAME_H; y += 4) {
+    ctx.fillRect(0, y, BASE_W, 1);
   }
 }
 
 function drawPath() {
-  // Draw path cells
-  ctx.fillStyle = 'rgba(0,40,0,0.5)';
+  // Path cells
+  ctx.fillStyle = 'rgba(0,50,20,0.45)';
   for (const cell of PATH_CELLS) {
     const [c,r] = cell.split(',').map(Number);
     ctx.fillRect(c*CELL+1, r*CELL+1, CELL-2, CELL-2);
   }
 
-  // Draw path line
-  ctx.strokeStyle = 'rgba(0,200,0,0.4)';
-  ctx.lineWidth = 3;
-  ctx.setLineDash([8,8]);
+  // Animated dashes along path
+  const dashLen = 12, gapLen = 8;
+  const total = PATH_PIXELS.length;
+  const offset = (t * 25) % (dashLen + gapLen);
+
+  ctx.strokeStyle = 'rgba(0,200,80,0.25)';
+  ctx.lineWidth = 2.5;
+  ctx.setLineDash([dashLen, gapLen]);
+  ctx.lineDashOffset = -offset;
   ctx.beginPath();
   for (let i = 0; i < PATH_PIXELS.length; i++) {
-    if (i === 0) ctx.moveTo(PATH_PIXELS[i].x, PATH_PIXELS[i].y);
-    else ctx.lineTo(PATH_PIXELS[i].x, PATH_PIXELS[i].y);
+    const p = PATH_PIXELS[i];
+    if (i === 0) ctx.moveTo(p.x, p.y);
+    else ctx.lineTo(p.x, p.y);
   }
-  // Last leg to LB
   ctx.lineTo(LB_X, LB_Y);
   ctx.stroke();
   ctx.setLineDash([]);
-
-  // Glow on path
-  ctx.shadowColor = '#00ff00';
-  ctx.shadowBlur = 8;
-  ctx.strokeStyle = 'rgba(0,255,0,0.15)';
-  ctx.lineWidth = 8;
-  ctx.beginPath();
-  for (let i = 0; i < PATH_PIXELS.length; i++) {
-    if (i === 0) ctx.moveTo(PATH_PIXELS[i].x, PATH_PIXELS[i].y);
-    else ctx.lineTo(PATH_PIXELS[i].x, PATH_PIXELS[i].y);
-  }
-  ctx.lineTo(LB_X, LB_Y);
-  ctx.stroke();
-  ctx.shadowBlur = 0;
 }
 
 function drawLordBluetooth() {
   const x = LB_X, y = LB_Y;
+  const R = 22;
 
-  // Animated rings
-  for (let i = 0; i < 3; i++) {
-    const phase = (lbRingPhase + i * 0.7) % (Math.PI * 2);
-    const radius = 20 + phase * 15;
-    const alpha = Math.max(0, 1 - phase / (Math.PI * 2)) * 0.4;
-    ctx.strokeStyle = `rgba(0,150,255,${alpha})`;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.stroke();
+  // Outer glow rings
+  for (let i = 0; i < 4; i++) {
+    const phase = (lbPhase * 0.7 + i * 1.2) % (Math.PI * 2);
+    const r = R + 8 + phase * 8;
+    const alpha = Math.max(0, 1 - phase / (Math.PI * 2)) * 0.35;
+    ctx.strokeStyle = `rgba(0,120,255,${alpha})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.stroke();
   }
 
   // Bluetooth wave arcs
-  const t = Date.now() / 1000;
-  ctx.strokeStyle = 'rgba(0,100,255,0.3)';
-  ctx.lineWidth = 1.5;
-  for (let i = 0; i < 4; i++) {
-    const phase = (t * 2 + i * 0.5) % 2;
-    const r = 10 + phase * 30;
+  ctx.strokeStyle = 'rgba(0,130,255,0.25)';
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < 3; i++) {
+    const phase = (t * 1.8 + i * 0.6) % 2;
+    const r = 8 + phase * 28;
     ctx.globalAlpha = Math.max(0, 1 - phase/2);
     ctx.beginPath();
-    ctx.arc(x, y, r, -Math.PI/4, Math.PI/4);
+    ctx.arc(x, y, r, -Math.PI*0.35, Math.PI*0.35);
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
 
-  // Throne base
-  const grad = ctx.createRadialGradient(x, y, 0, x, y, 28);
-  grad.addColorStop(0, lbDamagedFlash > 0 ? '#ff4444' : '#2244aa');
-  grad.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = grad;
-  ctx.beginPath(); ctx.arc(x, y, 28, 0, Math.PI*2); ctx.fill();
+  // Throne base gradient
+  const dmgCol = lbDmgFlash > 0 ? `rgba(255,${Math.floor(50*lbDmgFlash)},${Math.floor(50*lbDmgFlash)},1)` : null;
+  const baseGrad = ctx.createRadialGradient(x, y-4, 0, x, y, R+6);
+  baseGrad.addColorStop(0, dmgCol || '#2255cc');
+  baseGrad.addColorStop(0.6, dmgCol || '#1133aa');
+  baseGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = baseGrad;
+  ctx.beginPath(); ctx.arc(x, y, R+6, 0, Math.PI*2); ctx.fill();
 
-  // Crown emoji
-  ctx.font = '28px serif';
+  // Crown
+  const crownBob = Math.sin(lbPhase * 0.5) * 2;
+  ctx.font = '26px serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('👑', x, y - 2);
+  ctx.fillText('👑', x, y - 4 + crownBob);
 
-  // HP bar
-  const bw = 80, bh = 10;
-  const bx = x - bw/2, by = y - 42;
-  ctx.fillStyle = '#111';
-  ctx.fillRect(bx-1, by-1, bw+2, bh+2);
+  // Throne body
+  const thGrad = ctx.createRadialGradient(x, y, 0, x, y, 18);
+  thGrad.addColorStop(0, lbDmgFlash > 0 ? '#ff3333' : '#1a3a8a');
+  thGrad.addColorStop(1, lbDmgFlash > 0 ? '#aa0000' : '#0a1555');
+  ctx.fillStyle = thGrad;
+  ctx.beginPath(); ctx.arc(x, y + 6, 16, 0, Math.PI*2); ctx.fill();
+
+  // Throne rings
+  ctx.strokeStyle = lbDmgFlash > 0 ? '#ff4444' : '#00aaff';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(x, y + 6, 16, 0, Math.PI*2); ctx.stroke();
+
+  // HP bar (big and prominent)
+  const bw = 90, bh = 11;
+  const bx = x - bw/2, by = y - R - 14;
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(bx-2, by-2, bw+4, bh+4);
   const hpPct = lbHP / lbMaxHP;
-  const hpColor = hpPct > 0.5 ? '#00aaff' : hpPct > 0.25 ? '#ffaa00' : '#ff0000';
-  ctx.fillStyle = hpColor;
+  const hpCol = hpPct > 0.5 ? '#00ccff' : hpPct > 0.25 ? '#ffaa00' : '#ff2222';
+  ctx.fillStyle = hpCol;
   ctx.fillRect(bx, by, bw * hpPct, bh);
-  ctx.strokeStyle = '#338';
+  // Pulse on low HP
+  if (hpPct < 0.25) {
+    ctx.fillStyle = `rgba(255,0,0,${0.3 + 0.3 * Math.sin(t * 6)})`;
+    ctx.fillRect(bx, by, bw * hpPct, bh);
+  }
+  ctx.strokeStyle = '#224466';
   ctx.lineWidth = 1;
   ctx.strokeRect(bx, by, bw, bh);
-
-  // HP text
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 10px Courier New';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 9px Courier New';
   ctx.textAlign = 'center';
-  ctx.fillText(`${lbHP}/${lbMaxHP}`, x, by - 5);
+  ctx.fillText(`♥ ${lbHP}/${lbMaxHP}`, x, by + bh/2 + 1);
+
+  // Bluetooth logo on throne
+  ctx.strokeStyle = '#00ccff';
+  ctx.lineWidth = 2;
+  const bx2 = x - 7, by2 = y + 2;
+  ctx.beginPath();
+  ctx.moveTo(bx2, by2 - 5); ctx.lineTo(bx2 + 14, by2); ctx.lineTo(bx2, by2 + 5);
+  ctx.moveTo(bx2, by2 - 5); ctx.lineTo(bx2 + 6, by2 - 5); ctx.lineTo(bx2 + 6, by2 + 2);
+  ctx.moveTo(bx2, by2 + 5); ctx.lineTo(bx2 + 6, by2 + 5); ctx.lineTo(bx2 + 6, by2 - 2);
+  ctx.stroke();
+
+  // Lord Bluetooth talk bubble
+  if (lbTalkBubble && lbTalkBubble.life > 0) {
+    const alpha = Math.min(1, lbTalkBubble.life / 0.4);
+    const bw2 = lbTalkBubble.text.length * 5.5 + 20;
+    const bh2 = 22;
+    const bx3 = x - bw2/2, by3 = y - R - 32;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#001122';
+    ctx.strokeStyle = lbTalkBubble.color;
+    ctx.lineWidth = 1.5;
+    roundRect(bx3, by3, bw2, bh2, 6);
+    ctx.fill(); ctx.stroke();
+    // Tail
+    ctx.fillStyle = '#001122';
+    ctx.beginPath();
+    ctx.moveTo(x - 5, by3 + bh2);
+    ctx.lineTo(x + 5, by3 + bh2);
+    ctx.lineTo(x, by3 + bh2 + 7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = lbTalkBubble.color;
+    ctx.font = 'bold 9px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText(lbTalkBubble.text, x, by3 + bh2/2 + 1);
+    ctx.globalAlpha = 1;
+  }
 }
 
 function drawTowers() {
-  for (const t of towers) {
+  towers.forEach((t, i) => {
     const x = t.x, y = t.y;
-    const sz = 36;
+    const sz = CELL - 6;
+    const half = sz / 2;
 
     // Range circle for selected tower
-    if (clickedTowerIdx === towers.indexOf(t)) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    if (selectedTower === i) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)';
       ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(x, y, t.def.range, 0, Math.PI*2); ctx.stroke();
+      const rng = (t.def.range || 80) * (t.level >= 2 ? 1.15 : t.level >= 1 ? 1.08 : 1);
+      ctx.beginPath(); ctx.arc(x, y, rng, 0, Math.PI*2); ctx.stroke();
     }
 
+    // BT pairing highlight
+    const isPairSrc = btPairSrc === i;
+
     // Glow
-    ctx.shadowColor = t.def.color;
-    ctx.shadowBlur = t.disabled > 0 ? 0 : 10;
+    if (!t.disabled) {
+      ctx.shadowColor = t.def.color;
+      ctx.shadowBlur = 12;
+    }
 
     // Body
-    ctx.fillStyle = t.disabled > 0 ? '#444' : t.def.color;
-    ctx.fillRect(x - sz/2, y - sz/2, sz, sz);
+    const bodyGrad = ctx.createLinearGradient(x-half, y-half, x+half, y+half);
+    if (t.disabled > 0) {
+      bodyGrad.addColorStop(0, '#333'); bodyGrad.addColorStop(1, '#1a1a1a');
+    } else {
+      bodyGrad.addColorStop(0, t.def.color); bodyGrad.addColorStop(1, shadeColor(t.def.color, -40));
+    }
+    ctx.fillStyle = bodyGrad;
+    ctx.fillRect(x - half, y - half, sz, sz);
 
-    // Border
-    ctx.strokeStyle = t.disabled > 0 ? '#666' : '#fff';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(x - sz/2, y - sz/2, sz, sz);
-
+    ctx.strokeStyle = t.disabled > 0 ? '#555' : isPairSrc ? '#00ffff' : '#ffffffaa';
+    ctx.lineWidth = isPairSrc ? 2.5 : 1.5;
+    ctx.strokeRect(x - half, y - half, sz, sz);
     ctx.shadowBlur = 0;
 
     // Emoji
-    ctx.font = '18px serif';
+    ctx.font = `${Math.floor(sz * 0.55)}px serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(t.def.emoji, x, y);
+    ctx.fillText(t.def.emoji, x, y + 1);
 
-    // Disabled indicator
+    // Level indicator (dots)
+    if ((t.level||0) > 0) {
+      for (let l = 0; l <= t.level; l++) {
+        ctx.fillStyle = '#ffdd00';
+        ctx.beginPath();
+        ctx.arc(x - 8 + l * 8, y + half - 3, 2.5, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+
+    // Disabled overlay
     if (t.disabled > 0) {
-      ctx.fillStyle = 'rgba(255,0,0,0.5)';
-      ctx.fillRect(x - sz/2, y - sz/2, sz, sz);
-      ctx.font = '10px Courier New';
+      ctx.fillStyle = 'rgba(255,0,0,0.4)';
+      ctx.fillRect(x - half, y - half, sz, sz);
       ctx.fillStyle = '#fff';
+      ctx.font = 'bold 9px Courier New';
       ctx.fillText(Math.ceil(t.disabled) + 's', x, y);
     }
 
-    // Bluetooth pairing indicator
-    const myIdx = towers.indexOf(t);
+    // BT pairing lines
     for (const p of pairings) {
-      if (p.from === myIdx || p.to === myIdx) {
+      if (p.from === i || p.to === i) {
+        const otherIdx = p.from === i ? p.to : p.from;
+        const other = towers.find((_,idx) => idx === otherIdx);
+        if (!other) continue;
         ctx.strokeStyle = '#00ffff';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4,4]);
-        const other = towers[p.from === myIdx ? p.to : p.from];
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        const dashOff = t * 4 % 8;
+        ctx.lineDashOffset = -dashOff;
         ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(other.x, other.y); ctx.stroke();
         ctx.setLineDash([]);
       }
     }
-  }
+  });
 
-  // Bluetooth pairing mode indicator
-  if (btPairingMode && btPairingSrc !== null) {
-    const t = towers[btPairingSrc];
-    ctx.strokeStyle = '#00ffff';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6,4]);
-    ctx.beginPath(); ctx.arc(t.x, t.y, t.def.range > 0 ? t.def.range : 80, 0, Math.PI*2); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = '#00ffff';
-    ctx.font = '11px Courier New';
-    ctx.textAlign = 'center';
-    ctx.fillText('PAIRING...', t.x, t.y - 30);
+  // BT pairing mode range indicator
+  if (btPairMode && btPairSrc !== null) {
+    const t = towers[btPairSrc];
+    if (t) {
+      const rng = t.def.range > 0 ? t.def.range : 75;
+      ctx.strokeStyle = 'rgba(0,255,255,0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6,4]);
+      ctx.beginPath(); ctx.arc(t.x, t.y, rng, 0, Math.PI*2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#00ffff';
+      ctx.font = 'bold 10px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillText('PAIRING...', t.x, t.y - CELL/2 - 8);
+    }
   }
 }
 
@@ -856,597 +1346,808 @@ function drawEnemies() {
   for (const e of enemies) {
     if (e.dead) continue;
     const x = e.x, y = e.y;
-    const r = (e.scale || 1) * (e.type === 'scopecreep' ? 18 : e.type === 'yellingguy' ? 14 : 10);
+    const sz = e.sz * (e.scale || 1);
 
-    // Glow when close to LB
-    const dx = x - LB_X, dy = y - LB_Y;
-    const distToLB = Math.sqrt(dx*dx+dy*dy);
-    if (distToLB < 100) {
-      ctx.shadowColor = e.color;
-      ctx.shadowBlur = 15 * (1 - distToLB/100);
-    }
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(x, y + sz*0.8, sz*0.8, sz*0.3, 0, 0, Math.PI*2); ctx.fill();
+
+    // Glow
+    ctx.shadowColor = e.col;
+    ctx.shadowBlur = e.stunTimer > 0 ? 3 : 8;
 
     // Body
-    ctx.fillStyle = e.color;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI*2);
-    ctx.fill();
+    ctx.fillStyle = e.stunTimer > 0 ? '#888' : e.col;
+    ctx.beginPath(); ctx.arc(x, y, sz, 0, Math.PI*2); ctx.fill();
 
-    // Flying indicator
-    if (e.flying) {
+    // Flying ring
+    if (e.fly) {
       ctx.strokeStyle = '#ff8800';
       ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(x, y, r+3, 0, Math.PI*2);
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, sz + 3 + Math.sin(t*5)*1, 0, Math.PI*2); ctx.stroke();
+    }
+
+    // Stun stars
+    if (e.stunTimer > 0) {
+      for (let s = 0; s < 3; s++) {
+        const ang = t * 8 + s * (Math.PI*2/3);
+        const sx = x + Math.cos(ang) * (sz + 6);
+        const sy = y + Math.sin(ang) * (sz + 6);
+        ctx.fillStyle = '#ffee00';
+        ctx.font = '8px serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('⭐', sx, sy);
+      }
     }
 
     ctx.shadowBlur = 0;
 
     // Emoji
-    ctx.font = `${Math.floor(r*1.4)}px serif`;
+    ctx.font = `${Math.max(8, Math.floor(sz * 1.5))}px serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(e.emoji, x, y);
 
     // HP bar
-    if (e.maxHp > 10) {
-      const bw = r * 2.5, bh = 3;
-      const bx = x - bw/2, by = y - r - 6;
+    if (e.maxHp > 15) {
+      const bw = sz * 2.8, bh = 3;
+      const bx = x - bw/2, by = y - sz - 7;
       ctx.fillStyle = '#111';
       ctx.fillRect(bx, by, bw, bh);
-      const hpPct = Math.max(0, e.hp / e.maxHp);
-      ctx.fillStyle = e.color;
-      ctx.fillRect(bx, by, bw * hpPct, bh);
+      const pct = Math.max(0, e.hp / e.maxHp);
+      ctx.fillStyle = pct > 0.5 ? '#00ff44' : pct > 0.25 ? '#ffaa00' : '#ff2222';
+      ctx.fillRect(bx, by, bw * pct, bh);
     }
 
-    // Slow indicator
-    if (e.slowMult < 1.0) {
-      ctx.fillStyle = 'rgba(255,150,0,0.6)';
-      ctx.font = '8px Courier New';
-      ctx.fillText('🐌', x + r, y - r);
+    // Shield indicator
+    if (e.shield > 0) {
+      ctx.strokeStyle = '#4488ff';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, sz + 5, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = '#4488ff';
+      ctx.font = '7px Courier New';
+      ctx.fillText(`${Math.round(e.shield*100)}%`, x, y + sz + 10);
     }
   }
 }
 
 function drawProjectiles() {
   for (const p of projectiles) {
-    ctx.fillStyle = p.color;
-    ctx.shadowColor = p.color;
-    ctx.shadowBlur = 6;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 3, 0, Math.PI*2);
-    ctx.fill();
+    const alpha = p.life / 0.35;
+    ctx.fillStyle = p.col;
+    ctx.globalAlpha = Math.min(1, alpha);
+    if (p.isAoE) {
+      // AoE ring
+      const r = 8 + (1 - alpha) * 15;
+      ctx.strokeStyle = p.col;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.tx, p.ty, r, 0, Math.PI*2); ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3.5, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
-  ctx.shadowBlur = 0;
 }
 
 function drawParticles() {
   for (const p of particles) {
-    ctx.globalAlpha = p.life;
-    ctx.fillStyle = p.color;
+    const alpha = p.life / 0.8;
+    ctx.fillStyle = p.col;
+    ctx.globalAlpha = Math.min(1, alpha);
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    ctx.arc(p.x, p.y, p.r * alpha, 0, Math.PI*2);
     ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawFloatingTexts() {
+  for (const ft of floatingTexts) {
+    ctx.globalAlpha = ft.alpha;
+    ctx.fillStyle = ft.col;
+    ctx.font = 'bold 12px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText(ft.text, ft.x, ft.y);
   }
   ctx.globalAlpha = 1;
 }
 
 function drawHUD() {
+  const y0 = HUD_Y;
+
   // HUD background
-  ctx.fillStyle = '#0a0a0a';
-  ctx.fillRect(0, HUD_Y, W, HUD_H);
-  ctx.strokeStyle = '#1a3a1a';
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0, HUD_Y); ctx.lineTo(W, HUD_Y); ctx.stroke();
+  const hudGrad = ctx.createLinearGradient(0, y0, 0, BASE_H);
+  hudGrad.addColorStop(0, '#0a0a1a');
+  hudGrad.addColorStop(1, '#050510');
+  ctx.fillStyle = hudGrad;
+  ctx.fillRect(0, y0, BASE_W, HUD_H);
+
+  // Top border glow
+  ctx.strokeStyle = '#00aaff';
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = '#00aaff';
+  ctx.shadowBlur = 6;
+  ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(BASE_W, y0); ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Wave indicator
+  const waveNum = waveIndex + 1;
+  const isBoss = waveNum % 5 === 0;
+  ctx.fillStyle = isBoss ? '#aa44ff' : '#00ccff';
+  ctx.font = 'bold 13px Courier New';
+  ctx.textAlign = 'left';
+  ctx.fillText(`WAVE ${waveNum}/${WAVES.length}`, 10, y0 + 18);
+
+  if (isBoss && bossActive) {
+    ctx.fillStyle = '#ff2266';
+    ctx.font = 'bold 11px Courier New';
+    ctx.fillText('👾 BOSS!', 10, y0 + 34);
+  } else if (betweenWaves && waveIndex >= 0) {
+    ctx.fillStyle = '#00ff88';
+    ctx.font = '11px Courier New';
+    ctx.fillText('✓ COMPLETE', 10, y0 + 34);
+  } else {
+    ctx.fillStyle = '#888';
+    ctx.font = '11px Courier New';
+    ctx.fillText(`Enemies: ${enemies.length + waveQueue.length}`, 10, y0 + 34);
+  }
 
   // Credits
-  ctx.fillStyle = '#FFD700';
-  ctx.font = 'bold 16px Courier New';
-  ctx.textAlign = 'left';
-  ctx.fillText(`💰 ${credits}`, 10, HUD_Y + 22);
-
-  // Wave counter
-  ctx.fillStyle = '#aaffaa';
+  ctx.fillStyle = '#ffcc00';
+  ctx.font = 'bold 15px Courier New';
   ctx.textAlign = 'center';
-  ctx.font = 'bold 16px Courier New';
-  ctx.fillText(`WAVE ${waveIndex + 1} / ${WAVES.length}`, W/2, HUD_Y + 22);
+  ctx.fillText(`◆ ${credits}`, BASE_W/2, y0 + 22);
 
-  // Between waves indicator
-  if (betweenWaves && state === STATE.PLAYING) {
-    ctx.fillStyle = '#00ff00';
-    ctx.font = '12px Courier New';
-    ctx.fillText('[ Press N for next wave (+$50) ]', W/2, HUD_Y + 42);
-  }
-
-  // Lord Bluetooth HP (prominent)
-  const lbBarW = 300, lbBarH = 28;
-  const lbBarX = (W - lbBarW) / 2;
-  const lbBarY = HUD_Y + 50;
-
-  // Label
-  ctx.fillStyle = '#00aaff';
-  ctx.font = 'bold 13px Courier New';
-  ctx.textAlign = 'center';
-  ctx.fillText('👑 LORD BLUETOOTH', W/2, lbBarY - 6);
-
-  // Bar bg
-  ctx.fillStyle = '#111';
-  ctx.fillRect(lbBarX - 1, lbBarY - 1, lbBarW + 2, lbBarH + 2);
-  const hpPct = lbHP / lbMaxHP;
-  const hpColor = hpPct > 0.5 ? '#0088ff' : hpPct > 0.25 ? '#ffaa00' : '#ff2200';
-  ctx.fillStyle = hpColor;
-  ctx.fillRect(lbBarX, lbBarY, lbBarW * hpPct, lbBarH);
-
-  // HP numbers
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 14px Courier New';
-  ctx.textAlign = 'center';
-  ctx.fillText(`${lbHP} / ${lbMaxHP}`, W/2, lbBarY + lbBarH/2 + 5);
-
-  // Bar border
-  ctx.strokeStyle = '#336';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(lbBarX, lbBarY, lbBarW, lbBarH);
-
-  // Lives (enemies remaining)
+  // Score
   ctx.fillStyle = '#aaa';
-  ctx.font = '12px Courier New';
-  ctx.textAlign = 'right';
-  ctx.fillText(`Enemies: ${enemies.length + waveSpawnQueue.length}`, W - 10, HUD_Y + 22);
+  ctx.font = '10px Courier New';
+  ctx.fillText(`Score: ${score}`, BASE_W/2, y0 + 36);
 
-  // Tower shop
-  const btnW = 90, btnH = 55, btnY = HUD_Y + 90;
-  const totalW = TOWER_DEFS.length * btnW;
-  let startX = (W - totalW) / 2;
-  for (let i = 0; i < TOWER_DEFS.length; i++) {
-    const def = TOWER_DEFS[i];
-    const bx = startX + i * btnW;
-    const hovered = hoveredButton === i;
-    const selected = selectedTowerType === i;
+  // BT Pair button
+  const btBtnX = BASE_W - 68, btBtnY = y0 + 8;
+  const btActive = btPairMode;
+  ctx.fillStyle = btActive ? '#003344' : '#0a1520';
+  ctx.strokeStyle = btActive ? '#00ccff' : '#334455';
+  ctx.lineWidth = 1.5;
+  roundRect(btBtnX, btBtnY, 58, 26, 6);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = btActive ? '#00ccff' : '#667788';
+  ctx.font = 'bold 9px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('📡 PAIR', btBtnX + 29, btBtnY + 16);
+
+  // Pause button
+  const paBtnX = BASE_W - 68, paBtnY = y0 + 38;
+  ctx.fillStyle = '#0a1520';
+  ctx.strokeStyle = '#334455';
+  ctx.lineWidth = 1.5;
+  roundRect(paBtnX, paBtnY, 58, 24, 6);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#667788';
+  ctx.font = 'bold 9px Courier New';
+  ctx.fillText('⏸ PAUSE', paBtnX + 29, paBtnY + 15);
+
+  // Tower buttons (4 per row, 2 rows)
+  const btnW = 80, btnH = 58;
+  const btnGapX = 8, btnGapY = 6;
+  const shopStartX = (BASE_W - (4 * btnW + 3 * btnGapX)) / 2;
+  const shopStartY = y0 + 68;
+
+  TOWER_DEFS.forEach((def, i) => {
+    const col = i % 4;
+    const row = Math.floor(i / 4);
+    const bx = shopStartX + col * (btnW + btnGapX);
+    const by = shopStartY + row * (btnH + btnGapY);
     const canAfford = credits >= def.cost;
 
-    // Button bg
-    ctx.fillStyle = selected ? def.color : hovered ? 'rgba(255,255,255,0.1)' : '#111';
-    ctx.fillRect(bx + 1, btnY, btnW - 2, btnH);
+    def._btnX = bx; def._btnY = by; def._btnW = btnW; def._btnH = btnH;
 
-    // Border
-    ctx.strokeStyle = selected ? '#fff' : hovered ? def.color : '#333';
-    ctx.lineWidth = selected ? 2 : 1;
-    ctx.strokeRect(bx + 1, btnY, btnW - 2, btnH);
+    ctx.fillStyle = canAfford ? shadeColor(def.color, -60) : '#111116';
+    ctx.strokeStyle = canAfford ? def.color : '#333';
+    ctx.lineWidth = canAfford ? 1.5 : 1;
+    roundRect(bx, by, btnW, btnH, 6);
+    ctx.fill(); ctx.stroke();
 
-    // Can't afford dimming
-    if (!canAfford) {
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      ctx.fillRect(bx + 1, btnY, btnW - 2, btnH);
+    // Highlight if selected
+    if (selectedTowerType === i && canAfford) {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      roundRect(bx - 1, by - 1, btnW + 2, btnH + 2, 7);
+      ctx.stroke();
     }
 
-    // Emoji
-    ctx.font = '20px serif';
+    ctx.font = `${Math.floor(btnH * 0.38)}px serif`;
+    ctx.fillStyle = canAfford ? '#fff' : '#444';
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(def.emoji, bx + btnW/2, btnY + 18);
+    ctx.fillText(def.emoji, bx + btnW/2, by + 18);
+    ctx.font = 'bold 8px Courier New';
+    ctx.fillStyle = canAfford ? '#ccc' : '#444';
+    ctx.fillText(def.name.split('\n').join(' '), bx + btnW/2, by + 33);
+    ctx.font = '9px Courier New';
+    ctx.fillStyle = canAfford ? '#ffcc00' : '#444';
+    ctx.fillText(`◆${def.cost}`, bx + btnW/2, by + btnH - 8);
+  });
 
-    // Name
-    ctx.fillStyle = canAfford ? '#eee' : '#666';
-    ctx.font = '8px Courier New';
-    ctx.fillText(def.name, bx + btnW/2, btnY + 36);
-
-    // Cost
-    ctx.fillStyle = canAfford ? '#FFD700' : '#660000';
-    ctx.font = 'bold 10px Courier New';
-    ctx.fillText(`$${def.cost}`, bx + btnW/2, btnY + 48);
-  }
-
-  // Controls hint
-  ctx.fillStyle = '#444';
-  ctx.font = '10px Courier New';
-  ctx.textAlign = 'center';
-  ctx.fillText('[P] Pause   [N] Next Wave   [SPACE] Pair 📡   [ESC] Deselect', W/2, HUD_Y + 155);
-}
-
-function drawTextOverlays() {
-  for (const o of textOverlays) {
-    ctx.globalAlpha = o.alpha;
-    ctx.fillStyle = '#00ff88';
-    ctx.font = 'bold 14px Courier New';
-    ctx.textAlign = 'center';
-    ctx.shadowColor = '#00ff88';
-    ctx.shadowBlur = 10;
-    ctx.fillText(o.text, W/2, o.y);
-    ctx.shadowBlur = 0;
-  }
-  ctx.globalAlpha = 1;
-}
-
-function drawEventOverlays() {
-  for (const o of overlays) {
-    const alpha = Math.min(1, o.life);
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = o.color || '#ff0';
-    ctx.font = 'bold 22px Courier New';
-    ctx.textAlign = 'center';
-    ctx.shadowColor = o.color || '#ff0';
-    ctx.shadowBlur = 15;
-    ctx.fillText(o.text, W/2, o.y - 20);
-    ctx.font = '14px Courier New';
-    ctx.fillText(o.sub || '', W/2, o.y + 8);
-    ctx.shadowBlur = 0;
-  }
-  ctx.globalAlpha = 1;
-}
-
-function drawTitleScreen() {
-  ctx.fillStyle = '#0d0d0d';
-  ctx.fillRect(0, 0, W, H);
-
-  // Animated background rings
-  const t = Date.now() / 1000;
-  for (let i = 0; i < 5; i++) {
-    const phase = (t + i * 0.3) % 3;
-    const r = 50 + phase * 80;
-    const alpha = Math.max(0, 0.15 - phase * 0.04);
-    ctx.strokeStyle = `rgba(0,100,255,${alpha})`;
+  // Info bar for selected tower
+  if (selectedTower !== null && towers[selectedTower]) {
+    const t = towers[selectedTower];
+    const infoY = shopStartY - 22;
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.fillRect(0, infoY, BASE_W, 20);
+    ctx.strokeStyle = t.def.color;
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(W/2, H/2 - 40, r, 0, Math.PI*2);
+    ctx.beginPath(); ctx.moveTo(0,infoY); ctx.lineTo(BASE_W,infoY); ctx.stroke();
+    ctx.fillStyle = t.def.color;
+    ctx.font = 'bold 10px Courier New';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${t.def.emoji} ${t.def.name.split('\n').join(' ')} Lv.${(t.level||0)+1}`, 8, infoY + 14);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '9px Courier New';
+    ctx.fillText(`DMG:${Math.ceil(t.def.dmg*(t.level+1)*(pairings.some(p=>p.from===selectedTower||p.to===selectedTower)?1.2:1))} RNG:${t.def.range||'—'}|${t.def.desc}`, 150, infoY + 14);
+
+    // Upgrade button
+    const upgCost = t.def.upgrades ? t.def.upgrades[t.level]?.cost : null;
+    if (upgCost !== undefined && upgCost !== null) {
+      const canUpg = credits >= upgCost && t.level < (t.def.upgrades?.length || 0) + 1;
+      const ubx = BASE_W - 82, uby = infoY - 2;
+      ctx.fillStyle = canUpg ? '#1a2a1a' : '#111';
+      ctx.strokeStyle = canUpg ? '#00ff44' : '#333';
+      ctx.lineWidth = 1;
+      roundRect(ubx, uby, 74, 22, 5);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = canUpg ? '#00ff44' : '#444';
+      ctx.font = 'bold 9px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillText(`⬆ ${upgCost}◆`, ubx + 37, uby + 14);
+      t._upgBtnX = ubx; t._upgBtnY = uby;
+    }
+  }
+}
+
+function drawWaveEnd() {
+  // Dim
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, 0, BASE_W, GAME_H);
+
+  // Box
+  const bw = 260, bh = 120;
+  const bx = (BASE_W - bw)/2, by = GAME_H/2 - bh/2 - 20;
+  ctx.fillStyle = '#080818';
+  ctx.strokeStyle = '#00ccff';
+  ctx.lineWidth = 2;
+  roundRect(bx, by, bw, bh, 10);
+  ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle = '#00ffcc';
+  ctx.font = 'bold 20px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText(`WAVE ${waveIndex + 1} COMPLETE!`, bx + bw/2, by + 36);
+  ctx.fillStyle = '#ffcc00';
+  ctx.font = '14px Courier New';
+  ctx.fillText(`Next: Wave ${waveIndex + 2}`, bx + bw/2, by + 60);
+  ctx.fillStyle = '#888';
+  ctx.font = '11px Courier New';
+  ctx.fillText('TAP NEXT WAVE or wait (auto)', bx + bw/2, by + 84);
+  ctx.fillText('to continue', bx + bw/2, by + 98);
+
+  // Next wave button
+  const btnW2 = 140, btnH2 = 38;
+  const btnX2 = BASE_W/2 - btnW2/2, btnY2 = by + bh + 12;
+  ctx.fillStyle = '#0a2a1a';
+  ctx.strokeStyle = '#00ff44';
+  ctx.lineWidth = 2;
+  roundRect(btnX2, btnY2, btnW2, btnH2, 8);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#00ff44';
+  ctx.font = 'bold 14px Courier New';
+  ctx.fillText('▶ NEXT WAVE', BASE_W/2, btnY2 + 24);
+}
+
+function drawWin() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, BASE_W, BASE_H);
+  const bw = 300, bh = 200;
+  const bx = (BASE_W - bw)/2, by = BASE_H/2 - bh/2;
+  ctx.fillStyle = '#030a05';
+  ctx.strokeStyle = '#00ff44';
+  ctx.lineWidth = 2.5;
+  roundRect(bx, by, bw, bh, 12);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#00ff44';
+  ctx.font = 'bold 28px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('🎉 WE SHIPPED!', bx + bw/2, by + 50);
+  ctx.fillStyle = '#fff';
+  ctx.font = '16px Courier New';
+  ctx.fillText(`Score: ${score}`, bx + bw/2, by + 85);
+  ctx.fillStyle = '#ffcc00';
+  ctx.font = '12px Courier New';
+  ctx.fillText(`High Score: ${Math.max(score, parseInt(localStorage.getItem('lbtdscore')||'0'))}`, bx + bw/2, by + 108);
+  ctx.fillStyle = '#00ccff';
+  ctx.font = '11px Courier New';
+  ctx.fillText('Tap to play again', bx + bw/2, by + 155);
+  drawRestartBtn(bx + bw/2, by + bh + 15, 130, 34, '#00ff44');
+}
+
+function drawLose() {
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillRect(0, 0, BASE_W, BASE_H);
+  const bw = 300, bh = 200;
+  const bx = (BASE_W - bw)/2, by = BASE_H/2 - bh/2;
+  ctx.fillStyle = '#0a0000';
+  ctx.strokeStyle = '#ff2244';
+  ctx.lineWidth = 2.5;
+  roundRect(bx, by, bw, bh, 12);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#ff2244';
+  ctx.font = 'bold 26px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('💀 DOWNTIME', bx + bw/2, by + 50);
+  ctx.fillStyle = '#fff';
+  ctx.font = '16px Courier New';
+  ctx.fillText(`Wave: ${waveIndex + 1}  Score: ${score}`, bx + bw/2, by + 85);
+  ctx.fillStyle = '#ffcc00';
+  ctx.font = '12px Courier New';
+  ctx.fillText(`High Score: ${Math.max(score, parseInt(localStorage.getItem('lbtdscore')||'0'))}`, bx + bw/2, by + 108);
+  ctx.fillStyle = '#ff8888';
+  ctx.font = '11px Courier New';
+  ctx.fillText('Tap to retry', bx + bw/2, by + 155);
+  drawRestartBtn(bx + bw/2, by + bh + 15, 130, 34, '#ff2244');
+}
+
+function drawPaused() {
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, BASE_W, BASE_H);
+  const bw = 220, bh = 100;
+  const bx = (BASE_W - bw)/2, by = BASE_H/2 - bh/2;
+  ctx.fillStyle = '#080818';
+  ctx.strokeStyle = '#00ccff';
+  ctx.lineWidth = 2;
+  roundRect(bx, by, bw, bh, 10);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#00ccff';
+  ctx.font = 'bold 22px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('⏸ PAUSED', bx + bw/2, by + 40);
+  ctx.fillStyle = '#888';
+  ctx.font = '11px Courier New';
+  ctx.fillText('Tap to resume', bx + bw/2, by + 75);
+}
+
+function drawRestartBtn(cx, cy, w, h, col) {
+  ctx.fillStyle = '#111';
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1.5;
+  roundRect(cx - w/2, cy, w, h, 8);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = col;
+  ctx.font = 'bold 13px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('↻ RESTART', cx, cy + h/2 + 4);
+}
+
+function drawOverlays() {
+  for (const o of overlays) {
+    const alpha = Math.min(1, o.life / 0.4);
+    const scale2 = 1 + (1 - alpha) * 0.1;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(BASE_W/2, o.y);
+    ctx.scale(scale2, scale2);
+
+    const lines = o.text.split('\n');
+    const lineH = 22;
+    const totalH = lines.length * lineH + (o.sub ? 16 : 0);
+    const startY = -totalH/2;
+
+    // BG
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    const maxW = Math.max(...lines.map(l => l.length * 7)) + 30;
+    roundRect(-maxW/2 - 5, startY - 10, maxW + 10, totalH + 15, 8);
+    ctx.fill();
+    ctx.strokeStyle = o.color;
+    ctx.lineWidth = 1.5;
+    roundRect(-maxW/2 - 5, startY - 10, maxW + 10, totalH + 15, 8);
     ctx.stroke();
+
+    ctx.fillStyle = o.color;
+    ctx.font = `bold 14px Courier New`;
+    ctx.textAlign = 'center';
+    lines.forEach((l, i) => ctx.fillText(l, 0, startY + i * lineH + 14));
+    if (o.sub) {
+      ctx.fillStyle = '#aaa';
+      ctx.font = '10px Courier New';
+      ctx.fillText(o.sub, 0, startY + lines.length * lineH + 8);
+    }
+
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawTitle() {
+  // Full background
+  const grad = ctx.createLinearGradient(0, 0, 0, BASE_H);
+  grad.addColorStop(0, '#040410');
+  grad.addColorStop(1, '#020208');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, BASE_W, BASE_H);
+
+  // Animated grid
+  ctx.strokeStyle = 'rgba(0,120,200,0.08)';
+  ctx.lineWidth = 0.5;
+  for (let c = 0; c <= COLS; c++) {
+    ctx.beginPath(); ctx.moveTo(c*CELL, 0); ctx.lineTo(c*CELL, BASE_H); ctx.stroke();
+  }
+  for (let r = 0; r <= ROWS+3; r++) {
+    ctx.beginPath(); ctx.moveTo(0, r*CELL); ctx.lineTo(BASE_W, r*CELL); ctx.stroke();
   }
 
   // Title
-  ctx.shadowColor = '#0088ff';
+  const titleY = BASE_H * 0.28;
+  ctx.shadowColor = '#00aaff';
   ctx.shadowBlur = 30;
   ctx.fillStyle = '#00aaff';
-  ctx.font = 'bold 42px Courier New';
+  ctx.font = 'bold 30px Courier New';
   ctx.textAlign = 'center';
-  ctx.fillText('LORD BLUETOOTH', W/2, 140);
-  ctx.fillStyle = '#00ff88';
-  ctx.font = 'bold 28px Courier New';
-  ctx.fillText('TOWER DEFENSE', W/2, 180);
+  ctx.fillText('LORD BLUETOOTH', BASE_W/2, titleY);
   ctx.shadowBlur = 0;
 
-  // Subtitle
-  ctx.fillStyle = '#888';
-  ctx.font = 'italic 14px Courier New';
-  ctx.fillText('Defend the Spectrum. Ship the Product.', W/2, 215);
+  ctx.fillStyle = '#0066cc';
+  ctx.font = 'bold 13px Courier New';
+  ctx.fillText('T O W E R   D E F E N S E', BASE_W/2, titleY + 22);
 
-  // Boz quote
-  ctx.fillStyle = '#5599ff';
-  ctx.font = 'italic 13px Courier New';
-  ctx.fillText('"We\'re going to be the most Bluetooth-native', W/2, 280);
-  ctx.fillText('company in human history." — Boz', W/2, 300);
+  // Crown animation
+  const crownBounce = Math.sin(t * 2) * 5;
+  ctx.font = '60px serif';
+  ctx.fillText('👑', BASE_W/2, titleY + 75 + crownBounce);
 
-  // Lord Bluetooth icon
-  ctx.font = '64px serif';
-  ctx.fillText('👑', W/2, 380);
+  // Lord Bluetooth mini
+  ctx.font = '40px serif';
+  ctx.fillText('📡', BASE_W/2, titleY + 130);
 
-  // Controls
-  ctx.fillStyle = '#555';
-  ctx.font = '12px Courier New';
-  const controls = [
-    'Click tower → Click grid to place (not on path)',
-    'Click placed tower → Show range',
-    '[P / ESC] Pause  [N] Next wave (+$50)',
-    '[SPACE] Pair 📡 Bluetooth Node to another tower',
-    'Defeat all 10 waves. Keep Lord Bluetooth alive.',
+  // Tagline
+  ctx.fillStyle = '#00ffcc';
+  ctx.font = 'bold 11px Courier New';
+  ctx.fillText('"Defend the Spectrum. Ship the Product."', BASE_W/2, titleY + 155);
+
+  // Instructions
+  ctx.fillStyle = '#556677';
+  ctx.font = '10px Courier New';
+  const instructions = [
+    '• Tap tower → tap grid to place',
+    '• Tap placed tower → upgrade or info',
+    '• 📡 Pair button → link towers for buffs',
+    '• Defend Lord Bluetooth from enemies!',
   ];
-  controls.forEach((c, i) => ctx.fillText(c, W/2, 430 + i * 20));
+  instructions.forEach((line, i) => {
+    ctx.fillText(line, BASE_W/2, titleY + 180 + i * 16);
+  });
+
+  // Play button
+  const btnW = 200, btnH = 52;
+  const btnX = BASE_W/2 - btnW/2, btnY = BASE_H * 0.76;
+  const pulse = 0.5 + 0.5 * Math.sin(t * 3);
+  ctx.fillStyle = `rgba(0,170,255,${0.15 + 0.1 * pulse})`;
+  ctx.strokeStyle = '#00aaff';
+  ctx.lineWidth = 2;
+  roundRect(btnX, btnY, btnW, btnH, 12);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#00ccff';
+  ctx.font = 'bold 20px Courier New';
+  ctx.fillText('▶  START GAME', BASE_W/2, btnY + 32);
 
   // High score
-  const hs = getHighScore();
+  const hs = parseInt(localStorage.getItem('lbtdscore') || '0');
   if (hs > 0) {
-    ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 13px Courier New';
-    ctx.fillText(`High Score: ${hs}`, W/2, 555);
+    ctx.fillStyle = '#ffcc00';
+    ctx.font = '11px Courier New';
+    ctx.fillText(`High Score: ${hs}`, BASE_W/2, btnY + btnH + 20);
   }
+}
 
-  // Start prompt
-  ctx.fillStyle = '#00ff00';
-  ctx.font = 'bold 16px Courier New';
-  const blink = Math.sin(t * 4) > 0;
-  if (blink) ctx.fillText('[ Press ENTER to Start ]', W/2, 590);
-
-  // Decorative path preview
-  ctx.strokeStyle = 'rgba(0,100,0,0.3)';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([5,5]);
+// ── UTILITY ────────────────────────────────────────────────────
+function roundRect(x, y, w, h, r) {
   ctx.beginPath();
-  ctx.moveTo(0, 0); ctx.lineTo(W, 0); ctx.lineTo(W, GAME_H);
-  ctx.lineTo(0, GAME_H); ctx.lineTo(0, 0);
-  ctx.stroke();
-  ctx.setLineDash([]);
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
 }
 
-function drawPauseScreen() {
-  ctx.fillStyle = 'rgba(0,0,0,0.7)';
-  ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 32px Courier New';
-  ctx.textAlign = 'center';
-  ctx.fillText('PAUSED', W/2, H/2 - 10);
-  ctx.font = '14px Courier New';
-  ctx.fillText('[P or ESC to resume]', W/2, H/2 + 20);
+function shadeColor(col, amt) {
+  const hex = col.replace('#', '');
+  const r = Math.max(0, Math.min(255, parseInt(hex.slice(0,2),16) + amt));
+  const g = Math.max(0, Math.min(255, parseInt(hex.slice(2,4),16) + amt));
+  const b = Math.max(0, Math.min(255, parseInt(hex.slice(4,6),16) + amt));
+  return `rgb(${r},${g},${b})`;
 }
 
-function drawWaveCompleteScreen() {
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillRect(0, 0, W, H);
-  ctx.shadowColor = '#00ff00';
-  ctx.shadowBlur = 20;
-  ctx.fillStyle = '#00ff88';
-  ctx.font = 'bold 28px Courier New';
-  ctx.textAlign = 'center';
-  ctx.fillText(`WAVE ${waveIndex + 1} COMPLETE!`, W/2, H/2 - 20);
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = '#aaa';
-  ctx.font = '14px Courier New';
-  ctx.fillText('Get ready for the next wave...', W/2, H/2 + 15);
-  ctx.fillStyle = '#FFD700';
-  ctx.font = 'bold 14px Courier New';
-  ctx.fillText('[ Press N for next wave (+$50 bonus) ]', W/2, H/2 + 45);
+function gridToPixel(col, row) {
+  return { x: col * CELL + CELL/2, y: row * CELL + CELL/2 };
 }
 
-function drawEndScreen(won) {
-  ctx.fillStyle = 'rgba(0,0,0,0.85)';
-  ctx.fillRect(0, 0, W, H);
-
-  const t = Date.now() / 1000;
-  if (won) {
-    ctx.shadowColor = '#00ff88';
-    ctx.shadowBlur = 30;
-    ctx.fillStyle = '#00ff88';
-    ctx.font = 'bold 40px Courier New';
-    ctx.textAlign = 'center';
-    ctx.fillText('🎉 YOU SHIPPED! 🎉', W/2, H/2 - 60);
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = '#aaa';
-    ctx.font = '16px Courier New';
-    ctx.fillText('All 10 waves defeated!', W/2, H/2 - 20);
-    ctx.fillText(`Lord Bluetooth HP: ${lbHP}/${lbMaxHP}`, W/2, H/2 + 10);
-    playVoice('win');
-  } else {
-    ctx.shadowColor = '#ff0000';
-    ctx.shadowBlur = 30;
-    ctx.fillStyle = '#ff4444';
-    ctx.font = 'bold 40px Courier New';
-    ctx.textAlign = 'center';
-    ctx.fillText('💀 SPECTRUM CORRUPTED 💀', W/2, H/2 - 60);
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = '#aaa';
-    ctx.font = '16px Courier New';
-    ctx.fillText('Lord Bluetooth has fallen...', W/2, H/2 - 20);
-    ctx.fillText(`Reached Wave ${waveIndex + 1}`, W/2, H/2 + 10);
-    playVoice('lose');
-  }
-
-  const hs = getHighScore();
-  ctx.fillStyle = '#FFD700';
-  ctx.font = 'bold 14px Courier New';
-  ctx.fillText(`High Score: ${hs}`, W/2, H/2 + 50);
-
-  ctx.fillStyle = '#666';
-  ctx.font = '12px Courier New';
-  ctx.fillText('[ Press ENTER to play again ]', W/2, H/2 + 80);
+function pixelToGrid(x, y) {
+  return { col: Math.floor(x / CELL), row: Math.floor(y / CELL) };
 }
 
-// ── MAIN LOOP ─────────────────────────────────────────────────
-let lastFrameTime = 0;
+// ── INPUT ──────────────────────────────────────────────────────
+function getTouchPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches ? e.touches[0] : e.changedTouches ? e.changedTouches[0] : e;
+  return {
+    x: (touch.clientX - rect.left) / scale,
+    y: (touch.clientY - rect.top) / scale,
+  };
+}
 
-function loop(ts) {
-  const dt = Math.min((ts - lastFrameTime) / 1000, 0.05);
-  lastFrameTime = ts;
+function handleTouchStart(e) {
+  e.preventDefault();
+  const pos = getTouchPos(e);
+  touchStart = pos;
+  isSwiping = false;
 
-  if (state !== STATE.TITLE && state !== STATE.WIN && state !== STATE.LOSE) {
-    update(dt);
-  }
+  // Resume audio
+  audioCtx.resume().catch(()=>{});
 
-  // Draw
   if (state === STATE.TITLE) {
-    drawTitleScreen();
-  } else {
-    drawBackground();
-    drawPath();
-    drawLordBluetooth();
-    drawTowers();
-    drawEnemies();
-    drawProjectiles();
-    drawParticles();
-    drawHUD();
-    drawTextOverlays();
-    drawEventOverlays();
-
-    if (state === STATE.PAUSED) drawPauseScreen();
-    if (state === STATE.WAVE_COMPLETE) drawWaveCompleteScreen();
-    if (state === STATE.WIN) drawEndScreen(true);
-    if (state === STATE.LOSE) drawEndScreen(false);
-  }
-
-  requestAnimationFrame(loop);
-}
-
-// ── INPUT ─────────────────────────────────────────────────────
-canvas.addEventListener('mousemove', e => {
-  const rect = canvas.getBoundingClientRect();
-  const mx = (e.clientX - rect.left) * (W / rect.width);
-  const my = (e.clientY - rect.top) * (H / rect.height);
-
-  // Tower shop hover
-  if (my >= HUD_Y + 90 && my < HUD_Y + 90 + 55) {
-    const btnW = 90;
-    const totalW = TOWER_DEFS.length * btnW;
-    const startX = (W - totalW) / 2;
-    const idx = Math.floor((mx - startX) / btnW);
-    hoveredButton = (idx >= 0 && idx < TOWER_DEFS.length) ? idx : null;
-  } else {
-    hoveredButton = null;
-  }
-});
-
-canvas.addEventListener('click', e => {
-  const rect = canvas.getBoundingClientRect();
-  const mx = (e.clientX - rect.left) * (W / rect.width);
-  const my = (e.clientY - rect.top) * (H / rect.height);
-
-  // Resume audio context
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-
-  if (state === STATE.TITLE) return;
-
-  // Tower shop click
-  if (my >= HUD_Y + 90 && my < HUD_Y + 90 + 55) {
-    const btnW = 90;
-    const totalW = TOWER_DEFS.length * btnW;
-    const startX = (W - totalW) / 2;
-    const idx = Math.floor((mx - startX) / btnW);
-    if (idx >= 0 && idx < TOWER_DEFS.length) {
-      const def = TOWER_DEFS[idx];
-      if (credits >= def.cost) {
-        if (def.isBT) {
-          // Bluetooth node: start pairing mode
-          selectedTowerType = idx;
-          btPairingMode = true;
-          btPairingSrc = null;
-        } else {
-          selectedTowerType = idx;
-          btPairingMode = false;
-          btPairingSrc = null;
-        }
-        synthPlace();
-      }
+    // Check play button
+    const btnW = 200, btnH = 52;
+    const btnX = BASE_W/2 - btnW/2, btnY = BASE_H * 0.76;
+    if (pos.x >= btnX && pos.x <= btnX + btnW && pos.y >= btnY && pos.y <= btnY + btnH) {
+      initGame();
     }
     return;
   }
 
-  // Game area click
-  if (my < GAME_H) {
-    const col = Math.floor(mx / CELL);
-    const row = Math.floor(my / CELL);
-    if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
+  if (state === STATE.WIN || state === STATE.LOSE) {
+    initGame();
+    return;
+  }
 
-    const key = `${col},${row}`;
+  if (state === STATE.PAUSED) {
+    state = STATE.PLAYING;
+    return;
+  }
 
-    // Bluetooth pairing mode
-    if (btPairingMode && btPairingSrc === null) {
-      // Try to place BT node first
-      if (selectedTowerType === 4) { // Bluetooth Node
-        if (PATH_CELLS.has(key)) return;
-        if (towers.find(t => t.col === col && t.row === row)) return;
-        placeTower(col, row, 4);
-        btPairingSrc = towers.length - 1;
-        // Now wait for second click to pick target
-        return;
-      } else {
-        // Direct pairing: click on existing tower
-        const existing = towers.find(t => t.col === col && t.row === row);
-        if (existing && existing.def.isBT) {
-          // Can't pair FROM a BT node
-          return;
-        }
-        if (existing) {
-          // Find an unpaired BT node
-          const btNodes = towers.filter(t => t.def.isBT);
-          for (const bt of btNodes) {
-            const alreadyPaired = pairings.some(p => p.from === towers.indexOf(bt) || p.to === towers.indexOf(bt));
-            if (!alreadyPaired) {
-              if (pairings.length < 2) {
-                pairings.push({ from: towers.indexOf(bt), to: towers.indexOf(existing) });
-                btPairingMode = false;
-                btPairingSrc = null;
-                synthPlace();
-                return;
-              }
-            }
-          }
-        }
+  // Pause button (top right of HUD)
+  const paBtnX = BASE_W - 68, paBtnY = HUD_Y + 38;
+  if (pos.x >= paBtnX && pos.x <= paBtnX + 58 && pos.y >= paBtnY && pos.y <= paBtnY + 24) {
+    state = STATE.PAUSED;
+    return;
+  }
+
+  // BT Pair button
+  const btBtnX = BASE_W - 68, btBtnY = HUD_Y + 8;
+  if (pos.x >= btBtnX && pos.x <= btBtnX + 58 && pos.y >= btBtnY && pos.y <= btBtnY + 26) {
+    btPairMode = !btPairMode;
+    if (btPairMode) { btPairSrc = null; selectedTowerType = null; selectedTower = null; }
+    return;
+  }
+
+  // Next wave button (wave end state)
+  if (state === STATE.WAVE_END) {
+    const bw2 = 140, bh2 = 38;
+    const bx2 = BASE_W/2 - bw2/2, by2 = GAME_H/2 + 30;
+    if (pos.x >= bx2 && pos.x <= bx2 + bw2 && pos.y >= by2 && pos.y <= by2 + bh2) {
+      startWave(waveIndex + 1);
+      state = STATE.PLAYING;
+      return;
+    }
+    // Also auto-advance after a moment
+    setTimeout(() => {
+      if (state === STATE.WAVE_END) { startWave(waveIndex + 1); state = STATE.PLAYING; }
+    }, 3000);
+    return;
+  }
+
+  // Check tower upgrade button
+  if (selectedTower !== null && towers[selectedTower]) {
+    const t = towers[selectedTower];
+    if (t._upgBtnX !== undefined) {
+      const ub = { x: t._upgBtnX, y: t._upgBtnY, w: 74, h: 22 };
+      if (pos.x >= ub.x && pos.x <= ub.x + ub.w && pos.y >= ub.y && pos.y <= ub.y + ub.h) {
+        tryUpgrade(selectedTower);
         return;
       }
     }
+  }
 
-    if (btPairingMode && btPairingSrc !== null) {
-      // Second click: target tower
-      const existing = towers.find(t => t.col === col && t.row === row);
-      if (existing && existing !== towers[btPairingSrc]) {
-        if (pairings.length < 2) {
-          pairings.push({ from: btPairingSrc, to: towers.indexOf(existing) });
-          btPairingMode = false;
-          btPairingSrc = null;
-          synthPlace();
+  // Tower shop buttons
+  let shopHit = false;
+  for (let i = 0; i < TOWER_DEFS.length; i++) {
+    const def = TOWER_DEFS[i];
+    if (def._btnX === undefined) continue;
+    const bx = def._btnX, by = def._btnY, bw2 = def._btnW, bh2 = def._btnH;
+    if (pos.x >= bx && pos.x <= bx + bw2 && pos.y >= by && pos.y <= by + bh2) {
+      if (credits >= def.cost) {
+        if (btPairMode && btPairSrc !== null) {
+          // Cancel pairing
+          btPairMode = false; btPairSrc = null;
         }
+        selectedTowerType = selectedTowerType === i ? null : i;
+        selectedTower = null;
+        shopHit = true;
+        break;
       }
-      btPairingMode = false;
-      btPairingSrc = null;
+    }
+  }
+  if (shopHit) return;
+
+  // Tower info / select on grid
+  if (pos.y < GAME_H) {
+    const { col, row } = pixelToGrid(pos.x, pos.y);
+
+    // Check if tapping existing tower
+    const existingIdx = towers.findIndex(t => {
+      const tc = pixelToGrid(t.x, t.y);
+      return tc.col === col && tc.row === row;
+    });
+
+    if (existingIdx >= 0) {
+      if (btPairMode) {
+        // Try to pair
+        if (btPairSrc === null) {
+          btPairSrc = existingIdx;
+          addOverlay({text:'SELECT SECOND TOWER', sub:'Tap another tower to pair', color:'#00ccff', life:1.5, y:GAME_H*0.3});
+        } else if (btPairSrc !== existingIdx) {
+          // Make pairing
+          const alreadyPaired = pairings.some(p =>
+            (p.from === btPairSrc && p.to === existingIdx) || (p.from === existingIdx && p.to === btPairSrc)
+          );
+          if (!alreadyPaired) {
+            pairings.push({ from: btPairSrc, to: existingIdx });
+            lbReact('pairing', true);
+            triggerCEOShoutout('pairMade');
+            teamSignOff();
+            addOverlay({text:'🔗 PAIRING MADE!', sub:'Towers now buff each other!', color:'#00ffcc', life:2, y:GAME_H*0.3});
+          }
+          btPairMode = false;
+          btPairSrc = null;
+        }
+      } else {
+        // Select tower for info
+        selectedTower = selectedTower === existingIdx ? null : existingIdx;
+        selectedTowerType = null;
+      }
       return;
     }
 
-    if (selectedTowerType !== null) {
-      // Place tower
-      if (PATH_CELLS.has(key)) return;
-      if (towers.find(t => t.col === col && t.row === row)) return;
-      placeTower(col, row, selectedTowerType);
-    } else {
-      // Click existing tower to show range
-      const t = towers.find(t => t.col === col && t.row === row);
-      clickedTowerIdx = t ? towers.indexOf(t) : null;
-    }
-  }
-});
+    // Place tower
+    if (selectedTowerType !== null && pos.y < GAME_H) {
+      if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
+      if (PATH_CELLS.has(`${col},${row}`)) return; // can't place on path
+      if (col === LB_COL && row === LB_ROW) return; // can't place on LB
 
-function placeTower(col, row, typeIdx) {
-  const def = TOWER_DEFS[typeIdx];
-  if (credits < def.cost) return;
-  credits -= def.cost;
-  const x = col * CELL + CELL/2;
-  const y = row * CELL + CELL/2;
-  towers.push({
-    x, y, col, row, def,
-    fireCooldown: 0,
-    disabled: 0,
-  });
-  synthPlace();
-  playVoice('towerPlaced');
-  addTeamText();
-  // Don't deselect so player can place multiple
+      const def = TOWER_DEFS[selectedTowerType];
+      if (credits < def.cost) {
+        addOverlay({text:'NOT ENOUGH CREDITS', sub:`Need ◆${def.cost}`, color:'#ff4444', life:1.5, y:GAME_H*0.4});
+        return;
+      }
+
+      // Check if already occupied
+      const occupied = towers.some(t => {
+        const tc = pixelToGrid(t.x, t.y);
+        return tc.col === col && tc.row === row;
+      });
+      if (occupied) return;
+
+      credits -= def.cost;
+      const { x, y } = gridToPixel(col, row);
+      const newTower = {
+        def, x, y, level: 0,
+        _cooldown: 0, _idx: towers.length,
+        disabled: 0,
+      };
+      towers.push(newTower);
+      synthPlace();
+      spawnParticles(x, y, def.color, 10);
+      addFloating(`-${def.cost}◆`, x, y - 10, '#ff4444');
+      lbReact('idle');
+      selectedTowerType = null;
+      return;
+    }
+
+    // Deselect
+    selectedTower = null;
+    selectedTowerType = null;
+  }
 }
 
-canvas.addEventListener('contextmenu', e => {
+function handleTouchMove(e) {
   e.preventDefault();
-  selectedTowerType = null;
-  btPairingMode = false;
-  btPairingSrc = null;
-  clickedTowerIdx = null;
+  if (!touchStart) return;
+  const pos = getTouchPos(e);
+  const dx = pos.x - touchStart.x, dy = pos.y - touchStart.y;
+  if (Math.abs(dx) > 8 || Math.abs(dy) > 8) isSwiping = true;
+}
+
+function handleTouchEnd(e) {
+  e.preventDefault();
+  if (!isSwiping && touchStart) {
+    // It was a tap — process it
+    // Re-fire with original position
+    const evt = { preventDefault:()=>{}, touches:[], changedTouches:[touchStart] };
+    handleTouchStart(evt);
+  }
+  touchStart = null;
+  isSwiping = false;
+}
+
+canvas.addEventListener('touchstart', handleTouchStart, {passive:false});
+canvas.addEventListener('touchmove',  handleTouchMove,  {passive:false});
+canvas.addEventListener('touchend',   handleTouchEnd,   {passive:false});
+
+// Mouse fallback for desktop testing
+canvas.addEventListener('mousedown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const pos = { x:(e.clientX-rect.left)/scale, y:(e.clientY-rect.top)/scale };
+  handleTouchStart({preventDefault:()=>{}, touches:[pos], changedTouches:[pos]});
 });
 
-document.addEventListener('keydown', e => {
-  if (audioCtx.state === 'suspended') audioCtx.resume();
+function tryUpgrade(idx) {
+  const t = towers[idx];
+  if (!t || !t.def.upgrades) return;
+  const upgData = t.def.upgrades[t.level];
+  if (!upgData || t.level >= t.def.upgrades.length + 1) return;
+  if (credits < upgData.cost) {
+    addOverlay({text:'NOT ENOUGH CREDITS', sub:`Need ◆${upgData.cost}`, color:'#ff4444', life:1.5, y:GAME_H*0.4});
+    return;
+  }
+  credits -= upgData.cost;
+  t.level++;
+  synthUpgrade();
+  spawnParticles(t.x, t.y, '#ffdd00', 16);
+  addFloating(`⬆ Lv.${t.level+1}`, t.x, t.y - 15, '#ffdd00');
+  addOverlay({text:`${t.def.name.split('\n').join(' ')} UPGRADED!`, sub:`Level ${t.level+1}`, color:'#00ffcc', life:1.5, y:GAME_H*0.35});
+  teamSignOff(true);
+}
 
-  if (e.key === 'Enter') {
-    if (state === STATE.TITLE || state === STATE.WIN || state === STATE.LOSE) {
-      initGame();
-    }
-  }
-  if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
-    if (state === STATE.PLAYING) { prevState = state; state = STATE.PAUSED; }
-    else if (state === STATE.PAUSED) { state = prevState || STATE.PLAYING; }
-    else if (state === STATE.WAVE_COMPLETE) { state = STATE.PAUSED; }
-  }
-  if ((e.key === 'n' || e.key === 'N') && (state === STATE.PLAYING || state === STATE.WAVE_COMPLETE)) {
-    if (betweenWaves || state === STATE.WAVE_COMPLETE) {
-      credits += 50;
-      state = STATE.PLAYING;
-      startWave(waveIndex + 1);
-    }
+// Keyboard shortcuts (desktop)
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { btPairMode = false; btPairSrc = null; selectedTower = null; selectedTowerType = null; }
+  if (e.key === 'p' || e.key === 'P') { if (state === STATE.PLAYING) state = STATE.PAUSED; else if (state === STATE.PAUSED) state = STATE.PLAYING; }
+  if (e.key === 'n' || e.key === 'N') {
+    if (state === STATE.WAVE_END) { startWave(waveIndex + 1); state = STATE.PLAYING; }
   }
   if (e.key === ' ') {
-    if (state === STATE.PLAYING && selectedTowerType === 4) {
-      btPairingMode = !btPairingMode;
-      btPairingSrc = null;
+    if (state === STATE.TITLE) initGame();
+    else if (state === STATE.WIN || state === STATE.LOSE) initGame();
+  }
+  // Tower hotkeys 1-8
+  const num = parseInt(e.key);
+  if (num >= 1 && num <= 8 && state === STATE.PLAYING) {
+    const idx = num - 1;
+    if (TOWER_DEFS[idx] && credits >= TOWER_DEFS[idx].cost) {
+      selectedTowerType = selectedTowerType === idx ? null : idx;
+      selectedTower = null;
+      btPairMode = false;
     }
-    e.preventDefault();
   }
 });
 
-// ── START ─────────────────────────────────────────────────────
-requestAnimationFrame(loop);
+// ── GAME LOOP ──────────────────────────────────────────────────
+function loop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.1);
+  lastTime = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame((ts) => { lastTime = ts; loop(ts); });
+
+// Auto-start title
+state = STATE.TITLE;
 </script>
 </body>
 </html>
