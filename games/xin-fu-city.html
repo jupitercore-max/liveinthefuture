@@ -5,11 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a12">
+<meta name="description" content="Xin Fú City 3000 — an isometric SimCity-style city builder. Zone, power, and grow your city!">
 <title>Xin Fú City — 新福特別行政區</title>
 <style>
 /* ═══ RESET & BASE ═══ */
+:root{
+  --bg:#0a0a12;--bg-panel:rgba(13,13,22,0.96);--bg-raised:#181828;--bg-raised-hover:#20203a;
+  --border:#2a2a3e;--border-strong:#3a3a5a;
+  --text:#e8e8e8;--text-dim:#8a8aa0;--text-faint:#5a5a72;
+  --accent:#4a9eff;--accent-soft:rgba(74,158,255,0.14);
+  --green:#4ade80;--gold:#fbbf24;--red:#ef4444;--purple:#a78bfa;--cyan:#22d3ee;
+  --radius:10px;--radius-lg:14px;
+  --shadow-panel:0 8px 32px rgba(0,0,0,0.55),0 1px 0 rgba(255,255,255,0.04) inset;
+  --ease-pop:cubic-bezier(.34,1.56,.64,1);
+}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
-html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a12;color:#e8e8e8;touch-action:none;overscroll-behavior:none;position:fixed;inset:0;user-select:none;-webkit-user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);touch-action:none;overscroll-behavior:none;position:fixed;inset:0;user-select:none;-webkit-user-select:none}
+
+/* ═══ CANVAS TOOLTIP (desktop hover) ═══ */
+#canvasTip{position:fixed;z-index:15;pointer-events:none;background:var(--bg-panel);border:1px solid var(--border-strong);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--text);display:none;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#canvasTip .tip-name{font-weight:700;color:var(--gold)}
+#canvasTip .tip-sub{color:var(--text-dim);font-size:10px}
 
 /* ═══ CANVASES ═══ */
 #gameCanvas{display:block;position:fixed;inset:0;touch-action:none;z-index:1}
@@ -69,8 +87,16 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 #categoryTabs{display:flex;gap:1px;padding:4px 4px 0;overflow-x:auto;scrollbar-width:none}
 #categoryTabs::-webkit-scrollbar{display:none}
 .cat-tab{flex-shrink:0;padding:6px 12px;border-radius:6px 6px 0 0;font-size:11px;font-weight:600;color:#666;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
-.cat-tab.active{color:#4a9eff;border-bottom-color:#4a9eff}
+.cat-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
 .cat-tab:active{transform:scale(.95)}
+@media(hover:hover){
+  .cat-tab:hover{color:#9ab;background:rgba(255,255,255,0.04)}
+  .cat-tab.active:hover{color:var(--accent)}
+  .tool:hover{border-color:#4a5a7a;background:var(--bg-raised-hover);transform:translateY(-1px)}
+  .tool.active:hover{border-color:var(--accent)}
+  .zoom-btn:hover,.extra-btn:hover{border-color:#4a5a7a;color:#fff;background:rgba(28,28,46,0.95)}
+  .tut-btn:hover,.fp-btn:hover:not(:disabled){filter:brightness(1.15)}
+}
 #toolbar{padding:4px 4px 6px;display:flex;flex-wrap:wrap;gap:4px;overflow-x:auto;overflow-y:auto;max-height:126px;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-snap-type:x proximity}
 #toolbar::-webkit-scrollbar{display:none}
 .tool{flex-shrink:0;width:72px;min-width:64px;height:58px;border:1px solid #333;border-radius:10px;background:#181828;color:#ccc;font-size:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;transition:transform .1s,background .15s,border-color .15s;scroll-snap-align:start}
@@ -127,8 +153,18 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 .extra-btn.muted{opacity:.4}
 
 /* ═══ BUDGET PANEL ═══ */
-#budgetPanel{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);left:4px;background:rgba(12,12,20,0.96);border:1px solid #2a2a3a;border-radius:10px;padding:10px 14px;font-size:11px;z-index:9;display:none;min-width:200px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#budgetPanel{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);left:48px;background:rgba(12,12,20,0.96);border:1px solid #2a2a3a;border-radius:10px;padding:10px 14px;font-size:11px;z-index:9;display:none;width:246px;max-width:calc(100vw - 56px);max-height:calc(100vh - 210px);overflow-y:auto;-webkit-overflow-scrolling:touch;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 #budgetPanel.show{display:block}
+.bp-tax-row{display:flex;align-items:center;gap:6px;margin:3px 0}
+.bp-tax-row .bp-tax-label{width:14px;font-weight:700;font-size:11px}
+.bp-tax-row input[type=range]{flex:1;height:12px;-webkit-appearance:none;appearance:none;background:#333;border-radius:6px;outline:none;min-width:0}
+.bp-tax-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;cursor:pointer;background:#fbbf24}
+.bp-tax-row input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;cursor:pointer;background:#fbbf24;border:none}
+.bp-tax-row .bp-tax-val{width:32px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;color:#fbbf24}
+.bp-spark-row{display:flex;align-items:center;gap:8px;margin:4px 0}
+.bp-spark-row .bp-spark-label{width:52px;font-size:10px;color:#8a8aa0}
+.bp-spark-row canvas{flex:1;height:22px;min-width:0}
+.bp-spark-row .bp-spark-val{width:52px;text-align:right;font-weight:700;font-size:11px;font-variant-numeric:tabular-nums}
 
 /* ═══ HAPPINESS DASHBOARD ═══ */
 #happyDashboard{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);right:4px;background:rgba(12,12,20,0.97);border:1px solid #3a3a5a;border-radius:12px;padding:14px;font-size:12px;z-index:12;display:none;width:300px;max-width:calc(100vw - 8px);max-height:calc(100vh - 210px);overflow-y:auto;-webkit-overflow-scrolling:touch;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.6)}
@@ -223,6 +259,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
   <div class="stat" id="fundStatWrap" style="display:none"><span class="stat-label">🏦 Fund</span><span class="stat-val" id="fundVal" style="color:#a78bfa">$0</span></div>
   <div class="stat"><span class="stat-label">👥 Pop</span><span class="stat-val pop" id="popVal">0</span></div>
   <div class="stat"><span class="stat-label">😊 Happy</span><span class="stat-val happy" id="happyVal">75%</span></div>
+  <div class="stat"><span class="stat-label" id="clockLabel">☀️ Day</span><span class="stat-val" id="clockVal" style="color:#c4b5fd">1</span></div>
   <div id="rciMeter" title="RCI Demand">
     <div class="rci-bar rci-r"><div class="rci-bar-fill" id="rciR" style="height:14px"></div><div class="rci-bar-label">R</div></div>
     <div class="rci-bar rci-c"><div class="rci-bar-fill" id="rciC" style="height:14px"></div><div class="rci-bar-label">C</div></div>
@@ -246,6 +283,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 <div id="happyDashboard"></div>
 <div id="fundPanel"></div>
 <div id="toast"></div>
+<div id="canvasTip"></div>
 <div id="newsTicker">📍 Xin Fú City — Building the future!</div>
 
 <!-- View toggle -->
@@ -262,6 +300,8 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
   <div class="extra-btn" id="budgetBtn" title="Budget">💰</div>
   <div class="extra-btn" id="fundBtn" title="Sovereign Wealth Fund">🏦</div>
   <div class="extra-btn" id="happyBtn" title="Happiness Dashboard">😊</div>
+  <div class="extra-btn" id="overlayBtn" title="Data Overlays">🗺️</div>
+  <div class="extra-btn" id="disasterBtn" title="Disasters On/Off">🌋</div>
   <div class="extra-btn" id="muteBtn" title="Sound">🔊</div>
   <div class="extra-btn" id="helpBtn" title="Help">❓</div>
 </div>
@@ -307,7 +347,8 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
     <div class="help-step"><div class="help-step-num">1</div><div><b>Select Zones</b> → tap Residential, then tap grass to place houses. Zones need roads and power to grow.</div></div>
     <div class="help-step"><div class="help-step-num">2</div><div><b>Build Roads</b> next to your zones. Zones won't grow without road access!</div></div>
     <div class="help-step"><div class="help-step-num">3</div><div><b>Build a Power Plant</b> nearby. It powers everything within 6 tiles.</div></div>
-    <div class="help-step"><div class="help-step-num">4</div><div><b>Watch your city grow!</b> Zones level up over time. Use 🔍 Inspect to check any building.</div></div>
+    <div class="help-step"><div class="help-step-num">4</div><div><b>Paint with drag:</b> on touch, hold still a moment then drag to paint roads/zones. With a mouse, just drag. Drag with 🔍 Inspect (or two fingers / right-click) to pan.</div></div>
+    <div class="help-step"><div class="help-step-num">5</div><div><b>Watch your city grow!</b> Zones level up over time. Add 🚓 Police, 💧 Water Towers, and services to keep citizens happy.</div></div>
     <button class="help-close" id="helpClose">Got it!</button>
   </div>
 </div>
@@ -373,6 +414,8 @@ const T = {
   ZOO: 35,
   AQUARIUM: 36,
   GROCERY: 37,
+  POLICE: 38,
+  WATER_TOWER: 39,
 };
 
 const TD = {
@@ -412,12 +455,15 @@ const TD = {
   [T.ZOO]: { name:'Zoo', color:'#16a34a', cost:4000, happy:7, desc:'Lions, tigers, and bears! A wild destination for animal lovers of all ages.' },
   [T.AQUARIUM]: { name:'Aquarium', color:'#0891b2', cost:3500, happy:6, desc:'Dive into an underwater world! Fish, sharks, and sea creatures galore.' },
   [T.GROCERY]: { name:'Grocery Store', color:'#22c55e', cost:1500, income:30, happy:2, desc:'Fresh food and everyday essentials. Feeds the neighborhood!' },
+  [T.POLICE]:  { name:'Police Station', color:'#3b82f6', cost:2500, happy:2, desc:'Keeps crime down as your city grows. Each station offsets crime from ~500 citizens.' },
+  [T.WATER_TOWER]: { name:'Water Tower', color:'#60a5fa', cost:1500, happy:1, desc:'Supplies fresh water within 5 tiles. Zones with water grow 50% faster!' },
 };
 
 // ─── Categories & Tools ────────────────────────────────────────────
 const CATS = [
   { id:'zones', icon:'🏘️', name:'Zones' },
   { id:'build', icon:'🛠️', name:'Build' },
+  { id:'civic', icon:'🏛️', name:'Services' },
   { id:'special', icon:'⭐', name:'Special' },
   { id:'tools', icon:'🔧', name:'Tools' },
 ];
@@ -438,21 +484,23 @@ const TOOLS = [
   { id:'gummy',     icon:'🐻', name:'Gummy Factory',tile:T.GUMMY_FACTORY,cost:2500, cat:'special' },
   { id:'horn',      icon:'📢', name:'Horn Tower',  tile:T.HORN_TOWER,    cost:1800, cat:'special' },
   { id:'sign',      icon:'🪧', name:'Road Sign',   tile:T.SIGN,          cost:10,   cat:'special' },
-  { id:'playground', icon:'🛝', name:'Playground',  tile:T.PLAYGROUND,    cost:800,  cat:'special' },
+  { id:'police',    icon:'🚓', name:'Police',      tile:T.POLICE,        cost:2500, cat:'civic' },
+  { id:'water',     icon:'💧', name:'Water Tower', tile:T.WATER_TOWER,   cost:1500, cat:'civic' },
+  { id:'playground', icon:'🛝', name:'Playground',  tile:T.PLAYGROUND,    cost:800,  cat:'civic' },
   { id:'electronics', icon:'🔌', name:'Emmy\'s Electronics', tile:T.EMMY_ELECTRONICS, cost:2000, cat:'special' },
   { id:'restaurant', icon:'🍽️', name:'Elsie\'s Eatery', tile:T.ELSIE_RESTAURANT, cost:1500, cat:'special' },
-  { id:'firedept',   icon:'🚒', name:'Fire Dept',     tile:T.FIRE_DEPT,          cost:3000, cat:'special' },
+  { id:'firedept',   icon:'🚒', name:'Fire Dept',     tile:T.FIRE_DEPT,          cost:3000, cat:'civic' },
   { id:'jamstore', icon:'🎵', name:'Jeremy\'s Jam', tile:T.JAM_STORE, cost:1800, cat:'special' },
   { id:'fishinghut', icon:'🎣', name:'Fishing Hut', tile:T.FISHING_HUT, cost:1000, cat:'special' },
-  { id:'hospital',  icon:'🏥', name:'Hospital',     tile:T.HOSPITAL,        cost:3500, cat:'special' },
-  { id:'school',    icon:'🏫', name:'School',        tile:T.SCHOOL,          cost:2500, cat:'special' },
+  { id:'hospital',  icon:'🏥', name:'Hospital',     tile:T.HOSPITAL,        cost:3500, cat:'civic' },
+  { id:'school',    icon:'🏫', name:'School',        tile:T.SCHOOL,          cost:2500, cat:'civic' },
   { id:'boat',      icon:'🚤', name:'Boat',          tile:T.BOAT,            cost:500,  cat:'special' },
   { id:'boba',      icon:'🧋', name:'Boba Shop',   tile:T.BOBA_SHOP,      cost:1200, cat:'special' },
   { id:'petstore',  icon:'🐾', name:'Pet Store',   tile:T.PET_STORE,      cost:1500, cat:'special' },
   { id:'bakery',    icon:'🧁', name:'Crunch Bakery',tile:T.BAKERY,        cost:1000, cat:'special' },
   { id:'mansion',   icon:'🏰', name:'Mansion',    tile:T.MANSION,        cost:5000, cat:'special' },
   { id:'club',      icon:'💃', name:'Nightclub',  tile:T.CLUB,           cost:2000, cat:'special' },
-  { id:'investigator', icon:'🔍', name:'Investigator Clubhouse', tile:T.INVESTIGATOR_CLUB, cost:3000, cat:'special' },
+  { id:'investigator', icon:'🔍', name:'Investigator Clubhouse', tile:T.INVESTIGATOR_CLUB, cost:3000, cat:'civic' },
   { id:'bookstore', icon:'📚', name:'Bookstore', tile:T.BOOKSTORE, cost:1200, cat:'special' },
   { id:'zoo', icon:'🦁', name:'Zoo', tile:T.ZOO, cost:4000, cat:'special' },
   { id:'aquarium', icon:'🐠', name:'Aquarium', tile:T.AQUARIUM, cost:3500, cat:'special' },
@@ -491,6 +539,15 @@ const state = {
   poweredTiles: new Set(),
   trafficCars: [],
   fund: { balance: 0, tier: 'conservative', history: [], lastWithdrawTick: 0 },
+  popHistory: [],   // recent population samples for the budget-panel graph (not saved)
+  moneyHistory: [],  // treasury samples (not saved)
+  happyHistory: [],  // happiness samples (not saved)
+  taxRates: { r: 5, c: 5, i: 5 },  // per-class tax rates (R/C/I)
+  disastersOn: true,
+  waterTiles: new Set(),      // tiles covered by water towers (recomputed each tick)
+  trafficDensity: {},         // road tile idx -> decaying traffic heat
+  budget: null,               // last tick's income/expense breakdown
+  lastNet: 0,                 // actual net applied last tick
 };
 
 const FUND_TIERS = {
@@ -503,6 +560,14 @@ let activeTool = 'res';
 let currentCat = 'zones';
 let view3DMode = false;
 let audioMuted = false;
+
+// Data overlay modes (cycled by the 🗺️ button)
+const OVERLAY_MODES = ['off', 'power', 'water', 'traffic', 'pollution'];
+const OVERLAY_LABELS = { off:'Overlay off', power:'⚡ Power coverage', water:'💧 Water coverage', traffic:'🚗 Traffic density', pollution:'☁️ Pollution' };
+let overlayMode = 'off';
+
+// Earthquake screen shake
+let shakeTime = 0, shakeMag = 0;
 
 // ─── Visual effects state ──────────────────────────────────────────
 const floaters = [];      // floating text {x,y,text,color,life,maxLife}
@@ -578,6 +643,8 @@ function sndClick()      { playSound(600, 0.03, 'sine', 0.03); }
 function sndBulldoze()   { playNoise(0.15, 0.05, 400); playSound(120, 0.1, 'sawtooth', 0.04); }
 function sndIncome()     { playSound(1200, 0.04, 'sine', 0.02); }
 function sndTutorial()   { playSlide(440, 880, 0.12, 'sine', 0.04); }
+function sndSiren()      { playSlide(600, 900, 0.25, 'triangle', 0.05); setTimeout(() => playSlide(900, 600, 0.25, 'triangle', 0.05), 260); }
+function sndQuake()      { playNoise(0.8, 0.08, 150); playSlide(80, 40, 0.7, 'sawtooth', 0.06); }
 
 // Unlock audio on first interaction
 function unlockAudio() {
@@ -750,9 +817,10 @@ function initGrid() {
     { x: 1, y: 3, idx: 4 }, { x: cx, y: cy - 7, idx: 5 },
   ];
   signPositions.forEach(s => {
-    if (s.x < GRID && s.y < GRID && state.grid[s.y][s.x].type === T.GRASS)
+    if (s.x < GRID && s.y < GRID && state.grid[s.y][s.x].type === T.GRASS) {
       state.grid[s.y][s.x] = { type: T.SIGN, level: 1, data: { signIdx: s.idx } };
       markTileDirty(s.x, s.y);
+    }
   });
 }
 
@@ -841,6 +909,7 @@ function worldToTile(wx, wy) {
 // setPointerCapture is NEVER called — it breaks iOS touch.
 // ═══════════════════════════════════════════════════════════════════
 const TAP_THRESHOLD = 5;   // 5px — iOS fingers jitter less than you'd think
+const LONG_PRESS_MS = 260; // hold-still delay before touch drag paints instead of pans
 const DEBUG = new URLSearchParams(location.search).has('debug');
 
 // --- Debug log helper ---
@@ -853,6 +922,16 @@ function dlog(...args) {
   console.log('[XINFU]', msg);
   const el = document.getElementById('debugOverlay');
   if (el) { el.classList.add('show'); el.textContent = _debugLines.join('\n'); }
+}
+
+// --- Zoom keeping a given screen point fixed (cursor / pinch midpoint) ---
+function zoomAt(sx, sy, factor) {
+  const newZoom = Math.max(0.4, Math.min(3, zoom * factor));
+  const f = newZoom / zoom;
+  camX = sx - (sx - camX) * f;
+  camY = sy - (sy - camY) * f;
+  zoom = newZoom;
+  clampCamera();
 }
 
 // --- Shared state for both touch and pointer paths ---
@@ -869,15 +948,95 @@ function _tryHandleTap(sx, sy, source) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// PAINT HELPERS — drag-to-zone / drag-to-road / drag-to-bulldoze
+// ══════════════════════════════════════════════════════════════════
+function isPaintTool() {
+  if (activeTool === 'bulldoze') return true;
+  if (activeTool === 'inspect' || activeTool === 'drive') return false;
+  const tool = TOOLS.find(t => t.id === activeTool);
+  return !!(tool && tool.tile);
+}
+
+let _lastPaintTile = null;
+function paintTile(tx, ty) {
+  if (activeTool === 'bulldoze') doBulldoze(tx, ty, { quiet: true });
+  else doBuild(tx, ty, { quiet: true });
+}
+function paintAt(clientX, clientY) {
+  const w = screenToWorld(clientX, clientY);
+  const t = worldToTile(w.x, w.y);
+  if (_lastPaintTile && _lastPaintTile.x === t.x && _lastPaintTile.y === t.y) return;
+  if (_lastPaintTile) {
+    // Walk tile-by-tile from the last painted tile so fast drags leave no gaps
+    let x0 = _lastPaintTile.x, y0 = _lastPaintTile.y;
+    const dx = Math.abs(t.x - x0), stepX = x0 < t.x ? 1 : -1;
+    const dy = -Math.abs(t.y - y0), stepY = y0 < t.y ? 1 : -1;
+    let err = dx + dy, guard = 0;
+    while (!(x0 === t.x && y0 === t.y) && guard++ < 80) {
+      const e2 = 2 * err;
+      if (e2 >= dy) { err += dy; x0 += stepX; }
+      if (e2 <= dx) { err += dx; y0 += stepY; }
+      paintTile(x0, y0);
+    }
+  } else {
+    paintTile(t.x, t.y);
+  }
+  _lastPaintTile = t;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HOVER STATE — desktop mouse: tile highlight + tooltip
+// ══════════════════════════════════════════════════════════════════
+let hoverTile = null;      // {x,y} tile under mouse cursor (null on touch)
+let _tipTileKey = null;
+const canvasTip = document.getElementById('canvasTip');
+
+function clearHover() {
+  hoverTile = null; _tipTileKey = null;
+  if (canvasTip) canvasTip.style.display = 'none';
+}
+
+function updateHover(clientX, clientY) {
+  const w = screenToWorld(clientX, clientY);
+  const t = worldToTile(w.x, w.y);
+  if (t.x < 0 || t.x >= GRID || t.y < 0 || t.y >= GRID) { clearHover(); return; }
+  hoverTile = t;
+  if (!canvasTip) return;
+  const key = t.x + ',' + t.y;
+  if (key !== _tipTileKey) {
+    _tipTileKey = key;
+    const tile = state.grid[t.y][t.x];
+    const td = TD[tile.type] || TD[T.GRASS];
+    let sub = '';
+    if (tile.type === T.RES || tile.type === T.COM || tile.type === T.IND) {
+      sub = 'Lv ' + tile.level + '/5 · ' + (isPowered(t.x, t.y) ? '⚡ powered' : '⚠️ no power') + ' · ' + (hasRoadWithin(t.x, t.y, ROAD_RADIUS) ? '🛣️ road' : '🚫 no road');
+    } else if (tile.data && tile.data.name) {
+      sub = '🏷️ ' + String(tile.data.name).replace(/</g, '&lt;');
+    } else if (td.income) {
+      sub = '+$' + td.income + '/tick';
+    }
+    canvasTip.innerHTML = '<span class="tip-name">' + td.name + '</span>' + (sub ? ' <span class="tip-sub">' + sub + '</span>' : '');
+  }
+  canvasTip.style.display = 'block';
+  canvasTip.style.left = Math.min(window.innerWidth - 180, clientX + 14) + 'px';
+  canvasTip.style.top = (clientY + 18) + 'px';
+}
+
+// ══════════════════════════════════════════════════════════════════
 // LAYER 1: TOUCH EVENTS — Primary for mobile (iOS Safari, iMessage WKWebView)
+// One-finger drag pans. Hold still ~260ms first, then drag to PAINT.
+// Two fingers: pinch zoom (about midpoint) + pan.
 // ══════════════════════════════════════════════════════════════════
 let touchStart = null;   // { x, y, time, moved, camX, camY }
 let pinchStartDist = 0;
+let pinchMid = null;
+let paintMode = false;
+let longPressTimer = null;
 
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
   unlockAudio();
-  dlog('touchstart: touches=', e.touches.length, 'target=', e.target.id || e.target.tagName);
+  dlog('touchstart: touches=', e.touches.length);
 
   if (e.touches.length === 1) {
     const t = e.touches[0];
@@ -886,10 +1045,24 @@ canvas.addEventListener('touchstart', e => {
       time: Date.now(), moved: false,
       camX: camX, camY: camY,
     };
+    paintMode = false;
+    _lastPaintTile = null;
+    clearTimeout(longPressTimer);
+    if (isPaintTool()) {
+      longPressTimer = setTimeout(() => {
+        if (touchStart && !touchStart.moved && !pinchMid) {
+          paintMode = true;
+          haptic(15);
+          paintAt(touchStart.x, touchStart.y);
+        }
+      }, LONG_PRESS_MS);
+    }
   } else if (e.touches.length === 2) {
-    // Begin pinch zoom
+    clearTimeout(longPressTimer);
+    paintMode = false;
     const t1 = e.touches[0], t2 = e.touches[1];
     pinchStartDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+    pinchMid = { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
     if (touchStart) touchStart.moved = true;  // suppress tap during pinch
   }
 }, { passive: false });
@@ -901,58 +1074,54 @@ canvas.addEventListener('touchmove', e => {
     const t = e.touches[0];
     const dx = t.clientX - touchStart.x;
     const dy = t.clientY - touchStart.y;
-    if (Math.hypot(dx, dy) > TAP_THRESHOLD) {
+    if (paintMode) {
+      // Painting: finger drags a stroke of tiles, camera stays put
+      if (Math.hypot(dx, dy) > TAP_THRESHOLD) touchStart.moved = true;
+      paintAt(t.clientX, t.clientY);
+    } else if (Math.hypot(dx, dy) > TAP_THRESHOLD) {
       touchStart.moved = true;
-      dlog('touchmove: DRAG detected, dist=', Math.hypot(dx,dy).toFixed(1));
-      // Pan camera
+      clearTimeout(longPressTimer);
       camX = touchStart.camX + dx;
       camY = touchStart.camY + dy;
       clampCamera();
-
-      // Drag-build for roads / bulldoze
-      if (activeTool !== 'inspect' && activeTool !== 'drive') {
-        const tile = worldToTile(screenToWorld(t.clientX, t.clientY));
-        if (activeTool === 'bulldoze') doBulldoze(tile.x, tile.y);
-        else doBuild(tile.x, tile.y);
-      }
     }
   } else if (e.touches.length === 2) {
-    // Pinch zoom
     const t1 = e.touches[0], t2 = e.touches[1];
     const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-    if (pinchStartDist > 0) {
-      zoom = Math.max(0.4, Math.min(3, zoom * (dist / pinchStartDist)));
-      clampCamera();
-    }
+    const mid = { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+    if (pinchStartDist > 0) zoomAt(mid.x, mid.y, dist / pinchStartDist);
+    if (pinchMid) { camX += mid.x - pinchMid.x; camY += mid.y - pinchMid.y; clampCamera(); }
     pinchStartDist = dist;
+    pinchMid = mid;
   }
 }, { passive: false });
 
 canvas.addEventListener('touchend', e => {
   e.preventDefault();
+  clearTimeout(longPressTimer);
 
   // Fallback: if touchStart is null but we have a changedTouch, treat as tap anyway
   // (iOS WKWebView sometimes drops touchstart under gesture confusion)
-  if (!touchStart && e.changedTouches.length === 1) {
+  if (!touchStart && !paintMode && e.changedTouches.length === 1 && e.touches.length === 0) {
     const t = e.changedTouches[0];
     dlog('touchend: no touchStart, using fallback');
     _tryHandleTap(t.clientX, t.clientY, 'touchend-fallback');
     return;
   }
 
-  if (touchStart && !touchStart.moved && e.changedTouches.length === 1) {
-    // IT'S A TAP — place building
+  if (touchStart && !touchStart.moved && !paintMode && e.changedTouches.length === 1) {
     const t = e.changedTouches[0];
     dlog('touchend: TAP detected');
     _tryHandleTap(t.clientX, t.clientY, 'touchend');
-  } else {
-    dlog('touchend: not a tap — touchStart=', !!touchStart, 'moved=', touchStart?.moved, 'changedTouches=', e.changedTouches.length);
   }
 
   // Reset touch state. If fingers remain, rebuild start from remaining touch.
   if (e.touches.length === 0) {
     touchStart = null;
     pinchStartDist = 0;
+    pinchMid = null;
+    paintMode = false;
+    _lastPaintTile = null;
   } else if (e.touches.length === 1) {
     // Went from 2→1 finger: set up pan from remaining finger
     const t = e.touches[0];
@@ -962,110 +1131,80 @@ canvas.addEventListener('touchend', e => {
       camX: camX, camY: camY,
     };
     pinchStartDist = 0;
+    pinchMid = null;
   }
 }, { passive: false });
 
 canvas.addEventListener('touchcancel', () => {
+  clearTimeout(longPressTimer);
   touchStart = null;
   pinchStartDist = 0;
+  pinchMid = null;
+  paintMode = false;
+  _lastPaintTile = null;
 }, { passive: false });
 
 // ══════════════════════════════════════════════════════════════════
-// LAYER 2: POINTER EVENTS — Secondary for desktop browsers
-// NOTE: No setPointerCapture — it breaks iOS Safari touch.
+// LAYER 2: POINTER EVENTS — mouse/pen only (touch handled above).
+// Left-drag paints when a build tool is active; pans otherwise.
+// Middle/right-drag always pans. No setPointerCapture (breaks iOS).
 // ══════════════════════════════════════════════════════════════════
-const pointers = new Map();
-let dragInfo = null;
-let lastPinchDist = 0;
-let _pointerIsTouch = false;  // flag: suppress pointer tap if touch already handled
+let mouseDrag = null;   // {x,y,camX,camY,moved,paint}
+let _lastPointerDown = null;
 
 canvas.addEventListener('pointerdown', e => {
-  // If this is a touch-generated pointer event, track but let touch layer handle taps
-  _pointerIsTouch = (e.pointerType === 'touch');
-
+  _lastPointerDown = { x: e.clientX, y: e.clientY, t: Date.now(), touch: e.pointerType === 'touch' };
+  if (e.pointerType === 'touch') return;  // touch layer owns this gesture
   e.preventDefault();
-  // DO NOT call setPointerCapture — breaks iOS
   unlockAudio();
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
-  if (pointers.size === 1) {
-    dragInfo = { x: e.clientX, y: e.clientY, camX, camY, moved: false };
-  } else if (pointers.size === 2) {
-    const pts = [...pointers.values()];
-    lastPinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-    if (dragInfo) dragInfo.moved = true;
-  }
+  const paint = e.button === 0 && isPaintTool();
+  mouseDrag = { x: e.clientX, y: e.clientY, camX, camY, moved: false, paint, button: e.button };
+  _lastPaintTile = null;
 });
 
 canvas.addEventListener('pointermove', e => {
-  if (pointers.has(e.pointerId))
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: pointers.get(e.pointerId).sx, sy: pointers.get(e.pointerId).sy });
-
-  if (pointers.size === 2) {
-    const pts = [...pointers.values()];
-    const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-    if (lastPinchDist > 0) {
-      const scale = dist / lastPinchDist;
-      zoom = Math.max(0.4, Math.min(3, zoom * scale));
-      clampCamera();
-    }
-    lastPinchDist = dist;
-    if (dragInfo) dragInfo.moved = true;
-    return;
-  }
-
-  if (dragInfo && pointers.size === 1) {
-    const dx = e.clientX - dragInfo.x;
-    const dy = e.clientY - dragInfo.y;
-    if (Math.hypot(dx, dy) > TAP_THRESHOLD) {
-      dragInfo.moved = true;
-      camX = dragInfo.camX + dx;
-      camY = dragInfo.camY + dy;
-      clampCamera();
-      // Drag-build for mouse (desktop)
-      if (activeTool !== 'inspect' && activeTool !== 'drive') {
-        const t = worldToTile(screenToWorld(e.clientX, e.clientY));
-        if (activeTool === 'bulldoze') doBulldoze(t.x, t.y);
-        else doBuild(t.x, t.y);
-      }
-    }
+  if (e.pointerType === 'touch') return;
+  if (!mouseDrag) { updateHover(e.clientX, e.clientY); return; }
+  const dx = e.clientX - mouseDrag.x;
+  const dy = e.clientY - mouseDrag.y;
+  if (!mouseDrag.moved && Math.hypot(dx, dy) > TAP_THRESHOLD) mouseDrag.moved = true;
+  if (!mouseDrag.moved) return;
+  if (mouseDrag.paint) {
+    if (!_lastPaintTile) paintAt(mouseDrag.x, mouseDrag.y);  // seed stroke from press point
+    paintAt(e.clientX, e.clientY);
+    updateHover(e.clientX, e.clientY);
+  } else {
+    camX = mouseDrag.camX + dx;
+    camY = mouseDrag.camY + dy;
+    clampCamera();
+    clearHover();
   }
 });
 
 canvas.addEventListener('pointerup', e => {
-  const info = pointers.get(e.pointerId);
-  pointers.delete(e.pointerId);
-  if (pointers.size < 2) lastPinchDist = 0;
-  // Only treat as tap for non-touch pointers (mouse/pen).
-  // Touch taps are handled by the touchend layer above.
-  // Allow BOTH touch and mouse/pen pointers to trigger taps.
-  // The 200ms debounce in _tryHandleTap prevents double-fire (touchend + pointerup).
-  if (info && dragInfo && !dragInfo.moved) {
-    const move = Math.hypot(e.clientX - info.sx, e.clientY - info.sy);
-    if (move < TAP_THRESHOLD) {
-      _tryHandleTap(e.clientX, e.clientY);
-    }
-  }
-  if (pointers.size === 0) { dragInfo = null; _pointerIsTouch = false; }
+  if (e.pointerType === 'touch') return;
+  const wasDrag = mouseDrag && mouseDrag.moved;
+  const btn = mouseDrag ? mouseDrag.button : e.button;
+  mouseDrag = null;
+  if (!wasDrag && btn === 0) _tryHandleTap(e.clientX, e.clientY, 'pointerup');
 });
 
-canvas.addEventListener('pointercancel', () => { pointers.clear(); dragInfo = null; lastPinchDist = 0; });
+canvas.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') clearHover(); });
+canvas.addEventListener('pointercancel', () => { mouseDrag = null; });
 
 // ══════════════════════════════════════════════════════════════════
-// LAYER 3: CLICK FALLBACK — for desktop browsers that fire click without pointerup
+// LAYER 3: CLICK FALLBACK — desktop browsers that fire click without pointerup.
+// Suppressed after any drag (distance check) and double-fires (150ms guard).
 // ══════════════════════════════════════════════════════════════════
-let _lastPointerDown = null;
-canvas.addEventListener('pointerdown', e => { _lastPointerDown = { x: e.clientX, y: e.clientY, t: Date.now(), touch: e.pointerType === 'touch' }; });
 canvas.addEventListener('click', e => {
-  // _tryHandleTap's 200ms debounce prevents double-fire from touchend + click.
-  _tryHandleTap(e.clientX, e.clientY);
+  if (_lastPointerDown && Math.hypot(e.clientX - _lastPointerDown.x, e.clientY - _lastPointerDown.y) > TAP_THRESHOLD) return;
+  _tryHandleTap(e.clientX, e.clientY, 'click');
 });
 
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
-  const factor = e.deltaY > 0 ? 0.9 : 1.1;
-  zoom = Math.max(0.4, Math.min(3, zoom * factor));
-  clampCamera();
+  zoomAt(e.clientX, e.clientY, e.deltaY > 0 ? 0.9 : 1.1);
 }, { passive: false });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1122,7 +1261,20 @@ function handleTap(tx, ty) {
 // ═══════════════════════════════════════════════════════════════════
 // BUILDING LOGIC — with full feedback
 // ═══════════════════════════════════════════════════════════════════
-function doBuild(tx, ty) {
+// Recently-placed tiles get a quick scale-in "pop" (see drawTileIso)
+const placeAnims = {};   // key "x,y" -> timestamp when animation ends
+const PLACE_ANIM_MS = 280;
+
+function buildReject(tx, ty, msg, quiet, hapMs) {
+  addTileEffect(tx, ty, '#ef4444', 500, 0.8);
+  if (quiet) return;  // during drag-paint, don't spam toasts/sounds
+  toast(msg, true);
+  sndError();
+  haptic(hapMs || 20);
+}
+
+function doBuild(tx, ty, opts) {
+  const quiet = !!(opts && opts.quiet);
   if (tx < 0 || tx >= GRID || ty < 0 || ty >= GRID) { dlog('doBuild: OOB'); return; }
   const tool = TOOLS.find(t => t.id === activeTool);
   if (!tool || !tool.tile) { dlog('doBuild: no tool/tile for', activeTool); return; }
@@ -1137,35 +1289,24 @@ function doBuild(tx, ty) {
   if (tile.type === T.WATER) {
     if (tool.tile !== T.BOAT) {
       dlog('doBuild: REJECTED water');
-      addTileEffect(tx, ty, '#ef4444', 500, 0.8);
-      toast('Cannot build on water!', true);
-      sndError();
-      haptic(20);
+      buildReject(tx, ty, 'Cannot build on water!', quiet);
       return;
     }
   } else if (tool.tile === T.BOAT) {
     // BOAT may ONLY be placed on water
     dlog('doBuild: REJECTED land for boat');
-    addTileEffect(tx, ty, '#ef4444', 500, 0.8);
-    toast('Boat can only be placed on water!', true);
-    sndError();
-    haptic(20);
+    buildReject(tx, ty, 'Boat can only be placed on water!', quiet);
     return;
   }
   if (tile.type !== T.GRASS && tile.type !== T.ROAD) {
+    if (tile.type === tool.tile && quiet) return;  // painting over same type: silent no-op
     dlog('doBuild: REJECTED occupied, type=', tile.type);
-    addTileEffect(tx, ty, '#ef4444', 500, 0.8);
-    toast('Tile occupied!', true);
-    sndError();
-    haptic(20);
+    buildReject(tx, ty, 'Tile occupied!', quiet);
     return;
   }
   if (state.money < data.cost) {
     dlog('doBuild: REJECTED broke');
-    addTileEffect(tx, ty, '#ef4444', 500, 0.8);
-    toast('Not enough funds!', true);
-    sndError();
-    haptic(30);
+    buildReject(tx, ty, 'Not enough funds!', quiet, 30);
     return;
   }
 
@@ -1176,6 +1317,7 @@ function doBuild(tx, ty) {
   state.grid[ty][tx] = mkTile(tool.tile, 1);
   if (tool.tile === T.SIGN) state.grid[ty][tx].data = { signIdx: Math.floor(Math.random() * SIGNS.length) };
   markTileDirty(tx, ty);
+  placeAnims[tx + ',' + ty] = performance.now() + PLACE_ANIM_MS;
 
   // Visual + audio feedback
   addTileEffect(tx, ty, '#4ade80', 400);
@@ -1189,7 +1331,7 @@ function doBuild(tx, ty) {
   scheduleSave();
 }
 
-function doBulldoze(tx, ty) {
+function doBulldoze(tx, ty, opts) {
   if (tx < 0 || tx >= GRID || ty < 0 || ty >= GRID) return;
   const tile = state.grid[ty][tx];
   if (tile.type === T.GRASS || tile.type === T.WATER) return;
@@ -1255,6 +1397,7 @@ function computePoweredTiles() {
           for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
               const nx = x + dx, ny = y + dy;
+              if (nx < 0 || nx >= GRID || ny < 0 || ny >= GRID) continue;
               if (state.poweredTiles.has(ny * GRID + nx)) {
                 state.poweredTiles.add(y * GRID + x);
                 changed = true; break;
@@ -1295,6 +1438,38 @@ function hasFireDeptWithin(tx, ty, radius) {
   }
   return false;
 }
+
+// Check for nearby water tower within radius (zones with water grow faster)
+function hasWaterTowerWithin(tx, ty, radius) {
+  for (var dy = -radius; dy <= radius; dy++) {
+    for (var dx = -radius; dx <= radius; dx++) {
+      var nx = tx + dx, ny = ty + dy;
+      if (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID) {
+        if (state.grid[ny][nx].type === T.WATER_TOWER) return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Water tower coverage set — powers the 💧 overlay and minimap
+function computeWaterTiles() {
+  state.waterTiles.clear();
+  const R = 5;
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      if (state.grid[y][x].type !== T.WATER_TOWER) continue;
+      for (let dy = -R; dy <= R; dy++) {
+        for (let dx = -R; dx <= R; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID && Math.hypot(dx, dy) <= R)
+            state.waterTiles.add(ny * GRID + nx);
+        }
+      }
+    }
+  }
+}
+function isWatered(tx, ty) { return state.waterTiles.has(ty * GRID + tx); }
 
 function updatePollution() {
   for (let y = 0; y < GRID; y++)
@@ -1443,15 +1618,19 @@ function cycleTiles(key, tiles) {
 
 function simTick() {
   state.tick++;
-  try { computePoweredTiles(); updatePollution(); }
+  try { computePoweredTiles(); computeWaterTiles(); updatePollution(); }
   catch(e) { console.warn('pollution calc error:', e); }
 
   let pop = 0, income = 0;
+  // Budget breakdown (per-class taxes scale income and growth)
+  const bud = { resTax: 0, comInc: 0, indInc: 0, farmInc: 0, specialInc: 0, roadMaint: 0, zoneMaint: 0, svcMaint: 0 };
+  const taxR = state.taxRates.r, taxC = state.taxRates.c, taxI = state.taxRates.i;
   let resCount = 0, comCount = 0, indCount = 0, roadCount = 0;
   let resUnpoweredCount = 0;
   let resNearPollution = 0;
   let hasPowerPlant = false;
   let specialBuildings = 0;
+  let policeCount = 0;
 
   // Reset problem tile tracking for interactive dashboard
   problemTiles.unpowered = [];
@@ -1471,15 +1650,44 @@ function simTick() {
         const road = hasRoadWithin(x, y, ROAD_RADIUS);
         const poll = getPollution(x, y);
 
+        // ── Generic fire handling: any burning building can be saved or damaged ──
+        if (tile.data && tile.data.onFire) {
+          if (hasFireDeptWithin(x, y, 5)) {
+            tile.data.onFire = false;
+            tile.data.fireTicks = 0;
+            addTileEffect(x, y, '#3b82f6', 800);
+            addFloater(x * TILE + TILE / 2, y * TILE - 4, '🚒!', '#3b82f6');
+          } else {
+            tile.data.fireTicks = (tile.data.fireTicks || 0) + 1;
+            if (tile.data.fireTicks >= 5) {
+              if (tile.level > 1) {
+                tile.level--;
+                addFloater(x * TILE + TILE / 2, y * TILE - 4, '🔥 -1 Level!', '#ef4444');
+              } else if ((tile.type === T.RES || tile.type === T.COM || tile.type === T.IND) && Math.random() < 0.35) {
+                // Burnt to the ground — zone reverts to grass
+                state.grid[y][x] = mkTile(T.GRASS);
+                addFloater(x * TILE + TILE / 2, y * TILE - 4, '🔥 Destroyed!', '#ef4444');
+                addParticles(x * TILE + TILE / 2, y * TILE + TILE / 2, 12, '#666');
+              }
+              markTileDirty(x, y);
+              const t2 = state.grid[y][x];
+              if (t2.data) { t2.data.onFire = false; t2.data.fireTicks = 0; }
+              addTileEffect(x, y, '#666', 600);
+              if (state.grid[y][x] !== tile) continue; // tile was destroyed
+            }
+          }
+        }
+
         switch (tile.type) {
           case T.RES:
             resCount++;
             if (powered && road) {
               if (tile.level < 5 && poll < 6) {
                 // Levels 4-5 require lower pollution and higher demand
-                var growChance = (1 - state.taxRate / 25) * (state.rci.r / 100);
+                var growChance = (1 - taxR / 25) * (state.rci.r / 100);
                 if (tile.level >= 3) growChance *= 0.4; // harder to reach tall levels
                 growChance *= 0.25;
+                if (hasWaterTowerWithin(x, y, 5)) growChance *= 1.5;
                 if (Math.random() < growChance) {
                   tile.level++;
                   markTileDirty(x, y);
@@ -1508,8 +1716,9 @@ function simTick() {
             if (powered && road) {
               const nearbyPop = countPopNearby(x, y, 3);
               if (tile.level < 5 && nearbyPop > tile.level * 15) {
-                var growChance = 0.2 * (state.rci.c / 100);
+                var growChance = 0.2 * (state.rci.c / 100) * (1 - Math.max(0, taxC - 5) / 30);
                 if (tile.level >= 3) growChance *= 0.35; // skyscrapers are rare
+                if (hasWaterTowerWithin(x, y, 5)) growChance *= 1.5;
                 if (Math.random() < growChance) {
                   tile.level++;
                   markTileDirty(x, y);
@@ -1518,39 +1727,20 @@ function simTick() {
                   sndGrow();
                 }
               }
-              income += tile.level * 8;
+              var comEarn = Math.round(tile.level * 8 * (taxC / 5));
+              income += comEarn;
+              bud.comInc += comEarn;
+              bud.comBase = (bud.comBase || 0) + tile.level * 8;
             }
             break;
 
           case T.IND:
             indCount++;
-            // Fire Department suppression — check regardless of power/road
-            if (tile.data && tile.data.onFire) {
-              if (hasFireDeptWithin(x, y, 5)) {
-                tile.data.onFire = false;
-                tile.data.fireTicks = 0;
-                addTileEffect(x, y, '#3b82f6', 800);
-                addFloater(x * TILE + TILE / 2, y * TILE - 4, '🚒!', '#3b82f6');
-              }
-            }
             if (powered && road) {
-              // Disaster: fire damage
-              if (tile.data && tile.data.onFire) {
-                tile.data.fireTicks = (tile.data.fireTicks || 0) + 1;
-                if (tile.data.fireTicks >= 5) {
-                  if (tile.level > 1) {
-                    tile.level--;
-                    markTileDirty(x, y);
-                    addFloater(x * TILE + TILE / 2, y * TILE - 4, '🔥 -1 Level!', '#ef4444');
-                  }
-                  tile.data.onFire = false;
-                  tile.data.fireTicks = 0;
-                  addTileEffect(x, y, '#666', 600);
-                }
-              }
               if (tile.level < 5) {
-                var growChance = 0.15 * (state.rci.i / 100);
+                var growChance = 0.15 * (state.rci.i / 100) * (1 - Math.max(0, taxI - 5) / 30);
                 if (tile.level >= 3) growChance *= 0.4;
+                if (hasWaterTowerWithin(x, y, 5)) growChance *= 1.5;
                 if (Math.random() < growChance) {
                   tile.level++;
                   markTileDirty(x, y);
@@ -1559,14 +1749,18 @@ function simTick() {
                   sndGrow();
                 }
               }
-              income += tile.level * 12;
+              var indEarn = Math.round(tile.level * 12 * (taxI / 5));
+              income += indEarn;
+              bud.indInc += indEarn;
+              bud.indBase = (bud.indBase || 0) + tile.level * 12;
             }
             break;
 
-          case T.PEPPER_FARM: if (road) income += 10 * tile.level; break;
+          case T.PEPPER_FARM: if (road) { income += 10 * tile.level; bud.farmInc += 10 * tile.level; } break;
           case T.GRAPE_FARM:
             if (road) {
               income += 15 * tile.level;
+              bud.farmInc += 15 * tile.level;
               if (tile.level < 3 && Math.random() < 0.2) {
                 tile.level++;
                 markTileDirty(x, y);
@@ -1589,29 +1783,31 @@ function simTick() {
             }
             break;
           case T.ROAD: roadCount++; break;
-          case T.GRILL:         income += 30; specialBuildings++; break;
-          case T.GARAGE:        income += 35; specialBuildings++; break;
-          case T.GUMMY_FACTORY: income += 60; specialBuildings++; break;
+          case T.GRILL:         income += 30; bud.specialInc += 30; specialBuildings++; break;
+          case T.GARAGE:        income += 35; bud.specialInc += 35; specialBuildings++; break;
+          case T.GUMMY_FACTORY: income += 60; bud.specialInc += 60; specialBuildings++; break;
           case T.THRONE_ROOM:     specialBuildings++; break;
           case T.BLUETOOTH_TOWER: specialBuildings++; break;
           case T.HORN_TOWER:      specialBuildings++; break;
           case T.PLAYGROUND:     specialBuildings++; break;
-          case T.EMMY_ELECTRONICS:  income += 45; specialBuildings++; break;
-          case T.ELSIE_RESTAURANT:  income += 35; specialBuildings++; break;
-          case T.FIRE_DEPT:         income -= 20; specialBuildings++; break; // Maintenance cost
-          case T.JAM_STORE:         income += 40; specialBuildings++; break;
-          case T.FISHING_HUT:    income += 20; specialBuildings++; break;
+          case T.EMMY_ELECTRONICS:  income += 45; bud.specialInc += 45; specialBuildings++; break;
+          case T.ELSIE_RESTAURANT:  income += 35; bud.specialInc += 35; specialBuildings++; break;
+          case T.FIRE_DEPT:         income -= 20; bud.svcMaint += 20; specialBuildings++; break; // Maintenance cost
+          case T.JAM_STORE:         income += 40; bud.specialInc += 40; specialBuildings++; break;
+          case T.FISHING_HUT:    income += 20; bud.specialInc += 20; specialBuildings++; break;
           case T.BOAT:           specialBuildings++; break;
           case T.BOBA_SHOP:      specialBuildings++; break;
           case T.PET_STORE:      specialBuildings++; break;
-          case T.BAKERY:       income += 20; specialBuildings++; break;
+          case T.BAKERY:       income += 20; bud.specialInc += 20; specialBuildings++; break;
           case T.MANSION:     specialBuildings++; break;
-          case T.CLUB:        income += 40; specialBuildings++; break;
+          case T.CLUB:        income += 40; bud.specialInc += 40; specialBuildings++; break;
           case T.INVESTIGATOR_CLUB: specialBuildings++; break;
           case T.BOOKSTORE: specialBuildings++; break;
           case T.ZOO: specialBuildings++; break;
           case T.AQUARIUM: specialBuildings++; break;
           case T.GROCERY: specialBuildings++; break;
+          case T.POLICE: income -= 15; bud.svcMaint += 15; policeCount++; specialBuildings++; break; // Maintenance cost
+          case T.WATER_TOWER: income -= 5; bud.svcMaint += 5; specialBuildings++; break; // Maintenance cost
         }
 
         // ── Track problem tiles for interactive dashboard ──
@@ -1633,16 +1829,28 @@ function simTick() {
     }
   } catch(e) { console.warn('simTick loop error:', e); }
 
-  // Tax revenue
-  const taxes = Math.floor(pop * (state.happiness / 100) * (state.taxRate / 5) * 0.5);
-  income += taxes;
-  const maint = Math.floor(roadCount * 0.5 + (resCount + comCount + indCount) * 1.5);
+  // ── Fire spread: burning tiles can ignite flammable neighbors ──
+  if (state.disastersOn) {
+    try { spreadFires(); } catch(e) { console.warn('fire spread error:', e); }
+  }
 
-  // RCI demand
+  // Keep legacy overall tax rate as the average (used by happiness + dashboard)
+  state.taxRate = Math.round((taxR + taxC + taxI) / 3);
+
+  // Residential tax revenue (scaled by happiness — unhappy citizens dodge taxes)
+  const taxes = Math.floor(pop * (state.happiness / 100) * (taxR / 5) * 0.5);
+  income += taxes;
+  bud.resTax = taxes;
+  bud.roadMaint = Math.floor(roadCount * 0.5);
+  bud.zoneMaint = Math.floor((resCount + comCount + indCount) * 1.5);
+  const maint = bud.roadMaint + bud.zoneMaint;
+  state.budget = bud;
+
+  // RCI demand — each class reacts to its own tax rate
   const totalJobs = comCount * 8 + indCount * 12;
-  state.rci.r = clamp(50 + (totalJobs - pop) * 0.4 - state.taxRate * 2, 0, 100);
-  state.rci.c = clamp(50 + (pop - comCount * 8) * 0.3 + state.happiness * 0.2 - state.taxRate * 1.5, 0, 100);
-  state.rci.i = clamp(50 + pop * 0.1 - state.taxRate * 0.5, 0, 100);
+  state.rci.r = clamp(50 + (totalJobs - pop) * 0.4 - taxR * 2, 0, 100);
+  state.rci.c = clamp(50 + (pop - comCount * 8) * 0.3 + state.happiness * 0.2 - taxC * 1.5, 0, 100);
+  state.rci.i = clamp(50 + pop * 0.1 - taxI * 0.5, 0, 100);
 
   // ─── Happiness: starts at 50, only goes UP for good conditions ──
   happinessFactors = [];
@@ -1685,6 +1893,15 @@ function simTick() {
     if (unemploymentPct > 30) {
       happy -= 20;
       happinessFactors.push({ label: '📉 ' + Math.round(unemploymentPct) + '% unemployed', val: '-20', positive: false });
+    }
+  }
+
+  // -crime when population outgrows police coverage (~500 citizens per station)
+  if (pop > 100) {
+    const crimePenalty = Math.max(0, Math.min(20, Math.floor(pop / 100) * 3 - policeCount * 15));
+    if (crimePenalty > 0) {
+      happy -= crimePenalty;
+      happinessFactors.push({ label: '🚨 Crime (build Police)', val: '-' + crimePenalty, positive: false });
     }
   }
 
@@ -1736,10 +1953,17 @@ function simTick() {
   happinessFactors.push({ label: '😊 Total', val: state.happiness + '%', positive: state.happiness >= 50 });
 
   state.population = pop;
+  state.popHistory.push(pop);
+  if (state.popHistory.length > 150) state.popHistory.shift();
+  state.happyHistory.push(state.happiness);
+  if (state.happyHistory.length > 150) state.happyHistory.shift();
   state.income = income;
   state.expenses = maint;
   const netIncome = income - maint;
+  state.lastNet = netIncome;
   state.money += netIncome;
+  state.moneyHistory.push(Math.floor(state.money));
+  if (state.moneyHistory.length > 150) state.moneyHistory.shift();
 
   if (income > 0 && pop > 0) {
     const cx = GRID / 2 * TILE, cy = GRID / 2 * TILE;
@@ -1762,6 +1986,52 @@ function simTick() {
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
+// ─── Fire spread ────────────────────────────────────────────────────
+// Each burning building has a chance to ignite flammable 4-neighbors.
+// Fire departments (within 5 tiles) block ignition. Capped at 12 fires.
+function isFlammable(tile) {
+  if (!tile) return false;
+  if (tile.type === T.GUMMY_FACTORY) return true;
+  return (tile.type === T.RES || tile.type === T.COM || tile.type === T.IND) && tile.level >= 1;
+}
+
+function spreadFires() {
+  const burning = [];
+  let fireCount = 0;
+  for (let y = 0; y < GRID; y++)
+    for (let x = 0; x < GRID; x++) {
+      const t = state.grid[y][x];
+      if (t.data && t.data.onFire) { burning.push({ x, y }); fireCount++; }
+    }
+  if (!burning.length || fireCount >= 12) return;
+  const ignited = [];
+  for (const f of burning) {
+    for (const [dx, dy] of [[0,-1],[0,1],[-1,0],[1,0]]) {
+      const nx = f.x + dx, ny = f.y + dy;
+      if (nx < 0 || nx >= GRID || ny < 0 || ny >= GRID) continue;
+      const nt = state.grid[ny][nx];
+      if (!isFlammable(nt) || (nt.data && nt.data.onFire)) continue;
+      if (hasFireDeptWithin(nx, ny, 5)) continue;
+      if (Math.random() < 0.18) ignited.push({ x: nx, y: ny });
+    }
+  }
+  for (const g of ignited) {
+    if (fireCount >= 12) break;
+    const t = state.grid[g.y][g.x];
+    if (!t.data) t.data = {};
+    if (t.data.onFire) continue;
+    t.data.onFire = true;
+    t.data.fireTicks = 0;
+    fireCount++;
+    addTileEffect(g.x, g.y, '#ef4444', 800, 0.6);
+    addParticles(g.x * TILE + TILE / 2, g.y * TILE + TILE / 2, 8, '#ff6600');
+  }
+  if (ignited.length) {
+    const ticker = document.getElementById('newsTicker');
+    if (ticker) ticker.textContent = '🔥 Fire is spreading! Build Fire Departments!';
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // TRAFFIC
 // ═══════════════════════════════════════════════════════════════════
@@ -1780,6 +2050,16 @@ function safeTile(x, y) {
 function updateTraffic() {
   // Target: always at least 5 cars if roads exist, scale with population
   const target = Math.min(20, Math.max(8, Math.floor(state.population / 20)));
+  // Decay traffic heat map, then record where cars currently are
+  for (const k in state.trafficDensity) {
+    state.trafficDensity[k] *= 0.9;
+    if (state.trafficDensity[k] < 0.05) delete state.trafficDensity[k];
+  }
+  for (const c of state.trafficCars) {
+    const ctx2 = Math.floor(c.x / TILE), cty = Math.floor(c.y / TILE);
+    const idx = safeTileIdx(ctx2, cty);
+    if (idx >= 0) state.trafficDensity[idx] = Math.min(3, (state.trafficDensity[idx] || 0) + 1);
+  }
   // Remove expired cars first
   for (let i = state.trafficCars.length - 1; i >= 0; i--) {
     const c = state.trafficCars[i];
@@ -2029,16 +2309,49 @@ function isRoadAt(tx, ty) {
 // ═══════════════════════════════════════════════════════════════════
 // MAIN RENDER
 // ═══════════════════════════════════════════════════════════════════
+function skyLerp(nf) {
+  // Blend the sky between deep day-blue and near-black night
+  const day = [32, 52, 88], night = [5, 5, 14];
+  const r = Math.round(day[0] + (night[0] - day[0]) * nf);
+  const g = Math.round(day[1] + (night[1] - day[1]) * nf);
+  const b = Math.round(day[2] + (night[2] - day[2]) * nf);
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+
 function render() {
-  ctx.fillStyle = '#0a0a12';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.save();
-  ctx.translate(camX, camY);
-  ctx.scale(zoom, zoom);
-
   const brightness = getDayNightTint();
   const nightData = getDayNightOverlay();
+  const nf = nightData ? nightData.night : 0;
+
+  // Sky — gradient darkens with the night cycle
+  const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  sky.addColorStop(0, skyLerp(Math.min(1, nf + 0.15)));
+  sky.addColorStop(1, skyLerp(nf));
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Stars fade in at night (screen-space, deterministic positions)
+  if (nf > 0.5) {
+    const starAlpha = (nf - 0.5) * 1.6;
+    for (let i = 0; i < 60; i++) {
+      const sxp = ((i * 379) % 997) / 997 * canvas.width;
+      const syp = ((i * 613) % 991) / 991 * canvas.height * 0.6;
+      const tw = 0.5 + 0.5 * Math.sin(state.tick * 0.8 + i * 1.7);
+      ctx.fillStyle = 'rgba(255,255,240,' + (starAlpha * (0.25 + 0.5 * tw)).toFixed(3) + ')';
+      ctx.fillRect(sxp, syp, i % 7 === 0 ? 2 : 1, i % 7 === 0 ? 2 : 1);
+    }
+  }
+
+  ctx.save();
+  // Earthquake screen shake
+  let shakeX = 0, shakeY = 0;
+  if (shakeTime > 0) {
+    const decay = Math.min(1, shakeTime / 1200);
+    shakeX = (Math.random() - 0.5) * 2 * shakeMag * decay;
+    shakeY = (Math.random() - 0.5) * 2 * shakeMag * decay;
+  }
+  ctx.translate(camX + shakeX, camY + shakeY);
+  ctx.scale(zoom, zoom);
 
   // Iterate tiles back-to-front (painter's algorithm) along iso diagonals
   for (let d = 0; d <= 2 * (GRID - 1); d++) {
@@ -2157,6 +2470,8 @@ function drawTileIso(tx, ty, brightness) {
     case T.ZOO: drawSpecialIso(T.ZOO, px, py, hw, hh, tile.level, b); break;
     case T.AQUARIUM: drawSpecialIso(T.AQUARIUM, px, py, hw, hh, tile.level, b); break;
     case T.GROCERY: drawSpecialIso(T.GROCERY, px, py, hw, hh, tile.level, b); break;
+    case T.POLICE: drawSpecialIso(T.POLICE, px, py, hw, hh, tile.level, b); break;
+    case T.WATER_TOWER: drawSpecialIso(T.WATER_TOWER, px, py, hw, hh, tile.level, b); break;
     case T.POWER_LINE: drawPowerLineIso(px, py, hw, hh, b); break;
     case T.SIGN: drawSignIso(px, py, hw, hh, tile, b); break;
   }
@@ -2200,6 +2515,31 @@ function drawTileIso(tx, ty, brightness) {
       ctx.fillStyle = 'rgba(100,200,255,0.5)';
       ctx.font = '5px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
       ctx.fillText('⚡', px - hw + 2, py + hh - 6);
+    }
+  }
+
+  // ── Data overlay modes (🗺️ button) ──
+  if (overlayMode !== 'off') {
+    let oc = null;
+    if (overlayMode === 'power') {
+      if (isPowered(tx, ty)) oc = 'rgba(74,222,128,0.28)';
+      else if (tile.type === T.RES || tile.type === T.COM || tile.type === T.IND) oc = 'rgba(239,68,68,0.35)';
+      else oc = 'rgba(0,0,0,0.25)';
+    } else if (overlayMode === 'water') {
+      oc = isWatered(tx, ty) ? 'rgba(34,211,238,0.30)' : 'rgba(0,0,0,0.25)';
+    } else if (overlayMode === 'traffic') {
+      if (tile.type === T.ROAD) {
+        const d = state.trafficDensity[ty * GRID + tx] || 0;
+        oc = d > 1.5 ? 'rgba(239,68,68,0.45)' : d > 0.6 ? 'rgba(251,191,36,0.40)' : 'rgba(74,222,128,0.30)';
+      } else oc = 'rgba(0,0,0,0.30)';
+    } else if (overlayMode === 'pollution') {
+      const p = getPollution(tx, ty);
+      oc = p > 0 ? 'rgba(180,90,30,' + Math.min(0.55, 0.12 + p * 0.08) + ')' : 'rgba(0,0,0,0.20)';
+    }
+    if (oc) {
+      isoDiamondPath(px, py, hw, hh);
+      ctx.fillStyle = oc;
+      ctx.fill();
     }
   }
 
@@ -2656,6 +2996,29 @@ function adjustBrightness(hex, factor) {
 }
 
 // ─── Buildings ─────────────────────────────────────────────────────
+// 4 visual variants per zone type — picked deterministically per tile so
+// neighborhoods look varied but stay stable across frames and reloads.
+const ZONE_VARIANTS = {
+  res: [
+    { c:'#5cb76f', d:'#2d6b3a', roof:'hip',  roofC:'#8a4a32' },
+    { c:'#c9a06a', d:'#8a683a', roof:'hip',  roofC:'#5a3a2a' },
+    { c:'#b06a5a', d:'#6e3a2e', roof:'flat' },
+    { c:'#7a9ab0', d:'#43607a', roof:'hip',  roofC:'#3a4a5a' },
+  ],
+  com: [
+    { c:'#4a9eff', d:'#1e4a8a', roof:'ac' },
+    { c:'#2dd4bf', d:'#116e63', roof:'tank' },
+    { c:'#8b7cf6', d:'#4c3a9e', roof:'ac' },
+    { c:'#6b7f99', d:'#38455c', roof:'pad' },
+  ],
+  ind: [
+    { c:'#f0b840', d:'#9a6a18', chims:1 },
+    { c:'#9aa3ad', d:'#565f69', chims:0, tank:true },
+    { c:'#c47a4a', d:'#7a4426', chims:2 },
+    { c:'#a3a04e', d:'#63612a', chims:1, tank:true },
+  ],
+};
+
 function drawBuildingIso(px, py, hw, hh, level, color, darkColor, b, zoneType, tx, ty) {
   if (level === 0) return; // empty zone
 
@@ -2663,18 +3026,25 @@ function drawBuildingIso(px, py, hw, hh, level, color, darkColor, b, zoneType, t
   var isNight = nightData && nightData.night > 0.45;
   var winColor = isNight ? 'rgba(255,230,100,0.85)' : 'rgba(200,220,255,0.45)';
 
-  // Building heights per level
+  // Deterministic per-tile variant
+  var variants = ZONE_VARIANTS[zoneType];
+  var v = variants[Math.floor(tileRand(tx, ty, 42) * variants.length)] || variants[0];
+  color = v.c; darkColor = v.d;
+
+  // Building heights per level, with per-tile jitter for a natural skyline
   var heights = [0, 16, 28, 42, 60, 80];
   var h = heights[Math.min(level, 5)] || 16;
+  h = Math.round(h * (0.85 + tileRand(tx, ty, 7) * 0.3));
 
   // Building footprint slightly smaller than tile
   var bw = hw * 0.72;
   var bh = hh * 0.72;
 
-  // Shadow on ground
-  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  // Shadow on ground — cast opposite the "sun", softer at night
+  var shadowAlpha = 0.12 + 0.13 * b;
+  ctx.fillStyle = 'rgba(0,0,0,' + shadowAlpha.toFixed(2) + ')';
   ctx.beginPath();
-  ctx.ellipse(px + h * 0.25, py + bh * 0.5, bw + 3, bh + 1, 0, 0, Math.PI * 2);
+  ctx.ellipse(px + h * 0.25, py + bh * 0.5, bw + 3 + h * 0.08, bh + 1, 0, 0, Math.PI * 2);
   ctx.fill();
 
   var topC = adjustBrightness(color, b);
@@ -2683,13 +3053,13 @@ function drawBuildingIso(px, py, hw, hh, level, color, darkColor, b, zoneType, t
 
   switch (zoneType) {
     case 'res':
-      drawResIso(px, py, bw, bh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor);
+      drawResIso(px, py, bw, bh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor, v);
       break;
     case 'com':
-      drawComIso(px, py, bw, bh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor);
+      drawComIso(px, py, bw, bh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor, v);
       break;
     case 'ind':
-      drawIndIso(px, py, bw, bh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor);
+      drawIndIso(px, py, bw, bh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor, v);
       break;
   }
 
@@ -2704,7 +3074,28 @@ function drawBuildingIso(px, py, hw, hh, level, color, darkColor, b, zoneType, t
   }
 }
 
-function drawResIso(px, py, hw, hh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor) {
+// Pyramid ("hip") roof drawn atop a building box — 4 faces, back-to-front
+function drawHipRoof(px, py, hw, hh, h, roofC, b) {
+  var ay = py - h - hh * 0.9;           // apex
+  var topY = py - hh - h, botY = py + hh - h, sideY = py - h;
+  var faces = [
+    { pts: [[px - hw, sideY], [px, topY]], c: adjustBrightness(roofC, b * 1.15) },  // back-left
+    { pts: [[px, topY], [px + hw, sideY]], c: adjustBrightness(roofC, b * 1.25) },  // back-right
+    { pts: [[px - hw, sideY], [px, botY]], c: adjustBrightness(roofC, b * 0.7) },   // front-left
+    { pts: [[px, botY], [px + hw, sideY]], c: adjustBrightness(roofC, b * 0.95) },  // front-right
+  ];
+  for (var i = 0; i < faces.length; i++) {
+    ctx.fillStyle = faces[i].c;
+    ctx.beginPath();
+    ctx.moveTo(faces[i].pts[0][0], faces[i].pts[0][1]);
+    ctx.lineTo(faces[i].pts[1][0], faces[i].pts[1][1]);
+    ctx.lineTo(px, ay);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawResIso(px, py, hw, hh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor, v) {
   // Draw 3D box
   drawIsoBox(px, py, hw, hh, h, topC, leftC, rightC);
 
@@ -2713,6 +3104,11 @@ function drawResIso(px, py, hw, hh, h, level, color, darkColor, topC, leftC, rig
 
   // Windows on left wall
   drawIsoWallWindows(px, py, hw, hh, h, false, winColor, level + 1, 2);
+
+  // Low houses get a pitched hip roof (variant-colored); tall ones stay flat
+  if (v && v.roof === 'hip' && level <= 2) {
+    drawHipRoof(px, py, hw, hh, h, v.roofC || '#8a4a32', b);
+  }
 
   // Roof detail — chimney for level 3+, antenna for level 5
   if (level >= 5) {
@@ -2741,7 +3137,7 @@ function drawResIso(px, py, hw, hh, h, level, color, darkColor, topC, leftC, rig
   ctx.fillRect(px - 2, py + hh * 0.3, 4, 1);
 }
 
-function drawComIso(px, py, hw, hh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor) {
+function drawComIso(px, py, hw, hh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor, v) {
   // Draw 3D box
   drawIsoBox(px, py, hw, hh, h, topC, leftC, rightC);
 
@@ -2750,6 +3146,33 @@ function drawComIso(px, py, hw, hh, h, level, color, darkColor, topC, leftC, rig
 
   // Window grid on left wall
   drawIsoWallWindows(px, py, hw, hh, h, false, winColor, level + 3, 3);
+
+  // Variant roof furniture: AC units / water tank / helipad
+  var roofY = py - h;
+  if (v && v.roof === 'ac') {
+    ctx.fillStyle = adjustBrightness('#aab2bd', b);
+    ctx.fillRect(px - hw * 0.4, roofY - 3, 4, 3);
+    ctx.fillRect(px + hw * 0.15, roofY - hh * 0.4 - 3, 5, 3);
+    ctx.fillStyle = adjustBrightness('#788088', b);
+    ctx.fillRect(px - hw * 0.4, roofY - 1, 4, 1);
+    ctx.fillRect(px + hw * 0.15, roofY - hh * 0.4 - 1, 5, 1);
+  } else if (v && v.roof === 'tank') {
+    ctx.fillStyle = adjustBrightness('#8a6a4a', b);
+    ctx.fillRect(px - 2, roofY - 8, 5, 7);
+    ctx.fillStyle = adjustBrightness('#6a4a2f', b);
+    ctx.beginPath();
+    ctx.ellipse(px + 0.5, roofY - 8, 2.5, 1.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (v && v.roof === 'pad' && level >= 3) {
+    ctx.strokeStyle = adjustBrightness('#e8e8e8', b);
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.ellipse(px, roofY - hh * 0.15, hw * 0.4, hh * 0.4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = adjustBrightness('#e8e8e8', b);
+    ctx.font = 'bold 5px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('H', px, roofY - hh * 0.15);
+  }
 
   // Awning stripe at base of right wall
   ctx.save();
@@ -2780,7 +3203,10 @@ function drawComIso(px, py, hw, hh, h, level, color, darkColor, topC, leftC, rig
   }
 }
 
-function drawIndIso(px, py, hw, hh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor) {
+function drawIndIso(px, py, hw, hh, h, level, color, darkColor, topC, leftC, rightC, b, isNight, winColor, v) {
+  // Warehouse variant sits lower and wider-looking
+  if (v && v.chims === 0) h = Math.max(10, Math.round(h * 0.7));
+
   // Draw 3D box
   drawIsoBox(px, py, hw, hh, h, topC, leftC, rightC);
 
@@ -2790,27 +3216,43 @@ function drawIndIso(px, py, hw, hh, h, level, color, darkColor, topC, leftC, rig
   // Windows on left wall
   drawIsoWallWindows(px, py, hw, hh, h, false, winColor, level + 1, 2);
 
-  // Big chimney on roof
-  var chimX = px + hw * 0.3;
-  var chimH = 10 + level * 3;
-  ctx.fillStyle = adjustBrightness('#6b6b6b', b);
-  ctx.fillRect(chimX, py - h - chimH, 4, chimH);
-  // Chimney cap
-  ctx.fillStyle = '#444';
-  ctx.fillRect(chimX - 1, py - h - chimH, 6, 3);
-  // Chimney shadow stripe
-  ctx.fillStyle = adjustBrightness('#4a4a4a', b);
-  ctx.fillRect(chimX + 2, py - h - chimH, 2, chimH);
+  // Chimneys per variant (warehouse variant has none)
+  var chimCount = v ? v.chims : 1;
+  for (var ci = 0; ci < chimCount; ci++) {
+    var chimX = px + hw * (0.3 - ci * 0.5);
+    var chimH = 10 + level * 3 - ci * 3;
+    ctx.fillStyle = adjustBrightness('#6b6b6b', b);
+    ctx.fillRect(chimX, py - h - chimH, 4, chimH);
+    // Chimney cap
+    ctx.fillStyle = '#444';
+    ctx.fillRect(chimX - 1, py - h - chimH, 6, 3);
+    // Chimney shadow stripe
+    ctx.fillStyle = adjustBrightness('#4a4a4a', b);
+    ctx.fillRect(chimX + 2, py - h - chimH, 2, chimH);
 
-  // Smoke from chimney — animated
-  var smokeT = (state.tick % 10) * 0.6;
-  for (var s = 0; s < 3; s++) {
-    var sx = chimX + 2 + Math.sin(state.tick * 0.5 + s * 2) * 2;
-    var sy = py - h - chimH - 2 - s * 4 - smokeT * 0.3;
-    var sr = 2.5 + s * 1.5 + level * 0.5;
-    ctx.fillStyle = 'rgba(160,160,160,' + (0.35 - s * 0.08) + ')';
+    // Smoke from chimney — animated
+    var smokeT = (state.tick % 10) * 0.6;
+    for (var s = 0; s < 3; s++) {
+      var sx = chimX + 2 + Math.sin(state.tick * 0.5 + s * 2 + ci * 3) * 2;
+      var sy = py - h - chimH - 2 - s * 4 - smokeT * 0.3;
+      var sr = 2.5 + s * 1.5 + level * 0.5;
+      ctx.fillStyle = 'rgba(160,160,160,' + (0.35 - s * 0.08) + ')';
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Storage silo variant
+  if (v && v.tank) {
+    var siloX = px - hw * 0.45, siloY = py - h;
+    ctx.fillStyle = adjustBrightness('#c0c6cc', b);
+    ctx.fillRect(siloX - 3, siloY - 12, 6, 12);
+    ctx.fillStyle = adjustBrightness('#98a0a8', b);
+    ctx.fillRect(siloX + 1, siloY - 12, 2, 12);
+    ctx.fillStyle = adjustBrightness('#d8dde2', b);
     ctx.beginPath();
-    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+    ctx.ellipse(siloX, siloY - 12, 3, 1.6, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -2974,6 +3416,71 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
   var isNight = nightData && nightData.night > 0.45;
 
   switch (type) {
+    case T.POLICE: {
+      // Low station house with a flashing beacon
+      var h = 18;
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.beginPath();
+      ctx.ellipse(px + 3, py + hh * 0.35, hw * 0.8, hh * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      drawIsoBox(px, py, hw * 0.72, hh * 0.72, h, adjustBrightness('#3b82f6', b), adjustBrightness('#1e3a6a', b * 0.6), adjustBrightness('#1e3a6a', b * 0.9));
+      drawIsoWallWindows(px, py, hw * 0.72, hh * 0.72, h, true, isNight ? 'rgba(255,230,100,0.85)' : 'rgba(200,220,255,0.5)', 1, 3);
+      // White band + POLICE sign
+      ctx.fillStyle = adjustBrightness('#e8e8e8', b);
+      ctx.fillRect(px - 10, py - h - 5, 20, 5);
+      ctx.fillStyle = '#1e3a6a';
+      ctx.font = 'bold 4px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('POLICE', px, py - h - 2.5);
+      // Rotating beacon — alternates red/blue
+      var beaconOn = (state.tick % 2) === 0;
+      ctx.fillStyle = beaconOn ? '#ef4444' : '#3b82f6';
+      ctx.beginPath();
+      ctx.arc(px, py - h - 8, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = beaconOn ? 'rgba(239,68,68,0.25)' : 'rgba(59,130,246,0.25)';
+      ctx.beginPath();
+      ctx.arc(px, py - h - 8, 5, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case T.WATER_TOWER: {
+      // Classic elevated tank on legs
+      var legTop = py - 16;
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.beginPath();
+      ctx.ellipse(px + 2, py + hh * 0.3, hw * 0.5, hh * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = adjustBrightness('#7a8494', b);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(px - 7, py + 3); ctx.lineTo(px - 4, legTop);
+      ctx.moveTo(px + 7, py + 3); ctx.lineTo(px + 4, legTop);
+      ctx.moveTo(px - 5, py - 2); ctx.lineTo(px + 5, py - 8);
+      ctx.moveTo(px + 5, py - 2); ctx.lineTo(px - 5, py - 8);
+      ctx.stroke();
+      // Tank
+      ctx.fillStyle = adjustBrightness('#60a5fa', b);
+      ctx.fillRect(px - 8, legTop - 12, 16, 12);
+      ctx.fillStyle = adjustBrightness('#3a6ab0', b);
+      ctx.fillRect(px + 3, legTop - 12, 5, 12);
+      // Tank bottom + conical cap
+      ctx.fillStyle = adjustBrightness('#4a80c8', b);
+      ctx.beginPath();
+      ctx.ellipse(px, legTop, 8, 3, 0, 0, Math.PI);
+      ctx.fill();
+      ctx.fillStyle = adjustBrightness('#88b8f8', b);
+      ctx.beginPath();
+      ctx.moveTo(px - 8, legTop - 12);
+      ctx.lineTo(px, legTop - 19);
+      ctx.lineTo(px + 8, legTop - 12);
+      ctx.closePath();
+      ctx.fill();
+      // Droplet emblem
+      ctx.fillStyle = '#fff';
+      ctx.font = '6px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('💧', px - 1, legTop - 6);
+      break;
+    }
     case T.BLUETOOTH_TOWER: {
       // Tall tower with signal arcs
       var h = 50;
@@ -4082,12 +4589,24 @@ function renderMinimap() {
   const mw = minimap.width / GRID, mh = minimap.height / GRID;
   mctx.fillStyle = '#0a0a12';
   mctx.fillRect(0, 0, minimap.width, minimap.height);
+  const fireBlink = (state.tick % 2) === 0;
   for (let y = 0; y < GRID; y++) {
     for (let x = 0; x < GRID; x++) {
       const t = state.grid[y][x];
       if (t.type !== T.GRASS) {
-        mctx.fillStyle = (TD[t.type] || TD[T.GRASS]).color;
+        // Roads pop as light gray so the network reads at a glance
+        mctx.fillStyle = t.type === T.ROAD ? '#8a8a92' : (TD[t.type] || TD[T.GRASS]).color;
         mctx.fillRect(x * mw, y * mh, mw + 0.5, mh + 0.5);
+      }
+      // Power coverage — faint warm glow over powered tiles
+      if (state.poweredTiles.has(y * GRID + x)) {
+        mctx.fillStyle = 'rgba(251,191,36,0.13)';
+        mctx.fillRect(x * mw, y * mh, mw + 0.5, mh + 0.5);
+      }
+      // Active fires blink bright red
+      if (fireBlink && t.data && t.data.onFire) {
+        mctx.fillStyle = '#ff3300';
+        mctx.fillRect(x * mw - 0.5, y * mh - 0.5, mw + 1.5, mh + 1.5);
       }
     }
   }
@@ -4134,6 +4653,11 @@ function updateHUD() {
   document.getElementById('rciR').style.height = Math.max(2, state.rci.r / 100 * 22) + 'px';
   document.getElementById('rciC').style.height = Math.max(2, state.rci.c / 100 * 22) + 'px';
   document.getElementById('rciI').style.height = Math.max(2, state.rci.i / 100 * 22) + 'px';
+  // Day counter + phase (was previously never updated)
+  const nd = getDayNightOverlay();
+  const isNightNow = nd && nd.night > 0.5;
+  document.getElementById('clockLabel').textContent = isNightNow ? '🌙 Night' : '☀️ Day';
+  document.getElementById('clockVal').textContent = Math.floor(state.tick / 120) + 1;
   updateBudgetPanel();
   updateHappyDashboard();
   updateFundPanel();
@@ -4242,28 +4766,147 @@ function clearBldName(tx, ty) {
 // ═══════════════════════════════════════════════════════════════════
 // BUDGET PANEL
 // ═══════════════════════════════════════════════════════════════════
+let budgetPanelBuilt = false;
+function buildBudgetPanel() {
+  const bp = document.getElementById('budgetPanel');
+  bp.innerHTML = `
+    <div class="bp-title">📊 Budget</div>
+    <div class="bp-row"><span>🏠 Residential taxes</span><span class="val pos" id="bpResTax">+$0</span></div>
+    <div class="bp-row"><span>🏪 Commercial</span><span class="val pos" id="bpComInc">+$0</span></div>
+    <div class="bp-row"><span>🏭 Industrial</span><span class="val pos" id="bpIndInc">+$0</span></div>
+    <div class="bp-row"><span>🌾 Farms</span><span class="val pos" id="bpFarmInc">+$0</span></div>
+    <div class="bp-row"><span>⭐ Special buildings</span><span class="val pos" id="bpSpecInc">+$0</span></div>
+    <div class="bp-row"><span>🛣️ Road upkeep</span><span class="val neg" id="bpRoadM">−$0</span></div>
+    <div class="bp-row"><span>🏗️ Zone upkeep</span><span class="val neg" id="bpZoneM">−$0</span></div>
+    <div class="bp-row"><span>🏛️ City services</span><span class="val neg" id="bpSvcM">−$0</span></div>
+    <hr style="border-color:#222;margin:4px 0">
+    <div class="bp-row"><span>📈 Net last tick (actual)</span><span class="val" id="bpNet">$0</span></div>
+    <div class="bp-row"><span>🔮 Projected next tick</span><span class="val" id="bpProj">$0</span></div>
+    <hr style="border-color:#222;margin:4px 0">
+    <div class="bp-title" style="color:#fbbf24;font-size:11px">🏛️ Tax Rates</div>
+    <div class="bp-tax-row"><span class="bp-tax-label" style="color:#4a9e5e">R</span><input type="range" id="bpTaxR" min="0" max="20" step="1"><span class="bp-tax-val" id="bpTaxRVal">5%</span></div>
+    <div class="bp-tax-row"><span class="bp-tax-label" style="color:#3b7dd8">C</span><input type="range" id="bpTaxC" min="0" max="20" step="1"><span class="bp-tax-val" id="bpTaxCVal">5%</span></div>
+    <div class="bp-tax-row"><span class="bp-tax-label" style="color:#e8a838">I</span><input type="range" id="bpTaxI" min="0" max="20" step="1"><span class="bp-tax-val" id="bpTaxIVal">5%</span></div>
+    <hr style="border-color:#222;margin:4px 0">
+    <div class="bp-title" style="color:#c4b5fd;font-size:11px">📈 City Trends</div>
+    <div class="bp-spark-row"><span class="bp-spark-label">Population</span><canvas id="sparkPop"></canvas><span class="bp-spark-val" style="color:#60a5fa" id="sparkPopVal">0</span></div>
+    <div class="bp-spark-row"><span class="bp-spark-label">Treasury</span><canvas id="sparkMoney"></canvas><span class="bp-spark-val" style="color:#4ade80" id="sparkMoneyVal">$0</span></div>
+    <div class="bp-spark-row"><span class="bp-spark-label">Happiness</span><canvas id="sparkHappy"></canvas><span class="bp-spark-val" style="color:#fbbf24" id="sparkHappyVal">0%</span></div>
+    <div id="bpHappyFactors"></div>
+  `;
+  // Per-class tax sliders
+  [['bpTaxR','r'],['bpTaxC','c'],['bpTaxI','i']].forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    el.value = state.taxRates[key];
+    document.getElementById(id + 'Val').textContent = state.taxRates[key] + '%';
+    el.addEventListener('input', e => {
+      state.taxRates[key] = parseInt(e.target.value);
+      document.getElementById(id + 'Val').textContent = state.taxRates[key] + '%';
+      state.taxRate = Math.round((state.taxRates.r + state.taxRates.c + state.taxRates.i) / 3);
+      const hudSlider = document.getElementById('taxSlider');
+      hudSlider.value = state.taxRate;
+      document.getElementById('taxVal').textContent = state.taxRate + '%';
+      updateBudgetPanel();
+      scheduleSave();
+    });
+  });
+  budgetPanelBuilt = true;
+}
+
+// Reflect state.taxRates into all sliders (after load or HUD master change)
+function syncTaxUI() {
+  document.getElementById('taxSlider').value = state.taxRate;
+  document.getElementById('taxVal').textContent = state.taxRate + '%';
+  if (!budgetPanelBuilt) return;
+  [['bpTaxR','r'],['bpTaxC','c'],['bpTaxI','i']].forEach(([id, key]) => {
+    document.getElementById(id).value = state.taxRates[key];
+    document.getElementById(id + 'Val').textContent = state.taxRates[key] + '%';
+  });
+}
+
+// Single-series sparkline: 2px line + endpoint dot, muted baseline grid
+function drawSpark(cv, data, color) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth || 120, h = cv.clientHeight || 22;
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const c = cv.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, w, h);
+  if (!data || data.length < 2) {
+    c.strokeStyle = 'rgba(138,138,160,0.3)';
+    c.beginPath(); c.moveTo(0, h - 2); c.lineTo(w, h - 2); c.stroke();
+    return;
+  }
+  let min = Infinity, max = -Infinity;
+  for (const v of data) { if (v < min) min = v; if (v > max) max = v; }
+  if (max === min) { max = min + 1; }
+  const pad = 2;
+  const xs = i => i / (data.length - 1) * (w - pad * 2) + pad;
+  const ys = v => h - pad - (v - min) / (max - min) * (h - pad * 2);
+  c.strokeStyle = 'rgba(138,138,160,0.25)';
+  c.lineWidth = 1;
+  c.beginPath(); c.moveTo(pad, ys(data[0])); c.lineTo(w - pad, ys(data[0])); c.stroke();
+  c.strokeStyle = color;
+  c.lineWidth = 2;
+  c.lineJoin = 'round';
+  c.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    if (i === 0) c.moveTo(xs(i), ys(data[i])); else c.lineTo(xs(i), ys(data[i]));
+  }
+  c.stroke();
+  c.fillStyle = color;
+  c.beginPath();
+  c.arc(xs(data.length - 1), ys(data[data.length - 1]), 2.5, 0, Math.PI * 2);
+  c.fill();
+}
+
+function fmtMoney(n) {
+  const a = Math.abs(n);
+  if (a >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
+  if (a >= 1e4) return '$' + Math.round(n / 1e3) + 'k';
+  return '$' + Math.floor(n).toLocaleString();
+}
+
 function updateBudgetPanel() {
   const bp = document.getElementById('budgetPanel');
   if (!bp.classList.contains('show')) return;
-  const net = state.income - state.expenses;
-  let happyHTML = '';
-  if (happinessFactors.length) {
-    happyHTML = '<hr style="border-color:#222;margin:4px 0"><div class="bp-title" style="color:#fbbf24;font-size:11px">😊 Happiness Factors</div>';
+  if (!budgetPanelBuilt) buildBudgetPanel();
+  const bud = state.budget || { resTax:0, comInc:0, indInc:0, farmInc:0, specialInc:0, roadMaint:0, zoneMaint:0, svcMaint:0, comBase:0, indBase:0 };
+  const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  set('bpResTax', '+$' + bud.resTax.toLocaleString());
+  set('bpComInc', '+$' + bud.comInc.toLocaleString());
+  set('bpIndInc', '+$' + bud.indInc.toLocaleString());
+  set('bpFarmInc', '+$' + bud.farmInc.toLocaleString());
+  set('bpSpecInc', '+$' + bud.specialInc.toLocaleString());
+  set('bpRoadM', '−$' + bud.roadMaint.toLocaleString());
+  set('bpZoneM', '−$' + bud.zoneMaint.toLocaleString());
+  set('bpSvcM', '−$' + bud.svcMaint.toLocaleString());
+  const net = state.lastNet;
+  const netEl = document.getElementById('bpNet');
+  if (netEl) { netEl.textContent = (net >= 0 ? '+' : '−') + '$' + Math.abs(net).toLocaleString(); netEl.className = 'val ' + (net >= 0 ? 'pos' : 'neg'); }
+  // Projected: re-price last tick's tax bases at the CURRENT slider rates
+  const proj = Math.floor(state.population * (state.happiness / 100) * (state.taxRates.r / 5) * 0.5)
+    + Math.round((bud.comBase || 0) * (state.taxRates.c / 5))
+    + Math.round((bud.indBase || 0) * (state.taxRates.i / 5))
+    + bud.farmInc + bud.specialInc - bud.svcMaint - bud.roadMaint - bud.zoneMaint;
+  const projEl = document.getElementById('bpProj');
+  if (projEl) { projEl.textContent = (proj >= 0 ? '+' : '−') + '$' + Math.abs(proj).toLocaleString(); projEl.className = 'val ' + (proj >= 0 ? 'pos' : 'neg'); }
+  // Trend sparklines
+  drawSpark(document.getElementById('sparkPop'), state.popHistory, '#60a5fa');
+  drawSpark(document.getElementById('sparkMoney'), state.moneyHistory, '#4ade80');
+  drawSpark(document.getElementById('sparkHappy'), state.happyHistory, '#fbbf24');
+  set('sparkPopVal', state.population.toLocaleString());
+  set('sparkMoneyVal', fmtMoney(state.money));
+  set('sparkHappyVal', Math.round(state.happiness) + '%');
+  // Happiness factors
+  const hf = document.getElementById('bpHappyFactors');
+  if (hf && happinessFactors.length) {
+    let happyHTML = '<hr style="border-color:#222;margin:4px 0"><div class="bp-title" style="color:#fbbf24;font-size:11px">😊 Happiness Factors</div>';
     for (const f of happinessFactors) {
       happyHTML += `<div class="bp-row"><span>${f.label}</span><span class="val ${f.positive ? 'pos' : 'neg'}">${f.val}</span></div>`;
     }
+    hf.innerHTML = happyHTML;
   }
-  bp.innerHTML = `
-    <div class="bp-title">📊 Budget</div>
-    <div class="bp-row"><span>💰 Income</span><span class="val pos">+$${state.income.toLocaleString()}</span></div>
-    <div class="bp-row"><span>🔧 Maintenance</span><span class="val neg">−$${state.expenses.toLocaleString()}</span></div>
-    <div class="bp-row"><span>📈 Net/Tick</span><span class="val ${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : '−'}$${Math.abs(net).toLocaleString()}</span></div>
-    <hr style="border-color:#222;margin:4px 0">
-    <div class="bp-row"><span>👥 Population</span><span class="val">${state.population.toLocaleString()}</span></div>
-    <div class="bp-row"><span>🏛️ Tax Rate</span><span class="val">${state.taxRate}%</span></div>
-    <div class="bp-row"><span>🏦 Fund Balance</span><span class="val" style="color:#a78bfa">$${Math.floor(state.fund.balance).toLocaleString()}</span></div>
-    ${happyHTML}
-  `;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -5154,8 +5797,33 @@ document.getElementById('fundBtn').addEventListener('pointerdown', e => {
   toggleFundPanel();
 });
 document.getElementById('taxSlider').addEventListener('input', e => {
+  // HUD slider is the master: sets all three class rates together
   state.taxRate = parseInt(e.target.value);
+  state.taxRates.r = state.taxRates.c = state.taxRates.i = state.taxRate;
   document.getElementById('taxVal').textContent = state.taxRate + '%';
+  syncTaxUI();
+  updateBudgetPanel();
+  scheduleSave();
+});
+document.getElementById('overlayBtn').addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation();
+  const idx = (OVERLAY_MODES.indexOf(overlayMode) + 1) % OVERLAY_MODES.length;
+  overlayMode = OVERLAY_MODES[idx];
+  // Make sure coverage data is fresh even before the next sim tick
+  try { computePoweredTiles(); computeWaterTiles(); } catch(err) {}
+  const btn = document.getElementById('overlayBtn');
+  btn.style.borderColor = overlayMode === 'off' ? '#333' : '#4a9eff';
+  btn.style.color = overlayMode === 'off' ? '#ccc' : '#4a9eff';
+  toast(OVERLAY_LABELS[overlayMode]);
+  sndClick(); haptic(8);
+});
+document.getElementById('disasterBtn').addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation();
+  state.disastersOn = !state.disastersOn;
+  const btn = document.getElementById('disasterBtn');
+  btn.classList.toggle('muted', !state.disastersOn);
+  toast(state.disastersOn ? '🌋 Disasters ON — stay alert!' : '🕊️ Disasters OFF — peaceful mode');
+  sndClick(); haptic(8);
   scheduleSave();
 });
 document.getElementById('viewToggle').addEventListener('pointerdown', e => {
@@ -5356,6 +6024,8 @@ function serializeCity() {
     money: Math.floor(state.money),
     happiness: Math.round(state.happiness),
     taxRate: state.taxRate,
+    taxRates: { r: state.taxRates.r, c: state.taxRates.c, i: state.taxRates.i },
+    disastersOn: state.disastersOn,
     tick: state.tick,
     fund: JSON.parse(JSON.stringify(state.fund)),
     updated: Date.now(),
@@ -5378,9 +6048,19 @@ function deserializeCity(data) {
   if (typeof data.happiness === 'number') state.happiness = data.happiness;
   if (typeof data.taxRate === 'number') {
     state.taxRate = data.taxRate;
-    document.getElementById('taxSlider').value = state.taxRate;
-    document.getElementById('taxVal').textContent = state.taxRate + '%';
+    // Old saves have one flat rate — seed all three classes from it
+    state.taxRates = { r: state.taxRate, c: state.taxRate, i: state.taxRate };
   }
+  if (data.taxRates && typeof data.taxRates.r === 'number') {
+    state.taxRates = { r: data.taxRates.r, c: data.taxRates.c, i: data.taxRates.i };
+    state.taxRate = Math.round((state.taxRates.r + state.taxRates.c + state.taxRates.i) / 3);
+  }
+  if (typeof data.disastersOn === 'boolean') {
+    state.disastersOn = data.disastersOn;
+    const db = document.getElementById('disasterBtn');
+    if (db) db.classList.toggle('muted', !state.disastersOn);
+  }
+  syncTaxUI();
   state.tick = data.tick || 0;
   if (data.fund) state.fund = Object.assign({ balance: 0, tier: 'conservative', history: [], lastWithdrawTick: 0 }, data.fund);
   updateHUD();
@@ -6264,6 +6944,7 @@ let nextDisasterTime = 45000; // first disaster check at 45s
 let firstDisasterFired = false; // guarantee first disaster happens quickly
 
 function updateDisasters() {
+  if (!state.disastersOn) return;
   const now = Date.now();
   if (now - lastDisasterCheck < nextDisasterTime) return;
   lastDisasterCheck = now;
@@ -6276,36 +6957,46 @@ function updateDisasters() {
 
   if (!forceDisaster && Math.random() > 0.15) return; // 15% chance after first
 
-  // Find candidate buildings
-  const industrialTiles = [];
+  // Find candidate buildings — any developed zone can catch fire (IND weighted 3x)
+  const flammableTiles = [];
   const powerPlants = [];
+  let developedCount = 0;
   for (let y = 0; y < GRID; y++) {
     for (let x = 0; x < GRID; x++) {
       if (!state.grid[y] || !state.grid[y][x]) continue;
       const tile = state.grid[y][x];
-      if (tile.type === T.IND && !(tile.data && tile.data.onFire)) industrialTiles.push({ x, y });
+      if (isFlammable(tile) && !(tile.data && tile.data.onFire)) {
+        developedCount++;
+        flammableTiles.push({ x, y });
+        if (tile.type === T.IND) { flammableTiles.push({ x, y }, { x, y }); }
+      }
       if (tile.type === T.POWER_PLANT && !(tile.data && tile.data.outageTicks)) powerPlants.push({ x, y });
     }
   }
 
   const events = [];
-  if (industrialTiles.length > 0) events.push('fire');
+  if (flammableTiles.length > 0) events.push('fire');
   if (powerPlants.length > 0) events.push('outage');
+  if (developedCount >= 12) events.push('earthquake'); // quakes only hit established cities
   if (events.length === 0) return;
 
   const event = events[Math.floor(Math.random() * events.length)];
 
   if (event === 'fire') {
-    const target = industrialTiles[Math.floor(Math.random() * industrialTiles.length)];
-    state.grid[target.y][target.x].data.onFire = true;
-    state.grid[target.y][target.x].data.fireTicks = 0;
+    const target = flammableTiles[Math.floor(Math.random() * flammableTiles.length)];
+    const tt = state.grid[target.y][target.x];
+    if (!tt.data) tt.data = {};
+    tt.data.onFire = true;
+    tt.data.fireTicks = 0;
     addTileEffect(target.x, target.y, '#ef4444', 1000, 0.8);
     addParticles(target.x * TILE + TILE / 2, target.y * TILE + TILE / 2, 12, '#ff6600');
     const ticker = document.getElementById('newsTicker');
-    if (ticker) ticker.textContent = '⚠️ Fire reported at sector (' + target.x + ', ' + target.y + ')!';
+    if (ticker) ticker.textContent = '⚠️ Fire reported at sector (' + target.x + ', ' + target.y + ')! It may spread — build Fire Departments!';
     toast('🔥 Fire at (' + target.x + ', ' + target.y + ')!');
-    sndError();
+    sndSiren();
     haptic(30);
+  } else if (event === 'earthquake') {
+    triggerEarthquake();
   } else if (event === 'outage') {
     const target = powerPlants[Math.floor(Math.random() * powerPlants.length)];
     // Outage lasts 10 seconds = 5 ticks
@@ -6320,6 +7011,48 @@ function updateDisasters() {
     // Re-compute powered tiles so outage takes immediate effect
     try { computePoweredTiles(); } catch(e) {}
   }
+}
+
+// Earthquake: shakes the screen and damages buildings near a random epicenter.
+// Roads crack (visual only), zones lose levels, a few tiles are leveled.
+function triggerEarthquake() {
+  const ex = 4 + Math.floor(Math.random() * (GRID - 8));
+  const ey = 4 + Math.floor(Math.random() * (GRID - 8));
+  const radius = 4 + Math.floor(Math.random() * 3);
+  let damaged = 0;
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const nx = ex + dx, ny = ey + dy;
+      if (nx < 0 || nx >= GRID || ny < 0 || ny >= GRID) continue;
+      const dist = Math.hypot(dx, dy);
+      if (dist > radius) continue;
+      const tile = state.grid[ny][nx];
+      const severity = 1 - dist / radius; // 1 at epicenter → 0 at edge
+      if ((tile.type === T.RES || tile.type === T.COM || tile.type === T.IND) && tile.level >= 1) {
+        if (Math.random() < severity * 0.7) {
+          if (tile.level > 1) {
+            tile.level--;
+            addFloater(nx * TILE + TILE / 2, ny * TILE - 4, '💥 -1', '#ef4444');
+          } else if (Math.random() < 0.3) {
+            state.grid[ny][nx] = mkTile(T.GRASS);
+            addFloater(nx * TILE + TILE / 2, ny * TILE - 4, '💥 Leveled!', '#ef4444');
+          }
+          addTileEffect(nx, ny, '#a16207', 900, 0.7);
+          addParticles(nx * TILE + TILE / 2, ny * TILE + TILE / 2, 10, '#a16207');
+          markTileDirty(nx, ny);
+          damaged++;
+        }
+      }
+    }
+  }
+  shakeTime = 1600;
+  shakeMag = 7;
+  const ticker = document.getElementById('newsTicker');
+  if (ticker) ticker.textContent = '🌋 EARTHQUAKE near sector (' + ex + ', ' + ey + ')! ' + damaged + ' buildings damaged!';
+  toast('🌋 Earthquake! ' + damaged + ' buildings damaged!', true);
+  sndQuake();
+  haptic([60, 40, 60, 40, 80]);
+  if (view3DMode) { try { V3.buildAll(); } catch(e) {} }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -6341,6 +7074,7 @@ function gameLoop(ts) {
   updateCar(dt);
   updateEffects(dt);
   updatePanAnim(dt);
+  if (shakeTime > 0) shakeTime = Math.max(0, shakeTime - dt);
   if (highlightRing) {
     highlightRing.life -= dt;
     if (highlightRing.life <= 0) highlightRing = null;
