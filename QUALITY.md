@@ -55,8 +55,6 @@ _10-dimension scoring: Trigger / Hook / Glasses / Return / D-Pad / Audio / Sessi
 - C-tier: **2** (xin-fu-city, lord-bluetooth-td — below 60/100 minimum, cut candidates)
 - F-tier: **1** (math-flash-cards — below 40/100, remove candidate)
 - **LOST (not deployed):** 2 (tower-defense 84/A, buffalo 54/C)
-- F-tier: 0
-- **LOST (not deployed):** 2 (tower-defense 84/A, buffalo 54/C)
 - **Also lost:** games/audio/ directory partially recovered — 98 voice-acting MP3s for Lord Bluetooth Org Management restored.
 
 ### What changed
