@@ -86,8 +86,10 @@ function questDiscoveredCount(){var c=0;for(var k in questDiscovery)if(questDisc
 var nextQuestAtInit=50+Math.floor(Math.random()*50);
 function spawnQuest(){
   if(activeQuest||questCooldown>0)return;
-  // Pick a random quest not recently done
-  var idx=Math.floor(Math.random()*QUESTS.length);
+  // Discovery-prioritized: 3× weight for undiscovered quests
+  var pool=[];
+  for(var i=0;i<QUESTS.length;i++){var w=questDiscovery[QUESTS[i].id]?1:3;for(var j=0;j<w;j++)pool.push(i)}
+  var idx=pool[Math.floor(Math.random()*pool.length)];
   var q=Object.assign({},QUESTS[idx]);
   q.startTime=Date.now();q.elapsed=0;
   if(q.init)q.init(q);
@@ -113,9 +115,11 @@ function tickQuest(){
   if(q.check(q)){
     questsCompleted++;
     steps+=q.bonus;
-    if(!questDiscovery[q.id]){questDiscovery[q.id]=true;try{localStorage.setItem('litf_steps_quests',JSON.stringify(questDiscovery))}catch(e){}}
+    var isNewQuest=!questDiscovery[q.id];
+    if(isNewQuest){questDiscovery[q.id]=true;try{localStorage.setItem('litf_steps_quests',JSON.stringify(questDiscovery))}catch(e){}}
     playQuestComplete();
-    addNotification('✓ '+q.icon+' +'+q.bonus+' bonus steps!','#a0ffb0');
+    if(isNewQuest)playQuestDiscovery();
+    addNotification('✓ '+q.icon+(isNewQuest?' ✨ NEW! ':' ')+'+'+q.bonus+' bonus steps!','#a0ffb0');
     activeQuest=null;questCooldown=30;
     save();return;
   }
@@ -343,6 +347,12 @@ function playQuestComplete(){
   if(!audioCtx)return;
   var notes=[523,659,784,1047];
   for(var i=0;i<notes.length;i++)playTone(notes[i],0.3,0.13,'triangle',i*0.1);
+}
+function playQuestDiscovery(){
+  if(!audioCtx)return;
+  // Higher ascending arpeggio for first-encounter discovery
+  var notes=[1047,1319,1568,2093];
+  for(var i=0;i<notes.length;i++)playTone(notes[i],0.25,0.1,'sine',0.5+i*0.12);
 }
 function playQuestFail(){
   if(!audioCtx)return;
