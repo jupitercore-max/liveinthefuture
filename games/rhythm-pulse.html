@@ -117,7 +117,8 @@ var MOD_TYPES = [
   { id: 'fire', label: '🔥 2×', color: '#ff6622', desc: '2× POINTS' },
   { id: 'freeze', label: '🧊 SLOW', color: '#66ccff', desc: 'SLOW NOTES' },
   { id: 'chain', label: '⚡ +2', color: '#ffdd44', desc: 'COMBO +2' },
-  { id: 'skull', label: '💀 3×', color: '#cc44ff', desc: 'PERFECT ONLY' }
+  { id: 'skull', label: '💀 3×', color: '#cc44ff', desc: 'PERFECT ONLY' },
+  { id: 'phantom', label: '💫 GHOST', color: '#88aacc', desc: 'GHOST NOTES' }
 ];
 var activeMod = null; // { lane, type, timer, duration }
 var modCooldown = 0;
@@ -132,7 +133,13 @@ function getModDiscoveryCount() {
 
 function spawnModifier() {
   var lane = Math.floor(Math.random() * LANE_COUNT);
-  var type = MOD_TYPES[Math.floor(Math.random() * MOD_TYPES.length)];
+  // Discovery-prioritized spawning: 3× weight for undiscovered types
+  var pool = [];
+  for (var i = 0; i < MOD_TYPES.length; i++) {
+    var weight = modDiscovered[MOD_TYPES[i].id] ? 1 : 3;
+    for (var w = 0; w < weight; w++) pool.push(MOD_TYPES[i]);
+  }
+  var type = pool[Math.floor(Math.random() * pool.length)];
   activeMod = { lane: lane, type: type, timer: MOD_DURATION, duration: MOD_DURATION };
   modFlash = 1;
   // Track modifier discovery
@@ -357,13 +364,20 @@ function procGenerateNotes(dt) {
 
 // ---- NOTES ----
 function spawnNote(lane) {
+  var isPhantom = false;
+  if (activeMod && activeMod.type.id === 'phantom' && lane === activeMod.lane && Math.random() < 0.35) {
+    isPhantom = true;
+  }
   notes.push({
     lane: lane,
     y: -NOTE_HEIGHT,
     hit: false,
-    missed: false
+    missed: false,
+    phantom: isPhantom
   });
   totalNotes++;
+  // Phantom notes don't count toward total (they're traps, not targets)
+  if (isPhantom) totalNotes--;
 }
 
 // ---- PARTICLES ----
@@ -466,6 +480,32 @@ function hitLane(lane) {
 
   if (closest && closestDist < HIT_TOLERANCE) {
     closest.hit = true;
+
+    // Phantom note trap: hitting a ghost note is a MISS
+    if (closest.phantom) {
+      misses++;
+      combo = 0;
+      comboMaxReached = false;
+      showFeedback(lane, '💫 TRAP!', '#88aacc');
+      spawnParticles(laneX(lane), HIT_Y, '#88aacc', 8);
+      // Descending buzz audio for phantom trap
+      if (audioCtx) {
+        try {
+          var t = audioCtx.currentTime;
+          var osc = audioCtx.createOscillator();
+          var gain = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(600, t);
+          osc.frequency.exponentialRampToValueAtTime(150, t + 0.2);
+          gain.gain.setValueAtTime(0.08, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+          osc.connect(gain); gain.connect(audioCtx.destination);
+          osc.start(t); osc.stop(t + 0.3);
+        } catch(e) {}
+      }
+      return;
+    }
+
     var perfectWindow = PERFECT_TOLERANCE * bonuses.perfectMult;
     var isModLane = activeMod && closest.lane === activeMod.lane;
     var modType = isModLane ? activeMod.type.id : null;
@@ -639,10 +679,13 @@ function update(dt) {
     n.y += noteSpeed;
     if (n.y > HIT_Y + HIT_TOLERANCE && !n.missed) {
       n.missed = true;
-      misses++;
-      combo = 0;
-      comboMaxReached = false;
-      showFeedback(n.lane, 'MISS', '#ff4466');
+      // Phantom notes passing the line is CORRECT behavior — no penalty
+      if (!n.phantom) {
+        misses++;
+        combo = 0;
+        comboMaxReached = false;
+        showFeedback(n.lane, 'MISS', '#ff4466');
+      }
     }
     if (n.y > H + 20) {
       notes.splice(i, 1);
@@ -854,10 +897,10 @@ function drawNotes() {
     var n = notes[i];
     if (n.hit) continue;
     var x = laneX(n.lane);
-    var alpha = n.missed ? 0.3 : 1;
+    var alpha = n.missed ? 0.3 : n.phantom ? 0.35 : 1;
 
-    // Glow
-    if (!n.missed) {
+    // Glow (skip for phantom notes)
+    if (!n.missed && !n.phantom) {
       var glow = ctx.createRadialGradient(x, n.y, 0, x, n.y, 25);
       glow.addColorStop(0, LANE_COLORS[n.lane] + '44');
       glow.addColorStop(1, LANE_COLORS[n.lane] + '00');
@@ -870,13 +913,24 @@ function drawNotes() {
     // Note body
     ctx.beginPath();
     ctx.roundRect(x - LANE_WIDTH/2 + 10, n.y - NOTE_HEIGHT/2, LANE_WIDTH - 20, NOTE_HEIGHT, NOTE_RADIUS);
-    ctx.fillStyle = n.missed ? '#333333' : LANE_COLORS[n.lane];
-    ctx.globalAlpha = alpha;
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    if (n.phantom) {
+      // Phantom notes: dashed outline only, no fill
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = '#88aacc';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillStyle = n.missed ? '#333333' : LANE_COLORS[n.lane];
+      ctx.globalAlpha = alpha;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
 
     // Note label
-    ctx.fillStyle = n.missed ? '#555' : '#000000';
+    ctx.fillStyle = n.missed ? '#555' : n.phantom ? '#88aacc' : '#000000';
     ctx.font = 'bold 14px system-ui';
     ctx.textAlign = 'center';
     ctx.globalAlpha = alpha;
@@ -1046,6 +1100,16 @@ function drawGameOver() {
     ctx.fillRect(barX, barY, barW, barH);
     ctx.fillStyle = '#44aaff';
     ctx.fillRect(barX, barY, barW * progress, barH);
+  }
+
+  // Modifier discovery on game over
+  var modCount = getModDiscoveryCount();
+  if (modCount > 0) {
+    ctx.font = '12px system-ui';
+    ctx.fillStyle = '#664400';
+    ctx.textAlign = 'left';
+    ctx.fillText('✨ Modifiers: ' + modCount + '/' + MOD_TYPES.length, 10, 592);
+    ctx.textAlign = 'center';
   }
 
   // Prompt
