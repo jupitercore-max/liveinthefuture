@@ -252,11 +252,13 @@ try{guideEnabled=localStorage.getItem('pulse_guide')!=='0';}catch(ex){}
 // ↓ VENTILATE: low rumble (300Hz), center pan — "low" = "down"
 // ← PUSH EPI: mid pitch (600Hz), hard LEFT pan — left ear = "left"
 // → TRANSFUSE: mid pitch (800Hz), hard RIGHT pan — right ear = "right"
+// ✋ FALSE ALARM: rapid warble (400/500Hz alternating), center — "unstable" = "hold"
 var EMERGENCIES=[
   {name:'DEFIB',emoji:'⚡',key:'ArrowUp',keyLabel:'↑',color:'#ffd700',desc:'Cardiac arrest!',sound:1200,pan:0,wave:'triangle'},
   {name:'VENTILATE',emoji:'🫁',key:'ArrowDown',keyLabel:'↓',color:'#00bfff',desc:'Respiratory failure!',sound:300,pan:0,wave:'sine'},
   {name:'PUSH EPI',emoji:'💉',key:'ArrowLeft',keyLabel:'←',color:'#ff6b6b',desc:'Epinephrine needed!',sound:600,pan:-1,wave:'square'},
-  {name:'TRANSFUSE',emoji:'🩸',key:'ArrowRight',keyLabel:'→',color:'#ff8c42',desc:'Blood loss critical!',sound:800,pan:1,wave:'square'}
+  {name:'TRANSFUSE',emoji:'🩸',key:'ArrowRight',keyLabel:'→',color:'#ff8c42',desc:'Blood loss critical!',sound:800,pan:1,wave:'square'},
+  {name:'FALSE ALARM',emoji:'⚠️',key:null,keyLabel:'✋',color:'#b388ff',desc:'Monitor artifact — hold steady!',sound:450,pan:0,wave:'sawtooth'}
 ];
 var activeEmergency=null,emergencyTimer=0,emergencyWindow=4000;
 var nextEmergencyAt=0,emergencyResponseTimer=0;
@@ -296,6 +298,22 @@ function playEmergencyAlarm(freq,pan,wave){
     osc.start(t+i*0.2);osc.stop(t+i*0.2+0.2);
   }
 }
+function playFalseAlarmSound(){
+  if(!audioCtx)return;
+  var t=audioCtx.currentTime;
+  // Rapid warble: alternating 400/500Hz sawtooth — unstable/wavering quality
+  // distinct from sustained directional alarm tones, signals "not actionable"
+  for(var i=0;i<6;i++){
+    var osc=audioCtx.createOscillator();
+    var g=audioCtx.createGain();
+    osc.type='sawtooth';
+    osc.frequency.value=i%2===0?400:500;
+    g.gain.setValueAtTime(0.05,t+i*0.1);
+    g.gain.exponentialRampToValueAtTime(0.001,t+i*0.1+0.09);
+    osc.connect(g);g.connect(audioCtx.destination);
+    osc.start(t+i*0.1);osc.stop(t+i*0.1+0.1);
+  }
+}
 function playEmergencySuccess(){
   if(!audioCtx)return;
   var t=audioCtx.currentTime;
@@ -321,27 +339,58 @@ function playEmergencyFail(){
 }
 
 function triggerEmergency(){
-  var idx=Math.floor(Math.random()*EMERGENCIES.length);
+  // Discovery-prioritized spawning: 3× weight for undiscovered types
+  var pool=[];
+  for(var i=0;i<EMERGENCIES.length;i++){
+    var w=emergencyDiscovery[EMERGENCIES[i].name]?1:3;
+    for(var j=0;j<w;j++) pool.push(i);
+  }
+  var idx=pool[Math.floor(Math.random()*pool.length)];
   activeEmergency=EMERGENCIES[idx];
   emergencyTimer=emergencyWindow;
-  playEmergencyAlarm(activeEmergency.sound,activeEmergency.pan,activeEmergency.wave);
+  if(activeEmergency.key===null){
+    playFalseAlarmSound();
+  } else {
+    playEmergencyAlarm(activeEmergency.sound,activeEmergency.pan,activeEmergency.wave);
+  }
 }
 
 function handleEmergencyInput(key){
   if(!activeEmergency)return false;
+  // FALSE ALARM: pressing any direction is a mistake — must hold
+  if(activeEmergency.key===null){
+    if(key==='ArrowUp'||key==='ArrowDown'||key==='ArrowLeft'||key==='ArrowRight'){
+      emergenciesMissed++;
+      health-=15;
+      emergencyResult='✗ FALSE ALARM!';
+      emergencyResultTimer=1.2;
+      playEmergencyFail();
+      // Track discovery even on fail
+      if(!emergencyDiscovery[activeEmergency.name]){
+        emergencyDiscovery[activeEmergency.name]=true;
+        saveEmergencyDiscovery(emergencyDiscovery);
+      }
+      activeEmergency=null;
+      emergencyTimer=0;
+      if(health<=0){health=0;endGame();}
+      return true;
+    }
+    return false;
+  }
   if(key===activeEmergency.key){
     // Correct response
     emergenciesHandled++;
     score+=25;
     health=Math.min(100,health+15);
-    emergencyResult='✓ '+activeEmergency.name;
-    emergencyResultTimer=1.2;
-    emergencyFlash=0.4;
-    // Track discovery
-    if(!emergencyDiscovery[activeEmergency.name]){
+    // Track discovery with ✨ first-encounter indicator
+    var isNew=!emergencyDiscovery[activeEmergency.name];
+    if(isNew){
       emergencyDiscovery[activeEmergency.name]=true;
       saveEmergencyDiscovery(emergencyDiscovery);
     }
+    emergencyResult=(isNew?'✨ ':'')+'✓ '+activeEmergency.name;
+    emergencyResultTimer=1.2;
+    emergencyFlash=0.4;
     playEmergencySuccess();
     activeEmergency=null;
     emergencyTimer=0;
@@ -459,7 +508,7 @@ function drawMenu(){
   if(disc>0){
     ctx.font='13px -apple-system,sans-serif';
     ctx.fillStyle='#888';
-    ctx.fillText('🚨 '+disc+'/4 emergencies discovered',W/2,372);
+    ctx.fillText('🚨 '+disc+'/5 emergencies discovered',W/2,372);
   }
 
   // Play button
@@ -479,7 +528,7 @@ function drawMenu(){
 
   ctx.font='13px -apple-system,sans-serif';
   ctx.fillStyle='#444';
-  ctx.fillText('🎧 Listen: ↑=high ↓=low ←=left →=right · ↑ Guide (no emergency) · Enter Beat · Esc Back',W/2,560);
+  ctx.fillText('🎧 ↑=high ↓=low ←=left →=right warble=hold · ↑ Guide · Enter Beat · Esc Back',W/2,560);
 }
 
 var showHelp=false;
@@ -505,6 +554,7 @@ function drawHelp(){
     '🚨 EMERGENCIES pop up randomly!',
     '  ⚡ DEFIB → ↑   🫁 VENTILATE → ↓',
     '  💉 PUSH EPI → ←   🩸 TRANSFUSE → →',
+    '  ⚠️ FALSE ALARM → ✋ Hold! Don\'t press.',
     '  Respond fast — keep beating through them!',
     '',
     '🎤 Room noise = patient stress level.',
@@ -718,14 +768,31 @@ function update(){
   if(activeEmergency){
     emergencyTimer-=dt;
     if(emergencyTimer<=0){
-      // Timed out
-      emergenciesMissed++;
-      health-=15;
-      emergencyResult='✗ TOO SLOW';
-      emergencyResultTimer=1.2;
-      playEmergencyFail();
-      activeEmergency=null;
-      if(health<=0){health=0;endGame();return;}
+      if(activeEmergency.key===null){
+        // FALSE ALARM timeout = SUCCESS (correctly held steady)
+        emergenciesHandled++;
+        score+=25;
+        health=Math.min(100,health+15);
+        var isNew=!emergencyDiscovery[activeEmergency.name];
+        if(isNew){
+          emergencyDiscovery[activeEmergency.name]=true;
+          saveEmergencyDiscovery(emergencyDiscovery);
+        }
+        emergencyResult=(isNew?'✨ ':'')+'✓ HELD — Good call!';
+        emergencyResultTimer=1.2;
+        emergencyFlash=0.4;
+        playEmergencySuccess();
+        activeEmergency=null;
+      } else {
+        // Regular emergency timed out — penalty
+        emergenciesMissed++;
+        health-=15;
+        emergencyResult='✗ TOO SLOW';
+        emergencyResultTimer=1.2;
+        playEmergencyFail();
+        activeEmergency=null;
+        if(health<=0){health=0;endGame();return;}
+      }
     }
   }
   if(!activeEmergency&&emergencyTimer<=0&&gameTime>5000){
@@ -947,7 +1014,11 @@ function drawGame(){
     ctx.fillText(activeEmergency.desc,W/2,epY+55);
     ctx.font='bold 22px -apple-system,sans-serif';
     ctx.fillStyle='#fff';
-    ctx.fillText('Press '+activeEmergency.keyLabel+' NOW!',W/2,epY+85);
+    if(activeEmergency.key===null){
+      ctx.fillText('\u270b HOLD — Don\'t press!',W/2,epY+85);
+    } else {
+      ctx.fillText('Press '+activeEmergency.keyLabel+' NOW!',W/2,epY+85);
+    }
 
     // Urgency bar (draining)
     var ubW=300,ubH=8,ubX=W/2-ubW/2,ubY=epY+100;
