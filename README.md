@@ -16,7 +16,7 @@ Topics include: AI workforce displacement, fusion energy progress, orbital debri
 
 - **[Stories](stories/)** — Published investigative articles (~322)
 - **[Drafts](drafts/)** — Research files, critiques, and pre-publication drafts
-- **[Prior Art](priorart/)** — Defensive publications to prevent patent trolling (39 filings)
+- **[Prior Art](priorart/)** — Defensive publications to prevent patent trolling (40+ filings)
 - **[Games](games/)** — Smart glasses-native games with quality-ranked scoring (S/A/B/C/F tiers)
 - **[Experiences](experiences/)** — Interactive web experiences (compass, decibel meter, flow fields, etc.)
 - **[School Evals](school-evals/)** — Bay Area public school district analysis
