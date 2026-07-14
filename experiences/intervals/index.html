@@ -176,6 +176,34 @@ var restExtendStart = 0;
 var recoveryCalm = 0;
 var recoveryReady = false;
 
+/* ─── Ambient Soundscape (← toggle, → cycle type) ─── */
+var ambientEnabled = false;
+var ambientType = 0; /* 0=warm, 1=rain, 2=wind */
+var ambientTypeNames = ['WARM', 'RAIN', 'WIND'];
+var ambientTypeEmoji = ['\u{1F525}', '\u{1F327}', '\u{1F32C}'];
+var ambientVolume = 0.5;
+var ambientGainNode = null;
+var ambientSource = null;
+var ambientFilter = null;
+var ambientFilter2 = null;
+var ambientActive = false;
+var noiseBuf = null;
+try {
+  var ambPref = JSON.parse(localStorage.getItem('intervals_ambient'));
+  if (ambPref) {
+    ambientEnabled = ambPref.enabled !== false;
+    ambientType = typeof ambPref.type === 'number' ? ambPref.type : 0;
+    ambientVolume = typeof ambPref.volume === 'number' ? ambPref.volume : 0.5;
+  }
+} catch(e) {}
+function saveAmbientPrefs() {
+  try {
+    localStorage.setItem('intervals_ambient', JSON.stringify({
+      enabled: ambientEnabled, type: ambientType, volume: ambientVolume
+    }));
+  } catch(e) {}
+}
+
 /* ─── Work-Phase Exertion Monitoring ─── */
 var exertionZone = '--';
 var lowExertionTime = 0;
@@ -254,6 +282,88 @@ function playExertionNudge() {
   g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
   osc.connect(g); g.connect(audioCtx.destination);
   osc.start(t); osc.stop(t + 0.4);
+}
+
+/* ─── Ambient Soundscape Functions ─── */
+function createNoiseBuffer() {
+  ensureAudio();
+  if (!audioCtx) return null;
+  var sr = audioCtx.sampleRate;
+  var buf = audioCtx.createBuffer(1, sr * 2, sr);
+  var data = buf.getChannelData(0);
+  for (var i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  return buf;
+}
+
+function startAmbientDrone() {
+  if (!audioCtx || !ambientEnabled) return;
+  stopAmbientDrone();
+  if (!noiseBuf) noiseBuf = createNoiseBuffer();
+  if (!noiseBuf) return;
+
+  ambientSource = audioCtx.createBufferSource();
+  ambientSource.buffer = noiseBuf;
+  ambientSource.loop = true;
+
+  ambientFilter = audioCtx.createBiquadFilter();
+  ambientFilter2 = audioCtx.createBiquadFilter();
+  ambientGainNode = audioCtx.createGain();
+
+  switch (ambientType) {
+    case 0: /* Warm — deep brown noise, meditative */
+      ambientFilter.type = 'lowpass';
+      ambientFilter.frequency.value = 180;
+      ambientFilter.Q.value = 0.7;
+      ambientFilter2.type = 'lowpass';
+      ambientFilter2.frequency.value = 300;
+      ambientFilter2.Q.value = 0.5;
+      break;
+    case 1: /* Rain — bandpass at high freq */
+      ambientFilter.type = 'bandpass';
+      ambientFilter.frequency.value = 4500;
+      ambientFilter.Q.value = 0.4;
+      ambientFilter2.type = 'highpass';
+      ambientFilter2.frequency.value = 800;
+      ambientFilter2.Q.value = 0.3;
+      break;
+    case 2: /* Wind — low bandpass */
+      ambientFilter.type = 'lowpass';
+      ambientFilter.frequency.value = 600;
+      ambientFilter.Q.value = 0.8;
+      ambientFilter2.type = 'lowpass';
+      ambientFilter2.frequency.value = 1200;
+      ambientFilter2.Q.value = 0.3;
+      break;
+  }
+
+  ambientGainNode.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+  var targetVol = ambientVolume * 0.05;
+  ambientGainNode.gain.setTargetAtTime(targetVol, audioCtx.currentTime, 0.8);
+
+  ambientSource.connect(ambientFilter);
+  ambientFilter.connect(ambientFilter2);
+  ambientFilter2.connect(ambientGainNode);
+  ambientGainNode.connect(audioCtx.destination);
+  ambientSource.start();
+  ambientActive = true;
+}
+
+function stopAmbientDrone() {
+  if (!ambientActive) return;
+  try {
+    if (ambientGainNode && audioCtx) {
+      ambientGainNode.gain.setTargetAtTime(0.0001, audioCtx.currentTime, 0.3);
+      var src = ambientSource;
+      setTimeout(function() {
+        try { src.stop(); src.disconnect(); } catch(e) {}
+      }, 600);
+    }
+  } catch(e) {}
+  ambientActive = false;
+  ambientSource = null;
+  ambientFilter = null;
+  ambientFilter2 = null;
+  ambientGainNode = null;
 }
 
 /* ─── Presets ─── */
@@ -836,7 +946,8 @@ function drawRunning(now) {
 
   ctx.fillStyle = "#555";
   ctx.font = "13px sans-serif";
-  ctx.fillText("Enter Pause · ↑ Pulse " + (heartbeatOn ? "ON" : "OFF") + " · ↓ Mic " + (smartRest ? "🎤" : "OFF") + " · Esc Quit", W/2, H - 25);
+  var ambLabel = ambientEnabled ? ambientTypeEmoji[ambientType] + ambientTypeNames[ambientType] : "OFF";
+  ctx.fillText("↑Pulse " + (heartbeatOn ? "ON" : "OFF") + " ↓Mic " + (smartRest ? "🎤" : "OFF") + " ←🔊" + ambLabel + " →Type", W/2, H - 25);
 
   if (heartbeatOn && state === STATE_RUNNING && countdown321 === 0) {
     var p2 = getPreset();
@@ -859,6 +970,17 @@ function drawRunning(now) {
     ctx.globalAlpha = 0.4;
     ctx.font = "14px sans-serif";
     ctx.fillText("♥", W - 40, 62);
+    ctx.globalAlpha = 1;
+  }
+
+  /* Ambient soundscape indicator (top-left) */
+  if (ambientEnabled && ambientActive) {
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = "#8888ff";
+    ctx.font = "14px sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText(ambientTypeEmoji[ambientType] + " " + ambientTypeNames[ambientType], 20, 40);
+    ctx.textAlign = "center";
     ctx.globalAlpha = 1;
   }
 
@@ -948,11 +1070,13 @@ function startWorkout() {
   workExertionSamples = 0;
   ensureAudio();
   if (smartRest) initMic();
+  if (ambientEnabled) startAmbientDrone();
 }
 
 function completeWorkout() {
   var p = getPreset();
   state = STATE_COMPLETE;
+  stopAmbientDrone();
   beepDone();
   flashAlpha = 0.4;
   flashColor = "#ffaa00";
@@ -1161,6 +1285,7 @@ document.addEventListener("keydown", function(e) {
     if (key === "Enter") {
       state = STATE_PAUSED;
     } else if (key === "Escape") {
+      stopAmbientDrone();
       state = STATE_MENU;
     } else if (key === "ArrowUp") {
       heartbeatOn = !heartbeatOn;
@@ -1169,6 +1294,15 @@ document.addEventListener("keydown", function(e) {
       smartRest = !smartRest;
       try { localStorage.setItem("intervals_smartrest", smartRest ? "1" : "0"); } catch(e){}
       if (smartRest && !micInited) initMic();
+    } else if (key === "ArrowLeft") {
+      ambientEnabled = !ambientEnabled;
+      saveAmbientPrefs();
+      if (ambientEnabled) { ensureAudio(); startAmbientDrone(); }
+      else { stopAmbientDrone(); }
+    } else if (key === "ArrowRight") {
+      ambientType = (ambientType + 1) % 3;
+      saveAmbientPrefs();
+      if (ambientEnabled && ambientActive) { startAmbientDrone(); }
     }
   } else if (state === STATE_PAUSED) {
     if (key === "Enter") {
@@ -1176,6 +1310,7 @@ document.addEventListener("keydown", function(e) {
       lastTick = performance.now();
       lastHeartbeatTime = performance.now();
     } else if (key === "Escape") {
+      stopAmbientDrone();
       state = STATE_MENU;
     } else if (key === "ArrowUp") {
       heartbeatOn = !heartbeatOn;
@@ -1184,6 +1319,15 @@ document.addEventListener("keydown", function(e) {
       smartRest = !smartRest;
       try { localStorage.setItem("intervals_smartrest", smartRest ? "1" : "0"); } catch(e){}
       if (smartRest && !micInited) initMic();
+    } else if (key === "ArrowLeft") {
+      ambientEnabled = !ambientEnabled;
+      saveAmbientPrefs();
+      if (ambientEnabled) { ensureAudio(); startAmbientDrone(); }
+      else { stopAmbientDrone(); }
+    } else if (key === "ArrowRight") {
+      ambientType = (ambientType + 1) % 3;
+      saveAmbientPrefs();
+      if (ambientEnabled && ambientActive) { startAmbientDrone(); }
     }
   } else if (state === STATE_COMPLETE) {
     if (key === "Enter") {
