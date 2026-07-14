@@ -40,17 +40,21 @@ var bufferLength = 0;
 // --- State machine ---
 var STATE_TITLE = 0;
 var STATE_PLAYING = 1;
+var STATE_SPEED = 2;
+var STATE_SPEED_COUNTDOWN = 3;
+var STATE_SPEED_RESULT = 4;
 var gameState = STATE_TITLE;
 var menuIdx = 0; // which mode is highlighted on title
 
 // --- State ---
 var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-var modes = ["Free","Scale","Intervals","Random"];
+var modes = ["Free","Scale","Intervals","Random","Speed Challenge"];
 var modeDescriptions = [
   "Random notes in one octave",
   "Walk up the C major scale",
   "Common interval pairs",
-  "Random notes across octaves"
+  "Random notes across octaves",
+  "60s timed interval recognition"
 ];
 var modeIdx = 0;
 var targetNote = 9; // A = index 9
@@ -78,6 +82,45 @@ var intervalAccuracy = {}; // {idx: {hits:N, attempts:N}}
 var refPlaying = false;
 var refOsc = null;
 var refGain = null;
+
+// --- Speed Challenge state ---
+var speedTimer = 0; // ms remaining
+var speedScore = 0;
+var speedCombo = 0;
+var speedBestCombo = 0;
+var speedCorrect = 0;
+var speedTotal = 0;
+var speedOptions = []; // [{idx, name, label}]
+var speedCorrectDir = -1; // 0=left,1=up,2=right,3=down
+var speedPlaying = false; // interval tones playing
+var speedAnswered = false;
+var speedCountdown = 0; // frames for 3-2-1 countdown
+var speedLastTime = 0; // performance.now() for timer
+var speedBestScore = 0;
+var speedGrade = "";
+var speedCurrentInterval = -1; // which interval is playing
+var speedRefOsc1 = null;
+var speedRefOsc2 = null;
+var speedRefGain1 = null;
+var speedRefGain2 = null;
+var speedPenaltyFlash = 0;
+var speedComboFlash = 0;
+var SPEED_DURATION = 60000; // 60 seconds
+var SPEED_DIRS = ["←","↑","→","↓"];
+var SPEED_DIR_KEYS = ["ArrowLeft","ArrowUp","ArrowRight","ArrowDown"];
+
+function loadSpeedBest() {
+  try {
+    var d = JSON.parse(localStorage.getItem("pitch_speed_best"));
+    if (d) speedBestScore = d.best || 0;
+  } catch(e){}
+}
+function saveSpeedBest() {
+  try {
+    localStorage.setItem("pitch_speed_best", JSON.stringify({best: speedBestScore}));
+  } catch(e){}
+}
+loadSpeedBest();
 
 // --- Rank progression ---
 var RANKS = [
@@ -400,9 +443,205 @@ function nextNote() {
   }
 }
 
+// --- Speed Challenge functions ---
+function playSpeedCountdownBeep(n) {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var freq = n === 0 ? 880 : 440 + (3 - n) * 110;
+  var dur = n === 0 ? 0.3 : 0.15;
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.type = n === 0 ? "triangle" : "sine";
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0.15, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t + dur);
+}
+
+function playSpeedInterval() {
+  if (!audioCtx) return;
+  stopSpeedInterval();
+  var baseNote = Math.floor(Math.random() * 7); // C3 to F#3
+  var baseOctave = 3 + Math.floor(Math.random() * 2);
+  var pair = intervalPairs[speedCurrentInterval];
+  var freq1 = noteFreq(baseNote, baseOctave);
+  var freq2 = noteFreq((baseNote + pair[1]) % 12, baseOctave + Math.floor((baseNote + pair[1]) / 12));
+  var t = audioCtx.currentTime;
+  // First tone
+  speedRefOsc1 = audioCtx.createOscillator();
+  speedRefGain1 = audioCtx.createGain();
+  speedRefOsc1.type = "sine";
+  speedRefOsc1.frequency.value = freq1;
+  speedRefGain1.gain.setValueAtTime(0, t);
+  speedRefGain1.gain.linearRampToValueAtTime(0.18, t + 0.02);
+  speedRefGain1.gain.setValueAtTime(0.18, t + 0.35);
+  speedRefGain1.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+  speedRefOsc1.connect(speedRefGain1);
+  speedRefGain1.connect(audioCtx.destination);
+  speedRefOsc1.start(t);
+  speedRefOsc1.stop(t + 0.5);
+  // Second tone
+  speedRefOsc2 = audioCtx.createOscillator();
+  speedRefGain2 = audioCtx.createGain();
+  speedRefOsc2.type = "sine";
+  speedRefOsc2.frequency.value = freq2;
+  speedRefGain2.gain.setValueAtTime(0, t + 0.5);
+  speedRefGain2.gain.linearRampToValueAtTime(0.18, t + 0.52);
+  speedRefGain2.gain.setValueAtTime(0.18, t + 0.85);
+  speedRefGain2.gain.exponentialRampToValueAtTime(0.001, t + 0.95);
+  speedRefOsc2.connect(speedRefGain2);
+  speedRefGain2.connect(audioCtx.destination);
+  speedRefOsc2.start(t + 0.5);
+  speedRefOsc2.stop(t + 1.0);
+  speedPlaying = true;
+}
+
+function stopSpeedInterval() {
+  try { if (speedRefOsc1) speedRefOsc1.stop(); } catch(e){}
+  try { if (speedRefOsc2) speedRefOsc2.stop(); } catch(e){}
+  speedRefOsc1 = null; speedRefOsc2 = null;
+  speedPlaying = false;
+}
+
+function playSpeedCorrect() {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.type = "sine";
+  o.frequency.setValueAtTime(660, t);
+  o.frequency.setValueAtTime(880, t + 0.06);
+  g.gain.setValueAtTime(0.1, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t + 0.2);
+}
+
+function playSpeedWrong() {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.type = "sawtooth";
+  o.frequency.value = 150;
+  g.gain.setValueAtTime(0.08, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t + 0.25);
+}
+
+function playSpeedTick() {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.type = "sine";
+  o.frequency.value = 1000;
+  g.gain.setValueAtTime(0.04, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t + 0.05);
+}
+
+function generateSpeedRound() {
+  // Pick an interval for the question
+  speedCurrentInterval = Math.floor(Math.random() * intervalPairs.length);
+  speedAnswered = false;
+  // Generate 4 options: correct + 3 distractors
+  var correct = speedCurrentInterval;
+  var distractors = [];
+  for (var i = 0; i < intervalPairs.length; i++) {
+    if (i !== correct) distractors.push(i);
+  }
+  // Shuffle distractors and take 3
+  for (var j = distractors.length - 1; j > 0; j--) {
+    var k = Math.floor(Math.random() * (j + 1));
+    var tmp = distractors[j]; distractors[j] = distractors[k]; distractors[k] = tmp;
+  }
+  var opts = [correct, distractors[0], distractors[1], distractors[2]];
+  // Shuffle options
+  for (var m = opts.length - 1; m > 0; m--) {
+    var n = Math.floor(Math.random() * (m + 1));
+    var t2 = opts[m]; opts[m] = opts[n]; opts[n] = t2;
+  }
+  speedOptions = [];
+  speedCorrectDir = -1;
+  for (var p = 0; p < 4; p++) {
+    speedOptions.push({idx: opts[p], name: intervalNames[opts[p]], label: intervalLabels[opts[p]]});
+    if (opts[p] === correct) speedCorrectDir = p;
+  }
+  // Play the interval
+  playSpeedInterval();
+}
+
+function speedGetGrade(score) {
+  if (score >= 80) return "S";
+  if (score >= 60) return "A";
+  if (score >= 45) return "B";
+  if (score >= 30) return "C";
+  if (score >= 15) return "D";
+  return "F";
+}
+
+function startSpeedChallenge() {
+  speedScore = 0;
+  speedCombo = 0;
+  speedBestCombo = 0;
+  speedCorrect = 0;
+  speedTotal = 0;
+  speedTimer = SPEED_DURATION;
+  speedPenaltyFlash = 0;
+  speedComboFlash = 0;
+  speedCountdown = 180; // 3 seconds at 60fps
+  speedLastTime = 0;
+  gameState = STATE_SPEED_COUNTDOWN;
+  playSpeedCountdownBeep(3);
+}
+
+function handleSpeedAnswer(dirIdx) {
+  if (speedAnswered) return;
+  speedAnswered = true;
+  speedTotal++;
+  stopSpeedInterval();
+  if (dirIdx === speedCorrectDir) {
+    speedCorrect++;
+    speedCombo++;
+    if (speedCombo > speedBestCombo) speedBestCombo = speedCombo;
+    var pts = 1 + (speedCombo - 1) * 0.5;
+    speedScore += pts;
+    speedComboFlash = 20;
+    playSpeedCorrect();
+    // Track interval accuracy
+    if (!intervalAccuracy[speedCurrentInterval]) intervalAccuracy[speedCurrentInterval] = {hits:0, attempts:0};
+    intervalAccuracy[speedCurrentInterval].hits++;
+    intervalAccuracy[speedCurrentInterval].attempts++;
+    saveIntervalAccuracy();
+  } else {
+    speedCombo = 0;
+    speedTimer = Math.max(0, speedTimer - 2000); // -2 seconds
+    speedPenaltyFlash = 30;
+    playSpeedWrong();
+    if (!intervalAccuracy[speedCurrentInterval]) intervalAccuracy[speedCurrentInterval] = {hits:0, attempts:0};
+    intervalAccuracy[speedCurrentInterval].attempts++;
+    saveIntervalAccuracy();
+  }
+  // Next round after brief delay
+  setTimeout(function() {
+    if (gameState === STATE_SPEED && speedTimer > 0) {
+      generateSpeedRound();
+    }
+  }, 400);
+}
+
 // --- Start session ---
 function startPlaying() {
   modeIdx = menuIdx;
+  if (modeIdx === 4) {
+    // Speed Challenge mode
+    startSpeedChallenge();
+    return;
+  }
   scaleIdx = 0;
   intervalIdx = 0;
   streakCount = 0;
@@ -440,6 +679,29 @@ document.addEventListener("keydown", function(e) {
       startPlaying();
     }
     // ArrowLeft on title = back to index (handled by browser/MRBD)
+  } else if (gameState === STATE_SPEED) {
+    // Speed Challenge: directions select answer
+    for (var si = 0; si < SPEED_DIR_KEYS.length; si++) {
+      if (e.key === SPEED_DIR_KEYS[si]) {
+        handleSpeedAnswer(si);
+        break;
+      }
+    }
+    if (e.key === "Enter") {
+      // Replay current interval
+      if (!speedAnswered && speedCurrentInterval >= 0) {
+        playSpeedInterval();
+      }
+    } else if (e.key === "Escape") {
+      stopSpeedInterval();
+      gameState = STATE_TITLE;
+    }
+  } else if (gameState === STATE_SPEED_RESULT) {
+    if (e.key === "Enter") {
+      startSpeedChallenge(); // retry
+    } else if (e.key === "Escape") {
+      gameState = STATE_TITLE;
+    }
   } else if (gameState === STATE_PLAYING) {
     if (e.key === "ArrowLeft") {
       targetNote = ((targetNote - 1) + 12) % 12;
@@ -484,6 +746,12 @@ function draw() {
 
   if (gameState === STATE_TITLE) {
     drawTitle();
+  } else if (gameState === STATE_SPEED_COUNTDOWN) {
+    drawSpeedCountdown();
+  } else if (gameState === STATE_SPEED) {
+    drawSpeed();
+  } else if (gameState === STATE_SPEED_RESULT) {
+    drawSpeedResult();
   } else {
     drawPlaying();
   }
@@ -546,17 +814,17 @@ function drawTitle() {
   }
 
   // --- Mode selection ---
-  var menuTop = 210;
-  ctx.font = "bold 14px system-ui";
+  var menuTop = 195;
+  ctx.font = "bold 13px system-ui";
   ctx.fillStyle = "#999";
   ctx.fillText("SELECT MODE", 300, menuTop);
 
   for (var m = 0; m < modes.length; m++) {
-    var itemY = menuTop + 28 + m * 62;
+    var itemY = menuTop + 22 + m * 50;
     var isSelected = m === menuIdx;
 
     // Card background
-    var cardX = 80, cardW = 440, cardH = 52;
+    var cardX = 80, cardW = 440, cardH = 42;
     if (isSelected) {
       // Subtle pulsing glow
       var glowAlpha = 0.08 + 0.04 * Math.sin(titlePulse * 2);
@@ -574,26 +842,26 @@ function drawTitle() {
       ctx.fillRect(cardX, itemY, 4, cardH);
     }
 
-    // Mode name
+    // Mode name + description on same area (compact)
     ctx.textAlign = "left";
-    ctx.font = isSelected ? "bold 18px system-ui" : "16px system-ui";
+    ctx.font = isSelected ? "bold 16px system-ui" : "15px system-ui";
     ctx.fillStyle = isSelected ? "#4a9" : "#888";
-    ctx.fillText(modes[m], cardX + 20, itemY + 22);
+    ctx.fillText(modes[m], cardX + 16, itemY + 18);
 
     // Description
-    ctx.font = "12px system-ui";
+    ctx.font = "11px system-ui";
     ctx.fillStyle = isSelected ? "#7bb" : "#555";
-    ctx.fillText(modeDescriptions[m], cardX + 20, itemY + 40);
+    ctx.fillText(modeDescriptions[m], cardX + 16, itemY + 34);
 
     // Arrow indicator for selected
     if (isSelected) {
       ctx.textAlign = "right";
-      ctx.font = "18px system-ui";
+      ctx.font = "16px system-ui";
       ctx.fillStyle = "#4a9";
-      ctx.fillText("▸", cardX + cardW - 14, itemY + 24);
+      ctx.fillText("▸", cardX + cardW - 12, itemY + 20);
     }
 
-    // Show per-interval accuracy when Intervals mode is selected
+    // Show sub-info inline on the right side of the card
     if (isSelected && m === 2) {
       var weakList = [];
       for (var wi = 0; wi < intervalPairs.length; wi++) {
@@ -601,16 +869,23 @@ function drawTitle() {
         if (wPct >= 0 && wPct < 60) weakList.push(intervalNames[wi] + " " + wPct + "%");
       }
       if (weakList.length > 0) {
-        ctx.textAlign = "left";
-        ctx.font = "11px system-ui";
+        ctx.textAlign = "right";
+        ctx.font = "10px system-ui";
         ctx.fillStyle = "#e55";
-        ctx.fillText("⚠ Weak: " + weakList.join(", "), cardX + 20, itemY + cardH + 12);
+        var weakStr = "⚠ " + weakList.slice(0, 3).join(", ");
+        ctx.fillText(weakStr, cardX + cardW - 30, itemY + 34);
       }
+    }
+    if (isSelected && m === 4 && speedBestScore > 0) {
+      ctx.textAlign = "right";
+      ctx.font = "11px system-ui";
+      ctx.fillStyle = "#ffd700";
+      ctx.fillText("★ " + Math.floor(speedBestScore) + " (" + speedGetGrade(speedBestScore) + ")", cardX + cardW - 30, itemY + 34);
     }
   }
 
   // --- Stats summary ---
-  var statsY = 478;
+  var statsY = 482;
   ctx.fillStyle = "#1a1a1a";
   ctx.fillRect(80, statsY, 440, 50);
 
@@ -972,6 +1247,304 @@ function drawPlaying() {
   ctx.fillText("Esc: menu", 20, 590);
   ctx.textAlign = "right";
   ctx.fillText(modes[modeIdx], 580, 590);
+}
+
+// --- Speed Challenge: Countdown ---
+function drawSpeedCountdown() {
+  speedCountdown--;
+  var sec = Math.ceil(speedCountdown / 60);
+  if (sec <= 0) {
+    // Start the actual challenge
+    gameState = STATE_SPEED;
+    speedLastTime = performance.now();
+    generateSpeedRound();
+    playSpeedCountdownBeep(0);
+    return;
+  }
+  // Play beep at each second transition
+  var prevSec = Math.ceil((speedCountdown + 1) / 60);
+  if (sec !== prevSec && sec > 0) playSpeedCountdownBeep(sec);
+
+  ctx.fillStyle = "#0d0d0d";
+  ctx.fillRect(0, 0, 600, 600);
+  ctx.textAlign = "center";
+  ctx.font = "bold 16px system-ui";
+  ctx.fillStyle = "#888";
+  ctx.fillText("SPEED CHALLENGE", 300, 200);
+  ctx.font = "14px system-ui";
+  ctx.fillStyle = "#666";
+  ctx.fillText("Hear the interval — pick the name", 300, 225);
+  ctx.font = "bold 120px system-ui";
+  var alpha = 0.5 + 0.5 * Math.abs(Math.sin(speedCountdown * 0.1));
+  ctx.fillStyle = "rgba(68,170,153," + alpha + ")";
+  ctx.fillText("" + sec, 300, 360);
+  ctx.font = "14px system-ui";
+  ctx.fillStyle = "#555";
+  ctx.fillText("←↑→↓ = answer   Enter = replay", 300, 430);
+}
+
+// --- Speed Challenge: Active gameplay ---
+function drawSpeed() {
+  // Update timer
+  var now = performance.now();
+  if (speedLastTime > 0) {
+    speedTimer -= (now - speedLastTime);
+  }
+  speedLastTime = now;
+
+  // Timer tick at <10s
+  if (speedTimer <= 10000 && speedTimer > 0) {
+    var tickPhase = Math.floor(speedTimer / 500);
+    var prevPhase = Math.floor((speedTimer + (now - speedLastTime + 16)) / 500);
+    if (tickPhase !== prevPhase) playSpeedTick();
+  }
+
+  if (speedTimer <= 0) {
+    speedTimer = 0;
+    stopSpeedInterval();
+    // Compute grade and save
+    speedGrade = speedGetGrade(speedScore);
+    if (speedScore > speedBestScore) {
+      speedBestScore = speedScore;
+      saveSpeedBest();
+    }
+    // Add to persistent stats
+    persistentHits += speedCorrect;
+    persistentSessions++;
+    prevRank = currentRank;
+    currentRank = getRankIdx(persistentHits);
+    if (currentRank > prevRank) rankUpFlash = 120;
+    saveStats();
+    gameState = STATE_SPEED_RESULT;
+    return;
+  }
+
+  // Decay flashes
+  if (speedPenaltyFlash > 0) speedPenaltyFlash--;
+  if (speedComboFlash > 0) speedComboFlash--;
+
+  // --- Draw ---
+  // Penalty flash background
+  if (speedPenaltyFlash > 0) {
+    var pAlpha = speedPenaltyFlash / 30 * 0.08;
+    ctx.fillStyle = "rgba(200,40,40," + pAlpha + ")";
+  } else {
+    ctx.fillStyle = "#0d0d0d";
+  }
+  ctx.fillRect(0, 0, 600, 600);
+
+  // Header
+  ctx.textAlign = "left";
+  ctx.font = "bold 14px system-ui";
+  ctx.fillStyle = "#4a9";
+  ctx.fillText("⚡ SPEED CHALLENGE", 20, 28);
+
+  // Timer bar
+  var timerPct = speedTimer / SPEED_DURATION;
+  var barW = 560;
+  ctx.fillStyle = "#1a1a1a";
+  ctx.fillRect(20, 42, barW, 12);
+  var timerColor = timerPct > 0.3 ? "#4a9" : (timerPct > 0.15 ? "#da4" : "#e44");
+  ctx.fillStyle = timerColor;
+  ctx.fillRect(20, 42, barW * timerPct, 12);
+  // Timer text
+  ctx.textAlign = "right";
+  ctx.font = "bold 14px system-ui";
+  ctx.fillStyle = timerColor;
+  var secLeft = Math.ceil(speedTimer / 1000);
+  ctx.fillText(secLeft + "s", 580, 28);
+
+  // Score and combo
+  ctx.textAlign = "center";
+  ctx.font = "bold 18px system-ui";
+  ctx.fillStyle = "#e0e0e0";
+  ctx.fillText("Score: " + Math.floor(speedScore), 300, 82);
+  if (speedCombo > 1) {
+    var comboAlpha = speedComboFlash > 0 ? 1 : 0.7;
+    ctx.font = "bold 14px system-ui";
+    ctx.fillStyle = "rgba(255,215,0," + comboAlpha + ")";
+    ctx.fillText("🔥 " + speedCombo + "× combo", 300, 102);
+  }
+
+  // Instruction
+  ctx.font = "15px system-ui";
+  ctx.fillStyle = "#777";
+  ctx.fillText("What interval do you hear?", 300, 140);
+
+  // Currently playing indicator
+  if (speedCurrentInterval >= 0) {
+    var playingLabel = speedAnswered ? "" : (speedPlaying ? "♪ ♪" : "");
+    if (playingLabel) {
+      ctx.font = "24px system-ui";
+      ctx.fillStyle = "#4a9";
+      ctx.fillText(playingLabel, 300, 175);
+    }
+  }
+
+  // --- 4 option cards in cross layout ---
+  // ← left, ↑ up, → right, ↓ down
+  var cardW = 180, cardH = 60;
+  var cx2 = 300, cy2 = 310;
+  var positions = [
+    {x: cx2 - 220, y: cy2 - cardH/2},  // ← left
+    {x: cx2 - cardW/2, y: cy2 - 120},    // ↑ up
+    {x: cx2 + 40, y: cy2 - cardH/2},     // → right
+    {x: cx2 - cardW/2, y: cy2 + 60}      // ↓ down
+  ];
+
+  for (var oi = 0; oi < 4; oi++) {
+    var opt = speedOptions[oi];
+    if (!opt) continue;
+    var pos = positions[oi];
+    var isCorrectShown = speedAnswered && oi === speedCorrectDir;
+    var isWrongShown = speedAnswered && oi !== speedCorrectDir;
+
+    // Card background
+    if (isCorrectShown) {
+      ctx.fillStyle = "#1a3a28";
+    } else if (isWrongShown && speedAnswered) {
+      ctx.fillStyle = "#1a1a1a";
+    } else {
+      ctx.fillStyle = "#1a1a1a";
+    }
+    ctx.fillRect(pos.x, pos.y, cardW, cardH);
+    if (isCorrectShown) {
+      ctx.strokeStyle = "#4f4";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(pos.x, pos.y, cardW, cardH);
+    }
+
+    // Direction label
+    ctx.textAlign = "left";
+    ctx.font = "bold 16px system-ui";
+    ctx.fillStyle = isCorrectShown ? "#4f4" : (speedAnswered ? "#555" : "#4a9");
+    ctx.fillText(SPEED_DIRS[oi], pos.x + 10, pos.y + 24);
+
+    // Interval name
+    ctx.textAlign = "left";
+    ctx.font = "bold 18px system-ui";
+    ctx.fillStyle = isCorrectShown ? "#4f4" : (speedAnswered ? "#666" : "#e0e0e0");
+    ctx.fillText(opt.name, pos.x + 36, pos.y + 24);
+
+    // Full label
+    ctx.font = "12px system-ui";
+    ctx.fillStyle = isCorrectShown ? "#8d8" : (speedAnswered ? "#444" : "#888");
+    ctx.fillText(opt.label, pos.x + 10, pos.y + 46);
+  }
+
+  // Penalty text
+  if (speedPenaltyFlash > 15) {
+    ctx.textAlign = "center";
+    ctx.font = "bold 16px system-ui";
+    ctx.fillStyle = "rgba(230,60,60," + ((speedPenaltyFlash - 15) / 15) + ")";
+    ctx.fillText("-2s", 300, 440);
+  }
+
+  // Stats bar
+  ctx.fillStyle = "#1a1a1a";
+  ctx.fillRect(20, 470, 560, 50);
+  ctx.textAlign = "center";
+  ctx.font = "11px system-ui";
+  ctx.fillStyle = "#666";
+  ctx.fillText("CORRECT", 140, 486);
+  ctx.fillText("ACCURACY", 300, 486);
+  ctx.fillText("BEST COMBO", 460, 486);
+  ctx.font = "bold 18px system-ui";
+  ctx.fillStyle = "#ccc";
+  ctx.fillText(speedCorrect + "/" + speedTotal, 140, 510);
+  var acc2 = speedTotal > 0 ? Math.round((speedCorrect / speedTotal) * 100) : 0;
+  ctx.fillStyle = acc2 >= 80 ? "#4f4" : (acc2 >= 50 ? "#da4" : "#e44");
+  ctx.fillText(acc2 + "%", 300, 510);
+  ctx.fillStyle = "#ffd700";
+  ctx.fillText("" + speedBestCombo, 460, 510);
+
+  // Footer
+  ctx.font = "12px system-ui";
+  ctx.fillStyle = "#555";
+  ctx.textAlign = "center";
+  ctx.fillText("←↑→↓ answer   Enter replay   Esc quit", 300, 556);
+}
+
+// --- Speed Challenge: Result screen ---
+function drawSpeedResult() {
+  ctx.fillStyle = "#0d0d0d";
+  ctx.fillRect(0, 0, 600, 600);
+
+  // Rank up flash
+  if (rankUpFlash > 0) {
+    rankUpFlash--;
+    var ruAlpha2 = Math.min(1, rankUpFlash / 60) * 0.1;
+    ctx.fillStyle = "rgba(255,215,0," + ruAlpha2 + ")";
+    ctx.fillRect(0, 0, 600, 600);
+  }
+
+  ctx.textAlign = "center";
+  ctx.font = "bold 16px system-ui";
+  ctx.fillStyle = "#888";
+  ctx.fillText("SPEED CHALLENGE COMPLETE", 300, 80);
+
+  // Grade
+  var gradeColors = {S:"#ffd700",A:"#4f4",B:"#4af",C:"#da4",D:"#a84",F:"#e44"};
+  ctx.font = "bold 100px system-ui";
+  ctx.fillStyle = gradeColors[speedGrade] || "#e0e0e0";
+  ctx.fillText(speedGrade, 300, 210);
+
+  // Score
+  ctx.font = "bold 28px system-ui";
+  ctx.fillStyle = "#e0e0e0";
+  ctx.fillText("Score: " + Math.floor(speedScore), 300, 260);
+
+  if (Math.floor(speedScore) >= speedBestScore && speedBestScore > 0) {
+    ctx.font = "bold 14px system-ui";
+    ctx.fillStyle = "#ffd700";
+    ctx.fillText("★ NEW BEST!", 300, 284);
+  }
+
+  // Stats grid
+  var statY = 310;
+  ctx.fillStyle = "#1a1a1a";
+  ctx.fillRect(60, statY, 480, 100);
+
+  ctx.font = "11px system-ui";
+  ctx.fillStyle = "#666";
+  ctx.fillText("CORRECT", 150, statY + 20);
+  ctx.fillText("ACCURACY", 300, statY + 20);
+  ctx.fillText("BEST COMBO", 450, statY + 20);
+  ctx.font = "bold 22px system-ui";
+  ctx.fillStyle = "#ccc";
+  ctx.fillText(speedCorrect + "/" + speedTotal, 150, statY + 50);
+  var acc3 = speedTotal > 0 ? Math.round((speedCorrect / speedTotal) * 100) : 0;
+  ctx.fillStyle = acc3 >= 80 ? "#4f4" : (acc3 >= 50 ? "#da4" : "#e44");
+  ctx.fillText(acc3 + "%", 300, statY + 50);
+  ctx.fillStyle = "#ffd700";
+  ctx.fillText("" + speedBestCombo, 450, statY + 50);
+
+  ctx.font = "11px system-ui";
+  ctx.fillStyle = "#666";
+  ctx.fillText("BEST SCORE", 150, statY + 72);
+  ctx.fillText("RANK", 450, statY + 72);
+  ctx.font = "bold 16px system-ui";
+  ctx.fillStyle = "#aaa";
+  ctx.fillText("" + Math.floor(speedBestScore), 150, statY + 92);
+  ctx.fillStyle = currentRank >= 7 ? "#ffd700" : currentRank >= 5 ? "#c0a0ff" : currentRank >= 3 ? "#4af" : "#8a8";
+  ctx.fillText("⭐ " + RANKS[currentRank].name, 450, statY + 92);
+
+  // Rank up notification
+  if (currentRank > prevRank) {
+    ctx.font = "bold 16px system-ui";
+    ctx.fillStyle = "#ffd700";
+    ctx.fillText("⭐ RANK UP: " + RANKS[currentRank].name + " ⭐", 300, statY + 130);
+  }
+
+  // Footer
+  ctx.font = "14px system-ui";
+  ctx.fillStyle = "#555";
+  ctx.fillText("Enter: retry   Esc: menu", 300, 520);
+
+  // Grade legend
+  ctx.font = "11px system-ui";
+  ctx.fillStyle = "#444";
+  ctx.fillText("S:80+  A:60+  B:45+  C:30+  D:15+  F:<15", 300, 556);
 }
 
 draw();
