@@ -184,7 +184,196 @@ function startVoyager() {
   burstActive = false;
   burstFrames = 0;
   burstCooldown = 0;
+  activeAnomaly = null;
+  anomalyAnnounce = 0;
+  anomalyThisVoyage = 0;
+  anomalyLastSpawnIdx = -1;
   // deepSpace persists across voyages — player's chosen difficulty
+}
+
+// ── Space Anomalies (Voyager discoveries) ──
+var ANOMALY_TYPES = [
+  { id: 0, name: 'COMET', icon: '\u2604\ufe0f', dur: 180, desc: 'Speed boost' },
+  { id: 1, name: 'GRAVITY WELL', icon: '\ud83c\udf00', dur: 300, desc: 'Drift pull' },
+  { id: 2, name: 'ION STORM', icon: '\u26a1', dur: 300, desc: 'Signal disruption' },
+  { id: 3, name: 'VOID RIFT', icon: '\ud83c\udf11', dur: 240, desc: 'Clear signal' },
+  { id: 4, name: 'SIGNAL ECHO', icon: '\ud83c\udf1f', dur: 240, desc: 'Phantom beacon' }
+];
+var anomalyDisc = 0; // bitmask — persistent discovery tracking
+try { anomalyDisc = parseInt(localStorage.getItem('starfield_anomalies') || '0') || 0; } catch(e){}
+function anomalyDiscCount() { var c = 0; for (var i = 0; i < ANOMALY_TYPES.length; i++) { if (anomalyDisc & (1 << i)) c++; } return c; }
+
+var activeAnomaly = null; // { type, frames, data }
+var anomalyAnnounce = 0; // frames to show announcement
+var anomalyAnnounceText = '';
+var anomalyAnnounceIcon = '';
+var anomalyAnnounceNew = false;
+var anomalyThisVoyage = 0; // count per voyage, max 2
+var anomalyLastSpawnIdx = -1; // prevent double-spawn on same waypoint
+var echoOsc = null; // for SIGNAL ECHO phantom beacon
+var echoGain = null;
+var echoPanner = null;
+
+function pickAnomaly() {
+  // Discovery-prioritized: 3x weight for undiscovered types
+  var pool = [];
+  for (var i = 0; i < ANOMALY_TYPES.length; i++) {
+    var w = (anomalyDisc & (1 << i)) ? 1 : 3;
+    for (var j = 0; j < w; j++) pool.push(i);
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function spawnAnomaly() {
+  var typeIdx = pickAnomaly();
+  var aType = ANOMALY_TYPES[typeIdx];
+  var isNew = !(anomalyDisc & (1 << typeIdx));
+  anomalyDisc |= (1 << typeIdx);
+  try { localStorage.setItem('starfield_anomalies', String(anomalyDisc)); } catch(e){}
+
+  var data = {};
+  if (typeIdx === 0) { // COMET — random direction
+    data.dir = (Math.random() > 0.5) ? 1 : -1;
+    data.y = 100 + Math.random() * 400;
+    data.x = data.dir > 0 ? -30 : W + 30;
+  } else if (typeIdx === 1) { // GRAVITY WELL — drift target
+    data.driftTarget = (Math.random() - 0.5) * 1.2;
+  } else if (typeIdx === 4) { // SIGNAL ECHO — phantom bearing
+    var tgt = (voyagerIdx < voyagerTargets.length) ? voyagerTargets[voyagerIdx] : null;
+    var realBearing = tgt ? tgt.bearing : 0;
+    data.phantomBearing = realBearing + (Math.random() > 0.5 ? 1 : -1) * (0.3 + Math.random() * 0.5);
+    data.phantomBearing = Math.max(-1.5, Math.min(1.5, data.phantomBearing));
+  }
+
+  activeAnomaly = { type: typeIdx, frames: aType.dur, data: data };
+  anomalyAnnounce = 120;
+  anomalyAnnounceText = aType.name;
+  anomalyAnnounceIcon = aType.icon;
+  anomalyAnnounceNew = isNew;
+  anomalyThisVoyage++;
+  playAnomalySound(typeIdx);
+}
+
+function updateAnomaly() {
+  if (!activeAnomaly) return;
+  activeAnomaly.frames--;
+
+  if (activeAnomaly.type === 0) { // COMET — move across screen, speed boost
+    var d = activeAnomaly.data;
+    d.x += d.dir * 4;
+    // If player is steering in comet direction, boost speed
+    if ((d.dir > 0 && vanishX > 0) || (d.dir < 0 && vanishX < 0)) {
+      targetSpeed = Math.min(2.0, targetSpeed + 0.003);
+    }
+  } else if (activeAnomaly.type === 1) { // GRAVITY WELL — drift vanishX
+    var drift = activeAnomaly.data.driftTarget;
+    vanishX += (drift - vanishX) * 0.008;
+  }
+  // Types 2, 3, 4 handled in beacon/render logic via activeAnomaly checks
+
+  // Update echo oscillator for SIGNAL ECHO
+  if (activeAnomaly.type === 4 && echoGain && synthCtx) {
+    var tgt = (voyagerIdx < voyagerTargets.length) ? voyagerTargets[voyagerIdx] : null;
+    if (tgt) {
+      var proximity = Math.max(0, 1 - tgt.dist / 60);
+      var echoVol = 0.03 + proximity * 0.06;
+      var echoPan = Math.max(-1, Math.min(1, (activeAnomaly.data.phantomBearing - vanishX) * 2.5));
+      var echoFreq = 350 + proximity * 500; // slightly different from real beacon (330+proximity*550)
+      echoGain.gain.setTargetAtTime(echoVol, synthCtx.currentTime, 0.1);
+      echoPanner.pan.setTargetAtTime(echoPan, synthCtx.currentTime, 0.08);
+      echoOsc.frequency.setTargetAtTime(echoFreq, synthCtx.currentTime, 0.2);
+    }
+  }
+
+  if (activeAnomaly.frames <= 0) {
+    // Clean up echo oscillator
+    if (activeAnomaly.type === 4 && echoGain && synthCtx) {
+      echoGain.gain.setTargetAtTime(0, synthCtx.currentTime, 0.15);
+    }
+    activeAnomaly = null;
+  }
+}
+
+function playAnomalySound(typeIdx) {
+  if (!synthStarted || !synthCtx) return;
+  var now = synthCtx.currentTime;
+  if (typeIdx === 0) { // COMET — whooshing sawtooth sweep
+    var o = synthCtx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(1400, now);
+    o.frequency.exponentialRampToValueAtTime(200, now + 0.6);
+    var g = synthCtx.createGain();
+    g.gain.setValueAtTime(0.06, now);
+    g.gain.linearRampToValueAtTime(0.08, now + 0.15);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+    var f = synthCtx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 2000; f.Q.value = 2;
+    o.connect(f); f.connect(g); g.connect(masterGain);
+    o.start(now); o.stop(now + 0.8);
+  } else if (typeIdx === 1) { // GRAVITY WELL — deep rumble
+    var o = synthCtx.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = 40;
+    var g = synthCtx.createGain();
+    g.gain.setValueAtTime(0.001, now);
+    g.gain.linearRampToValueAtTime(0.08, now + 0.5);
+    g.gain.setValueAtTime(0.08, now + 4.0);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 5.0);
+    o.connect(g); g.connect(masterGain);
+    o.start(now); o.stop(now + 5.1);
+    // Sub-harmonic
+    var o2 = synthCtx.createOscillator();
+    o2.type = 'triangle'; o2.frequency.value = 25;
+    var g2 = synthCtx.createGain();
+    g2.gain.setValueAtTime(0.001, now);
+    g2.gain.linearRampToValueAtTime(0.05, now + 0.8);
+    g2.gain.exponentialRampToValueAtTime(0.001, now + 5.0);
+    o2.connect(g2); g2.connect(masterGain);
+    o2.start(now); o2.stop(now + 5.1);
+  } else if (typeIdx === 2) { // ION STORM — crackling static
+    var bufLen = synthCtx.sampleRate * 1;
+    var buf = synthCtx.createBuffer(1, bufLen, synthCtx.sampleRate);
+    var d = buf.getChannelData(0);
+    for (var i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * (Math.random() > 0.7 ? 1 : 0.2);
+    var src = synthCtx.createBufferSource();
+    src.buffer = buf; src.loop = true;
+    var gn = synthCtx.createGain();
+    gn.gain.setValueAtTime(0.001, now);
+    gn.gain.linearRampToValueAtTime(0.05, now + 0.3);
+    gn.gain.setValueAtTime(0.05, now + 4.5);
+    gn.gain.exponentialRampToValueAtTime(0.001, now + 5.0);
+    var bf = synthCtx.createBiquadFilter();
+    bf.type = 'bandpass'; bf.frequency.value = 1200; bf.Q.value = 0.8;
+    src.connect(bf); bf.connect(gn); gn.connect(masterGain);
+    src.start(now); src.stop(now + 5.1);
+  } else if (typeIdx === 3) { // VOID RIFT — eerie silence then pure tone
+    var o = synthCtx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(880, now + 0.5);
+    var g = synthCtx.createGain();
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0, now + 0.4);
+    g.gain.linearRampToValueAtTime(0.06, now + 0.8);
+    g.gain.setValueAtTime(0.06, now + 3.5);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 4.0);
+    o.connect(g); g.connect(masterGain);
+    o.start(now); o.stop(now + 4.1);
+  } else if (typeIdx === 4) { // SIGNAL ECHO — set up persistent phantom oscillator
+    if (!echoOsc) {
+      echoOsc = synthCtx.createOscillator();
+      echoOsc.type = 'sine';
+      echoOsc.frequency.value = 380;
+      echoPanner = synthCtx.createStereoPanner();
+      echoPanner.pan.value = 0;
+      echoGain = synthCtx.createGain();
+      echoGain.gain.value = 0;
+      echoOsc.connect(echoGain);
+      echoGain.connect(echoPanner);
+      echoPanner.connect(masterGain);
+      echoOsc.start();
+    }
+    echoGain.gain.setTargetAtTime(0.04, now, 0.2);
+  }
 }
 
 // ── Mic ──
@@ -337,8 +526,17 @@ function updateBeacon() {
   // Mic turbulence: ambient noise corrupts beacon signal
   // Quiet room = clean navigation, noisy environment = signal interference
   var turbMult = deepSpace ? 1.6 : 1.0; // Deep Space: environment matters more
-  if (micActive && micLevel > 0.05 && !pingActive) {
-    var turb = micLevel * turbMult;
+  // ION STORM: force high turbulence regardless of mic
+  var effectiveMicLevel = micLevel;
+  if (activeAnomaly && activeAnomaly.type === 2) {
+    effectiveMicLevel = Math.max(micLevel, 0.6 + Math.random() * 0.3);
+  }
+  // VOID RIFT: suppress all turbulence (crystal clear beacon)
+  if (activeAnomaly && activeAnomaly.type === 3) {
+    effectiveMicLevel = 0;
+  }
+  if (micActive && effectiveMicLevel > 0.05 && !pingActive) {
+    var turb = effectiveMicLevel * turbMult;
     pan += (Math.random() - 0.5) * turb * 0.7;
     pan = Math.max(-1, Math.min(1, pan));
     freq += (Math.random() - 0.5) * turb * 80;
@@ -672,6 +870,7 @@ function formatTime(secs) {
 function draw() {
   tick++;
   updateMic();
+  updateAnomaly();
 
   // Head-tracked depth parallax: near stars shift more, far stars stay still
   var targetParX = headYaw / 45 * HEAD_PARALLAX;
@@ -923,6 +1122,13 @@ function draw() {
     if (alignment > 0.2) {
       tgt.dist -= speed * 0.016 * alignment * 2.5;
     }
+    // Anomaly spawn check: mid-flight, waypoint 1+, ~30% chance, max 2 per voyage
+    if (!activeAnomaly && voyagerIdx >= 1 && anomalyThisVoyage < 2 &&
+        anomalyLastSpawnIdx !== voyagerIdx && tgt.dist < 35 && tgt.dist > 10 &&
+        Math.random() < 0.005) { // ~30% chance per segment (checked every frame)
+      anomalyLastSpawnIdx = voyagerIdx;
+      spawnAnomaly();
+    }
     // Arrival!
     if (tgt.dist <= 0) {
       tgt.dist = 0;
@@ -937,6 +1143,11 @@ function draw() {
         voyagerComplete = true;
         voyagerShowSummary = true;
         playCompletionFanfare();
+        // Clean up any active anomaly
+        if (activeAnomaly && activeAnomaly.type === 4 && echoGain && synthCtx) {
+          echoGain.gain.setTargetAtTime(0, synthCtx.currentTime, 0.15);
+        }
+        activeAnomaly = null;
         if (deepSpace) {
           if (deepSpaceBest === 0 || voyagerTimer < deepSpaceBest) {
             deepSpaceBest = voyagerTimer;
@@ -1002,6 +1213,14 @@ function draw() {
       ctx.fillStyle = waypointFlash > 0.1 ? '#ffe066' : '#777';
       ctx.textAlign = 'left';
       ctx.fillText('\u2b50 ' + waypointCount, W / 2 + 50, 18);
+    }
+    // Anomaly discovery counter
+    var aDiscN = anomalyDiscCount();
+    if (aDiscN > 0) {
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillStyle = aDiscN >= ANOMALY_TYPES.length ? '#80ffcc' : '#666';
+      ctx.fillText('\ud83c\udf0c ' + aDiscN + '/' + ANOMALY_TYPES.length, W - 12, 32);
     }
   } else {
     // Voyager HUD
@@ -1107,6 +1326,16 @@ function draw() {
         }
       }
 
+      // Active anomaly indicator on HUD
+      if (activeAnomaly) {
+        var aType2 = ANOMALY_TYPES[activeAnomaly.type];
+        var aHudAlpha = Math.min(1, activeAnomaly.frames / 30);
+        ctx.font = '600 10px -apple-system, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = 'rgba(255,220,100,' + (aHudAlpha * 0.8) + ')';
+        ctx.fillText(aType2.icon + ' ' + aType2.name, 12, H - 42);
+      }
+
       // Distance to target bar — hidden in Deep Space (navigate by ear)
       if (!deepSpace) {
         var maxDist = 60;
@@ -1171,6 +1400,94 @@ function draw() {
         ctx.fillStyle = '#888';
         ctx.fillText((deepSpace ? 'Deep Space Best: ' : 'Best: ') + formatTime(relevantBest2), W / 2, 256);
       }
+      // Anomaly discoveries on summary
+      var aDiscS = anomalyDiscCount();
+      if (aDiscS > 0) {
+        ctx.font = '11px -apple-system, sans-serif';
+        ctx.fillStyle = aDiscS >= ANOMALY_TYPES.length ? '#80ffcc' : '#777';
+        ctx.fillText('\ud83c\udf0c Anomalies: ' + aDiscS + '/' + ANOMALY_TYPES.length, W / 2, 270);
+      }
+    }
+
+    // ── Anomaly visual effects ──
+    if (activeAnomaly) {
+      var aProgress = 1 - activeAnomaly.frames / ANOMALY_TYPES[activeAnomaly.type].dur;
+      if (activeAnomaly.type === 0) { // COMET — streak across screen
+        var cd = activeAnomaly.data;
+        var cometAlpha = Math.min(1, Math.sin(aProgress * Math.PI) * 1.5);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,200,100,' + (cometAlpha * 0.7) + ')';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(cd.x - cd.dir * 40, cd.y + 3);
+        ctx.lineTo(cd.x, cd.y);
+        ctx.stroke();
+        // Comet head glow
+        var cg = ctx.createRadialGradient(cd.x, cd.y, 0, cd.x, cd.y, 8);
+        cg.addColorStop(0, 'rgba(255,230,150,' + cometAlpha + ')');
+        cg.addColorStop(1, 'rgba(255,180,80,0)');
+        ctx.fillStyle = cg;
+        ctx.beginPath();
+        ctx.arc(cd.x, cd.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      } else if (activeAnomaly.type === 1) { // GRAVITY WELL — screen-edge tint toward drift
+        var gwAlpha = Math.sin(aProgress * Math.PI) * 0.12;
+        var gwSide = activeAnomaly.data.driftTarget > 0 ? 1 : -1;
+        var gwX = gwSide > 0 ? W : 0;
+        var gwGrad = ctx.createLinearGradient(gwX, 0, gwX - gwSide * 120, 0);
+        gwGrad.addColorStop(0, 'rgba(100,50,200,' + gwAlpha + ')');
+        gwGrad.addColorStop(1, 'rgba(100,50,200,0)');
+        ctx.fillStyle = gwGrad;
+        ctx.fillRect(0, 0, W, H);
+      } else if (activeAnomaly.type === 2) { // ION STORM — static flicker
+        var isAlpha = Math.sin(aProgress * Math.PI) * 0.06;
+        for (var si = 0; si < 30; si++) {
+          var sx2 = Math.random() * W;
+          var sy3 = Math.random() * H;
+          ctx.fillStyle = 'rgba(200,220,255,' + (isAlpha * (0.3 + Math.random() * 0.7)) + ')';
+          ctx.fillRect(sx2, sy3, 1 + Math.random() * 3, 1);
+        }
+      } else if (activeAnomaly.type === 3) { // VOID RIFT — subtle blue calm glow from center
+        var vrAlpha = Math.sin(aProgress * Math.PI) * 0.08;
+        var vrGrad = ctx.createRadialGradient(CX, CY, 0, CX, CY, 200);
+        vrGrad.addColorStop(0, 'rgba(80,180,255,' + vrAlpha + ')');
+        vrGrad.addColorStop(1, 'rgba(80,180,255,0)');
+        ctx.fillStyle = vrGrad;
+        ctx.beginPath();
+        ctx.arc(CX, CY, 200, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (activeAnomaly.type === 4) { // SIGNAL ECHO — subtle warning shimmer on edge
+        var seAlpha = Math.sin(aProgress * Math.PI) * 0.08;
+        var seSide = activeAnomaly.data.phantomBearing > vanishX ? 1 : -1;
+        var seX = seSide > 0 ? W : 0;
+        var seGrad = ctx.createLinearGradient(seX, 0, seX - seSide * 80, 0);
+        seGrad.addColorStop(0, 'rgba(255,180,80,' + seAlpha + ')');
+        seGrad.addColorStop(1, 'rgba(255,180,80,0)');
+        ctx.fillStyle = seGrad;
+        ctx.fillRect(0, 0, W, H);
+      }
+    }
+
+    // Anomaly announcement overlay
+    if (anomalyAnnounce > 0) {
+      anomalyAnnounce--;
+      var annAlpha = Math.min(1, anomalyAnnounce / 30);
+      if (anomalyAnnounce > 90) annAlpha = Math.min(1, (120 - anomalyAnnounce) / 30);
+      ctx.save();
+      ctx.font = '600 14px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(255,220,100,' + (annAlpha * 0.9) + ')';
+      var annText = anomalyAnnounceIcon + ' ' + anomalyAnnounceText;
+      if (anomalyAnnounceNew) annText = '\u2728 ' + annText;
+      ctx.fillText(annText, W / 2, H / 2 - 40);
+      if (anomalyAnnounceNew) {
+        ctx.font = '11px -apple-system, sans-serif';
+        ctx.fillStyle = 'rgba(100,255,200,' + (annAlpha * 0.7) + ')';
+        ctx.fillText('DISCOVERED', W / 2, H / 2 - 22);
+      }
+      ctx.restore();
     }
 
     // Voyager arrival flash
