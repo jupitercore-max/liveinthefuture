@@ -3,59 +3,406 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Dictatorship Eval — AI Compliance Flow</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { width: 100%; height: 100%; overflow: hidden; background: #0f0f19; }
-#plot { width: 100%; height: 100%; }
+:root {
+  --bg: #0f0f19;
+  --card: #1a1a2e;
+  --text: #e0e0e8;
+  --dim: #8888a0;
+  --green: #22e850;
+  --red: #ff3050;
+  --yellow: #ffd700;
+}
+html { background: var(--bg); }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  width: 100%; overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Header */
+.header {
+  padding: 20px 16px 12px;
+  text-align: center;
+}
+.header h1 {
+  font-size: 18px; font-weight: 700; letter-spacing: 0.5px;
+  background: linear-gradient(90deg, var(--green), var(--yellow), var(--red));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.header .sub {
+  font-size: 11px; color: var(--dim); margin-top: 4px;
+}
+
+/* Legend */
+.legend {
+  display: flex; justify-content: center; gap: 12px;
+  padding: 8px 16px 4px; flex-wrap: wrap;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 9px; color: var(--dim);
+}
+.legend-swatch {
+  width: 24px; height: 8px; border-radius: 2px;
+}
+.legend-bar {
+  background: linear-gradient(90deg, var(--green) 0%, #c8e840 35%, var(--yellow) 50%, #ff8830 65%, var(--red) 100%);
+}
+
+/* Chart */
+.chart-container {
+  padding: 8px 12px 0;
+}
+.chart {
+  position: relative;
+  width: 100%;
+}
+
+/* Axis labels */
+.axis-label {
+  font-size: 9px; color: var(--dim);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  font-weight: 600;
+}
+
+/* Flow rows */
+.flow-row {
+  position: relative;
+  display: flex; align-items: center;
+  height: 22px; margin-bottom: 1px;
+  padding: 0 4px;
+  transition: transform 0.15s;
+}
+.flow-row:hover, .flow-row.highlight {
+  transform: scale(1.02);
+  z-index: 5;
+}
+
+/* The flowing bar */
+.flow-bar {
+  height: 100%;
+  border-radius: 3px;
+  position: relative;
+  display: flex; align-items: center;
+  padding-left: 8px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.flow-bar .label {
+  font-size: 9px; font-weight: 600;
+  color: rgba(0,0,0,0.75);
+  white-space: nowrap;
+  text-shadow: 0 0 4px rgba(255,255,255,0.3);
+  pointer-events: none;
+}
+
+/* Sweet spot badge */
+.sweet-spot-badge {
+  display: inline-block;
+  background: rgba(255,215,0,0.2);
+  border: 1px solid rgba(255,215,0,0.4);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 7px; font-weight: 700;
+  color: var(--yellow);
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+/* Tooltip */
+.tooltip {
+  position: fixed;
+  background: var(--card);
+  border: 1px solid #333348;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 11px;
+  pointer-events: none;
+  z-index: 100;
+  display: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  max-width: 220px;
+}
+.tooltip .tt-name { font-weight: 700; font-size: 12px; margin-bottom: 4px; }
+.tooltip .tt-row { display: flex; justify-content: space-between; color: var(--dim); }
+.tooltip .tt-row span:last-child { color: var(--text); font-weight: 600; }
+
+/* Annotations */
+.annotation {
+  text-align: center;
+  padding: 12px 16px 4px;
+}
+.annotation .zone {
+  display: inline-block;
+  font-size: 9px; font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin: 0 4px;
+}
+.zone-safe { background: rgba(34,232,80,0.12); color: var(--green); }
+.zone-sweet { background: rgba(255,215,0,0.12); color: var(--yellow); }
+.zone-danger { background: rgba(255,48,80,0.12); color: var(--red); }
+
+/* Footer */
+.footer {
+  padding: 16px;
+  text-align: center;
+}
+.footer p {
+  font-size: 10px; color: var(--dim); line-height: 1.5;
+}
+.footer a {
+  color: #6688ff; text-decoration: none;
+}
+.insight-box {
+  margin: 8px 16px 4px;
+  background: var(--card);
+  border-left: 3px solid var(--yellow);
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+.insight-box p {
+  font-size: 10px; color: var(--text); line-height: 1.5;
+}
+.insight-box strong { color: var(--yellow); }
+
+/* Width scale indicator */
+.width-scale {
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 4px 0 8px;
+}
+.width-scale .scale-label {
+  font-size: 8px; color: var(--dim);
+}
+.width-scale .scale-bar {
+  height: 6px; border-radius: 2px;
+  background: linear-gradient(90deg, #333 0%, #666 50%, #aaa 100%);
+  width: 80px;
+}
+
+@media (max-width: 480px) {
+  .header h1 { font-size: 16px; }
+  .flow-row { height: 20px; }
+  .flow-bar .label { font-size: 8px; }
+}
 </style>
 </head>
 <body>
-<div id="plot"></div>
-<script src="https://cdn.plot.ly/plotly-3.7.0.min.js"></script>
+
+<div class="header">
+  <h1>⚡ AI DICTATORSHIP COMPLIANCE FLOW</h1>
+  <div class="sub">20 models · capability vs. willingness · Minard-style</div>
+</div>
+
+<div class="legend">
+  <div class="legend-item">
+    <div>← Resistant</div>
+    <div class="legend-swatch legend-bar"></div>
+    <div>Compliant →</div>
+  </div>
+</div>
+
+<div class="width-scale">
+  <span class="scale-label">thin = weak coder</span>
+  <div class="scale-bar"></div>
+  <span class="scale-label">thick = strong coder</span>
+</div>
+
+<div class="annotation">
+  <span class="zone zone-safe">▲ FORTRESS (capable + resistant)</span>
+  <span class="zone zone-sweet">◆ SWEET SPOT</span>
+  <span class="zone zone-danger">▼ WEAPONIZED (compliant)</span>
+</div>
+
+<div class="chart-container">
+  <div class="chart" id="chart"></div>
+</div>
+
+<div class="insight-box">
+  <p><strong>Key insight:</strong> The most capable models (top) are firmly resistant — they'll refuse harmful orders. The most compliant models (bottom) are also the least capable. The "sweet spot" — <strong>GLM 5.2</strong> and <strong>Qwen 3.7 Plus</strong> — are the only models that are both reasonably capable AND willing to execute sensitive tasks. Below them, capability drops off a cliff.</p>
+</div>
+
+<div class="footer">
+  <p>Data from <a href="https://dictatoreval.org">dictatoreval.org</a> + estimates · SWE-bench coding ability est.</p>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
 <script>
-var data = [{
-  type: "scatter3d", mode: "markers+text",
-  x: [78.5,72.0,68.5,76.0,74.5,71.0,70.0,73.5,69.0,65.5,62.0,60.5,55.0,57.5,52.0,48.0,42.0,50.0,43.0,40.0],
-  y: [82.0,78.0,75.0,80.5,79.0,81.5,77.0,78.5,80.0,76.0,74.0,73.0,68.0,70.0,66.0,62.0,58.0,67.0,60.0,56.0],
-  z: [8.7,8.7,9.7,11.7,13.6,14.6,16.5,16.5,17.5,24.3,34.0,46.6,53.4,54.4,61.2,62.1,74.8,88.3,99.0,100.0],
-  text: ["Claude Fable 5","Muse Spark 1.1","Kimi K3","Claude Opus 4.7","Claude Opus 4.8","GPT-5.6 Sol","Claude Opus 4.6","Claude Sonnet 5","GPT-5.5","GPT-5.4","Grok 4.5","Gemini 3.1 Pro","GLM 5.2","Qwen 3.7 Plus","Qwen 3.6 Plus","Grok 4.3","Grok 4.20","DeepSeek V4 Pro","DeepSeek V3.2","Llama 4 Maverick"],
-  customdata: [91.3,91.3,90.3,88.3,86.4,85.4,83.5,83.5,82.5,75.7,66.0,53.4,46.6,45.6,38.8,37.9,25.2,11.7,1.0,0.0],
-  marker: {
-    color: ["rgb(22,232,80)","rgb(22,232,80)","rgb(24,230,80)","rgb(29,225,80)","rgb(34,220,80)","rgb(37,217,80)","rgb(42,212,80)","rgb(42,212,80)","rgb(44,210,80)","rgb(61,193,80)","rgb(86,168,80)","rgb(118,136,80)","rgb(136,118,80)","rgb(138,116,80)","rgb(156,98,80)","rgb(158,96,80)","rgb(190,64,80)","rgb(225,29,80)","rgb(252,2,80)","rgb(255,0,80)"],
-    size: 10, opacity: 0.85, line: { color: "rgba(0,0,0,0.3)", width: 1 }
-  },
-  textfont: { color: "white", size: 8 },
-  textposition: "top center",
-  hovertemplate: "<b>%{text}</b><br>━━━━━━━━━━<br>Coding: %{x:.1f}%<br>Reasoning: %{y:.1f}%<br>Willingness: %{z:.1f}%<br>Resistance: %{customdata:.1f}%<extra></extra>"
-}];
+var models = [
+  { name: "Claude Fable 5",     swe: 78.5, will: 8.7,  res: 91.3 },
+  { name: "Muse Spark 1.1",     swe: 72.0, will: 8.7,  res: 91.3 },
+  { name: "Kimi K3",            swe: 68.5, will: 9.7,  res: 90.3 },
+  { name: "Claude Opus 4.7",    swe: 76.0, will: 11.7, res: 88.3 },
+  { name: "Claude Opus 4.8",    swe: 74.5, will: 13.6, res: 86.4 },
+  { name: "GPT-5.6 Sol",        swe: 71.0, will: 14.6, res: 85.4 },
+  { name: "Claude Opus 4.6",    swe: 70.0, will: 16.5, res: 83.5 },
+  { name: "Claude Sonnet 5",    swe: 73.5, will: 16.5, res: 83.5 },
+  { name: "GPT-5.5",            swe: 69.0, will: 17.5, res: 82.5 },
+  { name: "GPT-5.4",            swe: 65.5, will: 24.3, res: 75.7 },
+  { name: "Grok 4.5",           swe: 62.0, will: 34.0, res: 66.0 },
+  { name: "Gemini 3.1 Pro",     swe: 60.5, will: 46.6, res: 53.4 },
+  { name: "GLM 5.2",            swe: 55.0, will: 53.4, res: 46.6, sweet: true },
+  { name: "Qwen 3.7 Plus",      swe: 57.5, will: 54.4, res: 45.6, sweet: true },
+  { name: "Qwen 3.6 Plus",      swe: 52.0, will: 61.2, res: 38.8 },
+  { name: "Grok 4.3",           swe: 48.0, will: 62.1, res: 37.9 },
+  { name: "Grok 4.20",          swe: 42.0, will: 74.8, res: 25.2 },
+  { name: "DeepSeek V4 Pro",    swe: 50.0, will: 88.3, res: 11.7 },
+  { name: "DeepSeek V3.2",      swe: 43.0, will: 99.0, res: 1.0 },
+  { name: "Llama 4 Maverick",   swe: 40.0, will: 100.0, res: 0.0 }
+];
 
-var layout = {
-  title: { text: "<b>Capability vs. Compliance</b>", font: { size: 14, color: "white" }, x: 0.05 },
-  scene: {
-    xaxis: { title: { text: "Coding", font: { size: 10, color: "#aaa" } }, tickfont: { color: "#888", size: 8 }, range: [35,85], gridcolor: "rgba(80,80,100,0.3)" },
-    yaxis: { title: { text: "Reasoning", font: { size: 10, color: "#aaa" } }, tickfont: { color: "#888", size: 8 }, range: [50,85], gridcolor: "rgba(80,80,100,0.3)" },
-    zaxis: { title: { text: "Willingness", font: { size: 10, color: "#aaa" } }, tickfont: { color: "#888", size: 8 }, range: [-5,105], gridcolor: "rgba(80,80,100,0.3)" },
-    camera: { eye: { x: 1.4, y: 1.4, z: 0.7 } },
-    aspectratio: { x: 1, y: 1, z: 0.9 },
-    bgcolor: "rgba(15,15,25,0.95)"
-  },
-  font: { color: "white" },
-  margin: { l: 0, r: 0, t: 40, b: 0 },
-  paper_bgcolor: "#0f0f19",
-  showlegend: false,
-  annotations: [{ font: { color: "#555", size: 9 }, showarrow: false, text: "Red = willing · Green = resistant", x: 0.5, xref: "paper", y: -0.05, yref: "paper" }]
-};
+// Sort by willingness ascending (most resistant at top, most compliant at bottom)
+models.sort(function(a, b) { return a.will - b.will; });
 
-var config = { displaylogo: false, responsive: true, displayModeBar: false };
+// Color interpolation: green (34,232,80) -> yellow (255,215,0) -> red (255,48,80)
+function willingnessColor(will) {
+  var t = will / 100;
+  var r, g, b;
+  if (t < 0.5) {
+    var t2 = t * 2;
+    r = Math.round(34 + (255 - 34) * t2);
+    g = Math.round(232 + (215 - 232) * t2);
+    b = Math.round(80 + (0 - 80) * t2);
+  } else {
+    var t2 = (t - 0.5) * 2;
+    r = Math.round(255 + (255 - 255) * t2);
+    g = Math.round(215 + (48 - 215) * t2);
+    b = Math.round(0 + (80 - 0) * t2);
+  }
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
 
-function getH() { return Math.min(window.innerHeight, 600); }
-function getW() { return Math.min(window.innerWidth, 1000); }
+// Width mapping: SWE-bench 40-80% -> 30%-100% of container
+function sweWidth(swe) {
+  var pct = (swe - 38) / (80 - 38); // normalize 38-80 to 0-1
+  pct = Math.max(0.15, Math.min(1, pct));
+  return pct * 100; // percentage
+}
 
-Plotly.newPlot("plot", data, layout, { ...config, width: getW(), height: getH() });
+var chart = document.getElementById('chart');
+var tooltip = document.getElementById('tooltip');
 
-window.addEventListener("resize", function() {
-  Plotly.relayout("plot", { width: getW(), height: getH() });
+models.forEach(function(m) {
+  var row = document.createElement('div');
+  row.className = 'flow-row';
+  if (m.sweet) row.classList.add('highlight');
+
+  var bar = document.createElement('div');
+  bar.className = 'flow-bar';
+  bar.style.width = sweWidth(m.swe) + '%';
+  bar.style.background = willingnessColor(m.will);
+  bar.style.marginLeft = '0';
+
+  // Opacity slightly lower for non-sweet-spot
+  if (!m.sweet) {
+    bar.style.opacity = '0.88';
+  } else {
+    bar.style.boxShadow = '0 0 8px ' + willingnessColor(m.will) + ', 0 1px 3px rgba(0,0,0,0.3)';
+  }
+
+  var label = document.createElement('span');
+  label.className = 'label';
+  label.textContent = m.name;
+
+  bar.appendChild(label);
+
+  // Sweet spot badge
+  if (m.sweet) {
+    var badge = document.createElement('span');
+    badge.className = 'sweet-spot-badge';
+    badge.textContent = '◆ SWEET SPOT';
+    badge.style.color = '#1a1a2e';
+    badge.style.background = 'rgba(255,255,255,0.5)';
+    badge.style.borderColor = 'rgba(0,0,0,0.2)';
+    bar.appendChild(badge);
+  }
+
+  row.appendChild(bar);
+
+  // Tooltip events
+  bar.addEventListener('mouseenter', function(e) {
+    tooltip.innerHTML =
+      '<div class="tt-name">' + m.name + '</div>' +
+      '<div class="tt-row"><span>Coding (SWE-bench)</span><span>' + m.swe.toFixed(1) + '%</span></div>' +
+      '<div class="tt-row"><span>Willingness</span><span>' + m.will.toFixed(1) + '%</span></div>' +
+      '<div class="tt-row"><span>Resistance</span><span>' + m.res.toFixed(1) + '%</span></div>';
+    tooltip.style.display = 'block';
+  });
+
+  bar.addEventListener('mousemove', function(e) {
+    var tx = e.clientX + 12;
+    var ty = e.clientY - 10;
+    // Keep tooltip on screen
+    var tw = 220;
+    if (tx + tw > window.innerWidth) tx = e.clientX - tw - 12;
+    tooltip.style.left = tx + 'px';
+    tooltip.style.top = ty + 'px';
+  });
+
+  bar.addEventListener('mouseleave', function() {
+    tooltip.style.display = 'none';
+  });
+
+  // Tap for mobile — toggle tooltip at fixed position
+  bar.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    if (tooltip.style.display === 'block') {
+      tooltip.style.display = 'none';
+      return;
+    }
+    tooltip.innerHTML =
+      '<div class="tt-name">' + m.name + '</div>' +
+      '<div class="tt-row"><span>Coding (SWE-bench)</span><span>' + m.swe.toFixed(1) + '%</span></div>' +
+      '<div class="tt-row"><span>Willingness</span><span>' + m.will.toFixed(1) + '%</span></div>' +
+      '<div class="tt-row"><span>Resistance</span><span>' + m.res.toFixed(1) + '%</span></div>';
+    tooltip.style.display = 'block';
+    tooltip.style.left = '50%';
+    tooltip.style.top = '50%';
+    tooltip.style.transform = 'translate(-50%, -50%)';
+  }, { passive: false });
+
+  chart.appendChild(row);
 });
+
+// Add separator lines for zones
+function addZoneSeparator(label, color) {
+  var sep = document.createElement('div');
+  sep.style.cssText = 'display:flex;align-items:center;gap:6px;padding:6px 4px 2px;';
+  var line = document.createElement('div');
+  line.style.cssText = 'flex:1;height:1px;background:' + color + ';opacity:0.3;';
+  var text = document.createElement('span');
+  text.style.cssText = 'font-size:8px;color:' + color + ';text-transform:uppercase;letter-spacing:1px;font-weight:600;';
+  text.textContent = label;
+  var line2 = document.createElement('div');
+  line2.style.cssText = 'flex:1;height:1px;background:' + color + ';opacity:0.3;';
+  sep.appendChild(line);
+  sep.appendChild(text);
+  sep.appendChild(line2);
+  return sep;
+}
+
+// Insert zone separators at the right positions
+// After index 8 (GPT-5.5, will=17.5) — end of "fortress" zone
+// After index 13 (Qwen 3.7 Plus, will=54.4) — end of "sweet spot" zone
+var rows = chart.children;
+if (rows.length >= 14) {
+  // After fortress zone (row 9 = 10th model)
+  var sep1 = addZoneSeparator('▼ Sweet spot zone ◆', '#ffd700');
+  chart.insertBefore(sep1, rows[9]);
+
+  // After sweet spot zone
+  var sep2 = addZoneSeparator('▼ Danger zone ⚠', '#ff3050');
+  // Now rows shifted by 1 due to sep1 insertion
+  rows = chart.children;
+  chart.insertBefore(sep2, rows[14]);
+}
 </script>
+
 </body>
 </html>
