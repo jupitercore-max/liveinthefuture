@@ -158,6 +158,14 @@ var paceZonePitch={STROLL:220,WALK:330,BRISK:440,RUN:550};
 var audioMode=1;
 try{var am=localStorage.getItem('litf_steps_audiomode');if(am!==null){audioMode=parseInt(am)||0;cadenceAudioEnabled=audioMode>=1}}catch(e){}
 
+// Ambient soundscape
+var ambEnabled=false,ambType=0; // 0=warm,1=rain,2=wind
+var ambTypeNames=['WARM','RAIN','WIND'];
+var ambTypeEmoji=['\u{1F525}','\u{1F327}','\u{1F32C}'];
+var ambVol=0.5,ambGainNode=null,ambSrc=null,ambFilt=null,ambFilt2=null,ambActive=false,ambNoiseBuf=null;
+try{var ap=JSON.parse(localStorage.getItem('litf_steps_ambient'));if(ap){ambEnabled=ap.enabled!==false;ambType=typeof ap.type==='number'?ap.type:0;ambVol=typeof ap.vol==='number'?ap.vol:0.5}}catch(e){}
+function saveAmbPref(){try{localStorage.setItem('litf_steps_ambient',JSON.stringify({enabled:ambEnabled,type:ambType,vol:ambVol}))}catch(e){}}
+
 // Breathing detection via mic
 var micInited=false,micStream=null,micAnalyser=null,micDataBuf=null;
 var breathRMS=0,breathSmooth=0,breathPrevSmooth=0,breathTrend=0;
@@ -242,7 +250,7 @@ function save(){
 }
 
 // --- Audio ---
-function initAudio(){if(audioInited)return;try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();audioInited=true;if(audioMode===2)initMic()}catch(e){}}
+function initAudio(){if(audioInited)return;try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();audioInited=true;if(audioMode===2)initMic();if(ambEnabled)startAmbient()}catch(e){}}
 
 function initMic(){
   if(micInited||!audioCtx)return;
@@ -372,6 +380,41 @@ function playProgressChime(){
   var notes=op?[440,554]:[440,349];
   playTone(notes[0],0.2,0.1,'triangle',0);playTone(notes[1],0.2,0.1,'triangle',0.15);
   addNotification(op?'✓ ON PACE':'⚠ BEHIND PACE',op?'#66bb6a':'#ff7043');
+}
+
+// --- Ambient Soundscape ---
+function genAmbNoise(){
+  if(!audioCtx||ambNoiseBuf)return;
+  var sr=audioCtx.sampleRate,len=sr*2;
+  ambNoiseBuf=audioCtx.createBuffer(1,len,sr);
+  var d=ambNoiseBuf.getChannelData(0),v=0;
+  for(var i=0;i<len;i++){v+=(Math.random()*2-1)*0.1;v*=0.998;d[i]=v}
+  var mx=0;for(var i=0;i<len;i++)if(Math.abs(d[i])>mx)mx=Math.abs(d[i]);
+  if(mx>0)for(var i=0;i<len;i++)d[i]/=mx;
+}
+function startAmbient(){
+  if(!audioCtx||!ambEnabled)return;
+  stopAmbient();genAmbNoise();if(!ambNoiseBuf)return;
+  ambSrc=audioCtx.createBufferSource();ambSrc.buffer=ambNoiseBuf;ambSrc.loop=true;
+  ambFilt=audioCtx.createBiquadFilter();ambFilt2=audioCtx.createBiquadFilter();
+  ambGainNode=audioCtx.createGain();
+  switch(ambType){
+    case 0:ambFilt.type='lowpass';ambFilt.frequency.value=180;ambFilt.Q.value=0.7;ambFilt2.type='lowpass';ambFilt2.frequency.value=300;ambFilt2.Q.value=0.5;break;
+    case 1:ambFilt.type='bandpass';ambFilt.frequency.value=4500;ambFilt.Q.value=0.4;ambFilt2.type='highpass';ambFilt2.frequency.value=800;ambFilt2.Q.value=0.3;break;
+    case 2:ambFilt.type='lowpass';ambFilt.frequency.value=500;ambFilt.Q.value=0.3;ambFilt2.type='bandpass';ambFilt2.frequency.value=250;ambFilt2.Q.value=0.5;break;
+  }
+  ambGainNode.gain.setValueAtTime(ambVol*0.4,audioCtx.currentTime);
+  ambSrc.connect(ambFilt);ambFilt.connect(ambFilt2);ambFilt2.connect(ambGainNode);ambGainNode.connect(audioCtx.destination);
+  ambSrc.start();ambActive=true;
+}
+function stopAmbient(){
+  if(!ambActive)return;
+  try{ambSrc.stop()}catch(e){}
+  try{ambSrc.disconnect()}catch(e){}
+  try{ambFilt.disconnect()}catch(e){}
+  try{ambFilt2.disconnect()}catch(e){}
+  try{ambGainNode.disconnect()}catch(e){}
+  ambActive=false;
 }
 
 // --- Step Registration ---
@@ -538,6 +581,13 @@ function draw(){
   // Rank badge
   ctx.font='bold 14px system-ui';ctx.fillStyle='#888';
   ctx.fillText('🚶 STEP COUNTER',W/2,20);
+
+  // Ambient indicator (top-left)
+  if(ambEnabled&&ambActive){
+    ctx.textAlign='left';ctx.font='10px system-ui';ctx.fillStyle='#4fc3f7';
+    ctx.fillText(ambTypeEmoji[ambType]+' '+ambTypeNames[ambType]+' '+Math.round(ambVol*100)+'%',12,20);
+    ctx.textAlign='center';
+  }
 
   ctx.font='bold 13px system-ui';ctx.fillStyle='#aaa';
   ctx.fillText(rank.emoji+' '+rank.name,W/2,40);
@@ -715,7 +765,9 @@ function draw(){
   // --- Bottom controls ---
   ctx.font='10px system-ui';ctx.fillStyle='#333';
   var amLabel=audioMode===0?'OFF':audioMode===1?'\u266A':audioMode===2?'\uD83E\uDEC1':'?';
-  ctx.fillText('\u2190\u2192 Goal  \u2022  \u2191 Audio['+amLabel+']  \u2022  \u2193 Check  \u2022  Enter: Reset  \u2022  Esc: Back',W/2,535);
+  var ambLabel=ambEnabled?ambTypeEmoji[ambType]+ambTypeNames[ambType]:'OFF';
+  var lrLabel=ambEnabled&&ambActive?'\u2190\u2192 Vol':'\u2190\u2192 Goal';
+  ctx.fillText(lrLabel+'  \u2022  \u2191 Audio['+amLabel+']  \u2022  \u2193 Amb['+ambLabel+']  \u2022  Enter: Reset  \u2022  Esc: Back',W/2,535);
 
   // Demo mode
   if(demoMode){ctx.font='10px system-ui';ctx.fillStyle='#444';ctx.fillText('📱 Demo — no accelerometer',W/2,555)}
@@ -737,15 +789,31 @@ function draw(){
 document.addEventListener('keydown',function(e){
   initAudio();var key=e.key;
   if(key==='ArrowLeft'){
-    goalIndex=Math.max(0,goalIndex-1);goal=goalOptions[goalIndex];
-    goalReached=steps>=goal;lastMilestone=0;
-    for(var i=0;i<milestones.length;i++)if(steps>=milestones[i])lastMilestone=milestones[i];
-    save();e.preventDefault();
+    if(ambEnabled&&ambActive){
+      ambVol=Math.max(0.1,Math.round((ambVol-0.1)*10)/10);
+      if(ambGainNode)ambGainNode.gain.setValueAtTime(ambVol*0.4,audioCtx.currentTime);
+      addNotification('\uD83D\uDD08 Vol '+Math.round(ambVol*100)+'%','#888');
+      saveAmbPref();
+    }else{
+      goalIndex=Math.max(0,goalIndex-1);goal=goalOptions[goalIndex];
+      goalReached=steps>=goal;lastMilestone=0;
+      for(var i=0;i<milestones.length;i++)if(steps>=milestones[i])lastMilestone=milestones[i];
+      save();
+    }
+    e.preventDefault();
   }else if(key==='ArrowRight'){
-    goalIndex=Math.min(goalOptions.length-1,goalIndex+1);goal=goalOptions[goalIndex];
-    goalReached=steps>=goal;lastMilestone=0;
-    for(var i=0;i<milestones.length;i++)if(steps>=milestones[i])lastMilestone=milestones[i];
-    save();e.preventDefault();
+    if(ambEnabled&&ambActive){
+      ambVol=Math.min(1.0,Math.round((ambVol+0.1)*10)/10);
+      if(ambGainNode)ambGainNode.gain.setValueAtTime(ambVol*0.4,audioCtx.currentTime);
+      addNotification('\uD83D\uDD0A Vol '+Math.round(ambVol*100)+'%','#888');
+      saveAmbPref();
+    }else{
+      goalIndex=Math.min(goalOptions.length-1,goalIndex+1);goal=goalOptions[goalIndex];
+      goalReached=steps>=goal;lastMilestone=0;
+      for(var i=0;i<milestones.length;i++)if(steps>=milestones[i])lastMilestone=milestones[i];
+      save();
+    }
+    e.preventDefault();
   }else if(key==='ArrowUp'){
     audioMode=(audioMode+1)%3;
     cadenceAudioEnabled=audioMode>=1;
@@ -755,12 +823,22 @@ document.addEventListener('keydown',function(e){
     addNotification(mNames[audioMode],'#888');
     e.preventDefault();
   }else if(key==='ArrowDown'){
-    if(audioCtx&&steps>0)playProgressChime();e.preventDefault();
+    if(!ambEnabled){
+      ambEnabled=true;ambType=0;startAmbient();
+      addNotification(ambTypeEmoji[0]+' '+ambTypeNames[0],'#4fc3f7');
+    }else if(ambType<2){
+      ambType++;if(ambActive)startAmbient();
+      addNotification(ambTypeEmoji[ambType]+' '+ambTypeNames[ambType],'#4fc3f7');
+    }else{
+      ambEnabled=false;ambType=0;stopAmbient();
+      addNotification('\uD83D\uDD07 Ambient OFF','#888');
+    }
+    saveAmbPref();e.preventDefault();
   }else if(key==='Enter'){
     sessionSteps=0;sessionStart=Date.now();recentSteps=[];pace=0;
     smoothPace=0;paceZone='IDLE';burstStamps=[];walkStreakMs=0;walkStreakStart=0;
     e.preventDefault();
-  }else if(key==='Escape'){window.history.back();e.preventDefault()}
+  }else if(key==='Escape'){stopAmbient();window.history.back();e.preventDefault()}
 });
 
 // --- Main Loop ---
