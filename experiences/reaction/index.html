@@ -38,7 +38,7 @@ function initAudio() {
 var STATE_MENU = 0, STATE_WAITING = 1, STATE_READY = 2, STATE_RESULT = 3, STATE_SUMMARY = 4, STATE_FALSE = 5;
 var state = STATE_MENU;
 var mode = 0; // 0=both, 1=audio only, 2=visual only, 3=head movement
-var modeNames = ['Audio + Visual', 'Audio Only', 'Visual Only', 'Head Movement'];
+var modeNames = ['Audio + Visual', 'Audio Only', 'Visual Only', 'Head Movement', 'Voice Reaction'];
 var menuIdx = 0; // 0=start, 1=mode, 2=records
 
 // Directions: 0=up, 1=down, 2=left, 3=right
@@ -85,7 +85,8 @@ var ACHIEVEMENTS = [
   { id: 'hot_streak', icon: '🔥', name: 'Hot Streak', desc: '10× combo in streak mode' },
   { id: 'survivor', icon: '💀', name: 'Survivor', desc: 'Reach round 20 in streak' },
   { id: 'untouchable', icon: '🏆', name: 'Untouchable', desc: 'Reach round 30 in streak' },
-  { id: 'all_modes', icon: '🎪', name: 'All Modes', desc: 'Complete a session in all 4 input modes' }
+  { id: 'all_modes', icon: '🎪', name: 'All Modes', desc: 'Complete a session in all 5 input modes' },
+  { id: 'voice_react', icon: '🗣️', name: 'Voice React', desc: 'Complete a voice reaction session' }
 ];
 
 // Records
@@ -114,6 +115,12 @@ var micDataArray = null;
 var ambientLevel = 0;
 var micActive = false;
 var micFailed = false;
+
+// Voice reaction mode (mode 4) — mic as reaction input
+var VOICE_DEADZONE = 80; // ms after cue to ignore (cue bleed + physiological minimum)
+var VOICE_THRESHOLD = 3.0; // RMS multiplier above ambient baseline to detect voice onset
+var voiceBaseline = 0.01; // calibrated ambient RMS during waiting
+var voiceCalibFrames = 0; // frames since round started for calibration
 
 // Head movement (mode 3) — deviceorientation
 var oriActive = false;
@@ -201,6 +208,41 @@ function updateMicLevel() {
   }
   var rms = Math.sqrt(sum / micDataArray.length);
   ambientLevel = ambientLevel * 0.95 + rms * 0.05;
+}
+
+// Voice mode: calibrate baseline during WAITING and detect false starts
+function checkVoiceFalseStart() {
+  if (!micActive || !micAnalyser || state !== STATE_WAITING || mode !== 4) return;
+  micAnalyser.getByteTimeDomainData(micDataArray);
+  var sum = 0;
+  for (var i = 0; i < micDataArray.length; i++) {
+    var v = (micDataArray[i] - 128) / 128;
+    sum += v * v;
+  }
+  var rms = Math.sqrt(sum / micDataArray.length);
+  voiceCalibFrames++;
+  voiceBaseline = voiceBaseline * 0.92 + rms * 0.08;
+  // After calibration stabilizes (~20 frames / ~330ms), check for voice false starts
+  if (voiceCalibFrames > 20 && rms > voiceBaseline * VOICE_THRESHOLD && rms > 0.02) {
+    handleResponse(0); // triggers false start handling
+  }
+}
+
+// Voice mode: detect voice onset during READY state
+function checkVoiceOnset() {
+  if (!micActive || !micAnalyser || state !== STATE_READY || mode !== 4) return;
+  var elapsed = performance.now() - cueTime;
+  if (elapsed < VOICE_DEADZONE) return; // ignore bone conduction cue bleed
+  micAnalyser.getByteTimeDomainData(micDataArray);
+  var sum = 0;
+  for (var i = 0; i < micDataArray.length; i++) {
+    var v = (micDataArray[i] - 128) / 128;
+    sum += v * v;
+  }
+  var rms = Math.sqrt(sum / micDataArray.length);
+  if (rms > voiceBaseline * VOICE_THRESHOLD && rms > 0.02) {
+    handleResponse(0); // go: correct (targetDir=0); no-go: triggers failure
+  }
 }
 
 // Achievement unlocking
@@ -301,6 +343,20 @@ function playCue(dir) {
     nSrc.start();
     nSrc.stop(audioCtx.currentTime + 0.35);
   }
+}
+
+function playVoiceCue() {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = 660; // clean non-directional tone
+  gain.gain.value = 0.35;
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  gain.gain.setTargetAtTime(0, audioCtx.currentTime + 0.12, 0.04);
+  osc.stop(audioCtx.currentTime + 0.25);
 }
 
 function playCorrect() {
@@ -404,8 +460,9 @@ function handleNoGoSuccess(active) {
 
 function startSession() {
   initAudio();
-  if (mode !== 2) setupMic(); // Mic interference in all audio-using modes (A+V and Audio Only)
+  if (mode !== 2) setupMic(); // Mic interference in all audio-using modes (A+V, Audio Only, Voice)
   if (mode === 3) setupOrientation(); // Head movement mode needs deviceorientation
+  if (mode === 4) { voiceBaseline = 0.01; voiceCalibFrames = 0; } // Reset voice calibration
   roundNum = 0;
   times = [];
   isNoGo = false;
@@ -429,6 +486,8 @@ function nextRound() {
   targetDir = -1;
   // Capture head reference for false start detection in head-movement mode
   if (mode === 3 && oriActive) captureOriRef();
+  // Reset voice calibration for new round
+  if (mode === 4) voiceCalibFrames = 0;
   // Streak mode: delay shrinks as rounds increase (more pressure)
   var baseDelay, varDelay;
   if (gameMode === 1) {
@@ -453,11 +512,12 @@ function nextRound() {
         handleNoGoSuccess(false); // passive hold
       }, noGoHoldTime);
     } else {
-      targetDir = Math.floor(Math.random() * 4);
+      targetDir = mode === 4 ? 0 : Math.floor(Math.random() * 4);
       cueTime = performance.now();
       state = STATE_READY;
       if (mode === 3) captureOriRef(); // Capture head reference position for tilt detection
-      if (mode !== 2) playCue(targetDir);
+      if (mode === 4) playVoiceCue(); // Voice mode: non-directional cue
+      else if (mode !== 2) playCue(targetDir);
     }
   }, delay);
 }
@@ -591,7 +651,8 @@ function showSummary() {
   // Check all modes
   if (!records.modesCompleted) records.modesCompleted = {};
   records.modesCompleted[mode] = true;
-  if (records.modesCompleted[0] && records.modesCompleted[1] && records.modesCompleted[2] && records.modesCompleted[3]) unlockAchievement('all_modes');
+  if (records.modesCompleted[0] && records.modesCompleted[1] && records.modesCompleted[2] && records.modesCompleted[3] && records.modesCompleted[4]) unlockAchievement('all_modes');
+  if (mode === 4) unlockAchievement('voice_react');
   
   saveRecords();
 }
@@ -623,6 +684,8 @@ function drawMenu() {
   ctx.fillStyle = '#555';
   if (mode === 3) {
     ctx.fillText('Tilt head: back=↑  forward=↓  left=←  right=→', W/2, 190);
+  } else if (mode === 4) {
+    ctx.fillText('Hear tone → react with your voice (glasses mic)', W/2, 190);
   } else {
     ctx.fillText('↑ High  ↓ Low  ← Left pan  → Right pan', W/2, 190);
   }
@@ -723,6 +786,18 @@ function drawWaiting() {
       ctx.font = '11px system-ui';
       ctx.fillText('⏳ Waiting for orientation sensor...', W/2, H/2 + 85);
     }
+  } else if (mode === 4) {
+    ctx.fillText('Stay quiet... react with your voice', W/2, H/2 + 60);
+    // Mic calibration indicator
+    if (micActive) {
+      ctx.fillStyle = voiceCalibFrames > 20 ? '#66bb6a' : '#ffa726';
+      ctx.font = '11px system-ui';
+      ctx.fillText(voiceCalibFrames > 20 ? '🎤 Listening — stay silent' : '🎤 Calibrating...', W/2, H/2 + 85);
+    } else if (micFailed) {
+      ctx.fillStyle = '#ff5252';
+      ctx.font = '11px system-ui';
+      ctx.fillText('⚠ Mic unavailable — voice mode needs mic', W/2, H/2 + 85);
+    }
   } else {
     ctx.fillText('Wait for the cue...', W/2, H/2 + 60);
   }
@@ -762,8 +837,8 @@ function drawReady() {
     ctx.fillText('Round ' + (roundNum + 1) + '/' + totalRounds, W/2, 40);
   }
   
-  // Show direction visually (if not audio-only mode)
-  if (mode !== 1) {
+  // Show direction visually (if not audio-only or voice mode)
+  if (mode !== 1 && mode !== 4) {
     if (isNoGo) {
       // No-Go round: red stop indicator
       ctx.fillStyle = '#ff5252';
@@ -796,6 +871,50 @@ function drawReady() {
         ctx.lineWidth = 3;
         ctx.stroke();
       }
+    }
+  } else if (mode === 4) {
+    // Voice reaction mode
+    if (isNoGo) {
+      ctx.fillStyle = '#ff5252';
+      ctx.font = 'bold 60px system-ui';
+      ctx.fillText('🤫', W/2, H/2 + 10);
+      ctx.font = 'bold 24px system-ui';
+      ctx.fillText('STAY QUIET', W/2, H/2 + 55);
+      var holdProg2 = Math.min(1, elapsed / noGoHoldTime);
+      var barW2 = 200;
+      var barX2 = (W - barW2) / 2;
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(barX2, H/2 + 72, barW2, 6);
+      ctx.fillStyle = holdProg2 < 0.7 ? '#ff5252' : '#66bb6a';
+      ctx.fillRect(barX2, H/2 + 72, barW2 * holdProg2, 6);
+    } else {
+      ctx.fillStyle = '#4fc3f7';
+      ctx.font = 'bold 60px system-ui';
+      ctx.fillText('🎤', W/2, H/2 + 10);
+      ctx.font = 'bold 28px system-ui';
+      ctx.fillText('SPEAK!', W/2, H/2 + 55);
+      // Flash ring
+      var flash2 = Math.max(0, 1 - elapsed / 500);
+      if (flash2 > 0) {
+        ctx.beginPath();
+        ctx.arc(W/2, H/2, 100 + flash2 * 50, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(79,195,247,' + (flash2 * 0.5) + ')';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+    }
+    // Live mic level bar
+    if (micActive) {
+      var micRms = ambientLevel;
+      var micBar = Math.min(1, micRms * 20);
+      var barY = H/2 + 100;
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(200, barY, 200, 4);
+      ctx.fillStyle = micBar > 0.6 ? '#66bb6a' : '#555';
+      ctx.fillRect(200, barY, 200 * micBar, 4);
+      ctx.fillStyle = '#555';
+      ctx.font = '10px system-ui';
+      ctx.fillText('mic level', W/2, barY + 16);
     }
   } else {
     // Audio only
@@ -901,7 +1020,7 @@ function drawResult() {
     ctx.fillText('✗ NO-GO FAIL', W/2, H/2);
     ctx.font = '18px system-ui';
     ctx.fillStyle = '#888';
-    ctx.fillText('Should have held — don\'t press on buzz', W/2, H/2 + 40);
+    ctx.fillText(mode === 4 ? 'Should have stayed quiet' : 'Should have held — don\'t press on buzz', W/2, H/2 + 40);
   } else {
     ctx.fillStyle = '#ff5252';
     ctx.font = 'bold 36px system-ui';
@@ -942,7 +1061,7 @@ function drawFalseStart() {
   
   ctx.fillStyle = '#888';
   ctx.font = '18px system-ui';
-  ctx.fillText(mode === 3 ? 'Keep still until the cue appears' : 'Wait for the cue before pressing', W/2, H/2 + 30);
+  ctx.fillText(mode === 3 ? 'Keep still until the cue appears' : mode === 4 ? 'Stay silent until the cue plays' : 'Wait for the cue before pressing', W/2, H/2 + 30);
   
   ctx.restore();
   
@@ -1208,6 +1327,10 @@ function drawToast() {
 
 function draw() {
   updateMicLevel();
+  // Voice mode: calibrate + false start detection during waiting
+  if (mode === 4 && state === STATE_WAITING) checkVoiceFalseStart();
+  // Voice mode: onset detection during ready
+  if (mode === 4 && state === STATE_READY) checkVoiceOnset();
   // Head-tilt detection runs every frame during ready state in mode 3
   if (mode === 3 && state === STATE_READY) checkHeadTilt();
   // Head-tilt false start detection during waiting
@@ -1263,8 +1386,8 @@ document.addEventListener('keydown', function(e) {
   if (state === STATE_MENU) {
     if (e.key === 'ArrowUp') menuIdx = (menuIdx + 4) % 5;
     else if (e.key === 'ArrowDown') menuIdx = (menuIdx + 1) % 5;
-    else if (e.key === 'ArrowLeft' && menuIdx === 1) mode = (mode + 3) % 4;
-    else if (e.key === 'ArrowRight' && menuIdx === 1) mode = (mode + 1) % 4;
+    else if (e.key === 'ArrowLeft' && menuIdx === 1) mode = (mode + 4) % 5;
+    else if (e.key === 'ArrowRight' && menuIdx === 1) mode = (mode + 1) % 5;
     else if (e.key === 'ArrowLeft' && menuIdx === 2) gameMode = (gameMode + 1) % 2;
     else if (e.key === 'ArrowRight' && menuIdx === 2) gameMode = (gameMode + 1) % 2;
     else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && menuIdx === 3) {
@@ -1273,7 +1396,7 @@ document.addEventListener('keydown', function(e) {
     }
     else if (e.key === 'Enter') {
       if (menuIdx === 0) startSession();
-      else if (menuIdx === 1) mode = (mode + 1) % 4;
+      else if (menuIdx === 1) mode = (mode + 1) % 5;
       else if (menuIdx === 2) gameMode = (gameMode + 1) % 2;
       else if (menuIdx === 3) {
         noGoEnabled = !noGoEnabled;
@@ -1302,8 +1425,8 @@ document.addEventListener('keydown', function(e) {
     return;
   }
   
-  // D-pad response during waiting or ready (disabled in head-movement mode — tilt to respond)
-  if (mode !== 3) {
+  // D-pad response during waiting or ready (disabled in head-movement and voice modes)
+  if (mode !== 3 && mode !== 4) {
     var dirIdx = dirKeys.indexOf(e.key);
     if (dirIdx >= 0) {
       handleResponse(dirIdx);
