@@ -115,6 +115,15 @@ var badgeToast = null;    // { emoji, name, timer }
 var badgeToastDuration = 3; // seconds
 var showBadgeGallery = false;
 
+// Ambient soundscape — 3 types (Warm/Rain/Wind), matching breathe/neck-stretch/intervals/steps
+var ambEnabled = false;
+var ambientType = 0; // 0=Warm, 1=Rain, 2=Wind
+var ambientTypeNames = ['Warm', 'Rain', 'Wind'];
+var ambientTypeEmoji = ['\uD83D\uDD25', '\uD83C\uDF27', '\uD83C\uDF2C'];
+var ambientSource = null, ambientFilter = null, ambientFilter2 = null, ambientGainNode = null;
+var ambientActive = false;
+var noiseBuf = null;
+
 // Posture Drills — periodic optional micro-challenges
 var DRILLS = [
   { id: 'steady', name: 'Steady Hold', icon: '\u{1F3AF}', dur: 30, mult: 0.6, desc: '30s tight threshold' },
@@ -141,6 +150,8 @@ var allTimeStats = loadStats();
 
 // Load persisted sensitivity preference
 try { var _sv = localStorage.getItem('litf_posture_sens'); if (_sv) sensitivity = Math.max(1, Math.min(5, parseInt(_sv))); } catch(e) {}
+try { var _ae = localStorage.getItem('litf_posture_amb_on'); if (_ae !== null) ambEnabled = _ae === '1'; } catch(e) {}
+try { var _at = localStorage.getItem('litf_posture_amb_type'); if (_at !== null) ambientType = Math.max(0, Math.min(2, parseInt(_at))); } catch(e) {}
 
 function loadStats() {
   try {
@@ -160,6 +171,111 @@ function initAudio() {
   if (audioCtx) return;
   try {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  } catch(e) {}
+}
+
+// Ambient soundscape — noise-buffer based, 3 types (Warm/Rain/Wind)
+function createNoiseBuffer() {
+  if (!audioCtx) return null;
+  var sr = audioCtx.sampleRate;
+  var buf = audioCtx.createBuffer(1, sr * 2, sr);
+  var data = buf.getChannelData(0);
+  for (var i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  return buf;
+}
+
+function startAmbient() {
+  if (!audioCtx || !ambEnabled) return;
+  stopAmbient();
+  if (!noiseBuf) noiseBuf = createNoiseBuffer();
+
+  ambientSource = audioCtx.createBufferSource();
+  ambientSource.buffer = noiseBuf;
+  ambientSource.loop = true;
+
+  ambientFilter = audioCtx.createBiquadFilter();
+  ambientFilter2 = audioCtx.createBiquadFilter();
+  ambientGainNode = audioCtx.createGain();
+
+  switch (ambientType) {
+    case 0: // Warm — deep brown noise, meditative
+      ambientFilter.type = 'lowpass';
+      ambientFilter.frequency.value = 180;
+      ambientFilter.Q.value = 0.7;
+      ambientFilter2.type = 'lowpass';
+      ambientFilter2.frequency.value = 300;
+      ambientFilter2.Q.value = 0.5;
+      break;
+    case 1: // Rain — bandpass at high freq
+      ambientFilter.type = 'bandpass';
+      ambientFilter.frequency.value = 4500;
+      ambientFilter.Q.value = 0.4;
+      ambientFilter2.type = 'highpass';
+      ambientFilter2.frequency.value = 800;
+      ambientFilter2.Q.value = 0.3;
+      break;
+    case 2: // Wind — low bandpass
+      ambientFilter.type = 'lowpass';
+      ambientFilter.frequency.value = 600;
+      ambientFilter.Q.value = 0.8;
+      ambientFilter2.type = 'lowpass';
+      ambientFilter2.frequency.value = 1200;
+      ambientFilter2.Q.value = 0.3;
+      break;
+  }
+
+  ambientGainNode.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+  var targetVol = 0.04; // subtle ambient
+  ambientGainNode.gain.setTargetAtTime(targetVol, audioCtx.currentTime, 0.8);
+
+  ambientSource.connect(ambientFilter);
+  ambientFilter.connect(ambientFilter2);
+  ambientFilter2.connect(ambientGainNode);
+  ambientGainNode.connect(audioCtx.destination);
+  ambientSource.start();
+  ambientActive = true;
+}
+
+function stopAmbient() {
+  if (!ambientActive) return;
+  try {
+    if (ambientGainNode) {
+      ambientGainNode.gain.setTargetAtTime(0.0001, audioCtx.currentTime, 0.3);
+      var src = ambientSource;
+      setTimeout(function() {
+        try { src.stop(); src.disconnect(); } catch(e) {}
+      }, 1500);
+    }
+  } catch(e) {
+    try { if (ambientSource) { ambientSource.stop(); ambientSource.disconnect(); } } catch(e2) {}
+  }
+  ambientSource = null;
+  ambientFilter = null;
+  ambientFilter2 = null;
+  ambientGainNode = null;
+  ambientActive = false;
+}
+
+function saveAmbientPrefs() {
+  try {
+    localStorage.setItem('litf_posture_amb_on', ambEnabled ? '1' : '0');
+    localStorage.setItem('litf_posture_amb_type', String(ambientType));
+  } catch(e) {}
+}
+
+function playTone(freq, dur, vol) {
+  if (!audioCtx) return;
+  try {
+    var osc = audioCtx.createOscillator();
+    var g = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    g.gain.setValueAtTime(vol || 0.06, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (dur || 0.1));
+    osc.connect(g);
+    g.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + (dur || 0.1) + 0.05);
   } catch(e) {}
 }
 
@@ -547,6 +663,7 @@ function finishCalibration() {
   drillResultTimer = 0;
   playCalibrateDone();
   startPostureDrone();
+  if (ambEnabled) startAmbient();
 }
 
 function formatTime(ms) {
@@ -582,6 +699,7 @@ document.addEventListener('keydown', function(e) {
     if (key === 'Enter') {
       state = STATE_MONITOR;
       startPostureDrone();
+      if (ambEnabled) startAmbient();
       lastGoodCheck = Date.now();
       streakStart = Date.now();
     }
@@ -590,6 +708,7 @@ document.addEventListener('keydown', function(e) {
     }
     if (key === 'Escape') {
       // End session
+      stopAmbient();
       endSession();
     }
     return;
@@ -612,14 +731,35 @@ document.addEventListener('keydown', function(e) {
       if (sensitivity === 5) usedMaxSens = true;
       try { localStorage.setItem('litf_posture_sens', String(sensitivity)); } catch(e) {}
     } else if (key === 'ArrowDown') {
-      showBadgeGallery = !showBadgeGallery;
+      // Cycle ambient: OFF → Warm → Rain → Wind → OFF
+      if (!ambEnabled) {
+        ambEnabled = true;
+        ambientType = 0;
+        startAmbient();
+        playTone(523, 0.08, 0.06);
+      } else {
+        ambientType++;
+        if (ambientType > 2) {
+          ambEnabled = false;
+          ambientType = 0;
+          stopAmbient();
+          playTone(330, 0.08, 0.06);
+        } else {
+          stopAmbient();
+          startAmbient();
+          playTone(500 + ambientType * 80, 0.1, 0.04);
+        }
+      }
+      saveAmbientPrefs();
     } else if (key === 'Enter') {
       // Re-calibrate
       stopPostureDrone();
+      stopAmbient();
       state = STATE_CALIBRATE;
       calibrating = false;
     } else if (key === 'Escape') {
       stopPostureDrone();
+      stopAmbient();
       state = STATE_PAUSED;
     }
   }
@@ -627,6 +767,7 @@ document.addEventListener('keydown', function(e) {
 
 function endSession() {
   stopPostureDrone();
+  stopAmbient();
   allTimeStats.totalSessions++;
   allTimeStats.totalGoodTime += goodPostureTime;
   allTimeStats.totalNudges += nudgeCount;
@@ -813,6 +954,7 @@ function frame(ts) {
     if (showBadgeGallery) drawBadgeGallery();
   } else if (state === STATE_PAUSED) {
     drawPaused();
+    if (showBadgeGallery) drawBadgeGallery();
   } else if (state === STATE_SUMMARY) {
     drawSummary();
   }
@@ -1230,7 +1372,13 @@ function drawMonitor() {
   sensText += ' →';
   ctx.fillText(sensText, 300, 565);
   
-  ctx.fillText('\u2191 drill \u00B7 \u2193 badges \u00B7 ENTER recalibrate \u00B7 ESC pause', 300, 585);
+  // Ambient status indicator
+  var ambStatus = ambEnabled ? ambientTypeEmoji[ambientType] + ' ' + ambientTypeNames[ambientType] : '\uD83D\uDD07 OFF';
+  ctx.fillStyle = ambEnabled ? '#4a9eff' : '#555';
+  ctx.fillText('\u2193 Sound: ' + ambStatus, 300, 545);
+  
+  ctx.fillStyle = '#555';
+  ctx.fillText('\u2191 drill \u00B7 ENTER recalibrate \u00B7 ESC pause', 300, 585);
 }
 
 function drawPaused() {
@@ -1257,6 +1405,10 @@ function drawPaused() {
   ctx.font = '18px system-ui';
   ctx.fillStyle = '#888';
   ctx.fillText('ESC to end session', 300, 475);
+  
+  ctx.font = '13px system-ui';
+  ctx.fillStyle = '#555';
+  ctx.fillText('\u2193 badges', 300, 510);
 }
 
 function drawSummary() {
