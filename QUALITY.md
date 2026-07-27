@@ -16,7 +16,7 @@ _Updated by hourly cron cycles. Honest assessments, not self-congratulation._
 - Anything below B-tier gets 2 improvement cycles, then gets cut
 - Indexes ordered by score (highest first)
 
-## Games (21 active + 2 lost + 2 removed)
+## Games (20 active + 2 lost + 3 removed)
 
 _10-dimension scoring: Trigger / Hook / Glasses / Return / D-Pad / Audio / Session Variance / Strategic Depth / Surprise / Craft. Raw /50, displayed as /100._
 
@@ -52,7 +52,7 @@ _10-dimension scoring: Trigger / Hook / Glasses / Return / D-Pad / Audio / Sessi
 - S-tier: **4** (dungeon-crawl, sonar-sub, trader, terraform)
 - A-tier: **16** (gravity-sling, stalk, mine, signal, hex-collapse, beacon, fisher, rhythm-pulse, pulse, photon-dodge, lord-bluetooth-org, buffalo-gold, audio-memory, duel, lord-bluetooth, buffalo-brain)
 - B-tier: **0**
-- C-tier: **2** (xin-fu-city, lord-bluetooth-td — below 60/100 minimum, cut candidates)
+- C-tier: **0** (xin-fu-city removed Jul 27, lord-bluetooth-td removed Jul 27 — both genre-mismatched to MRBD)
 - F-tier: **0** (math-flash-cards removed from index 2026-07-14)
 - **LOST (not deployed):** 2 (tower-defense 84/A, buffalo 54/C)
 - **Also lost:** games/audio/ directory partially recovered — 98 voice-acting MP3s for Lord Bluetooth Org Management restored.
@@ -105,3 +105,4 @@ _Record removals here with reasoning._
 - **2026-07-11:** Removed `wind` from QUALITY.md — listed as "New — needs evaluation" but no directory, no source file, no git history. Phantom entry that was never built.
 - **2026-07-14:** Removed `math-flash-cards` from games index. 34/100 (F-tier). Zero MRBD compliance: no D-pad, no Web Audio, no localStorage, no canvas, no dark theme, not 600×600, `let`/`const` instead of `var`. Phone is definitively better on every dimension. File retained on disk; removed from index only.
 - **2026-07-27:** Removed `lord-bluetooth-td` from games index. 54/100 (C-tier). Structural genre mismatch: tower defense requires touch placement — zero D-pad gameplay (D=1, G=1), not 600×600 (uses 400×640), zero mic integration. Score corrected Jul 1 from falsely listed 90/S; zero improvement cycles in 26 days because the fundamental problem is architectural, not incremental. Can't reach B-tier (60) without becoming a different game. File retained on disk; removed from index only.
+- **2026-07-27:** Removed `xin-fu-city` from games index. 56/100 (C-tier). Structural genre mismatch: city builder requires touch-drag paint for zone placement — zero D-pad gameplay (D=1), not 600×600, zero mic integration. Exhausted 2 improvement cycles. Same architectural mismatch as lord-bluetooth-td: can't reach B-tier (60) without becoming a different game. File retained on disk; removed from index only.
