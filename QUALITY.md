@@ -16,7 +16,7 @@ _Updated by hourly cron cycles. Honest assessments, not self-congratulation._
 - Anything below B-tier gets 2 improvement cycles, then gets cut
 - Indexes ordered by score (highest first)
 
-## Games (22 active + 2 lost + 1 removed)
+## Games (21 active + 2 lost + 2 removed)
 
 _10-dimension scoring: Trigger / Hook / Glasses / Return / D-Pad / Audio / Session Variance / Strategic Depth / Surprise / Craft. Raw /50, displayed as /100._
 
@@ -104,3 +104,4 @@ _Record removals here with reasoning._
 
 - **2026-07-11:** Removed `wind` from QUALITY.md — listed as "New — needs evaluation" but no directory, no source file, no git history. Phantom entry that was never built.
 - **2026-07-14:** Removed `math-flash-cards` from games index. 34/100 (F-tier). Zero MRBD compliance: no D-pad, no Web Audio, no localStorage, no canvas, no dark theme, not 600×600, `let`/`const` instead of `var`. Phone is definitively better on every dimension. File retained on disk; removed from index only.
+- **2026-07-27:** Removed `lord-bluetooth-td` from games index. 54/100 (C-tier). Structural genre mismatch: tower defense requires touch placement — zero D-pad gameplay (D=1, G=1), not 600×600 (uses 400×640), zero mic integration. Score corrected Jul 1 from falsely listed 90/S; zero improvement cycles in 26 days because the fundamental problem is architectural, not incremental. Can't reach B-tier (60) without becoming a different game. File retained on disk; removed from index only.
