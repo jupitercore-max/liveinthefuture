@@ -126,6 +126,11 @@ var creakyRevealed = []; // only show creaky tiles after stepping/peeking
 var firstCreaky = true; // discovery text flag
 var firstShadow = true;
 
+// Level conditions (level 4+) — change optimal strategy per session
+var levelCondition = null; // null, 'blackout', 'silence', 'shift'
+var DISC_BLACKOUT = 32, DISC_SILENCE = 64, DISC_SHIFT = 128;
+var shiftTimer = 0;
+
 // Sound
 var lastFootstep = 0;
 
@@ -430,8 +435,21 @@ function generateMap() {
     }
   }
   
-  // Reveal area around player (rank bonus: FOV +1)
-  revealAround(player.x, player.y, 2 + getRankBonus('fov'));
+  // Level condition (level 4+): changes optimal strategy
+  levelCondition = null;
+  shiftTimer = 0;
+  if (level >= 4) {
+    var conditions = ['blackout', 'silence', 'shift'];
+    levelCondition = conditions[Math.floor(Math.random() * conditions.length)];
+    if (levelCondition === 'blackout') markDisc(DISC_BLACKOUT);
+    else if (levelCondition === 'silence') markDisc(DISC_SILENCE);
+    else if (levelCondition === 'shift') markDisc(DISC_SHIFT);
+  }
+  
+  // Reveal area around player (rank bonus: FOV +1, blackout reduces to 1)
+  var baseReveal = 2 + getRankBonus('fov');
+  if (levelCondition === 'blackout') baseReveal = 1;
+  revealAround(player.x, player.y, baseReveal);
   detections = 0;
   maxDetections = 3 + getRankBonus('detect');
   peekCooldown = 0;
@@ -494,6 +512,17 @@ function generateMap() {
     newTypeIntro = (isNewT ? '✨ ' : '') + '⚠ NEW: TRACKER — remembers where you were';
     newTypeIntroTimer = 180;
   }
+  // Level condition intro (level 4+)
+  if (levelCondition) {
+    if (levelCondition === 'blackout') {
+      newTypeIntro = '🌑 BLACKOUT — reduced visibility, listen for guards';
+    } else if (levelCondition === 'silence') {
+      newTypeIntro = '🔇 DEAD SILENCE — mic disabled, guards detect by proximity';
+    } else if (levelCondition === 'shift') {
+      newTypeIntro = '🔄 SHIFT CHANGE — guards reposition periodically';
+    }
+    newTypeIntroTimer = 200;
+  }
 }
 
 function revealAround(cx, cy, radius) {
@@ -518,6 +547,29 @@ var guardTick = 0;
 function updateGuards() {
   guardTick++;
   
+  // Shift Change: teleport one random guard every ~3 seconds
+  if (levelCondition === 'shift') {
+    shiftTimer++;
+    if (shiftTimer >= 180) {
+      shiftTimer = 0;
+      var shiftIdx = Math.floor(Math.random() * guards.length);
+      var sg = guards[shiftIdx];
+      if (sg.type !== 'listener') {
+        var sTries = 0;
+        while (sTries < 80) {
+          var sgx = 1 + Math.floor(Math.random() * (COLS - 2));
+          var sgy = 1 + Math.floor(Math.random() * (ROWS - 2));
+          if (map[sgy][sgx] === 0 && !(sgx === player.x && sgy === player.y) && Math.abs(sgx - player.x) + Math.abs(sgy - player.y) >= 3) {
+            sg.x = sgx; sg.y = sgy; sg.alert = 0; sg.hunting = false;
+            playTone(300, 0.15, 0.06, 'sine');
+            break;
+          }
+          sTries++;
+        }
+      }
+    }
+  }
+  
   for (var i = 0; i < guards.length; i++) {
     var g = guards[i];
     
@@ -526,24 +578,33 @@ function updateGuards() {
     var dy = Math.abs(g.y - player.y);
     var dist = Math.sqrt(dx*dx + dy*dy);
     
-    // Detection radius increases with mic level (rank dampening applied)
-    // Guard type multiplier: listener has 2× detection range
-    var effectiveNoise = smoothLevel * getRankBonus('noise');
-    // Shadow zone dampening: if player is on a shadow tile, halve effective noise
-    var onShadow = false;
-    for (var si2 = 0; si2 < shadowTiles.length; si2++) {
-      if (shadowTiles[si2].x === player.x && shadowTiles[si2].y === player.y) { onShadow = true; break; }
-    }
-    if (onShadow) effectiveNoise *= 0.4;
+    // Detection: Dead Silence uses fixed proximity, normal uses mic level
     var typeMult = GUARD_TYPES[g.type || 'patrol'].detectMult;
-    // Minimum detection: guards have base awareness of 1.5 tiles even in silence
-    var detectRadius = (1.5 + effectiveNoise * 10) * typeMult;
-    // Guards detect if player is within radius AND either making noise OR very close (adjacent)
-    var isAdjacent = dist <= 1.5;
+    var effectiveNoise, detectRadius, isAdjacent, guardDetected, alertGain;
+    isAdjacent = dist <= 1.5;
     
-    if (dist <= detectRadius && (effectiveNoise > noiseThreshold || isAdjacent)) {
-      // Adjacent detection builds slower (visual only, no sound)
-      var alertGain = isAdjacent && effectiveNoise <= noiseThreshold ? 3 : (effectiveNoise * 15);
+    if (levelCondition === 'silence') {
+      // Dead Silence: mic ignored, fixed proximity detection
+      effectiveNoise = 0;
+      detectRadius = 3.0 * typeMult;
+      guardDetected = dist <= detectRadius;
+      alertGain = guardDetected ? 5 : 0;
+    } else {
+      effectiveNoise = smoothLevel * getRankBonus('noise');
+      // Shadow zone dampening: if player is on a shadow tile, halve effective noise
+      var onShadow = false;
+      for (var si2 = 0; si2 < shadowTiles.length; si2++) {
+        if (shadowTiles[si2].x === player.x && shadowTiles[si2].y === player.y) { onShadow = true; break; }
+      }
+      if (onShadow) effectiveNoise *= 0.4;
+      // Minimum detection: guards have base awareness of 1.5 tiles even in silence
+      detectRadius = (1.5 + effectiveNoise * 10) * typeMult;
+      // Guards detect if player is within radius AND either making noise OR very close (adjacent)
+      guardDetected = dist <= detectRadius && (effectiveNoise > noiseThreshold || isAdjacent);
+      alertGain = isAdjacent && effectiveNoise <= noiseThreshold ? 3 : (effectiveNoise * 15);
+    }
+    
+    if (guardDetected) {
       g.alert = Math.min(100, g.alert + alertGain);
       // Tracker: remember player position when detecting noise
       if (g.type === 'tracker' && g.alert > 30) {
@@ -810,7 +871,7 @@ function draw() {
     // Detection radius indicator (subtle) — color matches type
     if (g.alert > 0) {
       var typeDetectMult = GUARD_TYPES[g.type || 'patrol'].detectMult;
-      var detectR = (2 + smoothLevel * 10) * typeDetectMult * TILE;
+      var detectR = levelCondition === 'silence' ? (3.0 * typeDetectMult * TILE) : ((2 + smoothLevel * 10) * typeDetectMult * TILE);
       var rColor = g.type === 'listener' ? '180,50,255' : g.type === 'tracker' ? '255,160,30' : '255,50,50';
       ctx.strokeStyle = 'rgba(' + rColor + ',' + (g.alert / 300) + ')';
       ctx.lineWidth = 1;
@@ -868,7 +929,7 @@ function draw() {
   if (newTypeIntroTimer > 0 && state === STATE_PLAY) {
     newTypeIntroTimer--;
     var introAlpha = Math.min(1, newTypeIntroTimer / 30);
-    var introColor = level === 2 ? '180,50,255' : '255,160,30';
+    var introColor = level === 2 ? '180,50,255' : level === 3 ? '255,160,30' : levelCondition === 'blackout' ? '100,150,255' : levelCondition === 'silence' ? '150,150,150' : levelCondition === 'shift' ? '255,200,50' : '200,200,200';
     ctx.fillStyle = 'rgba(' + introColor + ',' + (introAlpha * 0.1) + ')';
     ctx.fillRect(0, H/2 - 30, W, 50);
     ctx.fillStyle = 'rgba(' + introColor + ',' + introAlpha + ')';
@@ -879,7 +940,7 @@ function draw() {
   
   // State overlays
   if (state === STATE_CAUGHT) {
-    var discStr = ' · 🕵 ' + discCount() + '/5';
+    var discStr = ' · 🕵 ' + discCount() + '/8';
     var caughtSub = 'Level ' + level + ' · ' + RANKS[stats.rank].name + ' (' + stats.ghostMissions + ' ghosts)' + discStr;
     drawOverlay('DETECTED', '#ff3333', caughtSub, 'Enter to retry');
   } else if (state === STATE_WIN) {
@@ -887,7 +948,7 @@ function draw() {
     var nextG = nextRankGhosts();
     var rankStr = RANKS[stats.rank].name;
     var progStr = nextG ? ' · ' + stats.ghostMissions + '/' + nextG + ' → ' + RANKS[stats.rank + 1].name : ' · MAX RANK';
-    var winSub = ghostStr + 'Level ' + level + ' · Steps: ' + steps + rankStr + progStr + ' · 🕵 ' + discCount() + '/5';
+    var winSub = ghostStr + 'Level ' + level + ' · Steps: ' + steps + rankStr + progStr + ' · 🕵 ' + discCount() + '/8';
     drawOverlay('ESCAPED', '#00ff66', winSub, 'Enter for next level');
   }
 }
@@ -923,25 +984,35 @@ function drawHUD() {
   
   // Mic level
   ctx.textAlign = 'right';
-  var micStr = micActive ? '🎤' : (micFailed ? '🔇' : '🎤?');
-  ctx.fillStyle = '#888';
-  ctx.font = '13px system-ui';
-  ctx.fillText(micStr, W - 8, 18);
+  if (levelCondition === 'silence') {
+    ctx.fillStyle = '#555';
+    ctx.font = '13px system-ui';
+    ctx.fillText('🔇', W - 8, 18);
+    // Show "DISABLED" instead of noise bar
+    ctx.fillStyle = '#444';
+    ctx.font = '10px system-ui';
+    ctx.fillText('mic disabled', W - 8, 34);
+  } else {
+    var micStr = micActive ? '🎤' : (micFailed ? '🔇' : '🎤?');
+    ctx.fillStyle = '#888';
+    ctx.font = '13px system-ui';
+    ctx.fillText(micStr, W - 8, 18);
   
-  // Noise bar
-  var barW = 80;
-  var barX = W - barW - 8;
-  var barY = 26;
-  var barH = 8;
-  ctx.fillStyle = '#222';
-  ctx.fillRect(barX, barY, barW, barH);
-  var noiseW = Math.min(barW, smoothLevel * barW * 3);
-  var barColor = smoothLevel > noiseThreshold * 2 ? '#ff3333' : smoothLevel > noiseThreshold ? '#ff9933' : '#33ff66';
-  ctx.fillStyle = barColor;
-  ctx.fillRect(barX, barY, noiseW, barH);
-  // Threshold marker
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(barX + noiseThreshold * barW * 3, barY - 1, 1, barH + 2);
+    // Noise bar
+    var barW = 80;
+    var barX = W - barW - 8;
+    var barY = 26;
+    var barH = 8;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(barX, barY, barW, barH);
+    var noiseW = Math.min(barW, smoothLevel * barW * 3);
+    var barColor = smoothLevel > noiseThreshold * 2 ? '#ff3333' : smoothLevel > noiseThreshold ? '#ff9933' : '#33ff66';
+    ctx.fillStyle = barColor;
+    ctx.fillRect(barX, barY, noiseW, barH);
+    // Threshold marker
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(barX + noiseThreshold * barW * 3, barY - 1, 1, barH + 2);
+  }
   
   // Peek cooldown
   if (peekCooldown > 0) {
@@ -964,6 +1035,20 @@ function drawHUD() {
     ctx.font = 'bold 11px system-ui';
     ctx.textAlign = 'center';
     ctx.fillText('🌑 SHADOW — 60% noise reduction', W/2, 52);
+  } else if (levelCondition) {
+    // Show active condition indicator
+    ctx.font = '10px system-ui';
+    ctx.textAlign = 'center';
+    if (levelCondition === 'blackout') {
+      ctx.fillStyle = 'rgba(100,150,255,0.6)';
+      ctx.fillText('🌑 BLACKOUT', W/2, 52);
+    } else if (levelCondition === 'silence') {
+      ctx.fillStyle = 'rgba(150,150,150,0.6)';
+      ctx.fillText('🔇 DEAD SILENCE', W/2, 52);
+    } else if (levelCondition === 'shift') {
+      ctx.fillStyle = 'rgba(255,200,50,0.6)';
+      ctx.fillText('🔄 SHIFT CHANGE', W/2, 52);
+    }
   }
   
   // Separator
@@ -1032,12 +1117,12 @@ function drawTitle() {
   ctx.fillStyle = '#555';
   ctx.font = '12px system-ui';
   var dc = discCount();
-  var dcColor = dc >= 5 ? '#ffd700' : dc >= 3 ? '#4af' : '#888';
+  var dcColor = dc >= 8 ? '#ffd700' : dc >= 5 ? '#4af' : '#888';
   ctx.fillStyle = dcColor;
-  ctx.fillText('🕵 ' + dc + '/5 discovered', W/2, 352);
+  ctx.fillText('🕵 ' + dc + '/8 discovered', W/2, 352);
   ctx.fillStyle = '#555';
   ctx.fillText('🔴 Patrol · 🟣 Listener (2× range) · 🟠 Tracker (hunts)', W/2, 370);
-  ctx.fillText('🟤 Creaky floors alert guards · 🟣 Shadows muffle you', W/2, 386);
+  ctx.fillText('🟤 Creaky floors · 🟣 Shadows · Level 4+ conditions', W/2, 386);
   
   // Controls
   ctx.fillStyle = '#555';
@@ -1135,7 +1220,8 @@ document.addEventListener('keydown', function(e) {
       player.y = ny;
       steps++;
       moveDelay = 6;
-      revealAround(player.x, player.y, 2);
+      var moveReveal = levelCondition === 'blackout' ? 1 : 2;
+      revealAround(player.x, player.y, moveReveal);
       playFootstep();
       
       // Check creaky floor — spike alert for all guards
