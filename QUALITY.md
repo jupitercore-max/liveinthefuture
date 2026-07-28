@@ -48,7 +48,7 @@ _10-dimension scoring: Trigger / Hook / Glasses / Return / D-Pad / Audio / Sessi
 | buffalo | — | LOST | New — first eval | **⚠ LOST IN APRIL 16 FORCE-PUSH — NOT RECOVERED.** Was 54/C-tier endless runner. |
 | tower-defense | — | LOST | 82 (was A) | **⚠ LOST IN APRIL 16 FORCE-PUSH — NOT RECOVERED.** Source file never in git history. Was 84/A-tier with wave mutations, 5 tower types, 1,564 lines. Needs rebuild or recovery from backup. |
 
-### Distribution (of 22 deployed games)
+### Distribution (of 20 deployed games)
 - S-tier: **4** (dungeon-crawl, sonar-sub, trader, terraform)
 - A-tier: **16** (gravity-sling, stalk, mine, signal, hex-collapse, beacon, fisher, rhythm-pulse, pulse, photon-dodge, lord-bluetooth-org, buffalo-gold, audio-memory, duel, lord-bluetooth, buffalo-brain)
 - B-tier: **0**
