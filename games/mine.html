@@ -224,6 +224,7 @@ var gems = 0;
 var rareGems = 0;
 var score = 0;
 var gasTimer = 0;
+var gasTimerInit = 0;
 var gasOverlay = 0;
 var shakeTimer = 0;
 var floatingTexts = [];
@@ -753,6 +754,7 @@ function initGame() {
   gems = 0;
   rareGems = 0;
   score = 0;
+  gasTimerInit = 0;
   gasTimer = 0;
   gasOverlay = 0;
   floatingTexts = [];
@@ -797,7 +799,11 @@ function tryMine(tx, ty) {
   shakeTimer = 5;
   
   if (block === BLOCK_GAS) {
-    gasTimer = 8; // 8 moves of lingering gas damage
+    // Gas lingers longer in noisy environments (2nd mic axis: hardness + gas duration)
+    var baseGas = 6;
+    var gasMicMod = 1 + micLevel * 2;
+    gasTimer = Math.round(baseGas * gasMicMod);
+    gasTimerInit = gasTimer;
     gasOverlay = 1;
     addFloat(tx, ty, '☠️ GAS!', '#ffff00');
     pickHP -= 15; // extra damage
@@ -936,7 +942,7 @@ function tryMove(dx, dy) {
   if (gasTimer > 0) {
     gasTimer--;
     pickHP -= 1;
-    gasOverlay = gasTimer / 8;
+    gasOverlay = gasTimerInit > 0 ? gasTimer / gasTimerInit : 0;
     if (pickHP <= 0) {
       pickHP = 0;
       deathReason = 'Suffocated by gas at depth ' + depth + 'm';
@@ -1078,7 +1084,7 @@ function drawTitle() {
   ctx.fillStyle = '#666';
   ctx.fillText('←→↑↓  Move & Mine  |  ENTER  Repair (' + REPAIR_COST + '💎)', 300, 340);
   ctx.fillText('Gems are hidden — sonar reveals nearby', 300, 362);
-  ctx.fillText('🎤 Louder room = harder rock', 300, 384);
+  ctx.fillText('🎤 Louder = harder rock + longer gas', 300, 384);
   
   // Stats
   if (bestDepth > 0) {
