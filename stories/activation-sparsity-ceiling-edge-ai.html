@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your LLM's Activation Function Is Wasting 90% of Its Neurons. The Fix Runs a 47B Model on a Phone.</title>
+    <meta name="description" content="SwiGLU and GeGLU keep half of every layer firing on every token. A dual-ReLU swap achieves 90% sparsity, cuts FFN compute by 5×, and runs Mixtral-47B at 11 tokens per second on a mobile phone.">
+    <link rel="stylesheet" href="../story.css">
+</head>
+<body>
+<article class="story-page">
+    <header>
+        <div class="story-kicker">🤖 Robotics</div>
+        <h1>Your LLM's Activation Function Is Wasting 90% of Its Neurons. The Fix Runs a 47B Model on a Phone.</h1>
+        <p class="story-deck">SwiGLU and GeGLU keep roughly half of every layer's neurons firing on every token. A dual-ReLU replacement achieves over 90% sparsity and cuts feed-forward compute by 5×, enabling a 47-billion-parameter model to generate 11 tokens per second on a mobile phone.</p>
+    </header>
+
+    <img src="activation-sparsity-ceiling-edge-ai.jpg?v=d53344d6" alt="An abstract visualization of a neural network with most neurons dimmed and inactive, a sparse handful glowing bright against a dark grid, representing activation sparsity in a large language model" class="story-hero">
+
+    <div class="story-byline">
+        <span class="author">Marcus Chen</span> · <span class="beat">Computing & AI</span>
+    </div>
+    <time datetime="2026-07-31">July 31, 2026</time>
+
+    <div class="story-body">
+
+        <p>Ninety percent. That is how many neurons in a properly sparsified large language model never need to fire on any given token, according to measurements by Yixin Song and colleagues at Shanghai Jiao Tong University in their <a href="https://arxiv.org/abs/2406.05955">TurboSparse paper</a> from June 2024. Their dReLU activation function pushes sparsity past 90% while matching or exceeding dense model performance on standard benchmarks. A 47-billion-parameter Mixtral model, after the swap, generates 11 tokens per second on a mobile phone. That speed crosses from tech demo into usable product.</p>
+
+        <p>Edge AI teams should reframe how they think about inference efficiency. Most discussion centers on quantization (cramming weights into fewer bits) and hardware (building faster chips with fatter memory buses). Both matter, but neither touches the real ceiling. SJTU's Institute of Parallel and Distributed Systems has surfaced an earlier bottleneck, one that quantization and hardware optimization cannot budge no matter how clever the engineering gets: the activation function baked into a model during training determines a hard cap on how much inference compute can be skipped. And the function that won the training wars turns out to be spectacularly bad at being skipped.</p>
+
+        <h2>How SwiGLU Became a Trap</h2>
+
+        <p>Every major open-weight LLM released between 2023 and mid-2026 uses SwiGLU or its cousin GeGLU as its feed-forward activation. Meta's Llama 3 and 4 families, Mistral's full lineup, Alibaba's Qwen series, Google's Gemma: all of them. SwiGLU won for a good reason. Its smooth gradients produce more stable training runs and consistently better benchmark scores than older ReLU, multiplying a Swish-gated projection by an ungated one to yield a rich, continuously differentiable signal that helps gradient flow across thousands of GPU-hours.</p>
+
+        <p>After training ends, that smoothness becomes a liability. ReLU zeroes out every negative input, creating natural sparsity: large swaths of a network's neurons produce exact zeros and can be skipped entirely during inference. Meta's older OPT models, which used standard ReLU, exhibited <a href="https://pytorch.org/blog/beyond-quantization-bringing-sparse-inference-to-pytorch/">95 to 99 percent sparsity</a> in their MLP blocks, according to PyTorch's sparse inference team. SwiGLU produces no exact zeros. Its smooth curve means every neuron outputs some nonzero value, however small, and hardware must compute every one. Measured sparsity in SwiGLU models hovers around 50%, per both the TurboSparse analysis and the <a href="https://arxiv.org/abs/2312.12456">PowerInfer paper</a> from the same lab.</p>
+
+        <p>Fifty percent versus ninety-five percent. Enormous. Not a tuning knob, but a 10&times; gap in skippable compute, baked permanently into any model at the moment someone chose an activation function to optimize training metrics instead of deployment efficiency. Once set, it sticks.</p>
+
+        <h2>dReLU: Doubling the Gate</h2>
+
+        <p>Simply swapping SwiGLU for standard ReLU does not work, as Song et al. discovered when they tried it. Vanilla ReLU achieved higher sparsity than SwiGLU (typically 70 to 80%) but still insufficient, and quality degradation was unacceptable without expensive retraining because SwiGLU-era architectures use a gated structure with two parallel projections and applying a single ReLU to one side leaves the other dense.</p>
+
+        <p>dReLU applies ReLU to both: <code>h = ReLU(xW_gate) &odot; ReLU(xW_up)</code>. When either projection produces a negative value, the output zeros out. This doubles the zeroing opportunities and pushes activation sparsity past 90%, all while preserving the gated structure that makes modern architectures work. Combined with a carefully tuned data mixture for the sparsification fine-tuning phase, the resulting model scores equal to or better than its dense SwiGLU counterpart across standard benchmarks. (That data mixture is the detail separating a working implementation from a broken one.)</p>
+
+        <p>Practical impact compounds through the inference stack. Applied to Mistral-7B, dReLU reduced activated parameters from 7 billion to 2.5 billion per token. Applied to Mixtral-47B (a mixture-of-experts model where activation sparsity stacks on top of expert routing), only 4.3 billion parameters activate per inference call, meaning a model that used to require a server-class GPU to run at interactive speeds can now fit its active computation budget inside the thermal and power envelope of a phone's mobile processor. Integrated with <a href="https://github.com/SJTU-IPADS/PowerInfer">PowerInfer</a>, an engine that preloads frequently activated "hot" neurons onto GPU while relegating "cold" neurons to CPU, the speedups land concretely: 2 to 5 times faster decoding depending on hardware configuration, and that headline 11 tokens per second for 47 billion parameters on a phone. It works.</p>
+
+        <h2>Running the Numbers Nobody Published</h2>
+
+        <p>Abstract claims deserve concrete math. Consider a 70-billion-parameter dense model with architecture similar to Llama 3 70B: hidden dimension 8,192, FFN hidden dimension 28,672 (the standard ~3.5&times; ratio), 80 transformer layers. Feed-forward layers dominate inference cost, accounting for roughly 67% of total per-token FLOPs in a standard transformer.</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>SwiGLU (~50% sparsity)</th>
+                    <th>dReLU (~90% sparsity)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Neurons active per layer</td>
+                    <td>~14,336</td>
+                    <td>~2,867</td>
+                </tr>
+                <tr>
+                    <td>FFN FLOPs per token (80 layers)</td>
+                    <td>~189 billion</td>
+                    <td>~37.6 billion</td>
+                </tr>
+                <tr>
+                    <td>FFN compute reduction</td>
+                    <td>baseline</td>
+                    <td><strong>5.0&times;</strong></td>
+                </tr>
+                <tr>
+                    <td>Total model FLOPs per token</td>
+                    <td>~282 billion</td>
+                    <td>~131 billion</td>
+                </tr>
+                <tr>
+                    <td>Net inference speedup (theoretical)</td>
+                    <td>baseline</td>
+                    <td><strong>~2.2&times;</strong></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p>A 2.2&times; theoretical net speedup (attention layers, which dReLU does not affect, eat the remaining 33% of compute) sits squarely in TurboSparse's measured 2 to 5&times; range. That is the floor, not the ceiling. PowerInfer's neuron-locality optimizations and its predictor modules, which identify active neurons before computing them and then route only those neurons to the appropriate hardware accelerator for execution, push real-world gains toward the upper end of the range and sometimes beyond it.</p>
+
+        <p>On edge silicon, these numbers translate directly into deployment viability. Qualcomm's Snapdragon 8 Elite delivers roughly 45 TOPS at INT8 precision. At SwiGLU sparsity levels, a 7B model quantized to 4 bits generates around 8 to 15 tokens per second: tolerable for simple queries, sluggish for anything interactive. At dReLU sparsity, that same chip pushes 16 to 35 tokens per second, which is fast enough for real-time conversation, code completion, and the kind of agentic tool use that currently requires a cloud roundtrip adding 200 to 500 milliseconds of latency per call. Local wins.</p>
+
+        <h2>Who Already Made the Switch</h2>
+
+        <p>NVIDIA has been the quietest and most consequential convert. Both <a href="https://research.nvidia.com/labs/adlr/files/NVIDIA-Nemotron-Nano-2-Technical-Report.pdf">Nemotron Nano 2</a> (12B parameters, August 2025) and Nemotron 3 Nano (31.6B total, 3.2B active, July 2026) use squared ReLU as their FFN activation instead of SwiGLU. Squaring after ReLU suppresses small activations quadratically, which pushes sparsity even further than standard ReLU while requiring only a trivial modification to the activation kernel. NVIDIA paired this with mixture-of-experts routing that adds expert-level sparsity on top of neuron-level sparsity. <a href="https://memeburn.com/nvidia-nemotron-3-ultra-americas-best-open-ai-model-2026/">Nemotron 3 Ultra</a>, revealed at Computex 2026, scales to 550 billion total parameters with only 55 billion active per token: 90% structural sparsity, delivering over 300 output tokens per second.</p>
+
+        <p>Broader research has moved further still. A September 2025 paper (<a href="https://arxiv.org/abs/2509.22166v4">arXiv:2509.22166</a>) benchmarking post-training activation pruning across multiple LLMs found a result that should rattle every quantization-first team: pruning activations preserves generative capabilities better than pruning weights at equivalent sparsity levels. Its authors identified the 8:16 structured pattern (skip 8 of every 16 activations) as a "superior candidate" for next-generation hardware, suggesting chip designers are already planning for a sparsity-aware future that current SwiGLU models cannot exploit.</p>
+
+        <h2>Strongest Counterargument</h2>
+
+        <p>SwiGLU won for a reason, and that reason has not disappeared. Across every published training comparison, SwiGLU and GeGLU outperform ReLU variants on final model quality at equivalent training compute. Smooth gradients improve convergence stability, especially on long runs where gradient noise compounds over thousands of optimization steps and can derail an entire multi-million-dollar training campaign if the loss function starts oscillating beyond recovery. Google's PaLM team, Meta's Llama team, and Mistral all independently converged on SwiGLU because it produces measurably better models during training, and training failures are both catastrophic and expensive enough that SwiGLU's reliability advantage in this phase is genuine and well-documented.</p>
+
+        <p>TurboSparse's recipe works, but it is not trivial. It demands a sparsification fine-tuning phase with carefully balanced data mixtures, predictor module training for each FFN block, and validation that sparsified models have not lost capabilities on long-tail tasks that standard benchmarks miss. A poorly executed swap (wrong data mix, insufficient fine-tuning, no predictor training) degrades quality badly enough to erase any speed gain. Labs optimizing for frontier performance have rational reasons to pick training-time quality over deployment efficiency, particularly when their primary customers are API users who absorb inference cost as a service fee rather than running models on their own hardware.</p>
+
+        <h2>Limitations</h2>
+
+        <p>Several caveats bound these conclusions. TurboSparse's published results cover Mistral-7B and Mixtral-47B, both 2024-vintage architectures; whether dReLU sparsification transfers to latest frontier models (Llama 4, Qwen 3, Gemma 3) at equal quality remains an open question, though the underlying neuron-activation dynamics should generalize. The mobile speed figure of 11 tokens per second was measured using PowerInfer, a research framework not yet deployed in production mobile runtimes; achieving comparable speed in a shipping product requires integration work that most mobile AI stacks have not attempted. Our FLOP calculation assumes ideal sparse computation where zeroed neurons incur zero cost, but real hardware rarely achieves that. Unstructured sparsity demands either specialized kernels or a predictor with its own overhead, and consumer hardware (NVIDIA's 2:4 structured sparsity on Ampere and later) supports only narrow patterns that map poorly to 90% unstructured sparsity.</p>
+
+        <h2>What It Means for People Alive Today</h2>
+
+        <p>For two years, deployment teams have optimized how many bits each weight uses while overlooking the activation function that determines how many weights need to compute at all. NVIDIA quietly switched to squared ReLU, SJTU demonstrated the mechanics, and PyTorch built the kernel infrastructure while the industry at large kept shipping SwiGLU models and wondering why edge inference was slow. A decision most architects make once during design and never revisit creates a 5&times; gap in feed-forward compute and a 2&times; gap in total inference throughput. For edge deployment on phones, wearables, laptops, and cars, this is not incremental optimization. It is the gap between a model that needs the cloud and one that runs locally.</p>
+
+        <p><strong>What you can do:</strong> If you are deploying LLMs on edge hardware, ask whether your model uses SwiGLU or a ReLU-family activation, and quantify what you leave on the table. If you are selecting base models for fine-tuning, weight deployment efficiency alongside benchmark scores. If you are designing custom silicon, build for flexible activation sparsity patterns (8:16 or better) rather than only NVIDIA Ampere's 2:4 structured sparsity. This ceiling is not a hardware problem or a quantization problem. It is an activation function problem, and the fix has been published, benchmarked, and open-sourced since June 2024.</p>
+
+        <p class="credit"><em>Inspired by observations on <a href="https://www.moltbook.com">Moltbook</a>.</em></p>
+    </div>
+</article>
+<script src="../story.js"></script>
+</body>
+</html>
