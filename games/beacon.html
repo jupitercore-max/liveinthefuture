@@ -103,6 +103,14 @@ function updateMic() {
   }
 }
 
+// Get quadrant sector for a position: 0=N, 1=E, 2=S, 3=W
+function getShipSector(x, y) {
+  var dx = x - CX, dy = y - CY;
+  var angle = Math.atan2(dy, dx) + Math.PI * 1.5;
+  if (angle >= Math.PI * 2) angle -= Math.PI * 2;
+  return Math.floor(angle / (Math.PI * 0.5)) % 4;
+}
+
 // Get fog density at a given position (interpolated between 4 sectors)
 function getFogAt(x, y) {
   var dx = x - CX, dy = y - CY;
@@ -120,7 +128,7 @@ function getFogAt(x, y) {
 }
 
 // Sound effects
-function playFoghorn(pan, dist, freq) {
+function playFoghorn(pan, dist, freq, volumeMult) {
   if (!audioCtx) return;
   if (activeEvent && activeEvent.type === 'dead_calm') return;
   var now = audioCtx.currentTime;
@@ -130,7 +138,9 @@ function playFoghorn(pan, dist, freq) {
   osc.type = 'sawtooth';
   var baseFreq = freq || 85; osc.frequency.setValueAtTime(baseFreq + Math.random()*20, now);
   osc.frequency.exponentialRampToValueAtTime(Math.max(20, baseFreq - 15), now + 1.5);
-  gain.gain.setValueAtTime(Math.max(0.01, 0.25 * (1 - dist/350)), now);
+  var vol = Math.max(0.01, 0.25 * (1 - dist/350));
+  if (volumeMult !== undefined) vol *= volumeMult;
+  gain.gain.setValueAtTime(vol, now);
   gain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
   panner.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), now);
   osc.connect(gain);
@@ -756,8 +766,17 @@ function update() {
     if (!s.alive) continue;
     
     // Move toward harbor
-    s.x += s.vx;
-    s.y += s.vy;
+    // Spectral navigation: S sector mid energy boosts ship speed (rush hazard)
+    var mvx = s.vx, mvy = s.vy;
+    if (micActive && sectorEnergy[2] > 0.05) {
+      var shipSec = getShipSector(s.x, s.y);
+      if (shipSec === 2) {
+        var rush = 1 + sectorEnergy[2] * 0.6;
+        mvx *= rush; mvy *= rush;
+      }
+    }
+    s.x += mvx;
+    s.y += mvy;
     
     // Trail
     s.trail.push({x: s.x, y: s.y, a: 1});
@@ -779,6 +798,11 @@ function update() {
       // Barges need wide beam for effective steering — narrow beam = poor visibility for large vessels
       var steerStr = 0.02;
       if (s.type === 1) steerStr *= Math.max(0.2, Math.min(1, (beamWidth - 0.1) / 0.4));
+      // Spectral navigation: W sector treble energy weakens beam steering
+      if (micActive && sectorEnergy[3] > 0.05) {
+        var beamSec = getShipSector(s.x, s.y);
+        if (beamSec === 3) steerStr *= Math.max(0.3, 1 - sectorEnergy[3] * 0.7);
+      }
       for (var r = 0; r < rocks.length; r++) {
         var rdx = s.x - rocks[r].x;
         var rdy = s.y - rocks[r].y;
@@ -820,7 +844,13 @@ function update() {
     if (s.foghornTime > 180 + Math.random()*120) {
       s.foghornTime = 0;
       var pan = (s.x - CX) / 300;
-      playFoghorn(pan, dist, s.foghornFreq);
+      // Spectral navigation: E sector low-mid energy muffles foghorns
+      var muf = 1;
+      if (micActive && sectorEnergy[1] > 0.05) {
+        var hornSec = getShipSector(s.x, s.y);
+        if (hornSec === 1) muf = Math.max(0.12, 1 - sectorEnergy[1] * 0.88);
+      }
+      playFoghorn(pan, dist, s.foghornFreq, muf);
     }
     
     // Check rock collision
@@ -1304,18 +1334,25 @@ function drawHUD() {
     ctx.fillStyle = '#8899aa';
     ctx.font = '11px system-ui';
     ctx.fillText('🌫️ ' + Math.round(fogDensity*100) + '%', 12, 580);
-    // Mini 4-bar sector fog indicator
+    // Mini 4-bar sector indicator with hazard type icons
+    // N=🌫️fog  E=🔇muffle  S=💨rush  W=🔦weak
     var barX = 62, barW = 5, barH = 14, barY = 568;
     var labels = ['N','E','S','W'];
+    var hazardIcons = ['\u{1F32B}\uFE0F','\u{1F507}','\u{1F4A8}','\u{1F526}'];
+    var hazardVals = [sectorFog[0]/0.9, sectorEnergy[1], sectorEnergy[2], sectorEnergy[3]];
     for (var bi = 0; bi < 4; bi++) {
-      var bFill = sectorFog[bi] / 0.9;
+      var bFill = bi === 0 ? sectorFog[bi] / 0.9 : hazardVals[bi];
       if (bFill > 1) bFill = 1;
       ctx.globalAlpha = 0.3;
       ctx.fillStyle = '#556677';
       ctx.fillRect(barX + bi * (barW + 2), barY, barW, barH);
       ctx.globalAlpha = 0.8;
       var bH = barH * bFill;
-      ctx.fillStyle = bFill > 0.7 ? '#cc6644' : bFill > 0.4 ? '#8899aa' : '#6688aa';
+      var bColor = bFill > 0.7 ? '#cc6644' : bFill > 0.4 ? '#8899aa' : '#6688aa';
+      if (bi === 1 && bFill > 0.4) bColor = '#aa6688'; // muffle = purple-ish
+      if (bi === 2 && bFill > 0.4) bColor = '#88aa66'; // rush = green-ish
+      if (bi === 3 && bFill > 0.4) bColor = '#aa8844'; // weak = amber
+      ctx.fillStyle = bColor;
       ctx.fillRect(barX + bi * (barW + 2), barY + barH - bH, barW, bH);
     }
     ctx.globalAlpha = 1;
@@ -1395,6 +1432,7 @@ function drawTitle() {
   ctx.fillText('↑ ↓ Widen / Narrow beam', CX, 250);
   ctx.fillText('Enter: Launch flare', CX, 270);
   ctx.fillText('🎤 Room noise = fog density', CX, 295);
+  ctx.fillText('🌫️N  🔇E  💨S  🔦W — spectral hazards', CX, 315);
   
   // Maritime Watch discovery counter
   var discCount = 0;
@@ -1402,26 +1440,26 @@ function drawTitle() {
   if (discCount > 0) {
     ctx.fillStyle = '#ff8844';
     ctx.font = '13px system-ui';
-    ctx.fillText('\u{1F30A} ' + discCount + '/' + MARITIME_EVENTS.length, CX, 312);
+    ctx.fillText('\u{1F30A} ' + discCount + '/' + MARITIME_EVENTS.length, CX, 340);
   }
   
   // Stats
   if (best > 0) {
     ctx.fillStyle = '#ffee88';
-    ctx.fillText('Best: ' + best + '  |  Ships Saved: ' + totalSaved, CX, 335);
+    ctx.fillText('Best: ' + best + '  |  Ships Saved: ' + totalSaved, CX, 360);
   }
   
   // Rank display
   ctx.font = '13px system-ui';
   ctx.fillStyle = '#ffcc44';
-  ctx.fillText('⚓ ' + RANKS[rankIndex].name, CX, 360);
+  ctx.fillText('⚓ ' + RANKS[rankIndex].name, CX, 385);
   if (rankIndex < RANKS.length - 1) {
     var nextRank = RANKS[rankIndex + 1];
     var progress = totalSaved - RANKS[rankIndex].req;
     var needed = nextRank.req - RANKS[rankIndex].req;
     var pct = Math.min(1, progress / needed);
     // Progress bar
-    var barW = 180, barH = 8, barX = CX - barW/2, barY = 370;
+    var barW = 180, barH = 8, barX = CX - barW/2, barY = 395;
     ctx.fillStyle = '#1a1a2a';
     ctx.fillRect(barX, barY, barW, barH);
     ctx.fillStyle = '#ffcc44';
@@ -1430,11 +1468,11 @@ function drawTitle() {
     ctx.strokeRect(barX, barY, barW, barH);
     ctx.font = '11px system-ui';
     ctx.fillStyle = '#667';
-    ctx.fillText(nextRank.name + ': ' + nextRank.desc + ' (' + (nextRank.req - totalSaved) + ' ships to go)', CX, 394);
+    ctx.fillText(nextRank.name + ': ' + nextRank.desc + ' (' + (nextRank.req - totalSaved) + ' ships to go)', CX, 419);
   } else {
     ctx.font = '11px system-ui';
     ctx.fillStyle = '#ffcc44';
-    ctx.fillText('⭐ Maximum rank achieved ⭐', CX, 380);
+    ctx.fillText('⭐ Maximum rank achieved ⭐', CX, 405);
   }
   
   // Start prompt
