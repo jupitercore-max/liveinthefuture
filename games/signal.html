@@ -36,6 +36,9 @@ var micActive = false;
 var micFailed = false;
 var micLevel = 0;
 var micSmooth = 0;
+var bassEnergy = 0;
+var midEnergy = 0;
+var trebleEnergy = 0;
 var analyser = null;
 var micData = null;
 
@@ -189,6 +192,9 @@ function updateMic() {
   if (!micActive || !analyser) {
     micSmooth += (0 - micSmooth) * 0.05;
     interferenceLevel += (0.1 - interferenceLevel) * 0.05;
+    bassEnergy += (0 - bassEnergy) * 0.05;
+    midEnergy += (0 - midEnergy) * 0.05;
+    trebleEnergy += (0 - trebleEnergy) * 0.05;
     return;
   }
   analyser.getByteFrequencyData(micData);
@@ -197,6 +203,17 @@ function updateMic() {
   micLevel = sum / (micData.length * 255);
   micSmooth += (micLevel - micSmooth) * 0.12;
   interferenceLevel += (Math.min(0.8, micSmooth * 2) - interferenceLevel) * 0.08;
+  // Spectral decomposition: 3-band FFT → 3 interference channels
+  // bass (bins 0-14, ~0-1700Hz) → blip visibility degradation
+  // mid (bins 15-49, ~1700-6900Hz) → sweep speed reduction
+  // treble (bins 50+, ~6900Hz+) → proximity tick muffling
+  var bSum = 0, mSum = 0, tSum = 0;
+  for (var bi = 0; bi < 15; bi++) bSum += micData[bi];
+  for (var mi = 15; mi < 50; mi++) mSum += micData[mi];
+  for (var ti = 50; ti < micData.length; ti++) tSum += micData[ti];
+  bassEnergy += (bSum / (15 * 255) - bassEnergy) * 0.1;
+  midEnergy += (mSum / (35 * 255) - midEnergy) * 0.1;
+  trebleEnergy += (tSum / ((micData.length - 50) * 255) - trebleEnergy) * 0.1;
 }
 
 function playTone(freq, dur, type, vol, pan) {
@@ -538,7 +555,9 @@ function update() {
     }
   }
   
-  sweepAngle += (sweepSpeed + micSmooth * 0.005) * sweepDir;
+  // Sweep speed — mid-band energy causes temporal degradation (slower updates)
+  var sweepReduction = micActive ? Math.min(0.4, midEnergy * 1.2) : 0;
+  sweepAngle += sweepSpeed * (1 - sweepReduction) * sweepDir;
   if (sweepAngle > Math.PI * 2) sweepAngle -= Math.PI * 2;
   if (sweepAngle < 0) sweepAngle += Math.PI * 2;
 
@@ -575,9 +594,9 @@ function update() {
       b.visible = Math.sin(b.pulsePhase) > -0.3;
     }
 
-    // Interference hides blips
-    if (interferenceLevel > 0.3 && b.type !== 3) {
-      var noise = Math.sin(b.angle * 7 + sweepAngle * 3) * interferenceLevel;
+    // Spectral interference: bass energy hides blips (visual degradation)
+    if (micActive && bassEnergy > 0.12 && b.type !== 3) {
+      var noise = Math.sin(b.angle * 7 + sweepAngle * 3) * bassEnergy * 2.5;
       if (noise > 0.4) b.visible = false;
       else b.visible = true;
     }
@@ -670,7 +689,9 @@ function update() {
       // Pitch: 400Hz at edge → 1600Hz at center
       var warnFreq = 400 + (1 - proxFactor) * 1200;
       var warnPan = Math.cos(closestAngle) * 0.9;
-      var warnVol = 0.04 + (1 - proxFactor) * 0.08;
+      // Spectral interference: treble energy muffles proximity tick volume
+      var tickMuffle = micActive ? Math.min(0.88, trebleEnergy * 3) : 0;
+      var warnVol = (0.04 + (1 - proxFactor) * 0.08) * (1 - tickMuffle);
       playTone(warnFreq, 0.04, 'triangle', warnVol, warnPan);
     } else {
       warnTickTimer = 0.3;
@@ -1033,12 +1054,25 @@ function drawHUD() {
   ctx.fillStyle = 'rgba(255,170,0,0.35)';
   ctx.fillText(rkHud.icon + ' ' + rkHud.name, CX, 22);
 
-  // Mic indicator
+  // Spectral interference HUD — 3 band indicators
   if (micActive) {
     ctx.textAlign = 'left';
-    ctx.font = '11px system-ui';
-    ctx.fillStyle = interferenceLevel > 0.4 ? 'rgba(255,100,50,0.6)' : 'rgba(0,255,100,0.3)';
-    ctx.fillText('🎤 ' + Math.round(micSmooth * 100) + '%' + (interferenceLevel > 0.4 ? ' INTERFERENCE' : ''), 15, H - 12);
+    ctx.font = '9px system-ui';
+    var sy = H - 8;
+    var sLabels = ['📡','⏱','🔊'];
+    var sEnergies = [bassEnergy, midEnergy, trebleEnergy];
+    var sThresh = [0.12, 0.1, 0.08];
+    var sHotCol = ['rgba(255,80,80,0.7)','rgba(255,180,50,0.7)','rgba(100,150,255,0.7)'];
+    for (var si = 0; si < 3; si++) {
+      var sx = 15 + si * 55;
+      var sHot = sEnergies[si] > sThresh[si];
+      ctx.fillStyle = sHot ? sHotCol[si] : 'rgba(0,255,100,0.3)';
+      ctx.fillText(sLabels[si], sx, sy);
+      ctx.fillStyle = 'rgba(60,60,60,0.3)';
+      ctx.fillRect(sx + 14, sy - 5, 30, 3);
+      ctx.fillStyle = sHot ? sHotCol[si] : 'rgba(0,180,80,0.35)';
+      ctx.fillRect(sx + 14, sy - 5, 30 * Math.min(1, sEnergies[si] * 4), 3);
+    }
   }
   
   // Active alert badge
@@ -1113,7 +1147,12 @@ function drawTitle() {
   ctx.font = '12px system-ui';
   ctx.fillStyle = 'rgba(0,255,100,0.35)';
   ctx.fillText('Track blips by sound. Eliminate before they reach center.', CX, CY + 90);
-  if (!micFailed) ctx.fillText('🎤 Ambient noise = radar interference', CX, CY + 110);
+  if (!micFailed) {
+    ctx.fillText('🎤 Room acoustics shape interference spectrum', CX, CY + 110);
+    ctx.font = '10px system-ui';
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText('📡 bass→blip visibility   ⏱ mid→sweep speed   🔊 treble→proximity audio', CX, CY + 128);
+  }
 
   ctx.font = 'bold 14px system-ui';
   ctx.fillStyle = '#00ff88';
