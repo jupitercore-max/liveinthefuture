@@ -38,6 +38,10 @@ var micActive = false;
 var micFailed = false;
 var analyser = null;
 var micData = null;
+// Spectral mining: 3-band FFT decomposition
+var bassLevel = 0; // bins 0-14 (~0-1700Hz) → rock hardness
+var midLevel = 0;  // bins 15-49 (~1700-6900Hz) → gas duration
+var trebleLevel = 0; // bins 50+ (~6900Hz+) → sonar range reduction
 
 function initAudio() {
   if (audioCtx) return;
@@ -92,9 +96,23 @@ function updateMic() {
   if (!analyser) return;
   analyser.getByteFrequencyData(micData);
   var sum = 0;
-  for (var i = 0; i < micData.length; i++) sum += micData[i];
+  var bassSum = 0, midSum = 0, trebleSum = 0;
+  var bassCount = 0, midCount = 0, trebleCount = 0;
+  for (var i = 0; i < micData.length; i++) {
+    sum += micData[i];
+    if (i < 15) { bassSum += micData[i]; bassCount++; }
+    else if (i < 50) { midSum += micData[i]; midCount++; }
+    else { trebleSum += micData[i]; trebleCount++; }
+  }
   var raw = sum / micData.length / 255;
   micLevel += (raw - micLevel) * 0.08;
+  // Spectral bands: independent smoothing for decorrelated outputs
+  var rawBass = bassCount > 0 ? bassSum / bassCount / 255 : 0;
+  var rawMid = midCount > 0 ? midSum / midCount / 255 : 0;
+  var rawTreble = trebleCount > 0 ? trebleSum / trebleCount / 255 : 0;
+  bassLevel += (rawBass - bassLevel) * 0.06;
+  midLevel += (rawMid - midLevel) * 0.06;
+  trebleLevel += (rawTreble - trebleLevel) * 0.06;
 }
 
 // Sound effects
@@ -275,7 +293,11 @@ function countGeoSeen() {
 }
 
 function getEffectiveSonarRange() {
-  return tremorTurns > 0 ? 1 : getRankBonus().proxRange;
+  if (tremorTurns > 0) return 1;
+  var base = getRankBonus().proxRange;
+  // Treble frequencies → sonar degradation (high-freq noise masks proximity audio)
+  var treblePenalty = Math.floor(trebleLevel * 3);
+  return Math.max(1, base - treblePenalty);
 }
 
 function checkGeoEvent() {
@@ -774,8 +796,8 @@ function getHardness(blockType) {
   else if (blockType === BLOCK_RARE_GEM) base = 2;
   else if (blockType === BLOCK_GAS) base = 1;
   else if (blockType === BLOCK_BEDROCK) base = 999;
-  // Mic ambient noise = harder rock
-  var micMod = 1 + micLevel * 1.5;
+  // Bass frequencies → harder rock (low-frequency vibration = geological stress)
+  var micMod = 1 + bassLevel * 1.5;
   var raw = Math.ceil(base * micMod);
   // Rank dig reduction
   return Math.max(1, raw - getRankBonus().digReduce);
@@ -799,9 +821,9 @@ function tryMine(tx, ty) {
   shakeTimer = 5;
   
   if (block === BLOCK_GAS) {
-    // Gas lingers longer in noisy environments (2nd mic axis: hardness + gas duration)
+    // Mid frequencies → gas lingers (atmospheric resonance traps gas)
     var baseGas = 6;
-    var gasMicMod = 1 + micLevel * 2;
+    var gasMicMod = 1 + midLevel * 2;
     gasTimer = Math.round(baseGas * gasMicMod);
     gasTimerInit = gasTimer;
     gasOverlay = 1;
@@ -1084,7 +1106,7 @@ function drawTitle() {
   ctx.fillStyle = '#666';
   ctx.fillText('←→↑↓  Move & Mine  |  ENTER  Repair (' + REPAIR_COST + '💎)', 300, 340);
   ctx.fillText('Gems are hidden — sonar reveals nearby', 300, 362);
-  ctx.fillText('🎤 Louder = harder rock + longer gas', 300, 384);
+  ctx.fillText('🎤 Bass=harder rock  Mid=longer gas  Treble=less sonar', 300, 384);
   
   // Stats
   if (bestDepth > 0) {
@@ -1281,6 +1303,36 @@ function drawHUD() {
     var micColor = micLevel < 0.3 ? '#44aa44' : micLevel < 0.6 ? '#aaaa44' : '#aa4444';
     ctx.fillStyle = micColor;
     ctx.fillRect(480, 14, micBarW * Math.min(1, micLevel * 2), barH);
+    // Spectral mining indicator: 3 mini-bars showing band influence
+    var specY = 26;
+    var specBarW = 16;
+    var specBarH = 4;
+    var specGap = 2;
+    var specX = 480;
+    // Bass → hardness (⛏)
+    var bColor = bassLevel < 0.25 ? '#44aa44' : bassLevel < 0.5 ? '#aaaa44' : '#aa4444';
+    ctx.fillStyle = '#222';
+    ctx.fillRect(specX, specY, specBarW, specBarH);
+    ctx.fillStyle = bColor;
+    ctx.fillRect(specX, specY, specBarW * Math.min(1, bassLevel * 2.5), specBarH);
+    // Mid → gas (☠)
+    var mColor = midLevel < 0.25 ? '#44aa44' : midLevel < 0.5 ? '#aaaa44' : '#aa4444';
+    ctx.fillStyle = '#222';
+    ctx.fillRect(specX + specBarW + specGap, specY, specBarW, specBarH);
+    ctx.fillStyle = mColor;
+    ctx.fillRect(specX + specBarW + specGap, specY, specBarW * Math.min(1, midLevel * 2.5), specBarH);
+    // Treble → sonar (👁)
+    var tColor = trebleLevel < 0.25 ? '#44aa44' : trebleLevel < 0.5 ? '#aaaa44' : '#aa4444';
+    ctx.fillStyle = '#222';
+    ctx.fillRect(specX + (specBarW + specGap) * 2, specY, specBarW, specBarH);
+    ctx.fillStyle = tColor;
+    ctx.fillRect(specX + (specBarW + specGap) * 2, specY, specBarW * Math.min(1, trebleLevel * 2.5), specBarH);
+    // Labels
+    ctx.font = '7px system-ui';
+    ctx.fillStyle = '#666';
+    ctx.fillText('⛏', specX + 4, specY + specBarH + 8);
+    ctx.fillText('☠', specX + specBarW + specGap + 4, specY + specBarH + 8);
+    ctx.fillText('👁', specX + (specBarW + specGap) * 2 + 4, specY + specBarH + 8);
   }
   
   // Best depth indicator
