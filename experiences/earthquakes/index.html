@@ -75,6 +75,21 @@ var WATCH_RADIUS_KM = 500;
 var MAX_WATCH_ZONES = 5;
 var knownQuakeKeys = {}; // track known quakes to detect new arrivals
 
+// Mic-adaptive ambient seismic mode
+// Continuously sonifies loaded earthquake data through bone conduction.
+// Mic tracks ambient noise floor — quiet room = more seismic detail,
+// noisy environment = only significant quakes produce audio.
+var micStream = null;
+var micAnalyser = null;
+var micDataArray = null;
+var micLevel = 0;
+var micSmooth = 0;
+var ambientEnabled = false;
+var ambientIdx = 0;
+var ambientTimer = null;
+var AMBIENT_INTERVAL_MS = 4000;
+var MIC_LERP = 0.05;
+
 function loadWatchZones() {
   try {
     var saved = localStorage.getItem('eq_watchzones');
@@ -240,7 +255,114 @@ function initAudio() {
   try {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     audioInited = true;
+    initMic();
   } catch(e) {}
+}
+
+function initMic() {
+  if (micStream || !audioCtx) return;
+  try {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+      micStream = stream;
+      micAnalyser = audioCtx.createAnalyser();
+      micAnalyser.fftSize = 256;
+      var src = audioCtx.createMediaStreamSource(stream);
+      src.connect(micAnalyser);
+      micDataArray = new Float32Array(micAnalyser.fftSize);
+      ambientEnabled = true;
+      startAmbientLoop();
+    }).catch(function() {
+      // Mic denied — run ambient without mic adaptation
+      ambientEnabled = true;
+      startAmbientLoop();
+    });
+  } catch(e) {
+    ambientEnabled = true;
+    startAmbientLoop();
+  }
+}
+
+function updateMicLevel() {
+  if (!micAnalyser || !micDataArray) return;
+  micAnalyser.getFloatTimeDomainData(micDataArray);
+  var sum = 0;
+  for (var i = 0; i < micDataArray.length; i++) {
+    sum += micDataArray[i] * micDataArray[i];
+  }
+  micLevel = Math.sqrt(sum / micDataArray.length);
+  micSmooth = micSmooth + (micLevel - micSmooth) * MIC_LERP;
+}
+
+function startAmbientLoop() {
+  if (ambientTimer) return;
+  ambientLoop();
+}
+
+function ambientLoop() {
+  if (!ambientEnabled || !audioCtx || quakes.length === 0) {
+    ambientTimer = setTimeout(ambientLoop, AMBIENT_INTERVAL_MS);
+    return;
+  }
+  updateMicLevel();
+  // Find next M3+ quake to sonify
+  var attempts = 0;
+  while (attempts < quakes.length) {
+    var q = quakes[ambientIdx % quakes.length];
+    ambientIdx = (ambientIdx + 1) % quakes.length;
+    attempts++;
+    if (q.mag >= 3.0) {
+      playAmbientRumble(q);
+      break;
+    }
+  }
+  // Vary interval for natural feel (3-5s)
+  var jitter = ((ambientIdx * 137) % 2000) - 1000;
+  ambientTimer = setTimeout(ambientLoop, Math.max(2500, AMBIENT_INTERVAL_MS + jitter));
+}
+
+function playAmbientRumble(q) {
+  if (!audioCtx) return;
+  // Very subtle base volume scaled by magnitude
+  var baseGain = 0.01 + (q.mag - 2.5) * 0.012;
+  baseGain = Math.min(0.08, baseGain);
+  // Mic adaptation: quiet room = full detail, noisy = attenuated
+  var micFactor = micAnalyser ? Math.max(0.1, 1 - micSmooth * 8) : 1;
+  var finalGain = baseGain * micFactor;
+  // Distance attenuation when user location known
+  if (userLat !== null) {
+    var dist = haversineKm(userLat, userLon, q.lat, q.lon);
+    finalGain *= Math.max(0.2, 1 - dist / 20000);
+  }
+  if (finalGain < 0.005) return;
+  var now = audioCtx.currentTime;
+  var freq = Math.max(25, 180 - q.mag * 20);
+  var dur = 0.8 + q.mag * 0.1;
+  var osc = audioCtx.createOscillator();
+  var gainNode = audioCtx.createGain();
+  var filter = audioCtx.createBiquadFilter();
+  // Spatial panning from compass heading
+  var dest = audioCtx.destination;
+  if (audioCtx.createStereoPanner) {
+    var panNode = audioCtx.createStereoPanner();
+    panNode.pan.setValueAtTime(getQuakePan(q.lat, q.lon), now);
+    panNode.connect(audioCtx.destination);
+    dest = panNode;
+  }
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(freq, now);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(20, freq * 0.5), now + dur);
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(freq * 2, now);
+  filter.Q.value = 0.8;
+  gainNode.gain.setValueAtTime(0, now);
+  gainNode.gain.linearRampToValueAtTime(finalGain, now + 0.15);
+  gainNode.gain.setValueAtTime(finalGain * 0.6, now + dur * 0.4);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  osc.connect(filter);
+  filter.connect(gainNode);
+  gainNode.connect(dest);
+  osc.start(now);
+  osc.stop(now + dur + 0.05);
 }
 
 function playQuakeRumble(mag, depth, lat, lon) {
@@ -436,6 +558,7 @@ function fetchQuakes() {
         listScroll = 0;
         sortQuakes();
         checkWatchZoneAlerts();
+        ambientIdx = 0;
       } catch(e) { error = true; }
     } else { error = true; }
     loading = false;
@@ -574,12 +697,19 @@ function drawHeader() {
     ctx.fillText(nearStr, 14, 42);
   }
 
-  // Audio indicator
+  // Audio + ambient indicator
   if (audioInited) {
     ctx.font = '12px -apple-system, sans-serif';
-    ctx.fillStyle = '#4a9eff';
     ctx.textAlign = 'left';
-    ctx.fillText('🔊', 195, 23);
+    if (ambientEnabled) {
+      ctx.fillStyle = micAnalyser ? '#66bb6a' : '#4a9eff';
+      var envLabel = !micAnalyser ? '🔊 Ambient' :
+        micSmooth < 0.02 ? '🎤 Quiet' : micSmooth < 0.06 ? '🎤 Moderate' : '🎤 Loud';
+      ctx.fillText(envLabel, 195, 23);
+    } else {
+      ctx.fillStyle = '#4a9eff';
+      ctx.fillText('🔊', 195, 23);
+    }
   }
 
   // Sort mode indicator
