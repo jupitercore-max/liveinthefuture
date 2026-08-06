@@ -49,7 +49,11 @@ var micActive = false;
 var micFailed = false;
 var micVolume = 0;
 var micSmoothed = 0;
-var gravityMod = 1;  // 0.7 to 1.3 based on mic
+var gravityMod = 1;  // 0.7 to 1.3 based on bass
+var bassEnergy = 0, midEnergy = 0, trebleEnergy = 0;
+var bassSm = 0, midSm = 0, trebleSm = 0;
+var fuelBurnMod = 1;     // 1.0 to 1.6 based on mid
+var collectRadiusMod = 1; // 0.4 to 1.0 based on treble
 
 function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
 // === BGM System ===
@@ -100,13 +104,28 @@ function initMic() {
 function updateMic() {
   if (!micActive || !micAnalyser) return;
   micAnalyser.getByteFrequencyData(micData);
-  var sum = 0;
-  for (var i = 0; i < micData.length; i++) sum += micData[i];
+  var sum = 0, bSum = 0, bN = 0, mSum = 0, mN = 0, tSum = 0, tN = 0;
+  for (var i = 0; i < micData.length; i++) {
+    sum += micData[i];
+    if (i < 15) { bSum += micData[i]; bN++; }
+    else if (i < 50) { mSum += micData[i]; mN++; }
+    else { tSum += micData[i]; tN++; }
+  }
   micVolume = sum / micData.length / 255;
-  // Smooth heavily
   micSmoothed += (micVolume - micSmoothed) * 0.08;
-  // Gravity mod: quiet(0) = 0.7, loud(1) = 1.3
-  gravityMod = 0.7 + micSmoothed * 0.6;
+  // Spectral bands
+  bassEnergy = bN ? bSum / bN / 255 : 0;
+  midEnergy = mN ? mSum / mN / 255 : 0;
+  trebleEnergy = tN ? tSum / tN / 255 : 0;
+  bassSm += (bassEnergy - bassSm) * 0.08;
+  midSm += (midEnergy - midSm) * 0.08;
+  trebleSm += (trebleEnergy - trebleSm) * 0.08;
+  // Bass → gravity (0.7 quiet to 1.3 loud bass)
+  gravityMod = 0.7 + bassSm * 0.6;
+  // Mid → fuel burn rate (1.0 quiet to 1.6 loud mid)
+  fuelBurnMod = 1.0 + Math.min(0.6, midSm * 0.8);
+  // Treble → star collect radius (1.0 quiet to 0.4 loud treble)
+  collectRadiusMod = Math.max(0.4, 1.0 - trebleSm * 0.8);
 }
 function tone(freq, dur, type, vol) {
   if (!audioCtx) return;
@@ -659,7 +678,7 @@ document.addEventListener('keydown', function(e) {
   }
   if (state === ST_FLY) {
     // Mid-flight thrust corrections
-    if (probe && probe.alive && fuel >= thrustCost * getRank().thrustCostMult) {
+    if (probe && probe.alive && fuel >= thrustCost * getRank().thrustCostMult * fuelBurnMod) {
       var thrustX = 0, thrustY = 0, fired = false;
       var tPower = thrustPower * getRank().thrustMult;
       if (e.key === 'ArrowUp') { thrustY = -tPower; fired = true; }
@@ -669,7 +688,7 @@ document.addEventListener('keydown', function(e) {
       if (fired) {
         probe.vx += thrustX;
         probe.vy += thrustY;
-        fuel -= thrustCost * getRank().thrustCostMult;
+        fuel -= thrustCost * getRank().thrustCostMult * fuelBurnMod;
         thrustFlash = 15;
         thrustDir = { x: thrustX, y: thrustY };
         tone(440, 0.08, 'triangle', 0.1);
@@ -1099,14 +1118,19 @@ function drawHUD() {
     ctx.textAlign = 'right';
     ctx.fillText('Best: ' + (bestSystem || ('Lvl ' + bestLevel)), W - 12, 30);
   }
-  // Mic gravity indicator
+  // Spectral mic indicators
   if (micActive) {
-    var gPct = Math.round(gravityMod * 100);
+    ctx.font = '600 11px -apple-system, sans-serif';
+    ctx.textAlign = 'left';
     var gColor = gravityMod > 1.1 ? '#f44' : gravityMod < 0.9 ? '#4f8' : '#888';
     ctx.fillStyle = gColor;
-    ctx.font = '600 12px -apple-system, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('🎤 G:' + gPct + '%', 12, 46);
+    ctx.fillText('🪐' + Math.round(gravityMod * 100) + '%', 12, 42);
+    var fColor = fuelBurnMod > 1.2 ? '#f84' : '#888';
+    ctx.fillStyle = fColor;
+    ctx.fillText('⛽' + Math.round(fuelBurnMod * 100) + '%', 12, 56);
+    var cColor = collectRadiusMod < 0.8 ? '#fa4' : '#888';
+    ctx.fillStyle = cColor;
+    ctx.fillText('⭐' + Math.round(collectRadiusMod * 100) + '%', 12, 70);
   } else if (!micFailed) {
     ctx.fillStyle = '#444';
     ctx.font = '11px -apple-system, sans-serif';
@@ -1150,7 +1174,7 @@ function drawTitle() {
   ctx.font = '13px -apple-system, sans-serif';
   ctx.fillStyle = '#667';
   ctx.fillText('D-pad mid-flight for thrust corrections', W / 2, H / 2 + 68);
-  ctx.fillText('🎤 Ambient sound warps gravity', W / 2, H / 2 + 86);
+  ctx.fillText('🎤 Bass\u2192gravity Mid\u2192fuel Treble\u2192reach', W / 2, H / 2 + 86);
   ctx.fillText('Watch for wormholes and anomalies...', W / 2, H / 2 + 104);
 
   // Rank display
@@ -1335,7 +1359,7 @@ function update() {
       for (var i = 0; i < stars.length; i++) {
         if (stars[i].collected) continue;
         var dx = probe.x - stars[i].x, dy = probe.y - stars[i].y;
-        if (Math.sqrt(dx * dx + dy * dy) < 18 * getRank().magnetMult) {
+        if (Math.sqrt(dx * dx + dy * dy) < 18 * getRank().magnetMult * collectRadiusMod) {
           stars[i].collected = true;
           starsCollected++;
           sndStar();
