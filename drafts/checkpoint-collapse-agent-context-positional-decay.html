@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agents Lose 30% of Their Working Memory to Positional Decay. Bigger Context Windows Make It Worse.</title>
+    <meta name="description" content="Chroma tested 18 frontier models and found systematic accuracy degradation as context length increases, even on trivially simple tasks. For always-on agents averaging 50 tool calls per task, 60% of their operational context sits in a memory graveyard where retrieval accuracy plummets.">
+    <link rel="stylesheet" href="../story.css">
+</head>
+<body>
+<article class="story-page">
+    <header>
+        <div class="story-kicker">🤖 Robotics</div>
+        <h1>AI Agents Lose 30% of Their Working Memory to Positional Decay. Bigger Context Windows Make It Worse.</h1>
+        <p class="story-deck">Chroma tested 18 frontier models and found systematic accuracy loss as context grows, even on trivially simple tasks. For always-on agents running 50 tool calls per task, 60% of their intermediate reasoning sits in a positional dead zone. The industry shipped million-token windows anyway.</p>
+    </header>
+
+    <img src="checkpoint-collapse-agent-context-positional-decay.jpg?v=442be8a9" alt="An abstract visualization of fading memory in a neural network, tokens dissolving from the middle of a long sequence while the first and last tokens glow brightly, rendered in cold blue and warm amber tones" class="story-hero">
+
+    <div class="story-byline">
+        <span class="author">Kai Nakamura</span> · <span class="beat">AI Systems</span>
+    </div>
+    <time datetime="2026-08-08">August 8, 2026</time>
+
+    <div class="story-body">
+
+        <p>Thirty percent. That's how much accuracy drops when an AI assistant retrieves information from its own conversation history rather than a short prompt, according to the <a href="https://pub.towardsai.net/ai-agents-have-amnesia-a-bigger-context-window-wont-cure-it-dea937c4a58e">LongMemEval benchmark</a>, and on the hardest retrieval tasks the figure climbs to 60%, not from adversarial inputs or trick questions but from the model simply being asked to recall something it was told earlier in the same session.</p>
+
+        <p><a href="https://arxiv.org/abs/2307.03172v3">Liu et al. (2023)</a> named it "lost in the middle" after documenting a U-shaped performance curve across more than ten language models: information placed at the beginning and end of a context window is retrieved accurately, while information in the middle is systematically overlooked. In one striking result, the 13-billion-parameter Llama-2 model showed a 20-point accuracy gap between the best and worst positions in its context window when answering identical questions with identical answers that differed only in where the relevant document sat within the input sequence.</p>
+
+        <p>For a chatbot answering a single question, this is tolerable. For an always-on agent running autonomously for hours, making decisions based on information accumulated across dozens of tool calls, where each intermediate result feeds the next, it is structural brain damage.</p>
+
+        <h2>Not a Bug, an Emergent Property</h2>
+
+        <p><a href="https://www.mongodb.com/company/blog/technical/why-multi-agent-systems-need-memory-engineering">Chroma's 2026 evaluation</a> tested 18 frontier models, including GPT-4.1, Claude 4, and Gemini 2.5, on what they call "context rot": systematic accuracy degradation as input length increases, measured on tasks as basic as text replication, with performance dropping non-uniformly across context lengths and worsening sharply when distractor content was present. In multi-agent environments, one agent's degraded context pollutes the next agent's input, creating cascading failures that compound with each handoff.</p>
+
+        <p><a href="https://arxiv.org/abs/2510.10276v1">Salvatore, Wang, and Zhang (2025)</a> proved the U-shaped curve is not fixable at the prompting layer. It emerges from how transformers learn retrieval during pre-training: short-term memory demands produce recency bias, long-term demands produce both recency and primacy bias, and the combination is amplified by autoregressive generation mechanics and "attention sinks," initial tokens that absorb disproportionate attention regardless of their semantic content. Fixing this requires retraining from scratch, not adding more tokens to the window.</p>
+
+        <h2>Two Calls and the Window Is Full</h2>
+
+        <p>Here is where the research collides with production reality. <a href="https://www.mongodb.com/company/blog/technical/why-multi-agent-systems-need-memory-engineering">Manus AI's production data</a> shows agents solving complex tasks average 50 tool calls per task with a 100:1 input-to-output token ratio, meaning each call ingests roughly 100,000 tokens of context for every 1,000 tokens of output, which means a 128K context window fills completely after one or two calls, leaving the remaining 48 calls to operate on context that has been compressed, evicted, or simply overwritten by whatever came next.</p>
+
+        <p><a href="https://arxiv.org/html/2602.22603">SideQuest (2026)</a>, a research paper on KV cache management for agentic reasoning, found that existing compression methods are "ill-suited for the dynamic nature of agentic reasoning." Heavy-hitter approaches like H₂O, SnapKV, and StreamingLLM assume a token's past importance predicts its future relevance, but in agent workflows that evolve through multi-round tool-calling and reflection, that premise breaks. "A low-importance token in an early reasoning step may suddenly become critical for a synthesis step ten turns later." Premature pruning produces reasoning failures that are, in the researchers' words, "difficult to debug."</p>
+
+        <h2>The Middle-Session Memory Graveyard</h2>
+
+        <p>Combine these findings and a pattern appears that nobody seems to be calculating. Take an agent performing 50 tool calls on a 128K window: calls 1 through 3 establish the task setup and sit at the beginning of the agent's operational history, where primacy bias protects them, while calls 47 through 50 represent current reasoning, where recency bias protects them. Calls 10 through 40 sit in no one's protective zone.</p>
+
+        <p>That is 60% of the agent's actual work living in Liu et al.'s U-curve valley, where retrieval accuracy drops by 20 points or more. The edge case discovered on call 15, the constraint learned on call 22, the partial result computed on call 31. Not deleted. Present but unreachable, occupying space in the window while contributing nothing to retrieval, a memory the model pays to keep but cannot use.</p>
+
+        <p>At enterprise scale, the cost compounds: context tokens run $0.30 to $3.00 per million across major providers, and an agent burning 5 million input tokens across 50 tool calls spends $1.50 to $15.00 per task. If 60% sits in the graveyard, the enterprise pays full price for context the model can barely retrieve. A thousand agents running ten tasks daily generates $9,000 to $90,000 per day in degraded-context overhead, not inference cost but the electricity bill for rooms nobody enters.</p>
+
+        <h2>Bigger Makes It Worse</h2>
+
+        <p>Marketing copy sells context length as capability. Million-token windows. But Liu et al. found "performance substantially decreases as the input context grows longer, even for explicitly long-context models," and Chroma confirmed this finding at frontier scale across GPT-4.1, Claude 4, and Gemini 2.5. Bigger windows do not shrink the graveyard. A 128K window has roughly 96K tokens in the decay zone; a million-token window, governed by identical attention mechanics, puts 750,000 tokens there, which means more room for information the model will struggle to retrieve precisely when retrieval matters most.</p>
+
+        <h2>Strongest Counterargument</h2>
+
+        <p><a href="https://arxiv.org/abs/2311.09198v1">He et al. (2023)</a> showed that targeted fine-tuning with attention-strengthening data can reduce the lost-in-the-middle effect by 13.7% in shuffled settings and 21.5% in passage retrieval, suggesting newer models may embed these techniques natively. Anthropic's Claude Opus-class models anecdotally show less positional bias than prior generations. If training-time fixes keep narrowing the gap, the graveyard zone may shrink to manageable size, and that possibility deserves real weight. But Chroma tested this generation's best and still found systematic degradation, which means the improvement curve has not yet intersected the problem curve for production agent workloads.</p>
+
+        <h2>Limitations</h2>
+
+        <p>This analysis maps benchmark findings from multi-document QA and key-value retrieval onto production agent behavior, and real agents actively reason over context rather than passively storing it, which could amplify or partially offset positional effects depending on architecture. Manus's 100:1 ratio is self-reported from a single company. The "60% graveyard" figure assumes Liu et al.'s U-curve applies uniformly to agent context, which has not been directly measured in that specific configuration.</p>
+
+        <h2>What You Can Do</h2>
+
+        <p>If you are building agents: implement <a href="https://arxiv.org/html/2601.18642">tiered memory</a> that separates episodic memory (what happened this session), semantic memory (persistent user facts), and procedural memory (recurring task patterns) into distinct stores with different retention policies, because FadeMem's Ebbinghaus-inspired forgetting curves, where unaccessed memories decay exponentially while reinforced ones persist, consistently outperform the binary keep-or-evict heuristics that ship by default.</p>
+
+        <p>If you are evaluating agents: test retrieval accuracy at different session depths separately, not as an aggregate score, because accuracy at call 3 versus call 30 will reveal the graveyard that averages hide.</p>
+
+        <p>If you are buying context window capacity: know that you are paying for storage, not recall. Until positional decay is solved at the architecture level, the effective context window for reliable agent retrieval is closer to 30-40% of the advertised number. Budget accordingly.</p>
+
+    </div>
+
+    <section class="related-stories">
+        <h3>Related</h3>
+        <ul>
+            <li><a href="sleeper-memory-poisoning-ai-agents-permanent-corruption.html">Sleeper Memory Poisoning: AI Agent Permanent Corruption</a></li>
+            <li><a href="enterprise-agent-reliability-gap-290gw-power-demand.html">Only 5% of Enterprises Have Scaled AI Agents. The Industry Is Building 290 Gigawatts of Data Centers for the Other 95%.</a></li>
+            <li><a href="ai-agent-monitoring-gap-365x-speed-asymmetry.html">92% of Organizations Can't See Their AI Agents. Attackers Need 27 Seconds.</a></li>
+        </ul>
+    </section>
+
+    <p class="story-source">Inspired by <a href="https://www.moltbook.com">Moltbook</a> discussion on checkpoint collapse.</p>
+</article>
+<script src="../nav.js"></script>
+<script src="../story.js"></script>
+</body>
+</html>
