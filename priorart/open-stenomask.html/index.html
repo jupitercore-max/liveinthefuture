@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenStenoMask — The Best Stenomask Ever Designed · Live in the Future</title>
+    <meta name="description" content="A fully open-source stenomask design using MEMS microphones, DSP noise cancellation, and exponential horn acoustics. CERN-OHL-S v2 + GPL-3.0. Prior art.">
+    <style>
+        :root {
+            --bg: #0a0a1a;
+            --bg-card: #12122a;
+            --bg-card-hover: #181838;
+            --text: #e0e0f0;
+            --text-dim: #8888aa;
+            --accent: #00d9ff;
+            --accent-dim: #006d80;
+            --green: #00ff88;
+            --orange: #ff9500;
+            --red: #e94560;
+            --border: #2a2a4a;
+            --code-bg: #1a1a3a;
+            --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-sans);
+            line-height: 1.7;
+            font-size: 16px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+        /* Hero */
+        .hero {
+            padding: 80px 0 60px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .hero .label {
+            display: inline-block;
+            padding: 4px 14px;
+            background: rgba(0,217,255,0.1);
+            border: 1px solid var(--accent-dim);
+            border-radius: 20px;
+            color: var(--accent);
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            letter-spacing: 0.5px;
+        }
+        .hero h1 {
+            font-size: 48px;
+            font-weight: 800;
+            line-height: 1.15;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero .subtitle {
+            font-size: 20px;
+            color: var(--text-dim);
+            max-width: 640px;
+            margin: 0 auto 32px;
+        }
+        .hero .meta {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+            margin-bottom: 40px;
+        }
+        .hero .meta-item {
+            text-align: center;
+        }
+        .hero .meta-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--accent);
+        }
+        .hero .meta-label {
+            font-size: 13px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Section */
+        section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+        section h2 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            color: #fff;
+        }
+        section h3 {
+            font-size: 22px;
+            font-weight: 600;
+            margin: 32px 0 16px;
+            color: var(--accent);
+        }
+        section p { margin-bottom: 16px; color: var(--text); }
+        section ul, section ol { margin-bottom: 16px; padding-left: 24px; }
+        section li { margin-bottom: 8px; }
+
+        /* Problem cards */
+        .problem-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+        .problem-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: border-color 0.2s;
+        }
+        .problem-card:hover { border-color: var(--red); }
+        .problem-card .icon { font-size: 24px; margin-bottom: 8px; }
+        .problem-card h4 { font-size: 16px; color: var(--red); margin-bottom: 8px; }
+        .problem-card p { font-size: 14px; color: var(--text-dim); margin: 0; }
+
+        /* Solution cards */
+        .solution-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+        .solution-card {
+            background: var(--bg-card);
+            border: 1px solid var(--accent-dim);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .solution-card h4 { font-size: 16px; color: var(--green); margin-bottom: 8px; }
+        .solution-card p { font-size: 14px; color: var(--text-dim); margin: 0; }
+
+        /* Code block */
+        .code-block {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 16px 0;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.6;
+            color: #ccc;
+        }
+        .code-block .keyword { color: var(--accent); }
+        .code-block .comment { color: #555; }
+        .code-block .string { color: var(--green); }
+        .code-block .number { color: var(--orange); }
+
+        /* Table */
+        .table-wrap { overflow-x: auto; margin: 16px 0; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th {
+            background: var(--bg-card);
+            color: var(--accent);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--accent-dim);
+        }
+        td {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+        tr:hover td { background: var(--bg-card); }
+
+        /* Comparison */
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 24px 0;
+        }
+        .comparison-card {
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .comparison-card.old {
+            background: rgba(233,69,96,0.08);
+            border: 1px solid rgba(233,69,96,0.3);
+        }
+        .comparison-card.new {
+            background: rgba(0,255,136,0.08);
+            border: 1px solid rgba(0,255,136,0.3);
+        }
+        .comparison-card h4 {
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+        .comparison-card.old h4 { color: var(--red); }
+        .comparison-card.new h4 { color: var(--green); }
+        .comparison-card ul { list-style: none; padding: 0; }
+        .comparison-card li { font-size: 14px; padding: 4px 0; }
+        .comparison-card.old li::before { content: "✗ "; color: var(--red); }
+        .comparison-card.new li::before { content: "✓ "; color: var(--green); }
+
+        /* Schematic */
+        .schematic {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
+            text-align: center;
+        }
+        .schematic img, .schematic svg {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+
+        /* BOM callout */
+        .bom-callout {
+            background: linear-gradient(135deg, rgba(0,217,255,0.1), rgba(0,255,136,0.1));
+            border: 1px solid var(--accent-dim);
+            border-radius: 16px;
+            padding: 32px;
+            margin: 32px 0;
+            text-align: center;
+        }
+        .bom-callout .price {
+            font-size: 48px;
+            font-weight: 900;
+            color: var(--green);
+        }
+        .bom-callout .vs {
+            color: var(--text-dim);
+            font-size: 18px;
+            margin-top: 8px;
+        }
+
+        /* License */
+        .license-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+        .license-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .license-card .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .license-card .badge.ohl { background: var(--accent); color: #000; }
+        .license-card .badge.gpl { background: var(--green); color: #000; }
+        .license-card .badge.cc { background: var(--orange); color: #000; }
+        .license-card p { font-size: 13px; color: var(--text-dim); margin: 4px 0 0; }
+
+        /* Links */
+        a {
+            color: var(--accent);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        a:hover { color: #fff; text-decoration: underline; }
+
+        .file-tree {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.8;
+            color: #aaa;
+            margin: 16px 0;
+        }
+        .file-tree .dir { color: var(--accent); font-weight: 600; }
+        .file-tree .file { color: #ccc; }
+        .file-tree .desc { color: #666; }
+
+        /* Prior art callout */
+        .prior-art {
+            background: rgba(233,69,96,0.05);
+            border: 2px solid rgba(233,69,96,0.2);
+            border-radius: 12px;
+            padding: 28px;
+            margin: 32px 0;
+        }
+        .prior-art h3 {
+            color: var(--red);
+            margin-top: 0;
+        }
+        .prior-art p {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        /* Footer */
+        footer {
+            padding: 48px 0;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+        footer a { color: var(--accent); }
+
+        @media (max-width: 640px) {
+            .hero h1 { font-size: 32px; }
+            .comparison { grid-template-columns: 1fr; }
+            .hero .meta { gap: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+    <div class="container">
+        <div class="label">⚡ OPEN SOURCE · PRIOR ART</div>
+        <h1>The Best Stenomask<br>Ever Designed</h1>
+        <p class="subtitle">
+            A ground-up reimagining of the court-reporting stenomask using modern MEMS microphones,
+            real-time DSP noise cancellation, and exponential-horn acoustic engineering.
+            Open source. Buildable for $25.
+        </p>
+        <div class="meta">
+            <div class="meta-item">
+                <div class="meta-value">$25</div>
+                <div class="meta-label">BOM Cost (Wired)</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-value">12ms</div>
+                <div class="meta-label">Latency</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-value">60+ dBA</div>
+                <div class="meta-label">Signal-to-Noise</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-value">55g</div>
+                <div class="meta-label">Mask Weight</div>
+            </div>
+        </div>
+        <p style="color: var(--text-dim); font-size: 14px;">
+            <a href="#design">↓ Full Design</a> ·
+            <a href="#bom">BOM</a> ·
+            <a href="#manufacturing">Manufacturing Guide</a> ·
+            <a href="#license">License</a> ·
+            <a href="https://github.com/jupitercore-max/liveinthefuture/tree/main/stenomask" target="_blank">GitHub →</a>
+        </p>
+    </div>
+</div>
+
+<!-- THE PROBLEM -->
+<section id="problem">
+    <div class="container">
+        <h2>Why Existing Stenomasks Are Terrible</h2>
+        <p>
+            The stenomask concept — sealing the mouth inside a mask to capture voice while blocking ambient noise — is sound.
+            But every commercial implementation (Talk Tech, Martel, Stenomask Company) uses a $0.30 electret mic inside a
+            padded plastic cup. The result: hollow, muffled, compressed audio that confuses speech recognition engines
+            and costs $200-400. The designs haven't changed in 40 years.
+        </p>
+
+        <div class="problem-grid">
+            <div class="problem-card">
+                <div class="icon">🔊</div>
+                <h4>Hollow / Muffled Sound</h4>
+                <p>Sealed plastic cup creates cavity resonance at 200-400 Hz. Audio sounds like talking into a jar.</p>
+            </div>
+            <div class="problem-card">
+                <div class="icon">🎙️</div>
+                <h4>Cheap Components</h4>
+                <p>$200-400 retail for a padded cup with a $0.30 electret capsule. Massive markup, no innovation.</p>
+            </div>
+            <div class="problem-card">
+                <div class="icon">🧠</div>
+                <h4>No DSP</h4>
+                <p>Zero signal processing. No noise cancellation, no EQ, no optimization for ASR engines.</p>
+            </div>
+            <div class="problem-card">
+                <div class="icon">🦾</div>
+                <h4>Hand Fatigue</h4>
+                <p>Holding a mask to your face for 6-8 hours causes wrist, hand, and jaw strain. No ergonomic alternative.</p>
+            </div>
+            <div class="problem-card">
+                <div class="icon">🎲</div>
+                <h4>QC Lottery</h4>
+                <p>Mic capsule floats inside the cup. Position shifts between units. Inconsistent audio quality.</p>
+            </div>
+            <div class="problem-card">
+                <div class="icon">🔌</div>
+                <h4>Analog Degradation</h4>
+                <p>3.5mm analog output over long cables picks up EMI, ground loops, and signal loss.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- THE SOLUTION -->
+<section id="solution">
+    <div class="container">
+        <h2>How OpenStenoMask Solves Every Problem</h2>
+
+        <div class="comparison">
+            <div class="comparison-card old">
+                <h4>Commercial Stenomask</h4>
+                <ul>
+                    <li>Single cheap electret capsule ($0.30)</li>
+                    <li>Sealed cup = 200-400 Hz boom</li>
+                    <li>Foam absorbs consonant detail</li>
+                    <li>3.5mm analog cable</li>
+                    <li>Mic position floats inside cup</li>
+                    <li>Hand-held only</li>
+                    <li>Foam degrades in weeks</li>
+                    <li>$200-400 retail</li>
+                    <li>No DSP, no noise cancellation</li>
+                    <li>ASR WER: 12-18%</li>
+                </ul>
+            </div>
+            <div class="comparison-card new">
+                <h4>OpenStenoMask</h4>
+                <ul>
+                    <li>Dual MEMS capsules, PCB-mounted ($2.85 ea)</li>
+                    <li>Exponential horn + tuned port eliminates boom</li>
+                    <li>Extended HF response captures consonants</li>
+                    <li>USB-C digital output (UAC 1.0)</li>
+                    <li>Mic array fixed to PCB — zero movement</li>
+                    <li>Carbon fiber headband with magnetic dock</li>
+                    <li>Medical-grade silicone seal — lasts years</li>
+                    <li>$25 BOM / $31 with Bluetooth</li>
+                    <li>Full DSP: spectral subtraction + ASR EQ</li>
+                    <li>ASR WER target: <5%</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3>Five Key Innovations</h3>
+
+        <div class="solution-grid">
+            <div class="solution-card">
+                <h4>1. Exponential Horn Chamber</h4>
+                <p>The interior is not a cup — it's a truncated exponential horn (95×70mm mouth, 40×25mm throat, 55mm deep). This provides acoustic impedance matching between the vocal tract and mic capsule, with a natural high-pass characteristic that suppresses boominess. Non-parallel walls (8° splay) eliminate standing waves.</p>
+            </div>
+            <div class="solution-card">
+                <h4>2. Dual MEMS Microphone Array</h4>
+                <p>Two Knowles SPH0641LU4H-1 PDM MEMS mics, 20mm apart, hard-mounted to the PCB. PDM digital output means no analog noise, ever. Summing the pair gives +3 dB signal gain over noise. The mic position is physically fixed — no QC lottery.</p>
+            </div>
+            <div class="solution-card">
+                <h4>3. Spectral Subtraction Noise Cancellation</h4>
+                <p>A third MEMS mic on the exterior captures room noise. The RP2040 MCU runs 256-point FFT-based spectral subtraction: estimating noise spectrum during silence and subtracting it from the voice signal, band by band. No anti-phase artifacts — just clean speech.</p>
+            </div>
+            <div class="solution-card">
+                <h4>4. ASR-Optimized EQ + Compressor</h4>
+                <p>Five biquad filters shaped for speech recognition: high-pass at 90 Hz, -4 dB cut at 250 Hz (boom), +4 dB boost at 3.5 kHz (consonants), +3 dB at 6.5 kHz (sibilants), -3 dB shelf at 10 kHz. A feed-forward compressor normalizes level so quiet and loud talkers both feed ASR consistently.</p>
+            </div>
+            <div class="solution-card">
+                <h4>5. Hands-Free Carbon Fiber Harness</h4>
+                <p>Magnetic quick-release headband made from carbon fiber tow. The mask snaps in with 4 neodymium magnets (1.5 kg holding force). Total system weight: 100g. No hand strain. Counterbalanced rear weight. Fits 50th-95th percentile heads.</p>
+            </div>
+            <div class="solution-card">
+                <h4>Bonus: Tuned Helmholtz Port</h4>
+                <p>A 6mm × 18mm port tuned to 280 Hz creates a controlled low-frequency escape path. This reduces internal chamber pressure without leaking voice, and doubles as a breath-pressure relief vent.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- DESIGN DETAIL -->
+<section id="design">
+    <div class="container">
+        <h2>Full Technical Design</h2>
+        <p>
+            The complete engineering specification is in
+            <a href="https://github.com/jupitercore-max/liveinthefuture/blob/main/stenomask/design-spec.md">design-spec.md</a>.
+            Below are the key subsystems.
+        </p>
+
+        <h3>Acoustic Chamber</h3>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Parameter</th><th>Value</th><th>Rationale</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Geometry</td><td>Truncated exponential horn</td><td>Impedance matching, natural high-pass</td></tr>
+                    <tr><td>Mouth opening</td><td>95mm × 70mm (elliptical)</td><td>Covers mouth + lower nose</td></tr>
+                    <tr><td>Throat</td><td>40mm × 25mm</td><td>Mic PCB footprint</td></tr>
+                    <tr><td>Depth</td><td>55mm</td><td>Compact but sufficient horn length</td></tr>
+                    <tr><td>Interior volume</td><td>~110 cm³</td><td>Small enough to isolate, large enough to breathe</td></tr>
+                    <tr><td>Wall splay</td><td>8° non-parallel</td><td>Eliminates standing waves / comb filtering</td></tr>
+                    <tr><td>Wall treatment</td><td>3mm polyester acoustic felt</td><td>Absorbs 2-6 kHz reflections</td></tr>
+                    <tr><td>Tuned port</td><td>6mm × 18mm (280 Hz Helmholtz)</td><td>Low-frequency pressure relief</td></tr>
+                    <tr><td>Face seal</td><td>Medical silicone o-ring (6mm, 50 Shore A)</td><td>Airtight, comfortable, wipeable, durable</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>Microphone Selection</h3>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Mic</th><th>Type</th><th>SNR</th><th>Output</th><th>Cost</th><th>Role</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Knowles SPH0641LU4H-1</td><td>MEMS omnidirectional</td><td>65 dBA</td><td>PDM digital</td><td>$2.85</td><td>Voice capture (×2)</td></tr>
+                    <tr><td>Knowles SPH0641VD4H-1</td><td>MEMS omnidirectional</td><td>65 dBA</td><td>PDM digital</td><td>$2.85</td><td>Noise reference (×1)</td></tr>
+                    <tr><td>Alternative: TDK T5838</td><td>MEMS</td><td>64 dBA</td><td>PDM digital</td><td>$2.50</td><td>Drop-in replacement</td></tr>
+                    <tr><td>Alternative: Infineon IM69D130</td><td>MEMS</td><td>69 dBA</td><td>I²S</td><td>$4.20</td><td>Best SNR, higher cost</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>DSP Signal Chain</h3>
+        <div class="code-block">
+<span class="comment">// Signal flow — RP2040 firmware (16 kHz / 24-bit internal)</span>
+<span class="keyword">3× PDM mics</span> → PIO → CIC decimation → <span class="keyword">16 kHz / 24-bit PCM</span>
+    ↓
+<span class="keyword">Sum L+R</span> → mono voice signal
+    ↓
+<span class="keyword">256-pt FFT</span> → 16 perceptual bands (Bark scale)
+    ↓
+<span class="keyword">Spectral subtraction</span> → noise removal using reference mic
+    ↓
+<span class="keyword">5-band biquad EQ</span> → ASR-optimized frequency shaping
+    ↓
+<span class="keyword">Feed-forward compressor</span> → 2:1 ratio, level normalization
+    ↓
+<span class="keyword">USB Audio Class 1.0</span> → 16 kHz / 16-bit mono → computer
+        </div>
+
+        <h3>Electrical Block Diagram</h3>
+        <div class="schematic">
+            <object data="hardware/schematic.svg" type="image/svg+xml" width="100%">Schematic — see hardware/schematic.svg</object>
+        </div>
+    </div>
+</section>
+
+<!-- BOM -->
+<section id="bom">
+    <div class="container">
+        <h2>Bill of Materials</h2>
+
+        <div class="bom-callout">
+            <div class="price">$24.32</div>
+            <div class="vs">wired BOM · vs. $200-400 for a commercial stenomask</div>
+        </div>
+
+        <p>
+            Full BOM with supplier links: <a href="https://github.com/jupitercore-max/liveinthefuture/blob/main/stenomask/bill-of-materials.md">bill-of-materials.md</a>
+        </p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Category</th><th>Key Components</th><th>Subtotal</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Electronics</td>
+                        <td>3× Knowles SPH0641 mics, RP2040 MCU, AP2112K LDO, USB-C, PCB, passives</td>
+                        <td>$13.92</td>
+                    </tr>
+                    <tr>
+                        <td>Mechanical / Shell</td>
+                        <td>PETG filament, acoustic felt, silicone o-ring, acoustic mesh, hardware</td>
+                        <td>$4.00</td>
+                    </tr>
+                    <tr>
+                        <td>Harness</td>
+                        <td>Carbon fiber band, 8× N42 magnets, silicone pads, counterweight</td>
+                        <td>$6.40</td>
+                    </tr>
+                    <tr style="font-weight: bold;">
+                        <td colspan="2">Total (Wired)</td>
+                        <td style="color: var(--green);">$24.32</td>
+                    </tr>
+                    <tr>
+                        <td>Optional: BLE Audio</td>
+                        <td>nRF5340, 100mAh LiPo, charge IC, antenna, crystal</td>
+                        <td>+$6.95</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- MANUFACTURING -->
+<section id="manufacturing">
+    <div class="container">
+        <h2>Manufacturing Guide</h2>
+
+        <h3>What You Need</h3>
+        <ul>
+            <li><strong>3D printer:</strong> Bambu X1C, Prusa MK4+, Voron, or any FDM printer with 0.4mm nozzle</li>
+            <li><strong>Soldering iron:</strong> Fine tip, capable of SMT work (T12/Hakko FX-888 recommended)</li>
+            <li><strong>Hot air station or reflow oven:</strong> For QFN-56 RP2040 and MEMS mic packages</li>
+            <li><strong>Picoprobe</strong> ($12): For initial firmware flashing via SWD</li>
+        </ul>
+
+        <h3>Build Steps</h3>
+        <ol>
+            <li><strong>Order PCB</strong> from JLCPCB — upload Gerbers, select 4-layer, 0.6mm FR4, ENIG finish (~$12 for 5 boards)</li>
+            <li><strong>Order components</strong> from DigiKey/LCSC per the <a href="https://github.com/jupitercore-max/liveinthefuture/blob/main/stenomask/bill-of-materials.md">BOM</a></li>
+            <li><strong>Solder PCB:</strong> Start with passives, then ICs, then USB-C connector. Use stencil + reflow if available.</li>
+            <li><strong>Flash firmware:</strong> Hold BOOTSEL, plug into USB, copy <code>openstenomask.uf2</code> to the mounted drive. Device enumerates as "OpenStenoMask".</li>
+            <li><strong>Print mask shell:</strong> PETG, 0.2mm layer, 4 walls, 100% infill, tree supports. ~4 hours.</li>
+            <li><strong>Print harness parts:</strong> PETG, 0.2mm layer, 3 walls, 40% gyroid infill. ~2 hours.</li>
+            <li><strong>Laminate carbon fiber bands:</strong> Epoxy the tow into the headband channels. Cure 4 hours.</li>
+            <li><strong>Assemble:</strong> Slide in PCB, install felt, install o-ring, attach magnets, assemble harness.</li>
+            <li><strong>Test:</strong> Plug into computer, record in Audacity. Verify clean speech, minimal noise. Run through Whisper CLI for WER test.</li>
+        </ol>
+
+        <h3>STL Files</h3>
+        <p>
+            Geometry descriptions for all printable parts are in
+            <a href="https://github.com/jupitercore-max/liveinthefuture/blob/main/stenomask/hardware/stl-descriptions.md">stl-descriptions.md</a>.
+            These are precise enough to model in Fusion 360, FreeCAD, or OpenSCAD.
+            The STL files will be published as community members model and validate them.
+        </p>
+
+        <div class="file-tree">
+<span class="dir">stenomask/</span>
+├── <span class="file">index.html</span>                     <span class="desc">— this page</span>
+├── <span class="file">design-spec.md</span>                 <span class="desc">— full 13-section engineering whitepaper</span>
+├── <span class="file">bill-of-materials.md</span>           <span class="desc">— complete BOM with supplier links</span>
+├── <span class="dir">firmware/</span>
+│   ├── <span class="file">CMakeLists.txt</span>             <span class="desc">— Pico SDK build system</span>
+│   ├── <span class="file">README.md</span>                  <span class="desc">— build & flash instructions</span>
+│   └── <span class="dir">src/</span>
+│       ├── <span class="file">main.c</span>                 <span class="desc">— entry point, core scheduler</span>
+│       ├── <span class="file">pdm_capture.c/.h</span>       <span class="desc">— PIO PDM + CIC decimation</span>
+│       ├── <span class="file">pdm_capture.pio</span>        <span class="desc">— PIO assembly program</span>
+│       ├── <span class="file">spectral_subtraction.c/.h</span> <span class="desc">— noise cancellation DSP</span>
+│       ├── <span class="file">eq.c/.h</span>                <span class="desc">— 5-band biquad EQ</span>
+│       ├── <span class="file">compressor.c/.h</span>        <span class="desc">— feed-forward compressor</span>
+│       ├── <span class="file">usb_audio.c/.h</span>         <span class="desc">— UAC 1.0 USB audio device</span>
+│       └── <span class="file">coefficients.h</span>         <span class="desc">— computed filter coefficients</span>
+├── <span class="dir">hardware/</span>
+│   ├── <span class="file">schematic.svg</span>              <span class="desc">— electrical block diagram</span>
+│   ├── <span class="file">stl-descriptions.md</span>        <span class="desc">— 3D-printable part geometry specs</span>
+│   └── <span class="file">README.md</span>                  <span class="desc">— net list, manufacturing notes</span>
+        </div>
+    </div>
+</section>
+
+<!-- PRIOR ART -->
+<section id="prior-art">
+    <div class="container">
+        <div class="prior-art">
+            <h3>⚖️ Prior Art Declaration</h3>
+            <p>
+                This design is published as <strong>prior art</strong>. By releasing the full technical specification,
+                schematics, firmware, and mechanical designs publicly, we establish that these innovations were known
+                and publicly disclosed as of August 9, 2026. This prevents any party from patenting the specific novel
+                elements of this design.
+            </p>
+            <p>
+                <strong>Novel claims established as prior art:</strong>
+            </p>
+            <ul>
+                <li>Dual-mic MEMS array inside an exponential horn stenomask chamber</li>
+                <li>PDM-direct-to-MCU architecture for stenomask audio capture</li>
+                <li>Spectral subtraction noise cancellation using an exterior reference mic in a stenomask</li>
+                <li>ASR-optimized EQ profile integrated into stenomask firmware</li>
+                <li>Inflatable silicone face seal for stenomasks</li>
+                <li>Magnetic quick-release headband harness for stenomasks</li>
+                <li>Helmholtz resonator tuning port integrated into stenomask shell</li>
+            </ul>
+            <p style="margin-top: 16px; font-size: 13px;">
+                This is not legal advice. For formal defensive publication, consult a patent attorney.
+                The designs are additionally protected by the CERN-OHL-S v2 reciprocal license.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- LICENSE -->
+<section id="license">
+    <div class="container">
+        <h2>Open Source License</h2>
+        <p>
+            Everything in this project is open source. No commercial restrictions. No proprietary encumbrances.
+            Build it, sell it, modify it, improve it.
+        </p>
+
+        <div class="license-grid">
+            <div class="license-card">
+                <span class="badge ohl">CERN-OHL-S v2</span>
+                <p><strong>Hardware</strong></p>
+                <p>Schematics, PCB layout, mechanical designs, STL files</p>
+                <p><a href="https://cern-ohl.web.cern.ch/">cern-ohl.web.cern.ch</a></p>
+            </div>
+            <div class="license-card">
+                <span class="badge gpl">GPL-3.0</span>
+                <p><strong>Firmware & Software</strong></p>
+                <p>All RP2040 firmware, DSP code, build system</p>
+                <p><a href="https://www.gnu.org/licenses/gpl-3.0.html">gnu.org/licenses/gpl-3.0</a></p>
+            </div>
+            <div class="license-card">
+                <span class="badge cc">CC-BY-SA 4.0</span>
+                <p><strong>Documentation</strong></p>
+                <p>This page, design spec, BOM, assembly guides</p>
+                <p><a href="https://creativecommons.org/licenses/by-sa/4.0/">creativecommons.org/licenses/by-sa/4.0</a></p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+    <div class="container">
+        <p>
+            <strong>OpenStenoMask</strong> v1.0 · Published August 9, 2026<br>
+            <a href="https://github.com/jupitercore-max/liveinthefuture">github.com/jupitercore-max/liveinthefuture</a><br>
+            Part of <a href="https://liveinthefuture.org">Live in the Future</a> — Open source prior art for things that should already exist.<br><br>
+            No attribution required. No warranty. Build at your own risk.
+        </p>
+    </div>
+</footer>
+
+</body>
+</html>

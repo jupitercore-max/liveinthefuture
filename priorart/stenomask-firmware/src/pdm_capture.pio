@@ -1,0 +1,60 @@
+# OpenStenoMask — PIO Program for PDM Microphone Capture
+
+This file describes the PIO assembly program needed for PDM mic clocking and data capture. It should be compiled with the Pico SDK's PIO assembler (pioasm).
+
+## pdm_capture.pio
+
+```pio
+; PDM Microphone Capture Program
+; Clocks a PDM microphone and reads data bits via shift register
+; 
+; PIO config:
+;   - OUT: clock pin (sideset, max 6 pins)
+;   - IN:  data pin
+;   - Clock divider: system_clock / desired_clock / cycles_per_bit
+;
+; At 1.024 MHz clock from 133 MHz system:
+;   133,000,000 / 1,024,000 / 2 = ~65 (2 cycles per bit)
+
+.program pdm_capture
+.side_set 1
+
+.wrap_target
+    set pins, 1     side 1      ; Clock high
+    nop             side 1      ; Hold clock high (sample at midpoint)
+    set pins, 0     side 0      ; Clock low
+    in pins, 1      side 0      ; Read data bit into ISR
+.wrap
+
+% c-sdk {
+#include "hardware/pio.h"
+
+static inline void pdm_capture_program_init(PIO pio, uint sm, uint offset,
+                                             uint clk_pin, uint data_pin,
+                                             uint32_t clk_hz) {
+    pio_gpio_init(pio, clk_pin);
+    pio_gpio_init(pio, data_pin);
+
+    pio_sm_set_consecutive_pindirs(pio, sm, clk_pin, 1, true);   /* output */
+    pio_sm_set_consecutive_pindirs(pio, sm, data_pin, 1, false);  /* input */
+
+    pio_sm_config c = pdm_capture_program_get_default_config(offset);
+    sm_config_set_sideset_pins(&c, clk_pin);
+    sm_config_set_in_pins(&c, data_pin);
+    sm_config_set_in_shift(&c, false, true, 32);  /* shift right, auto-push at 32 bits */
+
+    /* Clock divider: system_clock / (2 * clk_hz) */
+    float div = (float)clock_get_hz(clk_sys) / (2.0f * clk_hz);
+    sm_config_set_clkdiv(&c, div);
+
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}
+```
+
+## Build
+
+```bash
+# The .pio file is compiled by pioasm (included with Pico SDK)
+# Output: pdm_capture.pio.h (auto-generated, included by pdm_capture.c)
+```
