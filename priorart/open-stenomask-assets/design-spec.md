@@ -645,7 +645,88 @@ All parts are designed for FDM printing without support (except where noted). Fi
 
 ---
 
-## 13. Prior Art Declaration
+## 13. Solar Harvesting + Wireless (v1.1 Addendum)
+
+Ray He requested solar-powered Bluetooth operation. This section specifies the integration.
+
+### 13.1 Design Goal
+Self-sustaining operation for full-day (8+ hour) court/deposition sessions without plug-in charging. The stenomask should harvest enough energy from ambient and direct light to sustain BLE audio streaming indefinitely during normal use.
+
+### 13.2 Solar Panel Integration
+
+**Panel type:** Flexible thin-film CIGS (Copper Indium Gallium Selenide) or a-Si (amorphous silicon)
+- Powerfoyle (Norwegian) or similar flexible photovoltaic film
+- Efficiency: 10-15% (CIGS), 6-8% (a-Si)
+- Thickness: <1mm, conforms to curved surfaces
+
+**Placement:**
+- Primary: Outer surface of the mask shell (top curvature faces up when worn)
+- Secondary: Carbon fiber headband strap (flat surface, ~40mm × 120mm available)
+- Combined area: ~25-35 cm² practical coverage
+
+**Expected harvest (indoor, fluorescent office lighting, 500 lux):**
+- CIGS: ~15 µW/cm² at 500 lux → 25 cm² × 15 µW = 375 µW (0.375 mW)
+- Direct window light (10,000 lux): ~3 mW/cm² → 75 mW harvest
+- Outdoor (100,000 lux): ~30 mW/cm² → 750 mW (overkill)
+
+**Expected harvest (deposition room, 300-500 lux):**
+- 0.2-0.4 mW sustained — insufficient for continuous BLE streaming
+- Sufficient for: standby, buffer maintenance, slow-charge between active sessions
+
+### 13.3 Power Architecture
+
+```
+Solar film → MPPT buck converter (BQ25570) → Supercapacitor buffer → System power
+                                      → LiPo battery (200mAh) → System power
+```
+
+**Supercapacitor:** 2 × 10F supercaps in series (5F @ 5V) — handles BLE transmit bursts (peak ~15mA for 2ms)
+
+**Battery:** 200mAh LiPo (3.7V, 0.74Wh) — fits in headband housing
+- BLE audio streaming power: ~8mA continuous → ~25 hours on battery alone
+- Solar extends this by harvesting during breaks and ambient light exposure
+- Net: full-day operation achievable with intermittent solar + battery
+
+### 13.4 Bluetooth Audio
+
+**Module:** nRF5340 (Nordic Semi) — dual-core BLE 5.3 SoC
+- LC3 codec support (Bluetooth LE Audio)
+- Latency: 20-30ms end-to-end (LC3 at 32kHz, 10ms frame interval)
+- Power: 5mA RX, 4.5mA TX at 0 dBm
+- Integrated USB-C fallback (wired mode bypasses BLE entirely)
+
+**Audio path:**
+```
+MEMS → RP2040 DSP → I2S → nRF5340 → LC3 encode → BLE 5.3 → Receiver
+```
+
+**Receiver options:**
+- Phone/tablet via BLE Audio (native LC3 decode in Android 13+, iOS 16+)
+- USB BLE dongle with LC3 decode (for court reporting software)
+- Direct USB-C wired mode (bypasses BLE, zero configuration)
+
+### 13.5 Updated BOM (Solar + BLE variant)
+
+| Component | Part | Cost |
+|-----------|------|------|
+| Solar film (CIGS, 25cm²) | Powerfoyle / custom cut | $4.50 |
+| MPPT charger | TI BQ25570 | $2.80 |
+| Supercapacitors (2× 10F) | Eaton/Maxwell | $3.20 |
+| LiPo battery (200mAh) | Standard 802030 | $3.50 |
+| BLE module | nRF5340 dev module | $8.00 |
+| **Solar+BLE add-on total** | | **$22.00** |
+
+**Total BOM (solar BLE variant):** $24.32 (wired base) + $22.00 = **$46.32**
+
+### 13.6 Industrial Design
+
+The solar film is laminated to the exterior of the mask shell using optically clear adhesive (OCA). It becomes part of the visual design — a matte dark film on the upper curved surface, looking like a premium finish rather than a bolted-on panel. The headband strap carries a secondary film strip that blends into the carbon fiber weave.
+
+Charge indicator: single RGB LED on the inner rim (visible to wearer, not external). Green = charging, blue = full, red = low battery.
+
+---
+
+## 14. Prior Art Declaration
 
 This document, all associated files, schematics, designs, code, and 3D models are published as **prior art** under:
 
@@ -677,7 +758,8 @@ By publishing this design publicly with full technical detail, we establish prio
 
 ---
 
-**Document version:** 1.0  
+**Document version:** 1.1  
 **Published:** August 9, 2026  
+**Updated:** August 9, 2026 — Added solar harvesting + BLE wireless section  
 **Authors:** Open source contribution. No attribution required.  
 **Contact:** Open issues at https://github.com/jupitercore-max/liveinthefuture/issues
