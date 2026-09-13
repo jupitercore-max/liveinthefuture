@@ -25,7 +25,8 @@
 html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);touch-action:none;overscroll-behavior:none;position:fixed;inset:0;user-select:none;-webkit-user-select:none}
 
 /* ═══ CANVAS TOOLTIP (desktop hover) ═══ */
-#canvasTip{position:fixed;z-index:15;pointer-events:none;background:var(--bg-panel);border:1px solid var(--border-strong);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--text);display:none;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#canvasTip{position:fixed;z-index:15;pointer-events:none;background:var(--bg-panel);border:1px solid var(--border-strong);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--text);display:none;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transform:translateY(4px);opacity:0;transition:opacity .11s ease,transform .11s ease}
+#canvasTip.show{transform:translateY(0);opacity:1}
 #canvasTip .tip-name{font-weight:700;color:var(--gold)}
 #canvasTip .tip-sub{color:var(--text-dim);font-size:10px}
 
@@ -38,6 +39,10 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 /* ═══ DEBUG OVERLAY ═══ */
 #debugOverlay{position:fixed;top:calc(env(safe-area-inset-top,0) + 52px);left:4px;right:60px;background:rgba(0,0,0,0.85);border:1px solid #f00;border-radius:6px;padding:4px 8px;font-size:10px;color:#f00;font-family:monospace;z-index:50;display:none;max-height:120px;overflow-y:auto;pointer-events:none;white-space:pre-wrap;word-break:break-all}
 #debugOverlay.show{display:block}
+
+/* ═══ UI MOTION: sparkline / factor rows fade in on update ═══ */
+.hd-factor{animation:hdIn .18s ease both}
+@keyframes hdIn{from{opacity:.35;transform:translateX(-3px)}to{opacity:1;transform:none}}
 
 /* Override firebase-shared name badge position to top-right */
 .firebase-name-badge{position:fixed !important;top:calc(env(safe-area-inset-top,0) + 4px) !important;right:100px !important;bottom:auto !important;left:auto !important;z-index:11 !important;max-width:100px !important;overflow:hidden !important;text-overflow:ellipsis !important;white-space:nowrap !important;font-size:9px !important;padding:3px 8px !important;opacity:0.7 !important}
@@ -109,8 +114,9 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 .tool-demand{font-size:6px;color:#22c55e;font-weight:700}
 
 /* ═══ INFO POPUP ═══ */
-#infoBar{position:fixed;bottom:138px;left:8px;right:8px;background:rgba(12,12,20,0.96);border:1px solid #2a2a3a;border-radius:10px;padding:10px 14px;font-size:12px;z-index:11;display:none;max-width:400px;max-height:50vh;overflow-y:auto;-webkit-overflow-scrolling:touch;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,0.5)}
-#infoBar.show{display:block!important}
+#infoBar{position:fixed;bottom:138px;left:8px;right:8px;background:rgba(12,12,20,0.96);border:1px solid #2a2a3a;border-radius:10px;padding:10px 14px;font-size:12px;z-index:11;max-width:400px;max-height:50vh;overflow-y:auto;-webkit-overflow-scrolling:touch;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,0.5);opacity:0;visibility:hidden;transform:translateY(14px) scale(.97);transition:opacity .13s ease,transform .13s var(--ease-pop),visibility .13s;pointer-events:none}
+#infoBar.show{opacity:1;visibility:visible;transform:translateY(0) scale(1);pointer-events:auto}
+#infoBar:not(.show){padding:0;border-width:0}
 .info-title{font-weight:700;color:#fbbf24;margin-bottom:4px;font-size:14px}
 .info-desc{color:#aaa;font-size:11px;margin:4px 0 6px;line-height:1.3}
 .info-row{display:flex;justify-content:space-between;margin:2px 0;color:#999}
@@ -119,7 +125,8 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 
 /* ═══ TOAST ═══ */
 #toast{position:fixed;top:56px;left:50%;transform:translateX(-50%);background:rgba(12,12,20,0.96);border:1px solid #444;border-radius:10px;padding:8px 18px;font-size:13px;z-index:20;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:90vw;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-#toast.show{opacity:1}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast{transform:translateX(-50%) translateY(-6px);transition:opacity .3s,transform .22s var(--ease-pop)}
 #toast.error{border-color:#ef4444;background:rgba(40,12,12,0.96);color:#fca5a5}
 
 /* ═══ NEWS TICKER ═══ */
@@ -153,8 +160,9 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 .extra-btn.muted{opacity:.4}
 
 /* ═══ BUDGET PANEL ═══ */
-#budgetPanel{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);left:48px;background:rgba(12,12,20,0.96);border:1px solid #2a2a3a;border-radius:10px;padding:10px 14px;font-size:11px;z-index:9;display:none;width:246px;max-width:calc(100vw - 56px);max-height:calc(100vh - 210px);overflow-y:auto;-webkit-overflow-scrolling:touch;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-#budgetPanel.show{display:block}
+#budgetPanel{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);left:48px;background:rgba(12,12,20,0.96);border:1px solid #2a2a3a;border-radius:10px;padding:10px 14px;font-size:11px;z-index:9;width:246px;max-width:calc(100vw - 56px);max-height:calc(100vh - 210px);overflow-y:auto;-webkit-overflow-scrolling:touch;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);opacity:0;visibility:hidden;pointer-events:none;transform:translateX(-10px) scale(.98);transform-origin:top left;transition:opacity .14s ease,transform .14s var(--ease-pop),visibility .14s}
+#budgetPanel.show{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(0) scale(1)}
+#budgetPanel:not(.show){padding:0;border-width:0}
 .bp-tax-row{display:flex;align-items:center;gap:6px;margin:3px 0}
 .bp-tax-row .bp-tax-label{width:14px;font-weight:700;font-size:11px}
 .bp-tax-row input[type=range]{flex:1;height:12px;-webkit-appearance:none;appearance:none;background:#333;border-radius:6px;outline:none;min-width:0}
@@ -167,8 +175,9 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 .bp-spark-row .bp-spark-val{width:52px;text-align:right;font-weight:700;font-size:11px;font-variant-numeric:tabular-nums}
 
 /* ═══ HAPPINESS DASHBOARD ═══ */
-#happyDashboard{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);right:4px;background:rgba(12,12,20,0.97);border:1px solid #3a3a5a;border-radius:12px;padding:14px;font-size:12px;z-index:12;display:none;width:300px;max-width:calc(100vw - 8px);max-height:calc(100vh - 210px);overflow-y:auto;-webkit-overflow-scrolling:touch;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.6)}
-#happyDashboard.show{display:block}
+#happyDashboard{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);right:4px;background:rgba(12,12,20,0.97);border:1px solid #3a3a5a;border-radius:12px;padding:14px;font-size:12px;z-index:12;width:300px;max-width:calc(100vw - 8px);max-height:calc(100vh - 210px);overflow-y:auto;-webkit-overflow-scrolling:touch;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.6);opacity:0;visibility:hidden;pointer-events:none;transform:translateX(14px) scale(.98);transform-origin:top right;transition:opacity .14s ease,transform .14s var(--ease-pop),visibility .14s}
+#happyDashboard.show{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(0) scale(1)}
+#happyDashboard:not(.show){padding:0;border-width:0}
 .hd-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .hd-title{font-size:15px;font-weight:700;color:#fbbf24;display:flex;align-items:center;gap:6px}
 .hd-close{color:#555;font-size:20px;cursor:pointer;padding:2px 6px;line-height:1;background:none;border:none}
@@ -194,8 +203,9 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,Blink
 .hd-no-suggestions{text-align:center;color:#555;font-size:11px;padding:8px;font-style:italic}
 
 /* ═══ FUND PANEL ═══ */
-#fundPanel{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);right:4px;background:rgba(12,12,20,0.97);border:1px solid #3a3a5a;border-radius:12px;padding:14px;font-size:12px;z-index:12;display:none;width:300px;max-width:calc(100vw - 8px);max-height:calc(100vh - 210px);overflow-y:auto;-webkit-overflow-scrolling:touch;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.6)}
-#fundPanel.show{display:block}
+#fundPanel{position:fixed;top:calc(env(safe-area-inset-top,0) + 48px);right:4px;background:rgba(12,12,20,0.97);border:1px solid #3a3a5a;border-radius:12px;padding:14px;font-size:12px;z-index:12;width:300px;max-width:calc(100vw - 8px);max-height:calc(100vh - 210px);overflow-y:auto;-webkit-overflow-scrolling:touch;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.6);opacity:0;visibility:hidden;pointer-events:none;transform:translateX(14px) scale(.98);transform-origin:top right;transition:opacity .14s ease,transform .14s var(--ease-pop),visibility .14s}
+#fundPanel.show{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(0) scale(1)}
+#fundPanel:not(.show){padding:0;border-width:0}
 .fp-btn{background:#1a1a2e;border:1px solid #3a3a5a;border-radius:6px;padding:6px 10px;color:#ccc;font-size:11px;font-weight:600;cursor:pointer;transition:transform .1s,background .15s;-webkit-appearance:none;appearance:none;text-align:center}
 .fp-btn:active{transform:scale(.92);background:#222238}
 .fp-btn:disabled{opacity:.4;cursor:default}
@@ -760,6 +770,7 @@ function updateEffects(dt) {
     tileEffects[i].life -= dt;
     if (tileEffects[i].life <= 0) tileEffects.splice(i, 1);
   }
+  if (_ghost.life > 0) _ghost.life -= dt;
   // Particles
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
@@ -773,6 +784,21 @@ function updateEffects(dt) {
 }
 
 function renderEffects() {
+  // Paint-preview cursor — shows the last tile the drag wrote, plus a
+  // pulsing hint of the tile currently under the pointer while painting.
+  if (_ghost.life > 0 && _ghost.tx != null) {
+    var a = Math.min(1, _ghost.life / 260);
+    ctx.save();
+    ctx.globalAlpha = 0.55 * a;
+    ctx.strokeStyle = activeTool === 'bulldoze' ? '#ef4444' : '#4ade80';
+    ctx.lineWidth = 1.5;
+    var gi = tileToIso(_ghost.tx, _ghost.ty);
+    gi.y -= elevOf(_ghost.tx, _ghost.ty) * ELEV_Z;
+    isoDiamondPath(gi.x, gi.y, ISO_HW, ISO_HH);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // Tile flash effects — iso diamonds
   for (var i = 0; i < tileEffects.length; i++) {
     var e = tileEffects[i];
@@ -904,6 +930,15 @@ const mctx = minimap.getContext('2d');
 minimap.width = 72; minimap.height = 72;
 
 let camX = 0, camY = 0, zoom = 1;
+
+// ─── Smooth camera: momentum pan + eased zoom + ambient clock ──────
+// camVX/camVY are screen-space pan velocity in px per millisecond,
+// carried past the end of a drag and bled off by friction each frame.
+let camVX = 0, camVY = 0;
+let zoomTarget = zoom;            // eased zoom destination
+let zoomAnchor = null;            // {sx,sy} screen point held fixed while zooming
+let _lastPanSample = null;        // {x,y,t} for velocity estimation
+let animTime = 0;                 // continuous seconds for ambient animation
 const HUD_H = 48;
 const TOOLBAR_H = 96;
 
@@ -1007,12 +1042,89 @@ function dlog(...args) {
 
 // --- Zoom keeping a given screen point fixed (cursor / pinch midpoint) ---
 function zoomAt(sx, sy, factor) {
-  const newZoom = Math.max(0.4, Math.min(3, zoom * factor));
-  const f = newZoom / zoom;
-  camX = sx - (sx - camX) * f;
-  camY = sy - (sy - camY) * f;
-  zoom = newZoom;
-  clampCamera();
+  // Eased zoom: set a target and anchor the screen point under the cursor.
+  // updateCamera() tweens zoom toward zoomTarget each frame and keeps
+  // zoomAnchor pinned so the map expands/contracts around the pointer.
+  zoomTarget = Math.max(0.4, Math.min(3, zoomTarget * factor));
+  zoomAnchor = { sx: sx, sy: sy };
+}
+
+// ── Pan velocity sampling for momentum ────────────────────────────
+// Called on every move frame of a pan; derives px/ms from the delta
+// between the last two samples so the release velocity is recent.
+function samplePanVelocity(x, y) {
+  var t = performance.now();
+  if (_lastPanSample) {
+    var dts = t - _lastPanSample.t;
+    if (dts > 0 && dts < 120) {
+      var vx = (x - _lastPanSample.x) / dts;
+      var vy = (y - _lastPanSample.y) / dts;
+      // Light smoothing so a single jittery frame cannot spike the fling
+      camVX = camVX * 0.35 + vx * 0.65;
+      camVY = camVY * 0.35 + vy * 0.65;
+    }
+  }
+  _lastPanSample = { x: x, y: y, t: t };
+}
+
+// Called when a pan gesture ends: converts tracked velocity into a coast.
+// Stale samples (finger held still before release) produce no fling.
+function releasePanMomentum() {
+  if (_lastPanSample && performance.now() - _lastPanSample.t > 90) {
+    camVX = 0; camVY = 0;
+  }
+  // Cap so a hard flick cannot launch the camera across the whole map
+  var maxV = 3.2;   // px per ms
+  var mag = Math.hypot(camVX, camVY);
+  if (mag > maxV) { camVX = camVX / mag * maxV; camVY = camVY / mag * maxV; }
+  _lastPanSample = null;
+}
+
+// Ease camera + zoom each frame. Called from gameLoop with the frame dt.
+function updateCamera(dt) {
+  var k = Math.min(1, dt / 16.67);   // normalise to 60fps steps
+
+  // ── Zoom tween (exponential approach, frame-rate independent) ──
+  if (Math.abs(zoomTarget - zoom) > 0.0005) {
+    var prevZoom = zoom;
+    zoom += (zoomTarget - zoom) * Math.min(1, 1 - Math.pow(0.80, k));
+    if (Math.abs(zoomTarget - zoom) <= 0.0005) zoom = zoomTarget;
+    // Keep the anchor point fixed on screen while zooming
+    if (zoomAnchor) {
+      var f = zoom / prevZoom;
+      camX = zoomAnchor.sx - (zoomAnchor.sx - camX) * f;
+      camY = zoomAnchor.sy - (zoomAnchor.sy - camY) * f;
+    }
+    clampCamera();
+  } else if (zoom !== zoomTarget) {
+    zoom = zoomTarget;
+    if (zoomAnchor) {
+      var f2 = zoom / (zoom || 1);
+      camX = zoomAnchor.sx - (zoomAnchor.sx - camX) * f2;
+      camY = zoomAnchor.sy - (zoomAnchor.sy - camY) * f2;
+    }
+    clampCamera();
+  }
+
+  // ── Pan momentum (inertia) ──
+  // While a gesture is live we must NOT touch camVX/camVY: samplePanVelocity()
+  // is filling them from the pointer deltas, and zeroing here would wipe the
+  // fling before release. Momentum is only consumed once the gesture ends.
+  var dragging = (mouseDrag && mouseDrag.moved && !mouseDrag.paint) ||
+                 (touchStart && touchStart.moved && !paintMode) || pinchMid;
+  if (!panAnim && !dragging && (Math.abs(camVX) > 0.02 || Math.abs(camVY) > 0.02)) {
+    camX += camVX * dt;
+    camY += camVY * dt;
+    var friction = Math.pow(0.94, k);
+    camVX *= friction;
+    camVY *= friction;
+    if (Math.abs(camVX) < 0.02) camVX = 0;
+    if (Math.abs(camVY) < 0.02) camVY = 0;
+    clampCamera();
+  }
+
+  // Ambient animation clock (continuous, independent of sim ticks)
+  animTime += dt;
 }
 
 // --- Shared state for both touch and pointer paths ---
@@ -1040,6 +1152,7 @@ function isPaintTool() {
 
 let _lastPaintTile = null;
 function paintTile(tx, ty) {
+  _ghost.tx = tx; _ghost.ty = ty; _ghost.life = 260;   // paint-preview cursor
   if (activeTool === 'bulldoze') doBulldoze(tx, ty, { quiet: true });
   else doBuild(tx, ty, { quiet: true });
 }
@@ -1069,12 +1182,14 @@ function paintAt(clientX, clientY) {
 // HOVER STATE — desktop mouse: tile highlight + tooltip
 // ══════════════════════════════════════════════════════════════════
 let hoverTile = null;      // {x,y} tile under mouse cursor (null on touch)
+let ghostTile = null;      // {x,y} tile being painted — preview overlay
+const _ghost = { tx: null, ty: null, life: 0 };   // fading paint-preview cursor
 let _tipTileKey = null;
 const canvasTip = document.getElementById('canvasTip');
 
 function clearHover() {
   hoverTile = null; _tipTileKey = null;
-  if (canvasTip) canvasTip.style.display = 'none';
+  if (canvasTip) { canvasTip.classList.remove('show'); canvasTip.style.display = 'none'; }
 }
 
 function updateHover(clientX, clientY) {
@@ -1101,6 +1216,7 @@ function updateHover(clientX, clientY) {
   canvasTip.style.display = 'block';
   canvasTip.style.left = Math.min(window.innerWidth - 180, clientX + 14) + 'px';
   canvasTip.style.top = (clientY + 18) + 'px';
+  canvasTip.classList.add('show');
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1126,6 +1242,7 @@ canvas.addEventListener('touchstart', e => {
       time: Date.now(), moved: false,
       camX: camX, camY: camY,
     };
+    camVX = 0; camVY = 0; _lastPanSample = null;   // fresh gesture
     paintMode = false;
     _lastPaintTile = null;
     clearTimeout(longPressTimer);
@@ -1165,6 +1282,7 @@ canvas.addEventListener('touchmove', e => {
       camX = touchStart.camX + dx;
       camY = touchStart.camY + dy;
       clampCamera();
+      samplePanVelocity(t.clientX, t.clientY);
     }
   } else if (e.touches.length === 2) {
     const t1 = e.touches[0], t2 = e.touches[1];
@@ -1174,6 +1292,7 @@ canvas.addEventListener('touchmove', e => {
     if (pinchMid) { camX += mid.x - pinchMid.x; camY += mid.y - pinchMid.y; clampCamera(); }
     pinchStartDist = dist;
     pinchMid = mid;
+    camVX = 0; camVY = 0;   // no inertia from a pinch gesture
   }
 }, { passive: false });
 
@@ -1198,6 +1317,8 @@ canvas.addEventListener('touchend', e => {
 
   // Reset touch state. If fingers remain, rebuild start from remaining touch.
   if (e.touches.length === 0) {
+    // Flung pan: carry the release velocity into a coasting motion
+    if (touchStart && touchStart.moved && !paintMode) releasePanMomentum();
     touchStart = null;
     pinchStartDist = 0;
     pinchMid = null;
@@ -1223,6 +1344,7 @@ canvas.addEventListener('touchcancel', () => {
   pinchMid = null;
   paintMode = false;
   _lastPaintTile = null;
+  camVX = 0; camVY = 0;
 }, { passive: false });
 
 // ══════════════════════════════════════════════════════════════════
@@ -1238,6 +1360,7 @@ canvas.addEventListener('pointerdown', e => {
   if (e.pointerType === 'touch') return;  // touch layer owns this gesture
   e.preventDefault();
   unlockAudio();
+  camVX = 0; camVY = 0; _lastPanSample = null;   // fresh gesture, no stale fling
   const paint = e.button === 0 && isPaintTool();
   mouseDrag = { x: e.clientX, y: e.clientY, camX, camY, moved: false, paint, button: e.button };
   _lastPaintTile = null;
@@ -1258,6 +1381,7 @@ canvas.addEventListener('pointermove', e => {
     camX = mouseDrag.camX + dx;
     camY = mouseDrag.camY + dy;
     clampCamera();
+    samplePanVelocity(e.clientX, e.clientY);
     clearHover();
   }
 });
@@ -1266,7 +1390,9 @@ canvas.addEventListener('pointerup', e => {
   if (e.pointerType === 'touch') return;
   const wasDrag = mouseDrag && mouseDrag.moved;
   const btn = mouseDrag ? mouseDrag.button : e.button;
+  const wasPan = mouseDrag && mouseDrag.moved && !mouseDrag.paint;
   mouseDrag = null;
+  if (wasPan) releasePanMomentum();
   if (!wasDrag && btn === 0) _tryHandleTap(e.clientX, e.clientY, 'pointerup');
 });
 
@@ -1346,6 +1472,24 @@ function handleTap(tx, ty) {
 const placeAnims = {};   // key "x,y" -> timestamp when animation ends
 const PLACE_ANIM_MS = 280;
 
+// Queue the scale-in pop for a tile (placement + level-up).
+// Keyed numerically and guarded by an active-count so the per-tile render
+// path can skip the lookup entirely when nothing is animating.
+let _popActive = 0;
+function popKey(tx, ty) { return ty * GRID + tx; }
+function popTile(tx, ty) {
+  var k = popKey(tx, ty);
+  var had = placeAnims[k] !== undefined && placeAnims[k] > performance.now();
+  placeAnims[k] = performance.now() + PLACE_ANIM_MS;
+  if (!had) _popActive++;
+}
+
+// Continuous simulation clock: equals state.tick but advances smoothly
+// between ticks so ambient animation no longer steps every 2 seconds.
+function simClock() {
+  return state.tick + (animTime % TICK_MS) / TICK_MS;
+}
+
 function buildReject(tx, ty, msg, quiet, hapMs) {
   addTileEffect(tx, ty, '#ef4444', 500, 0.8);
   if (quiet) return;  // during drag-paint, don't spam toasts/sounds
@@ -1398,7 +1542,7 @@ function doBuild(tx, ty, opts) {
   state.grid[ty][tx] = mkTile(tool.tile, 1);
   if (tool.tile === T.SIGN) state.grid[ty][tx].data = { signIdx: Math.floor(Math.random() * SIGNS.length) };
   markTileDirty(tx, ty);
-  placeAnims[tx + ',' + ty] = performance.now() + PLACE_ANIM_MS;
+  popTile(tx, ty);
 
   // Visual + audio feedback
   addTileEffect(tx, ty, '#4ade80', 400);
@@ -1773,6 +1917,7 @@ function simTick() {
                 if (Math.random() < growChance) {
                   tile.level++;
                   markTileDirty(x, y);
+                  popTile(x, y);
                   addTileEffect(x, y, '#22c55e', 600);
                   addParticles(x * TILE + TILE / 2, y * TILE + TILE / 2, 10, '#22c55e');
                   addFloater(x * TILE + TILE / 2, y * TILE - 4, 'Level ' + tile.level + '! 🎉', '#4ade80');
@@ -1804,6 +1949,7 @@ function simTick() {
                 if (Math.random() < growChance) {
                   tile.level++;
                   markTileDirty(x, y);
+                  popTile(x, y);
                   addTileEffect(x, y, '#22c55e', 600);
                   addParticles(x * TILE + TILE / 2, y * TILE + TILE / 2, 8, '#e8a838');
                   sndGrow();
@@ -1826,6 +1972,7 @@ function simTick() {
                 if (Math.random() < growChance) {
                   tile.level++;
                   markTileDirty(x, y);
+                  popTile(x, y);
                   addTileEffect(x, y, '#22c55e', 600);
                   addParticles(x * TILE + TILE / 2, y * TILE + TILE / 2, 8, '#e8a838');
                   sndGrow();
@@ -1846,6 +1993,7 @@ function simTick() {
               if (tile.level < 3 && Math.random() < 0.2) {
                 tile.level++;
                 markTileDirty(x, y);
+                popTile(x, y);
                 addTileEffect(x, y, '#7c2d6f', 600);
                 addParticles(x * TILE + TILE / 2, y * TILE + TILE / 2, 8, '#7c2d6f');
                 addFloater(x * TILE + TILE / 2, y * TILE - 4, 'Level ' + tile.level + '! 🍇', '#9b3a8b');
@@ -2373,14 +2521,20 @@ function getTreeVariant(tx, ty) {
 
 // Day/night cycle — subtle tint
 function getDayNightTint() {
-  const cycle = ((state.tick + 30) % 120) / 120;
+  const cycle = dayPhase();
   const angle = cycle * Math.PI * 2;
   const brightness = 0.80 + Math.sin(angle) * 0.20;
   return brightness;
 }
 
+// Smooth day/night phase (0..1 through the current in-game day) driven by
+// the continuous clock so lighting glides instead of stepping every tick.
+function dayPhase() {
+  return (((simClock() + 30) % 120) + 120) % 120 / 120;
+}
+
 function getDayNightOverlay() {
-  const cycle = ((state.tick + 30) % 120) / 120;
+  const cycle = dayPhase();
   const angle = cycle * Math.PI * 2;
   const nightFactor = (Math.cos(angle) + 1) / 2;
   if (nightFactor < 0.25) return null;
@@ -2423,7 +2577,7 @@ function render() {
     for (let i = 0; i < 60; i++) {
       const sxp = ((i * 379) % 997) / 997 * canvas.width;
       const syp = ((i * 613) % 991) / 991 * canvas.height * 0.6;
-      const tw = 0.5 + 0.5 * Math.sin(state.tick * 0.8 + i * 1.7);
+      const tw = 0.5 + 0.5 * Math.sin(animTime / 900 + i * 1.7);
       ctx.fillStyle = 'rgba(255,255,240,' + (starAlpha * (0.25 + 0.5 * tw)).toFixed(3) + ')';
       ctx.fillRect(sxp, syp, i % 7 === 0 ? 2 : 1, i % 7 === 0 ? 2 : 1);
     }
@@ -2481,6 +2635,29 @@ function render() {
       if (sx < -ISO_TILE_W * 1.5 * zoom || sx > canvas.width + ISO_TILE_W * 1.5 * zoom) continue;
       if (sy < -120 * zoom || sy > canvas.height + ISO_TILE_H * 2 * zoom) continue;
       drawTileIso(x, y, brightness);
+    }
+  }
+
+  // Drifting cloud shadows — large soft dark patches that slide across the
+  // ground in daylight. The blob is pre-rendered once to a sprite and blitted;
+  // building three full-screen radial gradients per frame was the single
+  // biggest cost in the render loop.
+  if (nf < 0.75) {
+    var cloudShadowA = 0.10 * (1 - nf / 0.75);
+    if (cloudShadowA > 0.01) {
+      var cspr = getCloudShadowSprite();
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, cloudShadowA / 0.10));
+      var csW = GRID * ISO_TILE_W + 400;
+      var csH = GRID * ISO_TILE_H + 400;
+      for (var cs = 0; cs < 3; cs++) {
+        var csSpeed = 0.010 + (cs % 3) * 0.004;
+        var csx = ((cs * 0.37 + animTime * csSpeed) % 1.3 - 0.15) * csW - 200;
+        var csy = ((cs * 0.61 + animTime * csSpeed * 0.45) % 1.2 - 0.1) * csH - 200;
+        var csr = (190 + (cs % 3) * 110) * 2;
+        ctx.drawImage(cspr, csx - csr / 2, csy - csr / 2, csr, csr);
+      }
+      ctx.restore();
     }
   }
 
@@ -2544,6 +2721,31 @@ function drawTileIso(tx, ty, brightness) {
   var elev = elevOf(tx, ty);
   var px = iso.x, py = iso.y - elev * ELEV_Z;
   var hw = ISO_HW, hh = ISO_HH;
+
+  // Placement / level-up pop: scale the whole tile about its centre with a
+  // slight overshoot so growth and placement are visible and satisfying.
+  // The active-count guard keeps the common case (nothing animating) free of
+  // any per-tile bookkeeping.
+  var _pop = 0;
+  if (_popActive > 0) {
+    var _popKey = popKey(tx, ty);
+    if (placeAnims[_popKey] !== undefined) {
+      var _remaining = placeAnims[_popKey] - performance.now();
+      if (_remaining <= 0) { delete placeAnims[_popKey]; _popActive--; }
+      else {
+        var _p = 1 - _remaining / PLACE_ANIM_MS;        // 0 -> 1
+        _pop = 1 - Math.pow(1 - _p, 3);                 // ease-out cubic
+      }
+    }
+  }
+  if (_pop > 0) {
+    var _s = 0.62 + 0.38 * _pop;
+    _s *= 1 + 0.10 * Math.sin(_pop * Math.PI);        // gentle overshoot
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.scale(_s, _s);
+    ctx.translate(-px, -py);
+  }
 
   // Cliff faces where the terrain steps down toward the camera
   if (elev > 0) {
@@ -2682,6 +2884,11 @@ function drawTileIso(tx, ty, brightness) {
     ctx.fill();
   }
 
+  if (tile.type === T.RES || tile.type === T.COM || tile.type === T.IND) {
+    // Soft contact occlusion grounds the massing instead of letting it float
+    if (tile.level > 0) drawContactAO(px, py, hw, hh, b);
+  }
+
   // Status overlays for zones
   if (tile.type === T.RES || tile.type === T.COM || tile.type === T.IND) {
     if (!hasRoadWithin(tx, ty, ROAD_RADIUS)) {
@@ -2740,6 +2947,8 @@ function drawTileIso(tx, ty, brightness) {
     ctx.fillStyle = '#fbbf24'; ctx.font = '8px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('⚠️', px, py);
   }
+
+  if (_pop > 0) ctx.restore();
 }
 
 // ─── Grass ─────────────────────────────────────────────────────────
@@ -2900,7 +3109,7 @@ function drawGrassIso(px, py, tx, ty, hw, hh, b) {
 
 // ─── Water ─────────────────────────────────────────────────────────
 function drawWaterIso(px, py, tx, ty, hw, hh, b) {
-  var t = state.tick;
+  var t = simClock();
 
   ctx.save();
   isoDiamondPath(px, py, hw, hh);
@@ -3138,6 +3347,13 @@ function drawTreeIso(px, py, variant, b) {
   var bx = px + offsetX, by = py + offsetY;
   var scale = 0.85 + (variant.seed % 30) / 100;   // slight size variety
 
+  // Gentle wind sway — a small horizontal lean with a per-tree phase so the
+  // canopy moves as a loose cluster rather than in lockstep. Applied as a
+  // plain offset rather than a per-tree save/rotate/restore: with hundreds of
+  // trees on screen the transform pair was costing real frames.
+  var swayT = Math.sin(animTime / 1400 + variant.seed * 0.7);
+  bx += swayT * 1.6;
+
   switch (variant.style) {
     case 'pine': {
       var ph = 13 * scale;
@@ -3292,6 +3508,72 @@ function drawCastShadow(px, py, hw, hh, h, b) {
   ctx.lineTo(px - hw, py);
   ctx.closePath();
   ctx.fill();
+  // Soft penumbra: a second, wider pass at low alpha makes the shadow
+  // read as diffuse daylight instead of a hard cutout.
+  ctx.fillStyle = 'rgba(15,22,15,' + (0.03 + 0.035 * b).toFixed(2) + ')';
+  ctx.beginPath();
+  ctx.moveTo(px, py - hh - 1);
+  ctx.lineTo(px + hw + 1.5, py);
+  ctx.lineTo(px + hw + sh * 1.5, py + sh * 0.75);
+  ctx.lineTo(px + sh * 1.5, py + hh + sh * 0.75 + 1);
+  ctx.lineTo(px - hw - 1.5, py);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ── Ambient occlusion: soft contact darkening where a building meets
+// the ground. Pre-rendered once to an offscreen sprite then blitted —
+// building a radial gradient per tile per frame was measurably slow.
+let _aoSprite = null;
+function getAOSprite() {
+  if (_aoSprite) return _aoSprite;
+  var w = Math.round(ISO_TILE_W), h = Math.round(ISO_TILE_H);
+  var c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  var g2 = c.getContext('2d');
+  var g = g2.createRadialGradient(w / 2, h / 2, h * 0.18, w / 2, h / 2, w * 0.52);
+  g.addColorStop(0, 'rgba(0,0,0,0.24)');
+  g.addColorStop(0.6, 'rgba(0,0,0,0.10)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  g2.fillStyle = g;
+  g2.fillRect(0, 0, w, h);
+  // bake the iso-diamond mask in, so the per-tile path is a single blit
+  g2.globalCompositeOperation = 'destination-in';
+  g2.beginPath();
+  g2.moveTo(w / 2, 0);
+  g2.lineTo(w, h / 2);
+  g2.lineTo(w / 2, h);
+  g2.lineTo(0, h / 2);
+  g2.closePath();
+  g2.fill();
+  _aoSprite = c;
+  return c;
+}
+
+// Pre-rendered soft cloud-shadow blob (drawn once, blitted per frame).
+let _cloudShadowSprite = null;
+function getCloudShadowSprite() {
+  if (_cloudShadowSprite) return _cloudShadowSprite;
+  var s = 256;
+  var c = document.createElement('canvas');
+  c.width = s; c.height = s;
+  var g2 = c.getContext('2d');
+  var g = g2.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+  g.addColorStop(0, 'rgba(90,100,120,0.10)');
+  g.addColorStop(0.55, 'rgba(90,100,120,0.055)');
+  g.addColorStop(1, 'rgba(90,100,120,0)');
+  g2.fillStyle = g;
+  g2.fillRect(0, 0, s, s);
+  _cloudShadowSprite = c;
+  return c;
+}
+
+function drawContactAO(px, py, hw, hh, b) {
+  var spr = getAOSprite();
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, b));
+  ctx.drawImage(spr, px - spr.width / 2, py - spr.height / 2, spr.width, spr.height);
+  ctx.restore();
 }
 
 // Window grid on one iso wall. Each window gets its own pane color:
@@ -3547,7 +3829,7 @@ function drawResIso(px, py, hw, hh, level, b, isNight, v, tx, ty) {
   ctx.strokeStyle = adjustBrightness('#98a0a8', b);
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(px, pyT - hT); ctx.lineTo(px, pyT - hT - 11); ctx.stroke();
-  ctx.fillStyle = (state.tick % 2 === 0) ? '#ff4444' : '#801818';
+  ctx.fillStyle = (Math.floor(animTime / 300) % 2 === 0) ? '#ff4444' : '#801818';
   ctx.fillRect(px - 1, pyT - hT - 13, 2, 2);
 }
 
@@ -3698,7 +3980,7 @@ function drawComIso(px, py, hw, hh, level, b, isNight, v, tx, ty) {
   ctx.strokeStyle = adjustBrightness('#aab2ba', b);
   ctx.lineWidth = 1.2;
   ctx.beginPath(); ctx.moveTo(px, py3 - h3b); ctx.lineTo(px, spireTop); ctx.stroke();
-  var blink = state.tick % 2 === 0;
+  var blink = Math.floor(animTime / 400) % 2 === 0;
   ctx.fillStyle = blink ? '#ff5555' : '#7a2020';
   ctx.beginPath(); ctx.arc(px, spireTop - 1, 1.5, 0, Math.PI * 2); ctx.fill();
   if (blink && isNight) {
@@ -3734,9 +4016,9 @@ function drawSmokestack(px, py, topY, chimH, b, seed) {
   ctx.fillRect(px + 0.5, topY - chimH, 1.5, chimH);
   ctx.fillStyle = adjustBrightness('#8a4438', b);   // brick band cap
   ctx.fillRect(px - 2.6, topY - chimH, 5.2, 2.5);
-  var smokeT = (state.tick % 10) * 0.6;
+  var smokeT = (simClock() % 10) * 0.6;
   for (var s = 0; s < 3; s++) {
-    var sx = px + Math.sin(state.tick * 0.5 + s * 2 + seed * 3) * 2;
+    var sx = px + Math.sin(animTime / 400 + s * 2 + seed * 3) * 2;
     var sy = topY - chimH - 2 - s * 4.5 - smokeT * 0.3;
     ctx.fillStyle = 'rgba(190,190,192,' + (0.30 - s * 0.08) + ')';
     ctx.beginPath();
@@ -4018,7 +4300,7 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
       ctx.font = 'bold 4px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('POLICE', px, py - h - 2.5);
       // Rotating beacon — alternates red/blue
-      var beaconOn = (state.tick % 2) === 0;
+      var beaconOn = (Math.floor(animTime / 350) % 2) === 0;
       ctx.fillStyle = beaconOn ? '#ef4444' : '#3b82f6';
       ctx.beginPath();
       ctx.arc(px, py - h - 8, 2, 0, Math.PI * 2);
@@ -4192,7 +4474,7 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
       }
       ctx.restore();
       // Flame on top
-      var flicker = Math.sin(state.tick * 3) * 1;
+      var flicker = Math.sin(animTime / 180) * 1;
       ctx.fillStyle = '#ff6600';
       ctx.beginPath();
       ctx.moveTo(px, py - h - 2 + flicker);
@@ -4270,7 +4552,7 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
       var smokeBaseX = px - bw * 0.5 + 2;
       var smokeBaseY = py - h - 13;
       for (var si = 0; si < 7; si++) {
-        var sx = smokeBaseX + Math.sin(state.tick * 0.08 + si * 0.8) * 3 - si * 0.5;
+        var sx = smokeBaseX + Math.sin(simClock() * 0.16 + si * 0.8) * 3 - si * 0.5;
         var sy = smokeBaseY - si * 4;
         var sr = 4 - si * 0.4;
         if (sr < 1.2) sr = 1.2;
@@ -4369,7 +4651,7 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
       ctx.fillStyle = '#0a1a1a';
       ctx.beginPath(); ctx.arc(px, py - h - 4, 2, 0, Math.PI * 2); ctx.fill();
       // Sound waves
-      var wavePhase = (state.tick % 6) / 6;
+      var wavePhase = (simClock() % 6) / 6;
       ctx.strokeStyle = 'rgba(34,211,238,' + (0.5 - wavePhase * 0.5) + ')';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -4401,7 +4683,7 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
       ctx.fillRect(px - 7, py - h - 10, 6, 2);
       ctx.fillRect(px + 2, py - h - 10, 6, 2);
       // Smoke
-      var psmoke = (state.tick % 8) * 0.5;
+      var psmoke = (simClock() % 8) * 0.5;
       ctx.fillStyle = 'rgba(180,180,180,0.35)';
       ctx.beginPath(); ctx.arc(px - 4, py - h - 12 - psmoke, 3, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(px + 5, py - h - 12 - psmoke * 1.3, 2.5, 0, Math.PI * 2); ctx.fill();
@@ -4549,7 +4831,7 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
       ctx.fillRect(px - bw * 0.3, py - h * 0.35, bw * 0.6, h * 0.3);
 
       // Siren light on top (flashing red/white)
-      var sirenFlash = Math.floor(state.tick * 4) % 2;
+      var sirenFlash = Math.floor(simClock() * 2) % 2;
       ctx.fillStyle = sirenFlash ? '#ff0000' : '#ffffff';
       ctx.beginPath();
       ctx.arc(px, py - h - 2, 3, 0, Math.PI * 2);
@@ -5149,7 +5431,7 @@ function drawSpecialIso(type, px, py, hw, hh, level, b) {
 function drawFireOverlayIso(tx, ty) {
   var iso = tileToIso(tx, ty);
   var px = iso.x, py = iso.y - elevOf(tx, ty) * ELEV_Z;
-  var flicker = Math.sin(state.tick * 2 + tx * 3 + ty * 5) * 0.2 + 0.8;
+  var flicker = Math.sin(animTime / 200 + tx * 3 + ty * 5) * 0.2 + 0.8;
   // Fire on diamond
   isoDiamondPath(px, py, ISO_HW, ISO_HH);
   ctx.fillStyle = 'rgba(255,80,0,' + (0.4 * flicker) + ')';
@@ -5160,8 +5442,8 @@ function drawFireOverlayIso(tx, ty) {
   ctx.fill();
   // Flame particles rising
   for (var i = 0; i < 3; i++) {
-    var fx = px + Math.sin(state.tick * 3 + i * 2) * 4;
-    var fy = py - (state.tick * 2 + i * 10) % 20;
+    var fx = px + Math.sin(animTime / 160 + i * 2) * 4;
+    var fy = py - (simClock() * 4 + i * 10) % 20;
     ctx.fillStyle = 'rgba(255,' + (100 + i * 50) + ',0,' + (0.6 - i * 0.2) + ')';
     ctx.fillRect(fx - 1, fy - 2, 2, 4);
   }
@@ -5175,7 +5457,7 @@ function renderMinimap() {
   const mw = minimap.width / GRID, mh = minimap.height / GRID;
   mctx.fillStyle = '#0a0a12';
   mctx.fillRect(0, 0, minimap.width, minimap.height);
-  const fireBlink = (state.tick % 2) === 0;
+  const fireBlink = (Math.floor(animTime / 500) % 2) === 0;
   const elevShades = ['#22491f', '#2b5626', '#35642e', '#417337'];
   for (let y = 0; y < GRID; y++) {
     for (let x = 0; x < GRID; x++) {
@@ -6351,8 +6633,8 @@ window.addEventListener('keydown', e => {
   else if (e.key === 'ArrowRight') { camX -= ps; clampCamera(); }
   else if (e.key === 'ArrowUp') { camY += ps; clampCamera(); }
   else if (e.key === 'ArrowDown') { camY -= ps; clampCamera(); }
-  else if (e.key === '=' || e.key === '+') { zoom = Math.min(3, zoom * 1.15); clampCamera(); }
-  else if (e.key === '-') { zoom = Math.max(0.4, zoom / 1.15); clampCamera(); }
+  else if (e.key === '=' || e.key === '+') { zoomAt(canvas.width / 2, canvas.height / 2, 1.15); }
+  else if (e.key === '-') { zoomAt(canvas.width / 2, canvas.height / 2, 1 / 1.15); }
 });
 window.addEventListener('keyup', e => {
   if (e.key === 'ArrowUp' || e.key === 'w') keys.up = false;
@@ -6367,12 +6649,12 @@ window.addEventListener('keyup', e => {
 document.getElementById('zoomIn').addEventListener('pointerdown', e => {
   e.preventDefault();
   if (view3DMode) { V3.zoom(0.85); return; }
-  zoom = Math.min(3, zoom * 1.2); clampCamera(); sndClick(); haptic(8);
+  zoomAt(canvas.width / 2, canvas.height / 2, 1.2); sndClick(); haptic(8);
 });
 document.getElementById('zoomOut').addEventListener('pointerdown', e => {
   e.preventDefault();
   if (view3DMode) { V3.zoom(1.15); return; }
-  zoom = Math.max(0.4, zoom / 1.2); clampCamera(); sndClick(); haptic(8);
+  zoomAt(canvas.width / 2, canvas.height / 2, 1 / 1.2); sndClick(); haptic(8);
 });
 document.getElementById('budgetBtn').addEventListener('pointerdown', e => {
   e.preventDefault(); e.stopPropagation();
@@ -7666,6 +7948,7 @@ function gameLoop(ts) {
 
   updateCar(dt);
   updateEffects(dt);
+  updateCamera(dt);
   updatePanAnim(dt);
   if (shakeTime > 0) shakeTime = Math.max(0, shakeTime - dt);
   if (highlightRing) {
