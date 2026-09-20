@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Lord Bluetooth and the Conceptual Communicate</title>
+<meta name="description" content="Match-3 corporate dystopia. The demos are live. The dongles are not loaded.">
+<style>
+  :root{
+    --bg:#0a0e1a; --panel:#121829; --panel2:#1a2238; --line:#2a3555;
+    --gold:#f0b429; --blue:#3b82f6; --cyan:#38bdf8; --red:#ef4444; --green:#22c55e;
+    --txt:#e5e9f5; --dim:#8b96b8;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(1200px 800px at 50% -10%, #17203a 0%, var(--bg) 60%);
+    color:var(--txt); font-family:-apple-system,"SF Pro Text",Helvetica,Arial,sans-serif;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+    user-select:none; -webkit-user-select:none;
+  }
+  #app{ width:min(560px,100vw); height:min(920px,100vh); display:flex; flex-direction:column; position:relative;}
+  /* ---------- top HUD ---------- */
+  #hud{ padding:10px 12px 6px; }
+  #hudrow1{ display:flex; align-items:center; gap:8px; }
+  .stagechip{ background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:5px 9px; font-size:11px; letter-spacing:.4px; color:var(--gold); font-weight:700; white-space:nowrap;}
+  #movesbox{ margin-left:auto; text-align:right; }
+  #moves{ font-size:20px; font-weight:800; color:var(--txt); line-height:1;}
+  #moveslbl{ font-size:9px; color:var(--dim); letter-spacing:1.2px;}
+  #scorebox{text-align:right; margin-left:10px;}
+  #score{font-size:20px;font-weight:800;color:var(--cyan);line-height:1;}
+  #scorelbl{font-size:9px;color:var(--dim);letter-spacing:1.2px;}
+  #stname{ font-size:13px; color:var(--txt); font-weight:600; margin-top:6px;}
+  #execwrap{ display:flex; align-items:center; gap:6px; margin-top:6px;}
+  #execbar{ flex:1; height:8px; background:var(--panel2); border:1px solid var(--line); border-radius:6px; overflow:hidden;}
+  #execfill{ height:100%; width:0%; background:linear-gradient(90deg,var(--gold),#fde68a); transition:width .3s;}
+  #execlbl{ font-size:9px; color:var(--dim); letter-spacing:1px; white-space:nowrap;}
+  .barwrap{ margin-top:8px; }
+  .barlbl{ display:flex; justify-content:space-between; font-size:10px; letter-spacing:1px; color:var(--dim); margin-bottom:3px;}
+  .barlbl b{color:var(--txt)}
+  .bar{ position:relative; height:14px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; overflow:visible;}
+  .fill{ position:absolute; left:0; top:0; bottom:0; border-radius:7px; transition:width .35s ease;}
+  #cfill{ background:linear-gradient(90deg,#1d4ed8,var(--blue),#60a5fa); width:0%;}
+  #qfill{ background:linear-gradient(90deg,#b45309,var(--gold),#fde68a); width:50%;}
+  .tick{ position:absolute; top:-3px; bottom:-3px; width:2px; background:#f87171; border-radius:1px;}
+  .tickst{ position:absolute; top:-3px; bottom:-3px; width:2px; background:rgba(255,255,255,.35); border-radius:1px;}
+  /* ---------- board ---------- */
+  #boardwrap{ flex:1; display:flex; align-items:center; justify-content:center; padding:6px 10px; min-height:0;}
+  canvas{ border-radius:14px; border:1px solid var(--line); background:linear-gradient(180deg,#0d1322,#0a0e1a); touch-action:none;}
+  /* ---------- caption ---------- */
+  #caption{ position:absolute; left:12px; right:12px; bottom:12px; min-height:52px;
+    background:rgba(10,14,26,.92); border:1px solid var(--line); border-left:4px solid var(--gold);
+    border-radius:10px; padding:8px 12px; display:none; z-index:30; backdrop-filter:blur(4px);}
+  #capname{ font-size:10px; font-weight:800; letter-spacing:1.2px; color:var(--gold); }
+  #captext{ font-size:14px; line-height:1.35; margin-top:2px;}
+  /* ---------- ticket ---------- */
+  #ticket{ position:absolute; top:70px; right:10px; width:270px; z-index:40;
+    background:#1c1116; border:1px solid #7f1d1d; border-left:4px solid var(--red);
+    border-radius:10px; padding:9px 11px; display:none; box-shadow:0 8px 30px rgba(0,0,0,.5);}
+  #tkhead{ font-size:10px; font-weight:800; letter-spacing:1px; color:#f87171;}
+  #tkline{ font-size:13px; font-weight:700; margin:4px 0; color:#fecaca; font-style:italic;}
+  #tkmeta{ font-size:10px; color:var(--dim); line-height:1.5;}
+  /* ---------- overlays ---------- */
+  .overlay{ position:absolute; inset:0; z-index:50; display:none; align-items:center; justify-content:center;
+    background:rgba(5,8,16,.9); backdrop-filter:blur(6px); overflow-y:auto;}
+  .card{ width:min(480px,92%); background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    padding:26px 26px 22px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.6); margin:20px 0;}
+  .card h1{ font-size:26px; line-height:1.15; letter-spacing:.3px;}
+  .card h2{ font-size:20px; color:var(--gold);}
+  .sub{ color:var(--dim); font-size:14px; margin-top:8px; line-height:1.45;}
+  .story{ font-size:15px; line-height:1.55; margin-top:14px; color:var(--txt); text-align:left;}
+  .story i{color:#93c5fd}
+  .btn{ display:inline-block; margin-top:18px; background:linear-gradient(180deg,var(--gold),#d97706);
+    color:#1a1206; font-weight:800; font-size:15px; letter-spacing:.5px; border:none; border-radius:10px;
+    padding:12px 26px; cursor:pointer;}
+  .btn.alt{ background:var(--panel2); color:var(--txt); border:1px solid var(--line); font-weight:600;}
+  .btnrow{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+  .targets{ display:flex; gap:10px; justify-content:center; margin-top:14px; font-size:12px; color:var(--dim);}
+  .targets div{ background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:6px 10px;}
+  .targets b{color:var(--txt); font-size:14px; display:block;}
+  #titleart{ width:100%; border-radius:12px; border:1px solid var(--line); display:block;}
+  .kicker{ margin-top:12px; font-size:11px; letter-spacing:2px; color:var(--dim);}
+  .lens{ text-align:left; font-size:13px; line-height:1.5; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:9px 12px; margin-top:8px;}
+  .lens b{color:var(--cyan); font-size:11px; letter-spacing:1px;}
+  .statgrid{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:14px; font-size:12px; color:var(--dim);}
+  .statgrid div{ background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:6px 10px;}
+  .statgrid b{color:var(--txt); font-size:15px; display:block;}
+  #mutebtn{ position:absolute; top:10px; right:10px; z-index:60; background:var(--panel2); border:1px solid var(--line);
+    color:var(--dim); border-radius:8px; padding:5px 9px; font-size:14px; cursor:pointer;}
+  .glitch{ font-size:30px; font-weight:900; letter-spacing:2px; color:#f87171; text-shadow:2px 0 #3b82f6, -2px 0 #f0b429; animation:gl .18s infinite;}
+  @keyframes gl{ 0%{transform:translate(0,0)} 25%{transform:translate(-2px,1px)} 50%{transform:translate(2px,-1px)} 75%{transform:translate(-1px,-1px)} 100%{transform:translate(1px,1px)}}
+  #howto{ text-align:left; font-size:13px; line-height:1.6; color:var(--dim); margin-top:12px;}
+  #howto b{color:var(--txt)}
+  #banner{position:absolute; top:126px; left:10px; right:10px; z-index:45; text-align:center; font-size:12px; font-weight:800; letter-spacing:.8px; padding:8px 10px; display:none; background:rgba(10,14,26,.92); border:1px solid #7f1d1d; border-radius:10px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <button id="mutebtn" title="voice on/off">🔊</button>
+  <div id="hud">
+    <div id="hudrow1">
+      <div class="stagechip" id="stagechip">STAGE 1/6</div>
+      <div id="scorebox"><div id="score">0</div><div id="scorelbl">SCORE</div></div>
+      <div id="movesbox"><div id="moves">20</div><div id="moveslbl">MOVES</div></div>
+    </div>
+    <div id="stname">Kickoff / Scope</div>
+    <div id="execwrap"><span id="execlbl">👑 EXEC ATTENTION</span><div id="execbar"><div id="execfill"></div></div></div>
+    <div class="barwrap">
+      <div class="barlbl"><span>COMPLETENESS</span><span><b id="cval">0</b> / target <span id="ctarget">18</span></span></div>
+      <div class="bar"><div class="fill" id="cfill"></div><div class="tick" id="ctick" style="left:18%"></div></div>
+    </div>
+    <div class="barwrap">
+      <div class="barlbl"><span>QUALITY</span><span><b id="qval">50</b> / target <span id="qtarget">55</span></span></div>
+      <div class="bar"><div class="fill" id="qfill"></div><div class="tick" id="qtick" style="left:55%"></div></div>
+    </div>
+  </div>
+  <div id="boardwrap"><canvas id="cv"></canvas></div>
+  <div id="caption"><div id="capname"></div><div id="captext"></div></div>
+  <div id="ticket"><div id="tkhead"></div><div id="tkline"></div><div id="tkmeta"></div></div>
+  <div id="banner"></div>
+
+  <!-- TITLE -->
+  <div class="overlay" id="ov-title" style="display:flex">
+    <div class="card">
+      <img id="titleart" src="lord-bluetooth-org-assets/01.png" alt="" onerror="this.style.display='none'" style="box-shadow:0 8px 30px rgba(59,130,246,.25)">
+      <h1 style="margin-top:14px">LORD BLUETOOTH<br><span style="font-size:17px;color:var(--dim)">and the</span><br><span style="color:var(--gold)">CONCEPTUAL COMMUNICATE</span></h1>
+      <div class="sub"><i>The demos are live. The dongles are not loaded.</i></div>
+      <div id="howto">
+        <b>How it works:</b> swap adjacent tiles, line up 3+.<br>
+        🎧💾📊 fill <b>COMPLETENESS</b> · clean matches fill <b>QUALITY</b><br>
+        🐛 bugs rot Quality while they sit — match 3 for a hotfix<br>
+        4-in-a-row = <b>Fix Forward</b> · 5+ = <b>One More Announcement</b><br>
+        👑 exec tiles fill <b>EXEC ATTENTION</b> — double score, terrible ideas<br><br>
+        Six stages. ~15 minutes. One dongle.
+      </div>
+      <div class="btnrow"><button class="btn" id="btn-start">BEGIN THE KEYNOTE CYCLE</button></div>
+      <div class="kicker">A SEQUEL TO “LORD BLUETOOTH: MEGACORP ORG MANAGEMENT” · FULLY VOICED</div>
+    </div>
+  </div>
+
+  <!-- STAGE INTRO -->
+  <div class="overlay" id="ov-intro"><div class="card">
+    <div class="kicker" id="in-kicker">STAGE 1 OF 6</div>
+    <h1 id="in-name">Kickoff / Scope</h1>
+    <div class="story" id="in-story"></div>
+    <div class="targets" id="in-targets"></div>
+    <button class="btn" id="btn-go">START</button>
+  </div></div>
+
+  <!-- DEBRIEF -->
+  <div class="overlay" id="ov-debrief"><div class="card">
+    <div class="kicker" id="db-kicker">STAGE DEBRIEF</div>
+    <h2 id="db-title">Stage cleared</h2>
+    <div class="story" id="db-story"></div>
+    <div id="db-lenses"></div>
+    <div class="btnrow"><button class="btn" id="btn-next">SAME OUTAGE, SIXTEEN OPINIONS</button></div>
+  </div></div>
+
+  <!-- FAIL -->
+  <div class="overlay" id="ov-fail"><div class="card">
+    <div class="kicker" style="color:#f87171">INCIDENT POSTMORTEM</div>
+    <h1 id="fail-title" style="color:#f87171">STAGE FAILED</h1>
+    <div class="story" id="fail-story"></div>
+    <div class="btnrow">
+      <button class="btn" id="btn-retry">RUN IT BACK (CHECKPOINT)</button>
+    </div>
+  </div></div>
+
+  <!-- CRASH -->
+  <div class="overlay" id="ov-crash"><div class="card" style="border-color:#7f1d1d">
+    <div class="glitch">LIVE DEMO FAILURE</div>
+    <div class="story" id="crash-story" style="text-align:center"></div>
+    <div class="sub" style="font-style:italic" id="crash-cap">live captions: [unintelligible]</div>
+    <div class="btnrow"><button class="btn" id="btn-crash-retry">RESTORE FROM THE CLOUD (CHECKPOINT)</button></div>
+  </div></div>
+
+  <!-- ENDING -->
+  <div class="overlay" id="ov-end"><div class="card">
+    <div class="kicker" id="end-kicker">FINAL</div>
+    <h1 id="end-title"></h1>
+    <div class="story" id="end-story"></div>
+    <div class="statgrid" id="end-stats"></div>
+    <div class="sub" id="end-kick"></div>
+    <div class="btnrow"><button class="btn" id="btn-again">RUN THE CONFERENCE AGAIN</button></div>
+  </div></div>
+</div>
+<script>
+"use strict";
+/* ============================================================
+   LORD BLUETOOTH AND THE CONCEPTUAL COMMUNICATE
+   match-3 · six stages · fully voiced · one dongle
+   ============================================================ */
+
+/* ---------- VOICE MANIFEST (audio + always-on captions) ---------- */
+var V = {
+ "mark-title":{s:"MARK · room commentary",t:"Conceptual Communicate. Two words. Zero meaning. Infinite runway."},
+ "lb-title":{s:"LORD BLUETOOTH",t:"I am Lord Bluetooth. This is my conference. Do not unplug anything."},
+ "mark-howto1":{s:"MARK",t:"Swap two tiles. Line up three. Ship something."},
+ "mark-howto2":{s:"MARK",t:"Headsets, checkpoints, slides fill Completeness. Anything clean fills Quality."},
+ "mark-howto3":{s:"MARK",t:"Bugs rot Quality while they sit. Match three bugs for a hotfix."},
+ "lb-howto":{s:"LORD BLUETOOTH",t:"Fix forward. Parallel path. The board is a roadmap now."},
+ "lb-s1":{s:"LORD BLUETOOTH",t:"Kickoff. We scope the vision before lunch. Lunch is a slide."},
+ "mark-s1":{s:"MARK",t:"Day one of the conference. The dongle has not loaded. Nobody knows where the dongle goes."},
+ "lb-s2":{s:"LORD BLUETOOTH",t:"Build freeze. Nothing ships. Everything improves. That is the trick."},
+ "mark-s2":{s:"MARK",t:"Engineering froze the build. So the bugs froze with it. In theory."},
+ "lb-s3":{s:"LORD BLUETOOTH",t:"Dress rehearsal. If it breaks now, it is a feature of the rehearsal."},
+ "mark-s3":{s:"MARK",t:"The rehearsal audience is twelve employees and one therapy duck."},
+ "lb-s4":{s:"LORD BLUETOOTH",t:"Press junket. Smile. Say platform. Never say the price."},
+ "mark-s4":{s:"MARK",t:"Across the hall, the rival keynote starts in four minutes. At half price."},
+ "lb-s5":{s:"LORD BLUETOOTH",t:"Live keynote. One take. The whole company is watching. Hi, mom."},
+ "mark-s5":{s:"MARK",t:"This is the demo. It is live. God help the dongle."},
+ "lb-s6":{s:"LORD BLUETOOTH",t:"Afterparty. The product survived. Now we celebrate like it worked."},
+ "mark-s6":{s:"MARK",t:"Open bar. The metrics are up. Nobody will check until Monday."},
+ "mark-w1":{s:"MARK",t:"Scope locked. The vision fits on one slide. Legally, that is a strategy."},
+ "lb-w2":{s:"LORD BLUETOOTH",t:"Freeze held. The build is identical. We will call it momentum."},
+ "mark-w3":{s:"MARK",t:"Rehearsal complete. Only two fires. Both filed as dry runs."},
+ "lb-w4":{s:"LORD BLUETOOTH",t:"The press wrote it down. Half of it was even true."},
+ "mark-w5":{s:"MARK",t:"The demo held. Somewhere, a dongle ascends."},
+ "lb-w6":{s:"LORD BLUETOOTH",t:"Conference closed. Same outage, sixteen opinions. That is culture."},
+ "mark-f1":{s:"MARK",t:"Scope collapsed. The vision now requires a second deck."},
+ "lb-f2":{s:"LORD BLUETOOTH",t:"The freeze broke. So did the build. And the intern."},
+ "mark-f3":{s:"MARK",t:"The rehearsal crashed. Imagine it live. Nobody has to imagine now."},
+ "lb-f4":{s:"LORD BLUETOOTH",t:"The press got the story. The story was the outage."},
+ "mark-f5":{s:"MARK",t:"Demo lost. Live captions read: unintelligible."},
+ "lb-f6":{s:"LORD BLUETOOTH",t:"Afterparty over. Security has my crown. This is fine."},
+ "in-moon":{s:"LORD BLUETOOTH · reading the ticket",t:"Incident report. “The moon is messing with GPS.” Scope: global. Assigned: intern."},
+ "in-dns":{s:"LORD BLUETOOTH · reading the ticket",t:"Incident report. “DNS is being weird.” That is the entire ticket."},
+ "in-vpn":{s:"LORD BLUETOOTH · reading the ticket",t:"Incident report. “The VPN only breaks on hotel Wi-Fi.” Do not ask how."},
+ "in-muted":{s:"LORD BLUETOOTH · reading the ticket",t:"Incident report. “You are muted.” Fourteen minutes of strategy, unheard."},
+ "in-partner":{s:"LORD BLUETOOTH · reading the ticket",t:"Incident report. “Your partner is not texting back.” Priority: P-zero."},
+ "in-group":{s:"LORD BLUETOOTH · reading the ticket",t:"Incident report. “The group chat went silent.” We are monitoring."},
+ "in-mesh":{s:"LORD BLUETOOTH · reading the ticket",t:"Incident report. “The service mesh is blocking requests.” It has opinions."},
+ "in-mercury":{s:"LORD BLUETOOTH · reading the ticket",t:"Incident report. “Mercury is retrograde.” Engineering is aligned with the stars."},
+ "in-spotify":{s:"LORD BLUETOOTH · reading the ticket",t:"Incident report. “Spotify is buffering during the walk-on.” Unforgivable."},
+ "in-denied":{s:"LORD BLUETOOTH · reading the ticket",t:"Incident report. “Access denied.” Requested by me. Denied by me."},
+ "vp-pivot1":{s:"VP OF AI TRANSFORMATION",t:"Quick pivot: can the bug also be an agent? Asking for the roadmap."},
+ "vp-pivot2":{s:"VP OF AI TRANSFORMATION",t:"I rebranded the outage. It is now a synchronous collaboration moment."},
+ "vp-pivot3":{s:"VP OF AI TRANSFORMATION",t:"The demo failed. Perfect. Failure is pre-training data."},
+ "lb-exec1":{s:"LORD BLUETOOTH",t:"Attention secured. For five moves, I am the metrics."},
+ "lb-exec2":{s:"LORD BLUETOOTH",t:"Eyes on me. This match is now the next computing platform."},
+ "mark-exec":{s:"MARK",t:"He is up. Every clear scores double until he gets bored. Pray."},
+ "rv-1":{s:"RIVAL CEO · across the hall",t:"We ship your product at half price. The more you buy, the more you save."},
+ "rv-2":{s:"RIVAL CEO",t:"Their dongle is not loaded. Ours ships in the box. Imagine that."},
+ "rv-3":{s:"RIVAL CEO",t:"Afterparty? Mine has a full band and free shipping."},
+ "inv-fail":{s:"INVESTOR",t:"I flew nine hours to watch a spinner."},
+ "inv-calendar":{s:"INVESTOR",t:"Your three PM is you. In this room. Reviewing this slide."},
+ "lb-hotfix":{s:"LORD BLUETOOTH",t:"Hotfix shipped. We will fix it forward in the next epoch."},
+ "mark-record":{s:"MARK",t:"Cascade. That is compounding velocity. The board is doing a standup."},
+ "mark-nda":{s:"MARK",t:"Those four tiles are now under NDA. They cannot match. Legally."},
+ "mark-crash":{s:"MARK",t:"Live captions: unintelligible. We are calling it ambient."},
+ "lb-crash":{s:"LORD BLUETOOTH",t:"The demo crashed. We pivot to retail in three, two."},
+ "mark-dongle":{s:"MARK",t:"The dongle has entered the building. Unknown which building."},
+ "end-s":{s:"LORD BLUETOOTH",t:"Third epoch. The crown stays on. History has its eyes on us."},
+ "end-a":{s:"MARK",t:"A solid keynote. The press says promising. Promising is the beige of words."},
+ "end-b":{s:"MARK",t:"We are calling it an internal tool now. Twelve users. All of them us."},
+ "bark-1":{s:"LORD BLUETOOTH",t:"That is synergy you can hear."},
+ "bark-2":{s:"MARK",t:"Clean match. The auditors wept."},
+ "bark-3":{s:"LORD BLUETOOTH",t:"Parallel pathed. You are welcome."},
+ "bark-4":{s:"MARK",t:"Another one. The dashboard is glowing."},
+ "bark-5":{s:"VP OF AI TRANSFORMATION",t:"That match is training data now."},
+ "bark-6":{s:"LORD BLUETOOTH",t:"Incremental progress. Disruptive tone."},
+ "lens-purist":{s:"ENGINEER · link-layer purist",t:"That is link layer. A packet problem wearing a suit."},
+ "lens-goblin":{s:"VP · whole-system goblin",t:"It is the service mesh. It is always the mesh. The mesh is load-bearing."},
+ "lens-meta":{s:"MARK · social metaphysician",t:"The outage was internal. The group chat felt it first."}
+};
+for (var k in V){ V[k].f = "lbcc-assets/" + k + ".m4a"; }
+
+/* ---------- the sixteen opinions (connectivity alignment chart, canon) ---------- */
+var INCIDENTS = [
+ "Bluetooth is dropping packets","Wi-Fi signal is weak","Spotify is buffering","The moon is messing with GPS",
+ "Packets are being dropped","This site can’t be reached","There’s a major outage","DNS is being weird",
+ "Your connection is not private","The service mesh is blocking requests","Access denied","The VPN only breaks on hotel Wi-Fi",
+ "Your partner is not texting back","The group chat went silent","Nobody can hear me on Zoom — “You are muted”","Mercury retrograde"
+];
+var INVOICE = { "The moon is messing with GPS":"in-moon", "DNS is being weird":"in-dns",
+ "The VPN only breaks on hotel Wi-Fi":"in-vpn", "Nobody can hear me on Zoom — “You are muted”":"in-muted",
+ "Your partner is not texting back":"in-partner", "The group chat went silent":"in-group",
+ "The service mesh is blocking requests":"in-mesh", "Mercury retrograde":"in-mercury",
+ "Spotify is buffering":"in-spotify", "Access denied":"in-denied" };
+var SCOPES = ["scope: global","scope: one (1) laptop","scope: the vibes","scope: building 4","scope: all of it","scope: the afterparty","scope: the moon, again"];
+var ASSIGNED = ["assigned: intern","assigned: the intern’s intern","assigned: whoever merged it","assigned: the therapy duck","assigned: Mercury","assigned: you, retroactively","assigned: unassigned"];
+
+/* ---------- stage table ---------- */
+var STAGES = [
+ {name:"Kickoff / Scope", sub:"Scope the vision. The vision is three slides.",
+  story:'LB: “We announce <i>Conceptual Communicate</i> today. It is a conference. It is also a platform. It is also, legally, a slide.”',
+  moves:20, cT:15, qT:55, twist:"SCOPE CREEP at move 10 — three tiles become Partner Demos. Nobody approved this."},
+ {name:"Build Freeze", sub:"Nothing ships. Everything improves.",
+  story:'MARK: “Engineering froze the build at noon. The bugs froze with it. <i>In theory.</i>”',
+  moves:22, cT:35, qT:60, twist:"ICE AGE every 6 moves — a row and column freeze solid for 3 moves."},
+ {name:"Dress Rehearsal", sub:"If it breaks now, it’s a feature of the rehearsal.",
+  story:'LB: “Run the demo. Break nothing. The audience is twelve employees and a therapy duck, and the duck is <i>diligence.</i>”',
+  moves:22, cT:55, qT:65, twist:"BUG INJECTIONS at moves 5 / 12 / 18 — incident tickets start arriving."},
+ {name:"Press Junket", sub:"Smile. Say platform. Never say the price.",
+  story:'MARK: “Across the hall, the rival CEO is demoing your product. At half price. With better rubber.”',
+  moves:24, cT:78, qT:70, twist:"NDA SERVES every 6 moves — four tiles become legally unable to match. Rival taunts included."},
+ {name:"THE LIVE KEYNOTE", sub:"One take. The whole company is watching.",
+  story:'LB: “Demos are live. Dongles are not loaded. If Quality hits zero on this stage, the demo crashes on camera and the captions say <i>[unintelligible]</i>.”',
+  moves:30, cT:100, qT:75, twist:"LIVE DEMO FAILURE every ~8 moves — bug swarms with voiced incident reports. Quality 0 = on-camera crash."},
+ {name:"Afterparty", sub:"The product survived. Celebrate like it worked.",
+  story:'MARK: “Open bar. Execs spawn like it’s an offsite. The metrics are up. Nobody will check until Monday.”',
+  moves:22, cT:120, qT:80, twist:"OPEN BAR — exec tiles everywhere, all score ×1.5. Endgame: final tier is set here."}
+];
+
+/* ---------- tiles ---------- */
+var T_HEAD=0, T_CHK=1, T_SLD=2, T_ENG=3, T_COF=4, T_PRT=5, T_BUG=6, T_EXE=7;
+var TYPES = [
+ {g:"🎧",c:"#1e3a8a",n:"Prototype Headset"},
+ {g:"💾",c:"#334155",n:"Model Checkpoint"},
+ {g:"📊",c:"#065f46",n:"Keynote Slide"},
+ {g:"🧑‍💻",c:"#4c1d95",n:"Engineer"},
+ {g:"☕",c:"#7c2d12",n:"Cold Coffee"},
+ {g:"🤝",c:"#0e7490",n:"Partner Demo"},
+ {g:"🐛",c:"#7f1d1d",n:"P0 Bug"},
+ {g:"👑",c:"#a16207",n:"Executive Ego"}
+];
+
+/* ---------- state ---------- */
+var N=8, grid=[], sel=null, busy=false, state="title";
+var stage=0, movesLeft=0, score=0, comp=0, qual=50, exec=0, execMult=1, execLeft=0;
+var snapshot=null, moveNum=0, lastIncident=null, incidentsSeen=0, hotfixes=0, swarmsSurvived=0;
+var voicedIncidents=[], playedBarks=0, cascadeBest=0;
+var playMs=0, stageStartMs=0, stageLog=[];
+var qs = new URLSearchParams(location.search);
+var AUTO = qs.get("autoplay")==="1", DEBUG = qs.get("debug")==="1";
+
+/* ---------- audio ---------- */
+var muted = localStorage.getItem("lbcc-mute")==="1";
+var curAudio=null, capTimer=null, voiceQ=[], flushing=false, lastQueued=null;
+var AC=null;
+function ac(){ if(!AC){ try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return AC; }
+function tone(f,d,type,vol,when){
+  var a=ac(); if(!a||muted) return;
+  var o=a.createOscillator(), g=a.createGain();
+  o.type=type||"sine"; o.frequency.value=f;
+  g.gain.setValueAtTime(vol||0.05, a.currentTime+(when||0));
+  g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime+(when||0)+d);
+  o.connect(g); g.connect(a.destination);
+  o.start(a.currentTime+(when||0)); o.stop(a.currentTime+(when||0)+d+0.02);
+}
+function sfxMatch(n){ tone(392+n*70,0.09,"triangle",0.05); tone(523+n*70,0.12,"triangle",0.04,0.06); }
+function sfxSpecial(){ tone(660,0.1,"sawtooth",0.04); tone(880,0.15,"sawtooth",0.035,0.07); tone(1175,0.2,"sawtooth",0.03,0.14); }
+function sfxBad(){ tone(180,0.22,"square",0.04); tone(140,0.3,"square",0.035,0.12); }
+function sfxClick(){ tone(700,0.04,"sine",0.03); }
+function sfxWin(){ [523,659,784,1047].forEach(function(f,i){tone(f,0.22,"triangle",0.05,i*0.11);}); }
+function sfxCrash(){ tone(200,0.4,"sawtooth",0.05); tone(90,0.7,"sawtooth",0.06,0.2); }
+
+function speak(id){
+  if(!V[id]) return;
+  if(lastQueued===id && voiceQ.length) return;   /* dedupe spam */
+  voiceQ.push(id); lastQueued=id;
+  flushQ();
+}
+function flushQ(){
+  if(flushing || curAudio || voiceQ.length===0) return;
+  flushing=true;
+  var id=voiceQ.shift(), line=V[id];
+  showCap(line.s, line.t, id);
+  var dur = Math.min(6000, 1200+line.t.length*42);
+  if(muted){
+    setTimeout(function(){ flushing=false; flushQ(); }, dur);
+    return;
+  }
+  try{
+    var a=new Audio(line.f);
+    curAudio=a;
+    a.volume=0.95;
+    var done=function(){ curAudio=null; flushing=false; setTimeout(flushQ,140); };
+    a.onended=done; a.onerror=done;
+    a.play().catch(function(){ curAudio=null; flushing=false; setTimeout(flushQ, dur); });
+  }catch(e){ curAudio=null; flushing=false; setTimeout(flushQ,200); }
+}
+function showCap(who,txt,id){
+  var c=document.getElementById("caption");
+  document.getElementById("capname").textContent=who;
+  document.getElementById("captext").textContent=txt;
+  c.style.display="block";
+  clearTimeout(capTimer);
+  capTimer=setTimeout(function(){ c.style.display="none"; }, Math.max(2600, txt.length*55));
+}
+var mutebtn=document.getElementById("mutebtn");
+function drawMute(){ mutebtn.textContent = muted?"🔇":"🔊"; }
+mutebtn.onclick=function(){ muted=!muted; localStorage.setItem("lbcc-mute",muted?"1":"0"); if(muted&&curAudio){curAudio.pause();curAudio=null;} drawMute(); sfxClick(); };
+drawMute();
+
+/* ---------- board ---------- */
+function rt(){ return Math.floor(Math.random()*6); }
+function newTile(){
+  var t=rt();
+  var execChance = (stage===5)?0.12:0.05;
+  if(Math.random()<execChance) t=T_EXE;
+  return {t:t, sp:null, nda:0, ice:0};
+}
+function genBoard(){
+  grid=[];
+  for(var r=0;r<N;r++){ grid[r]=[];
+    for(var c=0;c<N;c++){
+      var t, tries=0;
+      do{ t=rt(); tries++; }while(tries<20 && createsAt(r,c,t));
+      grid[r][c]={t:t,sp:null,nda:0,ice:0};
+    }
+  }
+  /* guarantee a valid move exists */
+  if(!findAnyMove()) genBoard();
+}
+function createsAt(r,c,t){
+  if(c>=2 && grid[r][c-1].t===t && grid[r][c-2].t===t) return true;
+  if(r>=2 && grid[r-1][c].t===t && grid[r-2][c].t===t) return true;
+  return false;
+}
+function findMatches(){
+  var runs=[], run;
+  for(var r=0;r<N;r++){ run=[];
+    for(var c=0;c<=N;c++){
+      var t = c<N ? grid[r][c].t : -1;
+      if(c>0 && run.length && grid[r][c-1].t===t) run.push([r,c]);
+      else { if(run.length>=3) runs.push({cells:run.slice(),dir:"h"}); run=[[r,c]]; }
+    }
+  }
+  for(var c2=0;c2<N;c2++){ run=[];
+    for(var r2=0;r2<=N;r2++){
+      var t2 = r2<N ? grid[r2][c2].t : -1;
+      if(r2>0 && run.length && grid[r2-1][c2].t===t2) run.push([r2,c2]);
+      else { if(run.length>=3) runs.push({cells:run.slice(),dir:"v"}); run=[[r2,c2]]; }
+    }
+  }
+  return runs;
+}
+function findAnyMove(){
+  for(var r=0;r<N;r++) for(var c=0;c<N;c++){
+    if(c<N-1){ swapCells(r,c,r,c+1); var m=hasMatch(); swapCells(r,c,r,c+1); if(m) return [r,c,r,c+1]; }
+    if(r<N-1){ swapCells(r,c,r+1,c); var m2=hasMatch(); swapCells(r,c,r+1,c); if(m2) return [r,c,r+1,c]; }
+  }
+  return null;
+}
+function hasMatch(){
+  for(var r=0;r<N;r++) for(var c=0;c<N-2;c++)
+    if(grid[r][c].t===grid[r][c+1].t && grid[r][c].t===grid[r][c+2].t) return true;
+  for(var c2=0;c2<N;c2++) for(var r2=0;r2<N-2;r2++)
+    if(grid[r2][c2].t===grid[r2+1][c2].t && grid[r2][c2].t===grid[r2+2][c2].t) return true;
+  return false;
+}
+function swapCells(r1,c1,r2,c2){ var tmp=grid[r1][c1]; grid[r1][c1]=grid[r2][c2]; grid[r2][c2]=tmp; }
+function locked(tile){ return tile.nda>0 || tile.ice>0; }
+
+/* ---------- resolve loop ---------- */
+function resolveBoard(done){
+  var steps=0;
+  function step(){
+    var runs=findMatches();
+    if(!runs.length){
+      if(steps>=4 && !AUTO) speak("mark-record");
+      if(cascadeBest<steps) cascadeBest=steps;
+      done(); return;
+    }
+    steps++;
+    clearRuns(runs, steps, function(){ gravity(step); });
+  }
+  step();
+}
+function clearRuns(runs, stepN, cb){
+  var clear=new Set();
+  runs.forEach(function(run){ run.cells.forEach(function(rc){ clear.add(rc[0]+","+rc[1]); }); });
+
+  /* specials earned: 5+ = bomb, 4 = row, h+v intersection = bomb */
+  var spawn=[];
+  var cellRuns={};
+  runs.forEach(function(run){ run.cells.forEach(function(rc){
+    var k=rc.join(","); (cellRuns[k]=cellRuns[k]||[]).push(run);
+  }); });
+  Object.keys(cellRuns).forEach(function(k){
+    var dirs=new Set(cellRuns[k].map(function(r){return r.dir;}));
+    if(dirs.size===2){ spawn.push({key:k,sp:"bomb"}); }
+  });
+  runs.forEach(function(run){
+    if(run.cells.length>=5){
+      var mid=run.cells[Math.floor(run.cells.length/2)];
+      spawn.push({key:mid.join(","),sp:"bomb"});
+    } else if(run.cells.length===4){
+      var m2=run.cells[1];
+      spawn.push({key:m2.join(","),sp:"row"});
+    }
+  });
+
+  /* detonate specials already on the board (worklist expansion) */
+  var queue=Array.from(clear);
+  var seen=new Set(clear);
+  var guard=0;
+  while(queue.length && guard<400){
+    guard++;
+    var key=queue.shift();
+    var p=key.split(","), r=+p[0], c=+p[1];
+    var tile=grid[r]&&grid[r][c];
+    if(!tile||!tile.sp) continue;
+    var add=[];
+    if(tile.sp==="row"){ for(var i=0;i<N;i++) add.push(r+","+i); }
+    if(tile.sp==="bomb"){
+      for(var dr=-1;dr<=1;dr++) for(var dc=-1;dc<=1;dc++){
+        var rr=r+dr, cc=c+dc;
+        if(rr>=0&&rr<N&&cc>=0&&cc<N) add.push(rr+","+cc);
+      }
+    }
+    add.forEach(function(k2){
+      if(!seen.has(k2)){ seen.add(k2); clear.add(k2); queue.push(k2); }
+    });
+  }
+
+  /* single accounting pass over the final set */
+  var bugCount=0, compGain=0, pts=0, execHits=0;
+  clear.forEach(function(key){
+    var p=key.split(","), r=+p[0], c=+p[1], tile=grid[r][c];
+    if(!tile) return;
+    if(tile.t===T_BUG) bugCount++;
+    if(tile.t===T_HEAD||tile.t===T_CHK||tile.t===T_SLD) compGain+=1;
+    if(tile.t===T_EXE) execHits++;
+    pts += 10*execMult*(stage===5?1.5:1)*(1+(stepN-1)*0.5);
+    grid[r][c]=null;
+  });
+  qual=clampQ(qual + (stepN-1) + (bugCount>=3?6:0));
+  comp+=compGain;
+  score+=Math.round(pts);
+  exec=Math.min(100, exec+execHits*17);
+  if(bugCount>=3){ hotfixes++; speak(Math.random()<0.5?"lb-hotfix":"bark-2"); }
+  if(bugCount>=3) sfxSpecial(); else sfxMatch(Math.min(4,stepN));
+  if(stepN===1 && Math.random()<0.22 && bugCount<3){
+    playedBarks++;
+    speak("bark-"+(1+(playedBarks%6)));
+  }
+  if(exec>=100 && execLeft<=0){
+    exec=0; execMult=2; execLeft=5;
+    speak(Math.random()<0.5?"lb-exec1":"lb-exec2");
+    speak("mark-exec");
+  }
+  /* place earned specials into freshly cleared cells */
+  spawn.forEach(function(s){
+    var p=s.key.split(","), r=+p[0], c=+p[1];
+    if(grid[r]&&grid[r][c]===null){ grid[r][c]={t:rt(),sp:s.sp,nda:0,ice:0}; }
+    else {
+      for(var key of clear.keys()){
+        var p2=key.split(","), rr=+p2[0], cc=+p2[1];
+        if(grid[rr]&&grid[rr][cc]===null){ grid[rr][cc]={t:rt(),sp:s.sp,nda:0,ice:0}; break; }
+      }
+    }
+  });
+  drawBoard();
+  setTimeout(cb, 180);
+}
+function gravity(cb){
+  for(var c=0;c<N;c++){
+    var write=N-1;
+    for(var r=N-1;r>=0;r--){
+      if(grid[r][c]){ if(write!==r){ grid[write][c]=grid[r][c]; grid[r][c]=null; } write--; }
+    }
+    for(var r2=write;r2>=0;r2--){ grid[r2][c]=newTile(); }
+  }
+  drawBoard();
+  setTimeout(cb, 150);
+}
+function clampQ(q){ return Math.max(0,Math.min(100,q)); }
+
+/* ---------- rendering ---------- */
+var cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+var TS=56, PAD=3;
+function fitCanvas(){
+  var wrap=document.getElementById("boardwrap");
+  var s=Math.min((wrap.clientWidth-8)/N,(wrap.clientHeight-8)/N);
+  TS=Math.max(36,Math.floor(s));
+  var px=N*TS;
+  var dpr=window.devicePixelRatio||1;
+  cv.width=px*dpr; cv.height=px*dpr; cv.style.width=px+"px"; cv.style.height=px+"px";
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener("resize",function(){ fitCanvas(); drawBoard(); });
+function drawBoard(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  for(var r=0;r<N;r++) for(var c=0;c<N;c++){
+    var tile=grid[r]&&grid[r][c]; if(!tile) continue;
+    var x=c*TS+PAD, y=r*TS+PAD, w=TS-PAD*2;
+    var ty=TYPES[tile.t];
+    /* glow for exec */
+    if(tile.t===T_EXE){ ctx.shadowColor="#f0b429"; ctx.shadowBlur=12; }
+    else if(tile.sp){ ctx.shadowColor= tile.sp==="row"?"#38bdf8":"#ef4444"; ctx.shadowBlur=10; }
+    else ctx.shadowBlur=0;
+    ctx.fillStyle=ty.c;
+    roundRect(x,y,w,w,9); ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.strokeStyle="rgba(255,255,255,.14)"; ctx.lineWidth=1; roundRect(x,y,w,w,9); ctx.stroke();
+    /* glyph */
+    ctx.font=Math.floor(w*0.56)+"px -apple-system,'Apple Color Emoji','Segoe UI Emoji',sans-serif";
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(ty.g, x+w/2, y+w/2+w*0.03);
+    if(tile.sp==="row"){
+      ctx.fillStyle="rgba(56,189,248,.9)"; ctx.font="bold "+Math.floor(w*0.2)+"px Helvetica";
+      ctx.fillText("FIX FWD", x+w/2, y+w-8);
+    }
+    if(tile.sp==="bomb"){
+      ctx.fillStyle="rgba(254,202,202,.95)"; ctx.font="bold "+Math.floor(w*0.17)+"px Helvetica";
+      ctx.fillText("ANNOUNCE", x+w/2, y+w-8);
+    }
+    if(tile.nda>0){
+      ctx.fillStyle="rgba(127,29,29,.72)"; roundRect(x+4,y+4,w-8,w-8,6); ctx.fill();
+      ctx.fillStyle="#fecaca"; ctx.font="bold "+Math.floor(w*0.24)+"px Helvetica";
+      ctx.fillText("NDA", x+w/2, y+w/2);
+    }
+    if(tile.ice>0){
+      ctx.fillStyle="rgba(147,197,253,.4)"; roundRect(x+4,y+4,w-8,w-8,6); ctx.fill();
+      ctx.strokeStyle="rgba(219,234,254,.8)"; ctx.lineWidth=1.5; roundRect(x+4,y+4,w-8,w-8,6); ctx.stroke();
+      ctx.fillStyle="#e0f2fe"; ctx.font="bold "+Math.floor(w*0.2)+"px Helvetica";
+      ctx.fillText("❄"+tile.ice, x+w/2, y+w-8);
+    }
+    if(sel && sel[0]===r && sel[1]===c){
+      ctx.strokeStyle="#f0b429"; ctx.lineWidth=3; roundRect(x-1,y-1,w+2,w+2,10); ctx.stroke();
+    }
+  }
+  if(DEBUG){
+    ctx.fillStyle="#334155"; ctx.font="10px Helvetica";
+    ctx.fillText("t+"+Math.floor(playMs/1000)+"s  bugs:"+countBugs()+"  autopl:"+AUTO, 6, cv.height/ (window.devicePixelRatio||1) -6);
+  }
+}
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+function countBugs(){ var n=0; for(var r=0;r<N;r++)for(var c=0;c<N;c++){ if(grid[r][c]&&grid[r][c].t===T_BUG)n++; } return n; }
+
+/* ---------- input ---------- */
+var dragStart=null;
+cv.addEventListener("pointerdown",function(e){
+  if(state!=="play"||busy) return;
+  var p=hit(e); if(!p) return;
+  dragStart=p;
+});
+cv.addEventListener("pointerup",function(e){
+  if(state!=="play"||busy||!dragStart) return;
+  var p=hit(e);
+  if(p){
+    if(p[0]===dragStart[0]&&p[1]===dragStart[1]){
+      /* tap: select / swap with selected */
+      if(sel && (Math.abs(sel[0]-p[0])+Math.abs(sel[1]-p[1])===1)) trySwap(sel[0],sel[1],p[0],p[1]);
+      else { sel=p; sfxClick(); }
+    } else if(Math.abs(p[0]-dragStart[0])+Math.abs(p[1]-dragStart[1])===1){
+      trySwap(dragStart[0],dragStart[1],p[0],p[1]);
+    }
+  }
+  dragStart=null;
+});
+function hit(e){
+  var rect=cv.getBoundingClientRect();
+  var x=e.clientX-rect.left, y=e.clientY-rect.top;
+  var c=Math.floor(x/TS), r=Math.floor(y/TS);
+  if(r<0||c<0||r>=N||c>=N) return null;
+  return [r,c];
+}
+function trySwap(r1,c1,r2,c2){
+  var a=grid[r1][c1], b=grid[r2][c2];
+  if(locked(a)||locked(b)){ shake(r1,c1,r2,c2); sfxBad(); return; }
+  swapCells(r1,c1,r2,c2);
+  var m=findMatches();
+  if(!m.length){ swapCells(r1,c1,r2,c2); shake(r1,c1,r2,c2); sfxBad(); drawBoard(); return; }
+  sel=null;
+  busy=true;
+  doMove(r1,c1,r2,c2);
+}
+function shake(r1,c1,r2,c2){
+  /* quick red flash on the two cells */
+  var n=0;
+  var iv=setInterval(function(){
+    drawBoard();
+    [ [r1,c1],[r2,c2] ].forEach(function(rc){
+      var x=rc[1]*TS+PAD, y=rc[0]*TS+PAD, w=TS-PAD*2;
+      ctx.strokeStyle= n%2 ? "rgba(239,68,68,.9)":"rgba(239,68,68,.2)";
+      ctx.lineWidth=3; roundRect(x,y,w,w,9); ctx.stroke();
+    });
+    if(++n>5){ clearInterval(iv); drawBoard(); }
+  },50);
+}
+
+/* ---------- move pipeline ---------- */
+function doMove(){
+  moveNum++;
+  movesLeft--;
+  resolveBoard(function(){
+    qual=clampQ(qual+1);   /* clean move */
+    /* bug rot scales with infestation */
+    var bugs=countBugs();
+    if(bugs>0) qual=clampQ(qual - (bugs>=5?3:(bugs>=3?2:1)));
+    /* ticks */
+    for(var r=0;r<N;r++)for(var c=0;c<N;c++){
+      var t=grid[r][c];
+      if(t.nda>0)t.nda--; if(t.ice>0)t.ice--;
+    }
+    if(execLeft>0){ execLeft--; if(execLeft===0){ execMult=1; } }
+    updateHUD();
+    if(!findAnyMove()){ genBoard(); drawBoard(); }
+    stageTick();
+    if(state!=="play"){ busy=false; return; }   /* crash overlay fired */
+    if(movesLeft<=0){ endStage(); return; }
+    busy=false;
+    if(AUTO) autoTick();
+  });
+}
+
+/* ---------- stage events ---------- */
+function stageTick(){
+  var s=stage; /* 0-based */
+  if(s===0 && moveNum===10){
+    scopeCreep();
+  }
+  if(s===1 && (moveNum===6||moveNum===12||moveNum===18)){ iceAge(); }
+  if(s===2 && (moveNum===5||moveNum===12||moveNum===18)){ injectBugs(2,false); }
+  if(s===3){
+    if(moveNum===1){ speak("rv-1"); rivalTicker(); }
+    if(moveNum===4||moveNum===10||moveNum===16||moveNum===22) ndaServe();
+  }
+  if(s===4){
+    if(moveNum===1){ speak("rv-2"); rivalTicker(); }
+    if(moveNum===8||moveNum===16||moveNum===24) liveDemoFailure();
+    if(qual<=0){ crash(); return; }
+  }
+  if(s===5 && moveNum===1){ speak("rv-3"); rivalTicker(); }
+}
+function rivalTicker(){
+  var b=document.getElementById("banner");
+  var lines=["ACROSS THE HALL: rival keynote in progress. Attendance: 400 and climbing.",
+             "ACROSS THE HALL: rival demo at half price. The rubber is better.",
+             "ACROSS THE HALL: rival booth now serving free lunch. Attendance: 900."];
+  b.textContent=pick(lines);
+  b.style.color="#f87171";
+  b.style.display="block";
+  clearTimeout(b._tm);
+  b._tm=setTimeout(function(){ b.style.display="none"; }, 5200);
+}
+function scopeCreep(){
+  var n=0, guard=0;
+  while(n<3&&guard<200){ guard++;
+    var r=Math.floor(Math.random()*N), c=Math.floor(Math.random()*N), t=grid[r][c];
+    if(t && t.t!==T_BUG && t.t!==T_EXE){ t.t=T_PRT; n++; }
+  }
+  drawBoard();
+  showTicket("SCOPE CREEP","#47","“Make the conference also a product.” — approved by nobody", false);
+  speak("vp-pivot1");
+}
+function iceAge(){
+  var row=Math.floor(Math.random()*N), col=Math.floor(Math.random()*N);
+  for(var c=0;c<N;c++) if(!locked(grid[row][c])) grid[row][c].ice=3;
+  for(var r=0;r<N;r++) if(!locked(grid[r][col])) grid[r][col].ice=3;
+  drawBoard();
+  showTicket("BUILD FREEZE","#"+(100+moveNum),"A row and column froze for 3 moves. The build is identical.", false);
+  speak("mark-s2",{queue:true});
+}
+function injectBugs(n, voiced){
+  var put=0, guard=0;
+  while(put<n&&guard<400){ guard++;
+    var r=Math.floor(Math.random()*N), c=Math.floor(Math.random()*N);
+    var t=grid[r][c];
+    if(t && t.t!==T_BUG && t.t!==T_EXE && !locked(t)){ t.t=T_BUG; put++; }
+  }
+  drawBoard();
+  var line, vid=null;
+  if(voiced && voicedIncidents.length<INCIDENTS.length){
+    var idx;
+    do{ idx=Math.floor(Math.random()*INCIDENTS.length); }while(voicedIncidents.includes(idx));
+    voicedIncidents.push(idx);
+    line=INCIDENTS[idx]; vid=INVOICE[line]; lastIncident=line;
+    incidentsSeen++;
+    speak(vid);
+  } else {
+    line=INCIDENTS[Math.floor(Math.random()*INCIDENTS.length)];
+    lastIncident=line; incidentsSeen++;
+  }
+  showTicket("LIVE DEMO FAILURE · INCIDENT #"+(40+incidentsSeen), "“"+line+"”", pick(SCOPES)+" · "+pick(ASSIGNED), true);
+}
+function liveDemoFailure(){
+  injectBugs(4+Math.floor(Math.random()*2), true);
+  swarmsSurvived++;
+  sfxBad();
+}
+function ndaServe(){
+  var n=0, guard=0;
+  while(n<4&&guard<200){ guard++;
+    var r=Math.floor(Math.random()*N), c=Math.floor(Math.random()*N), t=grid[r][c];
+    if(t && !locked(t) && t.t!==T_BUG){ t.nda=4; n++; }
+  }
+  drawBoard();
+  speak("mark-nda");
+  showTicket("LEGAL (AUTOMATED)","NDA served on four tiles.","They cannot match. Legally.", false);
+}
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+function showTicket(head,line,meta,red){
+  var t=document.getElementById("ticket");
+  document.getElementById("tkhead").textContent=head;
+  document.getElementById("tkline").textContent=line;
+  document.getElementById("tkmeta").textContent=meta;
+  t.style.display="block";
+  t.style.borderLeftColor = red? "#ef4444" : "#38bdf8";
+  clearTimeout(t._tm);
+  t._tm=setTimeout(function(){ t.style.display="none"; }, 4600);
+}
+
+/* ---------- HUD ---------- */
+function updateHUD(){
+  var s=STAGES[stage];
+  document.getElementById("stagechip").textContent="STAGE "+(stage+1)+"/6 · MOVES "+movesLeft;
+  document.getElementById("moves").textContent=movesLeft;
+  document.getElementById("score").textContent=score;
+  document.getElementById("stname").textContent=s.name;
+  document.getElementById("cval").textContent=comp;
+  document.getElementById("qval").textContent=qual;
+  document.getElementById("ctarget").textContent=s.cT;
+  document.getElementById("qtarget").textContent=s.qT;
+  document.getElementById("cfill").style.width=Math.min(100,comp)+"%";
+  document.getElementById("qfill").style.width=qual+"%";
+  document.getElementById("ctick").style.left=Math.min(100,s.cT)+"%";
+  document.getElementById("qtick").style.left=s.qT+"%";
+  document.getElementById("execfill").style.width=exec+"%";
+}
+
+/* ---------- flow ---------- */
+function show(id){ document.querySelectorAll(".overlay").forEach(function(o){o.style.display="none";});
+  if(id) document.getElementById(id).style.display="flex"; }
+function startStage(){
+  var s=STAGES[stage];
+  snapshot={comp:comp,qual:qual,score:score,moves:s.moves};
+  movesLeft=s.moves; moveNum=0; lastIncident=null;
+  for(var r=0;r<N;r++)for(var c=0;c<N;c++){ grid[r][c].nda=0; grid[r][c].ice=0; }
+  state="play"; busy=false;
+  fitCanvas(); drawBoard(); updateHUD();
+  stageStartMs=playMs;
+  document.getElementById("in-kicker").textContent="STAGE "+(stage+1)+" OF 6";
+  document.getElementById("in-name").textContent=s.name;
+  document.getElementById("in-story").innerHTML=s.story;
+  document.getElementById("in-targets").innerHTML=
+    "<div><b>"+s.cT+"</b>COMPLETENESS</div><div><b>"+s.qT+"</b>QUALITY</div><div><b>"+s.moves+"</b>MOVES</div>";
+  show("ov-intro");
+  speak("lb-s"+(stage+1)); speak("mark-s"+(stage+1),{queue:true});
+  if(stage===0){ speak("mark-howto1",{queue:true}); speak("mark-howto2",{queue:true}); speak("mark-howto3",{queue:true}); speak("lb-howto",{queue:true}); }
+  if(stage===4){ speak("mark-dongle",{queue:true}); }
+}
+document.getElementById("btn-go").onclick=function(){
+  sfxClick(); show(null);
+  if(AUTO) autoTick();
+};
+function endStage(){
+  var s=STAGES[stage];
+  stageLog.push({stage:stage+1, name:s.name, seconds:Math.floor((playMs-stageStartMs)/1000), moves:s.moves});
+  var pass = comp>=s.cT && qual>=s.qT;
+  if(!pass){ failStage(); return; }
+  /* debrief */
+  var wv="mark-w"+(stage+1), lv="lb-w"+(stage+1);
+  document.getElementById("db-kicker").textContent="STAGE "+(stage+1)+" DEBRIEF";
+  document.getElementById("db-title").textContent=s.name+" — CLEARED";
+  var lensHtml="";
+  if(stage>=2 && lastIncident){
+    lensHtml='<div class="lens"><b>INCIDENT UNDER REVIEW</b><br>“'+lastIncident+'”</div>'+
+    '<div class="lens"><b>ENGINEER · LINK-LAYER PURIST</b><br>“That’s link layer. A packet problem wearing a suit.”</div>'+
+    '<div class="lens"><b>VP · WHOLE-SYSTEM GOBLIN</b><br>“It’s the service mesh. It’s always the mesh. The mesh is load-bearing.”</div>'+
+    '<div class="lens"><b>MARK · SOCIAL METAPHYSICIAN</b><br>“The outage was internal. The group chat felt it first.”</div>';
+    speak("lens-purist"); speak("lens-goblin",{queue:true}); speak("lens-meta",{queue:true});
+  } else {
+    lensHtml='<div class="lens"><b>INCIDENT REPORT</b><br>Zero incidents filed this stage. Suspicious. Filed an incident about it.</div>';
+  }
+  document.getElementById("db-story").innerHTML="Completeness <b>"+comp+"</b> · Quality <b>"+qual+"</b> · Score <b>"+score+"</b>";
+  document.getElementById("db-lenses").innerHTML=lensHtml;
+  show("ov-debrief");
+  speak(Math.random()<0.5?wv:lv);
+  sfxWin();
+}
+document.getElementById("btn-next").onclick=function(){
+  sfxClick();
+  if(stage===5){ ending(); return; }
+  stage++;
+  show(null);
+  setTimeout(startStage, 250);
+};
+function failStage(){
+  state="fail";
+  var fv = stage===1?"lb-f2":"mark-f"+(stage+1);
+  var story="";
+  if(stage===3||stage===4){
+    story='An investor watches the failure from the front row. You show him your recovery roadmap.<br><br>He opens his calendar and turns it toward you: <i>“Your 3PM is you. In this room. Reviewing this slide.”</i>';
+    speak("inv-fail"); speak("inv-calendar",{queue:true});
+  } else {
+    story='The dongle is still loading. It has been loading since the title screen. In a way, it is the most reliable thing here.';
+    speak("mark-dongle",{queue:true});
+  }
+  speak(fv);
+  document.getElementById("fail-title").textContent=STAGES[stage].name.toUpperCase()+" FAILED";
+  document.getElementById("fail-story").innerHTML=story+
+    '<br><br>Completeness '+comp+'/'+STAGES[stage].cT+' · Quality '+qual+'/'+STAGES[stage].qT;
+  show("ov-fail");
+  sfxBad();
+}
+document.getElementById("btn-retry").onclick=function(){
+  sfxClick();
+  comp=snapshot.comp; qual=snapshot.qual; score=snapshot.score;
+  state="play"; show(null);
+  setTimeout(startStage,250);
+};
+function crash(){
+  state="crash"; sfxCrash();
+  var line = lastIncident || pick(INCIDENTS);
+  document.getElementById("crash-story").innerHTML=
+    'The demo died on camera. '+incidentsSeen+' incident tickets were filed <i>during</i> the failure.<br><br>Final ticket: <b>“'+line+'”</b>';
+  speak("mark-crash"); speak("lb-crash",{queue:true});
+  show("ov-crash");
+}
+document.getElementById("btn-crash-retry").onclick=function(){
+  sfxClick();
+  comp=snapshot.comp; qual=snapshot.qual; score=snapshot.score;
+  state="play"; show(null);
+  setTimeout(startStage,250);
+};
+function ending(){
+  state="end";
+  var sT = comp>=170 && qual>=85;
+  var aT = comp>=120 && qual>=70;
+  var title, story, vk, voice;
+  if(sT){
+    title="THE KEYNOTE IS A PLATFORM SHIFT";
+    story='Lord Bluetooth closes with one slide: a crown. The room does not laugh. The room <i>invests.</i><br><br>Historians will split computing in two: before the dongle, and after.';
+    voice="end-s"; vk="TIER S — VISIONARY";
+  } else if(aT){
+    title="A REAL KEYNOTE";
+    story='The press writes “promising” eleven times. The rival CEO across the hall lowers his price to free and adds a hug.<br><br>Somewhere, a dongle finishes loading. Nobody needs it anymore.';
+    voice="end-a"; vk="TIER A — SHIPPED";
+  } else {
+    title="WE’RE CALLING IT AN INTERNAL TOOL NOW";
+    story='The conference happened. The product exists. Twelve people use it daily. All twelve are on the org chart.<br><br>The pivot memo goes out Monday: <i>retail.</i>';
+    voice="end-b"; vk="TIER B — INTERNAL TOOL · PIVOT TO RETAIL";
+  }
+  document.getElementById("end-kicker").textContent=vk;
+  document.getElementById("end-title").textContent=title;
+  document.getElementById("end-story").innerHTML=story;
+  var totalSec=Math.floor(playMs/1000);
+  document.getElementById("end-stats").innerHTML=
+    "<div><b>"+comp+"</b>COMPLETENESS</div><div><b>"+qual+"</b>QUALITY</div><div><b>"+score+"</b>SCORE</div>"+
+    "<div><b>"+hotfixes+"</b>HOTFIXES</div><div><b>"+incidentsSeen+"</b>INCIDENTS</div>"+
+    "<div><b>"+Math.floor(totalSec/60)+":"+String(totalSec%60).padStart(2,"0")+"</b>RUN TIME</div>"+
+    "<div><b>still loading</b>DONGLE</div>";
+  document.getElementById("end-kick").textContent="LORD BLUETOOTH AND THE CONCEPTUAL COMMUNICATE · same outage, sixteen opinions";
+  show("ov-end");
+  speak(voice); sfxWin();
+  if(DEBUG||AUTO) console.log("LBCC-STAGELOG", JSON.stringify(stageLog), "totalSec", totalSec);
+}
+document.getElementById("btn-again").onclick=function(){ location.search=""; };
+
+/* ---------- autoplay (QC harness): greedy player at human pace ---------- */
+function bestSwap(){
+  var best=null, bestScore=-1, second=null;
+  for(var r=0;r<N;r++)for(var c=0;c<N;c++){
+    [[r,c+1],[r+1,c]].forEach(function(d){
+      var r2=d[0],c2=d[1];
+      if(r2>=N||c2>=N) return;
+      if(locked(grid[r][c])||locked(grid[r2][c2])) return;
+      swapCells(r,c,r2,c2);
+      var runs=findMatches();
+      var sc=0;
+      if(runs.length){
+        sc = runs.length*3;
+        runs.forEach(function(run){
+          sc += run.cells.length;
+          run.cells.forEach(function(rc){
+            var t=grid[rc[0]][rc[1]];
+            if(t&&(t.t===T_BUG)) sc+=2.5;
+            if(t&&(t.t===T_HEAD||t.t===T_CHK||t.t===T_SLD)) sc+=1.2;
+            if(t&&t.sp) sc+=3;
+          });
+          if(run.cells.length>=4) sc+=3;
+        });
+      }
+      swapCells(r,c,r2,c2);
+      if(sc>0){
+        if(sc>bestScore){ second=best; bestScore=sc; best=[r,c,r2,c2]; }
+        else if(!second||sc>bestScore*0.999){}
+      }
+    });
+  }
+  if(best && second===null && Math.random()<0.15){ /* imperfection */ }
+  return best;
+}
+var autoTimer=null;
+function autoTick(){
+  if(state!=="play"||busy) return;
+  clearTimeout(autoTimer);
+  autoTimer=setTimeout(function(){
+    if(state!=="play"||busy) return;
+    var mv=bestSwap();
+    if(mv){ swapCells(mv[0],mv[1],mv[2],mv[3]); var m=findMatches();
+      if(m.length){ busy=true; doMove(); } else { swapCells(mv[0],mv[1],mv[2],mv[3]); } }
+    else { genBoard(); drawBoard(); }
+  }, 2600);
+}
+
+/* ---------- boot ---------- */
+document.getElementById("btn-start").onclick=function(){
+  ac(); /* unlock audio on gesture */
+  sfxClick();
+  speak("mark-title"); speak("lb-title",{queue:true});
+  stage=0; comp=0; qual=50; score=0; exec=0; execMult=1; execLeft=0;
+  incidentsSeen=0; hotfixes=0; voicedIncidents=[]; playMs=0; stageLog=[];
+  genBoard(); fitCanvas(); drawBoard();
+  show(null);
+  setTimeout(startStage, 300);
+};
+/* clock */
+var lastT=performance.now();
+function clock(t){
+  if(state==="play") playMs += t-lastT;
+  lastT=t;
+  requestAnimationFrame(clock);
+}
+requestAnimationFrame(clock);
+genBoard(); fitCanvas(); drawBoard();
+</script>
+</body>
+</html>
