@@ -143,6 +143,12 @@
   #howto{ text-align:left; font-size:13px; line-height:1.6; color:var(--dim); margin-top:12px;}
   #howto b{color:var(--txt)}
   #banner{position:absolute; top:126px; left:10px; right:10px; z-index:45; text-align:center; font-size:12px; font-weight:800; letter-spacing:.8px; padding:8px 10px; display:none; background:linear-gradient(135deg,rgba(60,12,16,.72),rgba(30,8,14,.62)); border:1px solid rgba(248,113,113,.45); border-radius:var(--lg-r-sm); box-shadow:var(--lg-spec),var(--lg-shadow-sm); backdrop-filter:blur(var(--lg-blur)) saturate(var(--lg-sat)); -webkit-backdrop-filter:blur(var(--lg-blur)) saturate(var(--lg-sat)); animation:lgcard var(--lg-d2) var(--lg-spring);}
+  #btn-music{ position:fixed; top:10px; right:52px; z-index:60; width:36px; height:36px;
+    background:var(--lg-glass-hi); border:var(--lg-edge-hi); border-radius:var(--lg-r-sm);
+    box-shadow:var(--lg-spec),var(--lg-shadow-sm); color:var(--txt); font-size:17px; line-height:1;
+    cursor:pointer; backdrop-filter:blur(var(--lg-blur)) saturate(var(--lg-sat)); -webkit-backdrop-filter:blur(var(--lg-blur)) saturate(var(--lg-sat));
+    transition:transform var(--lg-d1) var(--lg-spring), opacity var(--lg-d2);}
+  #btn-music:active{ transform:scale(.93);}
   #lgwipe{ position:fixed; inset:0; z-index:90; pointer-events:none; opacity:0;
     background:radial-gradient(120% 90% at 50% 42%, rgba(255,255,255,.20), rgba(59,130,246,.16) 42%, rgba(10,14,26,.88) 78%);
     backdrop-filter:blur(0px); -webkit-backdrop-filter:blur(0px); }
@@ -162,6 +168,8 @@
 </head>
 <body>
 <div id="app">
+  <audio id="lgbgm" src="lbcc-assets/lb-cc-theme.mp3" loop preload="auto"></audio>
+  <button id="btn-music" title="music on/off">♪</button>
   <button id="mutebtn" title="voice on/off">🔊</button>
   <div id="hud">
     <div id="hudrow1">
@@ -590,9 +598,10 @@ function playNowAfterUnlock(id){
     var a=new Audio(line.f);
     curAudio=a;
     a.volume=0.95;
-    var done=function(){ curAudio=null; flushing=false; setTimeout(flushQ,140); };
+    Music.duck(true);
+    var done=function(){ Music.duck(false); curAudio=null; flushing=false; setTimeout(flushQ,140); };
     a.onended=done; a.onerror=done;
-    a.play().catch(function(){ curAudio=null; flushing=false; setTimeout(flushQ, 900); });
+    a.play().catch(function(){ Music.duck(false); curAudio=null; flushing=false; setTimeout(flushQ, 900); });
   }catch(e){ curAudio=null; flushing=false; setTimeout(flushQ,200); }
 }
 function showCap(who,txt,id){
@@ -1040,6 +1049,41 @@ function shake(r1,c1,r2,c2){
   },50);
 }
 
+/* ---------- background music (wiring only; game logic untouched) ---------- */
+var Music={
+  el:null, vc:0, base:0.22, duckVol:0.08,
+  want:function(){ try{ return localStorage.getItem("lbcc_music_mute")!=="1"; }catch(e){ return true; } },
+  init:function(){
+    var a=document.getElementById("lgbgm"); if(!a) return;
+    this.el=a; a.volume=this.base;
+    var self=this;
+    var kick=function(){ self.start(); };
+    document.addEventListener("pointerdown",kick);
+    document.addEventListener("keydown",kick);
+    var b=document.getElementById("btn-music");
+    if(b) b.addEventListener("click",function(ev){ ev.stopPropagation(); self.toggle(); });
+    this.btnState();
+  },
+  start:function(){
+    if(!this.want()) return;
+    if(this.el && this.el.paused){ this.el.play().catch(function(){}); }
+  },
+  duck:function(on){
+    this.vc=Math.max(0,this.vc+(on?1:-1));
+    if(this.el) this.el.volume = this.vc>0 ? this.duckVol : this.base;
+  },
+  toggle:function(){
+    var nowMuted=this.want();   /* currently playing -> we mute; currently muted -> we play */
+    try{ localStorage.setItem("lbcc_music_mute", nowMuted?"1":"0"); }catch(e){}
+    if(nowMuted){ if(this.el) this.el.pause(); } else { this.start(); }
+    this.btnState();
+  },
+  btnState:function(){
+    var b=document.getElementById("btn-music");
+    if(b){ var w=this.want(); b.style.opacity=w?"1":".45"; b.title=w?"music on/off (muted — click to play)":"music on/off (playing — click to mute)"; }
+  }
+};
+
 /* ---------- move pipeline ---------- */
 function doMove(){
   moveNum++;
@@ -1401,6 +1445,7 @@ function clock(t){
 }
 requestAnimationFrame(clock);
 genBoard(); fitCanvas(); drawBoard();
+Music.init();
 </script>
 </body>
 </html>
